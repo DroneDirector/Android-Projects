@@ -14,6 +14,9 @@ adb install -r -g "$APK" || { echo "install failed"; exit 1; }
 adb shell settings put system accelerometer_rotation 0
 # Skip Android's one-time "Viewing full screen" notice.
 adb shell settings put secure immersive_mode_confirmations confirmed
+# The slow CI emulator's launcher sometimes freezes in the background; don't show its ANR box.
+adb shell settings put global anr_show_background 0
+adb shell settings put global hide_error_dialogs 1
 adb logcat -c
 
 CUR=0

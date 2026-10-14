@@ -38,6 +38,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Cameraswitch
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PhotoLibrary
@@ -72,6 +73,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dronedirector.procam.camera.AspectMode
+import com.dronedirector.procam.camera.Bracket
+import com.dronedirector.procam.camera.Filter
+import com.dronedirector.procam.camera.FrameGuide
 import com.dronedirector.procam.camera.CameraUiState
 import com.dronedirector.procam.camera.CaptureMode
 import com.dronedirector.procam.camera.FlashSetting
@@ -110,26 +114,37 @@ private fun QuickItem(label: String, value: String, active: Boolean = false, ena
 
 @Composable
 private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () -> Unit) {
-    if (s.mode == CaptureMode.PHOTO) {
-        if (s.hasFlash) {
+    val mode = s.mode
+    if (!s.isVideo) {
+        if (s.hasFlash && mode != CaptureMode.PANORAMA) {
             QuickItem("FLASH", s.flash.label, active = s.flash != FlashSetting.OFF) {
                 c.setFlash(FlashSetting.entries.next(s.flash))
             }
         }
-        QuickItem("TIMER", if (s.timerSec == 0) "OFF" else "${s.timerSec}s", active = s.timerSec > 0) {
-            c.setTimer(listOf(0, 3, 5, 10).next(s.timerSec))
+        if (mode != CaptureMode.PANORAMA) {
+            QuickItem("TIMER", if (s.timerSec == 0) "OFF" else "${s.timerSec}s", active = s.timerSec > 0) {
+                c.setTimer(listOf(0, 3, 5, 10).next(s.timerSec))
+            }
+            QuickItem("RATIO", s.aspect.label) { c.setAspect(AspectMode.entries.next(s.aspect)) }
+            QuickItem("INTERVAL", if (s.intervalSec == 0) "OFF" else "${s.intervalSec}s", active = s.intervalSec > 0) {
+                c.setInterval(listOf(0, 2, 5, 10, 30, 60).next(s.intervalSec))
+            }
         }
-        QuickItem("RATIO", s.aspect.label) { c.setAspect(AspectMode.entries.next(s.aspect)) }
-        val formats = c.photoFormats()
-        QuickItem("FORMAT", s.photoFormat.label, active = s.photoFormat != com.dronedirector.procam.camera.PhotoFormat.JPEG, enabled = formats.size > 1 && !s.sceneActive) {
-            c.setPhotoFormat(formats.next(s.photoFormat))
+        if (mode == CaptureMode.PRO_PHOTO) {
+            val formats = c.photoFormats()
+            QuickItem("FORMAT", s.photoFormat.label, active = s.photoFormat != com.dronedirector.procam.camera.PhotoFormat.JPEG, enabled = formats.size > 1) {
+                c.setPhotoFormat(formats.next(s.photoFormat))
+            }
+            QuickItem("BRACKET", s.bracket.label, active = s.bracket != Bracket.OFF) {
+                c.setBracket(Bracket.entries.next(s.bracket))
+            }
         }
-        if (s.scenes.size > 1) {
+        if (mode == CaptureMode.PHOTO && s.scenes.size > 1) {
             QuickItem("SCENE", s.scene.label, active = s.scene != com.dronedirector.procam.camera.Scene.STANDARD) {
                 c.setScene(s.scenes.next(s.scene))
             }
         }
-        if (s.burst > 1) QuickItem("BURST", "x${s.burst}", active = true) { c.setBurst(1) }
+        if (mode != CaptureMode.PANORAMA && s.burst > 1) QuickItem("BURST", "x${s.burst}", active = true) { c.setBurst(1) }
     } else {
         if (s.hasFlash) {
             QuickItem("TORCH", if (s.flash == FlashSetting.TORCH) "ON" else "OFF", active = s.flash == FlashSetting.TORCH) {
@@ -138,18 +153,24 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
         }
         QuickItem("RES", s.videoRes.label, enabled = !s.recording) { c.setVideoRes(s.videoResolutions.next(s.videoRes)) }
         QuickItem("FPS", "${s.fps}", active = s.fps != 30, enabled = !s.recording) { c.setFps(s.fpsOptions.next(s.fps)) }
-        val profiles = buildList {
-            add(VideoProfile.STANDARD)
-            if (s.flatSupported) add(VideoProfile.FLAT)
-            if (s.hlgSupported) add(VideoProfile.HLG)
-        }
-        QuickItem("PROFILE", s.profile.label, active = s.profile != VideoProfile.STANDARD, enabled = profiles.size > 1 && !s.recording) {
-            c.setProfile(profiles.next(s.profile))
+        QuickItem("TIMER", if (s.timerSec == 0) "OFF" else "${s.timerSec}s", active = s.timerSec > 0, enabled = !s.recording) {
+            c.setTimer(listOf(0, 3, 5, 10).next(s.timerSec))
         }
         if (s.stabilizationSupported) {
             QuickItem("STAB", if (s.stabilization) "ON" else "OFF", active = s.stabilization, enabled = !s.recording) { c.toggleStabilization() }
         }
-        QuickItem("BITRATE", if (s.highBitrate) "HIGH" else "STD", active = s.highBitrate, enabled = !s.recording) { c.toggleBitrate() }
+        if (mode == CaptureMode.PRO_VIDEO) {
+            val profiles = buildList {
+                add(VideoProfile.STANDARD)
+                if (s.flatSupported) add(VideoProfile.FLAT)
+                if (s.hlgSupported) add(VideoProfile.HLG)
+            }
+            QuickItem("PROFILE", s.profile.label, active = s.profile != VideoProfile.STANDARD, enabled = profiles.size > 1 && !s.recording) {
+                c.setProfile(profiles.next(s.profile))
+            }
+            QuickItem("BITRATE", if (s.highBitrate) "HIGH" else "STD", active = s.highBitrate, enabled = !s.recording) { c.toggleBitrate() }
+            QuickItem("GUIDE", s.guide.label, active = s.guide != FrameGuide.OFF) { c.setGuide(FrameGuide.entries.next(s.guide)) }
+        }
     }
     QuickItem("GRID", s.grid.label, active = s.grid != GridMode.OFF) { c.setGrid(GridMode.entries.next(s.grid)) }
     Box(
@@ -191,6 +212,9 @@ fun ProPanel(s: CameraUiState, c: ProCameraController, isoShown: Int?, shutterSh
             .padding(horizontal = 8.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        AnimatedVisibility(visible = s.showFilters, enter = fadeIn(), exit = fadeOut()) {
+            FilterStrip(s, c, Modifier.padding(bottom = 6.dp))
+        }
         AnimatedVisibility(
             visible = s.activeParam != null,
             enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
@@ -222,6 +246,7 @@ fun ProPanel(s: CameraUiState, c: ProCameraController, isoShown: Int?, shutterSh
             ParamChip(ProParam.WB, s.whiteBalance.label + if (s.awbLock) "·L" else "", s, !sceneLocked, s.whiteBalance != WhiteBalance.AUTO || s.awbLock, c)
             ParamChip(ProParam.EV, "%+.1f".format(s.ev * s.evStep), s, s.evMax > s.evMin, s.ev != 0, c)
             ParamChip(ProParam.ZOOM, Stops.zoomLabel(s.zoom), s, s.maxZoom > s.minZoom, abs(s.zoom - 1f) > 0.05f, c)
+            FilterChip(s, c)
         }
     }
 }
@@ -408,7 +433,7 @@ fun ShutterButton(s: CameraUiState, size: Dp, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.9f else 1f, label = "shutterScale")
-    val recording = s.mode == CaptureMode.VIDEO && s.recording
+    val recording = (s.isVideo && s.recording) || s.panoActive || s.intervalRunning
     val inner by animateDpAsState(if (recording) size * 0.36f else size * 0.78f, label = "shutterInner")
     val corner by animateDpAsState(if (recording) 6.dp else size, label = "shutterCorner")
     Box(
@@ -423,7 +448,7 @@ fun ShutterButton(s: CameraUiState, size: Dp, onClick: () -> Unit) {
             val ring = if (s.capturing || s.countdown > 0) Pro.Amber else Color.White
             drawCircle(ring, radius = this.size.minDimension / 2 - 2.dp.toPx(), style = Stroke(3.5.dp.toPx()))
             val fill = when {
-                s.mode == CaptureMode.VIDEO -> Pro.Red
+                s.isVideo || s.panoActive || s.intervalRunning -> Pro.Red
                 s.capturing -> Pro.Amber
                 else -> Color.White
             }
@@ -504,17 +529,17 @@ private fun ModeSwitch(s: CameraUiState, c: ProCameraController, vertical: Boole
         CaptureMode.entries.forEach { m ->
             val sel = s.mode == m
             Text(
-                m.name,
+                m.label,
                 style = Pro.Value.copy(fontSize = 12.sp, letterSpacing = 1.5.sp, color = if (sel) Pro.Amber else Pro.Dim),
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
-                    .clickable(enabled = !s.recording) { c.setMode(m) }
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                    .clickable(enabled = !s.recording && !s.panoActive && !s.stitching) { c.setMode(m) }
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
             )
         }
     }
     if (vertical) Column(horizontalAlignment = Alignment.CenterHorizontally) { items() }
-    else Row(verticalAlignment = Alignment.CenterVertically) { items() }
+    else Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) { items() }
 }
 
 @Composable
@@ -546,7 +571,7 @@ private fun LensSwitch(s: CameraUiState, c: ProCameraController, vertical: Boole
 fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean, tablet: Boolean, modifier: Modifier = Modifier) {
     val shutter = if (tablet) 88.dp else 74.dp
     val small = if (tablet) 54.dp else 46.dp
-    val recording = s.mode == CaptureMode.VIDEO && s.recording
+    val recording = s.isVideo && s.recording
 
     val leftButton = @Composable {
         if (recording) {
@@ -558,9 +583,15 @@ fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean,
         }
     }
     val rightButton = @Composable {
-        val hasFront = s.lenses.any { it.facing == androidx.camera.core.CameraSelector.LENS_FACING_FRONT }
-        RoundIcon(enabled = hasFront && !s.recording, size = small, onClick = { c.flipCamera() }) {
-            Icon(Icons.Filled.Cameraswitch, contentDescription = "Switch camera", tint = Color.White)
+        if (recording) {
+            RoundIcon(size = small, onClick = { c.snapshot() }) {
+                Icon(Icons.Filled.CameraAlt, contentDescription = "Photo while recording", tint = Color.White)
+            }
+        } else {
+            val hasFront = s.lenses.any { it.facing == androidx.camera.core.CameraSelector.LENS_FACING_FRONT }
+            RoundIcon(enabled = hasFront && !s.panoActive && s.mode != CaptureMode.PANORAMA, size = small, onClick = { c.flipCamera() }) {
+                Icon(Icons.Filled.Cameraswitch, contentDescription = "Switch camera", tint = Color.White)
+            }
         }
     }
 
@@ -594,6 +625,106 @@ fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean,
                 leftButton()
                 ShutterButton(s, shutter) { c.shutter() }
                 rightButton()
+            }
+        }
+    }
+}
+
+
+// ------------------------------------------------------------------ filters & simple-mode bar
+
+@Composable
+fun FilterChip(s: CameraUiState, c: ProCameraController) {
+    Column(
+        Modifier
+            .padding(2.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (s.showFilters) Pro.Amber.copy(alpha = 0.18f) else Color.Transparent)
+            .clickable { c.toggleFilterStrip() }
+            .padding(horizontal = 6.dp, vertical = 5.dp)
+            .widthIn(min = 44.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("FILTER", style = Pro.Label.copy(color = if (s.showFilters) Pro.Amber else Pro.Dim))
+        Text(
+            if (s.filter == Filter.NONE) "OFF" else s.filter.label.uppercase(),
+            style = Pro.Value.copy(color = if (s.filter != Filter.NONE) Pro.Amber else Color.White),
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+fun FilterStrip(s: CameraUiState, c: ProCameraController, modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Pro.Panel)
+            .horizontalScroll(rememberScrollState())
+            .padding(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Filter.entries.forEach { f ->
+            val sel = s.filter == f
+            Column(
+                Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { c.setFilter(f) }
+                    .padding(4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color(f.swatch))
+                        .border(2.dp, if (sel) Pro.Amber else Color.Transparent, CircleShape)
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(f.label, style = Pro.Label.copy(fontSize = 10.sp, letterSpacing = 0.sp, color = if (sel) Pro.Amber else Color.White))
+            }
+        }
+    }
+}
+
+/** Bottom bar for the simple PHOTO / VIDEO / PANO modes: filters and quick zoom steps. */
+@Composable
+fun SimpleBar(s: CameraUiState, c: ProCameraController, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .widthIn(max = 680.dp)
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        AnimatedVisibility(visible = s.showFilters, enter = fadeIn(), exit = fadeOut()) {
+            FilterStrip(s, c, Modifier.padding(bottom = 6.dp))
+        }
+        Row(
+            Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(Pro.Panel)
+                .padding(horizontal = 4.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            FilterChip(s, c)
+            val zooms = listOf(1f, 2f, 5f, 10f).filter { s.maxZoom >= it && it >= s.minZoom }
+            if (zooms.size > 1) {
+                Spacer(Modifier.width(6.dp))
+                zooms.forEach { z ->
+                    val sel = abs(s.zoom - z) < 0.05f
+                    Text(
+                        Stops.zoomLabel(z),
+                        style = Pro.Value.copy(fontSize = 12.sp, color = if (sel) Pro.Amber else Color.White),
+                        modifier = Modifier
+                            .padding(2.dp)
+                            .clip(CircleShape)
+                            .background(if (sel) Color.Black.copy(alpha = 0.5f) else Color.Transparent)
+                            .clickable { c.setZoom(z) }
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                    )
+                }
             }
         }
     }

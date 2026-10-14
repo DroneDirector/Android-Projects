@@ -11,8 +11,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.displayCutout
@@ -26,6 +28,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,12 +44,16 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.currentStateAsState
 import com.dronedirector.procam.camera.AspectMode
 import com.dronedirector.procam.camera.CaptureMode
 import com.dronedirector.procam.camera.ProCameraController
@@ -56,9 +63,11 @@ import kotlinx.coroutines.delay
 fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false) {
     val s by controller.state.collectAsStateWithLifecycle()
     val analysis by controller.analysis.collectAsStateWithLifecycle()
+    val audio by controller.audioMeter.levels.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
     var showSettings by rememberSaveable { mutableStateOf(openSettings) }
 
     val previewView = remember {
@@ -84,7 +93,14 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
         onDispose { dm.unregisterDisplayListener(listener) }
     }
 
-    // When manual, show the values we ask the sensor for; when auto, what the meter picked.
+    // Live audio levels in the video modes (the recorder takes over while recording).
+    val resumed = lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
+    LaunchedEffect(s.isVideo, s.recording, s.audio, resumed) {
+        controller.setAudioMonitoring(s.isVideo && s.audio && !s.recording && resumed)
+    }
+    // Re-check the SD card when coming back to the app.
+    LaunchedEffect(resumed) { if (resumed) controller.refreshStorage() }
+
     val (manualIso, manualShutter) = controller.effectiveExposure(s)
     val isoShown = if (s.manualExposure) manualIso else s.liveIso
     val shutterShown = if (s.manualExposure) manualShutter else s.liveShutterNs
@@ -95,149 +111,155 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
             .background(Color.Black)
             .windowInsetsPadding(WindowInsets.displayCutout)
     ) {
-        val landscape = maxWidth > maxHeight
+        // Tablets: draw everything ~25% larger so controls suit the bigger screen.
         val tablet = minOf(maxWidth, maxHeight) >= 600.dp
+        val baseDensity = LocalDensity.current
+        val scale = if (tablet) (minOf(maxWidth, maxHeight).value / 600f).coerceIn(1.15f, 1.35f) else 1f
 
-        val sideBar = if (tablet) 92.dp else 76.dp
-        val rail = if (tablet) 150.dp else 120.dp
-        val topBar = if (tablet) 64.dp else 56.dp
-        val bottomBar = if (tablet) 220.dp else 190.dp
+        CompositionLocalProvider(LocalDensity provides Density(baseDensity.density * scale, baseDensity.fontScale)) {
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val landscape = maxWidth > maxHeight
 
-        // Viewfinder area keeps the same place in the tree in both orientations,
-        // so the camera preview never gets torn down on rotation.
-        Box(
-            Modifier
-                .fillMaxSize()
-                .padding(
-                    start = if (landscape) sideBar else 0.dp,
-                    end = if (landscape) rail else 0.dp,
-                    top = if (landscape) 0.dp else topBar,
-                    bottom = if (landscape) 0.dp else bottomBar,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            val sensorRatio = if (s.mode == CaptureMode.VIDEO || s.aspect == AspectMode.R16_9) 16f / 9f else 4f / 3f
-            val frameRatio = if (landscape) sensorRatio else 1f / sensorRatio
+                val sideBar = if (tablet) 84.dp else 76.dp
+                val rail = if (tablet) 132.dp else 120.dp
+                val topBar = if (tablet) 60.dp else 56.dp
+                val bottomBar = if (tablet) 200.dp else 190.dp
 
-            Box(Modifier.aspectRatio(frameRatio)) {
-                AndroidView(
-                    factory = {
-                        (previewView.parent as? ViewGroup)?.removeView(previewView)
-                        previewView
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                )
-
-                analysis?.overlay?.let { bmp ->
-                    Image(
-                        bmp.asImageBitmap(),
-                        contentDescription = null,
-                        contentScale = ContentScale.FillBounds,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-                if (s.mode == CaptureMode.PHOTO && s.aspect == AspectMode.R1_1) SquareMask()
-                GridOverlay(s.grid)
-                if (s.showLevel) LevelIndicator()
-
-                // Gestures: tap to focus/meter, pinch to zoom.
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onTap = { o -> controller.tapToFocus(o.x, o.y) },
-                                onDoubleTap = { controller.setActiveParam(null) },
-                            )
-                        }
-                        .pointerInput(Unit) {
-                            detectTransformGestures { _, _, zoom, _ ->
-                                if (zoom != 1f) controller.setZoom(controller.state.value.zoom * zoom)
+                        .padding(
+                            start = if (landscape) sideBar else 0.dp,
+                            end = if (landscape) rail else 0.dp,
+                            top = if (landscape) 0.dp else topBar,
+                            bottom = if (landscape) 0.dp else bottomBar,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val sensorRatio = if (s.isVideo || (s.mode != CaptureMode.PANORAMA && s.aspect == AspectMode.R16_9)) 16f / 9f else 4f / 3f
+                    val frameRatio = if (landscape) sensorRatio else 1f / sensorRatio
+
+                    Box(Modifier.aspectRatio(frameRatio)) {
+                        AndroidView(
+                            factory = {
+                                (previewView.parent as? ViewGroup)?.removeView(previewView)
+                                previewView
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+
+                        if (s.isPro) {
+                            analysis?.overlay?.let { bmp ->
+                                Image(
+                                    bmp.asImageBitmap(),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.FillBounds,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
                             }
                         }
-                )
-                FocusReticle(s.focusPoint, s.focusId, locked = s.aeLock || s.manualFocus)
-                ShutterFlash(s.shutterFlash)
-                Countdown(s.countdown)
+                        if (!s.isVideo && s.mode != CaptureMode.PANORAMA && s.aspect == AspectMode.R1_1) SquareMask()
+                        if (s.mode == CaptureMode.PRO_VIDEO) FrameGuideOverlay(s.guide)
+                        if (s.mode != CaptureMode.PANORAMA) GridOverlay(s.grid)
+                        if (s.showLevel && s.mode != CaptureMode.PANORAMA) LevelIndicator()
 
-                // Top HUD inside the frame.
-                ExposureHud(
-                    s, isoShown, shutterShown,
-                    Modifier
-                        .align(Alignment.TopStart)
-                        .padding(8.dp),
-                )
-                if (s.showHistogram) {
-                    Histogram(
-                        analysis,
-                        width = if (tablet) 170.dp else 112.dp,
-                        height = if (tablet) 72.dp else 52.dp,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 44.dp, end = 8.dp),
+                        // Gestures: tap to focus/meter, pinch to zoom.
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onTap = { o -> controller.tapToFocus(o.x, o.y) },
+                                        onDoubleTap = { controller.setActiveParam(null) },
+                                    )
+                                }
+                                .pointerInput(Unit) {
+                                    detectTransformGestures { _, _, zoom, _ ->
+                                        if (zoom != 1f) controller.setZoom(controller.state.value.zoom * zoom)
+                                    }
+                                }
+                        )
+                        FocusReticle(s.focusPoint, s.focusId, locked = s.aeLock || s.manualFocusActive)
+                        PanoramaOverlay(s)
+                        ShutterFlash(s.shutterFlash)
+                        Countdown(s.countdown)
+
+                        if (s.isPro) {
+                            ExposureHud(s, isoShown, shutterShown, Modifier.align(Alignment.TopStart).padding(8.dp))
+                            if (s.showHistogram) {
+                                Histogram(
+                                    analysis,
+                                    width = if (tablet) 150.dp else 112.dp,
+                                    height = if (tablet) 62.dp else 52.dp,
+                                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 44.dp, end = 8.dp),
+                                )
+                            }
+                        }
+                        Column(
+                            Modifier.align(Alignment.TopCenter).padding(top = if (s.isPro) 44.dp else 10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            RecordingBadge(s)
+                            IntervalBadge(s)
+                        }
+                        if (s.isVideo && s.audio) {
+                            AudioGraph(
+                                audio,
+                                width = if (s.isPro) 150.dp else 120.dp,
+                                height = if (s.isPro) 40.dp else 30.dp,
+                                recording = s.recording,
+                                modifier = Modifier
+                                    .align(if (s.isPro) Alignment.TopEnd else Alignment.TopStart)
+                                    .padding(top = if (s.isPro) (if (s.showHistogram) 112.dp else 44.dp) else 8.dp, start = 8.dp, end = 8.dp),
+                            )
+                        }
+                        if (s.sceneActive) {
+                            Text(
+                                s.scene.label,
+                                style = Pro.Value.copy(color = Pro.Amber),
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color.Black.copy(alpha = 0.5f))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
+
+                    if (s.isPro) {
+                        ProPanel(s, controller, isoShown, shutterShown, Modifier.align(Alignment.BottomCenter))
+                    } else if (!s.panoActive && !s.stitching) {
+                        SimpleBar(s, controller, Modifier.align(Alignment.BottomCenter))
+                    }
+                }
+
+                if (landscape) {
+                    QuickBar(
+                        s, controller, vertical = true, onSettings = { showSettings = true },
+                        modifier = Modifier.align(Alignment.CenterStart).width(sideBar).fillMaxHeight(),
+                    )
+                    CaptureControls(
+                        s, controller, vertical = true, tablet = tablet,
+                        modifier = Modifier.align(Alignment.CenterEnd).width(rail).fillMaxHeight(),
+                    )
+                } else {
+                    QuickBar(
+                        s, controller, vertical = false, onSettings = { showSettings = true },
+                        modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().height(topBar),
+                    )
+                    CaptureControls(
+                        s, controller, vertical = false, tablet = tablet,
+                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(bottomBar),
                     )
                 }
-                RecordingBadge(
-                    s,
-                    Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 44.dp),
-                )
-                if (s.sceneActive) {
-                    Text(
-                        s.scene.label,
-                        style = Pro.Value.copy(color = Pro.Amber),
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color.Black.copy(alpha = 0.5f))
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                    )
-                }
+
+                ToastHost(s.message, s.messageId, Modifier.align(Alignment.Center))
+
+                if (showSettings) SettingsPanel(s, controller) { showSettings = false }
             }
-
-            ProPanel(
-                s, controller, isoShown, shutterShown,
-                Modifier.align(Alignment.BottomCenter),
-            )
         }
-
-        if (landscape) {
-            QuickBar(
-                s, controller, vertical = true, onSettings = { showSettings = true },
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .width(sideBar)
-                    .fillMaxHeight(),
-            )
-            CaptureControls(
-                s, controller, vertical = true, tablet = tablet,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .width(rail)
-                    .fillMaxHeight(),
-            )
-        } else {
-            QuickBar(
-                s, controller, vertical = false, onSettings = { showSettings = true },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .height(topBar),
-            )
-            CaptureControls(
-                s, controller, vertical = false, tablet = tablet,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(bottomBar),
-            )
-        }
-
-        ToastHost(s.message, s.messageId, Modifier.align(Alignment.Center))
-
-        if (showSettings) SettingsPanel(s, controller) { showSettings = false }
     }
 }
 

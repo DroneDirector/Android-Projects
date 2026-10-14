@@ -254,7 +254,7 @@ private fun HudItem(label: String, value: String, manual: Boolean?) {
 
 @Composable
 fun RecordingBadge(s: CameraUiState, modifier: Modifier = Modifier) {
-    if (s.mode != CaptureMode.VIDEO || !s.recording) return
+    if (!s.isVideo || !s.recording) return
     val blink = remember { Animatable(1f) }
     LaunchedEffect(s.paused) {
         while (true) {
@@ -299,5 +299,146 @@ fun Countdown(value: Int) {
     if (value <= 0) return
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text("$value", color = Color.White, fontSize = 120.sp, fontWeight = FontWeight.Light)
+    }
+}
+
+// ------------------------------------------------------------------ audio graph (video modes)
+
+/**
+ * Scrolling audio level graph: one bar per ~40 ms, coloured green / amber / red by loudness,
+ * with a peak-hold marker and dBFS readout.
+ */
+@Composable
+fun AudioGraph(levels: com.dronedirector.procam.camera.AudioLevels, width: Dp, height: Dp, recording: Boolean, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.5f))
+            .padding(horizontal = 6.dp, vertical = 4.dp),
+    ) {
+        Row(Modifier.width(width), verticalAlignment = Alignment.CenterVertically) {
+            Text(if (recording) "AUDIO ● REC" else "AUDIO", style = Pro.Label.copy(fontSize = 8.sp, color = if (recording) Pro.Red else Pro.Dim))
+            Spacer(Modifier.weight(1f))
+            val db = levels.db
+            Text(
+                if (!levels.live) "--" else if (db <= com.dronedirector.procam.camera.AudioMeter.MIN_DB) "-∞ dB" else "%.0f dB".format(db),
+                style = Pro.Value.copy(fontSize = 10.sp, color = if (db > -3f) Pro.Red else Color.White),
+            )
+        }
+        Spacer(Modifier.height(3.dp))
+        Canvas(Modifier.width(width).height(height)) {
+            val n = levels.history.size
+            val barW = size.width / n
+            // Reference lines at -6, -12, -24 dBFS.
+            for (ref in listOf(-6f, -12f, -24f)) {
+                val y = size.height * (ref / com.dronedirector.procam.camera.AudioMeter.MIN_DB)
+                drawLine(Color.White.copy(alpha = 0.15f), Offset(0f, y), Offset(size.width, y), 1f)
+            }
+            for (i in 0 until n) {
+                val v = levels.history[i]
+                if (v <= 0f) continue
+                val h = v * size.height
+                val color = when {
+                    v > 0.95f -> Pro.Red
+                    v > 0.8f -> Pro.Amber
+                    else -> Pro.Green
+                }
+                drawRect(color, Offset(i * barW, size.height - h), Size((barW - 1f).coerceAtLeast(1f), h))
+            }
+            if (levels.live && levels.peakDb > com.dronedirector.procam.camera.AudioMeter.MIN_DB) {
+                val py = size.height * (1f - (levels.peakDb - com.dronedirector.procam.camera.AudioMeter.MIN_DB) / -com.dronedirector.procam.camera.AudioMeter.MIN_DB)
+                drawLine(Color.White, Offset(size.width - 6.dp.toPx(), py), Offset(size.width, py), 2.dp.toPx())
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------------ frame guides (pro video)
+
+@Composable
+fun FrameGuideOverlay(guide: com.dronedirector.procam.camera.FrameGuide, modifier: Modifier = Modifier) {
+    if (guide == com.dronedirector.procam.camera.FrameGuide.OFF) return
+    Canvas(modifier.fillMaxSize()) {
+        val frameRatio = size.width / size.height
+        val dim = Color.Black.copy(alpha = 0.55f)
+        val line = Pro.Amber.copy(alpha = 0.9f)
+        val sw = 1.5.dp.toPx()
+        if (guide.ratio > frameRatio) {
+            val h = size.width / guide.ratio
+            val top = (size.height - h) / 2
+            drawRect(dim, Offset.Zero, Size(size.width, top))
+            drawRect(dim, Offset(0f, top + h), Size(size.width, top))
+            drawLine(line, Offset(0f, top), Offset(size.width, top), sw)
+            drawLine(line, Offset(0f, top + h), Offset(size.width, top + h), sw)
+        } else {
+            val w = size.height * guide.ratio
+            val left = (size.width - w) / 2
+            drawRect(dim, Offset.Zero, Size(left, size.height))
+            drawRect(dim, Offset(left + w, 0f), Size(left, size.height))
+            drawLine(line, Offset(left, 0f), Offset(left, size.height), sw)
+            drawLine(line, Offset(left + w, 0f), Offset(left + w, size.height), sw)
+        }
+    }
+}
+
+// ------------------------------------------------------------------ panorama guide
+
+@Composable
+fun PanoramaOverlay(s: CameraUiState, modifier: Modifier = Modifier) {
+    if (s.mode != CaptureMode.PANORAMA && !s.stitching) return
+    Box(modifier.fillMaxSize()) {
+        // Centre guide line to keep the horizon steady while turning.
+        Canvas(Modifier.fillMaxSize()) {
+            val y = size.height / 2
+            drawLine(Pro.Amber.copy(alpha = 0.8f), Offset(size.width * 0.1f, y), Offset(size.width * 0.9f, y), 2.dp.toPx())
+        }
+        Column(
+            Modifier
+                .align(Alignment.Center)
+                .padding(top = 140.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color.Black.copy(alpha = 0.6f))
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            when {
+                s.stitching -> {
+                    androidx.compose.material3.CircularProgressIndicator(color = Pro.Amber, modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
+                    Spacer(Modifier.height(6.dp))
+                    Text("Stitching panorama…", style = Pro.Value)
+                }
+                s.panoActive -> {
+                    val arrow = when (s.panoDirection) { 1 -> "→"; -1 -> "←"; else -> "← →" }
+                    Text("$arrow  Turn slowly  $arrow", style = Pro.Value.copy(fontSize = 15.sp))
+                    Spacer(Modifier.height(6.dp))
+                    Box(Modifier.width(200.dp).height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color.White.copy(alpha = 0.2f))) {
+                        Box(Modifier.fillMaxWidth(s.panoProgress.coerceIn(0.02f, 1f)).height(6.dp).background(Pro.Amber))
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text("${s.panoFrames} / ${com.dronedirector.procam.camera.Panorama.MAX_FRAMES} frames · tap to finish", style = Pro.Label.copy(fontSize = 10.sp, letterSpacing = 0.sp))
+                }
+                else -> {
+                    Text("PANORAMA", style = Pro.Value.copy(color = Pro.Amber))
+                    Spacer(Modifier.height(4.dp))
+                    Text("Tap the shutter, then turn slowly left or right", style = Pro.Label.copy(fontSize = 11.sp, letterSpacing = 0.sp, color = Color.White))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun IntervalBadge(s: CameraUiState, modifier: Modifier = Modifier) {
+    if (!s.intervalRunning) return
+    Row(
+        modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.6f))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(Modifier.size(9.dp).clip(CircleShape).background(Pro.Red))
+        Text("INTERVAL ${s.intervalSec}s · ${s.intervalCount} shots", style = Pro.Value)
     }
 }

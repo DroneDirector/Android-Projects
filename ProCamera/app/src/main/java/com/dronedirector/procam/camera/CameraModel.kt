@@ -6,7 +6,25 @@ import androidx.camera.core.CameraInfo
 import androidx.camera.extensions.ExtensionMode
 import androidx.camera.video.Quality
 
-enum class CaptureMode { PHOTO, VIDEO }
+enum class CaptureMode(val label: String, val isVideo: Boolean, val isPro: Boolean) {
+    PANORAMA("PANO", false, false),
+    PHOTO("PHOTO", false, false),
+    PRO_PHOTO("PRO", false, true),
+    VIDEO("VIDEO", true, false),
+    PRO_VIDEO("PRO VIDEO", true, true),
+}
+
+/** Cinema / social frame guides drawn over the video viewfinder. */
+enum class FrameGuide(val label: String, val ratio: Float) {
+    OFF("OFF", 0f),
+    SCOPE("2.39", 2.39f),
+    FLAT("1.85", 1.85f),
+    CLASSIC("4:3", 4f / 3f),
+    SQUARE("1:1", 1f),
+    VERTICAL("9:16", 9f / 16f),
+}
+
+enum class Bracket(val label: String, val stops: Int) { OFF("OFF", 0), ONE("±1", 1), TWO("±2", 2) }
 
 enum class PhotoFormat(val label: String) { JPEG("JPEG"), RAW("RAW"), RAW_JPEG("RAW+J") }
 
@@ -117,6 +135,25 @@ data class CameraUiState(
     val highBitrate: Boolean = true,
     val audio: Boolean = true,
 
+    // Filters & extras
+    val filter: Filter = Filter.NONE,
+    val showFilters: Boolean = false,
+    val intervalSec: Int = 0,
+    val intervalCount: Int = 0,
+    val intervalRunning: Boolean = false,
+    val bracket: Bracket = Bracket.OFF,
+    val guide: FrameGuide = FrameGuide.OFF,
+    val filtersAvailable: Boolean = true,
+    val storageOptions: List<StorageOption> = emptyList(),
+    val storageVolume: String = Storage.INTERNAL,
+
+    // Panorama
+    val panoActive: Boolean = false,
+    val panoFrames: Int = 0,
+    val panoDirection: Int = 0,
+    val panoProgress: Float = 0f,
+    val stitching: Boolean = false,
+
     // Live readouts from the sensor
     val liveIso: Int? = null,
     val liveShutterNs: Long? = null,
@@ -139,11 +176,17 @@ data class CameraUiState(
 ) {
     val lens: Lens? get() = lenses.getOrNull(lensIndex)
     val isFront: Boolean get() = lens?.facing == androidx.camera.core.CameraSelector.LENS_FACING_FRONT
-    val manualExposure: Boolean get() = manualIso || manualShutter
+    val isVideo: Boolean get() = mode.isVideo
+    val isPro: Boolean get() = mode.isPro
+    /** Manual controls only take effect in the pro modes. */
+    val manualExposure: Boolean get() = isPro && (manualIso || manualShutter)
+    val manualFocusActive: Boolean get() = isPro && manualFocus
+    val proHistogram: Boolean get() = isPro && showHistogram
+    val proZebras: Boolean get() = isPro && zebras
+    val proPeaking: Boolean get() = isPro && peaking
     /** Extensions (HDR/Night…) can't be combined with manual sensor control or RAW. */
     val sceneActive: Boolean
-        get() = mode == CaptureMode.PHOTO && scene != Scene.STANDARD &&
-            !manualExposure && !manualFocus && photoFormat == PhotoFormat.JPEG
+        get() = mode == CaptureMode.PHOTO && scene != Scene.STANDARD && photoFormat == PhotoFormat.JPEG
 }
 
 object Stops {

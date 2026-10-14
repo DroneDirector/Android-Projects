@@ -13,6 +13,8 @@ data class AnalysisConfig(
     val zebraLevel: Int = 95,
     val peaking: Boolean = false,
     val mirror: Boolean = false,
+    /** Track sideways motion between frames (for panorama). */
+    val motion: Boolean = false,
 )
 
 class AnalysisResult(
@@ -23,6 +25,8 @@ class AnalysisResult(
     /** Share of pixels clipped at pure white / black, for the clipping warning. */
     val clipHigh: Float,
     val clipLow: Float,
+    /** Camera movement since the previous frame, as a share of the screen width (+ = turning right). */
+    val motionX: Float = 0f,
 )
 
 /**
@@ -37,6 +41,11 @@ class FrameAnalyzer(
     private var buffer = ByteArray(0)
     private var frame = 0L
     private var lastOverlay: Bitmap? = null
+    private var lastHist: FloatArray? = null
+    private var lastClipHigh = 0f
+    private var lastClipLow = 0f
+    private var prevCols: FloatArray? = null
+    private var prevRows: FloatArray? = null
 
     override fun analyze(image: ImageProxy) {
         try {
@@ -55,7 +64,8 @@ class FrameAnalyzer(
         // Histogram ~10 fps, overlays ~15 fps.
         val doHist = cfg.histogram && frame % 3 == 0L
         val doOverlay = wantOverlay && frame % 2 == 0L
-        if (!doHist && !doOverlay) {
+        if (!cfg.motion) { prevCols = null; prevRows = null }
+        if (!doHist && !doOverlay && !cfg.motion) {
             if (!wantOverlay && lastOverlay != null) {
                 lastOverlay = null
                 onResult(AnalysisResult(null, null, 0f, 0f))
@@ -74,9 +84,9 @@ class FrameAnalyzer(
         val w = image.width
         val h = image.height
 
-        var hist: FloatArray? = null
-        var clipHigh = 0f
-        var clipLow = 0f
+        var hist: FloatArray? = lastHist
+        var clipHigh = lastClipHigh
+        var clipLow = lastClipLow
         if (doHist) {
             val bins = IntArray(64)
             var hi = 0
@@ -102,6 +112,9 @@ class FrameAnalyzer(
                 clipHigh = hi.toFloat() / n
                 clipLow = lo.toFloat() / n
             }
+            lastHist = hist
+            lastClipHigh = clipHigh
+            lastClipLow = clipLow
         }
 
         var overlay: Bitmap? = lastOverlay
@@ -113,7 +126,62 @@ class FrameAnalyzer(
             lastOverlay = null
         }
 
-        onResult(AnalysisResult(hist, overlay, clipHigh, clipLow))
+        val motion = if (cfg.motion) estimateMotion(w, h, rowStride, pixStride, image.imageInfo.rotationDegrees) else 0f
+        onResult(AnalysisResult(if (cfg.histogram) hist else null, overlay, clipHigh, clipLow, motion))
+    }
+
+    /** Matches brightness profiles of this frame against the previous one. */
+    private fun estimateMotion(w: Int, h: Int, rowStride: Int, pixStride: Int, rotation: Int): Float {
+        val step = 4
+        val cw = w / step
+        val ch = h / step
+        val cols = FloatArray(cw)
+        val rows = FloatArray(ch)
+        for (yi in 0 until ch) {
+            val row = yi * step * rowStride
+            for (xi in 0 until cw) {
+                val l = (buffer[row + xi * step * pixStride].toInt() and 0xFF).toFloat()
+                cols[xi] += l
+                rows[yi] += l
+            }
+        }
+        for (i in cols.indices) cols[i] /= ch
+        for (i in rows.indices) rows[i] /= cw
+        val pc = prevCols
+        val pr = prevRows
+        prevCols = cols
+        prevRows = rows
+        if (pc == null || pr == null || pc.size != cw || pr.size != ch) return 0f
+        val sx = bestShift(pc, cols)
+        val sy = bestShift(pr, rows)
+        return when (rotation) {
+            90 -> -sy / ch.toFloat()
+            180 -> -sx / cw.toFloat()
+            270 -> sy / ch.toFloat()
+            else -> sx / cw.toFloat()
+        }
+    }
+
+    /** Shift s minimising |prev[x + s] - cur[x]| over gradients (s > 0: content moved toward lower x). */
+    private fun bestShift(prev: FloatArray, cur: FloatArray): Float {
+        val n = prev.size
+        val max = n / 4
+        var best = 0
+        var bestErr = Float.MAX_VALUE
+        for (s in -max..max) {
+            var err = 0f
+            var cnt = 0
+            for (x in 1 until n) {
+                val px = x + s
+                if (px < 1 || px >= n) continue
+                err += abs((prev[px] - prev[px - 1]) - (cur[x] - cur[x - 1]))
+                cnt++
+            }
+            if (cnt < n / 2) continue
+            err /= cnt
+            if (err < bestErr) { bestErr = err; best = s }
+        }
+        return best.toFloat()
     }
 
     private fun buildOverlay(

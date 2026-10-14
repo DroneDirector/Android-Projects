@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lens aperture mark: amber ring with six blades, centered in the 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFB300"
+        android:strokeWidth="3.5"
+        android:pathData="M54,30a24,24 0,1 1,0 48a24,24 0,1 1,0 -48z" />
+    <path
+        android:fillColor="#FFB300"
+        android:pathData="M54,38 L67.9,46 L67.9,62 L54,70 L40.1,62 L40.1,46 Z" />
+    <path
+        android:fillColor="#111316"
+        android:pathData="M54,46 L60.9,50 L60.9,58 L54,62 L47.1,58 L47.1,50 Z" />
+</vector>

@@ -69,10 +69,12 @@ class MainActivity : ComponentActivity() {
 
         controller = ProCameraController(applicationContext)
         val openSettings = applyLaunchOptions(intent)
+        val openGallery = intent?.extras?.getBoolean("gallery", false) == true
+        controller.refreshLastMedia()
         setContent {
             ProCamTheme {
                 PermissionGate {
-                    CameraScreen(controller, openSettings)
+                    CameraScreen(controller, openSettings, openGallery)
                 }
             }
         }

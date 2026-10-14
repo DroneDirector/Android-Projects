@@ -79,6 +79,12 @@ shot 22-phone-hyperlapse --es mode HYPERLAPSE --es filter CINEMA
 record_test 22b-phone-hyperlapse-recording 10
 shot 23-phone-slowmo --es mode SLOW_MO
 shot 24-phone-burst --es mode BURST
+shot 26-phone-gallery --ez gallery true
+# Open the newest item in the full-screen viewer.
+DENS=$(adb shell wm density | grep -o '[0-9]\+' | tail -1)
+adb shell input tap $((64 * DENS / 160)) $((205 * DENS / 160))
+sleep 4
+adb exec-out screencap -p > "$OUT/27-phone-gallery-viewer.png"
 adb shell input keyevent KEYCODE_CAMERA; sleep 10
 adb exec-out screencap -p > "$OUT/24b-phone-burst-after.png"
 rotate 1

@@ -107,6 +107,7 @@ class MainActivity : ComponentActivity() {
         extras.getString("live")?.let { p ->
             com.dronedirector.procam.camera.LivePlatform.entries.firstOrNull { it.name == p }?.let { controller.live.selectPlatform(it) }
         }
+        if (extras.getBoolean("nosetup", false)) controller.live.showSetup(false)
         if (extras.getBoolean("peaking", false)) controller.togglePeaking()
         if (extras.getBoolean("zebras", false)) controller.toggleZebras()
         return extras.getBoolean("settings", false)

@@ -9,6 +9,7 @@ import com.pedro.common.ConnectChecker
 import com.pedro.common.StreamingStatsReport
 import com.pedro.encoder.input.sources.audio.MicrophoneSource
 import com.pedro.encoder.input.sources.video.Camera2Source
+import com.pedro.encoder.utils.gl.AspectRatioMode
 import com.pedro.library.generic.GenericStream
 import com.pedro.library.util.QueueAwareBitrateAdapter
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -162,6 +163,8 @@ class LiveStreamer(private val context: Context) : ConnectChecker {
         if (stream != null) return
         stream = GenericStream(context, this, Camera2Source(context), MicrophoneSource()).apply {
             getGlInterface().autoHandleOrientation = true
+            // Fill the preview surface (crop) instead of shrinking the picture to fit.
+            getGlInterface().setAspectRatioMode(AspectRatioMode.Fill)
             getStreamClient().setReTries(10)
         }
         prepare()

@@ -46,6 +46,10 @@ shot() { # name, extra am-start args...
   echo "captured $name"
 }
 
+# Let System UI settle after the launcher change, then warm the camera up once.
+sleep 15
+adb shell am start -W -n "$ACT" >/dev/null; sleep 10; adb shell am force-stop "$PKG"
+
 # ---- phone (Pixel-size emulator)
 rotate 0
 shot 01-phone-photo-filters --es mode PHOTO --es filter VIVID --ez filters true

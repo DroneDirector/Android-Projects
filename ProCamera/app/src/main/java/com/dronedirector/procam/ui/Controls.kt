@@ -172,7 +172,13 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
             QuickItem("GUIDE", s.guide.label, active = s.guide != FrameGuide.OFF) { c.setGuide(FrameGuide.entries.next(s.guide)) }
         }
     }
-    QuickItem("GRID", s.grid.label, active = s.grid != GridMode.OFF) { c.setGrid(GridMode.entries.next(s.grid)) }
+    if (s.mode != CaptureMode.PANORAMA) {
+        QuickItem("GRID", s.grid.label, active = s.grid != GridMode.OFF) { c.setGrid(GridMode.entries.next(s.grid)) }
+    }
+}
+
+@Composable
+private fun SettingsGear(onSettings: () -> Unit) {
     Box(
         Modifier
             .clip(CircleShape)
@@ -185,18 +191,25 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
 
 @Composable
 fun QuickBar(s: CameraUiState, c: ProCameraController, vertical: Boolean, onSettings: () -> Unit, modifier: Modifier = Modifier) {
+    // The settings gear stays pinned; the other items scroll if they don't fit.
     if (vertical) {
-        Column(
-            modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
-        ) { QuickItems(s, c, onSettings) }
+        Column(modifier.padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(
+                Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
+            ) { QuickItems(s, c, onSettings) }
+            SettingsGear(onSettings)
+        }
     } else {
-        Row(
-            modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-        ) { QuickItems(s, c, onSettings) }
+        Row(modifier.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterHorizontally),
+            ) { QuickItems(s, c, onSettings) }
+            SettingsGear(onSettings)
+        }
     }
 }
 
@@ -270,12 +283,12 @@ private fun ParamChip(p: ProParam, value: String, s: CameraUiState, enabled: Boo
                 )
             }
             .alpha(if (enabled) 1f else 0.4f)
-            .padding(horizontal = 6.dp, vertical = 5.dp)
-            .widthIn(min = 44.dp),
+            .padding(horizontal = 4.dp, vertical = 5.dp)
+            .widthIn(min = 38.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(p.label, style = Pro.Label.copy(color = if (selected) Pro.Amber else Pro.Dim))
-        Text(value, style = Pro.Value.copy(color = if (manual) Pro.Amber else Color.White), maxLines = 1)
+        Text(value, style = Pro.Value.copy(fontSize = 12.sp, color = if (manual) Pro.Amber else Color.White), maxLines = 1)
     }
 }
 
@@ -641,8 +654,8 @@ fun FilterChip(s: CameraUiState, c: ProCameraController) {
             .clip(RoundedCornerShape(8.dp))
             .background(if (s.showFilters) Pro.Amber.copy(alpha = 0.18f) else Color.Transparent)
             .clickable { c.toggleFilterStrip() }
-            .padding(horizontal = 6.dp, vertical = 5.dp)
-            .widthIn(min = 44.dp),
+            .padding(horizontal = 4.dp, vertical = 5.dp)
+            .widthIn(min = 38.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text("FILTER", style = Pro.Label.copy(color = if (s.showFilters) Pro.Amber else Pro.Dim))

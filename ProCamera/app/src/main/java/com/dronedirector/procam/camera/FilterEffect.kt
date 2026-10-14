@@ -154,14 +154,19 @@ class FilterProcessor : SurfaceProcessor {
         st.getTransformMatrix(texMatrix)
         val timestamp = st.timestamp
 
+        val dead = ArrayList<SurfaceOutput>()
         for ((output, egl) in outputs) {
-            if (!EGL14.eglMakeCurrent(display, egl, egl, context)) continue
+            if (!EGL14.eglMakeCurrent(display, egl, egl, context)) { dead += output; continue }
             val size = output.size
             GLES20.glViewport(0, 0, size.width, size.height)
             output.updateTransformMatrix(outMatrix, texMatrix)
             draw(outMatrix)
             EGLExt.eglPresentationTimeANDROID(display, egl, timestamp)
-            EGL14.eglSwapBuffers(display, egl)
+            if (!EGL14.eglSwapBuffers(display, egl)) dead += output
+        }
+        // An output whose surface went away (e.g. after a failed bind) is dropped.
+        for (o in dead) {
+            outputs.remove(o)?.let { EGL14.eglDestroySurface(display, it) }
         }
     }
 

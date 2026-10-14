@@ -133,6 +133,12 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
 
             Section("CONTROLS")
             ToggleRow("Volume keys shutter", "Press volume up or down to take a shot", s.volumeShutter) { c.toggleVolumeShutter() }
+            ToggleRow(
+                "Shutter sound",
+                if (s.shutterSoundRequired) "Required by law in this region and can't be turned off"
+                else "Click when taking photos, beeps when recording starts/stops and focus locks",
+                s.cameraSounds || s.shutterSoundRequired,
+            ) { c.toggleCameraSounds() }
 
             Section("THIS LENS")
             val lens = s.lens

@@ -160,6 +160,10 @@ data class CameraUiState(
     val zebraLevel: Int = 95,
     val peaking: Boolean = false,
     val volumeShutter: Boolean = true,
+    /** Camera sounds (shutter click, record start/stop beeps, focus beep). */
+    val cameraSounds: Boolean = true,
+    /** Some countries (e.g. Japan, Korea) legally require the shutter sound. */
+    val shutterSoundRequired: Boolean = false,
 
     // Video options
     val videoRes: VideoRes = VideoRes.FHD,

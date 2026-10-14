@@ -55,6 +55,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -127,7 +130,9 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
         }
         return
     }
-    if (!s.isVideo) {
+    if (mode.isLapse || mode.isSlowMo || mode == CaptureMode.BURST) {
+        SmartModeItems(s, c)
+    } else if (!s.isVideo) {
         if (s.hasFlash && mode != CaptureMode.PANORAMA) {
             QuickItem("FLASH", s.flash.label, active = s.flash != FlashSetting.OFF) {
                 c.setFlash(FlashSetting.entries.next(s.flash))
@@ -465,9 +470,20 @@ private fun ParamEditor(p: ProParam, s: CameraUiState, c: ProCameraController, i
 // ------------------------------------------------------------------ capture controls
 
 @Composable
-fun ShutterButton(s: CameraUiState, size: Dp, liveMode: Boolean = false, liveBusy: Boolean = false, onClick: () -> Unit) {
+fun ShutterButton(
+    s: CameraUiState,
+    size: Dp,
+    liveMode: Boolean = false,
+    liveBusy: Boolean = false,
+    onHoldStart: (() -> Unit)? = null,
+    onHoldEnd: (() -> Unit)? = null,
+    onClick: () -> Unit,
+) {
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
+    val clickPressed by interaction.collectIsPressedAsState()
+    var holdPressed by remember { mutableStateOf(false) }
+    val pressed = clickPressed || holdPressed
+    val holdScope = androidx.compose.runtime.rememberCoroutineScope()
     val scale by animateFloatAsState(if (pressed) 0.9f else 1f, label = "shutterScale")
     val recording = (s.isVideo && s.recording) || s.panoActive || s.intervalRunning || (liveMode && liveBusy)
     val inner by animateDpAsState(if (recording) size * 0.36f else size * 0.78f, label = "shutterInner")
@@ -477,11 +493,31 @@ fun ShutterButton(s: CameraUiState, size: Dp, liveMode: Boolean = false, liveBus
             .size(size)
             .scale(scale)
             .clip(CircleShape)
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+            .then(
+                if (onHoldStart == null) Modifier.clickable(interactionSource = interaction, indication = null, onClick = onClick)
+                else Modifier.pointerInput(Unit) {
+                    // Tap = one burst; press and hold = keep shooting until released.
+                    detectTapGestures(
+                        onPress = {
+                            holdPressed = true
+                            var held = false
+                            val job = holdScope.launch {
+                                kotlinx.coroutines.delay(350)
+                                held = true
+                                onHoldStart()
+                            }
+                            val released = tryAwaitRelease()
+                            job.cancel()
+                            holdPressed = false
+                            if (held) onHoldEnd?.invoke() else if (released) onClick()
+                        },
+                    )
+                }
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.fillMaxSize()) {
-            val ring = if (s.capturing || s.countdown > 0) Pro.Amber else Color.White
+            val ring = if (s.capturing || s.countdown > 0 || s.holdBursting) Pro.Amber else Color.White
             drawCircle(ring, radius = this.size.minDimension / 2 - 2.dp.toPx(), style = Stroke(3.5.dp.toPx()))
             val fill = when {
                 s.isVideo || s.panoActive || s.intervalRunning || liveMode -> Pro.Red
@@ -559,23 +595,68 @@ private fun RoundIcon(enabled: Boolean = true, size: Dp, onClick: () -> Unit, co
     ) { content() }
 }
 
+/** REGULAR / SMART switch: each shows its own set of modes. */
 @Composable
-private fun ModeSwitch(s: CameraUiState, c: ProCameraController, vertical: Boolean) {
+private fun ModeGroupToggle(s: CameraUiState, c: ProCameraController, vertical: Boolean) {
+    val enabled = !s.recording && !s.panoActive && !s.stitching && !s.processing
+    val seg = @Composable { label: String, smart: Boolean ->
+        val sel = s.mode.isSmart == smart
+        Text(
+            label,
+            style = Pro.Value.copy(fontSize = 10.sp, letterSpacing = 1.4.sp, color = if (sel) Color.Black else Pro.Dim),
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(if (sel) Pro.Amber else Color.Transparent)
+                .clickable(enabled = enabled) { c.showModeGroup(smart) }
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+        )
+    }
+    val container = Modifier
+        .clip(RoundedCornerShape(50))
+        .background(Color.White.copy(alpha = 0.10f))
+        .padding(2.dp)
+    if (vertical) Column(container, horizontalAlignment = Alignment.CenterHorizontally) {
+        seg("REGULAR", false); seg("SMART", true)
+    } else Row(container, verticalAlignment = Alignment.CenterVertically) {
+        seg("REGULAR MODES", false); seg("SMART MODES", true)
+    }
+}
+
+@Composable
+private fun ModeSwitch(s: CameraUiState, c: ProCameraController, vertical: Boolean, modifier: Modifier = Modifier) {
+    val modes = if (s.mode.isSmart) CaptureMode.SMART else CaptureMode.REGULAR
+    val enabled = !s.recording && !s.panoActive && !s.stitching && !s.processing
     val items = @Composable {
-        CaptureMode.entries.forEach { m ->
+        modes.forEach { m ->
             val sel = s.mode == m
             Text(
                 m.label,
                 style = Pro.Value.copy(fontSize = 12.sp, letterSpacing = 1.5.sp, color = if (sel) Pro.Amber else Pro.Dim),
+                maxLines = 1,
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
-                    .clickable(enabled = !s.recording && !s.panoActive && !s.stitching) { c.setMode(m) }
+                    .clickable(enabled = enabled) { c.setMode(m) }
                     .padding(horizontal = 8.dp, vertical = 6.dp),
             )
         }
     }
-    if (vertical) Column(horizontalAlignment = Alignment.CenterHorizontally) { items() }
-    else Row(Modifier.hintedScroll(horizontal = true), verticalAlignment = Alignment.CenterVertically) { items() }
+    if (vertical) {
+        Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+            ModeGroupToggle(s, c, vertical = true)
+            Spacer(Modifier.height(6.dp))
+            Column(
+                Modifier.weight(1f, fill = false).hintedScroll(horizontal = false),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) { items() }
+        }
+    } else {
+        Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+            ModeGroupToggle(s, c, vertical = false)
+            Spacer(Modifier.height(4.dp))
+            Row(Modifier.hintedScroll(horizontal = true), verticalAlignment = Alignment.CenterVertically) { items() }
+        }
+    }
 }
 
 @Composable
@@ -609,7 +690,8 @@ fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean,
     val liveMode = s.mode == CaptureMode.LIVE
     val shutter = if (tablet) 88.dp else 74.dp
     val small = if (tablet) 54.dp else 46.dp
-    val recording = s.isVideo && s.recording
+    // Pause and photo-while-recording only apply to normal video.
+    val recording = s.mode.isNormalVideo && s.recording
 
     val leftButton = @Composable {
         if (recording) {
@@ -631,7 +713,7 @@ fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean,
             }
         } else {
             val hasFront = s.lenses.any { it.facing == androidx.camera.core.CameraSelector.LENS_FACING_FRONT }
-            RoundIcon(enabled = hasFront && !s.panoActive && s.mode != CaptureMode.PANORAMA, size = small, onClick = { c.flipCamera() }) {
+            RoundIcon(enabled = hasFront && !s.panoActive && !s.recording && s.mode != CaptureMode.PANORAMA, size = small, onClick = { c.flipCamera() }) {
                 Icon(Icons.Filled.Cameraswitch, contentDescription = "Switch camera", tint = Color.White)
             }
         }
@@ -643,9 +725,13 @@ fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean,
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceEvenly,
         ) {
-            ModeSwitch(s, c, vertical = true)
+            ModeSwitch(s, c, vertical = true, modifier = Modifier.weight(1f, fill = false))
             LensSwitch(s, c, vertical = true)
-            ShutterButton(s, shutter, liveMode, ls.isBusy) { c.shutter() }
+            ShutterButton(
+                s, shutter, liveMode, ls.isBusy,
+                onHoldStart = if (s.mode == CaptureMode.BURST) ({ c.startHoldBurst() }) else null,
+                onHoldEnd = { c.stopHoldBurst() },
+            ) { c.shutter() }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 leftButton()
                 rightButton()
@@ -665,7 +751,11 @@ fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 leftButton()
-                ShutterButton(s, shutter, liveMode, ls.isBusy) { c.shutter() }
+                ShutterButton(
+                s, shutter, liveMode, ls.isBusy,
+                onHoldStart = if (s.mode == CaptureMode.BURST) ({ c.startHoldBurst() }) else null,
+                onHoldEnd = { c.stopHoldBurst() },
+            ) { c.shutter() }
                 rightButton()
             }
         }
@@ -750,7 +840,7 @@ fun SimpleBar(s: CameraUiState, c: ProCameraController, modifier: Modifier = Mod
                 .padding(horizontal = 4.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            FilterChip(s, c)
+            if (!s.mode.isSlowMo) FilterChip(s, c)
             val zooms = listOf(1f, 2f, 5f, 10f).filter { s.maxZoom >= it && it >= s.minZoom }
             if (zooms.size > 1) {
                 Spacer(Modifier.width(6.dp))
@@ -769,5 +859,66 @@ fun SimpleBar(s: CameraUiState, c: ProCameraController, modifier: Modifier = Mod
                 }
             }
         }
+    }
+}
+
+
+// ------------------------------------------------------------------ smart-mode quick settings
+
+private fun intervalLabel(ms: Int): String = if (ms < 1000) "${ms / 1000f}s" else "${ms / 1000}s"
+
+@Composable
+private fun SmartModeItems(s: CameraUiState, c: ProCameraController) {
+    val busy = s.recording || s.processing
+    when (s.mode) {
+        CaptureMode.TIMELAPSE -> {
+            QuickItem("INTERVAL", intervalLabel(s.lapseIntervalMs), active = true, enabled = !busy) {
+                c.setLapseInterval(listOf(500, 1000, 2000, 5000, 10000, 30000).next(s.lapseIntervalMs))
+            }
+            QuickItem("STOP AFTER", if (s.lapseLimitMin == 0) "∞" else "${s.lapseLimitMin}m", active = s.lapseLimitMin > 0, enabled = !busy) {
+                c.setLapseLimit(listOf(0, 1, 5, 10, 30, 60).next(s.lapseLimitMin))
+            }
+            QuickItem("AE LOCK", if (s.aeLock) "ON" else "OFF", active = s.aeLock) { c.toggleAeLock() }
+            QuickItem("TIMER", if (s.timerSec == 0) "OFF" else "${s.timerSec}s", active = s.timerSec > 0, enabled = !busy) {
+                c.setTimer(listOf(0, 3, 5, 10).next(s.timerSec))
+            }
+        }
+        CaptureMode.HYPERLAPSE -> {
+            QuickItem("SPEED", "×${s.hyperSpeed}", active = true, enabled = !busy) {
+                c.setHyperSpeed(listOf(4, 8, 15, 30).next(s.hyperSpeed))
+            }
+            QuickItem("STABILIZE", if (s.lapseStabilize) "ON" else "OFF", active = s.lapseStabilize, enabled = !busy) { c.toggleLapseStabilize() }
+            QuickItem("AE LOCK", if (s.aeLock) "ON" else "OFF", active = s.aeLock) { c.toggleAeLock() }
+            QuickItem("TIMER", if (s.timerSec == 0) "OFF" else "${s.timerSec}s", active = s.timerSec > 0, enabled = !busy) {
+                c.setTimer(listOf(0, 3, 5, 10).next(s.timerSec))
+            }
+        }
+        CaptureMode.SLOW_MO, CaptureMode.SUPER_SLOW_MO -> {
+            val options = if (s.mode == CaptureMode.SUPER_SLOW_MO) s.superSlowMoFps
+            else (s.slowMoFps + listOfNotNull(s.slowFallbackFps.takeIf { it > 0 && s.slowMoFps.isEmpty() }))
+            if (options.isNotEmpty()) {
+                QuickItem("FPS", "${s.slowFps}", active = true, enabled = !busy && options.size > 1) { c.setSlowFps(options.next(s.slowFps)) }
+                QuickItem("SLOWER", "×${(s.slowFps / 30).coerceAtLeast(1)}", active = true) {}
+            } else {
+                QuickItem("FPS", "N/A", enabled = false) {}
+            }
+            QuickItem("AE LOCK", if (s.aeLock) "ON" else "OFF", active = s.aeLock) { c.toggleAeLock() }
+            if (s.hasFlash) {
+                QuickItem("TORCH", if (s.flash == FlashSetting.TORCH) "ON" else "OFF", active = s.flash == FlashSetting.TORCH) {
+                    c.setFlash(if (s.flash == FlashSetting.TORCH) FlashSetting.OFF else FlashSetting.TORCH)
+                }
+            }
+        }
+        CaptureMode.BURST -> {
+            QuickItem("PER TAP", "${s.burstModeCount}", active = true, enabled = !s.capturing) {
+                c.setBurstModeCount(listOf(5, 10, 20, 30).next(s.burstModeCount))
+            }
+            val size = s.photoSize
+            if (size != null && s.photoSizes.size > 1) {
+                QuickItem("SIZE", size.label.replace(" ", ""), enabled = !s.capturing) { c.setPhotoSize(s.photoSizes.next(size)) }
+            }
+            QuickItem("AE LOCK", if (s.aeLock) "ON" else "OFF", active = s.aeLock) { c.toggleAeLock() }
+        }
+        else -> {}
     }
 }

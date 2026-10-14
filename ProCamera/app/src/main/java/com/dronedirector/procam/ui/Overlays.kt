@@ -273,8 +273,69 @@ fun RecordingBadge(s: CameraUiState, modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(Modifier.size(9.dp).clip(CircleShape).background(Pro.Red.copy(alpha = blink.value)))
-        Text(if (s.paused) "PAUSED $time" else time, style = Pro.Value)
-        if (s.audio) AudioMeter(s.audioLevel)
+        when {
+            s.mode.isLapse -> {
+                Text(time, style = Pro.Value)
+                Text(
+                    "${s.lapseFrames} frames → %.1f s".format(s.lapseFrames / 30f),
+                    style = Pro.Value.copy(fontSize = 11.sp, color = Pro.Amber),
+                )
+            }
+            s.mode.isSlowMo -> {
+                Text(time, style = Pro.Value)
+                Text("${s.slowFps} FPS · ×${(s.slowFps / 30).coerceAtLeast(1)} SLOWER", style = Pro.Value.copy(fontSize = 11.sp, color = Pro.Amber))
+            }
+            else -> {
+                Text(if (s.paused) "PAUSED $time" else time, style = Pro.Value)
+                if (s.audio) AudioMeter(s.audioLevel)
+            }
+        }
+    }
+}
+
+/** One-line explanation of what the current smart mode will produce, shown before recording. */
+@Composable
+fun SmartModeHint(s: CameraUiState, modifier: Modifier = Modifier) {
+    if (s.recording || s.panoActive || s.stitching) return
+    val text = when (s.mode) {
+        CaptureMode.TIMELAPSE -> {
+            val perMin = 60_000f / s.lapseIntervalMs / 30f
+            "1 frame every %s · 1 min → %.1f s of video".format(
+                if (s.lapseIntervalMs < 1000) "${s.lapseIntervalMs / 1000f} s" else "${s.lapseIntervalMs / 1000} s", perMin,
+            ) + if (s.lapseLimitMin > 0) " · stops after ${s.lapseLimitMin} min" else ""
+        }
+        CaptureMode.HYPERLAPSE -> "×${s.hyperSpeed} faster · walk smoothly · 1 min → %.1f s".format(60f / s.hyperSpeed) +
+            if (s.lapseStabilize) " · stabilized" else ""
+        CaptureMode.SLOW_MO, CaptureMode.SUPER_SLOW_MO ->
+            if (s.slowFps <= 0) "This camera can't film fast enough for this mode"
+            else "Films at ${s.slowFps} fps · plays ×${(s.slowFps / 30).coerceAtLeast(1)} slower · no sound"
+        CaptureMode.BURST -> "Tap for ${s.burstModeCount} shots · hold the shutter to keep shooting"
+        else -> return
+    }
+    Text(
+        text,
+        style = Pro.Value.copy(fontSize = 11.sp, color = Color.White),
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.55f))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+    )
+}
+
+/** "Saving…" while a time-lapse finishes encoding or a slow-motion clip is being written. */
+@Composable
+fun ProcessingBadge(s: CameraUiState, modifier: Modifier = Modifier) {
+    if (!s.processing) return
+    Row(
+        modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color.Black.copy(alpha = 0.7f))
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        androidx.compose.material3.CircularProgressIndicator(color = Pro.Amber, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+        Text("Saving video…", style = Pro.Value)
     }
 }
 

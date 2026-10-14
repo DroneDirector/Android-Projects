@@ -50,6 +50,16 @@ shot() { # name, extra am-start args...
 sleep 15
 adb shell am start -W -n "$ACT" >/dev/null; sleep 10; adb shell am force-stop "$PKG"
 
+# Presses the shutter (camera key), waits, screenshots mid-capture, presses again to stop.
+record_test() { # name, seconds
+  adb shell input keyevent KEYCODE_CAMERA
+  sleep "$2"
+  adb exec-out screencap -p > "$OUT/$1.png"
+  adb shell input keyevent KEYCODE_CAMERA
+  sleep 6
+  echo "captured $1"
+}
+
 # ---- phone (Pixel-size emulator)
 rotate 0
 shot 01-phone-photo-filters --es mode PHOTO --es filter VIVID --ez filters true
@@ -63,6 +73,14 @@ shot 15-phone-pro-video-dlog --es mode PRO_VIDEO --es profile DLOG
 shot 16-phone-live-youtube-connect --es mode LIVE --es live YOUTUBE
 shot 17-phone-live-tiktok --es mode LIVE --es live TIKTOK --ez nosetup true
 shot 19-phone-live-youtube --es mode LIVE --es live YOUTUBE --ez nosetup true
+shot 21-phone-timelapse --es mode TIMELAPSE
+record_test 21b-phone-timelapse-recording 12
+shot 22-phone-hyperlapse --es mode HYPERLAPSE --es filter CINEMA
+record_test 22b-phone-hyperlapse-recording 10
+shot 23-phone-slowmo --es mode SLOW_MO
+shot 24-phone-burst --es mode BURST
+adb shell input keyevent KEYCODE_CAMERA; sleep 10
+adb exec-out screencap -p > "$OUT/24b-phone-burst-after.png"
 rotate 1
 shot 08-phone-landscape-pro-video --es mode PRO_VIDEO --es guide FLAT
 shot 09-phone-landscape-photo-mono --es mode PHOTO --es filter MONO
@@ -75,12 +93,19 @@ rotate 1
 shot 10-tablet-landscape-pro-photo --es mode PRO_PHOTO --es param WB
 shot 11-tablet-landscape-video --es mode VIDEO --es filter WARM --ez filters true
 shot 12-tablet-settings --ez settings true
+shot 25-tablet-landscape-timelapse --es mode TIMELAPSE
 shot 18-tablet-live-twitch --es mode LIVE --es live TWITCH
 rotate 0
 shot 13-tablet-portrait-pro-video --es mode PRO_VIDEO --es guide VERTICAL
 shot 14-tablet-portrait-panorama --es mode PANORAMA
 adb shell wm size reset
 adb shell wm density reset
+
+# ---- what got saved
+{
+  echo "== videos =="; adb shell content query --uri content://media/external/video/media --projection _display_name:_size:duration 2>&1
+  echo "== images =="; adb shell content query --uri content://media/external/images/media --projection _display_name:_size 2>&1 | tail -15
+} > "$OUT/saved-media.txt"
 
 # ---- logs for anything that went wrong
 adb logcat -d -b crash > "$OUT/crash-log.txt" || true

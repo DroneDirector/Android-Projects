@@ -37,6 +37,12 @@ class FilterProcessor : SurfaceProcessor {
     @Volatile private var colorMatrix = Filter.NONE.glMatrix()
     @Volatile private var colorOffset = Filter.NONE.glOffset()
     @Volatile private var curve = 0
+    /** Time-lapse / hyperlapse recorder fed from this processor's frames. */
+    @Volatile var lapse: LapseRecorder? = null
+    private var lapseSurface: EGLSurface = EGL14.EGL_NO_SURFACE
+    private var lapseFor: LapseRecorder? = null
+    /** Size of the camera frames coming in (camera sensor orientation). */
+    @Volatile var inputSize: android.util.Size? = null
     @Volatile private var assist = false
 
     private var display: EGLDisplay = EGL14.EGL_NO_DISPLAY
@@ -90,6 +96,7 @@ class FilterProcessor : SurfaceProcessor {
 
         val st = SurfaceTexture(tex[0])
         val size = request.resolution
+        inputSize = size
         st.setDefaultBufferSize(size.width, size.height)
         val surface = Surface(st)
         st.setOnFrameAvailableListener({ onFrame(st) }, handler)
@@ -173,13 +180,38 @@ class FilterProcessor : SurfaceProcessor {
             EGLExt.eglPresentationTimeANDROID(display, egl, timestamp)
             if (!EGL14.eglSwapBuffers(display, egl)) dead += output
         }
+        renderLapse(timestamp)
+
         // An output whose surface went away (e.g. after a failed bind) is dropped.
         for (o in dead) {
             outputs.remove(o)?.let { EGL14.eglDestroySurface(display, it) }
         }
     }
 
-    private fun draw(matrix: FloatArray, curveId: Int) {
+    private val identity = FloatArray(16).also { android.opengl.Matrix.setIdentityM(it, 0) }
+
+    private fun renderLapse(timestamp: Long) {
+        val rec = lapse
+        if (rec !== lapseFor) {
+            if (lapseSurface != EGL14.EGL_NO_SURFACE) EGL14.eglDestroySurface(display, lapseSurface)
+            lapseSurface = EGL14.EGL_NO_SURFACE
+            lapseFor = rec
+            if (rec != null) {
+                lapseSurface = EGL14.eglCreateWindowSurface(display, config, rec.inputSurface, intArrayOf(EGL14.EGL_NONE), 0)
+                    ?: EGL14.EGL_NO_SURFACE
+            }
+        }
+        if (rec == null || lapseSurface == EGL14.EGL_NO_SURFACE) return
+        val pts = rec.pick(timestamp) ?: return
+        if (!EGL14.eglMakeCurrent(display, lapseSurface, lapseSurface, context)) return
+        GLES20.glViewport(0, 0, rec.width, rec.height)
+        // Camera-native orientation: the MP4 carries a rotation hint instead.
+        draw(texMatrix, curve, rec.zoom)
+        EGLExt.eglPresentationTimeANDROID(display, lapseSurface, pts)
+        if (EGL14.eglSwapBuffers(display, lapseSurface)) rec.frameSubmitted()
+    }
+
+    private fun draw(matrix: FloatArray, curveId: Int, zoom: Float = 1f) {
         GLES20.glUseProgram(program)
         val aPos = GLES20.glGetAttribLocation(program, "aPos")
         val aTex = GLES20.glGetAttribLocation(program, "aTex")
@@ -194,6 +226,7 @@ class FilterProcessor : SurfaceProcessor {
         GLES20.glUniformMatrix3fv(GLES20.glGetUniformLocation(program, "uColor"), 1, false, colorMatrix, 0)
         GLES20.glUniform3fv(GLES20.glGetUniformLocation(program, "uOffset"), 1, colorOffset, 0)
         GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uCurve"), curveId)
+        GLES20.glUniform1f(GLES20.glGetUniformLocation(program, "uZoom"), zoom)
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
@@ -239,10 +272,12 @@ class FilterProcessor : SurfaceProcessor {
             attribute vec4 aPos;
             attribute vec4 aTex;
             uniform mat4 uTexMatrix;
+            uniform float uZoom;
             varying vec2 vTex;
             void main() {
                 gl_Position = aPos;
-                vTex = (uTexMatrix * aTex).xy;
+                vec2 t = (aTex.xy - 0.5) * uZoom + 0.5;
+                vTex = (uTexMatrix * vec4(t, 0.0, 1.0)).xy;
             }
             """.trimIndent(),
         )

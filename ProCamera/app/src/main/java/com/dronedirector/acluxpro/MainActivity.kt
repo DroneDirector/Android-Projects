@@ -68,8 +68,13 @@ class MainActivity : ComponentActivity() {
         hideSystemBars()
 
         controller = ProCameraController(applicationContext)
+        com.dronedirector.acluxpro.ui.AccentStore.load(applicationContext)
         val openSettings = applyLaunchOptions(intent)
         val openGallery = intent?.extras?.getBoolean("gallery", false) == true
+        intent?.extras?.getString("accent")?.let { a ->
+            com.dronedirector.acluxpro.ui.Accent.entries.firstOrNull { it.name == a }
+                ?.let { com.dronedirector.acluxpro.ui.AccentStore.save(applicationContext, it) }
+        }
         controller.refreshLastMedia()
         setContent {
             ProCamTheme {

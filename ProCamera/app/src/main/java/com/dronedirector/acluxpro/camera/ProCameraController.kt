@@ -229,9 +229,10 @@ class ProCameraController(private val context: Context) {
         imageCapture?.setTargetRotation(r)
         imageAnalysis?.setTargetRotation(r)
         if (!st.recording) videoCapture?.setTargetRotation(r)
-        // A GPU filter stream bakes in the orientation it was set up with; rebuild it after a
-        // portrait <-> landscape turn (not mid-recording, which would stop the clip).
-        if (turned90 && effectBound && !st.recording) {
+        // After a portrait <-> landscape turn, rebuild the camera streams so the viewfinder is set
+        // up for the new shape (otherwise it can show sideways and stretched). Skipped mid-recording,
+        // which would stop the clip; the preview still follows the turn via its target rotation.
+        if (turned90 && !st.recording && st.mode != CaptureMode.LIVE) {
             rotationRebind?.cancel()
             rotationRebind = scope.launch {
                 delay(300)

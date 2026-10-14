@@ -17,6 +17,10 @@ adb shell settings put secure immersive_mode_confirmations confirmed
 # The slow CI emulator's launcher sometimes freezes in the background; don't show its ANR box.
 adb shell settings put global anr_show_background 0
 adb shell settings put global hide_error_dialogs 1
+# The launcher isn't needed for screenshots and is what keeps freezing; switch it off.
+for L in com.google.android.apps.nexuslauncher com.android.launcher3; do
+  adb shell pm disable-user --user 0 "$L" >/dev/null 2>&1 || true
+done
 adb logcat -c
 
 CUR=0

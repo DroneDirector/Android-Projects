@@ -1,0 +1,52 @@
+name: Build ProCam APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ProCamera/**"
+      - ".github/workflows/procam.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ProCamera
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build APK
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Name the APK
+        run: cp app/build/outputs/apk/release/app-release.apk "ProCam-1.0.${{ github.run_number }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ProCam-1.0.${{ github.run_number }}
+          path: ProCamera/ProCam-*.apk
+
+      - name: Publish download on the Releases page
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "procam-1.0.${{ github.run_number }}" "ProCam-1.0.${{ github.run_number }}.apk" \
+            --title "ProCam 1.0.${{ github.run_number }}" \
+            --notes "Tap ProCam-1.0.${{ github.run_number }}.apk below to download, then open it to install." \
+            --latest

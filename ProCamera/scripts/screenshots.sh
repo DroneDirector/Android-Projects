@@ -61,7 +61,7 @@ shot 06-phone-panorama --es mode PANORAMA
 shot 07-phone-settings --ez settings true
 shot 15-phone-pro-video-dlog --es mode PRO_VIDEO --es profile DLOG
 shot 16-phone-live-youtube-connect --es mode LIVE --es live YOUTUBE
-shot 17-phone-live-tiktok --es mode LIVE
+shot 17-phone-live-tiktok --es mode LIVE --es live TIKTOK --ez nosetup true
 rotate 1
 shot 08-phone-landscape-pro-video --es mode PRO_VIDEO --es guide FLAT
 shot 09-phone-landscape-photo-mono --es mode PHOTO --es filter MONO

@@ -165,6 +165,8 @@ class LiveStreamer(private val context: Context) : ConnectChecker {
             getStreamClient().setReTries(10)
         }
         prepare()
+        // The preview surface may already exist (e.g. app opened straight into LIVE).
+        surfaceView?.let { sv -> if (sv.holder.surface.isValid) surfaceCallback.surfaceCreated(sv.holder) }
     }
 
     /** Called when leaving LIVE mode; frees the camera for ProCam. */

@@ -1,4 +1,4 @@
-package com.dronedirector.procam.ui
+package com.dronedirector.acluxpro.ui
 
 import android.content.Context
 import android.hardware.Sensor
@@ -45,12 +45,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.dronedirector.procam.camera.AnalysisResult
-import com.dronedirector.procam.camera.CameraUiState
-import com.dronedirector.procam.camera.CaptureMode
-import com.dronedirector.procam.camera.GridMode
-import com.dronedirector.procam.camera.Stops
-import com.dronedirector.procam.camera.WhiteBalance
+import com.dronedirector.acluxpro.camera.AnalysisResult
+import com.dronedirector.acluxpro.camera.CameraUiState
+import com.dronedirector.acluxpro.camera.CaptureMode
+import com.dronedirector.acluxpro.camera.GridMode
+import com.dronedirector.acluxpro.camera.Stops
+import com.dronedirector.acluxpro.camera.WhiteBalance
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.min
@@ -370,7 +370,7 @@ fun Countdown(value: Int) {
  * with a peak-hold marker and dBFS readout.
  */
 @Composable
-fun AudioGraph(levels: com.dronedirector.procam.camera.AudioLevels, width: Dp, height: Dp, recording: Boolean, modifier: Modifier = Modifier) {
+fun AudioGraph(levels: com.dronedirector.acluxpro.camera.AudioLevels, width: Dp, height: Dp, recording: Boolean, modifier: Modifier = Modifier) {
     Column(
         modifier
             .clip(RoundedCornerShape(6.dp))
@@ -382,7 +382,7 @@ fun AudioGraph(levels: com.dronedirector.procam.camera.AudioLevels, width: Dp, h
             Spacer(Modifier.weight(1f))
             val db = levels.db
             Text(
-                if (!levels.live) "--" else if (db <= com.dronedirector.procam.camera.AudioMeter.MIN_DB) "-∞ dB" else "%.0f dB".format(db),
+                if (!levels.live) "--" else if (db <= com.dronedirector.acluxpro.camera.AudioMeter.MIN_DB) "-∞ dB" else "%.0f dB".format(db),
                 style = Pro.Value.copy(fontSize = 10.sp, color = if (db > -3f) Pro.Red else Color.White),
             )
         }
@@ -392,7 +392,7 @@ fun AudioGraph(levels: com.dronedirector.procam.camera.AudioLevels, width: Dp, h
             val barW = size.width / n
             // Reference lines at -6, -12, -24 dBFS.
             for (ref in listOf(-6f, -12f, -24f)) {
-                val y = size.height * (ref / com.dronedirector.procam.camera.AudioMeter.MIN_DB)
+                val y = size.height * (ref / com.dronedirector.acluxpro.camera.AudioMeter.MIN_DB)
                 drawLine(Color.White.copy(alpha = 0.15f), Offset(0f, y), Offset(size.width, y), 1f)
             }
             for (i in 0 until n) {
@@ -406,8 +406,8 @@ fun AudioGraph(levels: com.dronedirector.procam.camera.AudioLevels, width: Dp, h
                 }
                 drawRect(color, Offset(i * barW, size.height - h), Size((barW - 1f).coerceAtLeast(1f), h))
             }
-            if (levels.live && levels.peakDb > com.dronedirector.procam.camera.AudioMeter.MIN_DB) {
-                val py = size.height * (1f - (levels.peakDb - com.dronedirector.procam.camera.AudioMeter.MIN_DB) / -com.dronedirector.procam.camera.AudioMeter.MIN_DB)
+            if (levels.live && levels.peakDb > com.dronedirector.acluxpro.camera.AudioMeter.MIN_DB) {
+                val py = size.height * (1f - (levels.peakDb - com.dronedirector.acluxpro.camera.AudioMeter.MIN_DB) / -com.dronedirector.acluxpro.camera.AudioMeter.MIN_DB)
                 drawLine(Color.White, Offset(size.width - 6.dp.toPx(), py), Offset(size.width, py), 2.dp.toPx())
             }
         }
@@ -417,8 +417,8 @@ fun AudioGraph(levels: com.dronedirector.procam.camera.AudioLevels, width: Dp, h
 // ------------------------------------------------------------------ frame guides (pro video)
 
 @Composable
-fun FrameGuideOverlay(guide: com.dronedirector.procam.camera.FrameGuide, modifier: Modifier = Modifier) {
-    if (guide == com.dronedirector.procam.camera.FrameGuide.OFF) return
+fun FrameGuideOverlay(guide: com.dronedirector.acluxpro.camera.FrameGuide, modifier: Modifier = Modifier) {
+    if (guide == com.dronedirector.acluxpro.camera.FrameGuide.OFF) return
     Canvas(modifier.fillMaxSize()) {
         val frameRatio = size.width / size.height
         val dim = Color.Black.copy(alpha = 0.55f)
@@ -476,7 +476,7 @@ fun PanoramaOverlay(s: CameraUiState, modifier: Modifier = Modifier) {
                         Box(Modifier.fillMaxWidth(s.panoProgress.coerceIn(0.02f, 1f)).height(6.dp).background(Pro.Amber))
                     }
                     Spacer(Modifier.height(4.dp))
-                    Text("${s.panoFrames} / ${com.dronedirector.procam.camera.Panorama.MAX_FRAMES} frames · tap to finish", style = Pro.Label.copy(fontSize = 10.sp, letterSpacing = 0.sp))
+                    Text("${s.panoFrames} / ${com.dronedirector.acluxpro.camera.Panorama.MAX_FRAMES} frames · tap to finish", style = Pro.Label.copy(fontSize = 10.sp, letterSpacing = 0.sp))
                 }
                 else -> {
                     Text("PANORAMA", style = Pro.Value.copy(color = Pro.Amber))

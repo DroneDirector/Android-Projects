@@ -1,4 +1,4 @@
-package com.dronedirector.procam.ui
+package com.dronedirector.acluxpro.ui
 
 import android.content.Intent
 import android.net.Uri
@@ -76,19 +76,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.dronedirector.procam.camera.AspectMode
-import com.dronedirector.procam.camera.Bracket
-import com.dronedirector.procam.camera.Filter
-import com.dronedirector.procam.camera.FrameGuide
-import com.dronedirector.procam.camera.CameraUiState
-import com.dronedirector.procam.camera.CaptureMode
-import com.dronedirector.procam.camera.FlashSetting
-import com.dronedirector.procam.camera.GridMode
-import com.dronedirector.procam.camera.ProCameraController
-import com.dronedirector.procam.camera.ProParam
-import com.dronedirector.procam.camera.Stops
-import com.dronedirector.procam.camera.VideoProfile
-import com.dronedirector.procam.camera.WhiteBalance
+import com.dronedirector.acluxpro.camera.AspectMode
+import com.dronedirector.acluxpro.camera.Bracket
+import com.dronedirector.acluxpro.camera.Filter
+import com.dronedirector.acluxpro.camera.FrameGuide
+import com.dronedirector.acluxpro.camera.CameraUiState
+import com.dronedirector.acluxpro.camera.CaptureMode
+import com.dronedirector.acluxpro.camera.FlashSetting
+import com.dronedirector.acluxpro.camera.GridMode
+import com.dronedirector.acluxpro.camera.ProCameraController
+import com.dronedirector.acluxpro.camera.ProParam
+import com.dronedirector.acluxpro.camera.Stops
+import com.dronedirector.acluxpro.camera.VideoProfile
+import com.dronedirector.acluxpro.camera.WhiteBalance
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
@@ -126,7 +126,7 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
         QuickItem("TORCH", if (ls.torch) "ON" else "OFF", active = ls.torch) { c.live.toggleTorch() }
         QuickItem("FORMAT", if (ls.vertical) "9:16" else "16:9", enabled = !ls.isBusy) { c.live.setVertical(!ls.vertical) }
         QuickItem("QUALITY", ls.quality.label, enabled = !ls.isBusy) {
-            c.live.setQuality(com.dronedirector.procam.camera.LiveQuality.entries.next(ls.quality))
+            c.live.setQuality(com.dronedirector.acluxpro.camera.LiveQuality.entries.next(ls.quality))
         }
         return
     }
@@ -144,7 +144,7 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
             }
             QuickItem("RATIO", s.aspect.label) { c.setAspect(AspectMode.entries.next(s.aspect)) }
             val size = s.photoSize
-            if (size != null && s.photoSizes.size > 1 && !(mode == CaptureMode.PRO_PHOTO && s.photoFormat == com.dronedirector.procam.camera.PhotoFormat.RAW)) {
+            if (size != null && s.photoSizes.size > 1 && !(mode == CaptureMode.PRO_PHOTO && s.photoFormat == com.dronedirector.acluxpro.camera.PhotoFormat.RAW)) {
                 QuickItem("SIZE", size.label.replace(" ", ""), active = size == s.photoSizes.first()) {
                     c.setPhotoSize(s.photoSizes.next(size))
                 }
@@ -155,7 +155,7 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
         }
         if (mode == CaptureMode.PRO_PHOTO) {
             val formats = c.photoFormats()
-            QuickItem("FORMAT", s.photoFormat.label, active = s.photoFormat != com.dronedirector.procam.camera.PhotoFormat.JPEG, enabled = formats.size > 1) {
+            QuickItem("FORMAT", s.photoFormat.label, active = s.photoFormat != com.dronedirector.acluxpro.camera.PhotoFormat.JPEG, enabled = formats.size > 1) {
                 c.setPhotoFormat(formats.next(s.photoFormat))
             }
             QuickItem("BRACKET", s.bracket.label, active = s.bracket != Bracket.OFF) {
@@ -163,7 +163,7 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
             }
         }
         if (mode == CaptureMode.PHOTO && s.scenes.size > 1) {
-            QuickItem("SCENE", s.scene.label, active = s.scene != com.dronedirector.procam.camera.Scene.STANDARD) {
+            QuickItem("SCENE", s.scene.label, active = s.scene != com.dronedirector.acluxpro.camera.Scene.STANDARD) {
                 c.setScene(s.scenes.next(s.scene))
             }
         }

@@ -1,4 +1,4 @@
-package com.dronedirector.procam.ui
+package com.dronedirector.acluxpro.ui
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing

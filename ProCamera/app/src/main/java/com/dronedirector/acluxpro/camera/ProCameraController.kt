@@ -1,4 +1,4 @@
-package com.dronedirector.procam.camera
+package com.dronedirector.acluxpro.camera
 
 import android.Manifest
 import android.annotation.SuppressLint

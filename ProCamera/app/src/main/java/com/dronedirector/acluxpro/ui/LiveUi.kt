@@ -1,4 +1,4 @@
-package com.dronedirector.procam.ui
+package com.dronedirector.acluxpro.ui
 
 import android.content.Intent
 import android.net.Uri
@@ -51,11 +51,11 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.dronedirector.procam.camera.LivePlatform
-import com.dronedirector.procam.camera.LiveQuality
-import com.dronedirector.procam.camera.LiveState
-import com.dronedirector.procam.camera.LiveStatus
-import com.dronedirector.procam.camera.LiveStreamer
+import com.dronedirector.acluxpro.camera.LivePlatform
+import com.dronedirector.acluxpro.camera.LiveQuality
+import com.dronedirector.acluxpro.camera.LiveState
+import com.dronedirector.acluxpro.camera.LiveStatus
+import com.dronedirector.acluxpro.camera.LiveStreamer
 
 /** Brand-neutral accent colours for the platform chips (no logos). */
 private fun platformColor(p: LivePlatform): Color = when (p) {

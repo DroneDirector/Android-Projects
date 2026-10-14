@@ -1,4 +1,4 @@
-package com.dronedirector.procam.ui
+package com.dronedirector.acluxpro.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,8 +35,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.dronedirector.procam.camera.CameraUiState
-import com.dronedirector.procam.camera.ProCameraController
+import com.dronedirector.acluxpro.camera.CameraUiState
+import com.dronedirector.acluxpro.camera.ProCameraController
 import kotlin.math.roundToInt
 
 @Composable
@@ -111,7 +111,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             ChoiceRow("Burst", listOf(1, 3, 5, 10), s.burst, { if (it == 1) "OFF" else "x$it" }) { c.setBurst(it) }
             ChoiceRow("Self-timer", listOf(0, 3, 5, 10), s.timerSec, { if (it == 0) "OFF" else "${it}s" }) { c.setTimer(it) }
             ChoiceRow("Interval", listOf(0, 2, 5, 10, 30), s.intervalSec, { if (it == 0) "OFF" else "${it}s" }) { c.setInterval(it) }
-            ChoiceRow("Bracket (PRO)", com.dronedirector.procam.camera.Bracket.entries.toList(), s.bracket, { it.label }) { c.setBracket(it) }
+            ChoiceRow("Bracket (PRO)", com.dronedirector.acluxpro.camera.Bracket.entries.toList(), s.bracket, { it.label }) { c.setBracket(it) }
 
             Section("VIDEO")
             ToggleRow("Record audio", "Uses the microphone; levels show in the audio graph", s.audio) { c.toggleAudio() }

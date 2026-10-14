@@ -1,4 +1,4 @@
-package com.dronedirector.procam.ui
+package com.dronedirector.acluxpro.ui
 
 import android.content.Context
 import android.hardware.display.DisplayManager
@@ -54,9 +54,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.currentStateAsState
-import com.dronedirector.procam.camera.AspectMode
-import com.dronedirector.procam.camera.CaptureMode
-import com.dronedirector.procam.camera.ProCameraController
+import com.dronedirector.acluxpro.camera.AspectMode
+import com.dronedirector.acluxpro.camera.CaptureMode
+import com.dronedirector.acluxpro.camera.ProCameraController
 import kotlinx.coroutines.delay
 
 @Composable

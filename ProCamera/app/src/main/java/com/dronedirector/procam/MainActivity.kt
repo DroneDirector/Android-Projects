@@ -175,9 +175,9 @@ private fun PermissionGate(content: @Composable () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text("ProCam", color = Pro.Amber, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                Text("AcluxPro", color = Pro.Amber, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "ProCam needs the camera to work, and the microphone to record sound with video.",
+                    "AcluxPro needs the camera to work, and the microphone to record sound with video.",
                     color = Color.White,
                     textAlign = TextAlign.Center,
                 )

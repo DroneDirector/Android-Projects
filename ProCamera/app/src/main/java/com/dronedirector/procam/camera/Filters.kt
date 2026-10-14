@@ -145,7 +145,7 @@ enum class Filter(val label: String, val swatch: Long) {
                 resolver.openFileDescriptor(uri, "rw")?.use { pfd ->
                     val exif = ExifInterface(pfd.fileDescriptor)
                     saved.forEach { (k, v) -> exif.setAttribute(k, v) }
-                    exif.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, "ProCam ${filter.label}")
+                    exif.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, "AcluxPro ${filter.label}")
                     exif.saveAttributes()
                 }
                 true

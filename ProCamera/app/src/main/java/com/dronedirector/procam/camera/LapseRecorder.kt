@@ -58,7 +58,7 @@ class LapseRecorder(
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
             put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
             if (Build.VERSION.SDK_INT >= 29) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/ProCam")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
         }
@@ -188,7 +188,7 @@ object SlowMotionRemux {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
                 put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
                 if (Build.VERSION.SDK_INT >= 29) {
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/ProCam")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
                     put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
             }

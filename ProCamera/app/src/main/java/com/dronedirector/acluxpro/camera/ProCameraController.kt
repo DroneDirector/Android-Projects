@@ -86,7 +86,12 @@ import kotlin.math.pow
 @OptIn(androidx.camera.core.ExperimentalSessionConfig::class, androidx.camera.video.ExperimentalHighSpeedVideo::class)
 class ProCameraController(private val context: Context) {
 
-    private val _state = MutableStateFlow(CameraUiState())
+    private val _state = MutableStateFlow(
+        CameraUiState(
+            cameraSounds = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getBoolean("camera_sounds", true),
+            shutterSoundRequired = android.os.Build.VERSION.SDK_INT >= 33 && MediaActionSound.mustPlayShutterSound(),
+        )
+    )
     val state: StateFlow<CameraUiState> = _state.asStateFlow()
 
     private val _analysis = MutableStateFlow<AnalysisResult?>(null)
@@ -906,6 +911,21 @@ class ProCameraController(private val context: Context) {
     fun setZebraLevel(level: Int) = set { it.copy(zebraLevel = level.coerceIn(70, 100)) }
     fun togglePeaking() = set { it.copy(peaking = !it.peaking) }
     fun toggleVolumeShutter() = set { it.copy(volumeShutter = !it.volumeShutter) }
+
+    fun toggleCameraSounds() {
+        if (st.shutterSoundRequired) {
+            toast("Shutter sound is required by law in this region")
+            return
+        }
+        val on = !st.cameraSounds
+        context.getSharedPreferences("procam", Context.MODE_PRIVATE).edit().putBoolean("camera_sounds", on).apply()
+        set { it.copy(cameraSounds = on) }
+    }
+
+    /** Plays a camera sound unless the user muted them (never muted where the law requires it). */
+    private fun playSound(type: Int) {
+        if (st.cameraSounds || st.shutterSoundRequired) sound.play(type)
+    }
     fun toggleAudio() = set { it.copy(audio = !it.audio) }
 
     fun setVideoRes(r: VideoRes) {
@@ -1241,7 +1261,7 @@ class ProCameraController(private val context: Context) {
         }
         lapseRecorder = rec
         filterProcessor.lapse = rec
-        sound.play(MediaActionSound.START_VIDEO_RECORDING)
+        playSound(MediaActionSound.START_VIDEO_RECORDING)
         set { it.copy(recording = true, paused = false, recordSeconds = 0, lapseFrames = 0) }
         lapseTicker = scope.launch {
             var sec = 0L
@@ -1263,7 +1283,7 @@ class ProCameraController(private val context: Context) {
         lapseRecorder = null
         filterProcessor.lapse = null
         lapseTicker?.cancel()
-        sound.play(MediaActionSound.STOP_VIDEO_RECORDING)
+        playSound(MediaActionSound.STOP_VIDEO_RECORDING)
         val frames = rec.frameCount
         set { it.copy(recording = false, processing = true) }
         rec.stop { uri ->
@@ -1399,7 +1419,7 @@ class ProCameraController(private val context: Context) {
         val ic = imageCapture ?: return
         if (panoBusy || !st.panoActive) return
         panoBusy = true
-        sound.play(MediaActionSound.FOCUS_COMPLETE)
+        playSound(MediaActionSound.FOCUS_COMPLETE)
         ic.takePicture(ioExecutor, object : ImageCapture.OnImageCapturedCallback() {
             override fun onCaptureSuccess(image: ImageProxy) {
                 val rot = image.imageInfo.rotationDegrees
@@ -1443,7 +1463,7 @@ class ProCameraController(private val context: Context) {
                 pano?.let { p -> saveBitmap(p, stamp() + "_pano.jpg", volume).also { p.recycle() } }
             }
             set { it.copy(stitching = false, lastMedia = uri ?: it.lastMedia) }
-            sound.play(MediaActionSound.SHUTTER_CLICK)
+            playSound(MediaActionSound.SHUTTER_CLICK)
             toast(if (uri != null) "Panorama saved (${frames.size} frames)" else "Couldn't build the panorama")
         }
     }
@@ -1475,7 +1495,7 @@ class ProCameraController(private val context: Context) {
         val format = ic.outputFormat
         val filter = st.filter
         val name = stamp()
-        sound.play(MediaActionSound.SHUTTER_CLICK)
+        playSound(MediaActionSound.SHUTTER_CLICK)
         set { it.copy(shutterFlash = it.shutterFlash + 1) }
 
         return suspendCancellableCoroutine { cont ->
@@ -1550,7 +1570,7 @@ class ProCameraController(private val context: Context) {
             PackageManager.PERMISSION_GRANTED
         if (s0.mode.isNormalVideo && st.audio && micGranted) pending = pending.withAudioEnabled()
         if (s0.mode.isNormalVideo && st.audio && !micGranted) toast("Recording without sound (microphone not allowed)")
-        sound.play(MediaActionSound.START_VIDEO_RECORDING)
+        playSound(MediaActionSound.START_VIDEO_RECORDING)
         try {
             recording = pending.start(mainExecutor) { event -> onRecordEvent(event) }
         } catch (t: Throwable) {
@@ -1561,7 +1581,7 @@ class ProCameraController(private val context: Context) {
     private fun stopRecording() {
         recording?.stop()
         recording = null
-        sound.play(MediaActionSound.STOP_VIDEO_RECORDING)
+        playSound(MediaActionSound.STOP_VIDEO_RECORDING)
     }
 
     fun setAudioMonitoring(on: Boolean) {

@@ -58,7 +58,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 .background(Pro.PanelSolid)
                 // Swallow taps so they don't close the panel.
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
-                .verticalScroll(rememberScrollState())
+                .hintedScroll(horizontal = false)
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {

@@ -118,7 +118,7 @@ fun LiveBar(ls: LiveState, live: LiveStreamer, modifier: Modifier = Modifier) {
             Modifier
                 .clip(RoundedCornerShape(12.dp))
                 .background(Pro.Panel)
-                .horizontalScroll(rememberScrollState())
+                .hintedScroll(horizontal = true)
                 .padding(6.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -178,7 +178,7 @@ fun LiveSetupPanel(ls: LiveState, live: LiveStreamer) {
                 .clip(RoundedCornerShape(18.dp))
                 .background(Pro.PanelSolid)
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
-                .verticalScroll(rememberScrollState())
+                .hintedScroll(horizontal = false)
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {

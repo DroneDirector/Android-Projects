@@ -40,8 +40,18 @@ jobs:
           VERSION_CODE: ${{ github.run_number }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          set -o pipefail
+          ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
           cp app/build/outputs/apk/release/app-release.apk "ProCam-1.0.${{ github.run_number }}.apk"
+
+      - name: Report compile errors
+        if: failure()
+        run: |
+          grep -E "^e: " build.log | head -20 | while IFS= read -r l; do echo "::error::$l"; done
+          mkdir -p /tmp/bl && cp build.log /tmp/bl/
+          cd /tmp/bl && git init -q -b build-log && git add -A
+          git -c user.name="github-actions" -c user.email="actions@github.com" commit -qm "Build log ${GITHUB_SHA::7}"
+          git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" build-log
 
       - uses: actions/upload-artifact@v4
         with:

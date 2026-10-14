@@ -12,11 +12,19 @@ mkdir -p "$OUT"
 adb wait-for-device
 adb install -r -g "$APK" || { echo "install failed"; exit 1; }
 adb shell settings put system accelerometer_rotation 0
+# Skip Android's one-time "Viewing full screen" notice.
+adb shell settings put secure immersive_mode_confirmations confirmed
 adb logcat -c
 
+CUR=0
 rotate() { # 0 = portrait, 1 = landscape
   adb shell settings put system user_rotation "$1"
-  sleep 2
+  # Also turn the virtual device itself, so its camera and level sensor match the screen.
+  if [ "$1" != "$CUR" ]; then
+    if [ "$1" = 1 ]; then adb emu rotate; else adb emu rotate; adb emu rotate; adb emu rotate; fi
+    CUR="$1"
+  fi
+  sleep 3
 }
 
 shot() { # name, extra am-start args...

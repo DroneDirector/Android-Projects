@@ -245,8 +245,8 @@ private fun ParamChip(p: ProParam, value: String, s: CameraUiState, enabled: Boo
                 )
             }
             .alpha(if (enabled) 1f else 0.4f)
-            .padding(horizontal = 10.dp, vertical = 5.dp)
-            .widthIn(min = 52.dp),
+            .padding(horizontal = 6.dp, vertical = 5.dp)
+            .widthIn(min = 44.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(p.label, style = Pro.Label.copy(color = if (selected) Pro.Amber else Pro.Dim))
@@ -306,6 +306,17 @@ private fun EditorRow(title: String, value: String, content: @Composable RowScop
 
 @Composable
 private fun ParamEditor(p: ProParam, s: CameraUiState, c: ProCameraController, isoShown: Int?, shutterShown: Long?) {
+    if ((p == ProParam.ISO || p == ProParam.SHUTTER) && !s.manualSensor) {
+        Text(
+            "This camera doesn't allow manual ${if (p == ProParam.ISO) "ISO" else "shutter speed"}. Exposure stays automatic; use EV to adjust brightness.",
+            style = Pro.Label.copy(fontSize = 12.sp, letterSpacing = 0.sp, color = Color.White),
+        )
+        return
+    }
+    if (p == ProParam.FOCUS && s.minFocusDiopters <= 0f) {
+        Text("This lens has fixed focus.", style = Pro.Label.copy(fontSize = 12.sp, letterSpacing = 0.sp, color = Color.White))
+        return
+    }
     when (p) {
         ProParam.ISO -> {
             val shown = if (s.manualIso) s.iso else (isoShown ?: s.iso)

@@ -1,5 +1,8 @@
 name: Build ProCam APK
 
+# Every push to ProCamera/ builds the APK and takes emulator screenshots
+# (pushed to the 'screenshots' branch). Nothing is published until the
+# workflow is run by hand with "publish" ticked.
 on:
   push:
     branches: [main]
@@ -7,6 +10,11 @@ on:
       - "ProCamera/**"
       - ".github/workflows/procam.yml"
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish the APK on the Releases page"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -18,9 +26,9 @@ jobs:
       run:
         working-directory: ProCamera
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -33,20 +41,76 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon --stacktrace
-
-      - name: Name the APK
-        run: cp app/build/outputs/apk/release/app-release.apk "ProCam-1.0.${{ github.run_number }}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "ProCam-1.0.${{ github.run_number }}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ProCam-1.0.${{ github.run_number }}
+          name: apk
           path: ProCamera/ProCam-*.apk
+
+  screenshots:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+          path: apk
+
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run app on emulator and capture screens
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back virtualscene -camera-front emulated
+          script: bash ProCamera/scripts/screenshots.sh "$(ls apk/*.apk | head -1)" shots
+
+      - name: Save screenshots to the 'screenshots' branch
+        if: always()
+        run: |
+          [ -d shots ] || exit 0
+          cd shots
+          git init -q -b screenshots
+          git add -A
+          git -c user.name="github-actions" -c user.email="actions@github.com" commit -qm "Screenshots for ${GITHUB_SHA::7} (run ${{ github.run_number }})"
+          git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" screenshots
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: shots
+
+  release:
+    needs: [build, screenshots]
+    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+          path: apk
 
       - name: Publish download on the Releases page
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "procam-1.0.${{ github.run_number }}" "ProCam-1.0.${{ github.run_number }}.apk" \
-            --title "ProCam 1.0.${{ github.run_number }}" \
-            --notes "Tap ProCam-1.0.${{ github.run_number }}.apk below to download, then open it to install." \
+          APK=$(ls apk/*.apk | head -1)
+          NAME=$(basename "$APK" .apk)
+          gh release create "procam-1.0.${{ github.run_number }}" "$APK" \
+            -R "${{ github.repository }}" \
+            --title "${NAME/ProCam-/ProCam }" \
+            --notes "Tap $(basename "$APK") below to download, then open it to install." \
             --latest

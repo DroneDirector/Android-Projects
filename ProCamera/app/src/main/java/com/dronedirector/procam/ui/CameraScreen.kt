@@ -53,13 +53,13 @@ import com.dronedirector.procam.camera.ProCameraController
 import kotlinx.coroutines.delay
 
 @Composable
-fun CameraScreen(controller: ProCameraController) {
+fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false) {
     val s by controller.state.collectAsStateWithLifecycle()
     val analysis by controller.analysis.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var showSettings by rememberSaveable { mutableStateOf(false) }
+    var showSettings by rememberSaveable { mutableStateOf(openSettings) }
 
     val previewView = remember {
         PreviewView(context).apply {

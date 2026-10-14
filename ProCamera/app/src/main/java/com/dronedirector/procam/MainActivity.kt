@@ -42,7 +42,10 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.dronedirector.procam.camera.CaptureMode
+import com.dronedirector.procam.camera.GridMode
 import com.dronedirector.procam.camera.ProCameraController
+import com.dronedirector.procam.camera.ProParam
 import com.dronedirector.procam.ui.CameraScreen
 import com.dronedirector.procam.ui.Pro
 import com.dronedirector.procam.ui.ProCamTheme
@@ -63,13 +66,35 @@ class MainActivity : ComponentActivity() {
         hideSystemBars()
 
         controller = ProCameraController(applicationContext)
+        val openSettings = applyLaunchOptions(intent)
         setContent {
             ProCamTheme {
                 PermissionGate {
-                    CameraScreen(controller)
+                    CameraScreen(controller, openSettings)
                 }
             }
         }
+    }
+
+    /**
+     * Optional launch extras used by the automated screenshot run, e.g.
+     * `am start -n com.dronedirector.procam/.MainActivity --es mode VIDEO --es param ISO --ez settings true`.
+     * Returns whether the settings panel should start open.
+     */
+    private fun applyLaunchOptions(intent: Intent?): Boolean {
+        val extras = intent?.extras ?: return false
+        extras.getString("mode")?.let { m ->
+            CaptureMode.entries.firstOrNull { it.name == m }?.let { controller.setMode(it) }
+        }
+        extras.getString("param")?.let { p ->
+            ProParam.entries.firstOrNull { it.name == p }?.let { controller.setActiveParam(it) }
+        }
+        extras.getString("grid")?.let { g ->
+            GridMode.entries.firstOrNull { it.name == g }?.let { controller.setGrid(it) }
+        }
+        if (extras.getBoolean("peaking", false)) controller.togglePeaking()
+        if (extras.getBoolean("zebras", false)) controller.toggleZebras()
+        return extras.getBoolean("settings", false)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

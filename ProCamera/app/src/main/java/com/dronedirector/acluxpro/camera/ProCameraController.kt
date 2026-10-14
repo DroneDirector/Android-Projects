@@ -222,11 +222,27 @@ class ProCameraController(private val context: Context) {
 
     fun setDisplayRotation(r: Int) {
         if (r == rotation) return
+        val turned90 = (r % 2) != (rotation % 2)
         rotation = r
+        // The preview must follow the screen too, or it shows up sideways and stretched.
+        previewUseCase?.setTargetRotation(r)
         imageCapture?.setTargetRotation(r)
         imageAnalysis?.setTargetRotation(r)
         if (!st.recording) videoCapture?.setTargetRotation(r)
+        // A GPU filter stream bakes in the orientation it was set up with; rebuild it after a
+        // portrait <-> landscape turn (not mid-recording, which would stop the clip).
+        if (turned90 && effectBound && !st.recording) {
+            rotationRebind?.cancel()
+            rotationRebind = scope.launch {
+                delay(300)
+                if (!st.recording) bind()
+            }
+        }
     }
+
+    private var previewUseCase: Preview? = null
+    private var effectBound = false
+    private var rotationRebind: kotlinx.coroutines.Job? = null
 
     // ---------------------------------------------------------------- lenses & capabilities
 
@@ -477,6 +493,8 @@ class ProCameraController(private val context: Context) {
         }
         val preview = previewBuilder.build()
         preview.setSurfaceProvider(view.surfaceProvider)
+        previewUseCase = preview
+        effectBound = false
 
         if (s.mode.isSlowMo) {
             bindSlowMo(p, owner, selector, s, preview)
@@ -533,6 +551,7 @@ class ProCameraController(private val context: Context) {
                 bound = p.bindToLifecycle(owner, selector, group.build())
                 withAnalysis = a.analysis
                 withEffect = a.effect
+                effectBound = a.effect && effect != null
                 break
             } catch (t: Throwable) {
                 error = t

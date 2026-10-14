@@ -117,6 +117,8 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
     val cutR = cutout.getRight(rootDensity, androidx.compose.ui.unit.LayoutDirection.Ltr)
     val cutB = cutout.getBottom(rootDensity)
 
+    // The gallery sits above everything, edge to edge, so no camera feed shows around it.
+    Box(Modifier.fillMaxSize()) {
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
@@ -347,9 +349,10 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                 if (liveMode) LiveSetupPanel(liveState, controller.live)
 
                 if (showSettings) SettingsPanel(s, controller) { showSettings = false }
-                if (showGallery) GalleryScreen(onClose = { showGallery = false }, onChanged = { controller.refreshLastMedia() })
             }
         }
+    }
+    if (showGallery) GalleryScreen(onClose = { showGallery = false }, onChanged = { controller.refreshLastMedia() })
     }
 }
 

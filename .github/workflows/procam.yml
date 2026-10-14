@@ -1,4 +1,4 @@
-name: Build ProCam APK
+name: Build AcluxPro APK
 
 # Every push to ProCamera/ builds the APK and takes emulator screenshots
 # (pushed to the 'screenshots' branch). Nothing is published until the
@@ -42,7 +42,7 @@ jobs:
           chmod +x gradlew
           set -o pipefail
           ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
-          cp app/build/outputs/apk/release/app-release.apk "ProCam-1.0.${{ github.run_number }}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "AcluxPro-1.0.${{ github.run_number }}.apk"
 
       - name: Report compile errors
         if: failure()
@@ -56,7 +56,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: apk
-          path: ProCamera/ProCam-*.apk
+          path: ProCamera/AcluxPro-*.apk
 
   screenshots:
     needs: build
@@ -119,8 +119,8 @@ jobs:
         run: |
           APK=$(ls apk/*.apk | head -1)
           NAME=$(basename "$APK" .apk)
-          gh release create "procam-1.0.${{ github.run_number }}" "$APK" \
+          gh release create "acluxpro-1.0.${{ github.run_number }}" "$APK" \
             -R "${{ github.repository }}" \
-            --title "${NAME/ProCam-/ProCam }" \
+            --title "${NAME/AcluxPro-/AcluxPro }" \
             --notes "Tap $(basename "$APK") below to download, then open it to install." \
             --latest

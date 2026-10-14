@@ -73,7 +73,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             s.storageOptions.forEach { opt ->
                 ChoiceRadio(
                     title = opt.label,
-                    subtitle = if (opt.removable) "Removable card · DCIM/ProCam" else "This device · DCIM/ProCam",
+                    subtitle = if (opt.removable) "Removable card · DCIM/AcluxPro" else "This device · DCIM/AcluxPro",
                     selected = s.storageVolume == opt.volume,
                 ) { c.setStorage(opt.volume) }
             }
@@ -144,7 +144,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             InfoRow("HLG 10-bit", if (s.hlgSupported) "Yes" else "No")
             InfoRow("Scenes", s.scenes.joinToString(" · ") { it.label })
             Spacer(Modifier.padding(4.dp))
-            Text("Photos and videos save to DCIM/ProCam.", style = Pro.Label.copy(fontSize = 11.sp, letterSpacing = 0.sp))
+            Text("Photos and videos save to DCIM/AcluxPro.", style = Pro.Label.copy(fontSize = 11.sp, letterSpacing = 0.sp))
         }
     }
 }

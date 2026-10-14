@@ -1,6 +1,6 @@
 # Android Projects
 
-## ProCam — professional camera for Android phones and tablets
+## AcluxPro — professional camera for Android phones and tablets
 
 **Download:** open the [latest release](../../releases/latest) and tap the `.apk` file, then open it to install.
 The first time, Android asks you to allow installing apps from your browser; allow it once.
@@ -34,7 +34,7 @@ and the new APK appears on the Releases page a few minutes later. New builds ins
 - HDR, Night, Bokeh and Auto scene modes where the phone maker provides them
 - Volume keys as shutter
 
-Layouts adapt to phones and tablets in portrait and landscape. Files save to `DCIM/ProCam`.
+Layouts adapt to phones and tablets in portrait and landscape. Files save to `DCIM/AcluxPro`.
 
 ### Building on a computer
 

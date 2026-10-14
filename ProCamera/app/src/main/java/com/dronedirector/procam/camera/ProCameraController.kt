@@ -1175,7 +1175,7 @@ class ProCameraController(private val context: Context) {
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
             put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
             if (Build.VERSION.SDK_INT >= 29) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/ProCam")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
         }
@@ -1451,7 +1451,7 @@ class ProCameraController(private val context: Context) {
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
             put(MediaStore.MediaColumns.MIME_TYPE, mime)
-            if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/ProCam")
+            if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
         }
         return ImageCapture.OutputFileOptions.Builder(
             context.contentResolver,
@@ -1519,7 +1519,7 @@ class ProCameraController(private val context: Context) {
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, "${stamp()}.mp4")
             put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
-            if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/ProCam")
+            if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
         }
         audioMeter.stopMonitoring()
         val s0 = st

@@ -20,6 +20,7 @@ data class MediaItem(
 )
 
 /** Reads the photos and videos AcluxPro saved (DCIM/AcluxPro on internal storage and SD cards). */
+@Suppress("DEPRECATION")
 object MediaLibrary {
     private const val FOLDER = "DCIM/AcluxPro"
 
@@ -50,7 +51,6 @@ object MediaLibrary {
                 add(MediaStore.MediaColumns.DATE_TAKEN)
             }
         }.toTypedArray()
-        @Suppress("DEPRECATION")
         val (selection, args) = if (Build.VERSION.SDK_INT >= 29) {
             "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?" to arrayOf("$FOLDER%")
         } else {

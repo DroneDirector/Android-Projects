@@ -97,6 +97,12 @@ rotate 1
 shot 08-phone-landscape-pro-video --es mode PRO_VIDEO --es guide FLAT
 shot 09-phone-landscape-photo-mono --es mode PHOTO --es filter MONO
 shot 20-phone-landscape-live-tiktok --es mode LIVE --es live TIKTOK --ez nosetup true
+# Turn the phone while the app stays open: the viewfinder must turn with it.
+shot 29a-phone-rotate-start-landscape --es mode VIDEO
+rotate 0; sleep 3
+adb exec-out screencap -p > "$OUT/29b-phone-rotated-to-portrait.png"
+rotate 1; sleep 3
+adb exec-out screencap -p > "$OUT/29c-phone-rotated-back-landscape.png"
 
 # ---- tablet (resize the same emulator to a 10" tablet screen)
 adb shell wm size 1600x2560

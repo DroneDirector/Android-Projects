@@ -42,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -107,6 +108,14 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
     val (manualIso, manualShutter) = controller.effectiveExposure(s)
     val isoShown = if (s.manualExposure) manualIso else s.liveIso
     val shutterShown = if (s.manualExposure) manualShutter else s.liveShutterNs
+
+    // Notch / camera-cutout size in pixels; full-screen video draws underneath it.
+    val rootDensity = LocalDensity.current
+    val cutout = WindowInsets.displayCutout
+    val cutL = cutout.getLeft(rootDensity, androidx.compose.ui.unit.LayoutDirection.Ltr)
+    val cutT = cutout.getTop(rootDensity)
+    val cutR = cutout.getRight(rootDensity, androidx.compose.ui.unit.LayoutDirection.Ltr)
+    val cutB = cutout.getBottom(rootDensity)
 
     BoxWithConstraints(
         Modifier
@@ -174,7 +183,13 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                             GridOverlay(s.grid)
                             LiveBadge(liveState, Modifier.align(Alignment.TopCenter).padding(top = 10.dp))
                         }
-                    } else Box(if (fillScreen) Modifier.fillMaxSize() else Modifier.aspectRatio(frameRatio)) {
+                    } else Box(
+                        if (fillScreen) Modifier.fillMaxSize().layout { m, c ->
+                            // Bleed under the notch so there is no black band at the edge.
+                            val p = m.measure(androidx.compose.ui.unit.Constraints.fixed(c.maxWidth + cutL + cutR, c.maxHeight + cutT + cutB))
+                            layout(c.maxWidth, c.maxHeight) { p.place(-cutL, -cutT) }
+                        } else Modifier.aspectRatio(frameRatio)
+                    ) {
                         AndroidView(
                             factory = {
                                 (previewView.parent as? ViewGroup)?.removeView(previewView)
@@ -236,7 +251,17 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                         Countdown(s.countdown)
 
                         // Read-outs and badges stay inside the area not covered by the control bars.
-                        Box(Modifier.fillMaxSize().padding(if (fillScreen) barPad else noPad)) {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .then(
+                                    if (fillScreen) with(LocalDensity.current) {
+                                        Modifier
+                                            .padding(start = cutL.toDp(), top = cutT.toDp(), end = cutR.toDp(), bottom = cutB.toDp())
+                                            .padding(barPad)
+                                    } else Modifier
+                                )
+                        ) {
                         // Draggable read-outs: drag them anywhere; positions are remembered.
                         if (s.isPro) {
                             DraggableOverlay("hud", Alignment.TopStart, s.layoutVersion) {

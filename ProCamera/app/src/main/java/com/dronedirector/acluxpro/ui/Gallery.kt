@@ -630,7 +630,7 @@ private fun openWith(context: Context, item: MediaItem) {
 }
 
 private fun duration(ms: Long): String {
-    val total = (ms / 1000).coerceAtLeast(0)
+    val total = ((ms + 999) / 1000).coerceAtLeast(0)
     val h = total / 3600
     val m = (total % 3600) / 60
     val s = total % 60

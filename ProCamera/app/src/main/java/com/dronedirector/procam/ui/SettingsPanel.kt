@@ -96,6 +96,17 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 )
             }
 
+            if (s.photoSizes.isNotEmpty()) {
+                Section("PHOTO SIZE · ${s.lens?.label ?: ""} CAMERA · ${s.aspect.label}")
+                s.photoSizes.forEach { ps ->
+                    ChoiceRadio(
+                        title = ps.label,
+                        subtitle = ps.detail + if (ps.highRes) " · high-resolution mode, slower to take" else "",
+                        selected = s.photoSize == ps,
+                    ) { c.setPhotoSize(ps) }
+                }
+            }
+
             Section("PHOTO")
             ChoiceRow("Burst", listOf(1, 3, 5, 10), s.burst, { if (it == 1) "OFF" else "x$it" }) { c.setBurst(it) }
             ChoiceRow("Self-timer", listOf(0, 3, 5, 10), s.timerSec, { if (it == 0) "OFF" else "${it}s" }) { c.setTimer(it) }

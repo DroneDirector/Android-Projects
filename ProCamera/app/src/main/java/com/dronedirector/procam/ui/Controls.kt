@@ -138,6 +138,12 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
                 c.setTimer(listOf(0, 3, 5, 10).next(s.timerSec))
             }
             QuickItem("RATIO", s.aspect.label) { c.setAspect(AspectMode.entries.next(s.aspect)) }
+            val size = s.photoSize
+            if (size != null && s.photoSizes.size > 1 && !(mode == CaptureMode.PRO_PHOTO && s.photoFormat == com.dronedirector.procam.camera.PhotoFormat.RAW)) {
+                QuickItem("SIZE", size.label.replace(" ", ""), active = size == s.photoSizes.first()) {
+                    c.setPhotoSize(s.photoSizes.next(size))
+                }
+            }
             QuickItem("INTERVAL", if (s.intervalSec == 0) "OFF" else "${s.intervalSec}s", active = s.intervalSec > 0) {
                 c.setInterval(listOf(0, 2, 5, 10, 30, 60).next(s.intervalSec))
             }

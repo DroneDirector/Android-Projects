@@ -125,6 +125,9 @@ data class CameraUiState(
 
     // Photo options
     val photoFormat: PhotoFormat = PhotoFormat.JPEG,
+    /** Megapixel options for the current camera + ratio, and the chosen one (null = camera default). */
+    val photoSizes: List<PhotoSize> = emptyList(),
+    val photoSize: PhotoSize? = null,
     val aspect: AspectMode = AspectMode.R4_3,
     val flash: FlashSetting = FlashSetting.OFF,
     val scene: Scene = Scene.STANDARD,

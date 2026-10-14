@@ -287,6 +287,7 @@ class ProCameraController(private val context: Context) {
             } == true
         }
 
+        refreshPhotoSizes(lens)
         val isoStops = if (manual) Stops.isoStops(isoRange.lower, isoRange.upper) else emptyList()
         val shutterStops = if (manual) Stops.shutterStops(exposureRange.lower, exposureRange.upper) else emptyList()
 
@@ -330,6 +331,23 @@ class ProCameraController(private val context: Context) {
                 flash = if (info.hasFlashUnit()) s.flash else FlashSetting.OFF,
             )
         }
+    }
+
+    private fun refreshPhotoSizes(target: Lens? = st.lens) {
+        val lens = target ?: return
+        val aspect = st.aspect
+        val sizes = PhotoSizes.forCamera(lens.info, aspect)
+        val saved = PhotoSizes.load(context, lens.id, aspect)
+        val chosen = sizes.firstOrNull { it.key == saved } ?: sizes.firstOrNull { !it.highRes } ?: sizes.firstOrNull()
+        set { it.copy(photoSizes = sizes, photoSize = chosen) }
+    }
+
+    fun setPhotoSize(size: PhotoSize) {
+        val lens = st.lens ?: return
+        if (st.photoSize == size) return
+        PhotoSizes.save(context, lens.id, st.aspect, size)
+        set { it.copy(photoSize = size) }
+        if (!st.isVideo && st.mode != CaptureMode.LIVE) bind()
     }
 
     /** RAW / RAW+JPEG availability, so the UI only offers formats that work. */
@@ -473,6 +491,11 @@ class ProCameraController(private val context: Context) {
             // Step back to safer settings and try again.
             if (attempt < 2) {
                 when {
+                    !s.isVideo && s.photoSize?.highRes == true -> {
+                        val fallback = s.photoSizes.firstOrNull { !it.highRes }
+                        set { it.copy(photoSize = fallback) }
+                        toast("${s.photoSize?.label} isn't available together with this mode, using ${fallback?.label ?: "default"}")
+                    }
                     s.mode == CaptureMode.PRO_PHOTO && s.photoFormat != PhotoFormat.JPEG -> {
                         set { it.copy(photoFormat = PhotoFormat.JPEG) }
                         toast("RAW isn't available with this lens, using JPEG")
@@ -522,9 +545,19 @@ class ProCameraController(private val context: Context) {
             PhotoFormat.JPEG -> ImageCapture.OUTPUT_FORMAT_JPEG
         }
         val mode = if (s.burst > 1 || s.mode == CaptureMode.PANORAMA) ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY else ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
+        val size = s.photoSize
+        val photoResolution = if (size != null && s.mode != CaptureMode.PANORAMA) {
+            val aspect = if (s.aspect == AspectMode.R16_9) AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
+            else AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
+            ResolutionSelector.Builder()
+                .setAspectRatioStrategy(aspect)
+                .setResolutionStrategy(ResolutionStrategy(Size(size.width, size.height), ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER))
+                .apply { if (size.highRes) setAllowedResolutionMode(ResolutionSelector.PREFER_HIGHER_RESOLUTION_OVER_CAPTURE_RATE) }
+                .build()
+        } else resolution
         val ic = ImageCapture.Builder()
-            .setCaptureMode(mode)
-            .setResolutionSelector(resolution)
+            .setCaptureMode(if (size?.highRes == true) ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY else mode)
+            .setResolutionSelector(photoResolution)
             .setOutputFormat(format)
             .setJpegQuality(96)
             .setFlashMode(flashModeFor(s))
@@ -772,7 +805,8 @@ class ProCameraController(private val context: Context) {
     fun setAspect(a: AspectMode) {
         val needsRebind = (a == AspectMode.R16_9) != (st.aspect == AspectMode.R16_9) || a == AspectMode.R1_1 || st.aspect == AspectMode.R1_1
         set { it.copy(aspect = a) }
-        if (needsRebind) bind()
+        st.lens?.let { refreshPhotoSizes(it) }
+        if (needsRebind || st.photoSize != null) bind()
     }
 
     fun setScene(scene: Scene) {

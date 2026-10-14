@@ -160,6 +160,16 @@ class ProCameraController(private val context: Context) {
 
     fun toast(message: String) = set { it.copy(message = message, messageId = it.messageId + 1) }
 
+    /** Points the gallery thumbnail at the newest saved photo or video (after deletes, or on start). */
+    fun refreshLastMedia() {
+        scope.launch {
+            val latest = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                MediaLibrary.query(context).firstOrNull()?.uri
+            }
+            set { it.copy(lastMedia = latest) }
+        }
+    }
+
     // ---------------------------------------------------------------- lifecycle
 
     fun attach(owner: LifecycleOwner, view: PreviewView) {

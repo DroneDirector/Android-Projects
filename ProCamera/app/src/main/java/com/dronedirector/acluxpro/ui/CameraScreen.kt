@@ -60,7 +60,7 @@ import com.dronedirector.acluxpro.camera.ProCameraController
 import kotlinx.coroutines.delay
 
 @Composable
-fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false) {
+fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false, openGallery: Boolean = false) {
     val s by controller.state.collectAsStateWithLifecycle()
     val analysis by controller.analysis.collectAsStateWithLifecycle()
     val audio by controller.audioMeter.levels.collectAsStateWithLifecycle()
@@ -71,6 +71,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
     var showSettings by rememberSaveable { mutableStateOf(openSettings) }
+    var showGallery by rememberSaveable { mutableStateOf(openGallery) }
 
     val previewView = remember {
         PreviewView(context).apply {
@@ -144,16 +145,21 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
                 val rail = if (tablet) 132.dp else 120.dp
                 val topBar = if (tablet) 60.dp else 56.dp
                 val bottomBar = if (tablet) 226.dp else 214.dp
+                // Space taken by the control bars around the viewfinder.
+                val barPad = androidx.compose.foundation.layout.PaddingValues(
+                    start = if (landscape) sideBar else 0.dp,
+                    end = if (landscape) rail else 0.dp,
+                    top = if (landscape) 0.dp else topBar,
+                    bottom = if (landscape) 0.dp else bottomBar,
+                )
+                // Video modes fill the whole screen edge to edge; photo modes keep exact framing.
+                val fillScreen = s.isVideo && !liveMode
+                val noPad = androidx.compose.foundation.layout.PaddingValues(0.dp)
 
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .padding(
-                            start = if (landscape) sideBar else 0.dp,
-                            end = if (landscape) rail else 0.dp,
-                            top = if (landscape) 0.dp else topBar,
-                            bottom = if (landscape) 0.dp else bottomBar,
-                        ),
+                        .padding(if (fillScreen) noPad else barPad),
                     contentAlignment = Alignment.Center,
                 ) {
                     val sensorRatio = if (s.isVideo || (s.mode != CaptureMode.PANORAMA && s.aspect == AspectMode.R16_9)) 16f / 9f else 4f / 3f
@@ -168,7 +174,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
                             GridOverlay(s.grid)
                             LiveBadge(liveState, Modifier.align(Alignment.TopCenter).padding(top = 10.dp))
                         }
-                    } else Box(Modifier.aspectRatio(frameRatio)) {
+                    } else Box(if (fillScreen) Modifier.fillMaxSize() else Modifier.aspectRatio(frameRatio)) {
                         AndroidView(
                             factory = {
                                 (previewView.parent as? ViewGroup)?.removeView(previewView)
@@ -176,13 +182,29 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
                             },
                             modifier = Modifier.fillMaxSize(),
                         )
+                        if (fillScreen) {
+                            // Soft shading behind the floating controls.
+                            Box(
+                                Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        if (landscape) androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                            0f to Color.Black.copy(alpha = 0.55f), 0.12f to Color.Transparent,
+                                            0.85f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.6f),
+                                        ) else androidx.compose.ui.graphics.Brush.verticalGradient(
+                                            0f to Color.Black.copy(alpha = 0.55f), 0.1f to Color.Transparent,
+                                            0.66f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.75f),
+                                        )
+                                    )
+                            )
+                        }
 
                         if (s.isPro) {
                             analysis?.overlay?.let { bmp ->
                                 Image(
                                     bmp.asImageBitmap(),
                                     contentDescription = null,
-                                    contentScale = ContentScale.FillBounds,
+                                    contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             }
@@ -213,6 +235,8 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
                         ShutterFlash(s.shutterFlash)
                         Countdown(s.countdown)
 
+                        // Read-outs and badges stay inside the area not covered by the control bars.
+                        Box(Modifier.fillMaxSize().padding(if (fillScreen) barPad else noPad)) {
                         // Draggable read-outs: drag them anywhere; positions are remembered.
                         if (s.isPro) {
                             DraggableOverlay("hud", Alignment.TopStart, s.layoutVersion) {
@@ -260,14 +284,16 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
                                     .padding(horizontal = 8.dp, vertical = 4.dp),
                             )
                         }
+                        }
                     }
 
+                    val panelPos = Modifier.align(Alignment.BottomCenter).padding(if (fillScreen) barPad else noPad)
                     if (liveMode) {
                         LiveBar(liveState, controller.live, Modifier.align(Alignment.BottomCenter))
                     } else if (s.isPro) {
-                        ProPanel(s, controller, isoShown, shutterShown, Modifier.align(Alignment.BottomCenter))
+                        ProPanel(s, controller, isoShown, shutterShown, panelPos)
                     } else if (!s.panoActive && !s.stitching) {
-                        SimpleBar(s, controller, Modifier.align(Alignment.BottomCenter))
+                        SimpleBar(s, controller, panelPos)
                     }
                 }
 
@@ -277,7 +303,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
                         modifier = Modifier.align(Alignment.CenterStart).width(sideBar).fillMaxHeight(),
                     )
                     CaptureControls(
-                        s, controller, vertical = true, tablet = tablet,
+                        s, controller, vertical = true, tablet = tablet, onGallery = { showGallery = true },
                         modifier = Modifier.align(Alignment.CenterEnd).width(rail).fillMaxHeight(),
                     )
                 } else {
@@ -286,7 +312,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
                         modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().height(topBar),
                     )
                     CaptureControls(
-                        s, controller, vertical = false, tablet = tablet,
+                        s, controller, vertical = false, tablet = tablet, onGallery = { showGallery = true },
                         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(bottomBar),
                     )
                 }
@@ -296,6 +322,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
                 if (liveMode) LiveSetupPanel(liveState, controller.live)
 
                 if (showSettings) SettingsPanel(s, controller) { showSettings = false }
+                if (showGallery) GalleryScreen(onClose = { showGallery = false }, onChanged = { controller.refreshLastMedia() })
             }
         }
     }

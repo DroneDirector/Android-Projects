@@ -537,7 +537,7 @@ fun ShutterButton(
 }
 
 @Composable
-fun GalleryThumb(uri: Uri?, size: Dp, onError: (String) -> Unit) {
+fun GalleryThumb(uri: Uri?, size: Dp, onOpen: () -> Unit) {
     val context = LocalContext.current
     var thumb by remember { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(uri) {
@@ -557,20 +557,7 @@ fun GalleryThumb(uri: Uri?, size: Dp, onError: (String) -> Unit) {
             .clip(RoundedCornerShape(10.dp))
             .border(1.5.dp, Color.White.copy(alpha = 0.7f), RoundedCornerShape(10.dp))
             .background(Color.White.copy(alpha = 0.08f))
-            .clickable {
-                val intent = if (uri != null) {
-                    Intent(Intent.ACTION_VIEW).setDataAndType(uri, context.contentResolver.getType(uri))
-                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-                } else {
-                    Intent(Intent.ACTION_VIEW, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                try {
-                    context.startActivity(intent)
-                } catch (_: Throwable) {
-                    onError("No gallery app found")
-                }
-            },
+            .clickable { onOpen() },
         contentAlignment = Alignment.Center,
     ) {
         val t = thumb
@@ -685,7 +672,7 @@ private fun LensSwitch(s: CameraUiState, c: ProCameraController, vertical: Boole
 }
 
 @Composable
-fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean, tablet: Boolean, modifier: Modifier = Modifier) {
+fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean, tablet: Boolean, modifier: Modifier = Modifier, onGallery: () -> Unit = {}) {
     val ls by c.live.state.collectAsState()
     val liveMode = s.mode == CaptureMode.LIVE
     val shutter = if (tablet) 88.dp else 74.dp
@@ -699,7 +686,7 @@ fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean,
                 Icon(if (s.paused) Icons.Filled.PlayArrow else Icons.Filled.Pause, contentDescription = "Pause", tint = Color.White)
             }
         } else {
-            GalleryThumb(s.lastMedia, small) { c.toast(it) }
+            GalleryThumb(s.lastMedia, small, onGallery)
         }
     }
     val rightButton = @Composable {

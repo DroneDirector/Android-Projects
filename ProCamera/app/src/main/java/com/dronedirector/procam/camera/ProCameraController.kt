@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.ImageFormat
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
@@ -27,6 +28,7 @@ import androidx.camera.camera2.interop.Camera2Interop
 import androidx.camera.camera2.interop.CaptureRequestOptions
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
+import androidx.camera.core.CameraEffect
 import androidx.camera.core.CameraInfo
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.DynamicRange
@@ -34,8 +36,10 @@ import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.core.UseCase
+import androidx.camera.core.UseCaseGroup
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
@@ -61,6 +65,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -98,6 +103,17 @@ class ProCameraController(private val context: Context) {
     private var imageAnalysis: ImageAnalysis? = null
     private var recording: Recording? = null
     private var captureJob: kotlinx.coroutines.Job? = null
+    private val ioExecutor = Executors.newSingleThreadExecutor()
+    private val filterProcessor = FilterProcessor()
+    private var filterWarned = false
+
+    val audioMeter = AudioMeter(context)
+
+    // Panorama capture state (main thread).
+    private val panoFrames = ArrayList<Bitmap>()
+    private var panoAccum = 0f
+    private var panoBusy = false
+    private var panoTimerJob: kotlinx.coroutines.Job? = null
     private var rotation = Surface.ROTATION_0
 
     private var isoRange = Range(100, 3200)
@@ -109,7 +125,10 @@ class ProCameraController(private val context: Context) {
     @Volatile
     private var analysisConfig = AnalysisConfig()
 
-    private val analyzer = FrameAnalyzer({ analysisConfig }) { _analysis.value = it }
+    private val analyzer = FrameAnalyzer({ analysisConfig }) { result ->
+        _analysis.value = result
+        if (result.motionX != 0f) mainExecutor.execute { onPanoMotion(result.motionX) }
+    }
 
     private val st: CameraUiState get() = _state.value
 
@@ -117,11 +136,12 @@ class ProCameraController(private val context: Context) {
         _state.update(f)
         val s = _state.value
         analysisConfig = AnalysisConfig(
-            histogram = s.showHistogram,
-            zebras = s.zebras,
+            histogram = s.proHistogram,
+            zebras = s.proZebras,
             zebraLevel = s.zebraLevel,
-            peaking = s.peaking,
+            peaking = s.proPeaking,
             mirror = s.isFront,
+            motion = s.panoActive,
         )
     }
 
@@ -132,6 +152,7 @@ class ProCameraController(private val context: Context) {
     fun attach(owner: LifecycleOwner, view: PreviewView) {
         this.owner = owner
         previewView = view
+        refreshStorage()
         if (provider != null) {
             bind()
             return
@@ -156,6 +177,9 @@ class ProCameraController(private val context: Context) {
     }
 
     fun release() {
+        audioMeter.stopMonitoring()
+        filterProcessor.release()
+        ioExecutor.shutdown()
         recording?.stop()
         recording = null
         provider?.unbindAll()
@@ -363,7 +387,7 @@ class ProCameraController(private val context: Context) {
             selector = try { ext.getExtensionEnabledCameraSelector(selector, s.scene.extensionMode) } catch (_: Throwable) { selector }
         }
 
-        val aspect = if (s.mode == CaptureMode.VIDEO || s.aspect == AspectMode.R16_9)
+        val aspect = if (s.isVideo || (s.mode != CaptureMode.PANORAMA && s.aspect == AspectMode.R16_9))
             AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
         else
             AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
@@ -392,31 +416,54 @@ class ProCameraController(private val context: Context) {
 
         var ic: ImageCapture? = null
         var vc: VideoCapture<Recorder>? = null
-        val main: UseCase = if (s.mode == CaptureMode.PHOTO) {
+        val main: UseCase = if (!s.isVideo) {
             buildImageCapture(s, resolution, useScene).also { ic = it }
         } else {
             buildVideoCapture(s).also { vc = it }
         }
 
+        // Live filter: a GPU effect on the preview (and on the recording in video modes).
+        val wantEffect = s.filter != Filter.NONE && !useScene &&
+            !(s.isVideo && s.isPro && s.profile == VideoProfile.HLG && s.hlgSupported)
+        filterProcessor.setFilter(s.filter)
+        val effect: CameraEffect? = if (wantEffect) {
+            val targets = if (s.isVideo) CameraEffect.PREVIEW or CameraEffect.VIDEO_CAPTURE else CameraEffect.PREVIEW
+            FilterEffect(targets, filterProcessor) { t -> mainExecutor.execute { toast("Filter error: ${t.message}") } }
+        } else null
+
+        data class Attempt(val effect: Boolean, val analysis: Boolean)
+        val attempts = buildList {
+            if (effect != null) { add(Attempt(true, true)); add(Attempt(true, false)) }
+            add(Attempt(false, true)); add(Attempt(false, false))
+        }
         var bound: Camera? = null
         var withAnalysis = false
+        var withEffect = false
         var error: Throwable? = null
-        for (useCases in listOf(listOf(preview, main, analysis), listOf(preview, main))) {
+        for (a in attempts) {
             try {
                 p.unbindAll()
-                bound = p.bindToLifecycle(owner, selector, *useCases.toTypedArray())
-                withAnalysis = useCases.size == 3
+                val group = UseCaseGroup.Builder().addUseCase(preview).addUseCase(main)
+                if (a.analysis) group.addUseCase(analysis)
+                if (a.effect && effect != null) group.addEffect(effect)
+                bound = p.bindToLifecycle(owner, selector, group.build())
+                withAnalysis = a.analysis
+                withEffect = a.effect
                 break
             } catch (t: Throwable) {
                 error = t
             }
+        }
+        if (bound != null && effect != null && !withEffect && !filterWarned) {
+            filterWarned = true
+            toast(if (s.isVideo) "Live filters aren't supported with these settings" else "Filter preview unavailable; photos will still be filtered")
         }
 
         if (bound == null) {
             // Step back to safer settings and try again.
             if (attempt < 2) {
                 when {
-                    s.mode == CaptureMode.PHOTO && s.photoFormat != PhotoFormat.JPEG -> {
+                    s.mode == CaptureMode.PRO_PHOTO && s.photoFormat != PhotoFormat.JPEG -> {
                         set { it.copy(photoFormat = PhotoFormat.JPEG) }
                         toast("RAW isn't available with this lens, using JPEG")
                     }
@@ -424,7 +471,7 @@ class ProCameraController(private val context: Context) {
                         set { it.copy(scene = Scene.STANDARD) }
                         toast("${s.scene.label} isn't available here")
                     }
-                    s.mode == CaptureMode.VIDEO -> {
+                    s.isVideo -> {
                         set { it.copy(fps = 30, profile = VideoProfile.STANDARD, stabilization = false) }
                         toast("Video settings not supported, reset to 30 fps")
                     }
@@ -441,7 +488,7 @@ class ProCameraController(private val context: Context) {
         imageCapture = ic
         videoCapture = vc
         imageAnalysis = if (withAnalysis) analysis else null
-        if (!withAnalysis && (s.showHistogram || s.zebras || s.peaking)) {
+        if (!withAnalysis && (s.proHistogram || s.proZebras || s.proPeaking)) {
             _analysis.value = null
         }
 
@@ -459,12 +506,12 @@ class ProCameraController(private val context: Context) {
     }
 
     private fun buildImageCapture(s: CameraUiState, resolution: ResolutionSelector, useScene: Boolean): ImageCapture {
-        val format = if (useScene) ImageCapture.OUTPUT_FORMAT_JPEG else when (s.photoFormat) {
+        val format = if (useScene || s.mode != CaptureMode.PRO_PHOTO) ImageCapture.OUTPUT_FORMAT_JPEG else when (s.photoFormat) {
             PhotoFormat.RAW -> ImageCapture.OUTPUT_FORMAT_RAW
             PhotoFormat.RAW_JPEG -> ImageCapture.OUTPUT_FORMAT_RAW_JPEG
             PhotoFormat.JPEG -> ImageCapture.OUTPUT_FORMAT_JPEG
         }
-        val mode = if (s.burst > 1) ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY else ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
+        val mode = if (s.burst > 1 || s.mode == CaptureMode.PANORAMA) ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY else ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
         val ic = ImageCapture.Builder()
             .setCaptureMode(mode)
             .setResolutionSelector(resolution)
@@ -473,7 +520,7 @@ class ProCameraController(private val context: Context) {
             .setFlashMode(flashModeFor(s))
             .setTargetRotation(rotation)
             .build()
-        if (s.aspect == AspectMode.R1_1) ic.setCropAspectRatio(Rational(1, 1))
+        if (s.aspect == AspectMode.R1_1 && s.mode != CaptureMode.PANORAMA) ic.setCropAspectRatio(Rational(1, 1))
         return ic
     }
 
@@ -488,7 +535,7 @@ class ProCameraController(private val context: Context) {
             .setTargetFrameRate(Range(s.fps, s.fps))
             .setTargetRotation(rotation)
         if (s.stabilizationSupported) builder.setVideoStabilizationEnabled(s.stabilization)
-        if (s.profile == VideoProfile.HLG && s.hlgSupported) builder.setDynamicRange(DynamicRange.HLG_10_BIT)
+        if (s.isPro && s.profile == VideoProfile.HLG && s.hlgSupported) builder.setDynamicRange(DynamicRange.HLG_10_BIT)
         return builder.build()
     }
 
@@ -533,26 +580,26 @@ class ProCameraController(private val context: Context) {
         val b = CaptureRequestOptions.Builder()
         if (s.manualExposure && s.manualSensor) {
             val (iso, exp) = effectiveExposure(s)
-            val frameNs = if (s.mode == CaptureMode.VIDEO) 1_000_000_000L / s.fps else 33_333_333L
+            val frameNs = if (s.isVideo) 1_000_000_000L / s.fps else 33_333_333L
             b.setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF)
             b.setCaptureRequestOption(CaptureRequest.SENSOR_SENSITIVITY, iso)
             b.setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, exp)
             b.setCaptureRequestOption(CaptureRequest.SENSOR_FRAME_DURATION, max(exp, frameNs))
-        } else if (s.aeLock) {
+        } else if (s.aeLock || s.panoActive) {
             b.setCaptureRequestOption(CaptureRequest.CONTROL_AE_LOCK, true)
         }
 
-        if (s.manualFocus && s.minFocusDiopters > 0f) {
+        if (s.manualFocusActive && s.minFocusDiopters > 0f) {
             b.setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF)
             b.setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, s.focusDiopters)
         }
 
-        if (s.whiteBalance != WhiteBalance.AUTO) {
+        if (s.isPro && s.whiteBalance != WhiteBalance.AUTO) {
             b.setCaptureRequestOption(CaptureRequest.CONTROL_AWB_MODE, s.whiteBalance.awbMode)
         }
-        if (s.awbLock) b.setCaptureRequestOption(CaptureRequest.CONTROL_AWB_LOCK, true)
+        if ((s.isPro && s.awbLock) || s.panoActive) b.setCaptureRequestOption(CaptureRequest.CONTROL_AWB_LOCK, true)
 
-        if (s.mode == CaptureMode.VIDEO && s.profile == VideoProfile.FLAT && s.flatSupported) {
+        if (s.mode == CaptureMode.PRO_VIDEO && s.profile == VideoProfile.FLAT && s.flatSupported) {
             b.setCaptureRequestOption(CaptureRequest.TONEMAP_MODE, CaptureRequest.TONEMAP_MODE_CONTRAST_CURVE)
             b.setCaptureRequestOption(CaptureRequest.TONEMAP_CURVE, flatCurve)
         }
@@ -586,8 +633,19 @@ class ProCameraController(private val context: Context) {
     // ---------------------------------------------------------------- public controls
 
     fun setMode(mode: CaptureMode) {
-        if (st.recording || st.mode == mode) return
-        set { it.copy(mode = mode, activeParam = null) }
+        val s = st
+        if (s.recording || s.panoActive || s.stitching || s.mode == mode) return
+        stopInterval()
+        set { it.copy(mode = mode, activeParam = null, showFilters = false) }
+        // Panorama needs the back camera.
+        if (mode == CaptureMode.PANORAMA && s.isFront) {
+            val back = s.lenses.indices.filter { s.lenses[it].facing == CameraSelector.LENS_FACING_BACK }
+                .minByOrNull { abs(s.lenses[it].info.intrinsicZoomRatio - 1f) }
+            if (back != null) {
+                set { it.copy(lensIndex = back) }
+                refreshCapabilities()
+            }
+        }
         bind()
     }
 
@@ -760,9 +818,9 @@ class ProCameraController(private val context: Context) {
         val s = st
         set { it.copy(focusPoint = x to y, focusId = it.focusId + 1) }
         var flags = 0
-        if (!s.manualFocus) flags = flags or FocusMeteringAction.FLAG_AF
+        if (!s.manualFocusActive) flags = flags or FocusMeteringAction.FLAG_AF
         if (!s.manualExposure && !s.aeLock) flags = flags or FocusMeteringAction.FLAG_AE
-        if (s.whiteBalance == WhiteBalance.AUTO && !s.awbLock) flags = flags or FocusMeteringAction.FLAG_AWB
+        if (!(s.isPro && (s.whiteBalance != WhiteBalance.AUTO || s.awbLock))) flags = flags or FocusMeteringAction.FLAG_AWB
         if (flags == 0) return
         try {
             val point = view.meteringPointFactory.createPoint(x, y)
@@ -778,16 +836,41 @@ class ProCameraController(private val context: Context) {
 
     fun shutter() {
         val s = st
-        if (!s.ready) return
-        if (s.mode == CaptureMode.VIDEO) {
-            if (s.recording) stopRecording() else startRecording()
-            return
-        }
+        if (!s.ready || s.stitching) return
         if (s.countdown > 0) {
             cancelCountdown()
             return
         }
+        if (s.isVideo) {
+            if (s.recording) {
+                stopRecording()
+            } else if (s.timerSec > 0) {
+                captureJob = scope.launch {
+                    for (i in s.timerSec downTo 1) {
+                        set { it.copy(countdown = i) }
+                        delay(1000)
+                    }
+                    set { it.copy(countdown = 0) }
+                    startRecording()
+                }
+            } else {
+                startRecording()
+            }
+            return
+        }
+        if (s.mode == CaptureMode.PANORAMA) {
+            if (s.panoActive) finishPanorama() else startPanorama()
+            return
+        }
+        if (s.intervalRunning) {
+            stopInterval()
+            return
+        }
         if (s.capturing) return
+        if (s.intervalSec > 0) {
+            startInterval()
+            return
+        }
         captureJob = scope.launch {
             if (s.timerSec > 0) {
                 for (i in s.timerSec downTo 1) {
@@ -797,12 +880,251 @@ class ProCameraController(private val context: Context) {
                 set { it.copy(countdown = 0) }
             }
             set { it.copy(capturing = true) }
-            var saved = 0
-            repeat(max(1, s.burst)) {
+            val saved = captureSet(s)
+            set { it.copy(capturing = false) }
+            if (saved > 1) toast("$saved photos saved")
+        }
+    }
+
+    /** One press of the shutter: a single shot, a burst, or an exposure bracket. */
+    private suspend fun captureSet(s: CameraUiState): Int {
+        var saved = 0
+        if (s.mode == CaptureMode.PRO_PHOTO && s.bracket != Bracket.OFF) {
+            val n = s.bracket.stops
+            for (stops in listOf(-n, 0, n)) {
+                applyBracketStep(s, stops)
+                delay(if (s.manualExposure) 250 else 600)
                 if (takePhoto()) saved++
             }
-            set { it.copy(capturing = false) }
-            if (s.burst > 1) toast("$saved photos saved")
+            applyBracketStep(s, 0)
+            applyControls()
+            return saved
+        }
+        repeat(max(1, s.burst)) { if (takePhoto()) saved++ }
+        return saved
+    }
+
+    private fun applyBracketStep(s: CameraUiState, stops: Int) {
+        val cam = camera ?: return
+        if (s.manualExposure && s.manualSensor) {
+            val (iso, exp) = effectiveExposure(s)
+            val factor = 2.0.pow(stops.toDouble())
+            val newExp = (exp * factor).toLong().coerceIn(exposureRange.lower, exposureRange.upper)
+            val b = CaptureRequestOptions.Builder()
+                .setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF)
+                .setCaptureRequestOption(CaptureRequest.SENSOR_SENSITIVITY, iso)
+                .setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, newExp)
+                .setCaptureRequestOption(CaptureRequest.SENSOR_FRAME_DURATION, max(newExp, 33_333_333L))
+            try { Camera2CameraControl.from(cam.cameraControl).setCaptureRequestOptions(b.build()) } catch (_: Throwable) {}
+        } else if (s.evMax > s.evMin) {
+            val idx = (s.ev + Math.round(stops / s.evStep)).coerceIn(s.evMin, s.evMax)
+            cam.cameraControl.setExposureCompensationIndex(idx)
+        }
+    }
+
+    // ---------------------------------------------------------------- interval (time-lapse photos)
+
+    private fun startInterval() {
+        val s = st
+        set { it.copy(intervalRunning = true, intervalCount = 0) }
+        captureJob = scope.launch {
+            while (st.intervalRunning) {
+                set { it.copy(capturing = true) }
+                val n = captureSet(st)
+                set { it.copy(capturing = false, intervalCount = it.intervalCount + n) }
+                for (i in s.intervalSec downTo 1) {
+                    if (!st.intervalRunning) break
+                    set { it.copy(countdown = 0) }
+                    delay(1000)
+                }
+            }
+        }
+    }
+
+    private fun stopInterval() {
+        if (!st.intervalRunning) return
+        captureJob?.cancel()
+        captureJob = null
+        val count = st.intervalCount
+        set { it.copy(intervalRunning = false, capturing = false) }
+        toast("Interval finished: $count photos")
+    }
+
+    fun setInterval(sec: Int) {
+        stopInterval()
+        set { it.copy(intervalSec = sec) }
+    }
+
+    fun setBracket(b: Bracket) = set { it.copy(bracket = b) }
+    fun setGuide(g: FrameGuide) = set { it.copy(guide = g) }
+
+    // ---------------------------------------------------------------- filters
+
+    fun toggleFilterStrip() = set { it.copy(showFilters = !it.showFilters, activeParam = null) }
+
+    fun setFilter(f: Filter) {
+        val s = st
+        if (s.filter == f) return
+        val rebind = (f == Filter.NONE) != (s.filter == Filter.NONE)
+        if (rebind && s.recording) {
+            toast("Pick a filter before you start recording")
+            return
+        }
+        filterProcessor.setFilter(f)
+        set { it.copy(filter = f) }
+        if (rebind) bind()
+    }
+
+    // ---------------------------------------------------------------- storage
+
+    fun refreshStorage() {
+        val options = Storage.options(context)
+        var volume = Storage.load(context)
+        if (options.none { it.volume == volume }) {
+            if (volume != Storage.INTERNAL) toast("SD card not found, saving to internal storage")
+            volume = Storage.INTERNAL
+        }
+        set { it.copy(storageOptions = options, storageVolume = volume) }
+    }
+
+    fun setStorage(volume: String) {
+        Storage.save(context, volume)
+        set { it.copy(storageVolume = volume) }
+        refreshStorage()
+    }
+
+    // ---------------------------------------------------------------- video snapshot
+
+    /** Saves the current (filtered) viewfinder frame as a photo, e.g. while recording. */
+    fun snapshot() {
+        val bmp = try { previewView?.bitmap } catch (_: Throwable) { null } ?: return
+        val name = stamp() + "_snap.jpg"
+        val volume = st.storageVolume
+        set { it.copy(shutterFlash = it.shutterFlash + 1) }
+        scope.launch {
+            val uri = withContext(Dispatchers.IO) { saveBitmap(bmp, name, volume) }
+            bmp.recycle()
+            if (uri != null) {
+                set { it.copy(lastMedia = uri) }
+                toast("Snapshot saved")
+            } else toast("Couldn't save snapshot")
+        }
+    }
+
+    private fun saveBitmap(bmp: Bitmap, fileName: String, volume: String): Uri? {
+        val resolver = context.contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+            if (Build.VERSION.SDK_INT >= 29) {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/ProCam")
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+        }
+        val uri = try { resolver.insert(Storage.imagesUri(volume), values) } catch (_: Throwable) { null } ?: return null
+        return try {
+            resolver.openOutputStream(uri)?.use { bmp.compress(Bitmap.CompressFormat.JPEG, 94, it) }
+            if (Build.VERSION.SDK_INT >= 29) {
+                resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+            }
+            uri
+        } catch (_: Throwable) {
+            resolver.delete(uri, null, null)
+            null
+        }
+    }
+
+    // ---------------------------------------------------------------- panorama
+
+    private fun startPanorama() {
+        if (imageCapture == null) return
+        panoFrames.forEach { it.recycle() }
+        panoFrames.clear()
+        panoAccum = 0f
+        panoBusy = false
+        set { it.copy(panoActive = true, panoFrames = 0, panoDirection = 0, panoProgress = 0f) }
+        applyControls() // lock exposure and white balance so frames match
+        capturePanoFrame()
+        if (imageAnalysis == null) {
+            // No motion tracking available: take frames on a steady rhythm instead.
+            panoTimerJob = scope.launch {
+                while (st.panoActive) {
+                    delay(1300)
+                    if (st.panoDirection == 0) set { it.copy(panoDirection = 1) }
+                    capturePanoFrame()
+                }
+            }
+        }
+    }
+
+    private fun onPanoMotion(dx: Float) {
+        val s = st
+        if (!s.panoActive || panoBusy) return
+        // Ignore jitter until a clear direction appears.
+        if (s.panoDirection == 0) {
+            panoAccum += dx
+            if (abs(panoAccum) > 0.06f) set { it.copy(panoDirection = if (panoAccum > 0) 1 else -1) }
+            return
+        }
+        panoAccum += dx * s.panoDirection
+        if (panoAccum < -0.2f) panoAccum = -0.2f
+        set { it.copy(panoProgress = ((panoFrames.size - 1) + (panoAccum / Panorama.STEP).coerceIn(0f, 1f)) / (Panorama.MAX_FRAMES - 1)) }
+        if (panoAccum >= Panorama.STEP) {
+            panoAccum -= Panorama.STEP
+            capturePanoFrame()
+        }
+    }
+
+    private fun capturePanoFrame() {
+        val ic = imageCapture ?: return
+        if (panoBusy || !st.panoActive) return
+        panoBusy = true
+        sound.play(MediaActionSound.FOCUS_COMPLETE)
+        ic.takePicture(ioExecutor, object : ImageCapture.OnImageCapturedCallback() {
+            override fun onCaptureSuccess(image: ImageProxy) {
+                val rot = image.imageInfo.rotationDegrees
+                val frame = try { Panorama.prepareFrame(image.toBitmap(), rot) } catch (_: Throwable) { null }
+                image.close()
+                mainExecutor.execute {
+                    panoBusy = false
+                    if (frame == null || !st.panoActive) { frame?.recycle(); return@execute }
+                    panoFrames += frame
+                    val n = panoFrames.size
+                    set { it.copy(panoFrames = n, panoProgress = (n - 1f) / (Panorama.MAX_FRAMES - 1)) }
+                    if (n >= Panorama.MAX_FRAMES) finishPanorama()
+                }
+            }
+
+            override fun onError(exception: ImageCaptureException) {
+                mainExecutor.execute { panoBusy = false }
+            }
+        })
+    }
+
+    private fun finishPanorama() {
+        panoTimerJob?.cancel()
+        panoTimerJob = null
+        val frames = ArrayList(panoFrames)
+        panoFrames.clear()
+        val direction = st.panoDirection
+        val filter = st.filter
+        val volume = st.storageVolume
+        set { it.copy(panoActive = false, stitching = frames.size >= 2, panoProgress = 0f) }
+        applyControls() // release the exposure lock
+        if (frames.size < 2) {
+            frames.forEach { it.recycle() }
+            toast("Turn slowly to the side after tapping the shutter")
+            return
+        }
+        scope.launch {
+            val uri = withContext(Dispatchers.Default) {
+                val pano = try { Panorama.stitch(frames, direction, filter) } catch (_: Throwable) { null }
+                frames.forEach { it.recycle() }
+                pano?.let { p -> saveBitmap(p, stamp() + "_pano.jpg", volume).also { p.recycle() } }
+            }
+            set { it.copy(stitching = false, lastMedia = uri ?: it.lastMedia) }
+            sound.play(MediaActionSound.SHUTTER_CLICK)
+            toast(if (uri != null) "Panorama saved (${frames.size} frames)" else "Couldn't build the panorama")
         }
     }
 
@@ -823,7 +1145,7 @@ class ProCameraController(private val context: Context) {
         }
         return ImageCapture.OutputFileOptions.Builder(
             context.contentResolver,
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            Storage.imagesUri(st.storageVolume),
             values,
         ).build()
     }
@@ -831,6 +1153,7 @@ class ProCameraController(private val context: Context) {
     private suspend fun takePhoto(): Boolean {
         val ic = imageCapture ?: return false
         val format = ic.outputFormat
+        val filter = st.filter
         val name = stamp()
         sound.play(MediaActionSound.SHUTTER_CLICK)
         set { it.copy(shutterFlash = it.shutterFlash + 1) }
@@ -844,7 +1167,11 @@ class ProCameraController(private val context: Context) {
                     count++
                     ok = true
                     val uri = output.savedUri
-                    if (uri != null && (expected == 1 || output.imageFormat != ImageFormat.RAW_SENSOR)) {
+                    val isJpeg = output.imageFormat != ImageFormat.RAW_SENSOR && format != ImageCapture.OUTPUT_FORMAT_RAW
+                    if (uri != null && isJpeg && filter != Filter.NONE) {
+                        ioExecutor.execute { Filter.applyToSavedJpeg(context, uri, filter) }
+                    }
+                    if (uri != null && (expected == 1 || isJpeg)) {
                         set { it.copy(lastMedia = uri) }
                     }
                     if (count >= expected && cont.isActive) cont.resume(true)
@@ -884,7 +1211,8 @@ class ProCameraController(private val context: Context) {
             put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
             if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/ProCam")
         }
-        val output = MediaStoreOutputOptions.Builder(context.contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
+        audioMeter.stopMonitoring()
+        val output = MediaStoreOutputOptions.Builder(context.contentResolver, Storage.videosUri(st.storageVolume))
             .setContentValues(values)
             .build()
         var pending = vc.output.prepareRecording(context, output)
@@ -906,6 +1234,10 @@ class ProCameraController(private val context: Context) {
         sound.play(MediaActionSound.STOP_VIDEO_RECORDING)
     }
 
+    fun setAudioMonitoring(on: Boolean) {
+        if (on) audioMeter.startMonitoring() else audioMeter.stopMonitoring()
+    }
+
     fun pauseResume() {
         val r = recording ?: return
         if (st.paused) r.resume() else r.pause()
@@ -919,6 +1251,7 @@ class ProCameraController(private val context: Context) {
             is VideoRecordEvent.Status -> {
                 val stats = event.recordingStats
                 val amp = try { stats.audioStats.audioAmplitude.toFloat() } catch (_: Throwable) { 0f }
+                audioMeter.pushAmplitude(amp)
                 set { it.copy(recordSeconds = stats.recordedDurationNanos / 1_000_000_000L, audioLevel = amp) }
             }
             is VideoRecordEvent.Finalize -> {

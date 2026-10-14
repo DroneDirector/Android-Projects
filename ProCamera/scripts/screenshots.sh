@@ -48,24 +48,27 @@ shot() { # name, extra am-start args...
 
 # ---- phone (Pixel-size emulator)
 rotate 0
-shot 01-phone-photo
-shot 02-phone-iso-dial --es param ISO
-shot 03-phone-focus-peaking --es param FOCUS --ez peaking true --ez zebras true
-shot 04-phone-settings --ez settings true
-shot 05-phone-video --es mode VIDEO
+shot 01-phone-photo-filters --es mode PHOTO --es filter VIVID --ez filters true
+shot 02-phone-pro-photo-iso --es mode PRO_PHOTO --es param ISO
+shot 03-phone-pro-photo-peaking --es mode PRO_PHOTO --es param FOCUS --ez peaking true --ez zebras true
+shot 04-phone-video-cinema --es mode VIDEO --es filter CINEMA
+shot 05-phone-pro-video-scope --es mode PRO_VIDEO --es guide SCOPE --es param EV
+shot 06-phone-panorama --es mode PANORAMA
+shot 07-phone-settings --ez settings true
 rotate 1
-shot 06-phone-landscape-photo --es param SHUTTER
-shot 07-phone-landscape-video --es mode VIDEO
+shot 08-phone-landscape-pro-video --es mode PRO_VIDEO --es guide FLAT
+shot 09-phone-landscape-photo-mono --es mode PHOTO --es filter MONO
 
 # ---- tablet (resize the same emulator to a 10" tablet screen)
 adb shell wm size 1600x2560
 adb shell wm density 320
 rotate 1
-shot 08-tablet-landscape-photo --es param ISO
-shot 09-tablet-landscape-video --es mode VIDEO
-shot 10-tablet-settings --ez settings true
+shot 10-tablet-landscape-pro-photo --es mode PRO_PHOTO --es param WB
+shot 11-tablet-landscape-video --es mode VIDEO --es filter WARM --ez filters true
+shot 12-tablet-settings --ez settings true
 rotate 0
-shot 11-tablet-portrait-photo --es param WB
+shot 13-tablet-portrait-pro-video --es mode PRO_VIDEO --es guide VERTICAL
+shot 14-tablet-portrait-panorama --es mode PANORAMA
 adb shell wm size reset
 adb shell wm density reset
 

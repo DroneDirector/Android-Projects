@@ -43,6 +43,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.dronedirector.procam.camera.CaptureMode
+import com.dronedirector.procam.camera.Filter
+import com.dronedirector.procam.camera.FrameGuide
 import com.dronedirector.procam.camera.GridMode
 import com.dronedirector.procam.camera.ProCameraController
 import com.dronedirector.procam.camera.ProParam
@@ -91,6 +93,13 @@ class MainActivity : ComponentActivity() {
         }
         extras.getString("grid")?.let { g ->
             GridMode.entries.firstOrNull { it.name == g }?.let { controller.setGrid(it) }
+        }
+        extras.getString("filter")?.let { f ->
+            Filter.entries.firstOrNull { it.name == f }?.let { controller.setFilter(it) }
+        }
+        if (extras.getBoolean("filters", false)) controller.toggleFilterStrip()
+        extras.getString("guide")?.let { g ->
+            FrameGuide.entries.firstOrNull { it.name == g }?.let { controller.setGuide(it) }
         }
         if (extras.getBoolean("peaking", false)) controller.togglePeaking()
         if (extras.getBoolean("zebras", false)) controller.toggleZebras()

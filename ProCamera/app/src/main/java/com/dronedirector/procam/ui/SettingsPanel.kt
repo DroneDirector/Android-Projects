@@ -69,11 +69,23 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 }
             }
 
+            Section("SAVE PHOTOS & VIDEOS TO")
+            s.storageOptions.forEach { opt ->
+                ChoiceRadio(
+                    title = opt.label,
+                    subtitle = if (opt.removable) "Removable card · DCIM/ProCam" else "This device · DCIM/ProCam",
+                    selected = s.storageVolume == opt.volume,
+                ) { c.setStorage(opt.volume) }
+            }
+            if (s.storageOptions.none { it.removable }) {
+                Text("No SD card detected. Insert one and it will appear here.", style = Pro.Label.copy(fontSize = 11.sp, letterSpacing = 0.sp))
+            }
+
             Section("COMPOSITION")
-            ToggleRow("Histogram", "Live luminance graph with clipping warnings", s.showHistogram) { c.toggleHistogram() }
+            ToggleRow("Histogram", "Pro modes: live brightness graph with clipping warnings", s.showHistogram) { c.toggleHistogram() }
             ToggleRow("Level", "Horizon line, turns green when straight", s.showLevel) { c.toggleLevel() }
-            ToggleRow("Focus peaking", "Highlights in-focus edges in red", s.peaking) { c.togglePeaking() }
-            ToggleRow("Zebras", "Stripes over areas brighter than ${s.zebraLevel}%", s.zebras) { c.toggleZebras() }
+            ToggleRow("Focus peaking", "Pro modes: highlights in-focus edges in red", s.peaking) { c.togglePeaking() }
+            ToggleRow("Zebras", "Pro modes: stripes over areas brighter than ${s.zebraLevel}%", s.zebras) { c.toggleZebras() }
             if (s.zebras) {
                 Slider(
                     value = s.zebraLevel.toFloat(),
@@ -87,9 +99,11 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             Section("PHOTO")
             ChoiceRow("Burst", listOf(1, 3, 5, 10), s.burst, { if (it == 1) "OFF" else "x$it" }) { c.setBurst(it) }
             ChoiceRow("Self-timer", listOf(0, 3, 5, 10), s.timerSec, { if (it == 0) "OFF" else "${it}s" }) { c.setTimer(it) }
+            ChoiceRow("Interval", listOf(0, 2, 5, 10, 30), s.intervalSec, { if (it == 0) "OFF" else "${it}s" }) { c.setInterval(it) }
+            ChoiceRow("Bracket (PRO)", com.dronedirector.procam.camera.Bracket.entries.toList(), s.bracket, { it.label }) { c.setBracket(it) }
 
             Section("VIDEO")
-            ToggleRow("Record audio", "Uses the device microphone", s.audio) { c.toggleAudio() }
+            ToggleRow("Record audio", "Uses the microphone; levels show in the audio graph", s.audio) { c.toggleAudio() }
             ToggleRow("High bitrate", "More detail, bigger files", s.highBitrate) { c.toggleBitrate() }
             if (s.stabilizationSupported) {
                 ToggleRow("Stabilization", "Electronic / optical video stabilization", s.stabilization) { c.toggleStabilization() }
@@ -167,5 +181,27 @@ private fun InfoRow(title: String, value: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
         Text(title, color = Pro.Dim, fontSize = 13.sp, modifier = Modifier.weight(1f))
         Text(value, color = Color.White, fontSize = 13.sp)
+    }
+}
+
+@Composable
+private fun ChoiceRadio(title: String, subtitle: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        androidx.compose.material3.RadioButton(
+            selected = selected,
+            onClick = onClick,
+            colors = androidx.compose.material3.RadioButtonDefaults.colors(selectedColor = Pro.Amber),
+        )
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Color.White, fontSize = 15.sp)
+            Text(subtitle, color = Pro.Dim, fontSize = 12.sp)
+        }
     }
 }

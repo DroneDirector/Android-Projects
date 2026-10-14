@@ -122,6 +122,24 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val landscape = maxWidth > maxHeight
 
+                // LIVE: the camera fills the whole screen, edge to edge, in any orientation.
+                if (liveMode) {
+                    LiveViewfinder(controller.live, Modifier.fillMaxSize())
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(
+                                if (landscape) androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                    0f to Color.Black.copy(alpha = 0.55f), 0.12f to Color.Transparent,
+                                    0.85f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.6f),
+                                ) else androidx.compose.ui.graphics.Brush.verticalGradient(
+                                    0f to Color.Black.copy(alpha = 0.55f), 0.12f to Color.Transparent,
+                                    0.72f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.7f),
+                                )
+                            )
+                    )
+                }
+
                 val sideBar = if (tablet) 84.dp else 76.dp
                 val rail = if (tablet) 132.dp else 120.dp
                 val topBar = if (tablet) 60.dp else 56.dp
@@ -146,8 +164,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
                     }
 
                     if (liveMode) {
-                        Box(Modifier.aspectRatio(frameRatio)) {
-                            LiveViewfinder(controller.live)
+                        Box(Modifier.fillMaxSize()) {
                             GridOverlay(s.grid)
                             LiveBadge(liveState, Modifier.align(Alignment.TopCenter).padding(top = 10.dp))
                         }

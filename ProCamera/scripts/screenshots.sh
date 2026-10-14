@@ -62,9 +62,11 @@ shot 07-phone-settings --ez settings true
 shot 15-phone-pro-video-dlog --es mode PRO_VIDEO --es profile DLOG
 shot 16-phone-live-youtube-connect --es mode LIVE --es live YOUTUBE
 shot 17-phone-live-tiktok --es mode LIVE --es live TIKTOK --ez nosetup true
+shot 19-phone-live-youtube --es mode LIVE --es live YOUTUBE --ez nosetup true
 rotate 1
 shot 08-phone-landscape-pro-video --es mode PRO_VIDEO --es guide FLAT
 shot 09-phone-landscape-photo-mono --es mode PHOTO --es filter MONO
+shot 20-phone-landscape-live-tiktok --es mode LIVE --es live TIKTOK --ez nosetup true
 
 # ---- tablet (resize the same emulator to a 10" tablet screen)
 adb shell wm size 1600x2560

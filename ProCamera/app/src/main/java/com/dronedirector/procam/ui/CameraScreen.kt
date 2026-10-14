@@ -64,6 +64,8 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
     val s by controller.state.collectAsStateWithLifecycle()
     val analysis by controller.analysis.collectAsStateWithLifecycle()
     val audio by controller.audioMeter.levels.collectAsStateWithLifecycle()
+    val liveState by controller.live.state.collectAsStateWithLifecycle()
+    val liveMode = s.mode == CaptureMode.LIVE
     val context = LocalContext.current
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -137,9 +139,19 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
                     contentAlignment = Alignment.Center,
                 ) {
                     val sensorRatio = if (s.isVideo || (s.mode != CaptureMode.PANORAMA && s.aspect == AspectMode.R16_9)) 16f / 9f else 4f / 3f
-                    val frameRatio = if (landscape) sensorRatio else 1f / sensorRatio
+                    val frameRatio = when {
+                        liveMode -> if (liveState.vertical) 9f / 16f else 16f / 9f
+                        landscape -> sensorRatio
+                        else -> 1f / sensorRatio
+                    }
 
-                    Box(Modifier.aspectRatio(frameRatio)) {
+                    if (liveMode) {
+                        Box(Modifier.aspectRatio(frameRatio)) {
+                            LiveViewfinder(controller.live)
+                            GridOverlay(s.grid)
+                            LiveBadge(liveState, Modifier.align(Alignment.TopCenter).padding(top = 10.dp))
+                        }
+                    } else Box(Modifier.aspectRatio(frameRatio)) {
                         AndroidView(
                             factory = {
                                 (previewView.parent as? ViewGroup)?.removeView(previewView)
@@ -228,7 +240,9 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
                         }
                     }
 
-                    if (s.isPro) {
+                    if (liveMode) {
+                        LiveBar(liveState, controller.live, Modifier.align(Alignment.BottomCenter))
+                    } else if (s.isPro) {
                         ProPanel(s, controller, isoShown, shutterShown, Modifier.align(Alignment.BottomCenter))
                     } else if (!s.panoActive && !s.stitching) {
                         SimpleBar(s, controller, Modifier.align(Alignment.BottomCenter))
@@ -256,6 +270,8 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
                 }
 
                 ToastHost(s.message, s.messageId, Modifier.align(Alignment.Center))
+                ToastHost(liveState.message, liveState.messageId, Modifier.align(Alignment.Center))
+                if (liveMode) LiveSetupPanel(liveState, controller.live)
 
                 if (showSettings) SettingsPanel(s, controller) { showSettings = false }
             }

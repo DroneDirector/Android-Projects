@@ -49,6 +49,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -115,6 +116,17 @@ private fun QuickItem(label: String, value: String, active: Boolean = false, ena
 @Composable
 private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () -> Unit) {
     val mode = s.mode
+    if (mode == CaptureMode.LIVE) {
+        val ls by c.live.state.collectAsState()
+        QuickItem("PLATFORM", ls.platform.label.uppercase(), active = true, enabled = !ls.isBusy) { c.live.showSetup(true) }
+        QuickItem("MIC", if (ls.muted) "OFF" else "ON", active = ls.muted) { c.live.toggleMute() }
+        QuickItem("TORCH", if (ls.torch) "ON" else "OFF", active = ls.torch) { c.live.toggleTorch() }
+        QuickItem("FORMAT", if (ls.vertical) "9:16" else "16:9", enabled = !ls.isBusy) { c.live.setVertical(!ls.vertical) }
+        QuickItem("QUALITY", ls.quality.label, enabled = !ls.isBusy) {
+            c.live.setQuality(com.dronedirector.procam.camera.LiveQuality.entries.next(ls.quality))
+        }
+        return
+    }
     if (!s.isVideo) {
         if (s.hasFlash && mode != CaptureMode.PANORAMA) {
             QuickItem("FLASH", s.flash.label, active = s.flash != FlashSetting.OFF) {
@@ -162,11 +174,16 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
         if (mode == CaptureMode.PRO_VIDEO) {
             val profiles = buildList {
                 add(VideoProfile.STANDARD)
-                if (s.flatSupported) add(VideoProfile.FLAT)
+                add(VideoProfile.FLAT)
+                add(VideoProfile.DLOG)
+                add(VideoProfile.DLOG_M)
                 if (s.hlgSupported) add(VideoProfile.HLG)
             }
-            QuickItem("PROFILE", s.profile.label, active = s.profile != VideoProfile.STANDARD, enabled = profiles.size > 1 && !s.recording) {
+            QuickItem("PROFILE", s.profile.label, active = s.profile != VideoProfile.STANDARD, enabled = !s.recording) {
                 c.setProfile(profiles.next(s.profile))
+            }
+            if (s.profile.isLog) {
+                QuickItem("ASSIST", if (s.logAssist) "ON" else "OFF", active = s.logAssist) { c.toggleLogAssist() }
             }
             QuickItem("BITRATE", if (s.highBitrate) "HIGH" else "STD", active = s.highBitrate, enabled = !s.recording) { c.toggleBitrate() }
             QuickItem("GUIDE", s.guide.label, active = s.guide != FrameGuide.OFF) { c.setGuide(FrameGuide.entries.next(s.guide)) }
@@ -442,11 +459,11 @@ private fun ParamEditor(p: ProParam, s: CameraUiState, c: ProCameraController, i
 // ------------------------------------------------------------------ capture controls
 
 @Composable
-fun ShutterButton(s: CameraUiState, size: Dp, onClick: () -> Unit) {
+fun ShutterButton(s: CameraUiState, size: Dp, liveMode: Boolean = false, liveBusy: Boolean = false, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.9f else 1f, label = "shutterScale")
-    val recording = (s.isVideo && s.recording) || s.panoActive || s.intervalRunning
+    val recording = (s.isVideo && s.recording) || s.panoActive || s.intervalRunning || (liveMode && liveBusy)
     val inner by animateDpAsState(if (recording) size * 0.36f else size * 0.78f, label = "shutterInner")
     val corner by animateDpAsState(if (recording) 6.dp else size, label = "shutterCorner")
     Box(
@@ -461,7 +478,7 @@ fun ShutterButton(s: CameraUiState, size: Dp, onClick: () -> Unit) {
             val ring = if (s.capturing || s.countdown > 0) Pro.Amber else Color.White
             drawCircle(ring, radius = this.size.minDimension / 2 - 2.dp.toPx(), style = Stroke(3.5.dp.toPx()))
             val fill = when {
-                s.isVideo || s.panoActive || s.intervalRunning -> Pro.Red
+                s.isVideo || s.panoActive || s.intervalRunning || liveMode -> Pro.Red
                 s.capturing -> Pro.Amber
                 else -> Color.White
             }
@@ -558,7 +575,7 @@ private fun ModeSwitch(s: CameraUiState, c: ProCameraController, vertical: Boole
 @Composable
 private fun LensSwitch(s: CameraUiState, c: ProCameraController, vertical: Boolean) {
     val back = s.lenses.withIndex().filter { it.value.facing == androidx.camera.core.CameraSelector.LENS_FACING_BACK }
-    if (back.size < 2 || s.isFront) return
+    if (back.size < 2 || s.isFront || s.mode == CaptureMode.LIVE) return
     val items = @Composable {
         back.forEach { (i, lens) ->
             val sel = i == s.lensIndex
@@ -582,6 +599,8 @@ private fun LensSwitch(s: CameraUiState, c: ProCameraController, vertical: Boole
 
 @Composable
 fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean, tablet: Boolean, modifier: Modifier = Modifier) {
+    val ls by c.live.state.collectAsState()
+    val liveMode = s.mode == CaptureMode.LIVE
     val shutter = if (tablet) 88.dp else 74.dp
     val small = if (tablet) 54.dp else 46.dp
     val recording = s.isVideo && s.recording
@@ -596,7 +615,11 @@ fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean,
         }
     }
     val rightButton = @Composable {
-        if (recording) {
+        if (liveMode) {
+            RoundIcon(size = small, onClick = { c.live.switchCamera() }) {
+                Icon(Icons.Filled.Cameraswitch, contentDescription = "Switch camera", tint = Color.White)
+            }
+        } else if (recording) {
             RoundIcon(size = small, onClick = { c.snapshot() }) {
                 Icon(Icons.Filled.CameraAlt, contentDescription = "Photo while recording", tint = Color.White)
             }
@@ -616,7 +639,7 @@ fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean,
         ) {
             ModeSwitch(s, c, vertical = true)
             LensSwitch(s, c, vertical = true)
-            ShutterButton(s, shutter) { c.shutter() }
+            ShutterButton(s, shutter, liveMode, ls.isBusy) { c.shutter() }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 leftButton()
                 rightButton()
@@ -636,7 +659,7 @@ fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 leftButton()
-                ShutterButton(s, shutter) { c.shutter() }
+                ShutterButton(s, shutter, liveMode, ls.isBusy) { c.shutter() }
                 rightButton()
             }
         }

@@ -12,6 +12,7 @@ enum class CaptureMode(val label: String, val isVideo: Boolean, val isPro: Boole
     PRO_PHOTO("PRO", false, true),
     VIDEO("VIDEO", true, false),
     PRO_VIDEO("PRO VIDEO", true, true),
+    LIVE("LIVE", false, false),
 }
 
 /** Cinema / social frame guides drawn over the video viewfinder. */
@@ -59,7 +60,19 @@ enum class VideoRes(val label: String, val quality: Quality, val highBitrate: In
     SD("480p", Quality.SD, 6_000_000),
 }
 
-enum class VideoProfile(val label: String) { STANDARD("STD"), FLAT("FLAT"), HLG("HLG 10b") }
+/**
+ * Video picture profiles. FLAT / D-LOG / D-LOG M are applied on the GPU, so they work on any
+ * device; HLG needs 10-bit camera support. [curve] is the shader curve id.
+ */
+enum class VideoProfile(val label: String, val curve: Int) {
+    STANDARD("STD", 0),
+    FLAT("FLAT", 1),
+    DLOG("D-LOG", 2),
+    DLOG_M("D-LOG M", 3),
+    HLG("HLG 10b", 0);
+
+    val isLog: Boolean get() = curve != 0
+}
 
 /** Which manual parameter the pro panel is currently editing. */
 enum class ProParam(val label: String) { ISO("ISO"), SHUTTER("S"), FOCUS("F"), WB("WB"), EV("EV"), ZOOM("ZOOM") }
@@ -133,6 +146,8 @@ data class CameraUiState(
     val stabilization: Boolean = true,
     val profile: VideoProfile = VideoProfile.STANDARD,
     val highBitrate: Boolean = true,
+    /** Show a normal-looking preview while a log profile is being recorded. */
+    val logAssist: Boolean = false,
     val audio: Boolean = true,
 
     // Filters & extras

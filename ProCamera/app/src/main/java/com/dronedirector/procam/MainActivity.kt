@@ -101,6 +101,12 @@ class MainActivity : ComponentActivity() {
         extras.getString("guide")?.let { g ->
             FrameGuide.entries.firstOrNull { it.name == g }?.let { controller.setGuide(it) }
         }
+        extras.getString("profile")?.let { p ->
+            com.dronedirector.procam.camera.VideoProfile.entries.firstOrNull { it.name == p }?.let { controller.setProfile(it) }
+        }
+        extras.getString("live")?.let { p ->
+            com.dronedirector.procam.camera.LivePlatform.entries.firstOrNull { it.name == p }?.let { controller.live.selectPlatform(it) }
+        }
         if (extras.getBoolean("peaking", false)) controller.togglePeaking()
         if (extras.getBoolean("zebras", false)) controller.toggleZebras()
         return extras.getBoolean("settings", false)
@@ -121,7 +127,8 @@ class MainActivity : ComponentActivity() {
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (!::controller.isInitialized) return super.onKeyDown(keyCode, event)
         val volume = keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP
-        if ((volume && controller.state.value.volumeShutter) || keyCode == KeyEvent.KEYCODE_CAMERA) {
+        val liveMode = controller.state.value.mode == CaptureMode.LIVE
+        if (!liveMode && ((volume && controller.state.value.volumeShutter) || keyCode == KeyEvent.KEYCODE_CAMERA)) {
             if (event.repeatCount == 0) controller.shutter()
             return true
         }

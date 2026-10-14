@@ -36,6 +36,8 @@ class FilterProcessor : SurfaceProcessor {
 
     @Volatile private var colorMatrix = Filter.NONE.glMatrix()
     @Volatile private var colorOffset = Filter.NONE.glOffset()
+    @Volatile private var curve = 0
+    @Volatile private var assist = false
 
     private var display: EGLDisplay = EGL14.EGL_NO_DISPLAY
     private var context: EGLContext = EGL14.EGL_NO_CONTEXT
@@ -57,6 +59,12 @@ class FilterProcessor : SurfaceProcessor {
         -1f, 1f, 0f, 1f,
         1f, 1f, 1f, 1f,
     )
+
+    /** Log curve for recordings (0 = none). With [viewAssist] the preview stays normal-looking. */
+    fun setCurve(curve: Int, viewAssist: Boolean) {
+        this.curve = curve
+        this.assist = viewAssist
+    }
 
     fun setFilter(filter: Filter) {
         colorMatrix = filter.glMatrix()
@@ -160,7 +168,8 @@ class FilterProcessor : SurfaceProcessor {
             val size = output.size
             GLES20.glViewport(0, 0, size.width, size.height)
             output.updateTransformMatrix(outMatrix, texMatrix)
-            draw(outMatrix)
+            val toVideo = (output.targets and CameraEffect.VIDEO_CAPTURE) != 0
+            draw(outMatrix, if (assist && !toVideo) 0 else curve)
             EGLExt.eglPresentationTimeANDROID(display, egl, timestamp)
             if (!EGL14.eglSwapBuffers(display, egl)) dead += output
         }
@@ -170,7 +179,7 @@ class FilterProcessor : SurfaceProcessor {
         }
     }
 
-    private fun draw(matrix: FloatArray) {
+    private fun draw(matrix: FloatArray, curveId: Int) {
         GLES20.glUseProgram(program)
         val aPos = GLES20.glGetAttribLocation(program, "aPos")
         val aTex = GLES20.glGetAttribLocation(program, "aTex")
@@ -184,6 +193,7 @@ class FilterProcessor : SurfaceProcessor {
         GLES20.glUniformMatrix4fv(GLES20.glGetUniformLocation(program, "uTexMatrix"), 1, false, matrix, 0)
         GLES20.glUniformMatrix3fv(GLES20.glGetUniformLocation(program, "uColor"), 1, false, colorMatrix, 0)
         GLES20.glUniform3fv(GLES20.glGetUniformLocation(program, "uOffset"), 1, colorOffset, 0)
+        GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uCurve"), curveId)
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
@@ -240,14 +250,42 @@ class FilterProcessor : SurfaceProcessor {
             GLES20.GL_FRAGMENT_SHADER,
             """
             #extension GL_OES_EGL_image_external : require
+            #ifdef GL_FRAGMENT_PRECISION_HIGH
+            precision highp float;
+            #else
             precision mediump float;
+            #endif
             varying vec2 vTex;
             uniform samplerExternalOES uTex;
             uniform mat3 uColor;
             uniform vec3 uOffset;
+            uniform int uCurve;
+
+            // DJI D-Log, from DJI's published D-Log transfer function (scene linear -> code value).
+            float dlog(float x) {
+                return x <= 0.0078 ? 6.025 * x + 0.0929
+                                   : (log(x * 0.9892 + 0.0108) / log(10.0)) * 0.256663 + 0.584555;
+            }
+            // D-Log M style: a milder log (DJI has not published the exact curve).
+            float dlogm(float x) {
+                return 0.09 + 0.75 * log2(1.0 + 15.0 * x) / 4.0;
+            }
+            float flatc(float x) {
+                return (log(1.0 + 6.0 * x) / log(7.0)) * 0.9 + 0.04;
+            }
+            vec3 applyCurve(vec3 c) {
+                // Undo the camera's display gamma to get (approximately) scene-linear light.
+                vec3 lin = pow(max(c, vec3(0.0)), vec3(2.2));
+                if (uCurve == 1) return vec3(flatc(lin.r), flatc(lin.g), flatc(lin.b));
+                if (uCurve == 2) return vec3(dlog(lin.r), dlog(lin.g), dlog(lin.b));
+                if (uCurve == 3) return vec3(dlogm(lin.r), dlogm(lin.g), dlogm(lin.b));
+                return c;
+            }
             void main() {
                 vec4 c = texture2D(uTex, vTex);
-                gl_FragColor = vec4(clamp(uColor * c.rgb + uOffset, 0.0, 1.0), 1.0);
+                vec3 rgb = clamp(uColor * c.rgb + uOffset, 0.0, 1.0);
+                if (uCurve != 0) rgb = clamp(applyCurve(rgb), 0.0, 1.0);
+                gl_FragColor = vec4(rgb, 1.0);
             }
             """.trimIndent(),
         )

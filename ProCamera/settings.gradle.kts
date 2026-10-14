@@ -11,6 +11,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // RootEncoder (live streaming) is published on JitPack.
+        maven { url = uri("https://jitpack.io") }
     }
 }
 

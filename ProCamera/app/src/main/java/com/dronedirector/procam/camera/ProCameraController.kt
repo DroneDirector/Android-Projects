@@ -108,6 +108,7 @@ class ProCameraController(private val context: Context) {
     private var filterWarned = false
 
     val audioMeter = AudioMeter(context)
+    val live = LiveStreamer(context)
 
     // Panorama capture state (main thread).
     private val panoFrames = ArrayList<Bitmap>()
@@ -171,12 +172,16 @@ class ProCameraController(private val context: Context) {
             extFuture.addListener({
                 extensions = try { extFuture.get() } catch (_: Exception) { null }
                 refreshCapabilities()
-                bind()
+                if (st.mode == CaptureMode.LIVE) {
+                    live.open()
+                    set { it.copy(ready = true) }
+                } else bind()
             }, mainExecutor)
         }, mainExecutor)
     }
 
     fun release() {
+        live.close()
         audioMeter.stopMonitoring()
         filterProcessor.release()
         ioExecutor.shutdown()
@@ -320,8 +325,7 @@ class ProCameraController(private val context: Context) {
                 fps = if (s.fps in fpsList) s.fps else 30,
                 profile = when (s.profile) {
                     VideoProfile.HLG -> if (hlg) VideoProfile.HLG else VideoProfile.STANDARD
-                    VideoProfile.FLAT -> if (flat) VideoProfile.FLAT else VideoProfile.STANDARD
-                    VideoProfile.STANDARD -> VideoProfile.STANDARD
+                    else -> s.profile
                 },
                 flash = if (info.hasFlashUnit()) s.flash else FlashSetting.OFF,
             )
@@ -378,6 +382,12 @@ class ProCameraController(private val context: Context) {
         imageAnalysis = null
         set { it.copy(ready = false) }
 
+        // LIVE mode hands the camera to the live streamer.
+        if (s.mode == CaptureMode.LIVE) {
+            _analysis.value = null
+            return
+        }
+
         view.display?.let { rotation = it.rotation }
 
         val ext = extensions
@@ -423,9 +433,9 @@ class ProCameraController(private val context: Context) {
         }
 
         // Live filter: a GPU effect on the preview (and on the recording in video modes).
-        val wantEffect = s.filter != Filter.NONE && !useScene &&
-            !(s.isVideo && s.isPro && s.profile == VideoProfile.HLG && s.hlgSupported)
+        val wantEffect = needsEffect(s) && !useScene
         filterProcessor.setFilter(s.filter)
+        filterProcessor.setCurve(logCurve(s), s.logAssist)
         val effect: CameraEffect? = if (wantEffect) {
             val targets = if (s.isVideo) CameraEffect.PREVIEW or CameraEffect.VIDEO_CAPTURE else CameraEffect.PREVIEW
             FilterEffect(targets, filterProcessor) { t -> mainExecutor.execute { toast("Filter error: ${t.message}") } }
@@ -599,10 +609,6 @@ class ProCameraController(private val context: Context) {
         }
         if ((s.isPro && s.awbLock) || s.panoActive) b.setCaptureRequestOption(CaptureRequest.CONTROL_AWB_LOCK, true)
 
-        if (s.mode == CaptureMode.PRO_VIDEO && s.profile == VideoProfile.FLAT && s.flatSupported) {
-            b.setCaptureRequestOption(CaptureRequest.TONEMAP_MODE, CaptureRequest.TONEMAP_MODE_CONTRAST_CURVE)
-            b.setCaptureRequestOption(CaptureRequest.TONEMAP_CURVE, flatCurve)
-        }
 
         try {
             Camera2CameraControl.from(control).setCaptureRequestOptions(b.build())
@@ -635,8 +641,28 @@ class ProCameraController(private val context: Context) {
     fun setMode(mode: CaptureMode) {
         val s = st
         if (s.recording || s.panoActive || s.stitching || s.mode == mode) return
+        if (s.mode == CaptureMode.LIVE && live.state.value.isBusy) {
+            toast("End the live stream first")
+            return
+        }
         stopInterval()
+        if (s.mode == CaptureMode.LIVE) live.close()
+        if (mode == CaptureMode.LIVE) {
+            // Free the camera for the live streamer.
+            owner?.let { o -> camera?.cameraInfo?.zoomState?.removeObservers(o) }
+            provider?.unbindAll()
+            camera = null
+            imageCapture = null
+            videoCapture = null
+            imageAnalysis = null
+        }
         set { it.copy(mode = mode, activeParam = null, showFilters = false) }
+        if (mode == CaptureMode.LIVE) {
+            audioMeter.stopMonitoring()
+            if (provider != null) live.open()
+            set { it.copy(ready = true) }
+            return
+        }
         // Panorama needs the back camera.
         if (mode == CaptureMode.PANORAMA && s.isFront) {
             val back = s.lenses.indices.filter { s.lenses[it].facing == CameraSelector.LENS_FACING_BACK }
@@ -806,9 +832,12 @@ class ProCameraController(private val context: Context) {
     }
 
     fun setProfile(p: VideoProfile) {
-        if (st.recording || st.profile == p) return
-        val rebind = p == VideoProfile.HLG || st.profile == VideoProfile.HLG
+        val s = st
+        if (s.recording || s.profile == p) return
+        val rebind = p == VideoProfile.HLG || s.profile == VideoProfile.HLG ||
+            needsEffect(s) != needsEffect(s.copy(profile = p))
         set { it.copy(profile = p) }
+        filterProcessor.setCurve(logCurve(st), st.logAssist)
         if (rebind) bind() else applyControls()
     }
 
@@ -836,6 +865,10 @@ class ProCameraController(private val context: Context) {
 
     fun shutter() {
         val s = st
+        if (s.mode == CaptureMode.LIVE) {
+            live.toggleLive()
+            return
+        }
         if (!s.ready || s.stitching) return
         if (s.countdown > 0) {
             cancelCountdown()
@@ -962,10 +995,24 @@ class ProCameraController(private val context: Context) {
 
     fun toggleFilterStrip() = set { it.copy(showFilters = !it.showFilters, activeParam = null) }
 
+    private fun logCurve(s: CameraUiState): Int =
+        if (s.mode == CaptureMode.PRO_VIDEO && s.profile.isLog) s.profile.curve else 0
+
+    /** The GPU effect is needed for a colour filter or a log profile. HLG (10-bit) can't go through it. */
+    private fun needsEffect(s: CameraUiState): Boolean {
+        if (s.mode == CaptureMode.PRO_VIDEO && s.profile == VideoProfile.HLG && s.hlgSupported) return false
+        return s.filter != Filter.NONE || logCurve(s) != 0
+    }
+
+    fun toggleLogAssist() {
+        set { it.copy(logAssist = !it.logAssist) }
+        filterProcessor.setCurve(logCurve(st), st.logAssist)
+    }
+
     fun setFilter(f: Filter) {
         val s = st
         if (s.filter == f) return
-        val rebind = (f == Filter.NONE) != (s.filter == Filter.NONE)
+        val rebind = needsEffect(s) != needsEffect(s.copy(filter = f))
         if (rebind && s.recording) {
             toast("Pick a filter before you start recording")
             return

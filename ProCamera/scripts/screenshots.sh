@@ -59,6 +59,9 @@ shot 04-phone-video-cinema --es mode VIDEO --es filter CINEMA
 shot 05-phone-pro-video-scope --es mode PRO_VIDEO --es guide SCOPE --es param EV
 shot 06-phone-panorama --es mode PANORAMA
 shot 07-phone-settings --ez settings true
+shot 15-phone-pro-video-dlog --es mode PRO_VIDEO --es profile DLOG
+shot 16-phone-live-youtube-connect --es mode LIVE --es live YOUTUBE
+shot 17-phone-live-tiktok --es mode LIVE
 rotate 1
 shot 08-phone-landscape-pro-video --es mode PRO_VIDEO --es guide FLAT
 shot 09-phone-landscape-photo-mono --es mode PHOTO --es filter MONO
@@ -70,6 +73,7 @@ rotate 1
 shot 10-tablet-landscape-pro-photo --es mode PRO_PHOTO --es param WB
 shot 11-tablet-landscape-video --es mode VIDEO --es filter WARM --ez filters true
 shot 12-tablet-settings --ez settings true
+shot 18-tablet-live-twitch --es mode LIVE --es live TWITCH
 rotate 0
 shot 13-tablet-portrait-pro-video --es mode PRO_VIDEO --es guide VERTICAL
 shot 14-tablet-portrait-panorama --es mode PANORAMA

@@ -218,7 +218,7 @@ fun QuickBar(s: CameraUiState, c: ProCameraController, vertical: Boolean, onSett
     if (vertical) {
         Column(modifier.padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Column(
-                Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                Modifier.weight(1f).hintedScroll(horizontal = false),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
             ) { QuickItems(s, c, onSettings) }
@@ -227,7 +227,7 @@ fun QuickBar(s: CameraUiState, c: ProCameraController, vertical: Boolean, onSett
     } else {
         Row(modifier.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Row(
-                Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                Modifier.weight(1f).hintedScroll(horizontal = true),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterHorizontally),
             ) { QuickItems(s, c, onSettings) }
@@ -271,7 +271,7 @@ fun ProPanel(s: CameraUiState, c: ProCameraController, isoShown: Int?, shutterSh
             Modifier
                 .clip(RoundedCornerShape(12.dp))
                 .background(Pro.Panel)
-                .horizontalScroll(rememberScrollState())
+                .hintedScroll(horizontal = true)
                 .padding(horizontal = 4.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -419,7 +419,7 @@ private fun ParamEditor(p: ProParam, s: CameraUiState, c: ProCameraController, i
         ProParam.WB -> {
             Column {
                 Row(
-                    Modifier.horizontalScroll(rememberScrollState()),
+                    Modifier.hintedScroll(horizontal = true),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -575,7 +575,7 @@ private fun ModeSwitch(s: CameraUiState, c: ProCameraController, vertical: Boole
         }
     }
     if (vertical) Column(horizontalAlignment = Alignment.CenterHorizontally) { items() }
-    else Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) { items() }
+    else Row(Modifier.hintedScroll(horizontal = true), verticalAlignment = Alignment.CenterVertically) { items() }
 }
 
 @Composable
@@ -703,7 +703,7 @@ fun FilterStrip(s: CameraUiState, c: ProCameraController, modifier: Modifier = M
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(Pro.Panel)
-            .horizontalScroll(rememberScrollState())
+            .hintedScroll(horizontal = true)
             .padding(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {

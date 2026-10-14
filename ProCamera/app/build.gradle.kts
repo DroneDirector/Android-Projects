@@ -8,11 +8,11 @@ plugins {
 val ciVersionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
 
 android {
-    namespace = "com.dronedirector.procam"
+    namespace = "com.dronedirector.acluxpro"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.dronedirector.procam"
+        applicationId = "com.dronedirector.acluxpro"
         minSdk = 26
         targetSdk = 35
         versionCode = ciVersionCode

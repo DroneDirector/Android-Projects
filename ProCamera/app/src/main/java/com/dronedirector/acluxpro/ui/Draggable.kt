@@ -1,4 +1,4 @@
-package com.dronedirector.procam.ui
+package com.dronedirector.acluxpro.ui
 
 import android.content.Context
 import androidx.compose.animation.core.animateFloatAsState

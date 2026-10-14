@@ -1,4 +1,4 @@
-package com.dronedirector.procam
+package com.dronedirector.acluxpro
 
 import android.Manifest
 import android.content.Intent
@@ -42,15 +42,15 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import com.dronedirector.procam.camera.CaptureMode
-import com.dronedirector.procam.camera.Filter
-import com.dronedirector.procam.camera.FrameGuide
-import com.dronedirector.procam.camera.GridMode
-import com.dronedirector.procam.camera.ProCameraController
-import com.dronedirector.procam.camera.ProParam
-import com.dronedirector.procam.ui.CameraScreen
-import com.dronedirector.procam.ui.Pro
-import com.dronedirector.procam.ui.ProCamTheme
+import com.dronedirector.acluxpro.camera.CaptureMode
+import com.dronedirector.acluxpro.camera.Filter
+import com.dronedirector.acluxpro.camera.FrameGuide
+import com.dronedirector.acluxpro.camera.GridMode
+import com.dronedirector.acluxpro.camera.ProCameraController
+import com.dronedirector.acluxpro.camera.ProParam
+import com.dronedirector.acluxpro.ui.CameraScreen
+import com.dronedirector.acluxpro.ui.Pro
+import com.dronedirector.acluxpro.ui.ProCamTheme
 
 class MainActivity : ComponentActivity() {
 
@@ -80,7 +80,7 @@ class MainActivity : ComponentActivity() {
 
     /**
      * Optional launch extras used by the automated screenshot run, e.g.
-     * `am start -n com.dronedirector.procam/.MainActivity --es mode VIDEO --es param ISO --ez settings true`.
+     * `am start -n com.dronedirector.acluxpro/.MainActivity --es mode VIDEO --es param ISO --ez settings true`.
      * Returns whether the settings panel should start open.
      */
     private fun applyLaunchOptions(intent: Intent?): Boolean {
@@ -102,10 +102,10 @@ class MainActivity : ComponentActivity() {
             FrameGuide.entries.firstOrNull { it.name == g }?.let { controller.setGuide(it) }
         }
         extras.getString("profile")?.let { p ->
-            com.dronedirector.procam.camera.VideoProfile.entries.firstOrNull { it.name == p }?.let { controller.setProfile(it) }
+            com.dronedirector.acluxpro.camera.VideoProfile.entries.firstOrNull { it.name == p }?.let { controller.setProfile(it) }
         }
         extras.getString("live")?.let { p ->
-            com.dronedirector.procam.camera.LivePlatform.entries.firstOrNull { it.name == p }?.let { controller.live.selectPlatform(it) }
+            com.dronedirector.acluxpro.camera.LivePlatform.entries.firstOrNull { it.name == p }?.let { controller.live.selectPlatform(it) }
         }
         if (extras.getBoolean("nosetup", false)) controller.live.showSetup(false)
         if (extras.getBoolean("peaking", false)) controller.togglePeaking()

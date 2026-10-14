@@ -17,7 +17,7 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ProCamera">
+        android:theme="@style/Theme.AcluxPro">
 
         <activity
             android:name=".MainActivity"

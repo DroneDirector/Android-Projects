@@ -1,4 +1,4 @@
-package com.dronedirector.procam.camera
+package com.dronedirector.acluxpro.camera
 
 import android.content.ContentValues
 import android.content.Context

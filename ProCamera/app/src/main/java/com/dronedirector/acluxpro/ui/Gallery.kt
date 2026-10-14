@@ -52,6 +52,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -545,12 +546,8 @@ private fun VideoPage(item: MediaItem, active: Boolean, onToggleChrome: () -> Un
                     }
                 },
                 onRelease = { it.stopPlayback() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(
-                        if (item.width > 0 && item.height > 0) item.width.toFloat() / item.height else 16f / 9f,
-                        matchHeightConstraintsFirst = item.height > item.width,
-                    ),
+                // VideoView sizes itself to the largest fit for the clip (portrait or landscape).
+                modifier = Modifier.wrapContentSize(),
             )
         } else {
             val p = poster

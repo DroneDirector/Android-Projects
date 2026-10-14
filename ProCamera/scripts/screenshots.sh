@@ -87,6 +87,12 @@ DENS=$(adb shell wm density | grep -o '[0-9]\+' | tail -1)
 adb shell input tap $((64 * DENS / 160)) $((205 * DENS / 160))
 sleep 4
 adb exec-out screencap -p > "$OUT/27-phone-gallery-viewer.png"
+# Back to the grid, Videos tab, open the first video and press play.
+adb shell input keyevent KEYCODE_BACK; sleep 2
+adb shell input tap $((226 * DENS / 160)) $((129 * DENS / 160)); sleep 2
+adb shell input tap $((64 * DENS / 160)) $((205 * DENS / 160)); sleep 3
+adb shell input tap $((205 * DENS / 160)) $((457 * DENS / 160)); sleep 3
+adb exec-out screencap -p > "$OUT/28-phone-gallery-video.png"
 rotate 1
 shot 08-phone-landscape-pro-video --es mode PRO_VIDEO --es guide FLAT
 shot 09-phone-landscape-photo-mono --es mode PHOTO --es filter MONO

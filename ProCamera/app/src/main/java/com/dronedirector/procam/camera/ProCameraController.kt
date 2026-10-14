@@ -46,6 +46,9 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.extensions.ExtensionsManager
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FallbackStrategy
+import androidx.camera.video.FileOutputOptions
+import androidx.camera.video.HighSpeedVideoSessionConfig
+import androidx.camera.video.Quality
 import androidx.camera.video.MediaStoreOutputOptions
 import androidx.camera.video.QualitySelector
 import androidx.camera.video.Recorder
@@ -80,6 +83,7 @@ import kotlin.math.max
 import kotlin.math.pow
 
 @androidx.annotation.OptIn(ExperimentalCamera2Interop::class)
+@OptIn(androidx.camera.core.ExperimentalSessionConfig::class)
 class ProCameraController(private val context: Context) {
 
     private val _state = MutableStateFlow(CameraUiState())
@@ -115,6 +119,14 @@ class ProCameraController(private val context: Context) {
     private var panoAccum = 0f
     private var panoBusy = false
     private var panoTimerJob: kotlinx.coroutines.Job? = null
+
+    // Lapse / slow motion / burst
+    private var lapseRecorder: LapseRecorder? = null
+    private var lapseTicker: kotlinx.coroutines.Job? = null
+    private var slowMoFile: java.io.File? = null
+    private var holdBurstJob: kotlinx.coroutines.Job? = null
+    private var lastSmartMode = CaptureMode.PANORAMA
+    private var lastRegularMode = CaptureMode.PHOTO
     private var rotation = Surface.ROTATION_0
 
     private var isoRange = Range(100, 3200)
@@ -288,6 +300,16 @@ class ProCameraController(private val context: Context) {
         }
 
         refreshPhotoSizes(lens)
+        val previewStab = try { Preview.getPreviewCapabilities(info).isStabilizationSupported } catch (_: Throwable) { false }
+        val highSpeedFps: List<Int> = try {
+            if (Recorder.getHighSpeedVideoCapabilities(info) == null) emptyList() else {
+                val probe = HighSpeedVideoSessionConfig(VideoCapture.withOutput(Recorder.Builder().build()), Preview.Builder().build())
+                info.getSupportedFrameRateRanges(probe).map { it.upper }.filter { it >= 100 }.distinct().sorted()
+            }
+        } catch (_: Throwable) { emptyList() }
+        val slowList = highSpeedFps.filter { it < 200 }
+        val superList = highSpeedFps.filter { it >= 200 }
+        val fallback = if (fpsList.any { it >= 60 }) 60 else 0
         val isoStops = if (manual) Stops.isoStops(isoRange.lower, isoRange.upper) else emptyList()
         val shutterStops = if (manual) Stops.shutterStops(exposureRange.lower, exposureRange.upper) else emptyList()
 
@@ -329,8 +351,18 @@ class ProCameraController(private val context: Context) {
                     else -> s.profile
                 },
                 flash = if (info.hasFlashUnit()) s.flash else FlashSetting.OFF,
+                previewStabilizationSupported = previewStab,
+                slowMoFps = slowList,
+                superSlowMoFps = superList,
+                slowFallbackFps = fallback,
+                slowFps = defaultSlowFps(s.mode, slowList, superList, fallback, s.slowFps),
             )
         }
+    }
+
+    private fun defaultSlowFps(mode: CaptureMode, slow: List<Int>, sup: List<Int>, fallback: Int, current: Int): Int = when (mode) {
+        CaptureMode.SUPER_SLOW_MO -> if (current in sup) current else sup.maxOrNull() ?: 0
+        else -> if (current in slow || current == fallback) current else slow.maxOrNull() ?: fallback
     }
 
     private fun refreshPhotoSizes(target: Lens? = st.lens) {
@@ -424,9 +456,17 @@ class ProCameraController(private val context: Context) {
         val previewBuilder = Preview.Builder()
             .setResolutionSelector(resolution)
             .setTargetRotation(rotation)
-        if (!useScene) Camera2Interop.Extender(previewBuilder).setSessionCaptureCallback(captureCallback)
+        if (!useScene && !s.mode.isSlowMo) Camera2Interop.Extender(previewBuilder).setSessionCaptureCallback(captureCallback)
+        if (s.mode == CaptureMode.HYPERLAPSE && s.lapseStabilize && s.previewStabilizationSupported) {
+            previewBuilder.setPreviewStabilizationEnabled(true)
+        }
         val preview = previewBuilder.build()
         preview.setSurfaceProvider(view.surfaceProvider)
+
+        if (s.mode.isSlowMo) {
+            bindSlowMo(p, owner, selector, s, preview)
+            return
+        }
 
         val analysis = ImageAnalysis.Builder()
             .setResolutionSelector(
@@ -444,10 +484,10 @@ class ProCameraController(private val context: Context) {
 
         var ic: ImageCapture? = null
         var vc: VideoCapture<Recorder>? = null
-        val main: UseCase = if (!s.isVideo) {
-            buildImageCapture(s, resolution, useScene).also { ic = it }
-        } else {
-            buildVideoCapture(s).also { vc = it }
+        val main: UseCase? = when {
+            s.mode.isLapse -> null
+            !s.isVideo -> buildImageCapture(s, resolution, useScene).also { ic = it }
+            else -> buildVideoCapture(s).also { vc = it }
         }
 
         // Live filter: a GPU effect on the preview (and on the recording in video modes).
@@ -455,7 +495,7 @@ class ProCameraController(private val context: Context) {
         filterProcessor.setFilter(s.filter)
         filterProcessor.setCurve(logCurve(s), s.logAssist)
         val effect: CameraEffect? = if (wantEffect) {
-            val targets = if (s.isVideo) CameraEffect.PREVIEW or CameraEffect.VIDEO_CAPTURE else CameraEffect.PREVIEW
+            val targets = if (s.mode.isNormalVideo) CameraEffect.PREVIEW or CameraEffect.VIDEO_CAPTURE else CameraEffect.PREVIEW
             FilterEffect(targets, filterProcessor) { t -> mainExecutor.execute { toast("Filter error: ${t.message}") } }
         } else null
 
@@ -471,7 +511,8 @@ class ProCameraController(private val context: Context) {
         for (a in attempts) {
             try {
                 p.unbindAll()
-                val group = UseCaseGroup.Builder().addUseCase(preview).addUseCase(main)
+                val group = UseCaseGroup.Builder().addUseCase(preview)
+                if (main != null) group.addUseCase(main)
                 if (a.analysis) group.addUseCase(analysis)
                 if (a.effect && effect != null) group.addEffect(effect)
                 bound = p.bindToLifecycle(owner, selector, group.build())
@@ -482,7 +523,9 @@ class ProCameraController(private val context: Context) {
                 error = t
             }
         }
-        if (bound != null && effect != null && !withEffect && !filterWarned) {
+        if (bound != null && s.mode.isLapse && !withEffect) {
+            toast("${s.mode.label} isn't supported on this camera")
+        } else if (bound != null && effect != null && !withEffect && !filterWarned) {
             filterWarned = true
             toast(if (s.isVideo) "Live filters aren't supported with these settings" else "Filter preview unavailable; photos will still be filtered")
         }
@@ -504,7 +547,7 @@ class ProCameraController(private val context: Context) {
                         set { it.copy(scene = Scene.STANDARD) }
                         toast("${s.scene.label} isn't available here")
                     }
-                    s.isVideo -> {
+                    s.mode.isNormalVideo -> {
                         set { it.copy(fps = 30, profile = VideoProfile.STANDARD, stabilization = false) }
                         toast("Video settings not supported, reset to 30 fps")
                     }
@@ -544,7 +587,7 @@ class ProCameraController(private val context: Context) {
             PhotoFormat.RAW_JPEG -> ImageCapture.OUTPUT_FORMAT_RAW_JPEG
             PhotoFormat.JPEG -> ImageCapture.OUTPUT_FORMAT_JPEG
         }
-        val mode = if (s.burst > 1 || s.mode == CaptureMode.PANORAMA) ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY else ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
+        val mode = if (s.burst > 1 || s.mode == CaptureMode.PANORAMA || s.mode == CaptureMode.BURST) ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY else ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY
         val size = s.photoSize
         val photoResolution = if (size != null && s.mode != CaptureMode.PANORAMA) {
             val aspect = if (s.aspect == AspectMode.R16_9) AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
@@ -623,7 +666,7 @@ class ProCameraController(private val context: Context) {
         val b = CaptureRequestOptions.Builder()
         if (s.manualExposure && s.manualSensor) {
             val (iso, exp) = effectiveExposure(s)
-            val frameNs = if (s.isVideo) 1_000_000_000L / s.fps else 33_333_333L
+            val frameNs = if (s.mode.isNormalVideo) 1_000_000_000L / s.fps else 33_333_333L
             b.setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF)
             b.setCaptureRequestOption(CaptureRequest.SENSOR_SENSITIVITY, iso)
             b.setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, exp)
@@ -689,7 +732,13 @@ class ProCameraController(private val context: Context) {
             videoCapture = null
             imageAnalysis = null
         }
-        set { it.copy(mode = mode, activeParam = null, showFilters = false) }
+        if (mode.isSmart) lastSmartMode = mode else lastRegularMode = mode
+        set {
+            it.copy(
+                mode = mode, activeParam = null, showFilters = false,
+                slowFps = defaultSlowFps(mode, it.slowMoFps, it.superSlowMoFps, it.slowFallbackFps, it.slowFps),
+            )
+        }
         if (mode == CaptureMode.LIVE) {
             audioMeter.stopMonitoring()
             if (provider != null) live.open()
@@ -706,6 +755,12 @@ class ProCameraController(private val context: Context) {
             }
         }
         bind()
+    }
+
+    /** Switch between the REGULAR and SMART mode groups, returning to the last mode used there. */
+    fun showModeGroup(smart: Boolean) {
+        if (st.mode.isSmart == smart) return
+        setMode(if (smart) lastSmartMode else lastRegularMode)
     }
 
     fun selectLens(index: Int) {
@@ -833,6 +888,8 @@ class ProCameraController(private val context: Context) {
     }
 
     fun setGrid(g: GridMode) = set { it.copy(grid = g) }
+    /** Bumped after overlay positions are reset so draggable overlays return to defaults. */
+    fun bumpLayoutVersion() = set { it.copy(layoutVersion = it.layoutVersion + 1) }
     fun toggleLevel() = set { it.copy(showLevel = !it.showLevel) }
     fun toggleHistogram() = set { it.copy(showHistogram = !it.showHistogram) }
     fun toggleZebras() = set { it.copy(zebras = !it.zebras) }
@@ -908,6 +965,20 @@ class ProCameraController(private val context: Context) {
             cancelCountdown()
             return
         }
+        if (s.mode.isLapse) {
+            if (s.recording) stopLapse()
+            else if (s.timerSec > 0) {
+                captureJob = scope.launch {
+                    for (i in s.timerSec downTo 1) {
+                        set { it.copy(countdown = i) }
+                        delay(1000)
+                    }
+                    set { it.copy(countdown = 0) }
+                    startLapse()
+                }
+            } else startLapse()
+            return
+        }
         if (s.isVideo) {
             if (s.recording) {
                 stopRecording()
@@ -956,6 +1027,10 @@ class ProCameraController(private val context: Context) {
     /** One press of the shutter: a single shot, a burst, or an exposure bracket. */
     private suspend fun captureSet(s: CameraUiState): Int {
         var saved = 0
+        if (s.mode == CaptureMode.BURST) {
+            repeat(s.burstModeCount) { if (takePhoto()) saved++ }
+            return saved
+        }
         if (s.mode == CaptureMode.PRO_PHOTO && s.bracket != Bracket.OFF) {
             val n = s.bracket.stops
             for (stops in listOf(-n, 0, n)) {
@@ -1034,6 +1109,8 @@ class ProCameraController(private val context: Context) {
 
     /** The GPU effect is needed for a colour filter or a log profile. HLG (10-bit) can't go through it. */
     private fun needsEffect(s: CameraUiState): Boolean {
+        if (s.mode.isLapse) return true
+        if (s.mode.isSlowMo) return false
         if (s.mode == CaptureMode.PRO_VIDEO && s.profile == VideoProfile.HLG && s.hlgSupported) return false
         return s.filter != Filter.NONE || logCurve(s) != 0
     }
@@ -1114,6 +1191,158 @@ class ProCameraController(private val context: Context) {
             null
         }
     }
+
+    // ---------------------------------------------------------------- time-lapse & hyperlapse
+
+    fun setLapseInterval(ms: Int) = set { it.copy(lapseIntervalMs = ms) }
+    fun setLapseLimit(min: Int) = set { it.copy(lapseLimitMin = min) }
+    fun setHyperSpeed(x: Int) = set { it.copy(hyperSpeed = x) }
+
+    fun toggleLapseStabilize() {
+        if (st.recording) return
+        set { it.copy(lapseStabilize = !it.lapseStabilize) }
+        bind()
+    }
+
+    private fun startLapse() {
+        val s = st
+        val cam = camera ?: return
+        val size = filterProcessor.inputSize
+        if (size == null || !s.ready) {
+            toast("${s.mode.label} isn't available right now")
+            return
+        }
+        val w = size.width and 1.inv()
+        val h = size.height and 1.inv()
+        val hint = try { cam.cameraInfo.getSensorRotationDegrees(rotation) } catch (_: Throwable) { 90 }
+        val hyper = s.mode == CaptureMode.HYPERLAPSE
+        val rec = try {
+            LapseRecorder(
+                context, w, h, hint, s.storageVolume,
+                "${stamp()}_${if (hyper) "hyperlapse" else "timelapse"}.mp4",
+                intervalMs = s.lapseIntervalMs,
+                everyNth = if (hyper) s.hyperSpeed else 0,
+                zoom = if (hyper && s.lapseStabilize) 0.9f else 1f,
+                onFrame = { n -> _state.update { it.copy(lapseFrames = n) } },
+            )
+        } catch (t: Throwable) {
+            toast("Couldn't start: ${t.message}")
+            return
+        }
+        lapseRecorder = rec
+        filterProcessor.lapse = rec
+        sound.play(MediaActionSound.START_VIDEO_RECORDING)
+        set { it.copy(recording = true, paused = false, recordSeconds = 0, lapseFrames = 0) }
+        lapseTicker = scope.launch {
+            var sec = 0L
+            while (st.recording) {
+                delay(1000)
+                sec++
+                set { it.copy(recordSeconds = sec) }
+                val limit = st.lapseLimitMin
+                if (limit > 0 && sec >= limit * 60L) {
+                    stopLapse()
+                    break
+                }
+            }
+        }
+    }
+
+    private fun stopLapse() {
+        val rec = lapseRecorder ?: return
+        lapseRecorder = null
+        filterProcessor.lapse = null
+        lapseTicker?.cancel()
+        sound.play(MediaActionSound.STOP_VIDEO_RECORDING)
+        val frames = rec.frameCount
+        set { it.copy(recording = false, processing = true) }
+        rec.stop { uri ->
+            set { it.copy(processing = false, lastMedia = uri ?: it.lastMedia) }
+            toast(
+                if (uri != null) "Saved · $frames frames → %.1f s of video".format(frames / 30f)
+                else "Nothing recorded — keep recording a little longer"
+            )
+        }
+    }
+
+    // ---------------------------------------------------------------- slow motion
+
+    fun setSlowFps(fps: Int) {
+        if (st.recording || st.slowFps == fps) return
+        set { it.copy(slowFps = fps) }
+        bind()
+    }
+
+    private fun bindSlowMo(p: ProcessCameraProvider, owner: LifecycleOwner, selector: CameraSelector, s: CameraUiState, preview: Preview) {
+        val lens = s.lens ?: return
+        val fps = s.slowFps
+        val highSpeed = fps >= 100
+        var bound: Camera? = null
+        var vc: VideoCapture<Recorder>? = null
+        try {
+            if (highSpeed) {
+                val caps = Recorder.getHighSpeedVideoCapabilities(lens.info)
+                val qualities = caps?.getSupportedQualities(DynamicRange.SDR).orEmpty()
+                val order = listOf(Quality.FHD, Quality.HD, Quality.SD).filter { it in qualities }.ifEmpty { listOf(Quality.HD) }
+                val recorder = Recorder.Builder()
+                    .setQualitySelector(QualitySelector.fromOrderedList(order, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)))
+                    .build()
+                vc = VideoCapture.withOutput(recorder)
+                val config = HighSpeedVideoSessionConfig(vc, preview, Range(fps, fps), true)
+                p.unbindAll()
+                bound = p.bindToLifecycle(owner, selector, config)
+            } else if (fps > 0) {
+                val recorder = Recorder.Builder()
+                    .setQualitySelector(QualitySelector.from(Quality.FHD, FallbackStrategy.lowerQualityOrHigherThan(Quality.FHD)))
+                    .build()
+                vc = VideoCapture.Builder(recorder).setTargetFrameRate(Range(fps, fps)).setTargetRotation(rotation).build()
+                p.unbindAll()
+                bound = p.bindToLifecycle(owner, selector, preview, vc)
+            } else {
+                p.unbindAll()
+                bound = p.bindToLifecycle(owner, selector, preview)
+                toast(if (s.mode == CaptureMode.SUPER_SLOW_MO) "This camera can't film at 240 fps" else "This camera can't film fast enough for slow motion")
+            }
+        } catch (t: Throwable) {
+            try {
+                p.unbindAll()
+                bound = p.bindToLifecycle(owner, selector, preview)
+            } catch (_: Throwable) {}
+            vc = null
+            toast("Slow motion isn't available: ${t.message}")
+        }
+        camera = bound
+        videoCapture = vc
+        imageCapture = null
+        imageAnalysis = null
+        _analysis.value = null
+        bound?.cameraInfo?.zoomState?.observe(owner) { z ->
+            _state.update { it.copy(zoom = z.zoomRatio, minZoom = z.minZoomRatio, maxZoom = z.maxZoomRatio) }
+        }
+        set { it.copy(ready = bound != null) }
+        applyControls()
+    }
+
+    // ---------------------------------------------------------------- burst mode
+
+    fun setBurstModeCount(n: Int) = set { it.copy(burstModeCount = n) }
+
+    /** BURST mode: keep shooting while the shutter is held (up to 100 frames). */
+    fun startHoldBurst() {
+        if (st.mode != CaptureMode.BURST || st.capturing || holdBurstJob != null) return
+        set { it.copy(holdBursting = true, capturing = true) }
+        holdBurstJob = scope.launch {
+            var n = 0
+            while (st.holdBursting && n < 100) {
+                if (takePhoto()) n++
+            }
+            set { it.copy(holdBursting = false, capturing = false) }
+            holdBurstJob = null
+            toast("$n photos saved")
+        }
+    }
+
+    fun stopHoldBurst() = set { it.copy(holdBursting = false) }
 
     // ---------------------------------------------------------------- panorama
 
@@ -1293,14 +1522,24 @@ class ProCameraController(private val context: Context) {
             if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/ProCam")
         }
         audioMeter.stopMonitoring()
-        val output = MediaStoreOutputOptions.Builder(context.contentResolver, Storage.videosUri(st.storageVolume))
-            .setContentValues(values)
-            .build()
-        var pending = vc.output.prepareRecording(context, output)
+        val s0 = st
+        // Slow motion without high-speed support: film at 60 fps, then stretch to half speed.
+        val stretch = s0.mode.isSlowMo && s0.slowFps in 1..99
+        var pending = if (stretch) {
+            val file = java.io.File(context.cacheDir, "slowmo_${System.currentTimeMillis()}.mp4")
+            slowMoFile = file
+            vc.output.prepareRecording(context, FileOutputOptions.Builder(file).build())
+        } else {
+            slowMoFile = null
+            val output = MediaStoreOutputOptions.Builder(context.contentResolver, Storage.videosUri(st.storageVolume))
+                .setContentValues(values)
+                .build()
+            vc.output.prepareRecording(context, output)
+        }
         val micGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
-        if (st.audio && micGranted) pending = pending.withAudioEnabled()
-        if (st.audio && !micGranted) toast("Recording without sound (microphone not allowed)")
+        if (s0.mode.isNormalVideo && st.audio && micGranted) pending = pending.withAudioEnabled()
+        if (s0.mode.isNormalVideo && st.audio && !micGranted) toast("Recording without sound (microphone not allowed)")
         sound.play(MediaActionSound.START_VIDEO_RECORDING)
         try {
             recording = pending.start(mainExecutor) { event -> onRecordEvent(event) }
@@ -1337,6 +1576,22 @@ class ProCameraController(private val context: Context) {
             }
             is VideoRecordEvent.Finalize -> {
                 recording = null
+                val slowFile = slowMoFile
+                slowMoFile = null
+                if (slowFile != null) {
+                    val factor = st.slowFps / 30.0
+                    val volume = st.storageVolume
+                    set { it.copy(recording = false, paused = false, processing = true) }
+                    scope.launch {
+                        val out = withContext(Dispatchers.IO) {
+                            SlowMotionRemux.slowDown(context, slowFile, factor, volume, "${stamp()}_slowmo.mp4")
+                        }
+                        set { it.copy(processing = false, lastMedia = out ?: it.lastMedia) }
+                        toast(if (out != null) "Slow-motion video saved (%.0f× slower)".format(factor) else "Couldn't save the slow-motion video")
+                    }
+                    videoCapture?.setTargetRotation(rotation)
+                    return
+                }
                 val uri = event.outputResults.outputUri
                 set {
                     it.copy(

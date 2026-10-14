@@ -120,6 +120,17 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 ToggleRow("Stabilization", "Electronic / optical video stabilization", s.stabilization) { c.toggleStabilization() }
             }
 
+            Section("LAYOUT")
+            Text(
+                "Drag the histogram, audio graph and exposure read-out anywhere on the viewfinder. Positions are remembered for portrait and landscape.",
+                color = Pro.Dim, fontSize = 12.sp,
+            )
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            androidx.compose.material3.TextButton(onClick = {
+                OverlayLayout.reset(ctx)
+                c.bumpLayoutVersion()
+            }) { Text("Reset overlay positions", color = Pro.Amber) }
+
             Section("CONTROLS")
             ToggleRow("Volume keys shutter", "Press volume up or down to take a shot", s.volumeShutter) { c.toggleVolumeShutter() }
 

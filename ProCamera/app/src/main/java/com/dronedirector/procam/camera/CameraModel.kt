@@ -8,11 +8,29 @@ import androidx.camera.video.Quality
 
 enum class CaptureMode(val label: String, val isVideo: Boolean, val isPro: Boolean) {
     PANORAMA("PANO", false, false),
+    TIMELAPSE("TIME-LAPSE", true, false),
+    HYPERLAPSE("HYPERLAPSE", true, false),
+    SLOW_MO("SLOW-MO", true, false),
+    SUPER_SLOW_MO("SUPER SLO-MO", true, false),
+    BURST("BURST", false, false),
     PHOTO("PHOTO", false, false),
     PRO_PHOTO("PRO", false, true),
     VIDEO("VIDEO", true, false),
     PRO_VIDEO("PRO VIDEO", true, true),
-    LIVE("LIVE", false, false),
+    LIVE("LIVE", false, false);
+
+    /** Normal video modes: CameraX VideoCapture with sound. */
+    val isNormalVideo: Boolean get() = this == VIDEO || this == PRO_VIDEO
+    /** Frames picked on the GPU and encoded at 30 fps. */
+    val isLapse: Boolean get() = this == TIMELAPSE || this == HYPERLAPSE
+    val isSlowMo: Boolean get() = this == SLOW_MO || this == SUPER_SLOW_MO
+    val isSmart: Boolean get() = this in SMART
+
+    companion object {
+        /** Mode groups, in the order they appear in the mode switch. */
+        val SMART = listOf(PANORAMA, HYPERLAPSE, TIMELAPSE, SLOW_MO, SUPER_SLOW_MO, BURST)
+        val REGULAR = listOf(PHOTO, PRO_PHOTO, VIDEO, PRO_VIDEO, LIVE)
+    }
 }
 
 /** Cinema / social frame guides drawn over the video viewfinder. */
@@ -164,6 +182,22 @@ data class CameraUiState(
     val filtersAvailable: Boolean = true,
     val storageOptions: List<StorageOption> = emptyList(),
     val storageVolume: String = Storage.INTERNAL,
+
+    // Time-lapse / hyperlapse / slow motion
+    val lapseIntervalMs: Int = 2000,
+    val lapseLimitMin: Int = 0,
+    val hyperSpeed: Int = 8,
+    val lapseStabilize: Boolean = true,
+    val previewStabilizationSupported: Boolean = false,
+    val lapseFrames: Int = 0,
+    val slowMoFps: List<Int> = emptyList(),
+    val superSlowMoFps: List<Int> = emptyList(),
+    val slowFps: Int = 120,
+    val slowFallbackFps: Int = 0,
+    val processing: Boolean = false,
+    val burstModeCount: Int = 10,
+    val holdBursting: Boolean = false,
+    val layoutVersion: Int = 0,
 
     // Panorama
     val panoActive: Boolean = false,

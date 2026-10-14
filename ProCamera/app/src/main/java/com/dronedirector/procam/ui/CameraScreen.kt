@@ -97,8 +97,8 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
 
     // Live audio levels in the video modes (the recorder takes over while recording).
     val resumed = lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
-    LaunchedEffect(s.isVideo, s.recording, s.audio, resumed) {
-        controller.setAudioMonitoring(s.isVideo && s.audio && !s.recording && resumed)
+    LaunchedEffect(s.mode, s.recording, s.audio, resumed) {
+        controller.setAudioMonitoring(s.mode.isNormalVideo && s.audio && !s.recording && resumed)
     }
     // Re-check the SD card when coming back to the app.
     LaunchedEffect(resumed) { if (resumed) controller.refreshStorage() }
@@ -143,7 +143,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
                 val sideBar = if (tablet) 84.dp else 76.dp
                 val rail = if (tablet) 132.dp else 120.dp
                 val topBar = if (tablet) 60.dp else 56.dp
-                val bottomBar = if (tablet) 200.dp else 190.dp
+                val bottomBar = if (tablet) 226.dp else 214.dp
 
                 Box(
                     Modifier
@@ -213,36 +213,41 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false)
                         ShutterFlash(s.shutterFlash)
                         Countdown(s.countdown)
 
+                        // Draggable read-outs: drag them anywhere; positions are remembered.
                         if (s.isPro) {
-                            ExposureHud(s, isoShown, shutterShown, Modifier.align(Alignment.TopStart).padding(8.dp))
+                            DraggableOverlay("hud", Alignment.TopStart, s.layoutVersion) {
+                                ExposureHud(s, isoShown, shutterShown)
+                            }
                             if (s.showHistogram) {
-                                Histogram(
-                                    analysis,
-                                    width = if (tablet) 150.dp else 112.dp,
-                                    height = if (tablet) 62.dp else 52.dp,
-                                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 44.dp, end = 8.dp),
+                                DraggableOverlay("histogram", Alignment.TopEnd, s.layoutVersion) {
+                                    Histogram(
+                                        analysis,
+                                        width = if (tablet) 150.dp else 112.dp,
+                                        height = if (tablet) 62.dp else 52.dp,
+                                    )
+                                }
+                            }
+                        }
+                        if (s.mode.isNormalVideo && s.audio) {
+                            DraggableOverlay("audio", if (s.isPro) Alignment.CenterEnd else Alignment.TopStart, s.layoutVersion) {
+                                AudioGraph(
+                                    audio,
+                                    width = if (s.isPro) 150.dp else 120.dp,
+                                    height = if (s.isPro) 40.dp else 30.dp,
+                                    recording = s.recording,
                                 )
                             }
                         }
                         Column(
-                            Modifier.align(Alignment.TopCenter).padding(top = if (s.isPro) 44.dp else 10.dp),
+                            Modifier.align(Alignment.TopCenter).padding(top = 10.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             RecordingBadge(s)
                             IntervalBadge(s)
                         }
-                        if (s.isVideo && s.audio) {
-                            AudioGraph(
-                                audio,
-                                width = if (s.isPro) 150.dp else 120.dp,
-                                height = if (s.isPro) 40.dp else 30.dp,
-                                recording = s.recording,
-                                modifier = Modifier
-                                    .align(if (s.isPro) Alignment.TopEnd else Alignment.TopStart)
-                                    .padding(top = if (s.isPro) (if (s.showHistogram) 112.dp else 44.dp) else 8.dp, start = 8.dp, end = 8.dp),
-                            )
-                        }
+                        SmartModeHint(s, Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp))
+                        ProcessingBadge(s, Modifier.align(Alignment.Center))
                         if (s.sceneActive) {
                             Text(
                                 s.scene.label,

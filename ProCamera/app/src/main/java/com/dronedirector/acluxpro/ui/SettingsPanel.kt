@@ -1,6 +1,7 @@
 package com.dronedirector.acluxpro.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
@@ -119,6 +121,9 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             if (s.stabilizationSupported) {
                 ToggleRow("Stabilization", "Electronic / optical video stabilization", s.stabilization) { c.toggleStabilization() }
             }
+
+            Section("APP COLOUR")
+            AccentPicker()
 
             Section("LAYOUT")
             Text(
@@ -232,4 +237,38 @@ private fun ChoiceRadio(title: String, subtitle: String, selected: Boolean, onCl
             Text(subtitle, color = Pro.Dim, fontSize = 12.sp)
         }
     }
+}
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun AccentPicker() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    Text("Changes the yellow highlights across the app.", color = Pro.Dim, fontSize = 12.sp)
+    Spacer(Modifier.size(10.dp))
+    androidx.compose.foundation.layout.FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Accent.entries.forEach { a ->
+            val selected = Pro.accent == a
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    Modifier
+                        .size(40.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(a.color)
+                        .then(
+                            if (selected) Modifier.border(3.dp, Color.White, androidx.compose.foundation.shape.CircleShape)
+                            else Modifier
+                        )
+                        .clickable { AccentStore.save(ctx, a) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (selected) Icon(Icons.Filled.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.size(22.dp))
+                }
+                Text(a.label, color = if (selected) Color.White else Pro.Dim, fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
+            }
+        }
+    }
+    Spacer(Modifier.size(8.dp))
 }

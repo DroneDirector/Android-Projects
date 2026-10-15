@@ -20,7 +20,7 @@ import java.util.UUID
 import kotlin.math.max
 import kotlin.math.min
 
-enum class LayerKind(val label: String) { TEXT("Text"), STICKER("Sticker"), WATERMARK("Watermark"), LOGO("Logo") }
+enum class LayerKind(val label: String) { TEXT("Text"), STICKER("Sticker"), WATERMARK("Watermark"), LOGO("Logo"), IMAGE("Image"), VIDEO("Video") }
 
 enum class LayerFont(val label: String, val typeface: Typeface) {
     SANS("Sans", Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)),
@@ -53,7 +53,13 @@ data class Layer(
     val endMs: Long = 3000L,
     val wholeVideo: Boolean = false,
     val visible: Boolean = true,
+    /** Video layers: the overlaid clip, where in it to start, and its shape. */
+    val videoUri: Uri? = null,
+    val videoDurationMs: Long = 0L,
+    val videoStartMs: Long = 0L,
+    val mediaAspect: Float = 16f / 9f,
 ) {
+    val isMedia get() = kind == LayerKind.VIDEO || kind == LayerKind.IMAGE || kind == LayerKind.LOGO
     fun activeAt(ms: Long) = visible && (wholeVideo || ms in startMs..endMs)
 }
 
@@ -64,7 +70,8 @@ object LayerRenderer {
     fun render(context: Context, l: Layer, frameW: Int, frameH: Int): Bitmap? {
         val px = max(8f, l.size * frameH)
         return when (l.kind) {
-            LayerKind.LOGO -> {
+            LayerKind.VIDEO -> null
+            LayerKind.LOGO, LayerKind.IMAGE -> {
                 val uri = l.imageUri ?: return null
                 val src = synchronized(logoCache) {
                     logoCache.getOrPut(uri.toString()) { GradeIO.decode(context, uri, 1024) ?: return null }

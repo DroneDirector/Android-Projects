@@ -121,6 +121,8 @@ class MainActivity : ComponentActivity() {
         if (extras.getBoolean("nosetup", false)) controller.live.showSetup(false)
         if (extras.getBoolean("peaking", false)) controller.togglePeaking()
         if (extras.getBoolean("zebras", false)) controller.toggleZebras()
+        if (extras.getBoolean("falsecolor", false)) controller.toggleFalseColor()
+        if (extras.getBoolean("clean", false)) controller.setCleanFeed(true)
         return extras.getBoolean("settings", false)
     }
 

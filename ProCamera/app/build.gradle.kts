@@ -11,6 +11,12 @@ android {
     namespace = "com.dronedirector.acluxpro"
     compileSdk = 36
 
+    lint {
+        // The audio gain stage uses a CameraX hook that is still marked library-internal.
+        disable += "RestrictedApi"
+        checkReleaseBuilds = false
+    }
+
     defaultConfig {
         applicationId = "com.dronedirector.acluxpro"
         minSdk = 26
@@ -58,7 +64,7 @@ dependencies {
     // Live streaming over RTMP / RTMPS / SRT
     implementation("com.github.pedroSG94.RootEncoder:library:2.8.1")
 
-    val camerax = "1.5.0"
+    val camerax = "1.7.0-alpha03"
     implementation("androidx.camera:camera-core:$camerax")
     implementation("androidx.camera:camera-camera2:$camerax")
     implementation("androidx.camera:camera-lifecycle:$camerax")

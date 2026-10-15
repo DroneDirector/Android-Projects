@@ -36,6 +36,7 @@ class FilterProcessor : SurfaceProcessor {
 
     @Volatile private var colorMatrix = Filter.NONE.glMatrix()
     @Volatile private var colorOffset = Filter.NONE.glOffset()
+    @Volatile private var look: Look? = null
     @Volatile private var curve = 0
     /** Time-lapse / hyperlapse recorder fed from this processor's frames. */
     @Volatile var lapse: LapseRecorder? = null
@@ -75,6 +76,7 @@ class FilterProcessor : SurfaceProcessor {
     fun setFilter(filter: Filter) {
         colorMatrix = filter.glMatrix()
         colorOffset = filter.glOffset()
+        look = filter.look
     }
 
     // ------------------------------------------------------------- SurfaceProcessor
@@ -227,6 +229,14 @@ class FilterProcessor : SurfaceProcessor {
         GLES20.glUniform3fv(GLES20.glGetUniformLocation(program, "uOffset"), 1, colorOffset, 0)
         GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uCurve"), curveId)
         GLES20.glUniform1f(GLES20.glGetUniformLocation(program, "uZoom"), zoom)
+        val lk = look
+        GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uLook"), if (lk != null) 1 else 0)
+        if (lk != null) {
+            GLES20.glUniform3fv(GLES20.glGetUniformLocation(program, "uShadow"), 1, lk.shadow, 0)
+            GLES20.glUniform3fv(GLES20.glGetUniformLocation(program, "uHigh"), 1, lk.highlight, 0)
+            GLES20.glUniform1f(GLES20.glGetUniformLocation(program, "uSCurve"), lk.sCurve)
+            GLES20.glUniform1f(GLES20.glGetUniformLocation(program, "uFade"), lk.fade)
+        }
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
@@ -295,6 +305,11 @@ class FilterProcessor : SurfaceProcessor {
             uniform mat3 uColor;
             uniform vec3 uOffset;
             uniform int uCurve;
+            uniform int uLook;
+            uniform vec3 uShadow;
+            uniform vec3 uHigh;
+            uniform float uSCurve;
+            uniform float uFade;
 
             // DJI D-Log, from DJI's published D-Log transfer function (scene linear -> code value).
             float dlog(float x) {
@@ -319,6 +334,13 @@ class FilterProcessor : SurfaceProcessor {
             void main() {
                 vec4 c = texture2D(uTex, vTex);
                 vec3 rgb = clamp(uColor * c.rgb + uOffset, 0.0, 1.0);
+                if (uLook == 1) {
+                    float l = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
+                    vec3 sc = rgb * rgb * (3.0 - 2.0 * rgb);
+                    rgb = mix(rgb, sc, uSCurve);
+                    rgb += uShadow * (1.0 - smoothstep(0.0, 0.5, l)) + uHigh * smoothstep(0.5, 1.0, l);
+                    rgb = clamp(uFade + rgb * (1.0 - uFade), 0.0, 1.0);
+                }
                 if (uCurve != 0) rgb = clamp(applyCurve(rgb), 0.0, 1.0);
                 gl_FragColor = vec4(rgb, 1.0);
             }

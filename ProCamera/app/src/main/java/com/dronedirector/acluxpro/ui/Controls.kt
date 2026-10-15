@@ -161,6 +161,7 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
             QuickItem("BRACKET", s.bracket.label, active = s.bracket != Bracket.OFF) {
                 c.setBracket(Bracket.entries.next(s.bracket))
             }
+            QuickItem("F.COLOR", if (s.falseColor) "ON" else "OFF", active = s.falseColor) { c.toggleFalseColor() }
         }
         if (mode == CaptureMode.PHOTO && s.scenes.size > 1) {
             QuickItem("SCENE", s.scene.label, active = s.scene != com.dronedirector.acluxpro.camera.Scene.STANDARD) {
@@ -197,7 +198,17 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
                 QuickItem("ASSIST", if (s.logAssist) "ON" else "OFF", active = s.logAssist) { c.toggleLogAssist() }
             }
             QuickItem("BITRATE", if (s.highBitrate) "HIGH" else "STD", active = s.highBitrate, enabled = !s.recording) { c.toggleBitrate() }
+            QuickItem("F.COLOR", if (s.falseColor) "ON" else "OFF", active = s.falseColor) { c.toggleFalseColor() }
             QuickItem("GUIDE", s.guide.label, active = s.guide != FrameGuide.OFF) { c.setGuide(FrameGuide.entries.next(s.guide)) }
+            val hlg = s.profile == VideoProfile.HLG
+            if (s.hevcSupported || hlg) {
+                QuickItem("CODEC", if (hlg) "HEVC 10" else s.videoCodec.label, active = hlg || s.videoCodec != com.dronedirector.acluxpro.camera.VideoCodec.H264, enabled = !s.recording && !hlg && s.hevcSupported) {
+                    c.setVideoCodec(com.dronedirector.acluxpro.camera.VideoCodec.entries.next(s.videoCodec))
+                }
+            }
+            QuickItem("GAIN", (if (s.audioGainDb > 0) "+" else "") + "${s.audioGainDb}dB", active = s.audioGainDb != 0) {
+                c.setAudioGain(listOf(-12, -6, 0, 6, 12, 18, 24).let { l -> l.firstOrNull { it > s.audioGainDb } ?: l.first() })
+            }
         }
     }
     if (s.mode != CaptureMode.PANORAMA) {
@@ -786,6 +797,17 @@ fun FilterStrip(s: CameraUiState, c: ProCameraController, modifier: Modifier = M
     ) {
         Filter.entries.forEach { f ->
             val sel = s.filter == f
+            if (f == Filter.entries.first { it.isFilmLook }) {
+                // Divider + label before the film looks.
+                Column(
+                    Modifier.padding(horizontal = 2.dp).height(64.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(Modifier.width(1.dp).height(30.dp).background(Pro.Line))
+                    Text("FILM", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.padding(top = 4.dp))
+                }
+            }
             Column(
                 Modifier
                     .clip(RoundedCornerShape(8.dp))

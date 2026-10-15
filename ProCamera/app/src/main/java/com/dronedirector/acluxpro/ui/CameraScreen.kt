@@ -166,7 +166,9 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                     bottom = if (landscape) 0.dp else bottomBar,
                 )
                 // Video modes fill the whole screen edge to edge; photo modes keep exact framing.
-                val fillScreen = s.isVideo && !liveMode
+                // Clean feed: nothing but the picture, edge to edge (for HDMI out / mirroring / capture).
+                val clean = s.cleanFeed && !liveMode
+                val fillScreen = (s.isVideo || clean) && !liveMode
                 val noPad = androidx.compose.foundation.layout.PaddingValues(0.dp)
 
                 val sensorRatio = if (s.isVideo || (s.mode != CaptureMode.PANORAMA && s.aspect == AspectMode.R16_9)) 16f / 9f else 4f / 3f
@@ -236,7 +238,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                             },
                             modifier = Modifier.fillMaxSize(),
                         )
-                        if (overlayControls) {
+                        if (overlayControls && !clean) {
                             // Soft shading behind the floating controls.
                             Box(
                                 Modifier
@@ -263,10 +265,12 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                                 )
                             }
                         }
-                        if (!s.isVideo && s.mode != CaptureMode.PANORAMA && s.aspect == AspectMode.R1_1) SquareMask()
-                        if (s.mode == CaptureMode.PRO_VIDEO) FrameGuideOverlay(s.guide)
-                        if (s.mode != CaptureMode.PANORAMA) GridOverlay(s.grid)
-                        if (s.showLevel && s.mode != CaptureMode.PANORAMA) LevelIndicator()
+                        if (!clean) {
+                            if (!s.isVideo && s.mode != CaptureMode.PANORAMA && s.aspect == AspectMode.R1_1) SquareMask()
+                            if (s.mode == CaptureMode.PRO_VIDEO) FrameGuideOverlay(s.guide)
+                            if (s.mode != CaptureMode.PANORAMA) GridOverlay(s.grid)
+                            if (s.showLevel && s.mode != CaptureMode.PANORAMA) LevelIndicator()
+                        }
 
                         // Gestures: tap to focus/meter, pinch to zoom.
                         Box(
@@ -290,7 +294,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                         Countdown(s.countdown)
 
                         // Read-outs and badges stay inside the area not covered by the control bars.
-                        Box(
+                        if (!clean) Box(
                             Modifier
                                 .fillMaxSize()
                                 .then(
@@ -334,6 +338,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                             RecordingBadge(s)
                             IntervalBadge(s)
                         }
+                        if (s.proFalseColor) FalseColorLegend(Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = if (s.isPro) 100.dp else 64.dp))
                         SmartModeHint(s, Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp))
                         ProcessingBadge(s, Modifier.align(Alignment.Center))
                         if (s.sceneActive) {
@@ -352,7 +357,9 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                     }
 
                     val panelPos = Modifier.align(Alignment.BottomCenter).padding(if (overlayControls) barPad else noPad)
-                    if (liveMode) {
+                    if (clean) {
+                        // No panels in clean feed.
+                    } else if (liveMode) {
                         LiveBar(liveState, controller.live, Modifier.align(Alignment.BottomCenter))
                     } else if (s.isPro) {
                         ProPanel(s, controller, isoShown, shutterShown, panelPos)
@@ -361,7 +368,9 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                     }
                 }
 
-                if (landscape) {
+                if (clean) {
+                    // Controls hidden; double-tap to bring them back (layer below).
+                } else if (landscape) {
                     QuickBar(
                         s, controller, vertical = true, onSettings = { showSettings = true },
                         modifier = Modifier.align(Alignment.CenterStart).width(sideBar).fillMaxHeight(),
@@ -384,6 +393,32 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                 ToastHost(s.message, s.messageId, Modifier.align(Alignment.Center))
                 ToastHost(liveState.message, liveState.messageId, Modifier.align(Alignment.Center))
                 if (liveMode) LiveSetupPanel(liveState, controller.live)
+
+                if (clean) {
+                    androidx.activity.compose.BackHandler { controller.setCleanFeed(false) }
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onTap = { o -> controller.tapToFocus(o.x + cutL, o.y + cutT) },
+                                    onDoubleTap = { controller.setCleanFeed(false) },
+                                )
+                            }
+                    )
+                    var hint by remember { mutableStateOf(true) }
+                    LaunchedEffect(Unit) { delay(2500); hint = false }
+                    AnimatedVisibility(hint, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.Center)) {
+                        Text(
+                            "Clean feed · double-tap to show controls",
+                            color = Color.White, fontSize = 13.sp,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(Color.Black.copy(alpha = 0.6f))
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                        )
+                    }
+                }
 
                 if (showSettings) SettingsPanel(s, controller) { showSettings = false }
             }
@@ -413,5 +448,32 @@ private fun ToastHost(message: String?, id: Int, modifier: Modifier = Modifier) 
                 .background(Color.Black.copy(alpha = 0.8f))
                 .padding(horizontal = 16.dp, vertical = 10.dp),
         )
+    }
+}
+
+/** Key for the false-colour bands. */
+@Composable
+private fun FalseColorLegend(modifier: Modifier = Modifier) {
+    val bands = listOf(
+        Color(0xFFFF2A2A) to "CLIP",
+        Color(0xFFFFE03B) to "HIGH",
+        Color(0xFFFF7FAA) to "SKIN",
+        Color(0xFF2EBD4F) to "18%",
+        Color(0xFF1E5BFF) to "LOW",
+        Color(0xFF6A1B9A) to "CRUSH",
+    )
+    Column(
+        modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.55f))
+            .padding(6.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        bands.forEach { (c, label) ->
+            androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.width(10.dp).height(10.dp).background(c))
+                Text(label, color = Color.White, fontSize = 8.sp, modifier = Modifier.padding(start = 4.dp))
+            }
+        }
     }
 }

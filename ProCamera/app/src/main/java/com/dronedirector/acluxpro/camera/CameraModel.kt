@@ -159,6 +159,7 @@ data class CameraUiState(
     val zebras: Boolean = false,
     val zebraLevel: Int = 95,
     val peaking: Boolean = false,
+    val falseColor: Boolean = false,
     val volumeShutter: Boolean = true,
     /** Camera sounds (shutter click, record start/stop beeps, focus beep). */
     val cameraSounds: Boolean = true,
@@ -173,6 +174,24 @@ data class CameraUiState(
     val highBitrate: Boolean = true,
     /** Show a normal-looking preview while a log profile is being recorded. */
     val logAssist: Boolean = false,
+    /** 8-bit codec for normal recordings (HLG 10-bit always uses HEVC). */
+    val videoCodec: VideoCodec = VideoCodec.H264,
+    val hevcSupported: Boolean = false,
+
+    // Audio
+    /** Manual input gain applied to recordings, in dB. */
+    val audioGainDb: Int = 0,
+    /** Soft limiter so boosted audio doesn't clip harshly. */
+    val audioLimiter: Boolean = true,
+
+    // Clip naming (CMS)
+    val clipNaming: ClipNaming = ClipNaming.STANDARD,
+    val cameraLetter: Char = 'A',
+    val reel: Int = 1,
+    val clipNumber: Int = 1,
+
+    /** Hide every control for a clean picture (HDMI out / screen mirroring / capture). */
+    val cleanFeed: Boolean = false,
     val audio: Boolean = true,
 
     // Filters & extras
@@ -240,6 +259,7 @@ data class CameraUiState(
     val proHistogram: Boolean get() = isPro && showHistogram
     val proZebras: Boolean get() = isPro && zebras
     val proPeaking: Boolean get() = isPro && peaking
+    val proFalseColor: Boolean get() = isPro && falseColor
     /** Extensions (HDR/Night…) can't be combined with manual sensor control or RAW. */
     val sceneActive: Boolean
         get() = mode == CaptureMode.PHOTO && scene != Scene.STANDARD && photoFormat == PhotoFormat.JPEG
@@ -299,3 +319,14 @@ object Stops {
         return best
     }
 }
+
+enum class VideoCodec(val label: String, val mime: String) {
+    H264("H.264", "video/avc"),
+    HEVC("HEVC", "video/hevc"),
+}
+
+/**
+ * How recordings are named. CINEMA follows the camera-reel-clip convention used on film sets
+ * (A001C003_261015_ACLX): camera letter, reel number, clip number, date, then a device tag.
+ */
+enum class ClipNaming(val label: String) { STANDARD("Date & time"), CINEMA("Camera / reel / clip") }

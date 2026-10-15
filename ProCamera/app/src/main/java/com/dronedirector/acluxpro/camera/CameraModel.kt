@@ -169,7 +169,7 @@ data class CameraUiState(
     // Video options
     val videoRes: VideoRes = VideoRes.FHD,
     val fps: Int = 30,
-    val stabilization: Boolean = true,
+    val stabilization: Boolean = false,
     val profile: VideoProfile = VideoProfile.STANDARD,
     val highBitrate: Boolean = true,
     /** Show a normal-looking preview while a log profile is being recorded. */

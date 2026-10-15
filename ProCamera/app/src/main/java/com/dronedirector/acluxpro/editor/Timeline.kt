@@ -76,6 +76,15 @@ class Filmstrip(val frames: List<Bitmap>, val sourceDurationMs: Long) {
  * The playhead stays in the centre; drag to scrub, pinch or use the buttons to zoom,
  * Fit shows the whole edit.
  */
+/** Zoom of the timeline; the zoom buttons live under the player. */
+class TimelineZoom {
+    var pxPerSec by mutableFloatStateOf(60f)
+    internal var minPx: () -> Float = { 0.5f }
+    fun zoomIn() { pxPerSec = (pxPerSec * 1.6f).coerceAtMost(600f) }
+    fun zoomOut() { pxPerSec = (pxPerSec / 1.6f).coerceIn(min(minPx(), 0.5f), 600f) }
+    fun fit() { pxPerSec = minPx().coerceIn(0.5f, 600f) }
+}
+
 @Composable
 fun TimelineView(
     clips: List<Clip>,
@@ -88,12 +97,12 @@ fun TimelineView(
     onScrub: (ms: Long, final: Boolean) -> Unit,
     onSelectClip: (Int) -> Unit,
     onSelectLayer: (String) -> Unit,
-    onSplit: () -> Unit,
+    zoom: TimelineZoom,
 ) {
     val density = LocalDensity.current
     val totalMs = clips.sumOf { it.lengthMs }.coerceAtLeast(1)
     // Zoom in pixels per second.
-    var pxPerSec by remember { mutableFloatStateOf(60f) }
+    var pxPerSec by zoom::pxPerSec
     var dragging by remember { mutableStateOf(false) }
     var dragMs by remember { mutableStateOf(0L) }
     var viewportW by remember { mutableFloatStateOf(1f) }
@@ -102,7 +111,8 @@ fun TimelineView(
     val totalNow by rememberUpdatedState(totalMs)
     val minPx = { viewportW * 0.9f / (totalNow / 1000f) }
 
-    fun fit() { pxPerSec = minPx().coerceIn(0.5f, 600f) }
+    zoom.minPx = minPx
+    fun fit() = zoom.fit()
     LaunchedEffect(viewportW, totalMs) { if (!fittedOnce && viewportW > 10f) { fit(); fittedOnce = true } }
 
     val ruler = with(density) { 22.dp.toPx() }
@@ -129,16 +139,7 @@ fun TimelineView(
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(tc(headMs), style = Pro.Value.copy(color = accent, fontSize = 13.sp))
             Text(" / ${tc(totalMs)}", style = Pro.Value.copy(color = Pro.Dim, fontSize = 11.sp), modifier = Modifier.weight(1f))
-            TimelineButton(Icons.Filled.ZoomOut, "Zoom out") { pxPerSec = (pxPerSec / 1.6f).coerceIn(min(minPx(), 0.5f), 600f) }
-            TimelineButton(Icons.Filled.FitScreen, "Fit whole edit") { fit() }
-            TimelineButton(Icons.Filled.ZoomIn, "Zoom in") { pxPerSec = (pxPerSec * 1.6f).coerceAtMost(600f) }
-            Row(
-                Modifier.padding(start = 6.dp).clip(RoundedCornerShape(50)).background(accent).clickable(onClick = onSplit).padding(horizontal = 10.dp, vertical = 5.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Filled.ContentCut, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
-                Text(" SPLIT", style = Pro.Value.copy(color = Color.Black, fontSize = 11.sp))
-            }
+            Text("pinch to zoom", style = Pro.Label.copy(fontSize = 9.sp))
         }
         BoxWithConstraints(
             Modifier

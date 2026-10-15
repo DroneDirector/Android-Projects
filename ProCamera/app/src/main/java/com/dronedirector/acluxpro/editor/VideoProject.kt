@@ -45,6 +45,7 @@ data class Clip(
     val volume: Float = 1f,
     val muted: Boolean = false,
     val fadeIn: Boolean = false,
+    val audio: AudioFx = AudioFx(),
     val grade: ProGrade = ProGrade(),
     val detail: Detail = Detail(),
     /** Stream facts used to decide on a preview proxy. */
@@ -137,11 +138,8 @@ class TimelineExport(
                 .build()
             val audio = mutableListOf<AudioProcessor>()
             val gain = if (c.muted) 0f else c.volume
-            if (gain != 1f) {
-                audio += ChannelMixingAudioProcessor().apply {
-                    putChannelMixingMatrix(ChannelMixingMatrix.createForConstantGain(1, 1).scaleBy(gain))
-                    putChannelMixingMatrix(ChannelMixingMatrix.createForConstantGain(2, 2).scaleBy(gain))
-                }
+            if (gain != 1f || !c.audio.isNeutral) {
+                audio += AudioFxProcessor(c.audio, gain, c.endMs - c.startMs)
             }
             // With video layers the clips are sized to the project frame before compositing.
             val video = if (videoLayers.isEmpty()) clipEffects(c) else clipEffects(c) + Presentation.createForWidthAndHeight(outW, outH, layout)
@@ -207,7 +205,12 @@ class TimelineExport(
                     .build()
             )
                 .setRemoveVideo(true)
-                .setEffects(Effects(listOf(FadeAudioProcessor(m.volume, m.fadeInMs, m.fadeOutMs, end - m.offsetMs)), emptyList()))
+                .setEffects(Effects(listOf(
+                    AudioFxProcessor(
+                        m.fx.copy(fadeInMs = m.fadeInMs, fadeOutMs = m.fadeOutMs), m.volume, end - m.offsetMs,
+                        duckRanges = duckRanges(clips), duckGain = 1f - m.duck,
+                    )
+                ), emptyList()))
                 .build()
             sequences += EditedMediaItemSequence.Builder(listOf(musicItem)).build()
         }
@@ -279,4 +282,15 @@ class TimelineExport(
         transformer.cancel()
         out.delete()
     }
+}
+
+/** Timeline ranges (ms) of clips that ask for the music to be lowered under them. */
+fun duckRanges(clips: List<Clip>): List<LongRange> {
+    val out = mutableListOf<LongRange>()
+    var t = 0L
+    for (c in clips) {
+        if (c.audio.duckMusic && !c.muted && c.volume > 0f) out += t until t + c.lengthMs
+        t += c.lengthMs
+    }
+    return out
 }

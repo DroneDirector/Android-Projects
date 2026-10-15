@@ -57,6 +57,11 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.ZoomOut
+import androidx.compose.material.icons.filled.ZoomIn
+import androidx.compose.material.icons.filled.FitScreen
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Pause
@@ -187,7 +192,8 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     val layers = remember { mutableStateListOf<Layer>() }
     var selectedLayer by remember { mutableStateOf<String?>(null) }
     var music by remember { mutableStateOf<MusicTrack?>(null) }
-    val musicPlayer = remember { ExoPlayer.Builder(context).build() }
+    val musicFxProc = remember { AudioFxProcessor(live = true) }
+    val musicPlayer = remember { fxPlayer(context, musicFxProc) }
     DisposableEffect(Unit) { onDispose { musicPlayer.release() } }
     val pickMusic = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -274,12 +280,12 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     var videoAspect by remember { mutableStateOf(16f / 9f) }
     // Two players take turns: while one plays, the next clip is loaded and paused on its first
     // frame in the other, so the cut to the next clip is seamless.
+    // Each preview player runs the clip's EQ / dynamics live.
+    val audioFx = remember { listOf(AudioFxProcessor(meter = true, live = true), AudioFxProcessor(meter = true, live = true)) }
     val players = remember {
-        listOf(
-            ExoPlayer.Builder(context).build().apply { repeatMode = Player.REPEAT_MODE_OFF },
-            ExoPlayer.Builder(context).build().apply { repeatMode = Player.REPEAT_MODE_OFF },
-        )
+        audioFx.map { fx -> fxPlayer(context, fx).apply { repeatMode = Player.REPEAT_MODE_OFF } }
     }
+    val zoom = remember { TimelineZoom() }
     val deck = remember { Deck(players) }
     val aspects = remember { mutableStateListOf(16f / 9f, 16f / 9f) }
     var preloadedId by remember { mutableStateOf<String?>(null) }
@@ -294,6 +300,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
         p.setMediaItem(mediaItemFor(c), startMs.coerceAtLeast(0))
         p.playbackParameters = PlaybackParameters(c.speed)
         p.volume = if (c.muted || previewMuted) 0f else c.volume.coerceAtMost(1f)
+        audioFx[players.indexOf(p).coerceAtLeast(0)].fx = c.audio
         p.playWhenReady = play
         p.prepare()
     }
@@ -429,6 +436,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
         delay(150)
         if (clips.isNotEmpty()) preloadAfter(current)
     }
+    LaunchedEffect(cur?.audio) { cur?.let { audioFx[deck.active].fx = it.audio } }
     LaunchedEffect(cur?.speed, cur?.volume, cur?.muted, previewMuted) {
         cur?.let {
             deck.cur.playbackParameters = PlaybackParameters(it.speed)
@@ -461,9 +469,12 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     LaunchedEffect(playing, music, previewMuted) {
         val m = music
         if (m == null) { musicPlayer.pause(); return@LaunchedEffect }
+        musicFxProc.fx = m.fx
         musicPlayer.volume = if (previewMuted) 0f else m.volume.coerceIn(0f, 1f)
         if (!playing) { musicPlayer.pause(); return@LaunchedEffect }
         while (true) {
+            val ducked = clips.getOrNull(current)?.let { it.audio.duckMusic && !it.muted && it.volume > 0f } == true
+            musicPlayer.volume = if (previewMuted) 0f else (m.volume * (if (ducked) 1f - m.duck else 1f)).coerceIn(0f, 1f)
             val before = clips.take(current.coerceAtMost(clips.size)).sumOf { it.lengthMs }
             val g = before + (deck.cur.currentPosition / (clips.getOrNull(current)?.speed ?: 1f)).toLong()
             val want = m.offsetMs + g
@@ -689,12 +700,17 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                         modifier = Modifier.height(26.dp),
                         colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = Color.White.copy(alpha = 0.15f)),
                     )
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                        TopIcon(if (previewMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute preview") { previewMuted = !previewMuted }
-                        TopIcon(Icons.Filled.SkipPrevious, "Previous clip") { prevClip() }
-                        TopIcon(if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Pro.Amber) { togglePlay() }
-                        TopIcon(Icons.Filled.SkipNext, "Next clip") { nextClip() }
-                        TopIcon(Icons.Filled.Fullscreen, "Full screen") { fullscreen = true }
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        TransportIcon(if (previewMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute preview") { previewMuted = !previewMuted }
+                        TransportIcon(Icons.Filled.ZoomOut, "Zoom timeline out") { zoom.zoomOut() }
+                        TransportIcon(Icons.Filled.FitScreen, "Show whole timeline") { zoom.fit() }
+                        TransportIcon(Icons.Filled.ZoomIn, "Zoom timeline in") { zoom.zoomIn() }
+                        TransportIcon(Icons.Filled.ContentCut, "Split at playhead", accent = true) { splitAtPlayhead() }
+                        Spacer(Modifier.weight(1f))
+                        TransportIcon(Icons.Filled.SkipPrevious, "Previous clip") { prevClip() }
+                        TransportIcon(if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Pro.Amber) { togglePlay() }
+                        TransportIcon(Icons.Filled.SkipNext, "Next clip") { nextClip() }
+                        TransportIcon(Icons.Filled.Fullscreen, "Full screen") { fullscreen = true }
                     }
                 }
             }
@@ -707,7 +723,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                     onScrub = { ms, final -> scrub(ms, final) },
                     onSelectClip = { selected = it; if (page == Page.MEDIA || page == Page.LAYERS || page == Page.DELIVER) page = Page.EDIT },
                     onSelectLayer = { selectedLayer = it; page = Page.LAYERS },
-                    onSplit = { splitAtPlayhead() },
+                    zoom = zoom,
                 )
             }
 
@@ -773,7 +789,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                                 },
                             )
                             Page.AUDIO -> AudioPage(
-                                sc, deliver, music,
+                                sc, deliver, music, playing,
                                 onChange = { f -> update(selected, f) },
                                 onPickMusic = { pickMusic.launch(arrayOf("audio/*")) },
                                 onMusic = { music = it; if (it == null) musicPlayer.stop() },
@@ -1057,9 +1073,50 @@ private fun ColorPage(
 
 @Composable
 private fun AudioPage(
-    c: Clip?, deliver: DeliverSettings, music: MusicTrack?,
+    c: Clip?, deliver: DeliverSettings, music: MusicTrack?, playing: Boolean,
     onChange: ((Clip) -> Clip) -> Unit, onPickMusic: () -> Unit, onMusic: (MusicTrack?) -> Unit,
 ) {
+    LevelMeter(playing)
+    if (c != null) {
+        val fx = c.audio
+        fun setFx(f: (AudioFx) -> AudioFx) = onChange { it.copy(audio = f(it.audio)) }
+        SectionTitle("CLIP AUDIO", onReset = { onChange { it.copy(audio = AudioFx(), volume = 1f, muted = false) } })
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SmallAction(if (c.muted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, if (c.muted) "Muted" else "Sound on") { onChange { it.copy(muted = !it.muted) } }
+            SmallAction(Icons.Filled.MusicNote, if (fx.duckMusic) "Lowers music" else "Music normal") { setFx { it.copy(duckMusic = !it.duckMusic) } }
+        }
+        EdSlider("Clip volume", c.volume, 0f..2f, 1f, { "%+.1f dB".format(dbfs(it)) }) { v -> onChange { it.copy(volume = v) } }
+        EdSlider("Pan / balance", fx.pan, -1f..1f, 0f, { if (it < -0.01f) "L ${(-it * 100).toInt()}" else if (it > 0.01f) "R ${(it * 100).toInt()}" else "Centre" }) { v -> setFx { it.copy(pan = v) } }
+        Text("Channels", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+        Chips(AudioChannels.entries.map { it.label }, fx.channels.ordinal) { i -> setFx { it.copy(channels = AudioChannels.entries[i]) } }
+        EdSlider("Fade in", fx.fadeInMs / 1000f, 0f..5f, 0f, { "%.1f s".format(it) }) { v -> setFx { it.copy(fadeInMs = (v * 1000).toLong()) } }
+        EdSlider("Fade out", fx.fadeOutMs / 1000f, 0f..5f, 0f, { "%.1f s".format(it) }) { v -> setFx { it.copy(fadeOutMs = (v * 1000).toLong()) } }
+
+        SectionTitle("PRESETS")
+        Chips(AudioPreset.entries.map { it.label }, AudioPreset.entries.indexOfFirst { p ->
+            p.fx.copy(pan = fx.pan, fadeInMs = fx.fadeInMs, fadeOutMs = fx.fadeOutMs, duckMusic = fx.duckMusic, limiter = fx.limiter) == fx
+        }) { i ->
+            val p = AudioPreset.entries[i].fx
+            setFx { it.copy(low = p.low, mid = p.mid, high = p.high, lowCut = p.lowCut, voice = p.voice, compressor = p.compressor, gate = p.gate, channels = p.channels) }
+        }
+
+        SectionTitle("EQUALIZER", onReset = { setFx { it.copy(low = 0f, mid = 0f, high = 0f, lowCut = false, voice = false) } })
+        val db = { v: Float -> "%+.1f dB".format(v) }
+        EdSlider("Low (bass)", fx.low, -12f..12f, 0f, db) { v -> setFx { it.copy(low = v) } }
+        EdSlider("Mid", fx.mid, -12f..12f, 0f, db) { v -> setFx { it.copy(mid = v) } }
+        EdSlider("High (treble)", fx.high, -12f..12f, 0f, db) { v -> setFx { it.copy(high = v) } }
+        AudioSwitch("Low cut (80 Hz)", "Removes wind rumble and handling noise", fx.lowCut) { b -> setFx { it.copy(lowCut = b) } }
+        AudioSwitch("Voice enhance", "Clearer speech: trims boom, lifts presence", fx.voice) { b -> setFx { it.copy(voice = b) } }
+
+        SectionTitle("DYNAMICS", onReset = { setFx { it.copy(compressor = 0f, gate = 0f, limiter = true) } })
+        EdSlider("Compressor", fx.compressor, 0f..1f, 0f, ::pct) { v -> setFx { it.copy(compressor = v) } }
+        Text("Evens out loud and quiet parts and adds make-up gain.", color = Pro.Dim, fontSize = 11.sp)
+        EdSlider("Noise gate", fx.gate, 0f..1f, 0f, { if (it <= 0f) "Off" else "%.0f dB".format(-62f + it * 30f) }) { v -> setFx { it.copy(gate = v) } }
+        Text("Silences background hiss between words or sounds below the threshold.", color = Pro.Dim, fontSize = 11.sp)
+        AudioSwitch("Limiter", "Soft-limits peaks so boosted audio never clips", fx.limiter) { b -> setFx { it.copy(limiter = b) } }
+        Text("Fades play in the export; everything else is heard live in the preview.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+    }
+
     SectionTitle("MUSIC TRACK")
     if (music == null) {
         BigButton(Icons.Filled.MusicNote, "Add music (MP3, AAC, WAV…)", Modifier.fillMaxWidth(), onPickMusic)
@@ -1078,16 +1135,61 @@ private fun AudioPage(
         EdSlider("Music volume", music.volume, 0f..1f, 0.8f, ::pct) { v -> onMusic(music.copy(volume = v)) }
         EdSlider("Fade in", music.fadeInMs / 1000f, 0f..5f, 1f, { "%.1f s".format(it) }) { v -> onMusic(music.copy(fadeInMs = (v * 1000).toLong())) }
         EdSlider("Fade out", music.fadeOutMs / 1000f, 0f..8f, 2f, { "%.1f s".format(it) }) { v -> onMusic(music.copy(fadeOutMs = (v * 1000).toLong())) }
-    }
-    if (c != null) {
-        SectionTitle("CLIP AUDIO")
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SmallAction(if (c.muted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, if (c.muted) "Muted" else "Sound on") { onChange { it.copy(muted = !it.muted) } }
-        }
-        EdSlider("Clip volume", c.volume, 0f..2f, 1f, { "${(it * 100).toInt()}%" }) { v -> onChange { it.copy(volume = v) } }
-        Text("Above 100% boosts the clip on export; the preview plays it at most at full volume.", color = Pro.Dim, fontSize = 11.sp)
+        EdSlider("Ducking", music.duck, 0f..0.95f, 0.6f, { "%.0f dB".format(dbfs(1f - it)) }) { v -> onMusic(music.copy(duck = v)) }
+        Text("How much the music drops under clips set to \"Lowers music\" (tap the music button on a clip).", color = Pro.Dim, fontSize = 11.sp)
+        val db = { v: Float -> "%+.1f dB".format(v) }
+        EdSlider("Music bass", music.fx.low, -12f..12f, 0f, db) { v -> onMusic(music.copy(fx = music.fx.copy(low = v))) }
+        EdSlider("Music mids", music.fx.mid, -12f..12f, 0f, db) { v -> onMusic(music.copy(fx = music.fx.copy(mid = v))) }
+        EdSlider("Music treble", music.fx.high, -12f..12f, 0f, db) { v -> onMusic(music.copy(fx = music.fx.copy(high = v))) }
     }
     if (!deliver.audio) Text("Audio is turned off in Deliver.", color = Pro.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+}
+
+@Composable
+private fun AudioSwitch(title: String, detail: String, on: Boolean, onChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Color.White, fontSize = 13.sp)
+            Text(detail, color = Pro.Dim, fontSize = 11.sp)
+        }
+        androidx.compose.material3.Switch(
+            checked = on, onCheckedChange = onChange,
+            colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
+        )
+    }
+}
+
+/** Live L/R peak meter of the preview (after the clip's audio processing). */
+@Composable
+private fun LevelMeter(playing: Boolean) {
+    var l by remember { mutableStateOf(-60f) }
+    var r by remember { mutableStateOf(-60f) }
+    LaunchedEffect(playing) {
+        while (true) {
+            if (!playing) { AudioMeter.left *= 0.5f; AudioMeter.right *= 0.5f }
+            l = dbfs(AudioMeter.left); r = dbfs(AudioMeter.right)
+            AudioMeter.left *= 0.8f; AudioMeter.right *= 0.8f
+            delay(60)
+        }
+    }
+    SectionTitle("LEVELS")
+    listOf("L" to l, "R" to r).forEach { (name, v) ->
+        Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(name, style = Pro.Label, modifier = Modifier.width(16.dp))
+            androidx.compose.foundation.Canvas(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(3.dp)).background(Color.White.copy(alpha = 0.08f))) {
+                val k = ((v + 60f) / 60f).coerceIn(0f, 1f)
+                drawRect(
+                    androidx.compose.ui.graphics.Brush.horizontalGradient(
+                        0f to Color(0xFF34C759), 0.75f to Color(0xFFFFCC00), 0.95f to Color(0xFFFF3B30),
+                    ),
+                    size = androidx.compose.ui.geometry.Size(size.width * k, size.height),
+                )
+                // -12 dB and -6 dB guides
+                listOf(-12f, -6f).forEach { g -> val x = size.width * (g + 60f) / 60f; drawLine(Color.White.copy(alpha = 0.35f), androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Offset(x, size.height)) }
+            }
+            Text(if (v <= -59.9f) "−∞" else "%.0f".format(v), style = Pro.Value.copy(fontSize = 10.sp), modifier = Modifier.width(34.dp).padding(start = 6.dp))
+        }
+    }
 }
 
 /** Text, stickers and watermarks drawn over the viewer; drag the selected one to move it. */
@@ -1349,4 +1451,27 @@ private class Deck(val players: List<ExoPlayer>) {
     var active by mutableStateOf(0)
     val cur: ExoPlayer get() = players[active]
     val spare: ExoPlayer get() = players[1 - active]
+}
+
+@Composable
+private fun TransportIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color = Color.White, accent: Boolean = false, onClick: () -> Unit) {
+    Box(
+        Modifier.size(36.dp).clip(CircleShape).then(if (accent) Modifier.background(Pro.Amber) else Modifier).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = label, tint = if (accent) Color.Black else tint, modifier = Modifier.size(20.dp))
+    }
+}
+
+/** ExoPlayer whose audio runs through [fx] (EQ, dynamics, channels) before output. */
+@OptIn(UnstableApi::class)
+private fun fxPlayer(context: android.content.Context, fx: AudioFxProcessor): ExoPlayer {
+    val rf = object : androidx.media3.exoplayer.DefaultRenderersFactory(context) {
+        override fun buildAudioSink(context: android.content.Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): androidx.media3.exoplayer.audio.AudioSink =
+            androidx.media3.exoplayer.audio.DefaultAudioSink.Builder(context)
+                .setAudioProcessors(arrayOf(fx))
+                .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                .build()
+    }
+    return ExoPlayer.Builder(context, rf).build()
 }

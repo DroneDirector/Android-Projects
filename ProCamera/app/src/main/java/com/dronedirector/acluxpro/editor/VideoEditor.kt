@@ -81,7 +81,6 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import com.dronedirector.acluxpro.camera.Filter
 import com.dronedirector.acluxpro.camera.GradeIO
 import com.dronedirector.acluxpro.ui.Pro
@@ -161,41 +160,86 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     val thumbs = remember { mutableStateMapOf<String, Bitmap>() }
     var scopeHist by remember { mutableStateOf<Array<FloatArray>?>(null) }
 
-    val player = remember {
-        ExoPlayer.Builder(context).build().apply {
-            setVideoEffects(emptyList())
-            repeatMode = Player.REPEAT_MODE_OFF
+    var effectsOk by remember { mutableStateOf(true) }
+    var loadedId by remember { mutableStateOf<String?>(null) }
+    var videoAspect by remember { mutableStateOf(16f / 9f) }
+    val player = remember { ExoPlayer.Builder(context).build().apply { repeatMode = Player.REPEAT_MODE_OFF } }
+
+    /**
+     * The preview plays one clip at a time (the timeline advances clip by clip). Effects are set
+     * before each prepare, which is the most reliable way across phones.
+     */
+    fun load(index: Int, startMs: Long, play: Boolean) {
+        val c = clips.getOrNull(index) ?: return
+        current = index
+        loadedId = c.id
+        player.stop()
+        try {
+            player.setVideoEffects(if (effectsOk) clipEffects(c) else emptyList())
+        } catch (_: Throwable) {
+            effectsOk = false
         }
+        player.setMediaItem(
+            MediaItem.Builder().setUri(c.uri).setMediaId(c.id)
+                .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(c.startMs).setEndPositionMs(c.endMs).build())
+                .build(),
+            startMs.coerceAtLeast(0),
+        )
+        player.playbackParameters = PlaybackParameters(c.speed)
+        player.volume = if (c.muted) 0f else c.volume.coerceAtMost(1f)
+        player.playWhenReady = play
+        player.prepare()
     }
+
     DisposableEffect(Unit) {
-        onDispose { export?.cancel(); player.release() }
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                if (state == Player.STATE_ENDED) {
+                    if (current < clips.lastIndex) load(current + 1, 0, true) else player.playWhenReady = false
+                }
+            }
+
+            override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
+                if (videoSize.width > 0 && videoSize.height > 0) {
+                    videoAspect = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
+                }
+            }
+
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                val pos = player.currentPosition
+                if (effectsOk) {
+                    // The phone's GPU preview pipeline failed: keep previewing without the live grade.
+                    effectsOk = false
+                    message = "Live grade preview isn't supported here — the grade is still applied on export"
+                    load(current, pos, player.playWhenReady)
+                } else {
+                    message = "Can't play this clip on this phone (${error.errorCodeName})"
+                }
+            }
+        }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener); export?.cancel(); player.release() }
     }
 
     BackHandler { if (!exporting) confirmExit = true }
 
-    // Playlist mirrors the timeline structure.
+    // Reload when the clip under the playhead changes (added, removed, trimmed, reordered).
     val structure = clips.map { Triple(it.id, it.startMs, it.endMs) }
     LaunchedEffect(structure) {
-        if (clips.isEmpty()) return@LaunchedEffect
-        val idx = player.currentMediaItemIndex.coerceIn(0, clips.lastIndex)
-        val pos = player.currentPosition
-        player.setMediaItems(
-            clips.map { c ->
-                MediaItem.Builder().setUri(c.uri).setMediaId(c.id)
-                    .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(c.startMs).setEndPositionMs(c.endMs).build())
-                    .build()
-            },
-            idx, pos.coerceAtLeast(0),
-        )
-        player.prepare()
+        if (clips.isEmpty()) { player.stop(); player.clearMediaItems(); loadedId = null; return@LaunchedEffect }
+        val idx = clips.indexOfFirst { it.id == loadedId }.takeIf { it >= 0 } ?: current.coerceIn(0, clips.lastIndex)
+        load(idx, if (clips[idx].id == loadedId) player.currentPosition else 0L, player.playWhenReady && player.isPlaying)
     }
-    // Per-clip grade, speed and volume follow the clip under the playhead.
+    // Live grade on the clip being shown.
     val cur = clips.getOrNull(current)
-    LaunchedEffect(cur?.id, cur?.grade, cur?.detail) {
+    LaunchedEffect(cur?.grade, cur?.detail, effectsOk) {
         delay(60)
-        cur?.let { player.setVideoEffects(clipEffects(it)) }
+        val c = cur ?: return@LaunchedEffect
+        if (effectsOk && c.id == loadedId) {
+            try { player.setVideoEffects(clipEffects(c)) } catch (_: Throwable) { effectsOk = false }
+        }
     }
-    LaunchedEffect(cur?.id, cur?.speed, cur?.volume, cur?.muted) {
+    LaunchedEffect(cur?.speed, cur?.volume, cur?.muted) {
         cur?.let {
             player.playbackParameters = PlaybackParameters(it.speed)
             player.volume = if (it.muted) 0f else it.volume.coerceAtMost(1f)
@@ -203,7 +247,6 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     }
     LaunchedEffect(Unit) {
         while (true) {
-            current = player.currentMediaItemIndex
             posMs = player.currentPosition
             playing = player.isPlaying
             delay(100)
@@ -240,7 +283,8 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
         var acc = 0L
         clips.forEachIndexed { i, c ->
             if (ms < acc + c.lengthMs || i == clips.lastIndex) {
-                player.seekTo(i, ((ms - acc).coerceAtLeast(0) * c.speed).toLong())
+                val off = ((ms - acc).coerceAtLeast(0) * c.speed).toLong()
+                if (i == current && loadedId == c.id) player.seekTo(off) else load(i, off, player.isPlaying)
                 return
             }
             acc += c.lengthMs
@@ -274,13 +318,14 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                 Box(mod.background(Color.Black), contentAlignment = Alignment.Center) {
                     AndroidView(
                         factory = { ctx ->
-                            PlayerView(ctx).apply {
-                                useController = false
+                            AspectRatioFrameLayout(ctx).apply {
                                 resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                setShutterBackgroundColor(android.graphics.Color.BLACK)
-                                this.player = player
+                                val tv = android.view.TextureView(ctx)
+                                addView(tv, android.widget.FrameLayout.LayoutParams(-1, -1, android.view.Gravity.CENTER))
+                                player.setVideoTextureView(tv)
                             }
                         },
+                        update = { it.setAspectRatio(videoAspect) },
                         modifier = Modifier.fillMaxSize(),
                     )
                     if (page == Page.COLOR) Scope(scopeHist, Modifier.align(Alignment.TopEnd).padding(8.dp).width(130.dp).height(64.dp))
@@ -311,14 +356,19 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                         colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = Color.White.copy(alpha = 0.15f)),
                     )
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                        TopIcon(Icons.Filled.SkipPrevious, "Previous clip") { if (current > 0) player.seekTo(current - 1, 0) else player.seekTo(0, 0) }
+                        TopIcon(Icons.Filled.SkipPrevious, "Previous clip") {
+                            if (player.currentPosition > 1500 || current == 0) player.seekTo(0) else load(current - 1, 0, player.isPlaying)
+                        }
                         TopIcon(if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Pro.Amber) {
                             if (player.isPlaying) player.pause() else {
-                                if (player.playbackState == Player.STATE_ENDED) player.seekTo(0, 0)
-                                player.play()
+                                when {
+                                    player.playbackState == Player.STATE_ENDED && current == clips.lastIndex -> load(0, 0, true)
+                                    player.playbackState == Player.STATE_IDLE -> load(current, posMs, true)
+                                    else -> player.play()
+                                }
                             }
                         }
-                        TopIcon(Icons.Filled.SkipNext, "Next clip") { if (current < clips.lastIndex) player.seekTo(current + 1, 0) }
+                        TopIcon(Icons.Filled.SkipNext, "Next clip") { if (current < clips.lastIndex) load(current + 1, 0, player.isPlaying) }
                     }
                 }
             }
@@ -335,7 +385,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                             Modifier.width(w).fillMaxHeight().clip(RoundedCornerShape(6.dp))
                                 .background(Ed.Raised)
                                 .border(if (sel) 2.dp else 1.dp, if (sel) Pro.Amber else Pro.Line, RoundedCornerShape(6.dp))
-                                .clickable { selected = i; player.seekTo(i, 0) },
+                                .clickable { selected = i; load(i, 0, false) },
                         ) {
                             thumbs[c.id]?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
                             Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 4.dp, vertical = 1.dp)) {
@@ -375,7 +425,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                                 onDelete = {
                                     clips.removeAt(selected)
                                     selected = selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
-                                    if (clips.isEmpty()) { player.clearMediaItems() }
+
                                 },
                                 onMove = { dir ->
                                     val to = selected + dir

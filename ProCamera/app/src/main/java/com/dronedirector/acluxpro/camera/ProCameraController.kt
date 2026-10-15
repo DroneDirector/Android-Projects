@@ -707,7 +707,20 @@ class ProCameraController(private val context: Context) {
                 val scale = 360f / maxOf(tv.width, tv.height)
                 val bw = (tv.width * scale).toInt().coerceAtLeast(16)
                 val bh = (tv.height * scale).toInt().coerceAtLeast(16)
-                val bmp = try { tv.getBitmap(bw, bh) } catch (_: Throwable) { null } ?: continue
+                val raw = try { tv.getBitmap(bw, bh) } catch (_: Throwable) { null } ?: continue
+                // getBitmap ignores the view's crop/rotation transform; apply it so the copy matches the screen.
+                val bmp = try {
+                    val m = tv.getTransform(null)
+                    val out = android.graphics.Bitmap.createBitmap(bw, bh, android.graphics.Bitmap.Config.ARGB_8888)
+                    android.graphics.Canvas(out).apply {
+                        scale(scale, scale)
+                        concat(m)
+                        scale(1f / scale, 1f / scale)
+                        drawBitmap(raw, 0f, 0f, android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+                    }
+                    raw.recycle()
+                    out
+                } catch (_: Throwable) { raw }
                 busy = true
                 analysisExecutor.execute {
                     analyzer.analyzeBitmap(bmp)

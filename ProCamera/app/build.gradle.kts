@@ -74,6 +74,9 @@ dependencies {
 
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("com.google.code.gson:gson:2.11.0")
+    implementation("org.tensorflow:tensorflow-lite:2.16.1")
+    implementation("org.tensorflow:tensorflow-lite-gpu:2.16.1")
+    implementation("org.tensorflow:tensorflow-lite-gpu-api:2.16.1")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
     // Video colour grading (export with a LUT).
     implementation("androidx.media3:media3-transformer:1.11.1")

@@ -17,7 +17,10 @@ data class MediaItem(
     val height: Int,
     val durationMs: Long,
     val mime: String,
-)
+) {
+    /** RAW (DNG) photo. */
+    val isRaw: Boolean get() = !isVideo && (mime.contains("dng", ignoreCase = true) || mime.contains("raw", ignoreCase = true) || name.endsWith(".dng", ignoreCase = true))
+}
 
 /** Reads the photos and videos AcluxPro saved (DCIM/AcluxPro on internal storage and SD cards). */
 @Suppress("DEPRECATION")

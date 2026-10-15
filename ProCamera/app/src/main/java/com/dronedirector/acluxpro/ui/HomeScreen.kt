@@ -70,6 +70,7 @@ fun HomeScreen(onCapture: () -> Unit, onEditor: () -> Unit) {
         title = "AcluxPro",
         subtitle = "CAPTURE · EDIT · CREATE",
         onBack = null,
+        showVersion = true,
         tiles = listOf(
             Tile("CAPTURE", "Photo · Video · Pro · Smart modes · Live", Icons.Filled.CameraAlt, onCapture),
             Tile("EDITOR", "Photo editor · Video editor", Icons.Filled.Tune, onEditor),
@@ -95,7 +96,11 @@ fun EditorHub(onPhoto: () -> Unit, onVideo: () -> Unit, onBack: () -> Unit) {
 private class Tile(val title: String, val detail: String, val icon: ImageVector, val onClick: () -> Unit)
 
 @Composable
-private fun HubLayout(title: String, subtitle: String, onBack: (() -> Unit)?, tiles: List<Tile>) {
+private fun HubLayout(title: String, subtitle: String, onBack: (() -> Unit)?, tiles: List<Tile>, showVersion: Boolean = false) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val version = remember {
+        try { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "" } catch (_: Throwable) { "" }
+    }
     val appear = remember { Animatable(0f) }
     LaunchedEffect(Unit) { appear.animateTo(1f, tween(700)) }
     val spin = rememberInfiniteTransition(label = "spin")
@@ -170,6 +175,13 @@ private fun HubLayout(title: String, subtitle: String, onBack: (() -> Unit)?, ti
                     Spacer(Modifier.height(18.dp))
                     tileViews(Modifier.fillMaxWidth().widthIn(max = 520.dp))
                 }
+            }
+            if (showVersion && version.isNotEmpty()) {
+                Text(
+                    "v$version",
+                    style = Pro.Label.copy(color = Pro.Dim, fontSize = 11.sp, letterSpacing = 1.sp),
+                    modifier = Modifier.align(Alignment.BottomStart),
+                )
             }
         }
     }

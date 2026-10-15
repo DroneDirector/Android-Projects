@@ -149,8 +149,29 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 steps = 35,
                 colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber),
             )
-            Text("Raise for quiet sources, lower for loud ones. The audio meter shows the adjusted level; the gain is applied to the sound when each clip is saved.", color = Pro.Dim, fontSize = 12.sp)
+            Text("Raise for quiet sources, lower for loud ones. The audio meter and headphones use the adjusted level; the gain is applied to the sound when each clip is saved.", color = Pro.Dim, fontSize = 12.sp)
             ToggleRow("Limiter", "Rounds off peaks so loud sounds don't distort", s.audioLimiter) { c.toggleAudioLimiter() }
+            ToggleRow(
+                "Headphone monitoring",
+                when (s.headphones) {
+                    null -> "Hear the microphone live, with the gain applied. Connect headphones to use it."
+                    "Bluetooth" -> "Bluetooth headphones connected · they add a delay, wired or USB-C is best for monitoring"
+                    else -> "${s.headphones} headphones connected · hear the microphone live, with the gain applied"
+                },
+                s.headphoneMonitor,
+            ) { c.toggleHeadphoneMonitor() }
+            if (s.headphoneMonitor) {
+                Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Headphone volume", color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                    Text("${s.monitorVolume}%", style = Pro.Value)
+                }
+                Slider(
+                    value = s.monitorVolume.toFloat(),
+                    onValueChange = { c.setMonitorVolume(it.roundToInt()) },
+                    valueRange = 0f..100f,
+                    colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber),
+                )
+            }
 
             Section("CLIP NAMING")
             com.dronedirector.acluxpro.camera.ClipNaming.entries.forEach { n ->

@@ -183,6 +183,11 @@ data class CameraUiState(
     val audioGainDb: Int = 0,
     /** Soft limiter so boosted audio doesn't clip harshly. */
     val audioLimiter: Boolean = true,
+    /** Listen to the microphone (with gain) on headphones. */
+    val headphoneMonitor: Boolean = false,
+    val monitorVolume: Int = 80,
+    /** Connected headphones ("Wired", "USB", "Bluetooth"), or null when there are none. */
+    val headphones: String? = null,
 
     // Clip naming (CMS)
     val clipNaming: ClipNaming = ClipNaming.STANDARD,

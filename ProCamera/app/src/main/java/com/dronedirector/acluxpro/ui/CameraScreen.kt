@@ -101,8 +101,10 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
 
     // Live audio levels in the video modes (the recorder takes over while recording).
     val resumed = lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
-    LaunchedEffect(s.mode, s.recording, s.audio, resumed) {
-        controller.setAudioMonitoring(s.mode.isNormalVideo && s.audio && !s.recording && resumed)
+    // With headphone monitoring on (and headphones connected) the mic keeps playing while recording.
+    LaunchedEffect(s.mode, s.recording, s.audio, resumed, s.headphoneMonitor, s.headphones) {
+        val listen = s.headphoneMonitor && s.headphones != null
+        controller.setAudioMonitoring(s.mode.isNormalVideo && s.audio && resumed && (!s.recording || listen))
     }
     // Re-check the SD card when coming back to the app.
     LaunchedEffect(resumed) { if (resumed) controller.refreshStorage() }

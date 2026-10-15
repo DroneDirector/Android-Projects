@@ -14,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.filled.EmojiEmotions
@@ -1631,7 +1632,7 @@ private fun CropOverlay(editingEnd: Boolean, onGesture: (androidx.compose.ui.geo
     val cb by androidx.compose.runtime.rememberUpdatedState(onGesture)
     Box(
         Modifier.fillMaxSize().pointerInput(Unit) {
-            androidx.compose.foundation.gestures.detectTransformGestures { _, pan, zoomF, rot ->
+            detectTransformGestures { _, pan, zoomF, rot ->
                 cb(pan, zoomF, rot, size.width.toFloat(), size.height.toFloat())
             }
         }

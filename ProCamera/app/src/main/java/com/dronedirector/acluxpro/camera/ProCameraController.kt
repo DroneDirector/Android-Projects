@@ -83,7 +83,6 @@ import kotlin.math.max
 import kotlin.math.pow
 
 @androidx.annotation.OptIn(ExperimentalCamera2Interop::class)
-@OptIn(androidx.camera.core.ExperimentalSessionConfig::class, androidx.camera.video.ExperimentalHighSpeedVideo::class)
 class ProCameraController(private val context: Context) {
 
     private val _state = MutableStateFlow(

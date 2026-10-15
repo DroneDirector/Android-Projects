@@ -123,6 +123,7 @@ class MainActivity : ComponentActivity() {
         if (extras.getBoolean("zebras", false)) controller.toggleZebras()
         if (extras.getBoolean("falsecolor", false)) controller.toggleFalseColor()
         if (extras.getBoolean("screenanalysis", false)) controller.forceScreenAnalysis = true
+        if (extras.containsKey("zebralevel")) controller.setZebraLevel(extras.getInt("zebralevel"))
         if (extras.getBoolean("clean", false)) controller.setCleanFeed(true)
         return extras.getBoolean("settings", false)
     }

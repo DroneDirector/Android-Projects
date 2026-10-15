@@ -4,6 +4,8 @@ import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,18 +54,60 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** The save button that sits next to EXPORT. */
+/** LOAD / SAVE buttons that sit next to EXPORT. */
 @Composable
-fun SaveButton(saved: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
-    Row(
-        Modifier.padding(start = 4.dp).clip(RoundedCornerShape(50)).background(Ed.Raised).clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(Icons.Filled.Save, contentDescription = "Save project", tint = Pro.Amber, modifier = Modifier.size(16.dp))
-        Text(if (saved) " SAVE" else " SAVE", style = Pro.Value.copy(color = Pro.Amber, fontSize = 12.sp))
-    }
+fun BarButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
+    Text(
+        label, style = Pro.Value.copy(color = if (enabled) Pro.Amber else Pro.Dim, fontSize = 11.sp),
+        modifier = Modifier.padding(start = 4.dp).clip(RoundedCornerShape(50)).background(Ed.Raised).clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 9.dp, vertical = 7.dp),
+    )
 }
+
+/** LOAD: pick a saved project to open (replaces what is open now). */
+@Composable
+fun LoadProjectDialog(video: Boolean, onOpen: (String) -> Unit, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val list by produceState<List<ProjectEntry>?>(null) { value = withContext(Dispatchers.IO) { ProjectStore.list(context, video) } }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Pro.PanelSolid,
+        title = { Text("Load project", color = Color.White) },
+        text = {
+            Column(Modifier.androidxVerticalScroll()) {
+                val l = list
+                when {
+                    l == null -> Text("Loading…", color = Pro.Dim)
+                    l.isEmpty() -> Text("No saved projects yet. Use SAVE to keep your edit.", color = Pro.Dim)
+                    else -> {
+                        Text("Unsaved changes in the open edit will be lost.", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp))
+                        l.forEach { p ->
+                            val thumb by produceState<ImageBitmap?>(null, p.thumb) {
+                                value = withContext(Dispatchers.IO) { p.thumb?.let { BitmapFactory.decodeFile(it.path)?.asImageBitmap() } }
+                            }
+                            Row(
+                                Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onOpen(p.id) }.padding(6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(Modifier.size(64.dp, 40.dp).clip(RoundedCornerShape(6.dp)).background(Color.Black)) {
+                                    thumb?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+                                }
+                                Column(Modifier.padding(start = 10.dp)) {
+                                    Text(p.name, color = Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(p.detail + " · " + SimpleDateFormat("d MMM HH:mm", Locale.getDefault()).format(Date(p.savedAt)), style = Pro.Label.copy(fontSize = 10.sp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = Pro.Amber) } },
+    )
+}
+
+@Composable
+private fun Modifier.androidxVerticalScroll(): Modifier = this.then(Modifier.verticalScroll(rememberScrollState()))
 
 /** Asks for a project name the first time a project is saved. */
 @Composable

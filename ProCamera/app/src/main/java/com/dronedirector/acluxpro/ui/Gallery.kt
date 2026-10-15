@@ -115,7 +115,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Date
 
-private enum class GalleryTab(val label: String) { ALL("All"), PHOTOS("Photos"), VIDEOS("Videos"), FAVORITES("♥") }
+private enum class GalleryTab(val label: String) { ALL("All"), PHOTOS("Photos"), VIDEOS("Videos"), RAW("RAW"), FAVORITES("♥") }
 
 /**
  * In-app gallery of everything AcluxPro saved: a grid with All / Photos / Videos tabs and a
@@ -195,8 +195,9 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
     val all = items ?: emptyList()
     val shown = when (tab) {
         GalleryTab.ALL -> all
-        GalleryTab.PHOTOS -> all.filter { !it.isVideo }
+        GalleryTab.PHOTOS -> all.filter { !it.isVideo && !it.isRaw }
         GalleryTab.VIDEOS -> all.filter { it.isVideo }
+        GalleryTab.RAW -> all.filter { it.isRaw }
         GalleryTab.FAVORITES -> all.filter { it.uri.toString() in favorites }
     }
 
@@ -294,8 +295,9 @@ private fun TabRow(tab: GalleryTab, all: List<MediaItem>, favorites: Set<String>
         GalleryTab.entries.forEach { t ->
             val n = when (t) {
                 GalleryTab.ALL -> all.size
-                GalleryTab.PHOTOS -> all.count { !it.isVideo }
+                GalleryTab.PHOTOS -> all.count { !it.isVideo && !it.isRaw }
                 GalleryTab.VIDEOS -> all.count { it.isVideo }
+                GalleryTab.RAW -> all.count { it.isRaw }
                 GalleryTab.FAVORITES -> all.count { it.uri.toString() in favorites }
             }
             val sel = t == tab
@@ -328,11 +330,18 @@ private fun EmptyGallery(tab: GalleryTab) {
                     GalleryTab.ALL -> "No photos or videos yet"
                     GalleryTab.PHOTOS -> "No photos yet"
                     GalleryTab.VIDEOS -> "No videos yet"
+                    GalleryTab.RAW -> "No RAW photos yet"
                     GalleryTab.FAVORITES -> "No favourites yet"
                 },
                 color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
             )
-            Text(if (tab == GalleryTab.FAVORITES) "Open a photo or video and tap the heart to add it here." else "Everything you shoot with AcluxPro shows up here.", color = Pro.Dim, fontSize = 13.sp, textAlign = TextAlign.Center)
+            Text(
+                when (tab) {
+                    GalleryTab.FAVORITES -> "Open a photo or video and tap the heart to add it here."
+                    GalleryTab.RAW -> "In PRO photo mode, set FORMAT to RAW or RAW+J to save DNG files."
+                    else -> "Everything you shoot with AcluxPro shows up here."
+                },
+                color = Pro.Dim, fontSize = 13.sp, textAlign = TextAlign.Center)
         }
     }
 }
@@ -373,6 +382,18 @@ private fun GridCell(item: MediaItem, favorite: Boolean, onClick: () -> Unit) {
     ) {
         val t = thumb
         if (t != null) Image(t, contentDescription = item.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        if (item.isRaw) {
+            Text(
+                "RAW",
+                style = Pro.Label.copy(color = Color.Black, fontSize = 9.sp),
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(5.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Pro.Amber)
+                    .padding(horizontal = 5.dp, vertical = 2.dp),
+            )
+        }
         if (favorite) {
             Icon(
                 Icons.Filled.Favorite, contentDescription = "Favourite", tint = Color.White,
@@ -402,11 +423,10 @@ private fun produceThumb(context: Context, uri: Uri, px: Int) =
     androidx.compose.runtime.produceState<ImageBitmap?>(null, uri) {
         value = withContext(Dispatchers.IO) {
             try {
-                if (Build.VERSION.SDK_INT >= 29) {
-                    context.contentResolver.loadThumbnail(uri, Size(px, px), null).asImageBitmap()
-                } else {
-                    decodeImage(context, uri, px)?.asImageBitmap()
-                }
+                val sys = if (Build.VERSION.SDK_INT >= 29) {
+                    try { context.contentResolver.loadThumbnail(uri, Size(px, px), null) } catch (_: Throwable) { null }
+                } else null
+                (sys ?: decodeImage(context, uri, px))?.asImageBitmap()
             } catch (_: Throwable) {
                 null
             }

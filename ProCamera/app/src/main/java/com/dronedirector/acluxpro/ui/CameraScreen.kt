@@ -52,6 +52,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -123,7 +124,17 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
     val cutB = cutout.getBottom(rootDensity)
 
     // The gallery sits above everything, edge to edge, so no camera feed shows around it.
+    val upCtx = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(Unit) { com.dronedirector.acluxpro.camera.UpscaleSettings.load(upCtx) }
+    val upNote = com.dronedirector.acluxpro.camera.Upscaler.lastNote
+    LaunchedEffect(upNote) {
+        if (upNote != null) {
+            android.widget.Toast.makeText(upCtx, upNote, android.widget.Toast.LENGTH_SHORT).show()
+            com.dronedirector.acluxpro.camera.Upscaler.lastNote = null
+        }
+    }
     Box(Modifier.fillMaxSize()) {
+        UpscaleBadge(Modifier.align(Alignment.TopCenter).zIndex(10f))
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
@@ -479,4 +490,17 @@ private fun FalseColorLegend(modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+/** Shows AI upscaling progress while photos are being processed in the background. */
+@Composable
+private fun UpscaleBadge(modifier: Modifier) {
+    val n = com.dronedirector.acluxpro.camera.Upscaler.pending
+    if (n <= 0) return
+    val p = com.dronedirector.acluxpro.camera.Upscaler.progress
+    Text(
+        "AI UPSCALE" + (if (n > 1) " · $n" else "") + " · $p%",
+        style = Pro.Label.copy(color = androidx.compose.ui.graphics.Color.Black, fontSize = 10.sp),
+        modifier = modifier.padding(top = 64.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(50)).background(Pro.Amber).padding(horizontal = 10.dp, vertical = 4.dp),
+    )
 }

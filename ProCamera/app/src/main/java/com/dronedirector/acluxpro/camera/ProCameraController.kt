@@ -1743,6 +1743,10 @@ class ProCameraController(private val context: Context) {
                     if (uri != null && isJpeg && filter != Filter.NONE) {
                         ioExecutor.execute { Filter.applyToSavedJpeg(context, uri, filter) }
                     }
+                    // Optional AI upscale (after any look has been applied to the saved JPEG).
+                    if (uri != null && isJpeg && UpscaleSettings.targetMp > 0) {
+                        ioExecutor.execute { Upscaler.enqueue(context, uri) }
+                    }
                     if (uri != null && (expected == 1 || isJpeg)) {
                         set { it.copy(lastMedia = uri) }
                     }

@@ -122,6 +122,24 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             ChoiceRow("Interval", listOf(0, 2, 5, 10, 30), s.intervalSec, { if (it == 0) "OFF" else "${it}s" }) { c.setInterval(it) }
             ChoiceRow("Bracket (PRO)", com.dronedirector.acluxpro.camera.Bracket.entries.toList(), s.bracket, { it.label }) { c.setBracket(it) }
 
+            Section("AI UPSCALE")
+            val upCtx = androidx.compose.ui.platform.LocalContext.current
+            androidx.compose.runtime.LaunchedEffect(Unit) { com.dronedirector.acluxpro.camera.UpscaleSettings.load(upCtx) }
+            val up = com.dronedirector.acluxpro.camera.UpscaleSettings
+            Text(
+                "Off unless you turn it on. After each photo, an on-device AI model (ESRGAN) rebuilds it at a higher resolution in the background and saves it as a new picture (…_AI48MP.jpg). It adds sharper-looking detail but cannot invent detail the lens never captured.",
+                color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+            ChoiceRow("Upscale to", listOf(0, 24, 36, 48), up.targetMp, { if (it == 0) "OFF" else "$it MP" }) { up.set(upCtx, mp = it) }
+            if (up.targetMp > 0) {
+                ChoiceRow("Quality", listOf(false, true), up.high, { if (it) "HIGH" else "STANDARD" }) { up.set(upCtx, hq = it) }
+                Text(
+                    if (up.high) "High keeps more real detail but takes several minutes per photo." else "Standard takes roughly 1–2 minutes per photo on a recent phone.",
+                    color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 16.dp),
+                )
+                ToggleRow("Keep the original", "Also keep the normal-size photo", up.keepOriginal) { up.set(upCtx, keep = !up.keepOriginal) }
+            }
+
             Section("VIDEO")
             ToggleRow("Record audio", "Uses the microphone; levels show in the audio graph", s.audio) { c.toggleAudio() }
             ToggleRow("High bitrate", "More detail, bigger files", s.highBitrate) { c.toggleBitrate() }

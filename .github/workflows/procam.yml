@@ -39,6 +39,14 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Fetch AI upscale model (ESRGAN, Apache-2.0)
+        run: |
+          mkdir -p app/src/main/assets
+          curl -fsSL --retry 3 -o app/src/main/assets/esrgan.tflite \
+            https://storage.googleapis.com/download.tensorflow.org/models/tflite/esrgan/ESRGAN.tflite \
+            || echo "::warning::ESRGAN model download failed; AI upscale will fall back to classic resize"
+          ls -l app/src/main/assets || true
+
       - name: Build APK
         env:
           VERSION_CODE: ${{ github.run_number }}

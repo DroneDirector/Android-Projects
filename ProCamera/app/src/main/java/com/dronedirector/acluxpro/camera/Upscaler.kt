@@ -1,0 +1,238 @@
+package com.dronedirector.acluxpro.camera
+
+import android.content.ContentValues
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
+import android.net.Uri
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.provider.MediaStore
+import android.provider.OpenableColumns
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.exifinterface.media.ExifInterface
+import org.tensorflow.lite.Interpreter
+import java.io.File
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.util.concurrent.Executors
+import kotlin.math.ceil
+import kotlin.math.sqrt
+
+/** AI upscale settings (off unless the user turns it on). */
+object UpscaleSettings {
+    private const val PREFS = "procam"
+    var targetMp by mutableIntStateOf(0)      // 0 = off, else 24 / 36 / 48
+        private set
+    var high by mutableStateOf(false)         // High quality: slower, keeps more real detail
+        private set
+    var keepOriginal by mutableStateOf(true)
+        private set
+    private var loaded = false
+
+    fun load(context: Context) {
+        if (loaded) return
+        val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        targetMp = p.getInt("ai_upscale_mp", 0)
+        high = p.getBoolean("ai_upscale_high", false)
+        keepOriginal = p.getBoolean("ai_upscale_keep", true)
+        loaded = true
+    }
+
+    fun set(context: Context, mp: Int = targetMp, hq: Boolean = high, keep: Boolean = keepOriginal) {
+        targetMp = mp; high = hq; keepOriginal = keep
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putInt("ai_upscale_mp", mp).putBoolean("ai_upscale_high", hq).putBoolean("ai_upscale_keep", keep).apply()
+    }
+}
+
+/**
+ * On-device AI super-resolution (ESRGAN, 4×) run in overlapping tiles on the GPU when possible,
+ * then resampled to the chosen megapixel size. Each photo is upscaled in the background and
+ * saved as a new picture next to the original.
+ */
+object Upscaler {
+    var pending by mutableIntStateOf(0)
+        private set
+    var progress by mutableIntStateOf(0)
+        private set
+    var lastNote by mutableStateOf<String?>(null)
+
+    private val worker = Executors.newSingleThreadExecutor { r -> Thread(r, "ai-upscale").apply { priority = Thread.NORM_PRIORITY - 1 } }
+    private val main = Handler(Looper.getMainLooper())
+    private var interpreter: Interpreter? = null
+    private var gpu: AutoCloseable? = null
+    private var tile = 0
+    private var modelMissing = false
+
+    fun enqueue(context: Context, uri: Uri) {
+        val mp = UpscaleSettings.targetMp
+        if (mp <= 0) return
+        val app = context.applicationContext
+        val hq = UpscaleSettings.high
+        val keep = UpscaleSettings.keepOriginal
+        main.post { pending++ }
+        worker.execute {
+            val note = try { process(app, uri, mp, hq, keep) } catch (t: Throwable) { "AI upscale failed: ${t.message ?: t.javaClass.simpleName}" }
+            main.post { pending--; progress = 0; if (note != null) lastNote = note }
+        }
+    }
+
+    private fun setProgress(p: Int) = main.post { progress = p }
+
+    /** Loads ESRGAN once; GPU first, CPU if the GPU path isn't available. Returns false if the model isn't in the app. */
+    private fun ensureModel(context: Context): Boolean {
+        if (interpreter != null) return true
+        if (modelMissing) return false
+        val bytes = try { context.assets.open("esrgan.tflite").use { it.readBytes() } } catch (_: Throwable) { modelMissing = true; return false }
+        val buf = ByteBuffer.allocateDirect(bytes.size).order(ByteOrder.nativeOrder()).apply { put(bytes); rewind() }
+        fun build(useGpu: Boolean, size: Int): Interpreter? = try {
+            val opts = Interpreter.Options()
+            var delegate: AutoCloseable? = null
+            if (useGpu) {
+                val compat = org.tensorflow.lite.gpu.CompatibilityList()
+                if (!compat.isDelegateSupportedOnThisDevice) throw IllegalStateException("no gpu")
+                val d = org.tensorflow.lite.gpu.GpuDelegate(compat.bestOptionsForThisDevice)
+                opts.addDelegate(d); delegate = d
+            } else opts.setNumThreads(4)
+            val it = Interpreter(buf, opts)
+            if (size != 50) { it.resizeInput(0, intArrayOf(1, size, size, 3)); it.allocateTensors() }
+            // Smoke test.
+            val inp = ByteBuffer.allocateDirect(size * size * 3 * 4).order(ByteOrder.nativeOrder())
+            val out = ByteBuffer.allocateDirect(size * 4 * size * 4 * 3 * 4).order(ByteOrder.nativeOrder())
+            it.run(inp, out)
+            gpu = delegate
+            tile = size
+            it
+        } catch (_: Throwable) { null }
+        interpreter = build(true, 128) ?: build(true, 50) ?: build(false, 96) ?: build(false, 50)
+        return interpreter != null
+    }
+
+    private fun process(context: Context, uri: Uri, mp: Int, hq: Boolean, keep: Boolean): String? {
+        val cr = context.contentResolver
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        val w = bounds.outWidth; val h = bounds.outHeight
+        if (w <= 0 || h <= 0) return "AI upscale: couldn't read the photo"
+        val target = mp * 1_000_000.0
+        if (w.toLong() * h >= target * 0.95) return null   // already that big
+        val s = sqrt(target / (w.toDouble() * h))
+        val tw = (w * s).toInt() / 2 * 2; val th = (h * s).toInt() / 2 * 2
+
+        val src = cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888 }) }
+            ?: return "AI upscale: couldn't read the photo"
+
+        val out = Bitmap.createBitmap(tw, th, Bitmap.Config.ARGB_8888)
+        val ai = ensureModel(context)
+        if (ai) {
+            // ESRGAN is 4×: feed it a smaller copy (Standard) or close to full size (High), then resample.
+            val pre = (if (hq) s / 2.0 else s / 4.0).coerceAtMost(1.0)
+            val iw = (w * pre).toInt().coerceAtLeast(8); val ih = (h * pre).toInt().coerceAtLeast(8)
+            val inp = if (iw == w && ih == h) src else Bitmap.createScaledBitmap(src, iw, ih, true)
+            runTiles(inp, out, tw.toFloat() / (iw * 4), th.toFloat() / (ih * 4))
+            if (inp !== src) inp.recycle()
+        } else {
+            Canvas(out).drawBitmap(src, null, RectF(0f, 0f, tw.toFloat(), th.toFloat()), Paint(Paint.FILTER_BITMAP_FLAG))
+        }
+        src.recycle()
+
+        // Save as a new JPEG next to the original, keeping its EXIF (orientation, time, GPS, lens).
+        val baseName = cr.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+            ?.substringBeforeLast('.') ?: "IMG"
+        val tmp = File(context.cacheDir, "upscale_${System.currentTimeMillis()}.jpg")
+        tmp.outputStream().use { out.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+        out.recycle()
+        try {
+            val srcExif = cr.openInputStream(uri)?.use { ExifInterface(it) }
+            val dst = ExifInterface(tmp.path)
+            if (srcExif != null) for (tag in EXIF_TAGS) srcExif.getAttribute(tag)?.let { dst.setAttribute(tag, it) }
+            dst.setAttribute(ExifInterface.TAG_SOFTWARE, "AcluxPro AI upscale ${mp} MP")
+            dst.saveAttributes()
+        } catch (_: Throwable) {}
+
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, "${baseName}_AI${mp}MP.jpg")
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+            if (Build.VERSION.SDK_INT >= 29) {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+        }
+        val target2 = cr.insert(Storage.imagesUri(Storage.load(context)), values) ?: run { tmp.delete(); return "AI upscale: couldn't save" }
+        cr.openOutputStream(target2)?.use { os -> tmp.inputStream().use { it.copyTo(os) } }
+        if (Build.VERSION.SDK_INT >= 29) cr.update(target2, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+        tmp.delete()
+        if (!keep) try { cr.delete(uri, null, null) } catch (_: Throwable) {}
+        return if (ai) "AI upscaled to ${mp} MP (${tw}×${th})" else "Upscaled to ${mp} MP (AI model unavailable — classic resize used)"
+    }
+
+    /** Runs ESRGAN over overlapping tiles and paints each result into [out] scaled by kx/ky. */
+    private fun runTiles(inp: Bitmap, out: Bitmap, kx: Float, ky: Float) {
+        val itp = interpreter ?: return
+        val t = tile
+        val pad = if (t >= 96) 8 else 5
+        val step = t - 2 * pad
+        val iw = inp.width; val ih = inp.height
+        val px = IntArray(iw * ih)
+        inp.getPixels(px, 0, iw, 0, 0, iw, ih)
+        val inBuf = ByteBuffer.allocateDirect(t * t * 3 * 4).order(ByteOrder.nativeOrder())
+        val ot = t * 4
+        val outBuf = ByteBuffer.allocateDirect(ot * ot * 3 * 4).order(ByteOrder.nativeOrder())
+        val tilePx = IntArray(ot * ot)
+        val tileBmp = Bitmap.createBitmap(ot, ot, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(out)
+        val paint = Paint(Paint.FILTER_BITMAP_FLAG)
+        val cols = ceil(iw / step.toDouble()).toInt(); val rows = ceil(ih / step.toDouble()).toInt()
+        val total = cols * rows
+        var done = 0
+        for (ty in 0 until rows) for (tx in 0 until cols) {
+            val x0 = tx * step; val y0 = ty * step
+            inBuf.rewind()
+            for (yy in 0 until t) {
+                val sy = (y0 - pad + yy).coerceIn(0, ih - 1)
+                for (xx in 0 until t) {
+                    val sx = (x0 - pad + xx).coerceIn(0, iw - 1)
+                    val c = px[sy * iw + sx]
+                    inBuf.putFloat(((c shr 16) and 0xFF).toFloat())
+                    inBuf.putFloat(((c shr 8) and 0xFF).toFloat())
+                    inBuf.putFloat((c and 0xFF).toFloat())
+                }
+            }
+            inBuf.rewind(); outBuf.rewind()
+            itp.run(inBuf, outBuf)
+            outBuf.rewind()
+            for (i in 0 until ot * ot) {
+                val r = outBuf.float.toInt().coerceIn(0, 255)
+                val g = outBuf.float.toInt().coerceIn(0, 255)
+                val b = outBuf.float.toInt().coerceIn(0, 255)
+                tilePx[i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+            }
+            tileBmp.setPixels(tilePx, 0, ot, 0, 0, ot, ot)
+            // Keep the inner part of the tile (edges of each tile are less accurate).
+            val vw = minOf(step, iw - x0); val vh = minOf(step, ih - y0)
+            val srcR = android.graphics.Rect(pad * 4, pad * 4, (pad + vw) * 4, (pad + vh) * 4)
+            val dst = RectF(x0 * 4 * kx, y0 * 4 * ky, (x0 + vw) * 4 * kx, (y0 + vh) * 4 * ky)
+            canvas.drawBitmap(tileBmp, srcR, dst, paint)
+            done++
+            if (done % 4 == 0) setProgress(done * 100 / total)
+        }
+        tileBmp.recycle()
+    }
+
+    private val EXIF_TAGS = listOf(
+        ExifInterface.TAG_ORIENTATION, ExifInterface.TAG_DATETIME, ExifInterface.TAG_DATETIME_ORIGINAL, ExifInterface.TAG_DATETIME_DIGITIZED,
+        ExifInterface.TAG_OFFSET_TIME, ExifInterface.TAG_OFFSET_TIME_ORIGINAL, ExifInterface.TAG_MAKE, ExifInterface.TAG_MODEL,
+        ExifInterface.TAG_F_NUMBER, ExifInterface.TAG_EXPOSURE_TIME, ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY, ExifInterface.TAG_FOCAL_LENGTH,
+        ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM, ExifInterface.TAG_WHITE_BALANCE, ExifInterface.TAG_FLASH, ExifInterface.TAG_EXPOSURE_BIAS_VALUE,
+        ExifInterface.TAG_GPS_LATITUDE, ExifInterface.TAG_GPS_LATITUDE_REF, ExifInterface.TAG_GPS_LONGITUDE, ExifInterface.TAG_GPS_LONGITUDE_REF,
+        ExifInterface.TAG_GPS_ALTITUDE, ExifInterface.TAG_GPS_ALTITUDE_REF, ExifInterface.TAG_GPS_TIMESTAMP, ExifInterface.TAG_GPS_DATESTAMP,
+    )
+}

@@ -125,15 +125,11 @@ class ProCameraController(private val context: Context) {
     private var filterWarned = false
 
     val audioMeter = AudioMeter(context)
-    @Volatile private var processedAt = 0L
-    private val gainProcessor = AudioGainProcessor { rms ->
-        processedAt = System.currentTimeMillis()
-        audioMeter.pushProcessed(rms)
-    }.also {
-        it.gainDb = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getInt("audio_gain", 0)
-        it.limiter = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getBoolean("audio_limiter", true)
-        audioMeter.gainDb = it.gainDb
+    init {
+        audioMeter.gainDb = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getInt("audio_gain", 0)
     }
+    /** Whether the clip being recorded has a sound track (so the gain stage applies). */
+    private var recordingHasAudio = false
     val live = LiveStreamer(context)
 
     // Panorama capture state (main thread).
@@ -674,8 +670,6 @@ class ProCameraController(private val context: Context) {
         if (!hlg && s.videoCodec == VideoCodec.HEVC && s.hevcSupported) {
             try { recorderBuilder.setVideoMimeType(VideoCodec.HEVC.mime) } catch (_: Throwable) {}
         }
-        // Manual input gain / limiter on the recorded sound.
-        try { recorderBuilder.setAudioProcessors(listOf(gainProcessor)) } catch (_: Throwable) {}
         val recorder = recorderBuilder.build()
 
         val builder = VideoCapture.Builder(recorder)
@@ -987,7 +981,6 @@ class ProCameraController(private val context: Context) {
     fun setAudioGain(db: Int) {
         val v = db.coerceIn(-12, 24)
         prefs.edit().putInt("audio_gain", v).apply()
-        gainProcessor.gainDb = v
         audioMeter.gainDb = v
         set { it.copy(audioGainDb = v) }
     }
@@ -995,7 +988,6 @@ class ProCameraController(private val context: Context) {
     fun toggleAudioLimiter() {
         val on = !st.audioLimiter
         prefs.edit().putBoolean("audio_limiter", on).apply()
-        gainProcessor.limiter = on
         set { it.copy(audioLimiter = on) }
     }
 
@@ -1676,7 +1668,8 @@ class ProCameraController(private val context: Context) {
         }
         val micGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
-        if (s0.mode.isNormalVideo && st.audio && micGranted) pending = pending.withAudioEnabled()
+        recordingHasAudio = s0.mode.isNormalVideo && st.audio && micGranted
+        if (recordingHasAudio) pending = pending.withAudioEnabled()
         if (s0.mode.isNormalVideo && st.audio && !micGranted) toast("Recording without sound (microphone not allowed)")
         playSound(MediaActionSound.START_VIDEO_RECORDING)
         try {
@@ -1709,8 +1702,8 @@ class ProCameraController(private val context: Context) {
             is VideoRecordEvent.Status -> {
                 val stats = event.recordingStats
                 val amp = try { stats.audioStats.audioAmplitude.toFloat() } catch (_: Throwable) { 0f }
-                // With the gain stage active the meter is fed the processed audio instead.
-                if (System.currentTimeMillis() - processedAt > 500) audioMeter.pushAmplitude(amp)
+                // Show the level with the input gain applied, matching the finished clip.
+                audioMeter.pushAmplitude((amp * 10f.pow(st.audioGainDb / 20f)).coerceAtMost(1f))
                 set { it.copy(recordSeconds = stats.recordedDurationNanos / 1_000_000_000L, audioLevel = amp) }
             }
             is VideoRecordEvent.Finalize -> {
@@ -1742,6 +1735,17 @@ class ProCameraController(private val context: Context) {
                 }
                 if (event.hasError()) {
                     toast(if (uri != Uri.EMPTY) "Video saved (with warning ${event.error})" else "Recording failed (error ${event.error})")
+                }
+                // Manual input gain: re-encode the sound of the finished clip.
+                val gainDb = st.audioGainDb
+                if (recordingHasAudio && gainDb != 0 && uri != Uri.EMPTY) {
+                    val limiter = st.audioLimiter
+                    set { it.copy(processing = true) }
+                    scope.launch {
+                        val ok = withContext(Dispatchers.IO) { AudioGain.apply(context, uri, gainDb, limiter) }
+                        set { it.copy(processing = false) }
+                        if (!ok) toast("Couldn't apply the audio gain; the clip was saved without it")
+                    }
                 }
                 // Apply any rotation change that happened while recording.
                 videoCapture?.setTargetRotation(rotation)

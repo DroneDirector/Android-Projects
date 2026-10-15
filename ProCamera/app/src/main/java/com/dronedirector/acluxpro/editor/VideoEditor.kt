@@ -116,7 +116,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class Page(val label: String) { MEDIA("Media"), EDIT("Edit"), COLOR("Color"), LAYERS("Layers"), AUDIO("Audio"), DELIVER("Deliver") }
+private enum class Page(val label: String) { MEDIA("Media"), EDIT("Edit"), TRANSITIONS("Transitions"), COLOR("Color"), LAYERS("Layers"), AUDIO("Audio"), DELIVER("Deliver") }
 private enum class ColorTab(val label: String) { INPUT("Input"), WHEELS("Wheels"), PRIMARIES("Primaries"), CURVES("Curves"), HSL("HSL"), DETAIL("Detail"), EFFECTS("Effects"), LOOKS("Looks") }
 
 @Composable
@@ -222,8 +222,8 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
         if (uri != null) layerScope.launch {
             val c = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }
             if (c == null) { message = "Can't open that video"; return@launch }
-            val total = clips.sumOf { it.lengthMs }
-            val start = (clips.take(current.coerceAtMost(clips.size)).sumOf { it.lengthMs } + (posMs / (clips.getOrNull(current)?.speed ?: 1f)).toLong()).coerceIn(0, total)
+            val total = timelineLength(clips)
+            val start = ((clipStarts(clips).getOrNull(current) ?: 0L) + (posMs / (clips.getOrNull(current)?.speed ?: 1f)).toLong()).coerceIn(0, total)
             val l = Layer(
                 kind = LayerKind.VIDEO, text = c.name, videoUri = uri, videoDurationMs = c.durationMs,
                 mediaAspect = if (c.height > 0) c.width.toFloat() / c.height else 16f / 9f,
@@ -234,7 +234,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     }
     val pickLayerImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
-            val total = clips.sumOf { it.lengthMs }
+            val total = timelineLength(clips)
             val l = Layer(kind = LayerKind.IMAGE, text = "Image", imageUri = uri, size = 0.3f, x = 0.5f, y = 0.5f, startMs = 0, endMs = total.coerceAtLeast(1000), wholeVideo = true)
             layers.add(l); selectedLayer = l.id
         }
@@ -295,6 +295,25 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
         audioFx.map { fx -> fxPlayer(context, fx).apply { repeatMode = Player.REPEAT_MODE_OFF } }
     }
     val zoom = remember { TimelineZoom() }
+    // Crop / zoom on the player, stabilisation and transitions in the preview.
+    var cropMode by remember { mutableStateOf(false) }
+    var cropEditEnd by remember { mutableStateOf(false) }
+    val motions = remember { mutableStateMapOf<String, Motion>() }
+    val stabProgress = remember { mutableStateMapOf<String, Int>() }
+    val stabCancels = remember { HashMap<String, () -> Unit>() }
+    val frameViews = remember { arrayOfNulls<android.view.View>(2) }
+    val texViews = remember { arrayOfNulls<android.view.View>(2) }
+    val transitionOn = remember { booleanArrayOf(false) }
+    fun motionFor(c: Clip): Motion? = if (c.stab.enabled) motions[Stabilizer.keyOf(c)] else null
+    fun analyze(c: Clip) {
+        val k = Stabilizer.keyOf(c)
+        if (stabProgress[k] != null || motions[k] != null) return
+        stabProgress[k] = 0
+        stabCancels[k] = Stabilizer.analyze(context, c, onProgress = { stabProgress[k] = it }) { m, err ->
+            stabProgress.remove(k); stabCancels.remove(k)
+            if (m != null) { motions[k] = m; message = "Stabilisation ready for ${c.name}" } else message = err
+        }
+    }
     val deck = remember { Deck(players) }
     val aspects = remember { mutableStateListOf(16f / 9f, 16f / 9f) }
     var preloadedId by remember { mutableStateOf<String?>(null) }
@@ -389,6 +408,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
             players.forEachIndexed { i, p -> p.removeListener(listeners[i]); p.release() }
             export?.cancel()
             proxyCancel?.invoke()
+            stabCancels.values.forEach { it() }
         }
     }
 
@@ -474,6 +494,53 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
             delay(100)
         }
     }
+    // Load saved stabilisation results.
+    LaunchedEffect(clips.filter { it.stab.enabled }.map { Stabilizer.keyOf(it) }.distinct()) {
+        for (c in clips.toList()) {
+            if (!c.stab.enabled) continue
+            val k = Stabilizer.keyOf(c)
+            if (motions[k] != null) continue
+            val m = withContext(Dispatchers.IO) { Stabilizer.cached(context, c) }
+            if (m != null) motions[k] = m else analyze(c)
+        }
+    }
+    // Every frame: crop/zoom/stabilise the picture and play transitions between clips.
+    LaunchedEffect(Unit) {
+        var was = false
+        fun vol(c: Clip) = if (c.muted || previewMuted) 0f else c.volume.coerceAtMost(1f)
+        while (true) {
+            androidx.compose.runtime.withFrameNanos { }
+            val i = current
+            val c = clips.getOrNull(i) ?: continue
+            val a = deck.active
+            if (c.id == loadedId) texViews[a]?.let { ClipXform.applyToView(it, ClipXform.at(c, c.startMs + deck.cur.currentPosition, motionFor(c))) }
+            val n = clips.getOrNull(i + 1)
+            val ov = overlapMs(clips, i)
+            val local = (deck.cur.currentPosition / c.speed).toLong()
+            val startT = c.lengthMs - ov
+            if (ov > 0 && n != null && preloadedId == n.id && local >= startT && deck.cur.playbackState == Player.STATE_READY) {
+                val p = ((local - startT).toFloat() / ov).coerceIn(0f, 1f)
+                if (deck.cur.isPlaying && !deck.spare.isPlaying) {
+                    deck.spare.seekTo(((local - startT) * n.speed).toLong()); deck.spare.play()
+                }
+                if (!deck.cur.isPlaying && deck.spare.isPlaying) deck.spare.pause()
+                transitionOn[0] = true
+                texViews[1 - a]?.let { ClipXform.applyToView(it, ClipXform.at(n, n.startMs + deck.spare.currentPosition, motionFor(n))) }
+                frameViews[a]?.let { TransitionPreview.apply(it, c.transition.type, p, false) }
+                frameViews[1 - a]?.let { TransitionPreview.apply(it, c.transition.type, p, true) }
+                deck.cur.volume = vol(c) * (1f - p)
+                deck.spare.volume = vol(n) * p
+                was = true
+            } else if (was) {
+                was = false
+                transitionOn[0] = false
+                frameViews[a]?.let { TransitionPreview.reset(it, true) }
+                frameViews[1 - a]?.let { TransitionPreview.reset(it, false) }
+                deck.cur.volume = vol(c)
+                if (deck.spare.isPlaying) { deck.spare.pause(); deck.spare.seekTo(0) }
+            }
+        }
+    }
     // Music follows the timeline while previewing.
     LaunchedEffect(playing, music, previewMuted) {
         val m = music
@@ -484,7 +551,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
         while (true) {
             val ducked = clips.getOrNull(current)?.let { it.audio.duckMusic && !it.muted && it.volume > 0f } == true
             musicPlayer.volume = if (previewMuted) 0f else (m.volume * (if (ducked) 1f - m.duck else 1f)).coerceIn(0f, 1f)
-            val before = clips.take(current.coerceAtMost(clips.size)).sumOf { it.lengthMs }
+            val before = clipStarts(clips).getOrNull(current) ?: 0L
             val g = before + (deck.cur.currentPosition / (clips.getOrNull(current)?.speed ?: 1f)).toLong()
             val want = m.offsetMs + g
             if (want >= m.durationMs) { musicPlayer.pause() } else {
@@ -544,20 +611,16 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     }
     LaunchedEffect(message) { if (message != null) { delay(3000); message = null } }
 
-    val totalMs = clips.sumOf { it.lengthMs }
-    val beforeMs = clips.take(current.coerceAtMost(clips.size)).sumOf { it.lengthMs }
+    val totalMs = timelineLength(clips)
+    val beforeMs = clipStarts(clips).getOrNull(current) ?: 0L
     val globalMs = beforeMs + ((posMs) / (cur?.speed ?: 1f)).toLong()
 
     fun seekGlobal(ms: Long) {
-        var acc = 0L
-        clips.forEachIndexed { i, c ->
-            if (ms < acc + c.lengthMs || i == clips.lastIndex) {
-                val off = ((ms - acc).coerceAtLeast(0) * c.speed).toLong()
-                if (i == current && loadedId == c.id) deck.cur.seekTo(off) else load(i, off, deck.cur.isPlaying)
-                return
-            }
-            acc += c.lengthMs
-        }
+        if (clips.isEmpty()) return
+        val (i, local) = clipAt(clips, ms)
+        val c = clips[i]
+        val off = (local * c.speed).toLong()
+        if (i == current && loadedId == c.id) deck.cur.seekTo(off) else load(i, off, deck.cur.isPlaying)
     }
 
     fun update(i: Int, f: (Clip) -> Clip) { if (i in clips.indices) clips[i] = f(clips[i]) }
@@ -620,9 +683,10 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                             AndroidView(
                                 factory = { ctx ->
                                     android.widget.FrameLayout(ctx).apply {
-                                        players.forEach { p ->
+                                        players.forEachIndexed { pi, p ->
                                             val frame = AspectRatioFrameLayout(ctx)
                                             val tv = android.view.TextureView(ctx)
+                                            frameViews[pi] = frame; texViews[pi] = tv
                                             frame.addView(tv, android.widget.FrameLayout.LayoutParams(-1, -1, android.view.Gravity.CENTER))
                                             addView(frame, android.widget.FrameLayout.LayoutParams(-1, -1, android.view.Gravity.CENTER))
                                             p.setVideoTextureView(tv)
@@ -634,7 +698,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                                         val frame = root.getChildAt(i) as AspectRatioFrameLayout
                                         frame.resizeMode = if (deliver.fill) AspectRatioFrameLayout.RESIZE_MODE_ZOOM else AspectRatioFrameLayout.RESIZE_MODE_FIT
                                         frame.setAspectRatio(aspects[i])
-                                        frame.alpha = if (i == deck.active) 1f else 0f
+                                        if (!transitionOn[0]) frame.alpha = if (i == deck.active) 1f else 0f
                                     }
                                 },
                                 modifier = Modifier.fillMaxSize(),
@@ -650,6 +714,23 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                                     if (i >= 0) layers[i] = layers[i].copy(x = (layers[i].x + dx).coerceIn(0f, 1f), y = (layers[i].y + dy).coerceIn(0f, 1f))
                                 },
                                 onSelect = { selectedLayer = it; page = Page.LAYERS },
+                            )
+                            if (cropMode) CropOverlay(
+                                editingEnd = cropEditEnd && clips.getOrNull(current)?.reframe?.animate == true,
+                                onGesture = { pan, zf, rot, w, h ->
+                                    update(current) { cl ->
+                                        val r = cl.reframe
+                                        val end = r.animate && cropEditEnd
+                                        val f = if (end) r.end else r.start
+                                        val nf = f.copy(
+                                            zoom = (f.zoom * zf).coerceIn(0.25f, 8f),
+                                            x = (f.x + pan.x / w).coerceIn(-2f, 2f), y = (f.y + pan.y / h).coerceIn(-2f, 2f),
+                                            rotation = f.rotation + rot,
+                                        )
+                                        cl.copy(reframe = if (end) r.copy(end = nf) else r.copy(start = nf))
+                                    }
+                                },
+                                onDone = { cropMode = false },
                             )
                         }
                     }
@@ -733,6 +814,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                     onSelectClip = { selected = it; if (page == Page.MEDIA || page == Page.LAYERS || page == Page.DELIVER) page = Page.EDIT },
                     onSelectLayer = { selectedLayer = it; page = Page.LAYERS },
                     zoom = zoom,
+                    onSelectTransition = { selected = it; page = Page.TRANSITIONS },
                 )
             }
 
@@ -772,7 +854,17 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                                     message = "${c.name} removed from the project"
                                 },
                             )
-                            Page.EDIT -> if (sc != null) EditPage(
+                            Page.TRANSITIONS -> TransitionsPanel(
+                                clips, selected, thumbs,
+                                onChange = { t -> update(selected, { it.copy(transition = t) }) },
+                                onApplyAll = { t -> for (i in 0 until clips.lastIndex) clips[i] = clips[i].copy(transition = t); message = "${t.type.label} on every cut" },
+                                onPreview = {
+                                    val st = clipStarts(clips)
+                                    if (selected + 1 < clips.size) { seekGlobal((st[selected + 1] - 1500).coerceAtLeast(st[selected])); if (!deck.cur.isPlaying) deck.cur.play() }
+                                },
+                            )
+                            Page.EDIT -> if (sc != null) Column {
+                                EditPage(
                                 sc, selected, clips.size, posMs, deliver, { deliver = it },
                                 onChange = { f -> update(selected, f) },
                                 onSplit = { splitAtPlayhead() },
@@ -786,7 +878,24 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                                     val to = selected + dir
                                     if (to in clips.indices) { val c = clips.removeAt(selected); clips.add(to, c); selected = to }
                                 },
-                            )
+                                )
+                                val sk = Stabilizer.keyOf(sc)
+                                ReframePanel(
+                                    sc, cropEditEnd, cropMode, stabProgress[sk], motions[sk] != null,
+                                    onEditEnd = { e ->
+                                        cropEditEnd = e
+                                        // Show the frame being edited.
+                                        if (selected == current) deck.cur.seekTo(if (e) (sc.endMs - sc.startMs - 50).coerceAtLeast(0) else 0)
+                                    },
+                                    onCropMode = { on ->
+                                        cropMode = on
+                                        if (on && selected != current) load(selected, 0, false)
+                                        if (on) deck.cur.pause()
+                                    },
+                                    onChange = { f -> update(selected, f) },
+                                    onAnalyze = { analyze(sc) },
+                                )
+                            }
                             Page.COLOR -> if (sc != null) ColorPage(sc, colorTab, { colorTab = it }, onChange = { f -> update(selected, f) }, onCopyToAll = {
                                 val g = sc.grade; val d = sc.detail
                                 for (i in clips.indices) clips[i] = clips[i].copy(grade = g, detail = d)
@@ -1427,7 +1536,7 @@ private fun DeliverPage(s: DeliverSettings, clips: List<Clip>, exporting: Boolea
     Chips(rates.map { if (it == 0) "Auto" else "$it Mbps" }, rates.indexOf(s.bitrateMbps).coerceAtLeast(0)) { onChange(s.copy(bitrateMbps = rates[it])) }
     SectionTitle("AUDIO")
     Chips(listOf("Include audio (AAC)", "No audio"), if (s.audio) 0 else 1) { onChange(s.copy(audio = it == 0)) }
-    val total = clips.sumOf { it.lengthMs }
+    val total = timelineLength(clips)
     Text(
         "Timeline ${tc(total)} · ${clips.size} clips. If the phone's encoder can't do the chosen size or bitrate, the closest supported setting is used.",
         color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 8.dp),
@@ -1514,4 +1623,34 @@ private fun fxPlayer(context: android.content.Context, fx: AudioFxProcessor): Ex
                 .build()
     }
     return ExoPlayer.Builder(context, rf).build()
+}
+
+/** Pinch to zoom, drag to move and twist to rotate the picture; thirds grid while editing. */
+@Composable
+private fun CropOverlay(editingEnd: Boolean, onGesture: (androidx.compose.ui.geometry.Offset, Float, Float, Float, Float) -> Unit, onDone: () -> Unit) {
+    val cb by androidx.compose.runtime.rememberUpdatedState(onGesture)
+    Box(
+        Modifier.fillMaxSize().pointerInput(Unit) {
+            androidx.compose.foundation.gestures.detectTransformGestures { _, pan, zoomF, rot ->
+                cb(pan, zoomF, rot, size.width.toFloat(), size.height.toFloat())
+            }
+        }
+    ) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            val c = Color.White.copy(alpha = 0.45f)
+            for (k in 1..2) {
+                drawLine(c, androidx.compose.ui.geometry.Offset(size.width * k / 3, 0f), androidx.compose.ui.geometry.Offset(size.width * k / 3, size.height), 1.5f)
+                drawLine(c, androidx.compose.ui.geometry.Offset(0f, size.height * k / 3), androidx.compose.ui.geometry.Offset(size.width, size.height * k / 3), 1.5f)
+            }
+            drawRect(Pro.Amber, style = androidx.compose.ui.graphics.drawscope.Stroke(4f))
+        }
+        Text(
+            if (editingEnd) "CROP · END FRAME" else "CROP", style = Pro.Label.copy(color = Color.Black, fontSize = 10.sp),
+            modifier = Modifier.align(Alignment.TopCenter).padding(8.dp).clip(RoundedCornerShape(6.dp)).background(Pro.Amber).padding(horizontal = 8.dp, vertical = 3.dp),
+        )
+        Text(
+            "DONE", style = Pro.Label.copy(color = Color.Black, fontSize = 11.sp),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(10.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(onClick = onDone).padding(horizontal = 16.dp, vertical = 6.dp),
+        )
+    }
 }

@@ -96,7 +96,7 @@ object Upscaler {
         if (modelMissing) return false
         val bytes = try { context.assets.open("esrgan.tflite").use { it.readBytes() } } catch (_: Throwable) { modelMissing = true; return false }
         val buf = ByteBuffer.allocateDirect(bytes.size).order(ByteOrder.nativeOrder()).apply { put(bytes); rewind() }
-        fun build(useGpu: Boolean): Interpreter? {
+        fun build(useGpu: Boolean, size: Int = 0): Interpreter? {
             var delegate: AutoCloseable? = null
             var itp: Interpreter? = null
             try {
@@ -106,13 +106,16 @@ object Upscaler {
                     if (!compat.isDelegateSupportedOnThisDevice) return null
                     val d = org.tensorflow.lite.gpu.GpuDelegate(compat.bestOptionsForThisDevice)
                     opts.addDelegate(d); delegate = d
-                } else opts.setNumThreads(4)
+                } else opts.setNumThreads(Runtime.getRuntime().availableProcessors().coerceIn(2, 8))
                 itp = Interpreter(buf, opts)
+                // Bigger tiles = far fewer model runs. Only kept if the self-test below passes.
+                if (size > 0) { itp.resizeInput(0, intArrayOf(1, size, size, 3)); itp.allocateTensors() }
                 // Use the model's real tile sizes (never assume them).
                 val ins = itp.getInputTensor(0).shape()     // [1, h, w, 3]
                 val outs = itp.getOutputTensor(0).shape()
                 if (ins.size != 4 || outs.size != 4 || ins[3] != 3 || outs[3] != 3 || ins[1] != ins[2] || outs[1] != outs[2]) throw IllegalStateException("shape")
                 val tin = ins[1]; val tout = outs[1]
+                if (tout % tin != 0 || tout / tin < 2) throw IllegalStateException("scale")
                 // Self-test on a smooth colour ramp: the result must keep the same colours.
                 val inp = ByteBuffer.allocateDirect(tin * tin * 3 * 4).order(ByteOrder.nativeOrder())
                 var sumIn = 0.0
@@ -124,10 +127,16 @@ object Upscaler {
                 val out = ByteBuffer.allocateDirect(tout * tout * 3 * 4).order(ByteOrder.nativeOrder())
                 itp.run(inp, out)
                 out.rewind()
-                var sumOut = 0.0
-                for (i in 0 until tout * tout * 3) sumOut += out.float.coerceIn(0f, 255f)
-                val meanIn = sumIn / (tin * tin * 3); val meanOut = sumOut / (tout * tout * 3)
-                if (kotlin.math.abs(meanIn - meanOut) > 18.0) throw IllegalStateException("self-test failed")
+                // Each output pixel must roughly match the ramp at the same place (catches layout mix-ups).
+                var err = 0.0; var n = 0
+                val k = tout / tin
+                for (y in 0 until tout step 7) for (x in 0 until tout step 7) {
+                    out.position(((y * tout) + x) * 3 * 4)
+                    val r = out.float; val g = out.float
+                    val er = 40f + 160f * (x / k) / tin; val eg = 60f + 120f * (y / k) / tin
+                    err += kotlin.math.abs(r - er) + kotlin.math.abs(g - eg); n += 2
+                }
+                if (n == 0 || err / n > 14.0 || sumIn <= 0) throw IllegalStateException("self-test failed")
                 gpu = delegate; tileIn = tin; tileOut = tout
                 return itp
             } catch (_: Throwable) {
@@ -136,7 +145,7 @@ object Upscaler {
                 return null
             }
         }
-        interpreter = build(true) ?: build(false)
+        interpreter = build(true, 128) ?: build(true, 96) ?: build(true) ?: build(false, 96) ?: build(false)
         return interpreter != null
     }
 
@@ -232,6 +241,15 @@ object Upscaler {
                     inBuf.putFloat((c and 0xFF).toFloat())
                 }
             }
+            val vw = minOf(step, iw - x0); val vh = minOf(step, ih - y0)
+            val dst = RectF(x0 * f * kx, y0 * f * ky, (x0 + vw) * f * kx, (y0 + vh) * f * ky)
+            // Flat areas (sky, walls) gain nothing from the AI: a smooth resize is identical and instant.
+            if (isFlat(px, iw, x0, y0, vw, vh)) {
+                canvas.drawBitmap(inp, android.graphics.Rect(x0, y0, x0 + vw, y0 + vh), dst, paint)
+                done++
+                if (done % 8 == 0) setProgress(done * 100 / total)
+                continue
+            }
             inBuf.rewind(); outBuf.rewind()
             itp.run(inBuf, outBuf)
             outBuf.rewind()
@@ -243,14 +261,30 @@ object Upscaler {
             }
             tileBmp.setPixels(tilePx, 0, ot, 0, 0, ot, ot)
             // Keep the inner part of the tile (edges of each tile are less accurate).
-            val vw = minOf(step, iw - x0); val vh = minOf(step, ih - y0)
             val srcR = android.graphics.Rect(pad * f, pad * f, (pad + vw) * f, (pad + vh) * f)
-            val dst = RectF(x0 * f * kx, y0 * f * ky, (x0 + vw) * f * kx, (y0 + vh) * f * ky)
             canvas.drawBitmap(tileBmp, srcR, dst, paint)
             done++
             if (done % 4 == 0) setProgress(done * 100 / total)
         }
         tileBmp.recycle()
+    }
+
+    /** True when a tile has almost no detail (low contrast in luminance). */
+    private fun isFlat(px: IntArray, iw: Int, x0: Int, y0: Int, w: Int, h: Int): Boolean {
+        var mn = 255; var mx = 0
+        var y = y0
+        while (y < y0 + h) {
+            var x = x0
+            while (x < x0 + w) {
+                val c = px[y * iw + x]
+                val l = (((c shr 16) and 0xFF) * 3 + ((c shr 8) and 0xFF) * 6 + (c and 0xFF)) / 10
+                if (l < mn) mn = l; if (l > mx) mx = l
+                if (mx - mn > 10) return false
+                x += 2
+            }
+            y += 2
+        }
+        return true
     }
 
     private val EXIF_TAGS = listOf(

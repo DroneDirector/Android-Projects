@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.Flip
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.RotateRight
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -133,6 +134,8 @@ fun MediaChooser(
     onRecent: (Uri) -> Unit,
 ) {
     val context = LocalContext.current
+    var settings by remember { mutableStateOf(false) }
+    if (settings) EditorSettingsDialog(title, if (videos) com.dronedirector.acluxpro.ui.AppScreen.VIDEO_EDITOR else com.dronedirector.acluxpro.ui.AppScreen.PHOTO_EDITOR) { settings = false }
     val recent by produceState<List<com.dronedirector.acluxpro.camera.MediaItem>>(emptyList()) {
         value = withContext(Dispatchers.IO) { MediaLibrary.query(context).filter { it.isVideo == videos }.take(60) }
     }
@@ -141,7 +144,8 @@ fun MediaChooser(
             Box(Modifier.size(44.dp).clip(CircleShape).clickable(onClick = onBack), contentAlignment = Alignment.Center) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
             }
-            Text(title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 6.dp))
+            Text(title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 6.dp).weight(1f))
+            TopIcon(Icons.Filled.Settings, "Settings") { settings = true }
         }
         Text(subtitle, color = Pro.Dim, fontSize = 13.sp, modifier = Modifier.padding(vertical = 10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -204,6 +208,8 @@ private fun PhotoWorkspace(uri: Uri, onClose: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var failed by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
+    if (showSettings) EditorSettingsDialog("Photo editor", com.dronedirector.acluxpro.ui.AppScreen.PHOTO_EDITOR) { showSettings = false }
     val undo = remember { mutableStateListOf(PhotoEdit()) }
     var undoPos by remember { mutableStateOf(0) }
 
@@ -327,6 +333,7 @@ private fun PhotoWorkspace(uri: Uri, onClose: () -> Unit) {
                     TopIcon(Icons.AutoMirrored.Filled.Undo, "Undo", enabled = undoPos > 0) { undoPos--; edit = undo[undoPos] }
                     TopIcon(Icons.AutoMirrored.Filled.Redo, "Redo", enabled = undoPos < undo.lastIndex) { undoPos++; edit = undo[undoPos] }
                     TopIcon(Icons.Filled.BarChart, "Scope", tint = if (showScope) Pro.Amber else Color.White) { showScope = !showScope }
+                    TopIcon(Icons.Filled.Settings, "Settings") { showSettings = true }
                     Text(
                         "EXPORT", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp),
                         modifier = Modifier.padding(horizontal = 6.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !busy) { panel = PhotoPanel.EXPORT }.padding(horizontal = 14.dp, vertical = 7.dp),

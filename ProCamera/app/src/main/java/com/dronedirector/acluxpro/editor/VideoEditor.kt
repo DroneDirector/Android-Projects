@@ -13,10 +13,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -173,6 +177,8 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     var deliver by remember { mutableStateOf(DeliverSettings()) }
     var export by remember { mutableStateOf<TimelineExport?>(null) }
     var confirmExit by remember { mutableStateOf(false) }
+    var fullscreen by remember { mutableStateOf(false) }
+    var previewMuted by remember { mutableStateOf(false) }
     val thumbs = remember { mutableStateMapOf<String, Bitmap>() }
     var scopeHist by remember { mutableStateOf<Array<FloatArray>?>(null) }
     val layers = remember { mutableStateListOf<Layer>() }
@@ -248,7 +254,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
             startMs.coerceAtLeast(0),
         )
         player.playbackParameters = PlaybackParameters(c.speed)
-        player.volume = if (c.muted) 0f else c.volume.coerceAtMost(1f)
+        player.volume = if (c.muted || previewMuted) 0f else c.volume.coerceAtMost(1f)
         player.playWhenReady = play
         player.prepare()
     }
@@ -301,10 +307,10 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
             try { player.setVideoEffects(clipEffects(c)) } catch (_: Throwable) { effectsOk = false }
         }
     }
-    LaunchedEffect(cur?.speed, cur?.volume, cur?.muted) {
+    LaunchedEffect(cur?.speed, cur?.volume, cur?.muted, previewMuted) {
         cur?.let {
             player.playbackParameters = PlaybackParameters(it.speed)
-            player.volume = if (it.muted) 0f else it.volume.coerceAtMost(1f)
+            player.volume = if (it.muted || previewMuted) 0f else it.volume.coerceAtMost(1f)
         }
     }
     LaunchedEffect(Unit) {
@@ -315,10 +321,10 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
         }
     }
     // Music follows the timeline while previewing.
-    LaunchedEffect(playing, music) {
+    LaunchedEffect(playing, music, previewMuted) {
         val m = music
         if (m == null) { musicPlayer.pause(); return@LaunchedEffect }
-        musicPlayer.volume = m.volume.coerceIn(0f, 1f)
+        musicPlayer.volume = if (previewMuted) 0f else m.volume.coerceIn(0f, 1f)
         if (!playing) { musicPlayer.pause(); return@LaunchedEffect }
         while (true) {
             val before = clips.take(current.coerceAtMost(clips.size)).sumOf { it.lengthMs }
@@ -430,6 +436,11 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                             )
                         }
                     }
+                    if (!fullscreen) Box(
+                        Modifier.align(Alignment.BottomEnd).padding(6.dp).size(36.dp).clip(RoundedCornerShape(8.dp))
+                            .background(Color.Black.copy(alpha = 0.5f)).clickable { fullscreen = true },
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Filled.Fullscreen, contentDescription = "Full screen", tint = Color.White) }
                     if (page == Page.COLOR) Scope(scopeHist, Modifier.align(Alignment.TopEnd).padding(8.dp).width(130.dp).height(64.dp))
                     Text(
                         "${tc(globalMs)} / ${tc(totalMs)}",
@@ -449,6 +460,18 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                 }
             }
 
+            fun togglePlay() {
+                if (player.isPlaying) player.pause() else {
+                    when {
+                        player.playbackState == Player.STATE_ENDED && current == clips.lastIndex -> load(0, 0, true)
+                        player.playbackState == Player.STATE_IDLE -> load(current, posMs, true)
+                        else -> player.play()
+                    }
+                }
+            }
+            fun prevClip() { if (player.currentPosition > 1500 || current == 0) player.seekTo(0) else load(current - 1, 0, player.isPlaying) }
+            fun nextClip() { if (current < clips.lastIndex) load(current + 1, 0, player.isPlaying) }
+
             val transport = @Composable {
                 Column(Modifier.fillMaxWidth().background(Ed.Panel).padding(horizontal = 8.dp)) {
                     Slider(
@@ -458,19 +481,11 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                         colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = Color.White.copy(alpha = 0.15f)),
                     )
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                        TopIcon(Icons.Filled.SkipPrevious, "Previous clip") {
-                            if (player.currentPosition > 1500 || current == 0) player.seekTo(0) else load(current - 1, 0, player.isPlaying)
-                        }
-                        TopIcon(if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Pro.Amber) {
-                            if (player.isPlaying) player.pause() else {
-                                when {
-                                    player.playbackState == Player.STATE_ENDED && current == clips.lastIndex -> load(0, 0, true)
-                                    player.playbackState == Player.STATE_IDLE -> load(current, posMs, true)
-                                    else -> player.play()
-                                }
-                            }
-                        }
-                        TopIcon(Icons.Filled.SkipNext, "Next clip") { if (current < clips.lastIndex) load(current + 1, 0, player.isPlaying) }
+                        TopIcon(if (previewMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute preview") { previewMuted = !previewMuted }
+                        TopIcon(Icons.Filled.SkipPrevious, "Previous clip") { prevClip() }
+                        TopIcon(if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Pro.Amber) { togglePlay() }
+                        TopIcon(Icons.Filled.SkipNext, "Next clip") { nextClip() }
+                        TopIcon(Icons.Filled.Fullscreen, "Full screen") { fullscreen = true }
                     }
                 }
             }
@@ -566,7 +581,66 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                 }
             }
 
-            Column(Modifier.fillMaxSize()) {
+            if (fullscreen) {
+                BackHandler { fullscreen = false }
+                var controls by remember { mutableStateOf(true) }
+                var touch by remember { mutableStateOf(0) }
+                // Controls hide by themselves a few seconds after the last touch while playing.
+                LaunchedEffect(controls, touch, playing) {
+                    if (controls && playing) { delay(3000); controls = false }
+                }
+                fun poke() { controls = true; touch++ }
+                Box(
+                    Modifier.fillMaxSize().background(Color.Black)
+                        .pointerInput(Unit) { detectTapGestures(onTap = { if (controls) controls = false else poke() }, onDoubleTap = { togglePlay(); poke() }) },
+                ) {
+                    viewer(Modifier.fillMaxSize())
+                    androidx.compose.animation.AnimatedVisibility(
+                        controls, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut(),
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        Box(Modifier.fillMaxSize()) {
+                            // Top: close + title
+                            Row(
+                                Modifier.align(Alignment.TopCenter).fillMaxWidth()
+                                    .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.7f), Color.Transparent)))
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                TopIcon(Icons.Filled.FullscreenExit, "Exit full screen") { fullscreen = false }
+                                Text(
+                                    clips.getOrNull(current)?.name ?: "", color = Color.White, fontSize = 14.sp, maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(horizontal = 6.dp),
+                                )
+                                TopIcon(Icons.Filled.Close, "Close") { fullscreen = false }
+                            }
+                            // Centre: previous / play / next
+                            Row(Modifier.align(Alignment.Center), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+                                RoundControl(Icons.Filled.SkipPrevious, "Previous", 52.dp) { prevClip(); poke() }
+                                RoundControl(if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", 72.dp, accent = true) { togglePlay(); poke() }
+                                RoundControl(Icons.Filled.SkipNext, "Next", 52.dp) { nextClip(); poke() }
+                            }
+                            // Bottom: time, seek, mute
+                            Column(
+                                Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                                    .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))))
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                            ) {
+                                Slider(
+                                    value = if (totalMs > 0) globalMs.toFloat() / totalMs else 0f,
+                                    onValueChange = { seekGlobal((it * totalMs).toLong()); poke() },
+                                    modifier = Modifier.height(28.dp),
+                                    colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = Color.White.copy(alpha = 0.25f)),
+                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("${tc(globalMs)} / ${tc(totalMs)}", style = Pro.Value.copy(fontSize = 12.sp), modifier = Modifier.weight(1f))
+                                    TopIcon(if (previewMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute") { previewMuted = !previewMuted; poke() }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else Column(Modifier.fillMaxSize()) {
                 Row(Modifier.fillMaxWidth().height(50.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     TopIcon(Icons.AutoMirrored.Filled.ArrowBack, "Close", enabled = !exporting) { confirmExit = true }
                     Column(Modifier.weight(1f).padding(start = 4.dp)) {
@@ -1027,4 +1101,14 @@ private fun VideoLayerView(l: Layer, timeMs: Long, play: Boolean) {
         factory = { ctx -> android.view.TextureView(ctx).also { p.setVideoTextureView(it) } },
         modifier = Modifier.fillMaxSize().graphicsLayer { alpha = l.opacity },
     )
+}
+
+@Composable
+private fun RoundControl(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, size: androidx.compose.ui.unit.Dp, accent: Boolean = false, onClick: () -> Unit) {
+    Box(
+        Modifier.size(size).clip(androidx.compose.foundation.shape.CircleShape)
+            .background(if (accent) Pro.Amber else Color.Black.copy(alpha = 0.45f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Icon(icon, contentDescription = label, tint = if (accent) Color.Black else Color.White, modifier = Modifier.size(size * 0.55f)) }
 }

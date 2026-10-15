@@ -93,6 +93,8 @@ adb shell input tap $((226 * DENS / 160)) $((129 * DENS / 160)); sleep 2
 adb shell input tap $((64 * DENS / 160)) $((205 * DENS / 160)); sleep 3
 adb shell input tap $((205 * DENS / 160)) $((457 * DENS / 160)); sleep 3
 adb exec-out screencap -p > "$OUT/28-phone-gallery-video.png"
+shot 32-phone-photo-16x9 --es mode PHOTO --es aspect R16_9
+shot 33-phone-pro-photo-16x9 --es mode PRO_PHOTO --es aspect R16_9
 shot 30-phone-accent-blue --es mode PRO_VIDEO --es accent BLUE
 shot 31-phone-accent-pink-settings --es accent PINK --ez settings true
 # Back to the default gold for the remaining shots.
@@ -101,6 +103,7 @@ adb shell am start -W -n "$ACT" --es accent GOLD >/dev/null; sleep 3
 rotate 1
 shot 08-phone-landscape-pro-video --es mode PRO_VIDEO --es guide FLAT
 shot 09-phone-landscape-photo-mono --es mode PHOTO --es filter MONO
+shot 34-phone-landscape-photo-16x9 --es mode PHOTO --es aspect R16_9
 shot 20-phone-landscape-live-tiktok --es mode LIVE --es live TIKTOK --ez nosetup true
 # Turn the phone while the app stays open: the viewfinder must turn with it.
 shot 29a-phone-rotate-start-landscape --es mode VIDEO

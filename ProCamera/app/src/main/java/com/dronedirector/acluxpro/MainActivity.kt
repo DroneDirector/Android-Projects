@@ -42,6 +42,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.dronedirector.acluxpro.camera.AspectMode
 import com.dronedirector.acluxpro.camera.CaptureMode
 import com.dronedirector.acluxpro.camera.Filter
 import com.dronedirector.acluxpro.camera.FrameGuide
@@ -97,6 +98,9 @@ class MainActivity : ComponentActivity() {
         }
         extras.getString("param")?.let { p ->
             ProParam.entries.firstOrNull { it.name == p }?.let { controller.setActiveParam(it) }
+        }
+        extras.getString("aspect")?.let { a ->
+            AspectMode.entries.firstOrNull { it.name == a }?.let { controller.setAspect(it) }
         }
         extras.getString("grid")?.let { g ->
             GridMode.entries.firstOrNull { it.name == g }?.let { controller.setGrid(it) }

@@ -88,11 +88,12 @@ private data class PhotoEdit(
     val grade: ProGrade = ProGrade(),
     val detail: Detail = Detail(),
     val geometry: Geometry = Geometry(),
+    val watermark: Layer? = null,
 )
 
 private enum class PhotoPanel(val label: String) {
     PRESETS("Presets"), LIGHT("Light"), CURVE("Curve"), COLOR("Color"), MIXER("HSL Mixer"),
-    GRADING("Grading"), DETAIL("Detail"), EFFECTS("Effects"), CROP("Crop"), EXPORT("Export"),
+    GRADING("Grading"), DETAIL("Detail"), EFFECTS("Effects"), CROP("Crop & format"), WATERMARK("Watermark"), EXPORT("Export"),
 }
 
 @Composable
@@ -213,6 +214,9 @@ private fun PhotoWorkspace(uri: Uri, onClose: () -> Unit) {
     val sizes = listOf(4800, 4096, 2560, 1920, 1080)
 
     BackHandler { if (!busy) onClose() }
+    val pickLogo = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { u ->
+        if (u != null) edit = edit.copy(watermark = Layer(kind = LayerKind.LOGO, imageUri = u, size = 0.1f, x = 0.86f, y = 0.9f, opacity = 0.85f, wholeVideo = true))
+    }
 
     LaunchedEffect(uri) {
         val b = withContext(Dispatchers.IO) { GradeIO.decode(context, uri, 1400) }
@@ -224,7 +228,8 @@ private fun PhotoWorkspace(uri: Uri, onClose: () -> Unit) {
         val e = edit
         val out = withContext(Dispatchers.Default) {
             val tables = if (e.grade.isIdentity) null else e.grade.tables()
-            ImageOps.render(b, e.grade, e.detail, e.geometry, tables)
+            val r = ImageOps.render(b, e.grade, e.detail, e.geometry, tables)
+            e.watermark?.let { stampLayer(context, r, it) } ?: r
         }
         preview = out
         hist = withContext(Dispatchers.Default) { ImageOps.histogram(out) }
@@ -250,8 +255,9 @@ private fun PhotoWorkspace(uri: Uri, onClose: () -> Unit) {
                 try {
                     val full = GradeIO.decode(context, uri, sizes[sizeIdx]) ?: return@withContext null
                     val tables = if (e.grade.isIdentity) null else e.grade.tables()
-                    val out = ImageOps.render(full, e.grade, e.detail, e.geometry, tables)
+                    var out = ImageOps.render(full, e.grade, e.detail, e.geometry, tables)
                     full.recycle()
+                    e.watermark?.let { out = stampLayer(context, out, it) }
                     savePicture(context, out, png = format == 1, quality = (quality * 100).toInt())
                 } catch (_: OutOfMemoryError) {
                     null
@@ -307,6 +313,7 @@ private fun PhotoWorkspace(uri: Uri, onClose: () -> Unit) {
                             onExportState = { f, q, si -> format = f; quality = q; sizeIdx = si },
                             onExport = { export() },
                             busy = busy,
+                            onPickLogo = { pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                         )
                     }
                 }
@@ -362,6 +369,7 @@ private fun PhotoPanelContent(
     onExportState: (Int, Float, Int) -> Unit,
     onExport: () -> Unit,
     busy: Boolean,
+    onPickLogo: () -> Unit = {},
 ) {
     val g = e.grade
     fun grade(f: (ProGrade) -> ProGrade) = set(e.copy(grade = f(g)))
@@ -434,7 +442,10 @@ private fun PhotoPanelContent(
         PhotoPanel.CROP -> {
             val geom = e.geometry
             SectionTitle("ASPECT") { geo { Geometry() } }
-            val aspects = listOf("Original" to 0f, "1:1" to 1f, "4:5" to 0.8f, "5:4" to 1.25f, "3:2" to 1.5f, "2:3" to 0.6667f, "16:9" to 16f / 9f, "9:16" to 9f / 16f, "2.39:1" to 2.39f)
+            val aspects = listOf(
+                "Original" to 0f, "1:1" to 1f, "4:5" to 0.8f, "5:4" to 1.25f, "4:3" to 4f / 3f, "3:4" to 0.75f, "3:2" to 1.5f, "2:3" to 0.6667f,
+                "16:9" to 16f / 9f, "9:16" to 9f / 16f, "21:9" to 21f / 9f, "2.39:1" to 2.39f, "5:7" to 5f / 7f,
+            )
             Chips(aspects.map { it.first }, aspects.indexOfFirst { it.second == geom.aspect }.coerceAtLeast(0)) { i -> geo { it.copy(aspect = aspects[i].second) } }
             SectionTitle("ROTATE & FLIP")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -447,6 +458,47 @@ private fun PhotoPanelContent(
             EdSlider("Zoom", geom.zoom, 1f..4f, 1f, { "%.2fx".format(it) }) { v -> geo { it.copy(zoom = v) } }
             EdSlider("Horizontal", geom.offsetX) { v -> geo { it.copy(offsetX = v) } }
             EdSlider("Vertical", geom.offsetY) { v -> geo { it.copy(offsetY = v) } }
+        }
+        PhotoPanel.WATERMARK -> {
+            val wm = e.watermark
+            SectionTitle("WATERMARK") { set(e.copy(watermark = null)) }
+            Chips(listOf("None", "Text", "Logo image"), when { wm == null -> 0; wm.kind == LayerKind.LOGO -> 2; else -> 1 }) { i ->
+                when (i) {
+                    0 -> set(e.copy(watermark = null))
+                    1 -> set(e.copy(watermark = Layer(kind = LayerKind.WATERMARK, text = "© AcluxPro", size = 0.035f, x = 0.84f, y = 0.93f, opacity = 0.7f, font = LayerFont.LIGHT, wholeVideo = true)))
+                    2 -> onPickLogo()
+                }
+            }
+            if (wm != null) {
+                if (wm.kind != LayerKind.LOGO) {
+                    androidx.compose.material3.OutlinedTextField(
+                        value = wm.text, onValueChange = { set(e.copy(watermark = wm.copy(text = it))) },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), label = { Text("Watermark text") },
+                        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                            focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,
+                        ),
+                    )
+                    Chips(LayerFont.entries.map { it.label }, wm.font.ordinal) { set(e.copy(watermark = wm.copy(font = LayerFont.entries[it]))) }
+                    Chips(listOf("White", "Black", "Accent"), when (wm.color) { 0xFF000000.toInt() -> 1; 0xFFFFFFFF.toInt() -> 0; else -> 2 }) {
+                        val c = when (it) { 1 -> 0xFF000000.toInt(); 2 -> android.graphics.Color.argb(255, (Pro.Amber.red * 255).toInt(), (Pro.Amber.green * 255).toInt(), (Pro.Amber.blue * 255).toInt()); else -> 0xFFFFFFFF.toInt() }
+                        set(e.copy(watermark = wm.copy(color = c)))
+                    }
+                }
+                EdSlider("Size", wm.size, 0.015f..0.25f, 0.035f, ::pct) { set(e.copy(watermark = wm.copy(size = it))) }
+                EdSlider("Opacity", wm.opacity, 0.05f..1f, 0.7f, ::pct) { set(e.copy(watermark = wm.copy(opacity = it))) }
+                SectionTitle("POSITION")
+                val spots = listOf(0.08f, 0.5f, 0.92f)
+                spots.forEach { y ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 2.dp)) {
+                        spots.forEach { x ->
+                            val on = kotlin.math.abs(wm.x - x) < 0.1f && kotlin.math.abs(wm.y - y) < 0.1f
+                            Box(Modifier.size(width = 44.dp, height = 26.dp).clip(RoundedCornerShape(4.dp)).background(if (on) Pro.Amber else Ed.Raised)
+                                .clickable { set(e.copy(watermark = wm.copy(x = if (x < 0.5f) 0.16f else if (x > 0.5f) 0.84f else 0.5f, y = if (y < 0.5f) 0.07f else if (y > 0.5f) 0.93f else 0.5f))) })
+                        }
+                    }
+                }
+            }
         }
         PhotoPanel.EXPORT -> {
             SectionTitle("FORMAT")

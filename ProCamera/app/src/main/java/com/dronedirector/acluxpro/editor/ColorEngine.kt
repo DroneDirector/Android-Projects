@@ -272,8 +272,17 @@ data class Detail(
     val texture: Float = 0f,    // -1..1 (photo only)
     val vignette: Float = 0f,   // -1..1 (negative darkens)
     val grain: Float = 0f,      // 0..1
+    /** Image detail / local contrast for video (-1..1). */
+    val localDetail: Float = 0f,
+    val fx: VideoFx = VideoFx.NONE,
+    val fxAmount: Float = 0.6f,
 ) {
     val isZero get() = this == Detail()
     /** Parts the video GPU effect handles. */
-    val needsVideoPass get() = sharpen != 0f || denoise != 0f || vignette != 0f || grain != 0f
+    val needsVideoPass get() = sharpen != 0f || denoise != 0f || vignette != 0f || grain != 0f || localDetail != 0f || fx != VideoFx.NONE
+}
+
+enum class VideoFx(val label: String) {
+    NONE("None"), MONO("Mono"), BLUR("Soft blur"), GLOW("Glow"), PIXELATE("Pixelate"), MIRROR("Mirror"),
+    RGB_SPLIT("RGB split"), VHS("VHS"), POSTERIZE("Posterize"), INVERT("Invert"), DREAM("Dream"),
 }

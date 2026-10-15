@@ -125,6 +125,7 @@ fun VideoEditorScreen(onExit: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val clips = remember { mutableStateListOf<Clip>() }
+    var project by remember { mutableStateOf<VideoProjectData?>(null) }
     var loading by remember { mutableStateOf(false) }
     var started by remember { mutableStateOf(false) }
 
@@ -160,17 +161,29 @@ fun VideoEditorScreen(onExit: () -> Unit) {
                 onGallery = pickGallery,
                 onFiles = pickFiles,
                 onRecent = { addUris(listOf(it)) },
+                onOpenProject = { id ->
+                    loading = true
+                    scope.launch {
+                        val p = withContext(Dispatchers.IO) { ProjectStore.loadVideo(context, id) }
+                        loading = false
+                        if (p == null || p.clips.isEmpty()) {
+                            android.widget.Toast.makeText(context, "Couldn't open that project", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            clips.clear(); clips.addAll(p.clips); project = p; started = true
+                        }
+                    }
+                },
             )
             if (loading) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Pro.Amber) }
         }
     } else {
-        Workspace(clips, onAddGallery = pickGallery, onAddFiles = pickFiles, onExit = onExit)
+        Workspace(clips, project, onAddGallery = pickGallery, onAddFiles = pickFiles, onExit = onExit)
     }
 }
 
 @OptIn(UnstableApi::class)
 @Composable
-private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddFiles: () -> Unit, onExit: () -> Unit) {
+private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAddGallery: () -> Unit, onAddFiles: () -> Unit, onExit: () -> Unit) {
     val context = LocalContext.current
     var page by remember { mutableStateOf(Page.EDIT) }
     var colorTab by remember { mutableStateOf(ColorTab.INPUT) }
@@ -181,7 +194,11 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     var exporting by remember { mutableStateOf(false) }
     var progress by remember { mutableStateOf(0) }
     var message by remember { mutableStateOf<String?>(null) }
-    var deliver by remember { mutableStateOf(DeliverSettings()) }
+    var deliver by remember { mutableStateOf(initial?.deliver ?: DeliverSettings()) }
+    var projectId by remember { mutableStateOf(initial?.id) }
+    var projectName by remember { mutableStateOf(initial?.name ?: "") }
+    var askName by remember { mutableStateOf(false) }
+    var leaveAfterSave by remember { mutableStateOf(false) }
     var export by remember { mutableStateOf<TimelineExport?>(null) }
     var confirmExit by remember { mutableStateOf(false) }
     var fullscreen by remember { mutableStateOf(false) }
@@ -190,21 +207,22 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     val thumbs = remember { mutableStateMapOf<String, Bitmap>() }
     val strips = remember { mutableStateMapOf<String, Filmstrip>() }
     var scopeHist by remember { mutableStateOf<Array<FloatArray>?>(null) }
-    val layers = remember { mutableStateListOf<Layer>() }
+    val layers = remember { mutableStateListOf<Layer>().apply { initial?.layers?.let { addAll(it) } } }
     var selectedLayer by remember { mutableStateOf<String?>(null) }
     // Remembered watermark: added to every new project; kept up to date while the option is on.
     LaunchedEffect(Unit) {
-        if (layers.none { it.kind == LayerKind.WATERMARK || (it.kind == LayerKind.LOGO && it.wholeVideo) }) {
+        if (initial == null && layers.none { it.kind == LayerKind.WATERMARK || (it.kind == LayerKind.LOGO && it.wholeVideo) }) {
             WatermarkMemory.load(context, true)?.let { layers.add(it) }
         }
     }
     val wmLayer = layers.firstOrNull { it.kind == LayerKind.WATERMARK } ?: layers.firstOrNull { it.kind == LayerKind.LOGO }
     val wmOn = WatermarkMemory.isOn(context, true)
     LaunchedEffect(wmLayer, wmOn) { if (wmOn && wmLayer != null) WatermarkMemory.save(context, true, wmLayer) }
-    var music by remember { mutableStateOf<MusicTrack?>(null) }
+    var music by remember { mutableStateOf(initial?.music) }
     val musicFxProc = remember { AudioFxProcessor(live = true) }
     val musicPlayer = remember { fxPlayer(context, musicFxProc) }
     DisposableEffect(Unit) { onDispose { musicPlayer.release() } }
+    LaunchedEffect(Unit) { initial?.music?.let { musicPlayer.setMediaItem(MediaItem.fromUri(it.uri)); musicPlayer.prepare() } }
     val pickMusic = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             try { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
@@ -646,6 +664,22 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
 
     fun update(i: Int, f: (Clip) -> Clip) { if (i in clips.indices) clips[i] = f(clips[i]) }
 
+    /** Saves the whole edit (clips, grades, layers, music, delivery settings) as a project. */
+    fun saveProject(name: String) {
+        val p = VideoProjectData(
+            id = projectId ?: java.util.UUID.randomUUID().toString(), name = name,
+            clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
+        )
+        val saved = try { ProjectStore.saveVideo(context, p, clips.firstOrNull()?.let { thumbs[it.id] }) } catch (_: Throwable) { null }
+        if (saved != null) { projectId = saved.id; projectName = saved.name; message = "Project \"${saved.name}\" saved" }
+        else message = "Couldn't save the project"
+    }
+    if (askName) ProjectNameDialog(
+        ProjectStore.defaultName(true),
+        onSave = { askName = false; saveProject(it); if (leaveAfterSave) onExit() },
+        onDismiss = { askName = false; leaveAfterSave = false },
+    )
+
     /** Blade: cut the clip under the playhead at the exact frame shown. */
     fun splitAtPlayhead() {
         val c = clips.getOrNull(current) ?: return
@@ -1016,6 +1050,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                         Text("${clips.size} CLIPS · ${tc(totalMs)}", style = Pro.Label)
                     }
                     TopIcon(Icons.Filled.Settings, "Settings") { showSettings = true }
+                    SaveButton(projectId != null, enabled = !exporting) { if (projectId == null) askName = true else saveProject(projectName) }
                     Text(
                         "EXPORT", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp),
                         modifier = Modifier.padding(horizontal = 6.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !exporting) { page = Page.DELIVER }.padding(horizontal = 14.dp, vertical = 7.dp),
@@ -1043,8 +1078,16 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                     onDismissRequest = { confirmExit = false },
                     containerColor = Pro.PanelSolid,
                     title = { Text("Leave the video editor?", color = Color.White) },
-                    text = { Text("This timeline isn't saved. Export it first if you want to keep your edit.", color = Pro.Dim) },
-                    confirmButton = { androidx.compose.material3.TextButton(onClick = { confirmExit = false; onExit() }) { Text("Leave", color = Pro.Red) } },
+                    text = { Text(if (projectId != null) "Save your latest changes to \"$projectName\" before leaving?" else "This timeline isn't saved yet. Save it as a project to continue later.", color = Pro.Dim) },
+                    confirmButton = {
+                        Row {
+                            androidx.compose.material3.TextButton(onClick = { confirmExit = false; onExit() }) { Text("Leave", color = Pro.Red) }
+                            androidx.compose.material3.TextButton(onClick = {
+                                confirmExit = false
+                                if (projectId == null) { leaveAfterSave = true; askName = true } else { saveProject(projectName); onExit() }
+                            }) { Text("Save & leave", color = Pro.Amber) }
+                        }
+                    },
                     dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmExit = false }) { Text("Stay", color = Color.White) } },
                 )
             }

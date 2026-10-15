@@ -101,6 +101,7 @@ private enum class PhotoPanel(val label: String) {
 fun PhotoEditorScreen(onExit: () -> Unit) {
     val context = LocalContext.current
     var source by remember { mutableStateOf<Uri?>(null) }
+    var project by remember { mutableStateOf<PhotoProjectData?>(null) }
 
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> if (uri != null) source = uri }
     val browse = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) source = uri }
@@ -115,10 +116,17 @@ fun PhotoEditorScreen(onExit: () -> Unit) {
             onBack = onExit,
             onGallery = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onFiles = { browse.launch(arrayOf("image/*")) },
-            onRecent = { source = it },
+            onRecent = { project = null; source = it },
+            onOpenProject = { id ->
+                val p = ProjectStore.loadPhoto(context, id)
+                if (p != null && p.uri != Uri.EMPTY) { project = p; source = p.uri }
+                else android.widget.Toast.makeText(context, "Couldn't open that project", android.widget.Toast.LENGTH_SHORT).show()
+            },
         )
     } else {
-        PhotoWorkspace(src, onClose = { source = null })
+        androidx.compose.runtime.key(src, project?.id) {
+            PhotoWorkspace(src, project, onClose = { source = null; project = null })
+        }
     }
 }
 
@@ -132,6 +140,7 @@ fun MediaChooser(
     onGallery: () -> Unit,
     onFiles: () -> Unit,
     onRecent: (Uri) -> Unit,
+    onOpenProject: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     var settings by remember { mutableStateOf(false) }
@@ -155,6 +164,7 @@ fun MediaChooser(
         if (videos) {
             Text("Browse files also opens MKV, MOV, WebM and clips from SD cards or USB drives.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
         }
+        SavedProjects(videos, onOpenProject)
         Text("RECENT ACLUXPRO ${if (videos) "VIDEOS" else "PHOTOS"}", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 18.dp, bottom = 6.dp))
         if (recent.isEmpty()) {
             Text("Nothing yet.", color = Pro.Dim, fontSize = 13.sp)
@@ -195,12 +205,20 @@ fun BigButton(icon: ImageVector, label: String, modifier: Modifier = Modifier, o
 }
 
 @Composable
-private fun PhotoWorkspace(uri: Uri, onClose: () -> Unit) {
+private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var base by remember { mutableStateOf<Bitmap?>(null) }
     var preview by remember { mutableStateOf<Bitmap?>(null) }
-    var edit by remember { mutableStateOf(PhotoEdit(watermark = WatermarkMemory.load(context, false))) }
+    var edit by remember {
+        mutableStateOf(
+            if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark)
+            else PhotoEdit(watermark = WatermarkMemory.load(context, false))
+        )
+    }
+    var projectId by remember { mutableStateOf(initial?.id) }
+    var projectName by remember { mutableStateOf(initial?.name ?: "") }
+    var askName by remember { mutableStateOf(false) }
     var panel by remember { mutableStateOf(PhotoPanel.PRESETS) }
     var comparing by remember { mutableStateOf(false) }
     var showScope by remember { mutableStateOf(true) }
@@ -216,9 +234,24 @@ private fun PhotoWorkspace(uri: Uri, onClose: () -> Unit) {
     var undoPos by remember { mutableStateOf(0) }
 
     // Export options
-    var format by remember { mutableStateOf(0) }       // JPEG, PNG
-    var quality by remember { mutableStateOf(0.95f) }
-    var sizeIdx by remember { mutableStateOf(0) }       // Full, 4096, 2560, 1920, 1080
+    var format by remember { mutableStateOf(initial?.format ?: 0) }       // JPEG, PNG
+    var quality by remember { mutableStateOf(initial?.quality ?: 0.95f) }
+    var sizeIdx by remember { mutableStateOf(initial?.sizeIdx ?: 0) }       // Full, 4096, 2560, 1920, 1080
+    fun saveProject(name: String) {
+        val e = edit
+        val p = PhotoProjectData(
+            id = projectId ?: java.util.UUID.randomUUID().toString(), name = name, uri = uri,
+            grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark,
+            format = format, quality = quality, sizeIdx = sizeIdx,
+        )
+        val thumb = preview
+        scope.launch {
+            val saved = withContext(Dispatchers.IO) { try { ProjectStore.savePhoto(context, p, thumb) } catch (_: Throwable) { null } }
+            if (saved != null) { projectId = saved.id; projectName = saved.name; message = "Project \"${saved.name}\" saved" }
+            else message = "Couldn't save the project"
+        }
+    }
+    if (askName) ProjectNameDialog(ProjectStore.defaultName(false), onSave = { askName = false; saveProject(it) }, onDismiss = { askName = false })
     val sizes = listOf(4800, 4096, 2560, 1920, 1080)
 
     BackHandler { if (!busy) onClose() }
@@ -336,6 +369,7 @@ private fun PhotoWorkspace(uri: Uri, onClose: () -> Unit) {
                     TopIcon(Icons.AutoMirrored.Filled.Redo, "Redo", enabled = undoPos < undo.lastIndex) { undoPos++; edit = undo[undoPos] }
                     TopIcon(Icons.Filled.BarChart, "Scope", tint = if (showScope) Pro.Amber else Color.White) { showScope = !showScope }
                     TopIcon(Icons.Filled.Settings, "Settings") { showSettings = true }
+                    SaveButton(projectId != null, enabled = !busy) { if (projectId == null) askName = true else saveProject(projectName) }
                     Text(
                         "EXPORT", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp),
                         modifier = Modifier.padding(horizontal = 6.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !busy) { panel = PhotoPanel.EXPORT }.padding(horizontal = 14.dp, vertical = 7.dp),

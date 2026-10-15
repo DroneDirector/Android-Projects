@@ -150,6 +150,10 @@ data class MusicTrack(
     val volume: Float = 0.8f,
     val fadeInMs: Long = 1000L,
     val fadeOutMs: Long = 2000L,
+    /** EQ / dynamics for the music. */
+    val fx: AudioFx = AudioFx(),
+    /** How much the music drops under clips marked "lower music" (0..1). */
+    val duck: Float = 0.6f,
 )
 
 /** Gain with fade-in / fade-out for a stream of known length (16-bit PCM). */

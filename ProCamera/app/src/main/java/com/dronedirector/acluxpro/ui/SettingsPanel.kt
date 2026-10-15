@@ -149,7 +149,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 steps = 35,
                 colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber),
             )
-            Text("Raise for quiet sources, lower for loud ones. The audio meter shows the adjusted level.", color = Pro.Dim, fontSize = 12.sp)
+            Text("Raise for quiet sources, lower for loud ones. The audio meter shows the adjusted level; the gain is applied to the sound when each clip is saved.", color = Pro.Dim, fontSize = 12.sp)
             ToggleRow("Limiter", "Rounds off peaks so loud sounds don't distort", s.audioLimiter) { c.toggleAudioLimiter() }
 
             Section("CLIP NAMING")

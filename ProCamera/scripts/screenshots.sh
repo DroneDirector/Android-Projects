@@ -97,6 +97,7 @@ shot 32-phone-photo-16x9 --es mode PHOTO --es aspect R16_9
 shot 35-phone-pro-video-falsecolor --es mode PRO_VIDEO --ez falsecolor true
 shot 39-phone-pro-video-zebras --es mode PRO_VIDEO --ez zebras true --ei zebralevel 70
 shot 40-phone-pro-video-zebras-fallback --es mode PRO_VIDEO --ez zebras true --ei zebralevel 70 --ez screenanalysis true
+shot 41-phone-pro-video-falsecolor-fallback --es mode PRO_VIDEO --ez falsecolor true --ez screenanalysis true
 shot 36-phone-video-film-teal --es mode VIDEO --es filter TEAL_ORANGE --ez filters true
 shot 37-phone-video-film-bleach --es mode VIDEO --es filter BLEACH
 shot 38-phone-clean-feed --es mode VIDEO --ez clean true

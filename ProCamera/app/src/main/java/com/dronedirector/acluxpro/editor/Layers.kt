@@ -12,7 +12,7 @@ import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.effect.BitmapOverlay
-import androidx.media3.effect.OverlaySettings
+import androidx.media3.common.OverlaySettings
 import androidx.media3.effect.StaticOverlaySettings
 import com.dronedirector.acluxpro.camera.GradeIO
 import java.nio.ByteBuffer

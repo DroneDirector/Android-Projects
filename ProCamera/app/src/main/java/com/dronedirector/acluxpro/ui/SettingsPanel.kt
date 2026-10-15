@@ -110,6 +110,10 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                         selected = s.photoSize == ps,
                     ) { c.setPhotoSize(ps) }
                 }
+                if (s.sensorReport.isNotEmpty()) Text(
+                    s.sensorReport, color = Pro.Dim, fontSize = 11.sp,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                )
             }
 
             Section("PHOTO")

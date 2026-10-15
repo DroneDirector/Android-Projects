@@ -29,7 +29,8 @@ object PhotoSizes {
             Camera2CameraInfo.from(info).getCameraCharacteristic(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
         } catch (_: Throwable) { null } ?: return emptyList()
         val normal = map.getOutputSizes(ImageFormat.JPEG)?.toList().orEmpty()
-        val high = try { map.getHighResolutionOutputSizes(ImageFormat.JPEG)?.toList().orEmpty() } catch (_: Throwable) { emptyList() }
+        val high = try { map.getHighResolutionOutputSizes(ImageFormat.JPEG)?.toList().orEmpty() } catch (_: Throwable) { emptyList() } +
+            maxResolutionSizes(info)
         val ratio = if (aspect == AspectMode.R16_9) 16f / 9f else 4f / 3f
         val square = aspect == AspectMode.R1_1
 
@@ -47,6 +48,49 @@ object PhotoSizes {
             if (result.size >= 6) break
         }
         return result
+    }
+
+    /**
+     * Android 12+ "maximum resolution" mode: 50 / 108 / 200 MP sensors that normally bin 4→1 can
+     * offer their full size here — if the phone maker lets other apps use it.
+     */
+    @androidx.annotation.OptIn(ExperimentalCamera2Interop::class)
+    private fun maxResolutionSizes(info: CameraInfo): List<android.util.Size> {
+        if (android.os.Build.VERSION.SDK_INT < 31) return emptyList()
+        return try {
+            val m = Camera2CameraInfo.from(info).getCameraCharacteristic(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP_MAXIMUM_RESOLUTION)
+                ?: return emptyList()
+            (m.getOutputSizes(ImageFormat.JPEG)?.toList().orEmpty() + (m.getHighResolutionOutputSizes(ImageFormat.JPEG)?.toList().orEmpty()))
+        } catch (_: Throwable) { emptyList() }
+    }
+
+    /** What the phone tells apps about this camera's sensor and the largest photos apps may take. */
+    @androidx.annotation.OptIn(ExperimentalCamera2Interop::class)
+    fun report(info: CameraInfo): String {
+        return try {
+            val ci = Camera2CameraInfo.from(info)
+            fun mp(w: Int, h: Int) = "%.1f MP".format(w.toLong() * h / 1_000_000f)
+            val sensor = ci.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_PIXEL_ARRAY_SIZE)
+            val sensorMax = if (android.os.Build.VERSION.SDK_INT >= 31)
+                ci.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_PIXEL_ARRAY_SIZE_MAXIMUM_RESOLUTION) else null
+            val map = ci.getCameraCharacteristic(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+            val normal = map?.getOutputSizes(ImageFormat.JPEG)?.maxByOrNull { it.width.toLong() * it.height }
+            val high = try { map?.getHighResolutionOutputSizes(ImageFormat.JPEG)?.maxByOrNull { it.width.toLong() * it.height } } catch (_: Throwable) { null }
+            val maxRes = maxResolutionSizes(info).maxByOrNull { it.width.toLong() * it.height }
+            val caps = ci.getCameraCharacteristic(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)?.toList().orEmpty()
+            val ultra = android.os.Build.VERSION.SDK_INT >= 31 && CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_ULTRA_HIGH_RESOLUTION_SENSOR in caps
+            val best = listOfNotNull(normal, high, maxRes).maxByOrNull { it.width.toLong() * it.height }
+            buildString {
+                append("Sensor as reported to apps: ")
+                append(sensor?.let { mp(it.width, it.height) } ?: "?")
+                if (sensorMax != null) append(" (full: ${mp(sensorMax.width, sensorMax.height)})")
+                append(". Largest photo this phone lets other apps take: ")
+                append(best?.let { "${it.width}×${it.height} (${mp(it.width, it.height)})" } ?: "?")
+                append(". Full-resolution mode: ")
+                append(if (ultra) "offered" else "not offered to other apps")
+                append(".")
+            }
+        } catch (_: Throwable) { "" }
     }
 
     fun load(context: Context, cameraId: String, aspect: AspectMode): String? =

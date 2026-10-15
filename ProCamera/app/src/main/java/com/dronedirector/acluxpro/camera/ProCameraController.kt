@@ -489,7 +489,8 @@ class ProCameraController(private val context: Context) {
         val sizes = PhotoSizes.forCamera(lens.info, aspect)
         val saved = PhotoSizes.load(context, lens.id, aspect)
         val chosen = sizes.firstOrNull { it.key == saved } ?: sizes.firstOrNull { !it.highRes } ?: sizes.firstOrNull()
-        set { it.copy(photoSizes = sizes, photoSize = chosen) }
+        val report = PhotoSizes.report(lens.info)
+        set { it.copy(photoSizes = sizes, photoSize = chosen, sensorReport = report) }
     }
 
     fun setPhotoSize(size: PhotoSize) {

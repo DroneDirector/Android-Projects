@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -167,18 +169,51 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                 val fillScreen = s.isVideo && !liveMode
                 val noPad = androidx.compose.foundation.layout.PaddingValues(0.dp)
 
+                val sensorRatio = if (s.isVideo || (s.mode != CaptureMode.PANORAMA && s.aspect == AspectMode.R16_9)) 16f / 9f else 4f / 3f
+                val frameRatio = when {
+                    liveMode -> if (liveState.vertical) 9f / 16f else 16f / 9f
+                    landscape -> sensorRatio
+                    else -> 1f / sensorRatio
+                }
+
+                // Photo modes keep the exact frame, but when it would leave black bars at the sides
+                // (e.g. 16:9 on a phone held upright) it is widened edge to edge instead and allowed to
+                // run under the controls, like the stock camera.
+                val freeW = maxWidth - (if (landscape) sideBar + rail else 0.dp)
+                val freeH = maxHeight - (if (landscape) 0.dp else topBar + bottomBar)
+                val freeRatio = freeW.value / freeH.value
+                val widen = !fillScreen && !liveMode &&
+                    (if (landscape) freeRatio < frameRatio - 0.01f else freeRatio > frameRatio + 0.01f)
+                var frameW = 0.dp; var frameH = 0.dp; var frameX = 0.dp; var frameY = 0.dp
+                if (widen) {
+                    if (landscape) {
+                        frameH = maxHeight; frameW = maxHeight * frameRatio
+                        if (frameW > maxWidth) { frameW = maxWidth; frameH = maxWidth / frameRatio }
+                        frameX = if (sideBar + frameW <= maxWidth) sideBar else (maxWidth - frameW) / 2
+                        frameY = (maxHeight - frameH) / 2
+                    } else {
+                        frameW = maxWidth; frameH = maxWidth / frameRatio
+                        if (frameH > maxHeight) { frameH = maxHeight; frameW = maxHeight * frameRatio }
+                        frameY = if (topBar + frameH <= maxHeight) topBar else (maxHeight - frameH) / 2
+                        frameX = (maxWidth - frameW) / 2
+                    }
+                }
+                // Parts of a widened frame that sit under the bars: read-outs stay clear of them.
+                val coverPad = if (!widen) noPad else if (landscape) androidx.compose.foundation.layout.PaddingValues(
+                    start = (sideBar - frameX).coerceAtLeast(0.dp),
+                    end = (frameX + frameW - (maxWidth - rail)).coerceAtLeast(0.dp),
+                ) else androidx.compose.foundation.layout.PaddingValues(
+                    top = (topBar - frameY).coerceAtLeast(0.dp),
+                    bottom = (frameY + frameH - (maxHeight - bottomBar)).coerceAtLeast(0.dp),
+                )
+                val overlayControls = fillScreen || widen
+
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .padding(if (fillScreen) noPad else barPad),
-                    contentAlignment = Alignment.Center,
+                        .padding(if (overlayControls) noPad else barPad),
+                    contentAlignment = if (widen) Alignment.TopStart else Alignment.Center,
                 ) {
-                    val sensorRatio = if (s.isVideo || (s.mode != CaptureMode.PANORAMA && s.aspect == AspectMode.R16_9)) 16f / 9f else 4f / 3f
-                    val frameRatio = when {
-                        liveMode -> if (liveState.vertical) 9f / 16f else 16f / 9f
-                        landscape -> sensorRatio
-                        else -> 1f / sensorRatio
-                    }
 
                     if (liveMode) {
                         Box(Modifier.fillMaxSize()) {
@@ -190,6 +225,8 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                             // Bleed under the notch so there is no black band at the edge.
                             val p = m.measure(androidx.compose.ui.unit.Constraints.fixed(c.maxWidth + cutL + cutR, c.maxHeight + cutT + cutB))
                             layout(c.maxWidth, c.maxHeight) { p.place(-cutL, -cutT) }
+                        } else if (widen) {
+                            Modifier.offset(frameX, frameY).size(frameW, frameH)
                         } else Modifier.aspectRatio(frameRatio)
                     ) {
                         AndroidView(
@@ -199,7 +236,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                             },
                             modifier = Modifier.fillMaxSize(),
                         )
-                        if (fillScreen) {
+                        if (overlayControls) {
                             // Soft shading behind the floating controls.
                             Box(
                                 Modifier
@@ -261,7 +298,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                                         Modifier
                                             .padding(start = cutL.toDp(), top = cutT.toDp(), end = cutR.toDp(), bottom = cutB.toDp())
                                             .padding(barPad)
-                                    } else Modifier
+                                    } else Modifier.padding(coverPad)
                                 )
                         ) {
                         // Draggable read-outs: drag them anywhere; positions are remembered.
@@ -314,7 +351,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                         }
                     }
 
-                    val panelPos = Modifier.align(Alignment.BottomCenter).padding(if (fillScreen) barPad else noPad)
+                    val panelPos = Modifier.align(Alignment.BottomCenter).padding(if (overlayControls) barPad else noPad)
                     if (liveMode) {
                         LiveBar(liveState, controller.live, Modifier.align(Alignment.BottomCenter))
                     } else if (s.isPro) {

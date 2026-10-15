@@ -180,6 +180,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     var fullscreen by remember { mutableStateOf(false) }
     var previewMuted by remember { mutableStateOf(false) }
     val thumbs = remember { mutableStateMapOf<String, Bitmap>() }
+    val strips = remember { mutableStateMapOf<String, Filmstrip>() }
     var scopeHist by remember { mutableStateOf<Array<FloatArray>?>(null) }
     val layers = remember { mutableStateListOf<Layer>() }
     var selectedLayer by remember { mutableStateOf<String?>(null) }
@@ -347,6 +348,33 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
             }
         }
     }
+    // Filmstrips for the timeline (one per source file).
+    LaunchedEffect(clips.map { it.uri }.distinct()) {
+        for (c in clips.toList()) {
+            val key = c.uri.toString()
+            if (strips[key] != null) continue
+            val n = (c.durationMs / 1000).toInt().coerceIn(4, 40)
+            val frames = withContext(Dispatchers.IO) {
+                val out = mutableListOf<Bitmap>()
+                try {
+                    val mmr = android.media.MediaMetadataRetriever()
+                    mmr.setDataSource(context, c.uri)
+                    val h = 96
+                    val w = if (c.height > 0) (h * c.width / c.height).coerceIn(48, 200) else 160
+                    for (i in 0 until n) {
+                        val t = (c.durationMs * (i + 0.5) / n * 1000).toLong()
+                        val f = if (android.os.Build.VERSION.SDK_INT >= 27)
+                            mmr.getScaledFrameAtTime(t, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC, w, h)
+                        else mmr.getFrameAtTime(t, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)?.let { Bitmap.createScaledBitmap(it, w, h, true) }
+                        if (f != null) out += f
+                    }
+                    mmr.release()
+                } catch (_: Throwable) {}
+                out
+            }
+            if (frames.isNotEmpty()) strips[key] = Filmstrip(frames, c.durationMs)
+        }
+    }
     // Scope: graded still of the paused frame.
     LaunchedEffect(page, playing, current, posMs / 500, cur?.grade) {
         if (page != Page.COLOR || playing) return@LaunchedEffect
@@ -377,6 +405,31 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     }
 
     fun update(i: Int, f: (Clip) -> Clip) { if (i in clips.indices) clips[i] = f(clips[i]) }
+
+    /** Blade: cut the clip under the playhead at the exact frame shown. */
+    fun splitAtPlayhead() {
+        val c = clips.getOrNull(current) ?: return
+        val cut = c.startMs + player.currentPosition
+        if (cut <= c.startMs + 100 || cut >= c.endMs - 100) {
+            message = "Move the playhead inside a clip to split"
+            return
+        }
+        clips[current] = c.copy(endMs = cut)
+        clips.add(current + 1, c.copy(id = java.util.UUID.randomUUID().toString(), startMs = cut))
+        selected = current
+        message = "Split at ${tc(globalMs)}"
+    }
+
+    var lastScrub by remember { mutableStateOf(0L) }
+    /** Timeline scrubbing: fast keyframe seeks while dragging, exact frame when released. */
+    fun scrub(ms: Long, final: Boolean) {
+        val now = System.currentTimeMillis()
+        if (!final && now - lastScrub < 60) return
+        lastScrub = now
+        if (player.isPlaying && !final) player.pause()
+        player.setSeekParameters(if (final) androidx.media3.exoplayer.SeekParameters.EXACT else androidx.media3.exoplayer.SeekParameters.CLOSEST_SYNC)
+        seekGlobal(ms)
+    }
 
     fun startExport() {
         if (exporting || clips.isEmpty()) return
@@ -491,32 +544,15 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
             }
 
             val timeline = @Composable {
-                Row(
-                    Modifier.fillMaxWidth().height(70.dp).background(Ed.Bg).hintedScroll(horizontal = true).padding(horizontal = 8.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    clips.forEachIndexed { i, c ->
-                        val w = (c.lengthMs / 80L).coerceIn(70L, 420L).toInt().dp
-                        val sel = i == selected
-                        Box(
-                            Modifier.width(w).fillMaxHeight().clip(RoundedCornerShape(6.dp))
-                                .background(Ed.Raised)
-                                .border(if (sel) 2.dp else 1.dp, if (sel) Pro.Amber else Pro.Line, RoundedCornerShape(6.dp))
-                                .clickable { selected = i; load(i, 0, false) },
-                        ) {
-                            thumbs[c.id]?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
-                            Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 4.dp, vertical = 1.dp)) {
-                                Text("${i + 1}  ${c.name}", color = Color.White, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(tc(c.lengthMs) + (if (c.speed != 1f) "  ${c.speed}x" else "") + (if (!c.grade.isIdentity) "  ●" else ""), color = Pro.Amber, fontSize = 9.sp)
-                            }
-                            if (i == current) Box(Modifier.align(Alignment.TopStart).padding(3.dp).size(6.dp).clip(RoundedCornerShape(3.dp)).background(Pro.Red))
-                        }
-                    }
-                    Box(
-                        Modifier.width(56.dp).fillMaxHeight().clip(RoundedCornerShape(6.dp)).border(1.dp, Pro.Line, RoundedCornerShape(6.dp)).clickable { onAddGallery() },
-                        contentAlignment = Alignment.Center,
-                    ) { Icon(Icons.Filled.Add, contentDescription = "Add clip", tint = Pro.Amber) }
-                }
+                TimelineView(
+                    clips = clips, layers = layers, music = music, strips = strips,
+                    globalMs = globalMs, selectedClip = selected,
+                    selectedLayerId = if (page == Page.LAYERS) selectedLayer else null,
+                    onScrub = { ms, final -> scrub(ms, final) },
+                    onSelectClip = { selected = it; if (page == Page.MEDIA || page == Page.LAYERS || page == Page.DELIVER) page = Page.EDIT },
+                    onSelectLayer = { selectedLayer = it; page = Page.LAYERS },
+                    onSplit = { splitAtPlayhead() },
+                )
             }
 
             val inspector = @Composable { mod: Modifier ->
@@ -529,15 +565,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                             Page.EDIT -> if (sc != null) EditPage(
                                 sc, selected, clips.size, posMs, deliver, { deliver = it },
                                 onChange = { f -> update(selected, f) },
-                                onSplit = {
-                                    val c = clips[current]
-                                    val cut = (c.startMs + posMs).coerceIn(c.startMs + 100, c.endMs - 100)
-                                    if (cut > c.startMs + 100 && cut < c.endMs - 100) {
-                                        clips[current] = c.copy(endMs = cut)
-                                        clips.add(current + 1, c.copy(id = java.util.UUID.randomUUID().toString(), startMs = cut))
-                                        message = "Split at ${tc(globalMs)}"
-                                    }
-                                },
+                                onSplit = { splitAtPlayhead() },
                                 onDuplicate = { clips.add(selected + 1, sc.copy(id = java.util.UUID.randomUUID().toString())) },
                                 onDelete = {
                                     clips.removeAt(selected)

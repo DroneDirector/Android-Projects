@@ -217,6 +217,30 @@ fun EditorSettingsDialog(
                         colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
                     )
                 }
+                val video = screen == com.dronedirector.acluxpro.ui.AppScreen.VIDEO_EDITOR
+                var folder by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(SaveFolder.get(ctx, video)) }
+                val pick = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()) { tree ->
+                    if (tree != null) { SaveFolder.set(ctx, video, tree); folder = tree }
+                }
+                Text("SAVE LOCATION", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
+                Text(
+                    if (video) "Where exported videos are saved." else "Where edited photos are saved.",
+                    color = Pro.Dim, fontSize = 12.sp,
+                )
+                Text(
+                    SaveFolder.label(folder), color = Color.White, fontSize = 14.sp,
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).padding(10.dp),
+                )
+                Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        "CHOOSE FOLDER", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp),
+                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { pick.launch(folder) }.padding(6.dp),
+                    )
+                    if (folder != null) Text(
+                        "USE DEFAULT", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp),
+                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { SaveFolder.set(ctx, video, null); folder = null }.padding(6.dp),
+                    )
+                }
                 if (extra != null) extra()
             }
         },

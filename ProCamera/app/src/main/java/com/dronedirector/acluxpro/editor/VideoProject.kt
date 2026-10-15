@@ -252,7 +252,9 @@ class TimelineExport(
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                     finished = true
                     Thread {
-                        val uri = GradeIO.publishVideo(context, out)
+                        val name = "EDIT_" + java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date()) + ".mp4"
+                        val uri = SaveFolder.write(context, true, name, "video/mp4") { os -> out.inputStream().use { it.copyTo(os) } }
+                            ?: GradeIO.publishVideo(context, out)
                         out.delete()
                         handler.post { onDone(uri, if (uri == null) "Couldn't save the video" else null) }
                     }.start()

@@ -562,6 +562,10 @@ fun HslMixer(bands: List<HslBand>, onChange: (List<HslBand>) -> Unit) {
 /** Saves an edited picture as a new file in DCIM/AcluxPro. */
 fun savePicture(context: Context, bmp: Bitmap, png: Boolean, quality: Int): Uri? {
     val name = "EDIT_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + if (png) ".png" else ".jpg"
+    // A folder chosen in the editor settings wins; otherwise the default app location.
+    SaveFolder.write(context, false, name, if (png) "image/png" else "image/jpeg") {
+        bmp.compress(if (png) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG, quality, it)
+    }?.let { return it }
     val values = ContentValues().apply {
         put(MediaStore.MediaColumns.DISPLAY_NAME, name)
         put(MediaStore.MediaColumns.MIME_TYPE, if (png) "image/png" else "image/jpeg")

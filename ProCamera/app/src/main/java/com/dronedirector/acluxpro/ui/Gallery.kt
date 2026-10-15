@@ -65,6 +65,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
@@ -112,7 +115,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Date
 
-private enum class GalleryTab(val label: String) { ALL("All"), PHOTOS("Photos"), VIDEOS("Videos") }
+private enum class GalleryTab(val label: String) { ALL("All"), PHOTOS("Photos"), VIDEOS("Videos"), FAVORITES("♥") }
 
 /**
  * In-app gallery of everything AcluxPro saved: a grid with All / Photos / Videos tabs and a
@@ -128,6 +131,8 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
     var reloadKey by remember { mutableIntStateOf(0) }
     var pendingDelete by remember { mutableStateOf<MediaItem?>(null) }
     var confirmItem by remember { mutableStateOf<MediaItem?>(null) }
+    var favorites by remember { mutableStateOf(com.dronedirector.acluxpro.camera.Favorites.all(context)) }
+    var grading by remember { mutableStateOf<MediaItem?>(null) }
 
     fun reload() { reloadKey++ }
 
@@ -165,6 +170,7 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
             val needsSystem: IntentSenderRequest? = withContext(Dispatchers.IO) {
                 try {
                     context.contentResolver.delete(item.uri, null, null)
+                    com.dronedirector.acluxpro.camera.Favorites.remove(context, item.uri)
                     null
                 } catch (e: SecurityException) {
                     when {
@@ -191,6 +197,7 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
         GalleryTab.ALL -> all
         GalleryTab.PHOTOS -> all.filter { !it.isVideo }
         GalleryTab.VIDEOS -> all.filter { it.isVideo }
+        GalleryTab.FAVORITES -> all.filter { it.uri.toString() in favorites }
     }
 
     BackHandler { if (viewing != null) viewing = null else onClose() }
@@ -204,13 +211,13 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
     ) {
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
             GalleryHeader(count = all.size, onBack = onClose)
-            TabRow(tab, all) { tab = it }
+            TabRow(tab, all, favorites) { tab = it }
             when {
                 items == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = Pro.Amber)
                 }
                 shown.isEmpty() -> EmptyGallery(tab)
-                else -> MediaGrid(shown) { viewing = it }
+                else -> MediaGrid(shown, favorites) { viewing = it }
             }
         }
 
@@ -221,6 +228,20 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
                 start = v.coerceIn(0, shown.lastIndex),
                 onClose = { viewing = null },
                 onDelete = { confirmItem = it },
+                favorites = favorites,
+                onFavorite = { item ->
+                    com.dronedirector.acluxpro.camera.Favorites.toggle(context, item.uri)
+                    favorites = com.dronedirector.acluxpro.camera.Favorites.all(context)
+                },
+                onGrade = { grading = it },
+            )
+        }
+
+        grading?.let { g ->
+            GradeEditor(
+                item = g,
+                onClose = { grading = null },
+                onSaved = { reload(); onChanged() },
             )
         }
 
@@ -265,9 +286,9 @@ private fun GalleryHeader(count: Int, onBack: () -> Unit) {
 }
 
 @Composable
-private fun TabRow(tab: GalleryTab, all: List<MediaItem>, onTab: (GalleryTab) -> Unit) {
+private fun TabRow(tab: GalleryTab, all: List<MediaItem>, favorites: Set<String>, onTab: (GalleryTab) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+        Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(horizontal = 12.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         GalleryTab.entries.forEach { t ->
@@ -275,6 +296,7 @@ private fun TabRow(tab: GalleryTab, all: List<MediaItem>, onTab: (GalleryTab) ->
                 GalleryTab.ALL -> all.size
                 GalleryTab.PHOTOS -> all.count { !it.isVideo }
                 GalleryTab.VIDEOS -> all.count { it.isVideo }
+                GalleryTab.FAVORITES -> all.count { it.uri.toString() in favorites }
             }
             val sel = t == tab
             Box(
@@ -306,16 +328,17 @@ private fun EmptyGallery(tab: GalleryTab) {
                     GalleryTab.ALL -> "No photos or videos yet"
                     GalleryTab.PHOTOS -> "No photos yet"
                     GalleryTab.VIDEOS -> "No videos yet"
+                    GalleryTab.FAVORITES -> "No favourites yet"
                 },
                 color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
             )
-            Text("Everything you shoot with AcluxPro shows up here.", color = Pro.Dim, fontSize = 13.sp, textAlign = TextAlign.Center)
+            Text(if (tab == GalleryTab.FAVORITES) "Open a photo or video and tap the heart to add it here." else "Everything you shoot with AcluxPro shows up here.", color = Pro.Dim, fontSize = 13.sp, textAlign = TextAlign.Center)
         }
     }
 }
 
 @Composable
-private fun MediaGrid(items: List<MediaItem>, onOpen: (Int) -> Unit) {
+private fun MediaGrid(items: List<MediaItem>, favorites: Set<String>, onOpen: (Int) -> Unit) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(112.dp),
         modifier = Modifier.fillMaxSize(),
@@ -332,13 +355,13 @@ private fun MediaGrid(items: List<MediaItem>, onOpen: (Int) -> Unit) {
                     Text(day, style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(start = 4.dp, top = 10.dp, bottom = 2.dp))
                 }
             }
-            item(key = item.uri.toString()) { GridCell(item) { onOpen(index) } }
+            item(key = item.uri.toString()) { GridCell(item, item.uri.toString() in favorites) { onOpen(index) } }
         }
     }
 }
 
 @Composable
-private fun GridCell(item: MediaItem, onClick: () -> Unit) {
+private fun GridCell(item: MediaItem, favorite: Boolean, onClick: () -> Unit) {
     val context = LocalContext.current
     val thumb by produceThumb(context, item.uri, 320)
     Box(
@@ -350,6 +373,12 @@ private fun GridCell(item: MediaItem, onClick: () -> Unit) {
     ) {
         val t = thumb
         if (t != null) Image(t, contentDescription = item.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        if (favorite) {
+            Icon(
+                Icons.Filled.Favorite, contentDescription = "Favourite", tint = Color.White,
+                modifier = Modifier.align(Alignment.TopEnd).padding(5.dp).size(16.dp),
+            )
+        }
         if (item.isVideo) {
             Box(
                 Modifier.fillMaxSize().background(
@@ -386,7 +415,15 @@ private fun produceThumb(context: Context, uri: Uri, px: Int) =
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MediaViewer(items: List<MediaItem>, start: Int, onClose: () -> Unit, onDelete: (MediaItem) -> Unit) {
+private fun MediaViewer(
+    items: List<MediaItem>,
+    start: Int,
+    onClose: () -> Unit,
+    onDelete: (MediaItem) -> Unit,
+    favorites: Set<String>,
+    onFavorite: (MediaItem) -> Unit,
+    onGrade: (MediaItem) -> Unit,
+) {
     val context = LocalContext.current
     val pager = rememberPagerState(initialPage = start) { items.size }
     var chrome by remember { mutableStateOf(true) }
@@ -439,8 +476,14 @@ private fun MediaViewer(items: List<MediaItem>, start: Int, onClose: () -> Unit,
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 current ?: return@Row
+                val fav = current.uri.toString() in favorites
+                ViewerAction(
+                    if (fav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    "Favourite", tint = if (fav) Pro.Red else Color.White,
+                ) { onFavorite(current) }
+                ViewerAction(Icons.Filled.Tune, "Grade", tint = Pro.Amber) { onGrade(current) }
                 ViewerAction(Icons.Filled.Share, "Share") { share(context, current) }
-                ViewerAction(Icons.AutoMirrored.Filled.OpenInNew, "Open with") { openWith(context, current) }
+                ViewerAction(Icons.AutoMirrored.Filled.OpenInNew, "Open") { openWith(context, current) }
                 ViewerAction(Icons.Filled.Delete, "Delete", tint = Pro.Red) { onDelete(current) }
             }
         }
@@ -450,7 +493,7 @@ private fun MediaViewer(items: List<MediaItem>, start: Int, onClose: () -> Unit,
 @Composable
 private fun ViewerAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color = Color.White, onClick: () -> Unit) {
     Column(
-        Modifier.widthIn(min = 72.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(8.dp),
+        Modifier.widthIn(min = 60.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {

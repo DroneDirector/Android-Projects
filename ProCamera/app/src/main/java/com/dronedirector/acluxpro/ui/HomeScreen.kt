@@ -1,0 +1,200 @@
+package com.dronedirector.acluxpro.ui
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.dronedirector.acluxpro.R
+import kotlin.math.cos
+import kotlin.math.sin
+
+enum class AppScreen { HOME, CAPTURE, EDITOR, PHOTO_EDITOR, VIDEO_EDITOR }
+
+/** Start screen shown on every launch: Capture or Editor. */
+@Composable
+fun HomeScreen(onCapture: () -> Unit, onEditor: () -> Unit) {
+    HubLayout(
+        title = "AcluxPro",
+        subtitle = "CAPTURE · EDIT · CREATE",
+        onBack = null,
+        tiles = listOf(
+            Tile("CAPTURE", "Photo · Video · Pro · Smart modes · Live", Icons.Filled.CameraAlt, onCapture),
+            Tile("EDITOR", "Photo editor · Video editor", Icons.Filled.Tune, onEditor),
+        ),
+    )
+}
+
+/** Editor hub: photo editor or video editor. */
+@Composable
+fun EditorHub(onPhoto: () -> Unit, onVideo: () -> Unit, onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
+    HubLayout(
+        title = "Editor",
+        subtitle = "GRADE · CUT · DELIVER",
+        onBack = onBack,
+        tiles = listOf(
+            Tile("PHOTO EDITOR", "Light, curves, HSL, colour grading, detail, crop, export", Icons.Filled.Photo, onPhoto),
+            Tile("VIDEO EDITOR", "Timeline, log footage, colour pages, audio, 4K delivery", Icons.Filled.Movie, onVideo),
+        ),
+    )
+}
+
+private class Tile(val title: String, val detail: String, val icon: ImageVector, val onClick: () -> Unit)
+
+@Composable
+private fun HubLayout(title: String, subtitle: String, onBack: (() -> Unit)?, tiles: List<Tile>) {
+    val appear = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { appear.animateTo(1f, tween(700)) }
+    val spin = rememberInfiniteTransition(label = "spin")
+    val angle by spin.animateFloat(0f, 360f, infiniteRepeatable(tween(60_000, easing = LinearEasing)), label = "angle")
+    val pulse by spin.animateFloat(0.55f, 1f, infiniteRepeatable(tween(2600), RepeatMode.Reverse), label = "pulse")
+    val accent = Pro.Amber
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Brush.radialGradient(listOf(Color(0xFF1B1710), Color(0xFF0B0B0D), Color(0xFF050506)), radius = 1600f))
+    ) {
+        // Slowly turning aperture rings behind everything.
+        Canvas(Modifier.fillMaxSize()) {
+            val c = Offset(size.width / 2f, size.height * 0.3f)
+            val r = size.minDimension * 0.42f
+            drawCircle(Brush.radialGradient(listOf(accent.copy(alpha = 0.18f * pulse), Color.Transparent), c, r * 1.5f), r * 1.5f, c)
+            rotate(angle, c) {
+                for (i in 0 until 6) {
+                    val a = Math.toRadians(i * 60.0)
+                    val p1 = Offset(c.x + (r * cos(a)).toFloat(), c.y + (r * sin(a)).toFloat())
+                    val a2 = Math.toRadians(i * 60.0 + 100.0)
+                    val p2 = Offset(c.x + (r * 0.55f * cos(a2)).toFloat(), c.y + (r * 0.55f * sin(a2)).toFloat())
+                    drawLine(accent.copy(alpha = 0.10f), p1, p2, strokeWidth = 2f)
+                }
+                drawCircle(accent.copy(alpha = 0.12f), r, c, style = Stroke(2f))
+            }
+            rotate(-angle * 1.6f, c) {
+                drawCircle(Color.White.copy(alpha = 0.05f), r * 0.75f, c, style = Stroke(1.5f))
+            }
+        }
+
+        BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout).padding(20.dp)) {
+            val landscape = maxWidth > maxHeight
+            if (onBack != null) {
+                Box(Modifier.size(46.dp).clip(CircleShape).clickable(onClick = onBack), contentAlignment = Alignment.Center) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                }
+            }
+            val header = @Composable {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        Modifier.size(if (landscape) 96.dp else 128.dp).clip(CircleShape)
+                            .border(2.dp, accent.copy(alpha = 0.6f * pulse + 0.2f), CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Image(painterResource(R.drawable.ic_launcher_background), null, Modifier.fillMaxSize())
+                        Image(painterResource(R.drawable.ic_launcher_foreground), null, Modifier.fillMaxSize().graphicsLayer { scaleX = 1.45f; scaleY = 1.45f })
+                    }
+                    Text(title, color = Color.White, fontSize = if (landscape) 30.sp else 38.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 14.dp))
+                    Text(subtitle, style = Pro.Label.copy(color = accent, fontSize = 12.sp, letterSpacing = 4.sp))
+                }
+            }
+            val tileViews = @Composable { mod: Modifier ->
+                tiles.forEachIndexed { i, t ->
+                    val k = ((appear.value * 1.6f) - i * 0.3f).coerceIn(0f, 1f)
+                    HubTile(t, mod.graphicsLayer { alpha = k; translationY = (1f - k) * 60f })
+                }
+            }
+            if (landscape) {
+                Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+                    Box(Modifier.weight(0.8f), contentAlignment = Alignment.Center) { header() }
+                    Column(Modifier.weight(1.2f), verticalArrangement = Arrangement.spacedBy(16.dp)) { tileViews(Modifier.fillMaxWidth()) }
+                }
+            } else {
+                Column(
+                    Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterVertically),
+                ) {
+                    header()
+                    Spacer(Modifier.height(18.dp))
+                    tileViews(Modifier.fillMaxWidth().widthIn(max = 520.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HubTile(t: Tile, modifier: Modifier) {
+    val accent = Pro.Amber
+    Row(
+        modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFF1C1E23), Color(0xFF111215))))
+            .border(1.dp, Brush.linearGradient(listOf(accent.copy(alpha = 0.8f), accent.copy(alpha = 0.1f))), RoundedCornerShape(20.dp))
+            .clickable(onClick = t.onClick)
+            .padding(horizontal = 20.dp, vertical = 22.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier.size(58.dp).clip(RoundedCornerShape(16.dp)).background(accent.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center,
+        ) { Icon(t.icon, contentDescription = null, tint = accent, modifier = Modifier.size(32.dp)) }
+        Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
+            Text(t.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+            Text(t.detail, color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
+        }
+        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = accent)
+    }
+}

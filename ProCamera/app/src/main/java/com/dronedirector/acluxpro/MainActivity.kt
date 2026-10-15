@@ -53,9 +53,15 @@ import com.dronedirector.acluxpro.ui.CameraScreen
 import com.dronedirector.acluxpro.ui.Pro
 import com.dronedirector.acluxpro.ui.ProCamTheme
 
+private val TEST_KEYS = setOf(
+    "mode", "param", "grid", "filter", "filters", "guide", "profile", "live", "nosetup", "peaking", "zebras",
+    "settings", "gallery", "accent", "aspect", "falsecolor", "clean", "screenanalysis", "zebralevel",
+)
+
 class MainActivity : ComponentActivity() {
 
     private lateinit var controller: ProCameraController
+    private val screen = androidx.compose.runtime.mutableStateOf(com.dronedirector.acluxpro.ui.AppScreen.HOME)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,10 +83,43 @@ class MainActivity : ComponentActivity() {
                 ?.let { com.dronedirector.acluxpro.ui.AccentStore.save(applicationContext, it) }
         }
         controller.refreshLastMedia()
+        // The start screen shows on every launch; camera shortcuts and test runs open Capture directly.
+        val direct = intent?.action == android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA ||
+            intent?.action == android.provider.MediaStore.INTENT_ACTION_VIDEO_CAMERA ||
+            (intent?.extras?.keySet()?.any { it in TEST_KEYS } == true)
+        screen.value = when (intent?.getStringExtra("screen")) {
+            "editor" -> com.dronedirector.acluxpro.ui.AppScreen.EDITOR
+            "photo" -> com.dronedirector.acluxpro.ui.AppScreen.PHOTO_EDITOR
+            "video" -> com.dronedirector.acluxpro.ui.AppScreen.VIDEO_EDITOR
+            else -> if (direct) com.dronedirector.acluxpro.ui.AppScreen.CAPTURE else com.dronedirector.acluxpro.ui.AppScreen.HOME
+        }
         setContent {
             ProCamTheme {
-                PermissionGate {
-                    CameraScreen(controller, openSettings, openGallery)
+                val current = screen.value
+                androidx.compose.animation.Crossfade(current, label = "screen") { s ->
+                    when (s) {
+                        com.dronedirector.acluxpro.ui.AppScreen.HOME -> com.dronedirector.acluxpro.ui.HomeScreen(
+                            onCapture = { screen.value = com.dronedirector.acluxpro.ui.AppScreen.CAPTURE },
+                            onEditor = { screen.value = com.dronedirector.acluxpro.ui.AppScreen.EDITOR },
+                        )
+                        com.dronedirector.acluxpro.ui.AppScreen.CAPTURE -> {
+                            androidx.activity.compose.BackHandler { screen.value = com.dronedirector.acluxpro.ui.AppScreen.HOME }
+                            PermissionGate {
+                                CameraScreen(controller, openSettings, openGallery)
+                            }
+                        }
+                        com.dronedirector.acluxpro.ui.AppScreen.EDITOR -> com.dronedirector.acluxpro.ui.EditorHub(
+                            onPhoto = { screen.value = com.dronedirector.acluxpro.ui.AppScreen.PHOTO_EDITOR },
+                            onVideo = { screen.value = com.dronedirector.acluxpro.ui.AppScreen.VIDEO_EDITOR },
+                            onBack = { screen.value = com.dronedirector.acluxpro.ui.AppScreen.HOME },
+                        )
+                        com.dronedirector.acluxpro.ui.AppScreen.PHOTO_EDITOR -> com.dronedirector.acluxpro.editor.PhotoEditorScreen(
+                            onExit = { screen.value = com.dronedirector.acluxpro.ui.AppScreen.EDITOR },
+                        )
+                        com.dronedirector.acluxpro.ui.AppScreen.VIDEO_EDITOR -> com.dronedirector.acluxpro.editor.VideoEditorScreen(
+                            onExit = { screen.value = com.dronedirector.acluxpro.ui.AppScreen.EDITOR },
+                        )
+                    }
                 }
             }
         }
@@ -141,7 +180,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (!::controller.isInitialized) return super.onKeyDown(keyCode, event)
+        if (!::controller.isInitialized || screen.value != com.dronedirector.acluxpro.ui.AppScreen.CAPTURE) return super.onKeyDown(keyCode, event)
         val volume = keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP
         val liveMode = controller.state.value.mode == CaptureMode.LIVE
         if (!liveMode && ((volume && controller.state.value.volumeShutter) || keyCode == KeyEvent.KEYCODE_CAMERA)) {

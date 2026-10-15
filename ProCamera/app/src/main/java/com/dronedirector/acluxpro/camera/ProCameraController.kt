@@ -241,6 +241,21 @@ class ProCameraController(private val context: Context) {
 
     // ---------------------------------------------------------------- lifecycle
 
+    /** Leaving the capture screen (home / editors): release the camera, mic and live stream. */
+    fun detach() {
+        try { if (st.recording) shutter() } catch (_: Throwable) {}
+        startScreenAnalysis(false)
+        audioMeter.stopMonitoring()
+        try { live.close() } catch (_: Throwable) {}
+        try { provider?.unbindAll() } catch (_: Throwable) {}
+        camera = null
+        imageCapture = null
+        videoCapture = null
+        imageAnalysis = null
+        previewView = null
+        set { it.copy(ready = false) }
+    }
+
     fun attach(owner: LifecycleOwner, view: PreviewView) {
         this.owner = owner
         previewView = view

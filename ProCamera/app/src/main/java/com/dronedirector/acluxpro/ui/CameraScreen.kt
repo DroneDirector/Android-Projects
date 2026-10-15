@@ -83,6 +83,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
         }
     }
     LaunchedEffect(previewView) { controller.attach(lifecycleOwner, previewView) }
+    DisposableEffect(Unit) { onDispose { controller.detach() } }
 
     // Keep capture orientation in sync, including 180° flips that don't change the configuration.
     DisposableEffect(view) {

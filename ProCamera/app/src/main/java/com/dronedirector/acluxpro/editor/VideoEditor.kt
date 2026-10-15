@@ -257,6 +257,8 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     var proxyCancel by remember { mutableStateOf<(() -> Unit)?>(null) }
     val renderedFor = remember { mutableStateListOf<String?>(null, null) }
     var playSince by remember { mutableStateOf(0L) }
+    var stallPos by remember { mutableStateOf(-1L) }
+    var stallSince by remember { mutableStateOf(0L) }
     fun sourceFor(c: Clip): Uri {
         val k = c.uri.toString()
         return if (k !in proxyOff) proxies[k] ?: c.uri else c.uri
@@ -476,9 +478,19 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     LaunchedEffect(Unit) {
         while (true) {
             posMs = deck.cur.currentPosition
+            val c0 = clips.getOrNull(current)
             val nowPlaying = deck.cur.isPlaying
             if (nowPlaying && !playing) playSince = System.currentTimeMillis()
             playing = nowPlaying
+            // Frozen (playing but the position stopped moving): reload the clip where it stopped.
+            if (deck.cur.playWhenReady && deck.cur.playbackState != Player.STATE_ENDED && c0 != null && c0.id == loadedId) {
+                val p = deck.cur.currentPosition
+                if (p != stallPos) { stallPos = p; stallSince = System.currentTimeMillis() }
+                else if (System.currentTimeMillis() - stallSince > 2000) {
+                    stallSince = System.currentTimeMillis() + 3000
+                    load(current, p, true)
+                }
+            } else stallSince = System.currentTimeMillis()
             // Safety net: playing but no picture for a while → make a preview copy, or drop the live effects.
             val c = clips.getOrNull(current)
             if (c != null && nowPlaying && renderedFor[deck.active] != c.id && System.currentTimeMillis() - playSince > 2500) {
@@ -508,6 +520,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     // Every frame: crop/zoom/stabilise the picture and play transitions between clips.
     LaunchedEffect(Unit) {
         var was = false
+        var startedFor: String? = null
         fun vol(c: Clip) = if (c.muted || previewMuted) 0f else c.volume.coerceAtMost(1f)
         while (true) {
             androidx.compose.runtime.withFrameNanos { }
@@ -521,10 +534,16 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
             val startT = c.lengthMs - ov
             if (ov > 0 && n != null && preloadedId == n.id && local >= startT && deck.cur.playbackState == Player.STATE_READY) {
                 val p = ((local - startT).toFloat() / ov).coerceIn(0f, 1f)
-                if (deck.cur.isPlaying && !deck.spare.isPlaying) {
-                    deck.spare.seekTo(((local - startT) * n.speed).toLong()); deck.spare.play()
+                // Start the incoming clip once (seeking again while it loads would stall it).
+                if (deck.cur.playWhenReady && !deck.spare.playWhenReady) {
+                    if (startedFor != n.id) {
+                        startedFor = n.id
+                        val want = ((local - startT) * n.speed).toLong()
+                        if (kotlin.math.abs(deck.spare.currentPosition - want) > 250) deck.spare.seekTo(want)
+                    }
+                    deck.spare.play()
                 }
-                if (!deck.cur.isPlaying && deck.spare.isPlaying) deck.spare.pause()
+                if (!deck.cur.playWhenReady && deck.spare.playWhenReady) deck.spare.pause()
                 transitionOn[0] = true
                 texViews[1 - a]?.let { ClipXform.applyToView(it, ClipXform.at(n, n.startMs + deck.spare.currentPosition, motionFor(n))) }
                 frameViews[a]?.let { TransitionPreview.apply(it, c.transition.type, p, false) }
@@ -538,7 +557,8 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                 frameViews[a]?.let { TransitionPreview.reset(it, true) }
                 frameViews[1 - a]?.let { TransitionPreview.reset(it, false) }
                 deck.cur.volume = vol(c)
-                if (deck.spare.isPlaying) { deck.spare.pause(); deck.spare.seekTo(0) }
+                if (deck.spare.playWhenReady) { deck.spare.pause(); deck.spare.seekTo(0) }
+                startedFor = null
             }
         }
     }

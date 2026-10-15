@@ -180,7 +180,6 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     var confirmExit by remember { mutableStateOf(false) }
     var fullscreen by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
-    if (showSettings) EditorSettingsDialog("Video editor", com.dronedirector.acluxpro.ui.AppScreen.VIDEO_EDITOR) { showSettings = false }
     var previewMuted by remember { mutableStateOf(false) }
     val thumbs = remember { mutableStateMapOf<String, Bitmap>() }
     val strips = remember { mutableStateMapOf<String, Filmstrip>() }
@@ -233,6 +232,44 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     }
 
     var effectsOk by remember { mutableStateOf(true) }
+    // Preview proxies (optimized media), keyed by source file.
+    var proxySettings by remember { mutableStateOf(ProxySettings.load(context)) }
+    val proxies = remember { mutableStateMapOf<String, Uri>() }
+    val proxyOff = remember { mutableStateListOf<String>() }          // files the user wants played as originals
+    val proxyQueue = remember { mutableStateListOf<String>() }
+    val proxyProgress = remember { mutableStateMapOf<String, Int>() }
+    var proxyCancel by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val renderedFor = remember { mutableStateListOf<String?>(null, null) }
+    var playSince by remember { mutableStateOf(0L) }
+    fun sourceFor(c: Clip): Uri {
+        val k = c.uri.toString()
+        return if (k !in proxyOff) proxies[k] ?: c.uri else c.uri
+    }
+    fun requestProxy(c: Clip) {
+        val k = c.uri.toString()
+        proxyOff.remove(k)
+        if (proxies[k] == null && k !in proxyQueue) proxyQueue.add(k)
+    }
+    if (showSettings) EditorSettingsDialog(
+        "Video editor", com.dronedirector.acluxpro.ui.AppScreen.VIDEO_EDITOR,
+        extra = {
+            Text("PLAYBACK / PREVIEW COPIES", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
+            Text("Light copies used only for smooth playback with grades and effects. Exports always use your original files.", color = Pro.Dim, fontSize = 12.sp)
+            Chips(ProxyMode.entries.map { it.label }, proxySettings.mode.ordinal) { proxySettings = proxySettings.copy(mode = ProxyMode.entries[it]); ProxySettings.save(context, proxySettings) }
+            Text("Preview codec", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            Chips(listOf("H.264 (most compatible)", "HEVC (smaller)"), if (proxySettings.hevc) 1 else 0) { proxySettings = proxySettings.copy(hevc = it == 1); ProxySettings.save(context, proxySettings) }
+            Text("Preview resolution", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            Chips(listOf("720p (fastest)", "1080p (sharper)"), if (proxySettings.height >= 1080) 1 else 0) { proxySettings = proxySettings.copy(height = if (it == 1) 1080 else 720); ProxySettings.save(context, proxySettings) }
+            var size by remember { mutableStateOf(ProxyMaker.sizeOnDisk(context)) }
+            Text(
+                "DELETE PREVIEW COPIES (${size / 1_000_000} MB)", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp),
+                modifier = Modifier.padding(top = 10.dp).clip(RoundedCornerShape(6.dp)).clickable {
+                    proxyCancel?.invoke(); proxyQueue.clear(); proxyProgress.clear(); proxies.clear()
+                    ProxyMaker.clearAll(context); size = 0
+                }.padding(6.dp),
+            )
+        },
+    ) { showSettings = false }
     var loadedId by remember { mutableStateOf<String?>(null) }
     var videoAspect by remember { mutableStateOf(16f / 9f) }
     // Two players take turns: while one plays, the next clip is loaded and paused on its first
@@ -247,7 +284,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     val aspects = remember { mutableStateListOf(16f / 9f, 16f / 9f) }
     var preloadedId by remember { mutableStateOf<String?>(null) }
 
-    fun mediaItemFor(c: Clip) = MediaItem.Builder().setUri(c.uri).setMediaId(c.id)
+    fun mediaItemFor(c: Clip) = MediaItem.Builder().setUri(sourceFor(c)).setMediaId(c.id)
         .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(c.startMs).setEndPositionMs(c.endMs).build())
         .build()
 
@@ -307,6 +344,10 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                     if (idx == deck.active && state == Player.STATE_ENDED) advance()
                 }
 
+                override fun onRenderedFirstFrame() {
+                    renderedFor[idx] = p.currentMediaItem?.mediaId
+                }
+
                 override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
                     if (videoSize.width > 0 && videoSize.height > 0) {
                         aspects[idx] = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
@@ -331,18 +372,49 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
         onDispose {
             players.forEachIndexed { i, p -> p.removeListener(listeners[i]); p.release() }
             export?.cancel()
+            proxyCancel?.invoke()
         }
     }
 
     BackHandler { if (!exporting) confirmExit = true }
 
     // Reload when the clip under the playhead changes (added, removed, trimmed, reordered).
-    val structure = clips.map { Triple(it.id, it.startMs, it.endMs) }
+    val structure = clips.map { listOf(it.id, it.startMs, it.endMs, sourceFor(it).toString()) }
     LaunchedEffect(structure) {
         if (clips.isEmpty()) { players.forEach { it.stop(); it.clearMediaItems() }; loadedId = null; preloadedId = null; return@LaunchedEffect }
         val idx = clips.indexOfFirst { it.id == loadedId }.takeIf { it >= 0 } ?: current.coerceIn(0, clips.lastIndex)
         load(idx, if (clips[idx].id == loadedId) deck.cur.currentPosition else 0L, deck.cur.playWhenReady && deck.cur.isPlaying)
     }
+    // Decide which files need a preview proxy; reuse ones already made.
+    LaunchedEffect(clips.map { it.uri.toString() }.distinct(), proxySettings) {
+        for (c in clips.toList()) {
+            val k = c.uri.toString()
+            if (proxies[k] != null) continue
+            val existing = ProxyMaker.existing(context, c, proxySettings)
+            if (existing != null) { proxies[k] = existing; continue }
+            if (proxySettings.needsProxy(c) && k !in proxyOff && k !in proxyQueue) proxyQueue.add(k)
+        }
+    }
+    // Make proxies one at a time.
+    val nextProxy = proxyQueue.firstOrNull()
+    LaunchedEffect(nextProxy) {
+        val k = nextProxy ?: return@LaunchedEffect
+        val c = clips.firstOrNull { it.uri.toString() == k }
+        if (c == null) { proxyQueue.remove(k); return@LaunchedEffect }
+        proxyProgress[k] = 0
+        proxyCancel = ProxyMaker.make(
+            context, c, proxySettings,
+            onProgress = { proxyProgress[k] = it },
+            onDone = { uri, err ->
+                proxyProgress.remove(k)
+                proxyQueue.remove(k)
+                proxyCancel = null
+                if (uri != null) { proxies[k] = uri; message = "Preview copy ready — smooth playback for ${c.name}" }
+                else message = err ?: "Couldn't make a preview copy"
+            },
+        )
+    }
+
     // Live grade on the clip being shown.
     val cur = clips.getOrNull(current)
     LaunchedEffect(cur?.grade, cur?.detail, effectsOk) {
@@ -366,7 +438,22 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     LaunchedEffect(Unit) {
         while (true) {
             posMs = deck.cur.currentPosition
-            playing = deck.cur.isPlaying
+            val nowPlaying = deck.cur.isPlaying
+            if (nowPlaying && !playing) playSince = System.currentTimeMillis()
+            playing = nowPlaying
+            // Safety net: playing but no picture for a while → make a preview copy, or drop the live effects.
+            val c = clips.getOrNull(current)
+            if (c != null && nowPlaying && renderedFor[deck.active] != c.id && System.currentTimeMillis() - playSince > 2500) {
+                playSince = System.currentTimeMillis() + 60_000
+                if (proxySettings.mode != ProxyMode.OFF && proxies[c.uri.toString()] == null) {
+                    requestProxy(c)
+                    message = "This clip is too heavy to preview live — making a smooth preview copy…"
+                } else if (effectsOk) {
+                    effectsOk = false
+                    message = "Live effects turned off for the preview; the export still uses them"
+                    load(current, deck.cur.currentPosition, true)
+                }
+            }
             delay(100)
         }
     }
@@ -551,6 +638,18 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                             .background(Color.Black.copy(alpha = 0.5f)).clickable { fullscreen = true },
                         contentAlignment = Alignment.Center,
                     ) { Icon(Icons.Filled.Fullscreen, contentDescription = "Full screen", tint = Color.White) }
+                    clips.getOrNull(current)?.let { cc ->
+                        val k = cc.uri.toString()
+                        val badge = when {
+                            proxyProgress[k] != null -> "MAKING PREVIEW ${proxyProgress[k]}%"
+                            proxies[k] != null && k !in proxyOff -> "PROXY"
+                            else -> null
+                        }
+                        if (badge != null) Text(
+                            badge, style = Pro.Label.copy(color = Color.Black, fontSize = 9.sp),
+                            modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).clip(RoundedCornerShape(4.dp)).background(Pro.Amber).padding(horizontal = 6.dp, vertical = 2.dp),
+                        )
+                    }
                     if (page == Page.COLOR) Scope(scopeHist, Modifier.align(Alignment.TopEnd).padding(8.dp).width(130.dp).height(64.dp))
                     Text(
                         "${tc(globalMs)} / ${tc(totalMs)}",
@@ -618,7 +717,27 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                     Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 4.dp)) {
                         val sc = clips.getOrNull(selected)
                         when (page) {
-                            Page.MEDIA -> MediaPage(clips, onAddGallery, onAddFiles)
+                            Page.MEDIA -> MediaPage(
+                                clips, onAddGallery, onAddFiles,
+                                proxyState = { c ->
+                                    val k = c.uri.toString()
+                                    when {
+                                        proxyProgress[k] != null -> "MAKING PREVIEW ${proxyProgress[k]}%"
+                                        k in proxyQueue -> "PREVIEW QUEUED"
+                                        proxies[k] != null && k !in proxyOff -> "PREVIEW COPY ✓"
+                                        proxies[k] != null -> "PLAYING ORIGINAL"
+                                        else -> null
+                                    }
+                                },
+                                onProxyToggle = { c ->
+                                    val k = c.uri.toString()
+                                    when {
+                                        proxies[k] == null -> requestProxy(c)
+                                        k in proxyOff -> proxyOff.remove(k)
+                                        else -> proxyOff.add(k)
+                                    }
+                                },
+                            )
                             Page.EDIT -> if (sc != null) EditPage(
                                 sc, selected, clips.size, posMs, deliver, { deliver = it },
                                 onChange = { f -> update(selected, f) },
@@ -770,19 +889,45 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
 }
 
 @Composable
-private fun MediaPage(clips: List<Clip>, onAddGallery: () -> Unit, onAddFiles: () -> Unit) {
+private fun MediaPage(
+    clips: List<Clip>, onAddGallery: () -> Unit, onAddFiles: () -> Unit,
+    proxyState: (Clip) -> String?, onProxyToggle: (Clip) -> Unit,
+) {
     SectionTitle("MEDIA POOL")
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         BigButton(Icons.Filled.PhotoLibrary, "Gallery", Modifier.weight(1f), onAddGallery)
         BigButton(Icons.Filled.FolderOpen, "Files (MKV…)", Modifier.weight(1f), onAddFiles)
     }
-    Text("Clips are added to the end of the timeline.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 6.dp))
-    clips.forEachIndexed { i, c ->
-        Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).padding(10.dp)) {
-            Text("${i + 1}", style = Pro.Value.copy(color = Pro.Amber), modifier = Modifier.width(26.dp))
-            Column(Modifier.weight(1f)) {
-                Text(c.name, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${c.width}×${c.height} · ${tc(c.durationMs)}", style = Pro.Label)
+    Text(
+        "Clips are added to the end of the timeline. Heavy clips (HDR, 10-bit, 4K) get a light preview copy so grades and effects play smoothly; exports always use the original files.",
+        color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 6.dp),
+    )
+    clips.distinctBy { it.uri.toString() }.forEachIndexed { i, c ->
+        Column(Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).padding(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("${i + 1}", style = Pro.Value.copy(color = Pro.Amber), modifier = Modifier.width(26.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(c.name, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    val codec = when {
+                        c.mime.contains("hevc") -> "HEVC"; c.mime.contains("avc") -> "H.264"; c.mime.contains("vp9") -> "VP9"
+                        c.mime.contains("av01") -> "AV1"; c.mime.contains("dolby") -> "Dolby Vision"; else -> c.mime.removePrefix("video/").uppercase()
+                    }
+                    Text("${c.width}×${c.height} · ${tc(c.durationMs)} · $codec" + (if (c.hdr) " · HDR" else if (c.tenBit) " · 10-bit" else ""), style = Pro.Label)
+                }
+            }
+            Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                val st = proxyState(c)
+                Text(st ?: "PLAYING ORIGINAL", style = Pro.Label.copy(color = if (st?.startsWith("PREVIEW COPY") == true) Pro.Green else Pro.Dim, fontSize = 10.sp), modifier = Modifier.weight(1f))
+                val action = when {
+                    st == null -> "MAKE PREVIEW COPY"
+                    st.startsWith("PREVIEW COPY") -> "PLAY ORIGINAL"
+                    st == "PLAYING ORIGINAL" -> "USE PREVIEW COPY"
+                    else -> null
+                }
+                if (action != null) Text(
+                    action, style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp),
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { onProxyToggle(c) }.padding(6.dp),
+                )
             }
         }
     }

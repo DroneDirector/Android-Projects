@@ -47,6 +47,10 @@ data class Clip(
     val fadeIn: Boolean = false,
     val grade: ProGrade = ProGrade(),
     val detail: Detail = Detail(),
+    /** Stream facts used to decide on a preview proxy. */
+    val mime: String = "",
+    val hdr: Boolean = false,
+    val tenBit: Boolean = false,
 ) {
     val lengthMs: Long get() = ((endMs - startMs) / speed).toLong().coerceAtLeast(1)
 }
@@ -64,7 +68,8 @@ object ClipLoader {
         val name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
             if (c.moveToFirst()) c.getString(0) else null
         } ?: uri.lastPathSegment ?: "Clip"
-        if (dur <= 0) null else Clip(uri = uri, name = name, durationMs = dur, width = w, height = h)
+        val info = StreamProbe.probe(context, uri)
+        if (dur <= 0) null else Clip(uri = uri, name = name, durationMs = dur, width = w, height = h, mime = info.mime, hdr = info.hdr, tenBit = info.tenBit)
     } catch (_: Throwable) {
         null
     }

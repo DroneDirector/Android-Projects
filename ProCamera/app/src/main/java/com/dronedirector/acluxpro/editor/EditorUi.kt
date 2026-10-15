@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -185,7 +186,12 @@ fun Scope(hist: Array<FloatArray>?, modifier: Modifier = Modifier) {
 
 /** Settings for an editor: currently whether the app should open straight into it. */
 @Composable
-fun EditorSettingsDialog(editorName: String, screen: com.dronedirector.acluxpro.ui.AppScreen, onDismiss: () -> Unit) {
+fun EditorSettingsDialog(
+    editorName: String,
+    screen: com.dronedirector.acluxpro.ui.AppScreen,
+    extra: (@Composable () -> Unit)? = null,
+    onDismiss: () -> Unit,
+) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var always by androidx.compose.runtime.remember {
         androidx.compose.runtime.mutableStateOf(com.dronedirector.acluxpro.ui.StartScreen.get(ctx) == screen)
@@ -195,7 +201,7 @@ fun EditorSettingsDialog(editorName: String, screen: com.dronedirector.acluxpro.
         containerColor = Pro.PanelSolid,
         title = { Text("$editorName settings", color = Color.White) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
                 Text("STARTUP", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp))
                 Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -211,6 +217,7 @@ fun EditorSettingsDialog(editorName: String, screen: com.dronedirector.acluxpro.
                         colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
                     )
                 }
+                if (extra != null) extra()
             }
         },
         confirmButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Done", color = Pro.Amber) } },

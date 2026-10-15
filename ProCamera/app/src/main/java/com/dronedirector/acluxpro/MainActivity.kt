@@ -122,6 +122,7 @@ class MainActivity : ComponentActivity() {
         if (extras.getBoolean("peaking", false)) controller.togglePeaking()
         if (extras.getBoolean("zebras", false)) controller.toggleZebras()
         if (extras.getBoolean("falsecolor", false)) controller.toggleFalseColor()
+        if (extras.getBoolean("screenanalysis", false)) controller.forceScreenAnalysis = true
         if (extras.getBoolean("clean", false)) controller.setCleanFeed(true)
         return extras.getBoolean("settings", false)
     }

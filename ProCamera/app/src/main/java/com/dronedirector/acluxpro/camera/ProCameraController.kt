@@ -529,6 +529,7 @@ class ProCameraController(private val context: Context) {
 
         camera?.cameraInfo?.zoomState?.removeObservers(owner)
         p.unbindAll()
+        startScreenAnalysis(false)
         camera = null
         imageCapture = null
         videoCapture = null
@@ -608,7 +609,7 @@ class ProCameraController(private val context: Context) {
         val attempts = buildList {
             if (effect != null) { add(Attempt(true, true)); add(Attempt(true, false)) }
             add(Attempt(false, true)); add(Attempt(false, false))
-        }
+        }.filter { !forceScreenAnalysis || !it.analysis }
         var bound: Camera? = null
         var withAnalysis = false
         var withEffect = false
@@ -670,15 +671,59 @@ class ProCameraController(private val context: Context) {
         imageCapture = ic
         videoCapture = vc
         imageAnalysis = if (withAnalysis) analysis else null
-        if (!withAnalysis && (s.proHistogram || s.proZebras || s.proPeaking)) {
-            _analysis.value = null
-        }
+        if (!withAnalysis) _analysis.value = null
+        // Without its own analysis stream (common alongside video), read the on-screen picture instead.
+        startScreenAnalysis(!withAnalysis)
 
         bound.cameraInfo.zoomState.observe(owner) { z ->
             _state.update { it.copy(zoom = z.zoomRatio, minZoom = z.minZoomRatio, maxZoom = z.maxZoomRatio) }
         }
         set { it.copy(ready = true) }
         applyControls()
+    }
+
+    private var screenAnalysisJob: kotlinx.coroutines.Job? = null
+    /** Test hook: behave like a phone that can't add an analysis stream. */
+    var forceScreenAnalysis = false
+
+    private fun startScreenAnalysis(on: Boolean) {
+        screenAnalysisJob?.cancel()
+        screenAnalysisJob = null
+        if (!on) return
+        screenAnalysisJob = scope.launch {
+            var busy = false
+            while (true) {
+                delay(70)
+                val cfg = analysisConfig
+                if (!(cfg.histogram || cfg.zebras || cfg.peaking || cfg.falseColor)) {
+                    if (_analysis.value != null) _analysis.value = null
+                    continue
+                }
+                if (busy) continue
+                val view = previewView ?: continue
+                val tv = view.findTextureView() ?: continue
+                if (!tv.isAvailable || tv.width <= 0 || tv.height <= 0) continue
+                // Small copy keeps this cheap: ~360 px on the long side.
+                val scale = 360f / maxOf(tv.width, tv.height)
+                val bw = (tv.width * scale).toInt().coerceAtLeast(16)
+                val bh = (tv.height * scale).toInt().coerceAtLeast(16)
+                val bmp = try { tv.getBitmap(bw, bh) } catch (_: Throwable) { null } ?: continue
+                busy = true
+                analysisExecutor.execute {
+                    analyzer.analyzeBitmap(bmp)
+                    bmp.recycle()
+                    busy = false
+                }
+            }
+        }
+    }
+
+    private fun android.view.View.findTextureView(): android.view.TextureView? {
+        if (this is android.view.TextureView) return this
+        if (this is android.view.ViewGroup) {
+            for (i in 0 until childCount) getChildAt(i).findTextureView()?.let { return it }
+        }
+        return null
     }
 
     private fun flashModeFor(s: CameraUiState): Int = when (s.flash) {

@@ -191,6 +191,15 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     var scopeHist by remember { mutableStateOf<Array<FloatArray>?>(null) }
     val layers = remember { mutableStateListOf<Layer>() }
     var selectedLayer by remember { mutableStateOf<String?>(null) }
+    // Remembered watermark: added to every new project; kept up to date while the option is on.
+    LaunchedEffect(Unit) {
+        if (layers.none { it.kind == LayerKind.WATERMARK || (it.kind == LayerKind.LOGO && it.wholeVideo) }) {
+            WatermarkMemory.load(context, true)?.let { layers.add(it) }
+        }
+    }
+    val wmLayer = layers.firstOrNull { it.kind == LayerKind.WATERMARK } ?: layers.firstOrNull { it.kind == LayerKind.LOGO }
+    val wmOn = WatermarkMemory.isOn(context, true)
+    LaunchedEffect(wmLayer, wmOn) { if (wmOn && wmLayer != null) WatermarkMemory.save(context, true, wmLayer) }
     var music by remember { mutableStateOf<MusicTrack?>(null) }
     val musicFxProc = remember { AudioFxProcessor(live = true) }
     val musicPlayer = remember { fxPlayer(context, musicFxProc) }
@@ -753,6 +762,15 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                                         else -> proxyOff.add(k)
                                     }
                                 },
+                                onRemove = { c ->
+                                    val k = c.uri.toString()
+                                    if (proxyQueue.firstOrNull() == k) { proxyCancel?.invoke(); proxyCancel = null; proxyProgress.remove(k) }
+                                    proxyQueue.remove(k); proxyOff.remove(k)
+                                    clips.removeAll { it.uri.toString() == k }
+                                    selected = selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
+                                    current = current.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
+                                    message = "${c.name} removed from the project"
+                                },
                             )
                             Page.EDIT -> if (sc != null) EditPage(
                                 sc, selected, clips.size, posMs, deliver, { deliver = it },
@@ -907,8 +925,27 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
 @Composable
 private fun MediaPage(
     clips: List<Clip>, onAddGallery: () -> Unit, onAddFiles: () -> Unit,
-    proxyState: (Clip) -> String?, onProxyToggle: (Clip) -> Unit,
+    proxyState: (Clip) -> String?, onProxyToggle: (Clip) -> Unit, onRemove: (Clip) -> Unit,
 ) {
+    var confirm by remember { mutableStateOf<Clip?>(null) }
+    confirm?.let { c ->
+        val uses = clips.count { it.uri == c.uri }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirm = null },
+            containerColor = Pro.PanelSolid,
+            title = { Text("Delete this file?", color = Color.White) },
+            text = {
+                Text(
+                    "Are you sure you want to delete \"${c.name}\" from the media pool?" +
+                        (if (uses > 1) " It is used $uses times on the timeline; all of them will be removed." else " It will also be removed from the timeline.") +
+                        " The original on your phone is kept.",
+                    color = Pro.Dim,
+                )
+            },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { onRemove(c); confirm = null }) { Text("Yes", color = Pro.Red) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirm = null }) { Text("No", color = Pro.Amber) } },
+        )
+    }
     SectionTitle("MEDIA POOL")
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         BigButton(Icons.Filled.PhotoLibrary, "Gallery", Modifier.weight(1f), onAddGallery)
@@ -929,6 +966,9 @@ private fun MediaPage(
                         c.mime.contains("av01") -> "AV1"; c.mime.contains("dolby") -> "Dolby Vision"; else -> c.mime.removePrefix("video/").uppercase()
                     }
                     Text("${c.width}×${c.height} · ${tc(c.durationMs)} · $codec" + (if (c.hdr) " · HDR" else if (c.tenBit) " · 10-bit" else ""), style = Pro.Label)
+                }
+                Box(Modifier.size(36.dp).clip(CircleShape).clickable { confirm = c }, contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Delete, contentDescription = "Delete from media pool", tint = Pro.Red, modifier = Modifier.size(20.dp))
                 }
             }
             Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {

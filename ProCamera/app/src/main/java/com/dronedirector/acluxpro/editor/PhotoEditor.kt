@@ -200,7 +200,7 @@ private fun PhotoWorkspace(uri: Uri, onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
     var base by remember { mutableStateOf<Bitmap?>(null) }
     var preview by remember { mutableStateOf<Bitmap?>(null) }
-    var edit by remember { mutableStateOf(PhotoEdit()) }
+    var edit by remember { mutableStateOf(PhotoEdit(watermark = WatermarkMemory.load(context, false))) }
     var panel by remember { mutableStateOf(PhotoPanel.PRESETS) }
     var comparing by remember { mutableStateOf(false) }
     var showScope by remember { mutableStateOf(true) }
@@ -210,7 +210,9 @@ private fun PhotoWorkspace(uri: Uri, onClose: () -> Unit) {
     var failed by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     if (showSettings) EditorSettingsDialog("Photo editor", com.dronedirector.acluxpro.ui.AppScreen.PHOTO_EDITOR) { showSettings = false }
-    val undo = remember { mutableStateListOf(PhotoEdit()) }
+    val undo = remember { mutableStateListOf(edit) }
+    val wmOn = WatermarkMemory.isOn(context, false)
+    LaunchedEffect(edit.watermark, wmOn) { if (wmOn && edit.watermark != null) WatermarkMemory.save(context, false, edit.watermark) }
     var undoPos by remember { mutableStateOf(0) }
 
     // Export options

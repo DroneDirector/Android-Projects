@@ -483,8 +483,12 @@ class ProCameraController(private val context: Context) {
         else -> if (current in slow || current == fallback) current else slow.maxOrNull() ?: fallback
     }
 
+    /** Re-reads the size list (e.g. after AI upscale is switched on or off). */
+    fun refreshSizes() { refreshPhotoSizes(); bind() }
+
     private fun refreshPhotoSizes(target: Lens? = st.lens) {
         val lens = target ?: return
+        UpscaleSettings.load(context)
         val aspect = st.aspect
         val sizes = PhotoSizes.forCamera(lens.info, aspect)
         val saved = PhotoSizes.load(context, lens.id, aspect)
@@ -1726,6 +1730,7 @@ class ProCameraController(private val context: Context) {
         val ic = imageCapture ?: return false
         val format = ic.outputFormat
         val filter = st.filter
+        val aiMp = if (UpscaleSettings.enabled && !st.isVideo) st.photoSize?.aiMp ?: 0 else 0
         val name = stamp()
         playSound(MediaActionSound.SHUTTER_CLICK)
         set { it.copy(shutterFlash = it.shutterFlash + 1) }
@@ -1744,8 +1749,8 @@ class ProCameraController(private val context: Context) {
                         ioExecutor.execute { Filter.applyToSavedJpeg(context, uri, filter) }
                     }
                     // Optional AI upscale (after any look has been applied to the saved JPEG).
-                    if (uri != null && isJpeg && UpscaleSettings.targetMp > 0) {
-                        ioExecutor.execute { Upscaler.enqueue(context, uri) }
+                    if (uri != null && isJpeg && aiMp > 0) {
+                        ioExecutor.execute { Upscaler.enqueue(context, uri, aiMp) }
                     }
                     if (uri != null && (expected == 1 || isJpeg)) {
                         set { it.copy(lastMedia = uri) }

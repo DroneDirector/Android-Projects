@@ -126,12 +126,12 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             val upCtx = androidx.compose.ui.platform.LocalContext.current
             androidx.compose.runtime.LaunchedEffect(Unit) { com.dronedirector.acluxpro.camera.UpscaleSettings.load(upCtx) }
             val up = com.dronedirector.acluxpro.camera.UpscaleSettings
-            Text(
-                "Off unless you turn it on. After each photo, an on-device AI model (ESRGAN) rebuilds it at a higher resolution in the background and saves it as a new picture (…_AI48MP.jpg). It adds sharper-looking detail but cannot invent detail the lens never captured.",
-                color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
-            ChoiceRow("Upscale to", listOf(0, 24, 36, 48), up.targetMp, { if (it == 0) "OFF" else "$it MP" }) { up.set(upCtx, mp = it) }
-            if (up.targetMp > 0) {
+            ToggleRow(
+                "AI upscale sizes",
+                "Adds AI 24 / 36 / 48 MP to the photo size choices. The built-in AI model (runs on the phone, no internet) rebuilds each photo at the bigger size in the background.",
+                up.enabled,
+            ) { up.set(upCtx, on = !up.enabled); c.refreshSizes() }
+            if (up.enabled) {
                 ChoiceRow("Quality", listOf(false, true), up.high, { if (it) "HIGH" else "STANDARD" }) { up.set(upCtx, hq = it) }
                 Text(
                     if (up.high) "High keeps more real detail but takes several minutes per photo." else "Standard takes roughly 1–2 minutes per photo on a recent phone.",

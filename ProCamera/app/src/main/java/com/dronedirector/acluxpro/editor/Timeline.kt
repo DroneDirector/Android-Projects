@@ -98,9 +98,11 @@ fun TimelineView(
     onSelectClip: (Int) -> Unit,
     onSelectLayer: (String) -> Unit,
     zoom: TimelineZoom,
+    onSelectTransition: (Int) -> Unit = {},
 ) {
     val density = LocalDensity.current
-    val totalMs = clips.sumOf { it.lengthMs }.coerceAtLeast(1)
+    val totalMs = timelineLength(clips).coerceAtLeast(1)
+    val starts = clipStarts(clips)
     // Zoom in pixels per second.
     var pxPerSec by zoom::pxPerSec
     var dragging by remember { mutableStateOf(false) }
@@ -133,6 +135,7 @@ fun TimelineView(
     val curTotal by rememberUpdatedState(totalMs)
     val curSelectClip by rememberUpdatedState(onSelectClip)
     val curSelectLayer by rememberUpdatedState(onSelectLayer)
+    val curSelectTransition by rememberUpdatedState(onSelectTransition)
 
     Column(Modifier.fillMaxWidth().background(Ed.Bg)) {
         // Toolbar
@@ -177,8 +180,15 @@ fun TimelineView(
                             val ms = (currentHead + ((down.position.x - centerX) / pxPerSec * 1000f)).toLong()
                             val y = down.position.y
                             if (y in ruler..(ruler + clipRow)) {
-                                var acc = 0L
-                                curClips.forEachIndexed { i, c -> if (ms in acc until acc + c.lengthMs) curSelectClip(i); acc += c.lengthMs }
+                                val st = clipStarts(curClips)
+                                // A tap on a transition (or near a cut) opens the transition.
+                                val tol = (24f / pxPerSec * 1000f).toLong()
+                                val cut = (0 until curClips.size - 1).firstOrNull { i ->
+                                    val ov = overlapMs(curClips, i)
+                                    ms in (st[i + 1] - tol)..(st[i + 1] + ov + tol) && y > ruler + clipRow * 0.55f
+                                }
+                                if (cut != null) curSelectTransition(cut)
+                                else curSelectClip(clipAt(curClips, ms).first)
                             } else {
                                 var top = ruler + clipRow + gap
                                 for (l in curLayers) {
@@ -214,11 +224,9 @@ fun TimelineView(
                 }
 
                 // V1 clips
-                var acc = 0L
                 val top = ruler
                 clips.forEachIndexed { i, c ->
-                    val x0 = xOf(acc); val x1 = xOf(acc + c.lengthMs)
-                    acc += c.lengthMs
+                    val x0 = xOf(starts[i]); val x1 = xOf(starts[i] + c.lengthMs)
                     if (x1 < 0 || x0 > size.width) return@forEachIndexed
                     val rectW = (x1 - x0).coerceAtLeast(2f)
                     drawRoundRect(Ed.Raised, Offset(x0, top), Size(rectW, clipRow), CornerRadius(6f))
@@ -252,6 +260,33 @@ fun TimelineView(
                         textPaint.textSize = 9.sp.toPx()
                         val label = "${i + 1} ${c.name}" + (if (c.speed != 1f) "  ${c.speed}x" else "") + (if (!c.grade.isIdentity || !c.detail.isZero) "  ●" else "")
                         drawContext.canvas.nativeCanvas.drawText(label.take(40), max(x0, 0f) + 5f, top + clipRow - 5.dp.toPx(), textPaint)
+                    }
+                }
+
+                // Transitions: a marker on every cut (tap to choose one).
+                for (i in 0 until clips.size - 1) {
+                    val ov = overlapMs(clips, i)
+                    val xs = xOf(starts[i + 1]); val xe = xOf(starts[i + 1] + ov)
+                    if (xe < -30 || xs > size.width + 30) continue
+                    val mh = clipRow * 0.4f
+                    val my = top + clipRow - mh - 2f
+                    if (ov > 0) {
+                        drawRoundRect(accent.copy(alpha = 0.85f), Offset(xs, my), Size((xe - xs).coerceAtLeast(10f), mh), CornerRadius(5f))
+                        // bow-tie
+                        val cx = (xs + xe) / 2f; val cy = my + mh / 2f; val r = mh * 0.32f
+                        val path = androidx.compose.ui.graphics.Path().apply {
+                            moveTo(cx - r, cy - r); lineTo(cx + r, cy + r); lineTo(cx + r, cy - r); lineTo(cx - r, cy + r); close()
+                        }
+                        drawPath(path, Color.Black.copy(alpha = 0.75f))
+                        if (xe - xs > 70f) {
+                            textPaint.textSize = 8.sp.toPx()
+                            textPaint.color = android.graphics.Color.BLACK
+                            drawContext.canvas.nativeCanvas.drawText(clips[i].transition.type.label.take(14), xs + 4f, my - 3f + mh, textPaint)
+                            textPaint.color = android.graphics.Color.WHITE
+                        }
+                    } else {
+                        drawCircle(Color.White.copy(alpha = 0.6f), mh * 0.3f, Offset(xs, my + mh / 2f))
+                        drawCircle(Color.Black.copy(alpha = 0.6f), mh * 0.3f, Offset(xs, my + mh / 2f), style = Stroke(2f))
                     }
                 }
 

@@ -46,6 +46,10 @@ data class Clip(
     val muted: Boolean = false,
     val fadeIn: Boolean = false,
     val audio: AudioFx = AudioFx(),
+    /** Transition into the next clip. */
+    val transition: Transition = Transition(),
+    val reframe: Reframe = Reframe(),
+    val stab: Stabilize = Stabilize(),
     val grade: ProGrade = ProGrade(),
     val detail: Detail = Detail(),
     /** Stream facts used to decide on a preview proxy. */
@@ -128,8 +132,12 @@ class TimelineExport(
         val (outW, outH) = outputSize(clips, settings)
         val videoLayers = layers.filter { it.visible && it.kind == LayerKind.VIDEO && it.videoUri != null }
         val layout = if (settings.fill) Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP else Presentation.LAYOUT_SCALE_TO_FIT
-        val totalMs = clips.sumOf { it.lengthMs }
-        val items = clips.map { c ->
+        val totalMs = timelineLength(clips)
+        val starts = clipStarts(clips)
+        val overlaps = LongArray(clips.size) { overlapMs(clips, it) }
+        val ab = overlaps.any { it > 0 }
+        val compositing = videoLayers.isNotEmpty() || ab
+        val items = clips.mapIndexed { i, c ->
             val media = MediaItem.Builder()
                 .setUri(c.uri)
                 .setClippingConfiguration(
@@ -138,11 +146,30 @@ class TimelineExport(
                 .build()
             val audio = mutableListOf<AudioProcessor>()
             val gain = if (c.muted) 0f else c.volume
-            if (gain != 1f || !c.audio.isNeutral) {
-                audio += AudioFxProcessor(c.audio, gain, c.endMs - c.startMs)
+            // Transitions crossfade the sound too.
+            val inMs = if (i > 0) overlaps[i - 1] else 0L
+            val outMs = overlaps[i]
+            val afx = if (inMs > 0 || outMs > 0) c.audio.copy(
+                fadeInMs = maxOf(c.audio.fadeInMs, (inMs * c.speed).toLong()),
+                fadeOutMs = maxOf(c.audio.fadeOutMs, (outMs * c.speed).toLong()),
+            ) else c.audio
+            if (gain != 1f || !afx.isNeutral) {
+                audio += AudioFxProcessor(afx, gain, c.endMs - c.startMs)
             }
-            // With video layers the clips are sized to the project frame before compositing.
-            val video = if (videoLayers.isEmpty()) clipEffects(c) else clipEffects(c) + Presentation.createForWidthAndHeight(outW, outH, layout)
+            val video = mutableListOf<Effect>()
+            val motion = if (c.stab.enabled) Stabilizer.cached(context, c) else null
+            if (!c.reframe.isIdentity || motion != null) video += ReframeEffect(c, motion)
+            video += clipEffects(c)
+            // When compositing, every clip is sized to the project frame first.
+            if (compositing) video += Presentation.createForWidthAndHeight(outW, outH, layout)
+            if (ab) {
+                // A/B roll: even clips on the top track, odd clips underneath.
+                val top = i % 2 == 0
+                val prevT = if (i > 0) clips[i - 1].transition.type else TransitionType.NONE
+                val inMode = if (top && prevT.kind == TransitionKind.MASK) 1 else 0
+                val outMode = if (top && c.transition.type.kind == TransitionKind.MASK) 2 else 0
+                video += TransitionEffect(TransitionWindows(c.lengthMs, prevT, inMs, inMode, c.transition.type, outMs, outMode))
+            }
             val b = EditedMediaItem.Builder(media)
                 .setEffects(Effects(audio, video))
                 .setRemoveAudio(!settings.audio)
@@ -194,10 +221,29 @@ class TimelineExport(
             windows += (startMs * 1000) to ((startMs + lenMs) * 1000)
         }
         val layerSettings = videoLayers.asReversed()
-        sequences += EditedMediaItemSequence.Builder(items).build()
+        val firstTimeline = sequences.size
+        if (!ab) {
+            sequences += EditedMediaItemSequence.Builder(items).build()
+        } else {
+            val types = if (settings.audio) setOf(androidx.media3.common.C.TRACK_TYPE_AUDIO, androidx.media3.common.C.TRACK_TYPE_VIDEO)
+            else setOf(androidx.media3.common.C.TRACK_TYPE_VIDEO)
+            for (parity in 0..1) {
+                val seq = EditedMediaItemSequence.Builder(types)
+                var t = 0L
+                var any = false
+                for (i in clips.indices) {
+                    if (i % 2 != parity) continue
+                    if (starts[i] > t) seq.addGap((starts[i] - t) * 1000)
+                    seq.addItem(items[i]); any = true
+                    t = starts[i] + clips[i].lengthMs
+                }
+                if (totalMs > t) seq.addGap((totalMs - t) * 1000)
+                if (any) sequences += seq.build()
+            }
+        }
+        val abCount = sequences.size - firstTimeline
         val m = music
         if (m != null && settings.audio) {
-            val totalMs = clips.sumOf { it.lengthMs }
             val end = (m.offsetMs + totalMs).coerceAtMost(m.durationMs)
             val musicItem = EditedMediaItem.Builder(
                 MediaItem.Builder().setUri(m.uri)
@@ -218,9 +264,12 @@ class TimelineExport(
         val composition = Composition.Builder(sequences)
             .setEffects(Effects(emptyList(), global))
             .apply {
-                if (videoLayers.isNotEmpty()) setVideoCompositorSettings(object : androidx.media3.common.VideoCompositorSettings {
+                if (compositing) setVideoCompositorSettings(object : androidx.media3.common.VideoCompositorSettings {
                     override fun getOutputSize(inputSizes: List<androidx.media3.common.util.Size>) = androidx.media3.common.util.Size(outW, outH)
                     override fun getOverlaySettings(inputId: Int, presentationTimeUs: Long): androidx.media3.common.OverlaySettings {
+                        if (ab && inputId >= firstTimeline && inputId < firstTimeline + abCount) {
+                            return abSettings(inputId - firstTimeline, presentationTimeUs / 1000, starts, overlaps)
+                        }
                         val l = layerSettings.getOrNull(inputId) ?: return androidx.media3.effect.StaticOverlaySettings.Builder().build()
                         val (s, e) = windows[inputId]
                         val on = presentationTimeUs in s..e
@@ -271,6 +320,34 @@ class TimelineExport(
         poll()
     }
 
+    /** Track A (0, even clips, on top) or B (1): visibility and movement during transitions. */
+    private fun abSettings(track: Int, ms: Long, starts: LongArray, overlaps: LongArray): androidx.media3.common.OverlaySettings {
+        val b = androidx.media3.effect.StaticOverlaySettings.Builder()
+        val i = clips.indices.firstOrNull { it % 2 == track && ms >= starts[it] && ms < starts[it] + clips[it].lengthMs }
+            ?: return b.setAlphaScale(if (track == 1) 1f else 0f).build()
+        var alpha = 1f; var tx = 0f; var ty = 0f
+        val c = clips[i]
+        // Coming in from the previous clip?
+        if (i > 0 && overlaps[i - 1] > 0 && ms < starts[i] + overlaps[i - 1]) {
+            val t = clips[i - 1].transition.type
+            val p = ((ms - starts[i]).toFloat() / overlaps[i - 1]).coerceIn(0f, 1f)
+            if (t.kind == TransitionKind.UNIFORM && track == 0) alpha = TransitionMath.uniformReveal(t, p)
+            if (t.kind == TransitionKind.MOVE) TransitionMath.move(t, p, true).let { tx = it.first; ty = it.second }
+        }
+        // Going out into the next clip?
+        val endOv = overlaps[i]
+        if (endOv > 0 && ms >= starts[i] + c.lengthMs - endOv) {
+            val t = c.transition.type
+            val p = ((ms - (starts[i] + c.lengthMs - endOv)).toFloat() / endOv).coerceIn(0f, 1f)
+            if (t.kind == TransitionKind.UNIFORM && track == 0) alpha = 1f - TransitionMath.uniformReveal(t, p)
+            if (t.kind == TransitionKind.MOVE) TransitionMath.move(t, p, false).let { tx = it.first; ty = it.second }
+        }
+        return b.setAlphaScale(alpha.coerceIn(0f, 1f))
+            .setBackgroundFrameAnchor(tx * 2f, -ty * 2f)
+            .setOverlayFrameAnchor(0f, 0f)
+            .build()
+    }
+
     private fun poll() {
         if (finished) return
         val holder = ProgressHolder()
@@ -289,10 +366,7 @@ class TimelineExport(
 /** Timeline ranges (ms) of clips that ask for the music to be lowered under them. */
 fun duckRanges(clips: List<Clip>): List<LongRange> {
     val out = mutableListOf<LongRange>()
-    var t = 0L
-    for (c in clips) {
-        if (c.audio.duckMusic && !c.muted && c.volume > 0f) out += t until t + c.lengthMs
-        t += c.lengthMs
-    }
+    val s = clipStarts(clips)
+    clips.forEachIndexed { i, c -> if (c.audio.duckMusic && !c.muted && c.volume > 0f) out += s[i] until s[i] + c.lengthMs }
     return out
 }

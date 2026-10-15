@@ -29,8 +29,10 @@ import kotlin.math.sqrt
 /** AI upscale settings (off unless the user turns it on). */
 object UpscaleSettings {
     private const val PREFS = "procam"
-    var targetMp by mutableIntStateOf(0)      // 0 = off, else 24 / 36 / 48
+    var enabled by mutableStateOf(false)     // shows the AI sizes in the photo size picker
         private set
+    /** Size chosen for the current photo (set by the camera from the selected AI size). */
+    var targetMp by mutableIntStateOf(0)
     var high by mutableStateOf(false)         // High quality: slower, keeps more real detail
         private set
     var keepOriginal by mutableStateOf(true)
@@ -40,16 +42,16 @@ object UpscaleSettings {
     fun load(context: Context) {
         if (loaded) return
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        targetMp = p.getInt("ai_upscale_mp", 0)
+        enabled = p.getBoolean("ai_upscale_on", false)
         high = p.getBoolean("ai_upscale_high", false)
         keepOriginal = p.getBoolean("ai_upscale_keep", true)
         loaded = true
     }
 
-    fun set(context: Context, mp: Int = targetMp, hq: Boolean = high, keep: Boolean = keepOriginal) {
-        targetMp = mp; high = hq; keepOriginal = keep
+    fun set(context: Context, on: Boolean = enabled, hq: Boolean = high, keep: Boolean = keepOriginal) {
+        enabled = on; high = hq; keepOriginal = keep
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putInt("ai_upscale_mp", mp).putBoolean("ai_upscale_high", hq).putBoolean("ai_upscale_keep", keep).apply()
+            .putBoolean("ai_upscale_on", on).putBoolean("ai_upscale_high", hq).putBoolean("ai_upscale_keep", keep).apply()
     }
 }
 
@@ -72,8 +74,7 @@ object Upscaler {
     private var tile = 0
     private var modelMissing = false
 
-    fun enqueue(context: Context, uri: Uri) {
-        val mp = UpscaleSettings.targetMp
+    fun enqueue(context: Context, uri: Uri, mp: Int) {
         if (mp <= 0) return
         val app = context.applicationContext
         val hq = UpscaleSettings.high

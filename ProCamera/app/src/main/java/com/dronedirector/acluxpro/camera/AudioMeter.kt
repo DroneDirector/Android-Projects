@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.log10
 import kotlin.math.max
+import kotlin.math.pow
 import kotlin.math.sqrt
 
 /** One snapshot of the audio graph: recent levels (0..1, oldest first) plus current and peak dBFS. */
@@ -35,6 +36,8 @@ class AudioMeter(private val context: Context) {
     val levels: StateFlow<AudioLevels> = _levels.asStateFlow()
 
     @Volatile private var running = false
+    /** Input gain (dB) also applied to the monitoring meter so it matches what will be recorded. */
+    @Volatile var gainDb: Int = 0
     private var thread: Thread? = null
 
     fun hasPermission() =
@@ -67,7 +70,8 @@ class AudioMeter(private val context: Context) {
                     if (n <= 0) continue
                     var sum = 0.0
                     for (i in 0 until n) { val v = buf[i] / 32768.0; sum += v * v }
-                    pushRms(sqrt(sum / n).toFloat())
+                    val g = 10.0.pow(gainDb / 20.0)
+                    pushRms((sqrt(sum / n) * g).coerceAtMost(1.0).toFloat())
                 }
             } catch (_: Throwable) {
             } finally {
@@ -85,6 +89,9 @@ class AudioMeter(private val context: Context) {
 
     /** Amplitude 0..1 from CameraX recording stats. */
     fun pushAmplitude(amplitude: Float) = pushRms(amplitude * 0.7071f)
+
+    /** Level of the processed (gain-adjusted) recording audio. */
+    fun pushProcessed(rms: Float) = pushRms(rms)
 
     fun clear() {
         ring.fill(0f)

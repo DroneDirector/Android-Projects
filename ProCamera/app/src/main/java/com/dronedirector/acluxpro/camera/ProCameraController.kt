@@ -89,6 +89,14 @@ class ProCameraController(private val context: Context) {
     private val _state = MutableStateFlow(
         CameraUiState(
             cameraSounds = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getBoolean("camera_sounds", true),
+            videoCodec = prefEnum(context, "video_codec", VideoCodec.H264),
+            hevcSupported = hevcAvailable(),
+            audioGainDb = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getInt("audio_gain", 0),
+            audioLimiter = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getBoolean("audio_limiter", true),
+            clipNaming = prefEnum(context, "clip_naming", ClipNaming.STANDARD),
+            cameraLetter = (context.getSharedPreferences("procam", Context.MODE_PRIVATE).getString("camera_letter", "A") ?: "A").first(),
+            reel = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getInt("reel", 1),
+            clipNumber = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getInt("clip", 1),
             shutterSoundRequired = android.os.Build.VERSION.SDK_INT >= 33 && MediaActionSound.mustPlayShutterSound(),
         )
     )
@@ -117,6 +125,15 @@ class ProCameraController(private val context: Context) {
     private var filterWarned = false
 
     val audioMeter = AudioMeter(context)
+    @Volatile private var processedAt = 0L
+    private val gainProcessor = AudioGainProcessor { rms ->
+        processedAt = System.currentTimeMillis()
+        audioMeter.pushProcessed(rms)
+    }.also {
+        it.gainDb = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getInt("audio_gain", 0)
+        it.limiter = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getBoolean("audio_limiter", true)
+        audioMeter.gainDb = it.gainDb
+    }
     val live = LiveStreamer(context)
 
     // Panorama capture state (main thread).
@@ -158,6 +175,7 @@ class ProCameraController(private val context: Context) {
             zebras = s.proZebras,
             zebraLevel = s.zebraLevel,
             peaking = s.proPeaking,
+            falseColor = s.proFalseColor,
             mirror = s.isFront,
             motion = s.panoActive,
         )
@@ -645,11 +663,19 @@ class ProCameraController(private val context: Context) {
         return ic
     }
 
+    @SuppressLint("RestrictedApi")
     private fun buildVideoCapture(s: CameraUiState): VideoCapture<Recorder> {
         val q = s.videoRes.quality
         val recorderBuilder = Recorder.Builder()
             .setQualitySelector(QualitySelector.from(q, FallbackStrategy.lowerQualityOrHigherThan(q)))
         if (s.highBitrate) recorderBuilder.setTargetVideoEncodingBitRate(s.videoRes.highBitrate)
+        // 8-bit codec choice; 10-bit HLG is always HEVC and is left to CameraX.
+        val hlg = s.isPro && s.profile == VideoProfile.HLG && s.hlgSupported
+        if (!hlg && s.videoCodec == VideoCodec.HEVC && s.hevcSupported) {
+            try { recorderBuilder.setVideoMimeType(VideoCodec.HEVC.mime) } catch (_: Throwable) {}
+        }
+        // Manual input gain / limiter on the recorded sound.
+        try { recorderBuilder.setAudioProcessors(listOf(gainProcessor)) } catch (_: Throwable) {}
         val recorder = recorderBuilder.build()
 
         val builder = VideoCapture.Builder(recorder)
@@ -930,6 +956,7 @@ class ProCameraController(private val context: Context) {
     fun toggleZebras() = set { it.copy(zebras = !it.zebras) }
     fun setZebraLevel(level: Int) = set { it.copy(zebraLevel = level.coerceIn(70, 100)) }
     fun togglePeaking() = set { it.copy(peaking = !it.peaking) }
+    fun toggleFalseColor() = set { it.copy(falseColor = !it.falseColor) }
     fun toggleVolumeShutter() = set { it.copy(volumeShutter = !it.volumeShutter) }
 
     fun toggleCameraSounds() {
@@ -940,6 +967,67 @@ class ProCameraController(private val context: Context) {
         val on = !st.cameraSounds
         context.getSharedPreferences("procam", Context.MODE_PRIVATE).edit().putBoolean("camera_sounds", on).apply()
         set { it.copy(cameraSounds = on) }
+    }
+
+    private val prefs get() = context.getSharedPreferences("procam", Context.MODE_PRIVATE)
+
+    // ---- codec, audio, clip naming, clean feed
+
+    fun setVideoCodec(codec: VideoCodec) {
+        if (st.recording || st.videoCodec == codec) return
+        if (codec == VideoCodec.HEVC && !st.hevcSupported) {
+            toast("This phone has no HEVC video encoder")
+            return
+        }
+        prefs.edit().putString("video_codec", codec.name).apply()
+        set { it.copy(videoCodec = codec) }
+        if (st.isVideo) bind()
+    }
+
+    fun setAudioGain(db: Int) {
+        val v = db.coerceIn(-12, 24)
+        prefs.edit().putInt("audio_gain", v).apply()
+        gainProcessor.gainDb = v
+        audioMeter.gainDb = v
+        set { it.copy(audioGainDb = v) }
+    }
+
+    fun toggleAudioLimiter() {
+        val on = !st.audioLimiter
+        prefs.edit().putBoolean("audio_limiter", on).apply()
+        gainProcessor.limiter = on
+        set { it.copy(audioLimiter = on) }
+    }
+
+    fun setClipNaming(n: ClipNaming) {
+        prefs.edit().putString("clip_naming", n.name).apply()
+        set { it.copy(clipNaming = n) }
+    }
+
+    fun setCameraLetter(c: Char) {
+        prefs.edit().putString("camera_letter", c.toString()).apply()
+        set { it.copy(cameraLetter = c) }
+    }
+
+    /** A new reel starts again at clip 1. */
+    fun setReel(reel: Int) {
+        val r = reel.coerceIn(1, 999)
+        prefs.edit().putInt("reel", r).putInt("clip", 1).apply()
+        set { it.copy(reel = r, clipNumber = 1) }
+    }
+
+    fun setCleanFeed(on: Boolean) = set { it.copy(cleanFeed = on) }
+
+    /** Base file name (no extension) for a new video clip, advancing the clip counter in cinema naming. */
+    private fun clipName(suffix: String = ""): String {
+        val s = st
+        if (s.clipNaming != ClipNaming.CINEMA) return stamp() + suffix
+        val date = SimpleDateFormat("yyMMdd", Locale.US).format(Date())
+        val name = "%c%03dC%03d_%s_ACLX".format(Locale.US, s.cameraLetter, s.reel, s.clipNumber, date)
+        val next = (s.clipNumber + 1).coerceAtMost(999)
+        prefs.edit().putInt("clip", next).apply()
+        set { it.copy(clipNumber = next) }
+        return name + suffix
     }
 
     /** Plays a camera sound unless the user muted them (never muted where the law requires it). */
@@ -1269,7 +1357,7 @@ class ProCameraController(private val context: Context) {
         val rec = try {
             LapseRecorder(
                 context, w, h, hint, s.storageVolume,
-                "${stamp()}_${if (hyper) "hyperlapse" else "timelapse"}.mp4",
+                "${clipName("_" + if (hyper) "hyperlapse" else "timelapse")}.mp4",
                 intervalMs = s.lapseIntervalMs,
                 everyNth = if (hyper) s.hyperSpeed else 0,
                 zoom = if (hyper && s.lapseStabilize) 0.9f else 1f,
@@ -1567,7 +1655,7 @@ class ProCameraController(private val context: Context) {
     private fun startRecording() {
         val vc = videoCapture ?: return
         val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, "${stamp()}.mp4")
+            put(MediaStore.MediaColumns.DISPLAY_NAME, "${clipName()}.mp4")
             put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
             if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
         }
@@ -1621,7 +1709,8 @@ class ProCameraController(private val context: Context) {
             is VideoRecordEvent.Status -> {
                 val stats = event.recordingStats
                 val amp = try { stats.audioStats.audioAmplitude.toFloat() } catch (_: Throwable) { 0f }
-                audioMeter.pushAmplitude(amp)
+                // With the gain stage active the meter is fed the processed audio instead.
+                if (System.currentTimeMillis() - processedAt > 500) audioMeter.pushAmplitude(amp)
                 set { it.copy(recordSeconds = stats.recordedDurationNanos / 1_000_000_000L, audioLevel = amp) }
             }
             is VideoRecordEvent.Finalize -> {
@@ -1634,7 +1723,7 @@ class ProCameraController(private val context: Context) {
                     set { it.copy(recording = false, paused = false, processing = true) }
                     scope.launch {
                         val out = withContext(Dispatchers.IO) {
-                            SlowMotionRemux.slowDown(context, slowFile, factor, volume, "${stamp()}_slowmo.mp4")
+                            SlowMotionRemux.slowDown(context, slowFile, factor, volume, "${clipName("_slowmo")}.mp4")
                         }
                         set { it.copy(processing = false, lastMedia = out ?: it.lastMedia) }
                         toast(if (out != null) "Slow-motion video saved (%.0f× slower)".format(factor) else "Couldn't save the slow-motion video")
@@ -1660,3 +1749,12 @@ class ProCameraController(private val context: Context) {
         }
     }
 }
+
+private inline fun <reified E : Enum<E>> prefEnum(context: Context, key: String, default: E): E {
+    val name = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getString(key, null) ?: return default
+    return enumValues<E>().firstOrNull { it.name == name } ?: default
+}
+
+@OptIn(androidx.camera.video.ExperimentalMimeTypeApi::class)
+private fun hevcAvailable(): Boolean =
+    try { Recorder.getSupportedVideoMimeTypes().contains(VideoCodec.HEVC.mime) } catch (_: Throwable) { false }

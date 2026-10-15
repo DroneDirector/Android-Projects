@@ -12,6 +12,8 @@ data class AnalysisConfig(
     val zebras: Boolean = false,
     val zebraLevel: Int = 95,
     val peaking: Boolean = false,
+    /** Exposure shown as colour bands (purple/blue = crushed, green = mid grey, pink = skin, yellow/red = clipping). */
+    val falseColor: Boolean = false,
     val mirror: Boolean = false,
     /** Track sideways motion between frames (for panorama). */
     val motion: Boolean = false,
@@ -60,7 +62,7 @@ class FrameAnalyzer(
     private fun process(image: ImageProxy) {
         frame++
         val cfg = config()
-        val wantOverlay = cfg.zebras || cfg.peaking
+        val wantOverlay = cfg.zebras || cfg.peaking || cfg.falseColor
         // Histogram ~10 fps, overlays ~15 fps.
         val doHist = cfg.histogram && frame % 3 == 0L
         val doOverlay = wantOverlay && frame % 2 == 0L
@@ -184,6 +186,20 @@ class FrameAnalyzer(
         return best.toFloat()
     }
 
+    /** IRE-style false colour bands on the 0..255 luma value; in-between tones show as grey. */
+    private fun falseColor(l: Int): Int {
+        val pct = l * 100 / 255
+        return when {
+            pct < 3 -> 0xFF6A1B9A.toInt()       // crushed blacks: purple
+            pct < 10 -> 0xFF1E5BFF.toInt()      // near black: blue
+            pct in 41..48 -> 0xFF2EBD4F.toInt() // middle grey: green
+            pct in 56..64 -> 0xFFFF7FAA.toInt() // skin tones: pink
+            pct in 90..96 -> 0xFFFFE03B.toInt() // near clipping: yellow
+            pct >= 97 -> 0xFFFF2A2A.toInt()     // clipped: red
+            else -> { val g = (l * 0.85f).toInt(); (0xFF shl 24) or (g shl 16) or (g shl 8) or g }
+        }
+    }
+
     private fun buildOverlay(
         cfg: AnalysisConfig, w: Int, h: Int, rowStride: Int, pixStride: Int, rotation: Int,
     ): Bitmap {
@@ -210,7 +226,9 @@ class FrameAnalyzer(
                     val gy = abs(lum(sx, sy + step) - lum(sx, sy - step))
                     if (gx + gy > peakThreshold) c = peakColor
                 }
-                if (c == 0 && cfg.zebras && l >= zebraThreshold) {
+                if (c == 0 && cfg.falseColor) {
+                    c = falseColor(l)
+                } else if (c == 0 && cfg.zebras && l >= zebraThreshold) {
                     c = if (((ox + oy) / 4) % 2 == 0) zebraDark else zebraLight
                 }
                 px[oy * ow + ox] = c

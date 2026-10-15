@@ -87,6 +87,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             ToggleRow("Histogram", "Pro modes: live brightness graph with clipping warnings", s.showHistogram) { c.toggleHistogram() }
             ToggleRow("Level", "Horizon line, turns green when straight", s.showLevel) { c.toggleLevel() }
             ToggleRow("Focus peaking", "Pro modes: highlights in-focus edges in red", s.peaking) { c.togglePeaking() }
+            ToggleRow("False colour", "Pro modes: exposure as colour bands (green = mid grey, pink = skin, red = clipped)", s.falseColor) { c.toggleFalseColor() }
             ToggleRow("Zebras", "Pro modes: stripes over areas brighter than ${s.zebraLevel}%", s.zebras) { c.toggleZebras() }
             if (s.zebras) {
                 Slider(
@@ -121,6 +122,65 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             if (s.stabilizationSupported) {
                 ToggleRow("Stabilization", "Electronic / optical video stabilization", s.stabilization) { c.toggleStabilization() }
             }
+            ChoiceRow(
+                "Codec (8-bit)",
+                if (s.hevcSupported) com.dronedirector.acluxpro.camera.VideoCodec.entries.toList()
+                else listOf(com.dronedirector.acluxpro.camera.VideoCodec.H264),
+                s.videoCodec, { it.label },
+            ) { c.setVideoCodec(it) }
+            Text(
+                (if (s.hevcSupported) "HEVC gives the same quality in about half the space. " else "This phone has no HEVC encoder, so H.264 is used. ") +
+                    (if (s.hlgSupported) "HDR (HLG 10-bit) in Pro Video always records HEVC." else "This camera doesn't offer 10-bit HDR."),
+                color = Pro.Dim, fontSize = 12.sp,
+            )
+
+            Section("AUDIO")
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Input gain", color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                Text(
+                    (if (s.audioGainDb > 0) "+" else "") + "${s.audioGainDb} dB",
+                    style = Pro.Value.copy(color = if (s.audioGainDb != 0) Pro.Amber else Color.White),
+                )
+            }
+            Slider(
+                value = s.audioGainDb.toFloat(),
+                onValueChange = { c.setAudioGain(it.roundToInt()) },
+                valueRange = -12f..24f,
+                steps = 35,
+                colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber),
+            )
+            Text("Raise for quiet sources, lower for loud ones. The audio meter shows the adjusted level.", color = Pro.Dim, fontSize = 12.sp)
+            ToggleRow("Limiter", "Rounds off peaks so loud sounds don't distort", s.audioLimiter) { c.toggleAudioLimiter() }
+
+            Section("CLIP NAMING")
+            com.dronedirector.acluxpro.camera.ClipNaming.entries.forEach { n ->
+                ChoiceRadio(
+                    title = n.label,
+                    subtitle = if (n == com.dronedirector.acluxpro.camera.ClipNaming.CINEMA)
+                        "Film-set style, e.g. ${nextClipName(s)}" else "e.g. PRO_20261015_143005_120.mp4",
+                    selected = s.clipNaming == n,
+                ) { c.setClipNaming(n) }
+            }
+            if (s.clipNaming == com.dronedirector.acluxpro.camera.ClipNaming.CINEMA) {
+                ChoiceRow("Camera", listOf('A', 'B', 'C', 'D', 'E'), s.cameraLetter, { it.toString() }) { c.setCameraLetter(it) }
+                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Reel", color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                    Stepper("%03d".format(s.reel), onMinus = { c.setReel(s.reel - 1) }, onPlus = { c.setReel(s.reel + 1) })
+                }
+                Text("Next clip: ${nextClipName(s)}.mp4 · starting a new reel restarts clips at C001.", color = Pro.Dim, fontSize = 12.sp)
+            }
+
+            Section("OUTPUT")
+            Text(
+                "Clean feed hides every control so only the picture is on screen. Use it with a USB-C to HDMI adapter " +
+                    "(on phones that support video out), screen mirroring or a capture card for a live, clean camera feed. " +
+                    "Double-tap the screen to bring the controls back.",
+                color = Pro.Dim, fontSize = 12.sp,
+            )
+            androidx.compose.material3.TextButton(onClick = {
+                c.setCleanFeed(true)
+                onClose()
+            }) { Text("Start clean feed", color = Pro.Amber) }
 
             Section("APP COLOUR")
             AccentPicker()
@@ -271,4 +331,30 @@ private fun AccentPicker() {
         }
     }
     Spacer(Modifier.size(8.dp))
+}
+
+private fun nextClipName(s: CameraUiState): String {
+    val date = java.text.SimpleDateFormat("yyMMdd", java.util.Locale.US).format(java.util.Date())
+    return "%c%03dC%03d_%s_ACLX".format(java.util.Locale.US, s.cameraLetter, s.reel, s.clipNumber, date)
+}
+
+@Composable
+private fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf("−" to onMinus, "" to {}, "+" to onPlus).forEach { (label, action) ->
+            if (label.isEmpty()) {
+                Text(value, style = Pro.Value.copy(fontSize = 15.sp), modifier = Modifier.padding(horizontal = 6.dp))
+            } else {
+                Text(
+                    label,
+                    style = Pro.Value.copy(fontSize = 16.sp),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color.White.copy(alpha = 0.1f))
+                        .clickable(onClick = action)
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                )
+            }
+        }
+    }
 }

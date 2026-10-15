@@ -91,7 +91,7 @@ class MainActivity : ComponentActivity() {
             "editor" -> com.dronedirector.acluxpro.ui.AppScreen.EDITOR
             "photo" -> com.dronedirector.acluxpro.ui.AppScreen.PHOTO_EDITOR
             "video" -> com.dronedirector.acluxpro.ui.AppScreen.VIDEO_EDITOR
-            else -> if (direct) com.dronedirector.acluxpro.ui.AppScreen.CAPTURE else com.dronedirector.acluxpro.ui.AppScreen.HOME
+            else -> if (direct) com.dronedirector.acluxpro.ui.AppScreen.CAPTURE else com.dronedirector.acluxpro.ui.StartScreen.get(applicationContext)
         }
         setContent {
             ProCamTheme {

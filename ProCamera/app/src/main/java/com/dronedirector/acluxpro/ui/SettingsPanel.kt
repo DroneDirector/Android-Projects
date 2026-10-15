@@ -30,6 +30,8 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -216,6 +218,14 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 OverlayLayout.reset(ctx)
                 c.bumpLayoutVersion()
             }) { Text("Reset overlay positions", color = Pro.Amber) }
+
+            Section("STARTUP")
+            val sctx = androidx.compose.ui.platform.LocalContext.current
+            var alwaysCapture by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(StartScreen.get(sctx) == AppScreen.CAPTURE) }
+            ToggleRow("Always start in Capture", "Skip the start screen and open the camera straight away. Turn off to show the start screen again.", alwaysCapture) {
+                alwaysCapture = !alwaysCapture
+                StartScreen.set(sctx, if (alwaysCapture) AppScreen.CAPTURE else AppScreen.HOME)
+            }
 
             Section("CONTROLS")
             ToggleRow("Volume keys shutter", "Press volume up or down to take a shot", s.volumeShutter) { c.toggleVolumeShutter() }

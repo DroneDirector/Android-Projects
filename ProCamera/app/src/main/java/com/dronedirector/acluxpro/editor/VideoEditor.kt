@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
@@ -178,6 +179,8 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     var export by remember { mutableStateOf<TimelineExport?>(null) }
     var confirmExit by remember { mutableStateOf(false) }
     var fullscreen by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
+    if (showSettings) EditorSettingsDialog("Video editor", com.dronedirector.acluxpro.ui.AppScreen.VIDEO_EDITOR) { showSettings = false }
     var previewMuted by remember { mutableStateOf(false) }
     val thumbs = remember { mutableStateMapOf<String, Bitmap>() }
     val strips = remember { mutableStateMapOf<String, Filmstrip>() }
@@ -729,6 +732,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                         Text("Video editor", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                         Text("${clips.size} CLIPS · ${tc(totalMs)}", style = Pro.Label)
                     }
+                    TopIcon(Icons.Filled.Settings, "Settings") { showSettings = true }
                     Text(
                         "EXPORT", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp),
                         modifier = Modifier.padding(horizontal = 6.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !exporting) { page = Page.DELIVER }.padding(horizontal = 14.dp, vertical = 7.dp),

@@ -18,6 +18,8 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -179,4 +181,38 @@ fun Scope(hist: Array<FloatArray>?, modifier: Modifier = Modifier) {
         // Clipping guides
         drawLine(Color.White.copy(alpha = 0.15f), Offset(size.width / 2, 0f), Offset(size.width / 2, size.height))
     }
+}
+
+/** Settings for an editor: currently whether the app should open straight into it. */
+@Composable
+fun EditorSettingsDialog(editorName: String, screen: com.dronedirector.acluxpro.ui.AppScreen, onDismiss: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var always by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(com.dronedirector.acluxpro.ui.StartScreen.get(ctx) == screen)
+    }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Pro.PanelSolid,
+        title = { Text("$editorName settings", color = Color.White) },
+        text = {
+            Column {
+                Text("STARTUP", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp))
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Always start in $editorName", color = Color.White, fontSize = 15.sp)
+                        Text("Open AcluxPro straight into the $editorName. Turn off to show the start screen again.", color = Pro.Dim, fontSize = 12.sp)
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = always,
+                        onCheckedChange = {
+                            always = it
+                            com.dronedirector.acluxpro.ui.StartScreen.set(ctx, if (it) screen else com.dronedirector.acluxpro.ui.AppScreen.HOME)
+                        },
+                        colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
+                    )
+                }
+            }
+        },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Done", color = Pro.Amber) } },
+    )
 }

@@ -15,8 +15,8 @@ on:
         description: "Publish the APK on the Releases page"
         type: boolean
         default: false
-      skip_screenshots:
-        description: "Skip the emulator screenshot run"
+      screenshots:
+        description: "Also run the emulator screenshot test"
         type: boolean
         default: false
 
@@ -64,7 +64,8 @@ jobs:
 
   screenshots:
     needs: build
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_screenshots) }}
+    # Off by default; only runs when started by hand with "screenshots" ticked.
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.screenshots }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

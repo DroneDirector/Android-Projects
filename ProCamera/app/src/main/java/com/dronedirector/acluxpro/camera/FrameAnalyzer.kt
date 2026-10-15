@@ -59,9 +59,43 @@ class FrameAnalyzer(
         }
     }
 
+    /**
+     * Fallback when the phone can't run a separate analysis stream (common while recording video):
+     * analyses a small copy of what is on screen. It is already upright and mirrored as shown,
+     * so the overlay lines up with the viewfinder as-is.
+     */
+    fun analyzeBitmap(bmp: Bitmap) {
+        try {
+            val w = bmp.width
+            val h = bmp.height
+            val px = IntArray(w * h)
+            bmp.getPixels(px, 0, w, 0, 0, w, h)
+            if (buffer.size < w * h) buffer = ByteArray(w * h)
+            for (i in 0 until w * h) {
+                val c = px[i]
+                val l = (((c shr 16) and 0xFF) * 77 + ((c shr 8) and 0xFF) * 150 + (c and 0xFF) * 29) shr 8
+                buffer[i] = l.toByte()
+            }
+            processLuma(config().copy(mirror = false, motion = false), w, h, w, 1, 0)
+        } catch (_: Throwable) {
+        }
+    }
+
     private fun process(image: ImageProxy) {
+        val cfg0 = config()
+        val wantAny = cfg0.histogram || cfg0.zebras || cfg0.peaking || cfg0.falseColor || cfg0.motion
+        if (!wantAny && lastOverlay == null) return
+        val plane = image.planes[0]
+        val buf = plane.buffer
+        buf.rewind()
+        val size = buf.remaining()
+        if (buffer.size < size) buffer = ByteArray(size)
+        buf.get(buffer, 0, size)
+        processLuma(cfg0, image.width, image.height, plane.rowStride, plane.pixelStride, image.imageInfo.rotationDegrees)
+    }
+
+    private fun processLuma(cfg: AnalysisConfig, w: Int, h: Int, rowStride: Int, pixStride: Int, rotationDegrees: Int) {
         frame++
-        val cfg = config()
         val wantOverlay = cfg.zebras || cfg.peaking || cfg.falseColor
         // Histogram ~10 fps, overlays ~15 fps.
         val doHist = cfg.histogram && frame % 3 == 0L
@@ -74,17 +108,6 @@ class FrameAnalyzer(
             }
             return
         }
-
-        val plane = image.planes[0]
-        val buf = plane.buffer
-        buf.rewind()
-        val size = buf.remaining()
-        if (buffer.size < size) buffer = ByteArray(size)
-        buf.get(buffer, 0, size)
-        val rowStride = plane.rowStride
-        val pixStride = plane.pixelStride
-        val w = image.width
-        val h = image.height
 
         var hist: FloatArray? = lastHist
         var clipHigh = lastClipHigh
@@ -121,14 +144,14 @@ class FrameAnalyzer(
 
         var overlay: Bitmap? = lastOverlay
         if (doOverlay) {
-            overlay = buildOverlay(cfg, w, h, rowStride, pixStride, image.imageInfo.rotationDegrees)
+            overlay = buildOverlay(cfg, w, h, rowStride, pixStride, rotationDegrees)
             lastOverlay = overlay
         } else if (!wantOverlay) {
             overlay = null
             lastOverlay = null
         }
 
-        val motion = if (cfg.motion) estimateMotion(w, h, rowStride, pixStride, image.imageInfo.rotationDegrees) else 0f
+        val motion = if (cfg.motion) estimateMotion(w, h, rowStride, pixStride, rotationDegrees) else 0f
         onResult(AnalysisResult(if (cfg.histogram) hist else null, overlay, clipHigh, clipLow, motion))
     }
 

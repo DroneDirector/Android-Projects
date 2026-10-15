@@ -180,6 +180,14 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
         QuickItem("TIMER", if (s.timerSec == 0) "OFF" else "${s.timerSec}s", active = s.timerSec > 0, enabled = !s.recording) {
             c.setTimer(listOf(0, 3, 5, 10).next(s.timerSec))
         }
+        if (s.audio) {
+            QuickItem("MONITOR", if (s.headphoneMonitor) (if (s.headphones != null) "ON" else "NO HP") else "OFF", active = s.headphoneMonitor && s.headphones != null) { c.toggleHeadphoneMonitor() }
+            if (mode != CaptureMode.PRO_VIDEO) {
+                QuickItem("GAIN", (if (s.audioGainDb > 0) "+" else "") + "${s.audioGainDb}dB", active = s.audioGainDb != 0) {
+                    c.setAudioGain(listOf(-12, -6, 0, 6, 12, 18, 24).let { l -> l.firstOrNull { it > s.audioGainDb } ?: l.first() })
+                }
+            }
+        }
         if (s.stabilizationSupported) {
             QuickItem("STAB", if (s.stabilization) "ON" else "OFF", active = s.stabilization, enabled = !s.recording) { c.toggleStabilization() }
         }

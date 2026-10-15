@@ -92,6 +92,8 @@ class ProCameraController(private val context: Context) {
             hevcSupported = hevcAvailable(),
             audioGainDb = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getInt("audio_gain", 0),
             audioLimiter = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getBoolean("audio_limiter", true),
+            headphoneMonitor = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getBoolean("hp_monitor", false),
+            monitorVolume = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getInt("hp_volume", 80),
             clipNaming = prefEnum(context, "clip_naming", ClipNaming.STANDARD),
             cameraLetter = (context.getSharedPreferences("procam", Context.MODE_PRIVATE).getString("camera_letter", "A") ?: "A").first(),
             reel = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getInt("reel", 1),
@@ -125,8 +127,57 @@ class ProCameraController(private val context: Context) {
 
     val audioMeter = AudioMeter(context)
     init {
-        audioMeter.gainDb = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getInt("audio_gain", 0)
+        val p = context.getSharedPreferences("procam", Context.MODE_PRIVATE)
+        audioMeter.gainDb = p.getInt("audio_gain", 0)
+        audioMeter.limiter = p.getBoolean("audio_limiter", true)
+        audioMeter.monitorVolume = p.getInt("hp_volume", 80) / 100f
     }
+
+    // ---- headphone detection
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+    private val deviceCallback = object : android.media.AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(added: Array<out android.media.AudioDeviceInfo>) = refreshHeadphones()
+        override fun onAudioDevicesRemoved(removed: Array<out android.media.AudioDeviceInfo>) = refreshHeadphones()
+    }
+
+    private fun refreshHeadphones() {
+        val outs = try { audioManager.getDevices(android.media.AudioManager.GET_DEVICES_OUTPUTS).toList() } catch (_: Throwable) { emptyList() }
+        val kind = outs.firstNotNullOfOrNull { d ->
+            when (d.type) {
+                android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES, android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Wired"
+                android.media.AudioDeviceInfo.TYPE_USB_HEADSET -> "USB"
+                android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "Bluetooth"
+                else -> if (android.os.Build.VERSION.SDK_INT >= 31 && d.type == android.media.AudioDeviceInfo.TYPE_BLE_HEADSET) "Bluetooth" else null
+            }
+        }
+        set { it.copy(headphones = kind) }
+        updateMonitorOutput()
+    }
+
+    /** Sound goes to the headphones only when monitoring is on and headphones are present (no speaker feedback). */
+    private fun updateMonitorOutput() {
+        audioMeter.headphones = st.headphoneMonitor && st.headphones != null
+    }
+
+    fun toggleHeadphoneMonitor() {
+        val on = !st.headphoneMonitor
+        prefs.edit().putBoolean("hp_monitor", on).apply()
+        set { it.copy(headphoneMonitor = on) }
+        updateMonitorOutput()
+        if (on && st.headphones == null) toast("Connect headphones to listen")
+    }
+
+    fun setMonitorVolume(v: Int) {
+        val x = v.coerceIn(0, 100)
+        prefs.edit().putInt("hp_volume", x).apply()
+        audioMeter.monitorVolume = x / 100f
+        set { it.copy(monitorVolume = x) }
+    }
+
+    /** Whether the microphone monitor should keep running while a clip records. */
+    val monitorWhileRecording: Boolean get() = st.headphoneMonitor && st.headphones != null
+    private var monitorSilencedWarned = false
+    private var deviceCallbackRegistered = false
     /** Whether the clip being recorded has a sound track (so the gain stage applies). */
     private var recordingHasAudio = false
     val live = LiveStreamer(context)
@@ -194,6 +245,11 @@ class ProCameraController(private val context: Context) {
         this.owner = owner
         previewView = view
         refreshStorage()
+        if (!deviceCallbackRegistered) {
+            deviceCallbackRegistered = true
+            try { audioManager.registerAudioDeviceCallback(deviceCallback, null) } catch (_: Throwable) {}
+        }
+        refreshHeadphones()
         if (provider != null) {
             bind()
             return
@@ -221,6 +277,8 @@ class ProCameraController(private val context: Context) {
     }
 
     fun release() {
+        try { audioManager.unregisterAudioDeviceCallback(deviceCallback) } catch (_: Throwable) {}
+        deviceCallbackRegistered = false
         live.close()
         audioMeter.stopMonitoring()
         filterProcessor.release()
@@ -987,6 +1045,7 @@ class ProCameraController(private val context: Context) {
     fun toggleAudioLimiter() {
         val on = !st.audioLimiter
         prefs.edit().putBoolean("audio_limiter", on).apply()
+        audioMeter.limiter = on
         set { it.copy(audioLimiter = on) }
     }
 
@@ -1650,7 +1709,8 @@ class ProCameraController(private val context: Context) {
             put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
             if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
         }
-        audioMeter.stopMonitoring()
+        if (!monitorWhileRecording) audioMeter.stopMonitoring()
+        monitorSilencedWarned = false
         val s0 = st
         // Slow motion without high-speed support: film at 60 fps, then stretch to half speed.
         val stretch = s0.mode.isSlowMo && s0.slowFps in 1..99
@@ -1701,8 +1761,22 @@ class ProCameraController(private val context: Context) {
             is VideoRecordEvent.Status -> {
                 val stats = event.recordingStats
                 val amp = try { stats.audioStats.audioAmplitude.toFloat() } catch (_: Throwable) { 0f }
-                // Show the level with the input gain applied, matching the finished clip.
-                audioMeter.pushAmplitude((amp * 10f.pow(st.audioGainDb / 20f)).coerceAtMost(1f))
+                val audioState = try { stats.audioStats.audioState } catch (_: Throwable) { -1 }
+                if (audioMeter.isRunning && audioState == androidx.camera.video.AudioStats.AUDIO_STATE_SOURCE_SILENCED) {
+                    // Android gave the microphone to the monitor instead of the recording: hand it back.
+                    audioMeter.stopMonitoring()
+                    toast("Headphone monitoring paused: this phone can't share the microphone while recording")
+                }
+                if (audioMeter.isRunning && !audioMeter.silenced) {
+                    // The headphone monitor already feeds the meter with the gain applied.
+                } else {
+                    if (audioMeter.isRunning && audioMeter.silenced && !monitorSilencedWarned) {
+                        monitorSilencedWarned = true
+                        toast("This phone mutes headphone monitoring while recording; the clip still records sound")
+                    }
+                    // Show the level with the input gain applied, matching the finished clip.
+                    audioMeter.pushAmplitude((amp * 10f.pow(st.audioGainDb / 20f)).coerceAtMost(1f))
+                }
                 set { it.copy(recordSeconds = stats.recordedDurationNanos / 1_000_000_000L, audioLevel = amp) }
             }
             is VideoRecordEvent.Finalize -> {

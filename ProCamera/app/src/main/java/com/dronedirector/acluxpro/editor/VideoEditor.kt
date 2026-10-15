@@ -232,62 +232,103 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     var effectsOk by remember { mutableStateOf(true) }
     var loadedId by remember { mutableStateOf<String?>(null) }
     var videoAspect by remember { mutableStateOf(16f / 9f) }
-    val player = remember { ExoPlayer.Builder(context).build().apply { repeatMode = Player.REPEAT_MODE_OFF } }
+    // Two players take turns: while one plays, the next clip is loaded and paused on its first
+    // frame in the other, so the cut to the next clip is seamless.
+    val players = remember {
+        listOf(
+            ExoPlayer.Builder(context).build().apply { repeatMode = Player.REPEAT_MODE_OFF },
+            ExoPlayer.Builder(context).build().apply { repeatMode = Player.REPEAT_MODE_OFF },
+        )
+    }
+    val deck = remember { Deck(players) }
+    val aspects = remember { mutableStateListOf(16f / 9f, 16f / 9f) }
+    var preloadedId by remember { mutableStateOf<String?>(null) }
 
-    /**
-     * The preview plays one clip at a time (the timeline advances clip by clip). Effects are set
-     * before each prepare, which is the most reliable way across phones.
-     */
+    fun mediaItemFor(c: Clip) = MediaItem.Builder().setUri(c.uri).setMediaId(c.id)
+        .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(c.startMs).setEndPositionMs(c.endMs).build())
+        .build()
+
+    fun prepareOn(p: ExoPlayer, c: Clip, startMs: Long, play: Boolean) {
+        p.stop()
+        try { p.setVideoEffects(if (effectsOk) clipEffects(c) else emptyList()) } catch (_: Throwable) { effectsOk = false }
+        p.setMediaItem(mediaItemFor(c), startMs.coerceAtLeast(0))
+        p.playbackParameters = PlaybackParameters(c.speed)
+        p.volume = if (c.muted || previewMuted) 0f else c.volume.coerceAtMost(1f)
+        p.playWhenReady = play
+        p.prepare()
+    }
+
+    /** Loads the clip after [index] into the spare player, paused on its first frame. */
+    fun preloadAfter(index: Int) {
+        val n = clips.getOrNull(index + 1)
+        if (n == null) { deck.spare.stop(); preloadedId = null; return }
+        prepareOn(deck.spare, n, 0, false)
+        preloadedId = n.id
+    }
+
     fun load(index: Int, startMs: Long, play: Boolean) {
         val c = clips.getOrNull(index) ?: return
         current = index
         loadedId = c.id
-        player.stop()
-        try {
-            player.setVideoEffects(if (effectsOk) clipEffects(c) else emptyList())
-        } catch (_: Throwable) {
-            effectsOk = false
+        prepareOn(deck.cur, c, startMs, play)
+        videoAspect = aspects[deck.active]
+        preloadAfter(index)
+    }
+
+    /** End of a clip: switch to the preloaded next clip instantly. */
+    fun advance() {
+        val next = current + 1
+        val n = clips.getOrNull(next)
+        if (n == null) { deck.cur.playWhenReady = false; return }
+        if (preloadedId == n.id && deck.spare.playbackState != Player.STATE_IDLE) {
+            val old = deck.cur
+            deck.active = 1 - deck.active
+            current = next
+            loadedId = n.id
+            videoAspect = aspects[deck.active]
+            deck.cur.playbackParameters = PlaybackParameters(n.speed)
+            deck.cur.volume = if (n.muted || previewMuted) 0f else n.volume.coerceAtMost(1f)
+            deck.cur.play()
+            old.pause()
+            // Get the following clip ready in the player we just left.
+            preloadAfter(next)
+        } else {
+            load(next, 0, true)
         }
-        player.setMediaItem(
-            MediaItem.Builder().setUri(c.uri).setMediaId(c.id)
-                .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(c.startMs).setEndPositionMs(c.endMs).build())
-                .build(),
-            startMs.coerceAtLeast(0),
-        )
-        player.playbackParameters = PlaybackParameters(c.speed)
-        player.volume = if (c.muted || previewMuted) 0f else c.volume.coerceAtMost(1f)
-        player.playWhenReady = play
-        player.prepare()
     }
 
     DisposableEffect(Unit) {
-        val listener = object : Player.Listener {
-            override fun onPlaybackStateChanged(state: Int) {
-                if (state == Player.STATE_ENDED) {
-                    if (current < clips.lastIndex) load(current + 1, 0, true) else player.playWhenReady = false
+        val listeners = players.mapIndexed { idx, p ->
+            object : Player.Listener {
+                override fun onPlaybackStateChanged(state: Int) {
+                    if (idx == deck.active && state == Player.STATE_ENDED) advance()
                 }
-            }
 
-            override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
-                if (videoSize.width > 0 && videoSize.height > 0) {
-                    videoAspect = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
+                override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
+                    if (videoSize.width > 0 && videoSize.height > 0) {
+                        aspects[idx] = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
+                        if (idx == deck.active) videoAspect = aspects[idx]
+                    }
                 }
-            }
 
-            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                val pos = player.currentPosition
-                if (effectsOk) {
-                    // The phone's GPU preview pipeline failed: keep previewing without the live grade.
-                    effectsOk = false
-                    message = "Live grade preview isn't supported here — the grade is still applied on export"
-                    load(current, pos, player.playWhenReady)
-                } else {
-                    message = "Can't play this clip on this phone (${error.errorCodeName})"
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    if (idx != deck.active) { preloadedId = null; return }
+                    val pos = p.currentPosition
+                    if (effectsOk) {
+                        // The phone's GPU preview pipeline failed: keep previewing without the live grade.
+                        effectsOk = false
+                        message = "Live grade preview isn't supported here — the grade is still applied on export"
+                        load(current, pos, p.playWhenReady)
+                    } else {
+                        message = "Can't play this clip on this phone (${error.errorCodeName})"
+                    }
                 }
-            }
+            }.also { p.addListener(it) }
         }
-        player.addListener(listener)
-        onDispose { player.removeListener(listener); export?.cancel(); player.release() }
+        onDispose {
+            players.forEachIndexed { i, p -> p.removeListener(listeners[i]); p.release() }
+            export?.cancel()
+        }
     }
 
     BackHandler { if (!exporting) confirmExit = true }
@@ -295,9 +336,9 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     // Reload when the clip under the playhead changes (added, removed, trimmed, reordered).
     val structure = clips.map { Triple(it.id, it.startMs, it.endMs) }
     LaunchedEffect(structure) {
-        if (clips.isEmpty()) { player.stop(); player.clearMediaItems(); loadedId = null; return@LaunchedEffect }
+        if (clips.isEmpty()) { players.forEach { it.stop(); it.clearMediaItems() }; loadedId = null; preloadedId = null; return@LaunchedEffect }
         val idx = clips.indexOfFirst { it.id == loadedId }.takeIf { it >= 0 } ?: current.coerceIn(0, clips.lastIndex)
-        load(idx, if (clips[idx].id == loadedId) player.currentPosition else 0L, player.playWhenReady && player.isPlaying)
+        load(idx, if (clips[idx].id == loadedId) deck.cur.currentPosition else 0L, deck.cur.playWhenReady && deck.cur.isPlaying)
     }
     // Live grade on the clip being shown.
     val cur = clips.getOrNull(current)
@@ -305,19 +346,24 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
         delay(60)
         val c = cur ?: return@LaunchedEffect
         if (effectsOk && c.id == loadedId) {
-            try { player.setVideoEffects(clipEffects(c)) } catch (_: Throwable) { effectsOk = false }
+            try { deck.cur.setVideoEffects(clipEffects(c)) } catch (_: Throwable) { effectsOk = false }
         }
+    }
+    val nextClip = clips.getOrNull(current + 1)
+    LaunchedEffect(nextClip?.id, nextClip?.grade, nextClip?.detail, nextClip?.startMs, nextClip?.endMs) {
+        delay(150)
+        if (clips.isNotEmpty()) preloadAfter(current)
     }
     LaunchedEffect(cur?.speed, cur?.volume, cur?.muted, previewMuted) {
         cur?.let {
-            player.playbackParameters = PlaybackParameters(it.speed)
-            player.volume = if (it.muted || previewMuted) 0f else it.volume.coerceAtMost(1f)
+            deck.cur.playbackParameters = PlaybackParameters(it.speed)
+            deck.cur.volume = if (it.muted || previewMuted) 0f else it.volume.coerceAtMost(1f)
         }
     }
     LaunchedEffect(Unit) {
         while (true) {
-            posMs = player.currentPosition
-            playing = player.isPlaying
+            posMs = deck.cur.currentPosition
+            playing = deck.cur.isPlaying
             delay(100)
         }
     }
@@ -329,7 +375,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
         if (!playing) { musicPlayer.pause(); return@LaunchedEffect }
         while (true) {
             val before = clips.take(current.coerceAtMost(clips.size)).sumOf { it.lengthMs }
-            val g = before + (player.currentPosition / (clips.getOrNull(current)?.speed ?: 1f)).toLong()
+            val g = before + (deck.cur.currentPosition / (clips.getOrNull(current)?.speed ?: 1f)).toLong()
             val want = m.offsetMs + g
             if (want >= m.durationMs) { musicPlayer.pause() } else {
                 if (kotlin.math.abs(musicPlayer.currentPosition - want) > 350) musicPlayer.seekTo(want)
@@ -397,7 +443,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
         clips.forEachIndexed { i, c ->
             if (ms < acc + c.lengthMs || i == clips.lastIndex) {
                 val off = ((ms - acc).coerceAtLeast(0) * c.speed).toLong()
-                if (i == current && loadedId == c.id) player.seekTo(off) else load(i, off, player.isPlaying)
+                if (i == current && loadedId == c.id) deck.cur.seekTo(off) else load(i, off, deck.cur.isPlaying)
                 return
             }
             acc += c.lengthMs
@@ -409,7 +455,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     /** Blade: cut the clip under the playhead at the exact frame shown. */
     fun splitAtPlayhead() {
         val c = clips.getOrNull(current) ?: return
-        val cut = c.startMs + player.currentPosition
+        val cut = c.startMs + deck.cur.currentPosition
         if (cut <= c.startMs + 100 || cut >= c.endMs - 100) {
             message = "Move the playhead inside a clip to split"
             return
@@ -426,14 +472,14 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
         val now = System.currentTimeMillis()
         if (!final && now - lastScrub < 60) return
         lastScrub = now
-        if (player.isPlaying && !final) player.pause()
-        player.setSeekParameters(if (final) androidx.media3.exoplayer.SeekParameters.EXACT else androidx.media3.exoplayer.SeekParameters.CLOSEST_SYNC)
+        if (deck.cur.isPlaying && !final) deck.cur.pause()
+        deck.cur.setSeekParameters(if (final) androidx.media3.exoplayer.SeekParameters.EXACT else androidx.media3.exoplayer.SeekParameters.CLOSEST_SYNC)
         seekGlobal(ms)
     }
 
     fun startExport() {
         if (exporting || clips.isEmpty()) return
-        player.pause()
+        deck.cur.pause()
         exporting = true
         progress = 0
         val e = TimelineExport(
@@ -463,15 +509,23 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                         Box(Modifier.width(fw).height(fh).clipToBounds().background(Color.Black)) {
                             AndroidView(
                                 factory = { ctx ->
-                                    AspectRatioFrameLayout(ctx).apply {
-                                        val tv = android.view.TextureView(ctx)
-                                        addView(tv, android.widget.FrameLayout.LayoutParams(-1, -1, android.view.Gravity.CENTER))
-                                        player.setVideoTextureView(tv)
+                                    android.widget.FrameLayout(ctx).apply {
+                                        players.forEach { p ->
+                                            val frame = AspectRatioFrameLayout(ctx)
+                                            val tv = android.view.TextureView(ctx)
+                                            frame.addView(tv, android.widget.FrameLayout.LayoutParams(-1, -1, android.view.Gravity.CENTER))
+                                            addView(frame, android.widget.FrameLayout.LayoutParams(-1, -1, android.view.Gravity.CENTER))
+                                            p.setVideoTextureView(tv)
+                                        }
                                     }
                                 },
-                                update = {
-                                    it.resizeMode = if (deliver.fill) AspectRatioFrameLayout.RESIZE_MODE_ZOOM else AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                    it.setAspectRatio(videoAspect)
+                                update = { root ->
+                                    for (i in 0..1) {
+                                        val frame = root.getChildAt(i) as AspectRatioFrameLayout
+                                        frame.resizeMode = if (deliver.fill) AspectRatioFrameLayout.RESIZE_MODE_ZOOM else AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                        frame.setAspectRatio(aspects[i])
+                                        frame.alpha = if (i == deck.active) 1f else 0f
+                                    }
                                 },
                                 modifier = Modifier.fillMaxSize(),
                             )
@@ -514,16 +568,16 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
             }
 
             fun togglePlay() {
-                if (player.isPlaying) player.pause() else {
+                if (deck.cur.isPlaying) deck.cur.pause() else {
                     when {
-                        player.playbackState == Player.STATE_ENDED && current == clips.lastIndex -> load(0, 0, true)
-                        player.playbackState == Player.STATE_IDLE -> load(current, posMs, true)
-                        else -> player.play()
+                        deck.cur.playbackState == Player.STATE_ENDED && current == clips.lastIndex -> load(0, 0, true)
+                        deck.cur.playbackState == Player.STATE_IDLE -> load(current, posMs, true)
+                        else -> deck.cur.play()
                     }
                 }
             }
-            fun prevClip() { if (player.currentPosition > 1500 || current == 0) player.seekTo(0) else load(current - 1, 0, player.isPlaying) }
-            fun nextClip() { if (current < clips.lastIndex) load(current + 1, 0, player.isPlaying) }
+            fun prevClip() { if (deck.cur.currentPosition > 1500 || current == 0) deck.cur.seekTo(0) else load(current - 1, 0, deck.cur.isPlaying) }
+            fun nextClip() { if (current < clips.lastIndex) load(current + 1, 0, deck.cur.isPlaying) }
 
             val transport = @Composable {
                 Column(Modifier.fillMaxWidth().background(Ed.Panel).padding(horizontal = 8.dp)) {
@@ -1139,4 +1193,11 @@ private fun RoundControl(icon: androidx.compose.ui.graphics.vector.ImageVector, 
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Icon(icon, contentDescription = label, tint = if (accent) Color.Black else Color.White, modifier = Modifier.size(size * 0.55f)) }
+}
+
+/** The two preview players and which one is on screen. */
+private class Deck(val players: List<ExoPlayer>) {
+    var active by mutableStateOf(0)
+    val cur: ExoPlayer get() = players[active]
+    val spare: ExoPlayer get() = players[1 - active]
 }

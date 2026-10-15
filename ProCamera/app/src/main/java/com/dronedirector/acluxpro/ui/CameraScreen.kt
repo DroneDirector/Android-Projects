@@ -1,5 +1,13 @@
 package com.dronedirector.acluxpro.ui
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.foundation.border
 import android.content.Context
 import android.hardware.display.DisplayManager
 import android.view.ViewGroup
@@ -496,11 +504,88 @@ private fun FalseColorLegend(modifier: Modifier = Modifier) {
 @Composable
 private fun UpscaleBadge(modifier: Modifier) {
     val n = com.dronedirector.acluxpro.camera.Upscaler.pending
-    if (n <= 0) return
-    val p = com.dronedirector.acluxpro.camera.Upscaler.progress
-    Text(
-        "AI UPSCALE" + (if (n > 1) " · $n" else "") + " · $p%",
-        style = Pro.Label.copy(color = androidx.compose.ui.graphics.Color.Black, fontSize = 10.sp),
-        modifier = modifier.padding(top = 64.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(50)).background(Pro.Amber).padding(horizontal = 10.dp, vertical = 4.dp),
-    )
+    androidx.compose.animation.AnimatedVisibility(
+        visible = n > 0,
+        modifier = modifier,
+        enter = androidx.compose.animation.slideInVertically { -it * 2 } + androidx.compose.animation.fadeIn() +
+            androidx.compose.animation.scaleIn(initialScale = 0.7f),
+        exit = androidx.compose.animation.slideOutVertically { -it * 2 } + androidx.compose.animation.fadeOut(),
+    ) {
+        UpscaleBadgeContent(n.coerceAtLeast(1), com.dronedirector.acluxpro.camera.Upscaler.progress)
+    }
+}
+
+@Composable
+private fun UpscaleBadgeContent(count: Int, progress: Int) {
+    val accent = Pro.Amber
+    val shown by androidx.compose.animation.core.animateIntAsState(progress, androidx.compose.animation.core.tween(500), label = "pct")
+    val sweep by androidx.compose.animation.core.animateFloatAsState(progress / 100f, androidx.compose.animation.core.tween(500), label = "sweep")
+    val inf = androidx.compose.animation.core.rememberInfiniteTransition(label = "ai")
+    val spin by inf.animateFloat(0f, 360f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(1400, easing = androidx.compose.animation.core.LinearEasing)), label = "spin")
+    val shimmer by inf.animateFloat(-1f, 2f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(1800, easing = androidx.compose.animation.core.LinearEasing)), label = "shimmer")
+    val pulse by inf.animateFloat(0.75f, 1.15f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(700), androidx.compose.animation.core.RepeatMode.Reverse), label = "pulse")
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(50)
+    androidx.compose.foundation.layout.Row(
+        Modifier
+            .padding(top = 62.dp)
+            .clip(shape)
+            .background(androidx.compose.ui.graphics.Color(0xE6101114))
+            .border(1.5.dp, androidx.compose.ui.graphics.Brush.sweepGradient(listOf(accent, accent.copy(alpha = 0.15f), accent)), shape)
+            .drawWithContent {
+                drawContent()
+                // A light sweep gliding across the badge.
+                val x = size.width * shimmer
+                drawRect(
+                    androidx.compose.ui.graphics.Brush.linearGradient(
+                        listOf(androidx.compose.ui.graphics.Color.Transparent, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.16f), androidx.compose.ui.graphics.Color.Transparent),
+                        start = androidx.compose.ui.geometry.Offset(x - size.height * 2, 0f),
+                        end = androidx.compose.ui.geometry.Offset(x, size.height),
+                    )
+                )
+            }
+            .padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Progress ring with a spinning glow and a pulsing sparkle in the middle.
+        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                val stroke = 4.dp.toPx()
+                val inset = stroke / 2 + 1f
+                val arcSize = androidx.compose.ui.geometry.Size(size.width - inset * 2, size.height - inset * 2)
+                val tl = androidx.compose.ui.geometry.Offset(inset, inset)
+                drawArc(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.12f), 0f, 360f, false, tl, arcSize, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke))
+                drawArc(
+                    androidx.compose.ui.graphics.Brush.sweepGradient(listOf(accent.copy(alpha = 0.5f), accent, androidx.compose.ui.graphics.Color.White)),
+                    -90f, 360f * sweep.coerceAtLeast(0.02f), false, tl, arcSize,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round),
+                )
+                rotate(spin) {
+                    drawArc(accent.copy(alpha = 0.35f), 0f, 40f, false, tl, arcSize, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke * 0.6f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                }
+            }
+            Icon(
+                Icons.Filled.AutoAwesome, contentDescription = null, tint = accent,
+                modifier = Modifier.size(18.dp).graphicsLayer { scaleX = pulse; scaleY = pulse },
+            )
+        }
+        Column(Modifier.padding(start = 10.dp)) {
+            Text(
+                "AI UPSCALING" + if (count > 1) " · $count PHOTOS" else "",
+                style = Pro.Label.copy(color = accent, fontSize = 10.sp, letterSpacing = 1.5.sp),
+            )
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    "$shown",
+                    color = androidx.compose.ui.graphics.Color.White, fontSize = 22.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Black,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                )
+                Text(
+                    "%", color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f), fontSize = 13.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    modifier = Modifier.padding(start = 2.dp, bottom = 3.dp),
+                )
+            }
+        }
+    }
 }

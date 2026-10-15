@@ -241,6 +241,25 @@ fun EditorSettingsDialog(
                         modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { SaveFolder.set(ctx, video, null); folder = null }.padding(6.dp),
                     )
                 }
+                if (screen != com.dronedirector.acluxpro.ui.AppScreen.EDITOR) {
+                    val v = screen == com.dronedirector.acluxpro.ui.AppScreen.VIDEO_EDITOR
+                    Text("WATERMARK", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
+                    Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Remember watermark", color = Color.White, fontSize = 15.sp)
+                            Text(
+                                "Keeps your last watermark (text or logo, font, colour, size, position, opacity) and adds it to every new " +
+                                    (if (v) "video" else "photo") + " automatically.",
+                                color = Pro.Dim, fontSize = 12.sp,
+                            )
+                        }
+                        androidx.compose.material3.Switch(
+                            checked = WatermarkMemory.isOn(ctx, v),
+                            onCheckedChange = { WatermarkMemory.setOn(ctx, v, it) },
+                            colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
+                        )
+                    }
+                }
                 if (extra != null) extra()
             }
         },

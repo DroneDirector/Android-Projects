@@ -125,7 +125,11 @@ fun PhotoEditorScreen(onExit: () -> Unit) {
         )
     } else {
         androidx.compose.runtime.key(src, project?.id) {
-            PhotoWorkspace(src, project, onClose = { source = null; project = null })
+            PhotoWorkspace(src, project, onClose = { source = null; project = null }, onLoad = { id ->
+                val p = ProjectStore.loadPhoto(context, id)
+                if (p != null && p.uri != Uri.EMPTY) { project = p; source = p.uri }
+                else android.widget.Toast.makeText(context, "Couldn't open that project", android.widget.Toast.LENGTH_SHORT).show()
+            })
         }
     }
 }
@@ -205,7 +209,7 @@ fun BigButton(icon: ImageVector, label: String, modifier: Modifier = Modifier, o
 }
 
 @Composable
-private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> Unit) {
+private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> Unit, onLoad: (String) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var base by remember { mutableStateOf<Bitmap?>(null) }
@@ -219,6 +223,8 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     var projectId by remember { mutableStateOf(initial?.id) }
     var projectName by remember { mutableStateOf(initial?.name ?: "") }
     var askName by remember { mutableStateOf(false) }
+    var showLoad by remember { mutableStateOf(false) }
+    if (showLoad) LoadProjectDialog(false, onOpen = { showLoad = false; onLoad(it) }, onDismiss = { showLoad = false })
     var panel by remember { mutableStateOf(PhotoPanel.PRESETS) }
     var comparing by remember { mutableStateOf(false) }
     var showScope by remember { mutableStateOf(true) }
@@ -364,15 +370,16 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                 // Top bar
                 Row(Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     TopIcon(Icons.AutoMirrored.Filled.ArrowBack, "Close", enabled = !busy) { onClose() }
-                    Text("Photo editor", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f).padding(start = 4.dp))
-                    TopIcon(Icons.AutoMirrored.Filled.Undo, "Undo", enabled = undoPos > 0) { undoPos--; edit = undo[undoPos] }
-                    TopIcon(Icons.AutoMirrored.Filled.Redo, "Redo", enabled = undoPos < undo.lastIndex) { undoPos++; edit = undo[undoPos] }
-                    TopIcon(Icons.Filled.BarChart, "Scope", tint = if (showScope) Pro.Amber else Color.White) { showScope = !showScope }
-                    TopIcon(Icons.Filled.Settings, "Settings") { showSettings = true }
-                    SaveButton(projectId != null, enabled = !busy) { if (projectId == null) askName = true else saveProject(projectName) }
+                    Text("Photo editor", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Clip, modifier = Modifier.weight(1f).padding(start = 4.dp))
+                    BarIcon(Icons.AutoMirrored.Filled.Undo, "Undo", enabled = undoPos > 0) { undoPos--; edit = undo[undoPos] }
+                    BarIcon(Icons.AutoMirrored.Filled.Redo, "Redo", enabled = undoPos < undo.lastIndex) { undoPos++; edit = undo[undoPos] }
+                    BarIcon(Icons.Filled.BarChart, "Scope", tint = if (showScope) Pro.Amber else Color.White) { showScope = !showScope }
+                    BarIcon(Icons.Filled.Settings, "Settings") { showSettings = true }
+                    BarButton("LOAD", enabled = !busy) { showLoad = true }
+                    BarButton("SAVE", enabled = !busy) { if (projectId == null) askName = true else saveProject(projectName) }
                     Text(
                         "EXPORT", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp),
-                        modifier = Modifier.padding(horizontal = 6.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !busy) { panel = PhotoPanel.EXPORT }.padding(horizontal = 14.dp, vertical = 7.dp),
+                        modifier = Modifier.padding(start = 4.dp, end = 4.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !busy) { panel = PhotoPanel.EXPORT }.padding(horizontal = 10.dp, vertical = 7.dp),
                     )
                 }
                 if (wide) {
@@ -621,5 +628,13 @@ fun savePicture(context: Context, bmp: Bitmap, png: Boolean, quality: Int): Uri?
     } catch (_: Throwable) {
         resolver.delete(target, null, null)
         null
+    }
+}
+
+/** Slightly smaller top-bar icon so the photo editor's bar fits phones. */
+@Composable
+private fun BarIcon(icon: ImageVector, label: String, enabled: Boolean = true, tint: Color = Color.White, onClick: () -> Unit) {
+    Box(Modifier.size(36.dp).clip(CircleShape).clickable(enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
+        Icon(icon, contentDescription = label, tint = if (enabled) tint else tint.copy(alpha = 0.3f), modifier = Modifier.size(21.dp))
     }
 }

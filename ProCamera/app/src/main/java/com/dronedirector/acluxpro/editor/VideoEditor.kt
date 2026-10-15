@@ -177,13 +177,22 @@ fun VideoEditorScreen(onExit: () -> Unit) {
             if (loading) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Pro.Amber) }
         }
     } else {
-        Workspace(clips, project, onAddGallery = pickGallery, onAddFiles = pickFiles, onExit = onExit)
+        androidx.compose.runtime.key(project?.id) {
+            Workspace(
+                clips, project, onAddGallery = pickGallery, onAddFiles = pickFiles, onExit = onExit,
+                onLoad = { id ->
+                    val p = ProjectStore.loadVideo(context, id)
+                    if (p == null || p.clips.isEmpty()) android.widget.Toast.makeText(context, "Couldn't open that project", android.widget.Toast.LENGTH_SHORT).show()
+                    else { clips.clear(); clips.addAll(p.clips); project = p }
+                },
+            )
+        }
     }
 }
 
 @OptIn(UnstableApi::class)
 @Composable
-private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAddGallery: () -> Unit, onAddFiles: () -> Unit, onExit: () -> Unit) {
+private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAddGallery: () -> Unit, onAddFiles: () -> Unit, onExit: () -> Unit, onLoad: (String) -> Unit) {
     val context = LocalContext.current
     var page by remember { mutableStateOf(Page.EDIT) }
     var colorTab by remember { mutableStateOf(ColorTab.INPUT) }
@@ -199,6 +208,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     var projectName by remember { mutableStateOf(initial?.name ?: "") }
     var askName by remember { mutableStateOf(false) }
     var leaveAfterSave by remember { mutableStateOf(false) }
+    var showLoad by remember { mutableStateOf(false) }
+    if (showLoad) LoadProjectDialog(true, onOpen = { showLoad = false; onLoad(it) }, onDismiss = { showLoad = false })
     var export by remember { mutableStateOf<TimelineExport?>(null) }
     var confirmExit by remember { mutableStateOf(false) }
     var fullscreen by remember { mutableStateOf(false) }
@@ -1050,7 +1061,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         Text("${clips.size} CLIPS · ${tc(totalMs)}", style = Pro.Label)
                     }
                     TopIcon(Icons.Filled.Settings, "Settings") { showSettings = true }
-                    SaveButton(projectId != null, enabled = !exporting) { if (projectId == null) askName = true else saveProject(projectName) }
+                    BarButton("LOAD", enabled = !exporting) { showLoad = true }
+                    BarButton("SAVE", enabled = !exporting) { if (projectId == null) askName = true else saveProject(projectName) }
                     Text(
                         "EXPORT", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp),
                         modifier = Modifier.padding(horizontal = 6.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !exporting) { page = Page.DELIVER }.padding(horizontal = 14.dp, vertical = 7.dp),

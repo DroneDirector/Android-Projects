@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MusicNote
@@ -81,6 +83,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -188,6 +191,28 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                 musicPlayer.setMediaItem(MediaItem.fromUri(uri))
                 musicPlayer.prepare()
             }
+        }
+    }
+    val layerScope = rememberCoroutineScope()
+    val pickLayerVideo = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) layerScope.launch {
+            val c = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }
+            if (c == null) { message = "Can't open that video"; return@launch }
+            val total = clips.sumOf { it.lengthMs }
+            val start = (clips.take(current.coerceAtMost(clips.size)).sumOf { it.lengthMs } + (posMs / (clips.getOrNull(current)?.speed ?: 1f)).toLong()).coerceIn(0, total)
+            val l = Layer(
+                kind = LayerKind.VIDEO, text = c.name, videoUri = uri, videoDurationMs = c.durationMs,
+                mediaAspect = if (c.height > 0) c.width.toFloat() / c.height else 16f / 9f,
+                size = 0.35f, x = 0.72f, y = 0.28f, startMs = start, endMs = (start + c.durationMs).coerceAtMost(total.coerceAtLeast(start + 500)),
+            )
+            layers.add(l); selectedLayer = l.id
+        }
+    }
+    val pickLayerImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            val total = clips.sumOf { it.lengthMs }
+            val l = Layer(kind = LayerKind.IMAGE, text = "Image", imageUri = uri, size = 0.3f, x = 0.5f, y = 0.5f, startMs = 0, endMs = total.coerceAtLeast(1000), wholeVideo = true)
+            layers.add(l); selectedLayer = l.id
         }
     }
     val pickLogo = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -396,6 +421,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                                 timeMs = globalMs,
                                 selectedId = if (page == Page.LAYERS) selectedLayer else null,
                                 showAll = page == Page.LAYERS && !playing,
+                                playing = playing,
                                 onMove = { id, dx, dy ->
                                     val i = layers.indexOfFirst { it.id == id }
                                     if (i >= 0) layers[i] = layers[i].copy(x = (layers[i].x + dx).coerceIn(0f, 1f), y = (layers[i].y + dy).coerceIn(0f, 1f))
@@ -518,6 +544,8 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                                 onSelect = { selectedLayer = it },
                                 onAdd = { l -> layers.add(l); selectedLayer = l.id },
                                 onAddLogo = { pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                                onAddVideo = { pickLayerVideo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
+                                onAddImage = { pickLayerImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                                 onUpdate = { l -> val i = layers.indexOfFirst { it.id == l.id }; if (i >= 0) layers[i] = l },
                                 onDelete = { id -> layers.removeAll { it.id == id }; selectedLayer = layers.lastOrNull()?.id },
                                 onMove = { id, dir ->
@@ -760,7 +788,7 @@ private fun AudioPage(
 /** Text, stickers and watermarks drawn over the viewer; drag the selected one to move it. */
 @Composable
 private fun LayerPreview(
-    layers: List<Layer>, timeMs: Long, selectedId: String?, showAll: Boolean,
+    layers: List<Layer>, timeMs: Long, selectedId: String?, showAll: Boolean, playing: Boolean,
     onMove: (String, Float, Float) -> Unit, onSelect: (String) -> Unit,
 ) {
     val context = LocalContext.current
@@ -770,6 +798,26 @@ private fun LayerPreview(
         val hPx = with(density) { maxHeight.toPx() }.toInt().coerceAtLeast(2)
         layers.forEach { l ->
             if (!(l.activeAt(timeMs) || (showAll && l.visible) || l.id == selectedId)) return@forEach
+            if (l.kind == LayerKind.VIDEO) {
+                val h = (l.size * hPx).toInt().coerceAtLeast(8)
+                val w = (h * l.mediaAspect).toInt().coerceAtLeast(8)
+                val sel = l.id == selectedId
+                Box(
+                    Modifier
+                        .offset { androidx.compose.ui.unit.IntOffset((l.x * wPx - w / 2f).toInt(), (l.y * hPx - h / 2f).toInt()) }
+                        .size(with(density) { w.toDp() }, with(density) { h.toDp() })
+                        .then(if (sel) Modifier.border(1.dp, Pro.Amber) else Modifier)
+                        .pointerInput(l.id) {
+                            detectDragGestures(onDragStart = { onSelect(l.id) }) { change, drag ->
+                                change.consume()
+                                onMove(l.id, drag.x / wPx, drag.y / hPx)
+                            }
+                        },
+                ) {
+                    VideoLayerView(l, timeMs, playing && l.activeAt(timeMs))
+                }
+                return@forEach
+            }
             val bmp by androidx.compose.runtime.produceState<Bitmap?>(null, l.copy(x = 0f, y = 0f, startMs = 0, endMs = 0), wPx, hPx) {
                 value = withContext(Dispatchers.Default) { LayerRenderer.render(context, l, wPx, hPx) }
             }
@@ -803,6 +851,7 @@ private val TEXT_COLORS = listOf(0xFFFFFFFF, 0xFF000000, 0xFFFFB300, 0xFFFF3B30,
 private fun LayersPage(
     layers: List<Layer>, selectedId: String?, totalMs: Long, playheadMs: Long,
     onSelect: (String) -> Unit, onAdd: (Layer) -> Unit, onAddLogo: () -> Unit,
+    onAddVideo: () -> Unit = {}, onAddImage: () -> Unit = {},
     onUpdate: (Layer) -> Unit, onDelete: (String) -> Unit, onMove: (String, Int) -> Unit,
 ) {
     var stickers by remember { mutableStateOf(false) }
@@ -814,6 +863,8 @@ private fun LayersPage(
         SmallAction(Icons.Filled.WaterDrop, "Watermark") {
             onAdd(Layer(kind = LayerKind.WATERMARK, text = "© AcluxPro", size = 0.04f, x = 0.84f, y = 0.92f, opacity = 0.65f, shadow = true, wholeVideo = true, font = LayerFont.LIGHT))
         }
+        SmallAction(Icons.Filled.Movie, "Video", onAddVideo)
+        SmallAction(Icons.Filled.Photo, "Image", onAddImage)
         SmallAction(Icons.Filled.Image, "Logo", onAddLogo)
     }
     if (stickers) {
@@ -841,7 +892,7 @@ private fun LayersPage(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(l.kind.label.uppercase(), style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.width(78.dp))
-            Text(if (l.kind == LayerKind.LOGO) "Image" else l.text.replace('\n', ' '), color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Text(if (l.kind == LayerKind.LOGO || l.kind == LayerKind.IMAGE) "Image" else l.text.replace('\n', ' '), color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             Text(if (l.wholeVideo) "ALL" else "${tc(l.startMs)}", style = Pro.Label)
             Icon(
                 if (l.visible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, contentDescription = "Show",
@@ -878,7 +929,11 @@ private fun LayersPage(
         Chips(listOf("Shadow", "Box"), -1) { if (it == 0) onUpdate(l.copy(shadow = !l.shadow)) else onUpdate(l.copy(box = !l.box)) }
         Text("Shadow: ${if (l.shadow) "on" else "off"} · Box: ${if (l.box) "on" else "off"}", style = Pro.Label)
     }
-    EdSlider("Size", l.size, 0.02f..0.4f, 0.07f, ::pct) { onUpdate(l.copy(size = it)) }
+    if (l.kind == LayerKind.VIDEO && l.videoDurationMs > 0) {
+        EdSlider("Start inside the video", l.videoStartMs.toFloat(), 0f..(l.videoDurationMs - 500).coerceAtLeast(1).toFloat(), 0f, { tc(it.toLong()) }) { onUpdate(l.copy(videoStartMs = it.toLong())) }
+        Text("Overlay videos play muted. Size 100% = full frame height.", color = Pro.Dim, fontSize = 11.sp)
+    }
+    EdSlider("Size", l.size, 0.02f..(if (l.isMedia) 1f else 0.4f), 0.07f, ::pct) { onUpdate(l.copy(size = it)) }
     EdSlider("Opacity", l.opacity, 0.05f..1f, 1f, ::pct) { onUpdate(l.copy(opacity = it)) }
     SectionTitle("POSITION")
     Text("Drag the layer in the viewer, or snap it:", color = Pro.Dim, fontSize = 11.sp)
@@ -950,3 +1005,26 @@ val ASPECTS = listOf(
     "Original" to 0f, "16:9" to 16f / 9f, "9:16" to 9f / 16f, "1:1" to 1f, "4:5" to 0.8f, "4:3" to 4f / 3f,
     "3:4" to 0.75f, "21:9" to 21f / 9f, "2.39:1" to 2.39f, "3:2" to 1.5f,
 )
+
+/** Live preview of a video layer: its own muted player, kept in step with the timeline. */
+@OptIn(UnstableApi::class)
+@Composable
+private fun VideoLayerView(l: Layer, timeMs: Long, play: Boolean) {
+    val context = LocalContext.current
+    val p = remember(l.videoUri) {
+        ExoPlayer.Builder(context).build().apply {
+            volume = 0f
+            l.videoUri?.let { setMediaItem(MediaItem.fromUri(it)); prepare() }
+        }
+    }
+    DisposableEffect(p) { onDispose { p.release() } }
+    val target = l.videoStartMs + (timeMs - (if (l.wholeVideo) 0L else l.startMs)).coerceAtLeast(0)
+    LaunchedEffect(play) { if (play) p.play() else p.pause() }
+    LaunchedEffect(target / 300, play) {
+        if (!play || kotlin.math.abs(p.currentPosition - target) > 400) p.seekTo(target.coerceAtMost((l.videoDurationMs - 50).coerceAtLeast(0)))
+    }
+    AndroidView(
+        factory = { ctx -> android.view.TextureView(ctx).also { p.setVideoTextureView(it) } },
+        modifier = Modifier.fillMaxSize().graphicsLayer { alpha = l.opacity },
+    )
+}

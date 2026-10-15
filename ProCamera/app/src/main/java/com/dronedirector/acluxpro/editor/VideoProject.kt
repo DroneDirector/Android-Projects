@@ -119,6 +119,10 @@ class TimelineExport(
     private lateinit var transformer: Transformer
 
     fun start() {
+        val (outW, outH) = outputSize(clips, settings)
+        val videoLayers = layers.filter { it.visible && it.kind == LayerKind.VIDEO && it.videoUri != null }
+        val layout = if (settings.fill) Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP else Presentation.LAYOUT_SCALE_TO_FIT
+        val totalMs = clips.sumOf { it.lengthMs }
         val items = clips.map { c ->
             val media = MediaItem.Builder()
                 .setUri(c.uri)
@@ -134,8 +138,10 @@ class TimelineExport(
                     putChannelMixingMatrix(ChannelMixingMatrix.createForConstantGain(2, 2).scaleBy(gain))
                 }
             }
+            // With video layers the clips are sized to the project frame before compositing.
+            val video = if (videoLayers.isEmpty()) clipEffects(c) else clipEffects(c) + Presentation.createForWidthAndHeight(outW, outH, layout)
             val b = EditedMediaItem.Builder(media)
-                .setEffects(Effects(audio, clipEffects(c)))
+                .setEffects(Effects(audio, video))
                 .setRemoveAudio(!settings.audio)
             if (c.speed != 1f) {
                 val s = c.speed
@@ -149,19 +155,43 @@ class TimelineExport(
 
         val global = mutableListOf<Effect>()
         // Project frame: size + shape, filling (crop) or fitting (bars).
-        val (outW, outH) = outputSize(clips, settings)
-        global += Presentation.createForWidthAndHeight(
-            outW, outH,
-            if (settings.fill) Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP else Presentation.LAYOUT_SCALE_TO_FIT,
-        )
+        global += Presentation.createForWidthAndHeight(outW, outH, layout)
         if (settings.fps > 0) global += FrameDropEffect.createDefaultFrameDropEffect(settings.fps.toFloat())
         // Text, stickers, watermarks and logos, bottom layer first.
-        val overlays = layers.filter { it.visible }.mapNotNull { l ->
+        val overlays = layers.filter { it.visible && it.kind != LayerKind.VIDEO }.mapNotNull { l ->
             LayerRenderer.render(context, l, outW, outH)?.let { LayerOverlay(it, l) as androidx.media3.effect.TextureOverlay }
         }
         if (overlays.isNotEmpty()) global += androidx.media3.effect.OverlayEffect(overlays)
 
-        val sequences = mutableListOf(EditedMediaItemSequence.Builder(items).build())
+        // Video layers become extra sequences composited over the main timeline. The compositor puts
+        // the first sequence on top, so layers go first (top layer first) and the timeline last.
+        val sequences = mutableListOf<EditedMediaItemSequence>()
+        val windows = mutableListOf<Pair<Long, Long>>()
+        for (l in videoLayers.asReversed()) {
+            val startMs = if (l.wholeVideo) 0L else l.startMs.coerceIn(0, totalMs)
+            val wantEnd = if (l.wholeVideo) totalMs else l.endMs.coerceIn(startMs, totalMs)
+            val avail = (l.videoDurationMs - l.videoStartMs).coerceAtLeast(100)
+            val lenMs = (wantEnd - startMs).coerceIn(100, avail)
+            val ph = ((l.size * outH).toInt() / 2 * 2).coerceAtLeast(16)
+            val pw = ((ph * l.mediaAspect).toInt() / 2 * 2).coerceAtLeast(16)
+            val item = EditedMediaItem.Builder(
+                MediaItem.Builder().setUri(l.videoUri!!)
+                    .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(l.videoStartMs).setEndPositionMs(l.videoStartMs + lenMs).build())
+                    .build()
+            )
+                .setRemoveAudio(true)
+                .setEffects(Effects(emptyList(), listOf(Presentation.createForWidthAndHeight(pw, ph, Presentation.LAYOUT_SCALE_TO_FIT))))
+                .build()
+            val seq = EditedMediaItemSequence.Builder(setOf(androidx.media3.common.C.TRACK_TYPE_VIDEO))
+            if (startMs > 0) seq.addGap(startMs * 1000)
+            seq.addItem(item)
+            val after = totalMs - startMs - lenMs
+            if (after > 0) seq.addGap(after * 1000)
+            sequences += seq.build()
+            windows += (startMs * 1000) to ((startMs + lenMs) * 1000)
+        }
+        val layerSettings = videoLayers.asReversed()
+        sequences += EditedMediaItemSequence.Builder(items).build()
         val m = music
         if (m != null && settings.audio) {
             val totalMs = clips.sumOf { it.lengthMs }
@@ -179,6 +209,21 @@ class TimelineExport(
 
         val composition = Composition.Builder(sequences)
             .setEffects(Effects(emptyList(), global))
+            .apply {
+                if (videoLayers.isNotEmpty()) setVideoCompositorSettings(object : androidx.media3.common.VideoCompositorSettings {
+                    override fun getOutputSize(inputSizes: List<androidx.media3.common.util.Size>) = androidx.media3.common.util.Size(outW, outH)
+                    override fun getOverlaySettings(inputId: Int, presentationTimeUs: Long): androidx.media3.common.OverlaySettings {
+                        val l = layerSettings.getOrNull(inputId) ?: return androidx.media3.effect.StaticOverlaySettings.Builder().build()
+                        val (s, e) = windows[inputId]
+                        val on = presentationTimeUs in s..e
+                        return androidx.media3.effect.StaticOverlaySettings.Builder()
+                            .setBackgroundFrameAnchor((l.x * 2f - 1f).coerceIn(-1f, 1f), (1f - l.y * 2f).coerceIn(-1f, 1f))
+                            .setOverlayFrameAnchor(0f, 0f)
+                            .setAlphaScale(if (on) l.opacity.coerceIn(0f, 1f) else 0f)
+                            .build()
+                    }
+                })
+            }
             .setHdrMode(Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL)
             .build()
 

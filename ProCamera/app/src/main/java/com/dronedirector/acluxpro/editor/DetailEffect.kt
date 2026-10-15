@@ -54,6 +54,9 @@ private class DetailProgram(private val d: Detail, useHdr: Boolean) :
             program.setFloatUniform("uGrain", d.grain * 0.11f)
             program.setFloatUniform("uAspect", aspect)
             program.setFloatUniform("uTime", (presentationTimeUs % 10_000_000L) / 1_000_000f)
+            program.setFloatUniform("uDetail", d.localDetail)
+            program.setIntUniform("uFx", d.fx.ordinal)
+            program.setFloatUniform("uFxAmt", d.fxAmount)
             program.bindAttributesAndUniforms()
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
         } catch (e: GlUtil.GlException) {
@@ -86,15 +89,36 @@ private class DetailProgram(private val d: Detail, useHdr: Boolean) :
             uniform float uGrain;
             uniform float uAspect;
             uniform float uTime;
+            uniform float uDetail;
+            uniform int uFx;
+            uniform float uFxAmt;
             varying vec2 vTexSamplingCoord;
+
+            vec3 blur9(vec2 uv, float r) {
+                vec3 s = vec3(0.0);
+                for (int dx = -1; dx <= 1; dx++) {
+                    for (int dy = -1; dy <= 1; dy++) {
+                        s += texture2D(uTexSampler, uv + vec2(float(dx), float(dy)) * uTexel * r).rgb;
+                    }
+                }
+                return s / 9.0;
+            }
 
             float rand(vec2 co) { return fract(sin(dot(co, vec2(12.9898, 78.233)) + uTime * 7.0) * 43758.5453); }
 
             void main() {
                 vec2 uv = vTexSamplingCoord;
+                // Geometry effects first.
+                if (uFx == 5) { if (uv.x > 0.5) uv.x = 1.0 - uv.x; }
+                if (uFx == 4) {
+                    float cells = mix(160.0, 24.0, uFxAmt);
+                    vec2 cell = vec2(cells * uAspect, cells);
+                    uv = (floor(uv * cell) + 0.5) / cell;
+                }
+                if (uFx == 7) { uv.x += (rand(vec2(floor(uv.y * 120.0), uTime)) - 0.5) * 0.006 * uFxAmt; }
                 vec4 c = texture2D(uTexSampler, uv);
                 vec3 rgb = c.rgb;
-                if (uDenoise > 0.0 || uSharpen > 0.0) {
+                if ((uDenoise > 0.0 || uSharpen > 0.0) && uFx != 4) {
                     vec3 sum = vec3(0.0);
                     float wsum = 0.0;
                     vec3 blur = vec3(0.0);
@@ -112,6 +136,32 @@ private class DetailProgram(private val d: Detail, useHdr: Boolean) :
                     if (uDenoise > 0.0) rgb = mix(rgb, sum / wsum, uDenoise);
                     if (uSharpen > 0.0) rgb = rgb + (rgb - blur) * uSharpen;
                 }
+                if (uDetail != 0.0) {
+                    vec3 wide = blur9(uv, 6.0);
+                    float l = dot(rgb, vec3(0.299, 0.587, 0.114));
+                    float mid = 1.0 - abs(l - 0.5) * 2.0;
+                    rgb += (rgb - wide) * uDetail * 1.2 * mid;
+                }
+                if (uFx == 1) { float l = dot(rgb, vec3(0.299, 0.587, 0.114)); rgb = mix(rgb, vec3(l), uFxAmt); }
+                if (uFx == 2) { rgb = mix(rgb, blur9(uv, 2.0 + 8.0 * uFxAmt), 0.85); }
+                if (uFx == 3 || uFx == 10) {
+                    vec3 b = blur9(uv, 10.0);
+                    vec3 bright = max(b - 0.55, 0.0) * 2.2;
+                    rgb += bright * uFxAmt;
+                    if (uFx == 10) { rgb = mix(rgb, b + 0.06, 0.35 * uFxAmt); rgb = mix(rgb, rgb * vec3(1.05, 0.98, 1.08), uFxAmt); }
+                }
+                if (uFx == 6) {
+                    float o = 0.004 * uFxAmt + 0.001;
+                    rgb.r = texture2D(uTexSampler, uv + vec2(o, 0.0)).r;
+                    rgb.b = texture2D(uTexSampler, uv - vec2(o, 0.0)).b;
+                }
+                if (uFx == 7) {
+                    float line = 0.92 + 0.08 * sin(uv.y * 900.0);
+                    rgb = mix(rgb, rgb * line * vec3(1.06, 0.97, 1.02) + (rand(uv * 600.0) - 0.5) * 0.06, uFxAmt);
+                    rgb.r = mix(rgb.r, texture2D(uTexSampler, uv + vec2(0.003, 0.0)).r, uFxAmt);
+                }
+                if (uFx == 8) { float lv = mix(12.0, 3.0, uFxAmt); rgb = floor(rgb * lv + 0.5) / lv; }
+                if (uFx == 9) { rgb = mix(rgb, 1.0 - rgb, uFxAmt); }
                 if (uVignette != 0.0) {
                     vec2 p = (uv - 0.5) * vec2(uAspect, 1.0) / sqrt(uAspect * uAspect * 0.25 + 0.25);
                     float d = length(p);

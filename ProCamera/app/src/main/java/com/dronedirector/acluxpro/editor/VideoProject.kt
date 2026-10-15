@@ -85,7 +85,22 @@ data class DeliverSettings(
     /** Mbit/s, 0 = automatic. */
     val bitrateMbps: Int = 0,
     val audio: Boolean = true,
+    /** Project frame shape (width / height), 0 = same as the first clip. */
+    val aspect: Float = 0f,
+    /** true = fill the frame (crop), false = fit inside (bars). */
+    val fill: Boolean = true,
 )
+
+/** Output frame size for the project (even numbers, as encoders need). */
+fun outputSize(clips: List<Clip>, s: DeliverSettings): Pair<Int, Int> {
+    val first = clips.firstOrNull()
+    val fw = (first?.width ?: 1920).coerceAtLeast(2)
+    val fh = (first?.height ?: 1080).coerceAtLeast(2)
+    val aspect = if (s.aspect > 0f) s.aspect else fw.toFloat() / fh
+    val short = if (s.shortSide > 0) s.shortSide else minOf(fw, fh)
+    val (w, h) = if (aspect >= 1f) (short * aspect).toInt() to short else short to (short / aspect).toInt()
+    return (w / 2 * 2).coerceAtLeast(2) to (h / 2 * 2).coerceAtLeast(2)
+}
 
 /** Renders the timeline to a new video in DCIM/AcluxPro with Media3 Transformer. Start on the main thread. */
 @UnstableApi
@@ -93,6 +108,8 @@ class TimelineExport(
     private val context: Context,
     private val clips: List<Clip>,
     private val settings: DeliverSettings,
+    private val layers: List<Layer> = emptyList(),
+    private val music: MusicTrack? = null,
     private val onProgress: (Int) -> Unit,
     private val onDone: (Uri?, String?) -> Unit,
 ) {
@@ -130,21 +147,37 @@ class TimelineExport(
             b.build()
         }
 
-        val first = clips.first()
         val global = mutableListOf<Effect>()
-        if (settings.shortSide > 0) {
-            val portrait = first.height > first.width
-            val long = settings.shortSide * 16 / 9
-            val w = if (portrait) settings.shortSide else long
-            val h = if (portrait) long else settings.shortSide
-            global += Presentation.createForWidthAndHeight(w, h, Presentation.LAYOUT_SCALE_TO_FIT)
-        } else if (clips.size > 1 && first.width > 0 && first.height > 0) {
-            // Mixed clips: fit everything to the first clip's frame.
-            global += Presentation.createForWidthAndHeight(first.width, first.height, Presentation.LAYOUT_SCALE_TO_FIT)
-        }
+        // Project frame: size + shape, filling (crop) or fitting (bars).
+        val (outW, outH) = outputSize(clips, settings)
+        global += Presentation.createForWidthAndHeight(
+            outW, outH,
+            if (settings.fill) Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP else Presentation.LAYOUT_SCALE_TO_FIT,
+        )
         if (settings.fps > 0) global += FrameDropEffect.createDefaultFrameDropEffect(settings.fps.toFloat())
+        // Text, stickers, watermarks and logos, bottom layer first.
+        val overlays = layers.filter { it.visible }.mapNotNull { l ->
+            LayerRenderer.render(context, l, outW, outH)?.let { LayerOverlay(it, l) as androidx.media3.effect.TextureOverlay }
+        }
+        if (overlays.isNotEmpty()) global += androidx.media3.effect.OverlayEffect(overlays)
 
-        val composition = Composition.Builder(EditedMediaItemSequence.Builder(items).build())
+        val sequences = mutableListOf(EditedMediaItemSequence.Builder(items).build())
+        val m = music
+        if (m != null && settings.audio) {
+            val totalMs = clips.sumOf { it.lengthMs }
+            val end = (m.offsetMs + totalMs).coerceAtMost(m.durationMs)
+            val musicItem = EditedMediaItem.Builder(
+                MediaItem.Builder().setUri(m.uri)
+                    .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(m.offsetMs).setEndPositionMs(end).build())
+                    .build()
+            )
+                .setRemoveVideo(true)
+                .setEffects(Effects(listOf(FadeAudioProcessor(m.volume, m.fadeInMs, m.fadeOutMs, end - m.offsetMs)), emptyList()))
+                .build()
+            sequences += EditedMediaItemSequence.Builder(listOf(musicItem)).build()
+        }
+
+        val composition = Composition.Builder(sequences)
             .setEffects(Effects(emptyList(), global))
             .setHdrMode(Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL)
             .build()

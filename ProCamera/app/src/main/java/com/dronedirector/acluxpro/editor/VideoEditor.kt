@@ -11,6 +11,19 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.clipToBounds
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.material.icons.filled.EmojiEmotions
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -90,8 +103,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class Page(val label: String) { MEDIA("Media"), EDIT("Edit"), COLOR("Color"), AUDIO("Audio"), DELIVER("Deliver") }
-private enum class ColorTab(val label: String) { INPUT("Input"), WHEELS("Wheels"), PRIMARIES("Primaries"), CURVES("Curves"), HSL("HSL"), DETAIL("Detail"), LOOKS("Looks") }
+private enum class Page(val label: String) { MEDIA("Media"), EDIT("Edit"), COLOR("Color"), LAYERS("Layers"), AUDIO("Audio"), DELIVER("Deliver") }
+private enum class ColorTab(val label: String) { INPUT("Input"), WHEELS("Wheels"), PRIMARIES("Primaries"), CURVES("Curves"), HSL("HSL"), DETAIL("Detail"), EFFECTS("Effects"), LOOKS("Looks") }
 
 @Composable
 fun VideoEditorScreen(onExit: () -> Unit) {
@@ -159,6 +172,30 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
     var confirmExit by remember { mutableStateOf(false) }
     val thumbs = remember { mutableStateMapOf<String, Bitmap>() }
     var scopeHist by remember { mutableStateOf<Array<FloatArray>?>(null) }
+    val layers = remember { mutableStateListOf<Layer>() }
+    var selectedLayer by remember { mutableStateOf<String?>(null) }
+    var music by remember { mutableStateOf<MusicTrack?>(null) }
+    val musicPlayer = remember { ExoPlayer.Builder(context).build() }
+    DisposableEffect(Unit) { onDispose { musicPlayer.release() } }
+    val pickMusic = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            try { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
+            val mmr = android.media.MediaMetadataRetriever()
+            val dur = try { mmr.setDataSource(context, uri); mmr.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L } catch (_: Throwable) { 0L } finally { try { mmr.release() } catch (_: Throwable) {} }
+            val name = context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null } ?: "Music"
+            if (dur > 0) {
+                music = MusicTrack(uri, name, dur)
+                musicPlayer.setMediaItem(MediaItem.fromUri(uri))
+                musicPlayer.prepare()
+            }
+        }
+    }
+    val pickLogo = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            val l = Layer(kind = LayerKind.LOGO, imageUri = uri, size = 0.12f, x = 0.85f, y = 0.88f, opacity = 0.85f, wholeVideo = true)
+            layers.add(l); selectedLayer = l.id
+        }
+    }
 
     var effectsOk by remember { mutableStateOf(true) }
     var loadedId by remember { mutableStateOf<String?>(null) }
@@ -252,6 +289,23 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
             delay(100)
         }
     }
+    // Music follows the timeline while previewing.
+    LaunchedEffect(playing, music) {
+        val m = music
+        if (m == null) { musicPlayer.pause(); return@LaunchedEffect }
+        musicPlayer.volume = m.volume.coerceIn(0f, 1f)
+        if (!playing) { musicPlayer.pause(); return@LaunchedEffect }
+        while (true) {
+            val before = clips.take(current.coerceAtMost(clips.size)).sumOf { it.lengthMs }
+            val g = before + (player.currentPosition / (clips.getOrNull(current)?.speed ?: 1f)).toLong()
+            val want = m.offsetMs + g
+            if (want >= m.durationMs) { musicPlayer.pause() } else {
+                if (kotlin.math.abs(musicPlayer.currentPosition - want) > 350) musicPlayer.seekTo(want)
+                if (!musicPlayer.isPlaying) musicPlayer.play()
+            }
+            delay(500)
+        }
+    }
     LaunchedEffect(current) { if (page != Page.MEDIA) selected = current.coerceIn(0, (clips.size - 1).coerceAtLeast(0)) }
     // Timeline thumbnails.
     LaunchedEffect(clips.map { it.id to it.startMs }) {
@@ -299,7 +353,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
         exporting = true
         progress = 0
         val e = TimelineExport(
-            context, clips.toList(), deliver,
+            context, clips.toList(), deliver, layers.toList(), music,
             onProgress = { progress = it },
             onDone = { uri, err ->
                 exporting = false; export = null
@@ -316,18 +370,40 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
 
             val viewer = @Composable { mod: Modifier ->
                 Box(mod.background(Color.Black), contentAlignment = Alignment.Center) {
-                    AndroidView(
-                        factory = { ctx ->
-                            AspectRatioFrameLayout(ctx).apply {
-                                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                val tv = android.view.TextureView(ctx)
-                                addView(tv, android.widget.FrameLayout.LayoutParams(-1, -1, android.view.Gravity.CENTER))
-                                player.setVideoTextureView(tv)
-                            }
-                        },
-                        update = { it.setAspectRatio(videoAspect) },
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    val (ow, oh) = outputSize(clips, deliver)
+                    val projAspect = ow.toFloat() / oh
+                    BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        val boxAspect = maxWidth.value / maxHeight.value
+                        val fw = if (boxAspect > projAspect) maxHeight * projAspect else maxWidth
+                        val fh = if (boxAspect > projAspect) maxHeight else maxWidth / projAspect
+                        Box(Modifier.width(fw).height(fh).clipToBounds().background(Color.Black)) {
+                            AndroidView(
+                                factory = { ctx ->
+                                    AspectRatioFrameLayout(ctx).apply {
+                                        val tv = android.view.TextureView(ctx)
+                                        addView(tv, android.widget.FrameLayout.LayoutParams(-1, -1, android.view.Gravity.CENTER))
+                                        player.setVideoTextureView(tv)
+                                    }
+                                },
+                                update = {
+                                    it.resizeMode = if (deliver.fill) AspectRatioFrameLayout.RESIZE_MODE_ZOOM else AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                    it.setAspectRatio(videoAspect)
+                                },
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                            LayerPreview(
+                                layers = layers,
+                                timeMs = globalMs,
+                                selectedId = if (page == Page.LAYERS) selectedLayer else null,
+                                showAll = page == Page.LAYERS && !playing,
+                                onMove = { id, dx, dy ->
+                                    val i = layers.indexOfFirst { it.id == id }
+                                    if (i >= 0) layers[i] = layers[i].copy(x = (layers[i].x + dx).coerceIn(0f, 1f), y = (layers[i].y + dy).coerceIn(0f, 1f))
+                                },
+                                onSelect = { selectedLayer = it; page = Page.LAYERS },
+                            )
+                        }
+                    }
                     if (page == Page.COLOR) Scope(scopeHist, Modifier.align(Alignment.TopEnd).padding(8.dp).width(130.dp).height(64.dp))
                     Text(
                         "${tc(globalMs)} / ${tc(totalMs)}",
@@ -410,7 +486,7 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                         when (page) {
                             Page.MEDIA -> MediaPage(clips, onAddGallery, onAddFiles)
                             Page.EDIT -> if (sc != null) EditPage(
-                                sc, selected, clips.size, posMs,
+                                sc, selected, clips.size, posMs, deliver, { deliver = it },
                                 onChange = { f -> update(selected, f) },
                                 onSplit = {
                                     val c = clips[current]
@@ -437,7 +513,24 @@ private fun Workspace(clips: MutableList<Clip>, onAddGallery: () -> Unit, onAddF
                                 for (i in clips.indices) clips[i] = clips[i].copy(grade = g, detail = d)
                                 message = "Grade copied to all clips"
                             })
-                            Page.AUDIO -> if (sc != null) AudioPage(sc, deliver) { f -> update(selected, f) }
+                            Page.LAYERS -> LayersPage(
+                                layers = layers, selectedId = selectedLayer, totalMs = totalMs, playheadMs = globalMs,
+                                onSelect = { selectedLayer = it },
+                                onAdd = { l -> layers.add(l); selectedLayer = l.id },
+                                onAddLogo = { pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                                onUpdate = { l -> val i = layers.indexOfFirst { it.id == l.id }; if (i >= 0) layers[i] = l },
+                                onDelete = { id -> layers.removeAll { it.id == id }; selectedLayer = layers.lastOrNull()?.id },
+                                onMove = { id, dir ->
+                                    val i = layers.indexOfFirst { it.id == id }; val to = i + dir
+                                    if (i >= 0 && to in layers.indices) { val l = layers.removeAt(i); layers.add(to, l) }
+                                },
+                            )
+                            Page.AUDIO -> AudioPage(
+                                sc, deliver, music,
+                                onChange = { f -> update(selected, f) },
+                                onPickMusic = { pickMusic.launch(arrayOf("audio/*")) },
+                                onMusic = { music = it; if (it == null) musicPlayer.stop() },
+                            )
                             Page.DELIVER -> DeliverPage(deliver, clips, exporting, { deliver = it }, ::startExport)
                         }
                         if (clips.isEmpty() && page != Page.MEDIA && page != Page.DELIVER) Text("Add a clip in the Media page.", color = Pro.Dim, modifier = Modifier.padding(12.dp))
@@ -510,7 +603,7 @@ private fun MediaPage(clips: List<Clip>, onAddGallery: () -> Unit, onAddFiles: (
 @kotlin.OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditPage(
-    c: Clip, index: Int, count: Int, posMs: Long,
+    c: Clip, index: Int, count: Int, posMs: Long, deliver: DeliverSettings, onDeliver: (DeliverSettings) -> Unit,
     onChange: ((Clip) -> Clip) -> Unit,
     onSplit: () -> Unit, onDuplicate: () -> Unit, onDelete: () -> Unit, onMove: (Int) -> Unit,
 ) {
@@ -533,6 +626,10 @@ private fun EditPage(
         colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = Color.White.copy(alpha = 0.15f)),
     )
     Text("Split cuts the clip under the playhead (${tc(posMs)} into the clip).", color = Pro.Dim, fontSize = 11.sp)
+    SectionTitle("PROJECT FORMAT (ASPECT RATIO)")
+    val formats = ASPECTS
+    Chips(formats.map { it.first }, formats.indexOfFirst { it.second == deliver.aspect }.coerceAtLeast(0)) { onDeliver(deliver.copy(aspect = formats[it].second)) }
+    Chips(listOf("Fill frame (crop)", "Fit (bars)"), if (deliver.fill) 0 else 1) { onDeliver(deliver.copy(fill = it == 0)) }
     SectionTitle("SPEED")
     val speeds = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 4f)
     Chips(speeds.map { if (it == 1f) "1x" else "${it}x" }, speeds.indexOf(c.speed).coerceAtLeast(0)) { i -> onChange { it.copy(speed = speeds[i]) } }
@@ -605,10 +702,17 @@ private fun ColorPage(
         ColorTab.DETAIL -> {
             SectionTitle("DETAIL") { detail { Detail() } }
             EdSlider("Sharpness", c.detail.sharpen, 0f..1f, format = ::pct) { v -> detail { it.copy(sharpen = v) } }
+            EdSlider("Image detail", c.detail.localDetail) { v -> detail { it.copy(localDetail = v) } }
             EdSlider("Noise reduction", c.detail.denoise, 0f..1f, format = ::pct) { v -> detail { it.copy(denoise = v) } }
             SectionTitle("FINISHING")
             EdSlider("Vignette", c.detail.vignette) { v -> detail { it.copy(vignette = v) } }
             EdSlider("Film grain", c.detail.grain, 0f..1f, format = ::pct) { v -> detail { it.copy(grain = v) } }
+        }
+        ColorTab.EFFECTS -> {
+            SectionTitle("EFFECTS") { detail { it.copy(fx = VideoFx.NONE, fxAmount = 0.6f) } }
+            Chips(VideoFx.entries.map { it.label }, c.detail.fx.ordinal) { i -> detail { it.copy(fx = VideoFx.entries[i]) } }
+            if (c.detail.fx != VideoFx.NONE) EdSlider("Amount", c.detail.fxAmount, 0f..1f, 0.6f, ::pct) { v -> detail { it.copy(fxAmount = v) } }
+            Text("Effects show live in the viewer and are rendered on export.", color = Pro.Dim, fontSize = 11.sp)
         }
         ColorTab.LOOKS -> {
             SectionTitle("LOOKS / CREATIVE LUTS")
@@ -619,14 +723,191 @@ private fun ColorPage(
 }
 
 @Composable
-private fun AudioPage(c: Clip, deliver: DeliverSettings, onChange: ((Clip) -> Clip) -> Unit) {
-    SectionTitle("CLIP AUDIO")
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        SmallAction(if (c.muted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, if (c.muted) "Muted" else "Sound on") { onChange { it.copy(muted = !it.muted) } }
+private fun AudioPage(
+    c: Clip?, deliver: DeliverSettings, music: MusicTrack?,
+    onChange: ((Clip) -> Clip) -> Unit, onPickMusic: () -> Unit, onMusic: (MusicTrack?) -> Unit,
+) {
+    SectionTitle("MUSIC TRACK")
+    if (music == null) {
+        BigButton(Icons.Filled.MusicNote, "Add music (MP3, AAC, WAV…)", Modifier.fillMaxWidth(), onPickMusic)
+        Text("The music plays under the whole timeline, mixed with the clips' own sound.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
+    } else {
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Ed.Raised).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.MusicNote, contentDescription = null, tint = Pro.Amber)
+            Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
+                Text(music.name, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(tc(music.durationMs), style = Pro.Label)
+            }
+            Text("REPLACE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable(onClick = onPickMusic).padding(6.dp))
+            Text("REMOVE", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { onMusic(null) }.padding(6.dp))
+        }
+        EdSlider("Start from", music.offsetMs.toFloat(), 0f..(music.durationMs - 1000).coerceAtLeast(1).toFloat(), 0f, { tc(it.toLong()) }) { v -> onMusic(music.copy(offsetMs = v.toLong())) }
+        EdSlider("Music volume", music.volume, 0f..1f, 0.8f, ::pct) { v -> onMusic(music.copy(volume = v)) }
+        EdSlider("Fade in", music.fadeInMs / 1000f, 0f..5f, 1f, { "%.1f s".format(it) }) { v -> onMusic(music.copy(fadeInMs = (v * 1000).toLong())) }
+        EdSlider("Fade out", music.fadeOutMs / 1000f, 0f..8f, 2f, { "%.1f s".format(it) }) { v -> onMusic(music.copy(fadeOutMs = (v * 1000).toLong())) }
     }
-    EdSlider("Volume", c.volume, 0f..2f, 1f, { "${(it * 100).toInt()}%" }) { v -> onChange { it.copy(volume = v) } }
-    Text("Above 100% boosts the clip on export; the preview plays it at most at full volume.", color = Pro.Dim, fontSize = 11.sp)
+    if (c != null) {
+        SectionTitle("CLIP AUDIO")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SmallAction(if (c.muted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, if (c.muted) "Muted" else "Sound on") { onChange { it.copy(muted = !it.muted) } }
+        }
+        EdSlider("Clip volume", c.volume, 0f..2f, 1f, { "${(it * 100).toInt()}%" }) { v -> onChange { it.copy(volume = v) } }
+        Text("Above 100% boosts the clip on export; the preview plays it at most at full volume.", color = Pro.Dim, fontSize = 11.sp)
+    }
     if (!deliver.audio) Text("Audio is turned off in Deliver.", color = Pro.Red, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+}
+
+/** Text, stickers and watermarks drawn over the viewer; drag the selected one to move it. */
+@Composable
+private fun LayerPreview(
+    layers: List<Layer>, timeMs: Long, selectedId: String?, showAll: Boolean,
+    onMove: (String, Float, Float) -> Unit, onSelect: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        val wPx = with(density) { maxWidth.toPx() }.toInt().coerceAtLeast(2)
+        val hPx = with(density) { maxHeight.toPx() }.toInt().coerceAtLeast(2)
+        layers.forEach { l ->
+            if (!(l.activeAt(timeMs) || (showAll && l.visible) || l.id == selectedId)) return@forEach
+            val bmp by androidx.compose.runtime.produceState<Bitmap?>(null, l.copy(x = 0f, y = 0f, startMs = 0, endMs = 0), wPx, hPx) {
+                value = withContext(Dispatchers.Default) { LayerRenderer.render(context, l, wPx, hPx) }
+            }
+            val b = bmp ?: return@forEach
+            val left = (l.x * wPx - b.width / 2f).toInt()
+            val top = (l.y * hPx - b.height / 2f).toInt()
+            val sel = l.id == selectedId
+            Box(
+                Modifier
+                    .offset { androidx.compose.ui.unit.IntOffset(left, top) }
+                    .size(with(density) { b.width.toDp() }, with(density) { b.height.toDp() })
+                    .then(if (sel) Modifier.border(1.dp, Pro.Amber) else Modifier)
+                    .pointerInput(l.id) {
+                        detectDragGestures(onDragStart = { onSelect(l.id) }) { change, drag ->
+                            change.consume()
+                            onMove(l.id, drag.x / wPx, drag.y / hPx)
+                        }
+                    }
+                    .clickable { onSelect(l.id) },
+            ) {
+                Image(b.asImageBitmap(), null, modifier = Modifier.fillMaxSize(), alpha = l.opacity)
+            }
+        }
+    }
+}
+
+private val TEXT_COLORS = listOf(0xFFFFFFFF, 0xFF000000, 0xFFFFB300, 0xFFFF3B30, 0xFF34C759, 0xFF0A84FF, 0xFFFF7EB6, 0xFFB79CFF).map { it.toInt() }
+
+@kotlin.OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LayersPage(
+    layers: List<Layer>, selectedId: String?, totalMs: Long, playheadMs: Long,
+    onSelect: (String) -> Unit, onAdd: (Layer) -> Unit, onAddLogo: () -> Unit,
+    onUpdate: (Layer) -> Unit, onDelete: (String) -> Unit, onMove: (String, Int) -> Unit,
+) {
+    var stickers by remember { mutableStateOf(false) }
+    val end = (playheadMs + 3000).coerceAtMost(totalMs.coerceAtLeast(1))
+    SectionTitle("ADD LAYER")
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
+        SmallAction(Icons.Filled.TextFields, "Text") { onAdd(Layer(kind = LayerKind.TEXT, startMs = playheadMs, endMs = end)) }
+        SmallAction(Icons.Filled.EmojiEmotions, "Sticker") { stickers = !stickers }
+        SmallAction(Icons.Filled.WaterDrop, "Watermark") {
+            onAdd(Layer(kind = LayerKind.WATERMARK, text = "© AcluxPro", size = 0.04f, x = 0.84f, y = 0.92f, opacity = 0.65f, shadow = true, wholeVideo = true, font = LayerFont.LIGHT))
+        }
+        SmallAction(Icons.Filled.Image, "Logo", onAddLogo)
+    }
+    if (stickers) {
+        Column(Modifier.padding(vertical = 6.dp)) {
+            STICKERS.chunked(8).forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    row.forEach { e ->
+                        Text(e, fontSize = 26.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable {
+                            onAdd(Layer(kind = LayerKind.STICKER, text = e, size = 0.14f, shadow = false, startMs = playheadMs, endMs = end)); stickers = false
+                        }.padding(4.dp))
+                    }
+                }
+            }
+        }
+    }
+    SectionTitle("LAYERS (TOP FIRST)")
+    if (layers.isEmpty()) Text("No layers yet. Add text, a sticker, a watermark or a logo.", color = Pro.Dim, fontSize = 12.sp)
+    layers.asReversed().forEach { l ->
+        val sel = l.id == selectedId
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(8.dp))
+                .background(if (sel) Pro.Amber.copy(alpha = 0.16f) else Ed.Raised)
+                .border(1.dp, if (sel) Pro.Amber else Color.Transparent, RoundedCornerShape(8.dp))
+                .clickable { onSelect(l.id) }.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(l.kind.label.uppercase(), style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.width(78.dp))
+            Text(if (l.kind == LayerKind.LOGO) "Image" else l.text.replace('\n', ' '), color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Text(if (l.wholeVideo) "ALL" else "${tc(l.startMs)}", style = Pro.Label)
+            Icon(
+                if (l.visible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, contentDescription = "Show",
+                tint = Color.White, modifier = Modifier.padding(start = 8.dp).size(20.dp).clickable { onUpdate(l.copy(visible = !l.visible)) },
+            )
+        }
+    }
+    val l = layers.firstOrNull { it.id == selectedId } ?: return
+    SectionTitle("SELECTED ${l.kind.label.uppercase()}")
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
+        SmallAction(Icons.Filled.KeyboardArrowUp, "Up") { onMove(l.id, 1) }
+        SmallAction(Icons.Filled.KeyboardArrowDown, "Down") { onMove(l.id, -1) }
+        SmallAction(Icons.Filled.ContentCopy, "Copy") { onAdd(l.copy(id = java.util.UUID.randomUUID().toString(), x = (l.x + 0.05f).coerceAtMost(1f), y = (l.y + 0.05f).coerceAtMost(1f))) }
+        SmallAction(Icons.Filled.Delete, "Delete") { onDelete(l.id) }
+    }
+    if (l.kind == LayerKind.TEXT || l.kind == LayerKind.WATERMARK) {
+        androidx.compose.material3.OutlinedTextField(
+            value = l.text, onValueChange = { onUpdate(l.copy(text = it)) },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+            label = { Text("Text") },
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,
+            ),
+        )
+        Chips(LayerFont.entries.map { it.label }, l.font.ordinal) { onUpdate(l.copy(font = LayerFont.entries[it])) }
+        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            TEXT_COLORS.forEach { c ->
+                Box(Modifier.size(28.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(c))
+                    .border(if (c == l.color) 3.dp else 1.dp, if (c == l.color) Pro.Amber else Pro.Line, androidx.compose.foundation.shape.CircleShape)
+                    .clickable { onUpdate(l.copy(color = c)) })
+            }
+        }
+        Chips(listOf("Shadow", "Box"), -1) { if (it == 0) onUpdate(l.copy(shadow = !l.shadow)) else onUpdate(l.copy(box = !l.box)) }
+        Text("Shadow: ${if (l.shadow) "on" else "off"} · Box: ${if (l.box) "on" else "off"}", style = Pro.Label)
+    }
+    EdSlider("Size", l.size, 0.02f..0.4f, 0.07f, ::pct) { onUpdate(l.copy(size = it)) }
+    EdSlider("Opacity", l.opacity, 0.05f..1f, 1f, ::pct) { onUpdate(l.copy(opacity = it)) }
+    SectionTitle("POSITION")
+    Text("Drag the layer in the viewer, or snap it:", color = Pro.Dim, fontSize = 11.sp)
+    val spots = listOf(0.12f, 0.5f, 0.88f)
+    Column {
+        spots.forEach { y ->
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 2.dp)) {
+                spots.forEach { x ->
+                    val on = kotlin.math.abs(l.x - x) < 0.02f && kotlin.math.abs(l.y - y) < 0.02f
+                    Box(Modifier.size(width = 44.dp, height = 26.dp).clip(RoundedCornerShape(4.dp)).background(if (on) Pro.Amber else Ed.Raised).clickable { onUpdate(l.copy(x = x, y = y)) })
+                }
+            }
+        }
+    }
+    SectionTitle("TIMING")
+    Chips(listOf("Part of the video", "Whole video"), if (l.wholeVideo) 1 else 0) { onUpdate(l.copy(wholeVideo = it == 1)) }
+    if (!l.wholeVideo && totalMs > 0) {
+        RangeSlider(
+            value = l.startMs.coerceIn(0, totalMs).toFloat()..l.endMs.coerceIn(0, totalMs).toFloat(),
+            onValueChange = { r -> onUpdate(l.copy(startMs = r.start.toLong(), endMs = r.endInclusive.toLong())) },
+            valueRange = 0f..totalMs.toFloat(),
+            colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = Color.White.copy(alpha = 0.15f)),
+        )
+        Text("${tc(l.startMs)} → ${tc(l.endMs)}", style = Pro.Label)
+        Text("START AT PLAYHEAD", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable {
+            val len = (l.endMs - l.startMs).coerceAtLeast(500)
+            onUpdate(l.copy(startMs = playheadMs, endMs = (playheadMs + len).coerceAtMost(totalMs)))
+        }.padding(vertical = 8.dp))
+    }
 }
 
 @Composable
@@ -663,3 +944,9 @@ fun tc(ms: Long): String {
     val h = t / 3_600_000; val m = (t / 60_000) % 60; val s = (t / 1000) % 60; val cs = (t % 1000) / 10
     return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%02d:%02d.%02d".format(m, s, cs)
 }
+
+/** Common aspect ratios (label, width / height; 0 = original). */
+val ASPECTS = listOf(
+    "Original" to 0f, "16:9" to 16f / 9f, "9:16" to 9f / 16f, "1:1" to 1f, "4:5" to 0.8f, "4:3" to 4f / 3f,
+    "3:4" to 0.75f, "21:9" to 21f / 9f, "2.39:1" to 2.39f, "3:2" to 1.5f,
+)

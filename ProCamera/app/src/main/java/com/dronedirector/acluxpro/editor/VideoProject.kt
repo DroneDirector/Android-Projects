@@ -374,7 +374,7 @@ fun duckRanges(clips: List<Clip>): List<LongRange> {
 }
 
 /** Computing a colour table takes a moment; reuse the numbers (never the GPU effect itself). */
-private object LutCache {
+internal object LutCache {
     private val map = object : LinkedHashMap<ProGrade, Array<Array<IntArray>>>(8, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<ProGrade, Array<Array<IntArray>>>?) = size > 8
     }

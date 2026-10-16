@@ -48,93 +48,122 @@ import androidx.compose.ui.window.DialogProperties
 
 /*
  * KEEP UP TO DATE: whenever a feature is added, changed or removed, update these sections,
- * GUIDE.md, FEATURES.md and the "Unreleased" part of CHANGELOG.md in the same change.
+ * all three variants below, GUIDE.md, FEATURES.md and the "Unreleased" part of CHANGELOG.md in the same change.
  */
-enum class GuideTopic { CLOUD, PHONE_AI, CAPTURE, PHOTO, VIDEO, GENERAL }
+enum class GuideTopic { CLOUD, PHONE_AI, TIPS, GENERAL }
+
+/** Which part of the app the guide was opened from; each gets only the parts that apply to it. */
+enum class GuideVariant(val title: String) { CAPTURE("Capture guide"), PHOTO("Photo editor guide"), VIDEO("Video editor guide") }
 
 private class GuideSection(val topic: GuideTopic, val title: String, val icon: ImageVector, val intro: String?, val steps: List<String>, val numbered: Boolean)
 
-private val SECTIONS = listOf(
-    GuideSection(
+private fun cloudSection(v: GuideVariant): GuideSection {
+    val what = when (v) {
+        GuideVariant.CAPTURE -> "AI upscale (AI 24 / 36 / 48 MP) uses Topaz Labs' upscaler in the cloud."
+        GuideVariant.PHOTO -> "AI noise reduction on export uses Topaz Denoise in the cloud."
+        GuideVariant.VIDEO -> "AI noise reduction on export uses Topaz Nyx, made for video — minutes instead of up to an hour on the phone."
+    }
+    val toggle = when (v) {
+        GuideVariant.CAPTURE, GuideVariant.PHOTO -> "Turn on \"Photos in the cloud\"" + if (v == GuideVariant.PHOTO) " and pick the noise strength (Normal, Strong, Extreme or Max)." else "."
+        GuideVariant.VIDEO -> "Turn on \"Video in the cloud\" and pick the model — Nyx Fast is quickest and cheapest (about \$0.10 per 10 s of 1080p)."
+    }
+    return GuideSection(
         GuideTopic.CLOUD, "Cloud AI: add your API key", Icons.Filled.Cloud,
-        "Cloud AI runs Topaz Labs' professional AI on fast servers through your own fal.ai account. It's optional — without it the AI runs on the phone.",
+        "Optional: runs Topaz Labs' professional AI on fast servers through your own fal.ai account. $what Without it, the AI runs on the phone.",
         listOf(
-            "Open fal.ai in your browser (or tap \"Open fal.ai keys\" below) and sign up or log in.",
-            "Add credit to your fal.ai account (Billing). You pay fal.ai per use — e.g. about \$0.10 per 10 s of 1080p video with Nyx Fast.",
-            "Go to Dashboard → API Keys → Add key. Give it a name like \"AcluxPro\" and create it.",
-            "Copy the key (it's shown only once).",
-            "In AcluxPro open the settings gear (Capture, Photo editor or Video editor) → CLOUD AI → \"Add your fal.ai key\".",
+            "Open fal.ai (tap \"Open fal.ai keys\" below) and sign up or log in.",
+            "Add credit to your fal.ai account (Billing). You pay fal.ai per use.",
+            "Go to Dashboard → API Keys → Add key, name it (e.g. \"AcluxPro\") and create it.",
+            "Copy the key — it's shown only once.",
+            "Back here, in this settings menu → CLOUD AI → \"Add your fal.ai key\".",
             "Paste the key and tap SAVE KEY. It's stored encrypted on this phone and only sent to fal.ai.",
-            "Turn on \"Photos in the cloud\" (Topaz upscale + Topaz Denoise) and/or \"Video in the cloud\" (Topaz Nyx noise reduction).",
-            "Optional: pick the photo noise strength and the video model (Nyx Fast is quickest and cheapest), and keep \"Wi-Fi only\" on to avoid using mobile data.",
-            "Use the AI features as usual — the AI badge shows upload, processing and download, and STOP cancels the job. If the cloud isn't available, the app uses the on-phone AI instead and tells you why.",
+            toggle,
+            "Keep \"Wi-Fi only\" on to avoid using mobile data.",
+            "The AI badge shows upload, processing and download; STOP cancels. If the cloud isn't available, the on-phone AI is used and you're told why.",
         ),
         numbered = true,
-    ),
-    GuideSection(
-        GuideTopic.PHONE_AI, "AI on the phone", Icons.Filled.AutoAwesome, null,
-        listOf(
-            "AI upscale: Capture settings → AI UPSCALE → turn on \"AI upscale sizes\", then pick AI 24 / 36 / 48 MP under SIZE. The bigger copy is made in the background and saved next to the original.",
-            "AI noise reduction: Photo editor → Detail, or Video editor → Color → Detail → AI NOISE REDUCTION. Tap the ⓘ ! next to it in the video editor for timing info.",
-            "Video AI noise reduction on the phone can take several minutes up to about an hour — Cloud AI does it in minutes.",
-            "Tap STOP on the AI badge at any time to cancel.",
-        ),
-        numbered = false,
-    ),
-    GuideSection(
-        GuideTopic.CAPTURE, "Capture tips", Icons.Filled.CameraAlt, null,
-        listOf(
+    )
+}
+
+private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
+    GuideVariant.CAPTURE -> listOf(
+        cloudSection(v),
+        GuideSection(GuideTopic.PHONE_AI, "AI upscale", Icons.Filled.AutoAwesome, null, listOf(
+            "Settings → AI UPSCALE → turn on \"AI upscale sizes\".",
+            "Pick AI 24 / 36 / 48 MP under SIZE (quick controls or Settings → Photo size).",
+            "Shoot as usual — the bigger copy is made in the background and saved next to the original.",
+            "Standard is faster; High keeps more real detail. Choose whether to keep the original.",
+            "Tap STOP on the AI badge to cancel.",
+        ), numbered = false),
+        GuideSection(GuideTopic.TIPS, "Capture tips", Icons.Filled.CameraAlt, null, listOf(
             "Use the volume keys as a shutter / record button.",
             "PRO and PRO VIDEO give manual ISO, shutter, focus, white balance and exposure.",
-            "Turn on zebras, false colour and focus peaking to judge exposure and focus.",
+            "Zebras, false colour and focus peaking help judge exposure and focus.",
             "H.265 records smaller files at the same quality; H.264 plays everywhere.",
-            "D-Log / D-Log M / Flat profiles keep more dynamic range — grade them later in the Video editor (Color → Input).",
+            "D-Log / D-Log M / Flat keep more dynamic range — grade them later in the Video editor.",
             "Clean feed hides the controls for screen mirroring or HDMI.",
             "In LIVE, add your stream key once per platform; choose H.264 if your platform doesn't accept H.265.",
-        ),
-        numbered = false,
-    ),
-    GuideSection(
-        GuideTopic.PHOTO, "Photo editor tips", Icons.Filled.Photo, null,
-        listOf(
-            "Hold your finger on the photo to see the original (before).",
-            "Sliders update live — drag them and watch the photo change.",
-            "COPY SETTINGS / PASTE SETTINGS moves your look to another photo — or to a video clip.",
+            "Settings → PHOTO SIZE shows what your phone's sensor allows apps to use.",
+        ), numbered = false),
+        GuideSection(GuideTopic.GENERAL, "General", Icons.Filled.Tune, null, listOf(
+            "Change the app colour under APP COLOUR.",
+            "\"Always start in Capture\" opens the app straight into the camera.",
+            "Choose where photos and videos are saved under SAVE PHOTOS & VIDEOS TO.",
+        ), numbered = false),
+    )
+    GuideVariant.PHOTO -> listOf(
+        cloudSection(v),
+        GuideSection(GuideTopic.PHONE_AI, "AI noise reduction", Icons.Filled.AutoAwesome, null, listOf(
+            "Detail → AI NOISE REDUCTION → move Strength above Off.",
+            "The preview is cleaned once by the AI; after that the slider works instantly.",
+            "Exporting cleans the full-size photo (on the phone, or in the cloud if Cloud AI is on).",
+            "Tap STOP on the AI badge to cancel.",
+        ), numbered = false),
+        GuideSection(GuideTopic.TIPS, "Photo editor tips", Icons.Filled.Photo, null, listOf(
+            "Hold your finger on the photo to see the original.",
+            "Sliders update live while you drag.",
+            "COPY SETTINGS / PASTE SETTINGS moves a look to another photo — or to a video clip.",
             "SAVE keeps the edit as a project; LOAD opens it again later.",
-            "Hold the divider between the photo and the controls, then drag to resize. Double-tap it to reset.",
-            "Turn on \"Remember watermark\" in settings to add your watermark to every photo automatically.",
-        ),
-        numbered = false,
-    ),
-    GuideSection(
-        GuideTopic.VIDEO, "Video editor tips", Icons.Filled.Movie, null,
-        listOf(
-            "Pinch the timeline to zoom; tap the scissors under the player to split at the playhead.",
-            "Tap a cut on the timeline to choose a transition (34 to pick from).",
-            "Edit → Crop & zoom: pinch, drag and twist right on the player. Ken Burns animates from a start to an end framing.",
-            "Heavy clips (HDR, 10-bit, 4K) get a light preview copy automatically for smooth playback; exports always use the originals.",
-            "If playback stalls, turn on \"Show playback info\" in settings and send a screenshot.",
+            "Hold the divider between the photo and the controls, then drag to resize. Double-tap to reset.",
+            "Undo / redo are in the top bar; the histogram toggles with the chart icon.",
+        ), numbered = false),
+        GuideSection(GuideTopic.GENERAL, "General", Icons.Filled.Tune, null, listOf(
+            "\"Remember watermark\" adds your watermark to every new photo automatically.",
+            "SAVE LOCATION chooses where exported photos go.",
+            "Change the app colour under APP COLOUR.",
+            "\"Always start in Photo editor\" opens the app straight into this editor.",
+        ), numbered = false),
+    )
+    GuideVariant.VIDEO -> listOf(
+        cloudSection(v),
+        GuideSection(GuideTopic.PHONE_AI, "AI noise reduction", Icons.Filled.AutoAwesome, null, listOf(
+            "Color → Detail → AI NOISE REDUCTION → move Strength above Off.",
+            "It's applied when exporting; the preview shows the normal noise reduction.",
+            "On the phone it can take several minutes up to about an hour (tap ⓘ next to it); Cloud AI does it in minutes.",
+            "Tap STOP on the AI badge to cancel.",
+        ), numbered = false),
+        GuideSection(GuideTopic.TIPS, "Video editor tips", Icons.Filled.Movie, null, listOf(
+            "Pinch the timeline to zoom; the scissors under the player split at the playhead.",
+            "Tap a cut on the timeline to choose one of 34 transitions.",
+            "Edit → Crop & zoom: pinch, drag and twist on the player; Ken Burns animates start → end.",
+            "COPY / PASTE SETTINGS copies a clip's grade, audio and more to other clips (or all clips).",
+            "Heavy clips (HDR, 10-bit, 4K) get a light preview copy for smooth playback; exports use the originals.",
+            "If playback stalls, turn on \"Show playback info\" here and share a screenshot.",
             "Hold a divider to resize the player, timeline or controls; double-tap to reset.",
-            "SAVE / LOAD projects, and use \"Save & leave\" when exiting.",
-        ),
-        numbered = false,
-    ),
-    GuideSection(
-        GuideTopic.GENERAL, "General", Icons.Filled.Tune, null,
-        listOf(
-            "Change the app colour in any settings menu (APP COLOUR).",
-            "\"Always start in …\" in settings opens the app straight into Capture, the Photo editor or the Video editor.",
-            "Choose where photos and exports are saved in the editors' settings (SAVE LOCATION).",
-            "The Exit button on the start screen closes the app completely.",
-            "What's new in each version: see the release notes on the Releases page.",
-        ),
-        numbered = false,
-    ),
-)
+            "SAVE / LOAD projects; \"Save & leave\" when exiting.",
+        ), numbered = false),
+        GuideSection(GuideTopic.GENERAL, "General", Icons.Filled.Tune, null, listOf(
+            "\"Remember watermark\" adds your watermark to every new project automatically.",
+            "SAVE LOCATION chooses where exported videos go.",
+            "Change the app colour under APP COLOUR.",
+            "\"Always start in Video editor\" opens the app straight into this editor.",
+        ), numbered = false),
+    )
+}
 
 /** In-app guide: how to add the Cloud AI key, plus tips for every part of the app. */
 @Composable
-fun GuideDialog(open: GuideTopic? = null, onDismiss: () -> Unit) {
+fun GuideDialog(variant: GuideVariant, open: GuideTopic? = null, onDismiss: () -> Unit) {
     val expanded = remember { mutableStateListOf<GuideTopic>().apply { add(open ?: GuideTopic.CLOUD) } }
     val uri = LocalUriHandler.current
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -142,7 +171,7 @@ fun GuideDialog(open: GuideTopic? = null, onDismiss: () -> Unit) {
             Column(Modifier.fillMaxSize()) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Guide & tips", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                        Text(variant.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
                         Text("GET MORE OUT OF ACLUXPRO", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp, letterSpacing = 2.sp))
                     }
                     Box(Modifier.size(44.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.08f)).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
@@ -150,7 +179,7 @@ fun GuideDialog(open: GuideTopic? = null, onDismiss: () -> Unit) {
                     }
                 }
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-                    SECTIONS.forEach { s ->
+                    sectionsFor(variant).forEach { s ->
                         val isOpen = s.topic in expanded
                         Column(
                             Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(14.dp))

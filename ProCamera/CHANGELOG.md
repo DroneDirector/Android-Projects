@@ -4,7 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
-- Guide & tips: in-app guide (tap ? on the start screen) with step-by-step Cloud AI key setup and tips for every part of the app; "Guide & tips" button in every settings menu; "How to add a key" link in Cloud AI settings. Also on GitHub as GUIDE.md.
+- Guides: separate Capture, Photo editor and Video editor guides, each showing only what applies there (Cloud AI key setup, AI features, tips). Open them from each settings gear (guide button, or "How to add a key" under Cloud AI). Also on GitHub as GUIDE.md.
 
 ## 1.0.119 — 2026-10-16
 - Cloud AI (optional): use your own fal.ai account to run Topaz Labs' professional models on fast cloud servers — photos: Topaz upscale (Standard V2) and Topaz Denoise; video: Topaz Nyx noise reduction (Nyx Fast / Nyx / HF / XL). Key stored encrypted; Wi-Fi-only option; falls back to the on-phone AI.

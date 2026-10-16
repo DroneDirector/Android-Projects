@@ -262,8 +262,9 @@ fun EditorSettingsDialog(
                 }
                 Text("APP COLOUR", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp, bottom = 4.dp))
                 com.dronedirector.acluxpro.ui.AccentPicker()
-                com.dronedirector.acluxpro.ui.CloudAiSettings()
-                com.dronedirector.acluxpro.ui.GuideButton()
+                val gv = if (screen == com.dronedirector.acluxpro.ui.AppScreen.VIDEO_EDITOR) com.dronedirector.acluxpro.ui.GuideVariant.VIDEO else com.dronedirector.acluxpro.ui.GuideVariant.PHOTO
+                com.dronedirector.acluxpro.ui.CloudAiSettings(gv)
+                com.dronedirector.acluxpro.ui.GuideButton(gv)
                 if (extra != null) extra()
             }
         },

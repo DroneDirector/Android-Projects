@@ -199,15 +199,6 @@ private fun HubLayout(title: String, subtitle: String, onBack: (() -> Unit)?, ti
                 }
             }
             if (showVersion) ExitButton(angle, pulse, Modifier.align(Alignment.BottomEnd)) { exiting = true }
-            if (showVersion) {
-                var guide by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
-                Box(
-                    Modifier.align(Alignment.TopEnd).size(46.dp).clip(CircleShape)
-                        .border(1.5.dp, accent.copy(alpha = 0.7f), CircleShape).clickable { guide = true },
-                    contentAlignment = Alignment.Center,
-                ) { Text("?", color = accent, fontSize = 22.sp, fontWeight = FontWeight.Black) }
-                if (guide) GuideDialog(onDismiss = { guide = false })
-            }
             if (showVersion && version.isNotEmpty()) {
                 Text(
                     "v$version",

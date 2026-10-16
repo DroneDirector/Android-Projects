@@ -4,6 +4,10 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: AI captions — timed caption layers from speech (Whisper via your fal.ai account), 9 languages incl. Faroese and Danish.
+- Video editor: auto-reframe to 9:16, 1:1 or 4:5 — clips follow their subject (on-phone AI).
+- Video editor: AI slow motion — frame interpolation (RIFE via Cloud AI).
+- Photo editor: AI subject and sky masks; background blur (portrait), removal (transparent PNG) or colour; AI erase for objects (Bria Eraser via Cloud AI, or on the phone).
 
 ## 1.0.147 — 2026-10-16
 - Photo editor: masks — linear gradient, radial and brush — each with its own exposure, contrast, highlights, shadows, temperature, tint, saturation and dehaze.

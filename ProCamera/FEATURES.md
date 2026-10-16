@@ -77,6 +77,9 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Lens corrections**: distortion, vignetting, colour fringes.
 - **Masks**: linear gradient, radial and brush, each with its own light and colour settings.
 - **Heal / spot removal**: tap to remove dust, blemishes and small objects.
+- **AI masks**: subject and sky selected automatically.
+- **Background (AI)**: portrait blur, transparent background or colour fill behind the subject.
+- **AI erase**: paint over bigger objects to remove them.
 - **Merge photos**: HDR (exposure fusion), panorama stitching, focus stacking.
 - **Watermark**: text or logo, font, colour, size, position, opacity; optional **Remember watermark**.
 - Live **histogram**, **hold for before**, **undo / redo**.
@@ -128,6 +131,8 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Crop & zoom on the player** (pinch, drag, twist) with thirds grid; zoom 0.25×–4×, position, rotate, flip.
 - **Ken Burns** animation from a start framing to an end framing.
 - **Anamorphic desqueeze** per clip (preview and export).
+- **Auto-reframe** (AI) to 9:16, 1:1 or 4:5 — the picture follows the subject.
+- **AI slow motion** by frame interpolation (RIFE via Cloud AI).
 - **Stabilization**: motion analysis with smooth or locked (tripod) modes, smoothness and auto-crop.
 
 ### Layers
@@ -135,6 +140,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Keyframes** for layer position, size and opacity (smooth easing; diamonds on the timeline).
 - **Blend modes** (Screen, Multiply, Overlay, Add, Lighten, Darken, Soft light, Difference) for picture, text and sticker layers.
 - **Chroma key** (green / blue / black / white screen) for video and image layers, with tolerance and edge softness.
+- **AI captions** from the speech in the edit (Whisper via Cloud AI), boxed / clean / big styles.
 - **Rename layers** (e.g. name your watermarks) — names show in the layer list and on the timeline.
 
 ### Audio
@@ -165,6 +171,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Photos**: Topaz Labs upscale (Standard V2) for AI 24/36/48 MP and Topaz Denoise (Normal / Strong / Extreme / Max) for AI noise reduction.
 - **Video**: Topaz **Nyx** video noise reduction (Nyx Fast, Nyx, Nyx HF, Nyx XL) when exporting — minutes instead of up to an hour on the phone; results cached so re-exports don't pay twice.
 - **Wi-Fi only** option; animated badge shows upload / processing / download with **Stop**; automatic fallback to the on-phone AI.
+- Also used for: **AI captions** (Whisper), **AI slow motion** (RIFE), **AI erase** (Bria Eraser), **subject / sky selection** (BiRefNet / EVF-SAM2).
 - Found in Capture settings and in both editors' settings.
 
 ## Look & feel

@@ -103,6 +103,47 @@ object Upscaler {
 
     private fun setProgress(p: Int) = main.post { progress = p }
 
+    /**
+     * Photo editor: AI-upscales an edited picture to [tw]×[th] (cloud first when chosen in settings).
+     * Blocks; call off the main thread. Returns null when stopped.
+     */
+    fun upscaleBitmap(context: Context, src: Bitmap, tw: Int, th: Int): Bitmap? {
+        val gen = generation.get()
+        val app = context.applicationContext
+        main.post { pending++ }
+        try {
+            return worker.submit<Bitmap?> {
+                jobGen = gen
+                if (CloudAi.usePhotos(app)) {
+                    try {
+                        val jpeg = java.io.ByteArrayOutputStream().also { src.compress(Bitmap.CompressFormat.JPEG, 96, it) }.toByteArray()
+                        val res = CloudAi.upscalePhoto(app, jpeg, tw.toFloat() / src.width)
+                        BitmapFactory.decodeByteArray(res, 0, res.size)?.let { b ->
+                            return@submit if (b.width == tw && b.height == th) b else Bitmap.createScaledBitmap(b, tw, th, true).also { b.recycle() }
+                        }
+                    } catch (_: CloudAi.Stopped) { throw Stopped() } catch (_: Throwable) {}
+                }
+                val out = Bitmap.createBitmap(tw, th, Bitmap.Config.ARGB_8888)
+                if (ensureModel(app)) {
+                    val f = factor.coerceAtLeast(1)
+                    val pre = (tw.toDouble() / src.width / f).coerceAtMost(1.0)
+                    val iw = (src.width * pre).toInt().coerceAtLeast(8); val ih = (src.height * pre).toInt().coerceAtLeast(8)
+                    val inp = if (iw == src.width && ih == src.height) src else Bitmap.createScaledBitmap(src, iw, ih, true)
+                    runTiles(inp, out, tw.toFloat() / (iw * f), th.toFloat() / (ih * f))
+                    if (inp !== src) inp.recycle()
+                } else {
+                    Canvas(out).drawBitmap(src, null, RectF(0f, 0f, tw.toFloat(), th.toFloat()), Paint(Paint.FILTER_BITMAP_FLAG))
+                }
+                out
+            }.get()
+        } catch (e: java.util.concurrent.ExecutionException) {
+            if (e.cause is Stopped) return null
+            throw e.cause ?: e
+        } finally {
+            main.post { pending--; progress = 0 }
+        }
+    }
+
     /** Loads ESRGAN once; GPU first, CPU if the GPU path isn't available. Returns false if the model isn't in the app. */
     private fun ensureModel(context: Context): Boolean {
         if (model != null) return true

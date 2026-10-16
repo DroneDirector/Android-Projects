@@ -44,6 +44,9 @@ data class PhotoProjectData(
     val format: Int = 0,
     val quality: Float = 0.95f,
     val sizeIdx: Int = 0,
+    val masks: List<PhotoMask> = emptyList(),
+    val spots: List<Spot> = emptyList(),
+    val lens: LensFix = LensFix(),
 )
 
 /** A saved project as shown in the list. */

@@ -48,6 +48,9 @@ jobs:
           curl -fsSL --retry 3 -o app/src/main/assets/nafnet.tflite \
             https://huggingface.co/litert-community/NAFNet-SIDD-width32-LiteRT/resolve/main/nafnet_sidd_width32_fp16.tflite \
             || echo "::warning::NAFNet model download failed; AI noise reduction will be unavailable"
+          curl -fsSL --retry 3 -o app/src/main/assets/deeplab.tflite \
+            https://storage.googleapis.com/download.tensorflow.org/models/tflite/gpu/deeplabv3_257_mv_gpu.tflite \
+            || echo "::warning::DeepLab model download failed; on-phone AI subject masks will be unavailable"
           ls -l app/src/main/assets || true
 
       - name: Build APK

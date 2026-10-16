@@ -55,7 +55,7 @@ object CloudVideoPrep {
     }
 
     /** Copy of just the used range of the clip (start on the main thread). */
-    private suspend fun trim(context: Context, c: Clip): File = withContext(Dispatchers.Main) {
+    suspend fun trim(context: Context, c: Clip): File = withContext(Dispatchers.Main) {
         val out = File(dir(context), "trim_${System.currentTimeMillis()}.mp4")
         suspendCancellableCoroutine { cont ->
             val t = Transformer.Builder(context)

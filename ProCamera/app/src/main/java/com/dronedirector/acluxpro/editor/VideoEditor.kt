@@ -114,6 +114,7 @@ import com.dronedirector.acluxpro.camera.GradeIO
 import com.dronedirector.acluxpro.ui.Pro
 import com.dronedirector.acluxpro.ui.hintedScroll
 import kotlinx.coroutines.Dispatchers
+import androidx.compose.material.icons.filled.SlowMotionVideo
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.CallSplit
@@ -925,6 +926,142 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
 
+    // ---- AI captions
+    fun makeCaptions(lang: String?, clipsOnly: Boolean, style: Int) {
+        com.dronedirector.acluxpro.camera.CloudAi.load(context)
+        if (!com.dronedirector.acluxpro.camera.CloudAi.hasKey) { message = "AI captions use your fal.ai account — add the key in settings → Cloud AI"; return }
+        if (clips.isEmpty()) return
+        deck.cur.pause()
+        val file = java.io.File(context.cacheDir, "captions_${System.currentTimeMillis()}.m4a")
+        message = "Preparing the sound…"
+        val total = timelineLength(clips)
+        val e = TimelineExport(
+            context, clips.toList(), deliver.copy(audioOnly = true, rangeStart = null, rangeEnd = null), emptyList(),
+            if (clipsOnly) null else music, if (clipsOnly) emptyList() else extraAudio.toList(),
+            onProgress = {},
+            onDone = { u, err ->
+                if (u == null) message = err ?: "Couldn't prepare the sound"
+                else layerScope.launch {
+                    val segs = try { withContext(Dispatchers.IO) { com.dronedirector.acluxpro.camera.CloudAi.transcribe(context, file, lang) } }
+                    catch (_: com.dronedirector.acluxpro.camera.CloudAi.Stopped) { message = "Captions stopped"; null }
+                    catch (t: Throwable) { message = t.message ?: "Captions failed"; null }
+                    file.delete()
+                    if (segs != null) {
+                        var n = 0
+                        for ((a, b, text) in segs) {
+                            // Long sentences become several captions of at most two short lines.
+                            val pieces = captionPieces(text, 38)
+                            val span = (b - a).coerceAtLeast(400) / pieces.size
+                            pieces.forEachIndexed { k, p ->
+                                val s0 = (a + k * span).coerceAtMost(total); val s1 = (a + (k + 1) * span).coerceAtMost(total)
+                                if (s1 - s0 < 150) return@forEachIndexed
+                                layers.add(Layer(
+                                    kind = LayerKind.TEXT, text = p, size = if (style == 2) 0.062f else 0.046f, x = 0.5f, y = 0.84f,
+                                    box = style == 0, shadow = true, font = if (style == 2) LayerFont.CONDENSED else LayerFont.SANS,
+                                    startMs = s0, endMs = s1, name = "Caption",
+                                ))
+                                n++
+                            }
+                        }
+                        message = if (n > 0) "$n captions added — tap one on the timeline to edit it" else "No speech found"
+                    }
+                }
+            },
+            toFile = file,
+        )
+        try { e.start() } catch (t: Throwable) { message = "Couldn't prepare the sound" }
+    }
+
+    // ---- Auto-reframe: follow the subject when changing the shape of the video.
+    fun reframeTrack(c: Clip, aspect: Float): List<Float>? {
+        val videoAspect = c.width * (c.desqueeze ?: 1f) / c.height.coerceAtLeast(1)
+        val cw = (aspect / videoAspect).coerceAtMost(1f)
+        if (cw > 0.97f) return null
+        val maxShift = (1f - cw) / 2f
+        val mmr = android.media.MediaMetadataRetriever()
+        try {
+            mmr.setDataSource(context, c.uri)
+            val n = ((c.endMs - c.startMs) / 500).toInt().coerceIn(2, 120)
+            var prev: IntArray? = null
+            val xs = FloatArray(n)
+            var last = 0.5f
+            for (i in 0 until n) {
+                val t = c.startMs + (c.endMs - c.startMs) * i / (n - 1)
+                val f = (if (android.os.Build.VERSION.SDK_INT >= 27) mmr.getScaledFrameAtTime(t * 1000, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC, 320, (320 / videoAspect).toInt().coerceAtLeast(16))
+                    else mmr.getFrameAtTime(t * 1000, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)) ?: continue
+                val fb = if (f.config == Bitmap.Config.ARGB_8888) f else f.copy(Bitmap.Config.ARGB_8888, false)
+                var cx = AiSegment.subjectCenter(context, fb)
+                // No AI subject: follow where things move.
+                val px = IntArray(fb.width * fb.height).also { fb.getPixels(it, 0, fb.width, 0, 0, fb.width, fb.height) }
+                if (cx == null) prev?.takeIf { it.size == px.size }?.let { p ->
+                    var sw = 0f; var sx = 0f
+                    for (k in px.indices) {
+                        val d = kotlin.math.abs((px[k] shr 8 and 0xFF) - (p[k] shr 8 and 0xFF)).toFloat()
+                        if (d > 18) { sw += d; sx += d * (k % fb.width) }
+                    }
+                    if (sw > px.size * 0.5f) cx = sx / sw / fb.width
+                }
+                prev = px
+                last = cx ?: last
+                xs[i] = last
+            }
+            // Smooth, so the camera glides instead of jumping.
+            val sm = FloatArray(n) { i -> var s = 0f; var k = 0; for (j in (i - 3).coerceAtLeast(0)..(i + 3).coerceAtMost(n - 1)) { s += xs[j]; k++ }; s / k }
+            return sm.map { (0.5f - it).coerceIn(-maxShift, maxShift) }
+        } catch (_: Throwable) { return null } finally { mmr.release() }
+    }
+
+    fun autoReframe(aspect: Float?) {
+        if (videoLocked) { message = "The video track is locked"; return }
+        if (aspect == null) {
+            for (i in clips.indices) clips[i] = clips[i].copy(reframe = clips[i].reframe.copy(track = null))
+            message = "Auto-reframe cleared"; return
+        }
+        deliver = deliver.copy(aspect = aspect, fill = true)
+        deck.cur.pause()
+        layerScope.launch {
+            val list = clips.toList()
+            for ((i, c) in list.withIndex()) {
+                message = "Auto-reframe: clip ${i + 1} of ${list.size}…"
+                val tr = withContext(Dispatchers.IO) { reframeTrack(c, aspect) } ?: continue
+                val idx = clips.indexOfFirst { it.id == c.id }
+                if (idx >= 0) clips[idx] = clips[idx].copy(reframe = clips[idx].reframe.copy(track = tr))
+            }
+            message = "Auto-reframe done — the picture follows the subject" + if (!AiSegment.hasModel(context)) " (motion)" else ""
+        }
+    }
+
+    // ---- AI slow motion (frame interpolation in the cloud).
+    fun aiSlowMo(i: Int) {
+        if (videoLocked) { message = "The video track is locked"; return }
+        val c = clips.getOrNull(i) ?: return
+        com.dronedirector.acluxpro.camera.CloudAi.load(context)
+        if (!com.dronedirector.acluxpro.camera.CloudAi.hasKey) { message = "AI slow-mo uses your fal.ai account — add the key in settings → Cloud AI"; return }
+        if (c.endMs - c.startMs > 20_000) { message = "Trim the clip to 20 s or less for AI slow-mo"; return }
+        deck.cur.pause()
+        layerScope.launch {
+            try {
+                val trimmed = CloudVideoPrep.trim(context, c)
+                val dir = java.io.File(context.filesDir, "edits").apply { mkdirs() }
+                val out = java.io.File(dir, "slowmo_${System.currentTimeMillis()}.mp4")
+                try { withContext(Dispatchers.IO) { com.dronedirector.acluxpro.camera.CloudAi.interpolate(context, trimmed, out, 3) } } finally { trimmed.delete() }
+                val dur = withContext(Dispatchers.IO) {
+                    android.media.MediaMetadataRetriever().let { m -> m.setDataSource(out.path); val d = m.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L; m.release(); d }
+                }
+                val idx = clips.indexOfFirst { it.id == c.id }
+                if (idx < 0 || dur <= 0) { message = "AI slow-mo failed"; return@launch }
+                clips[idx] = c.copy(
+                    id = java.util.UUID.randomUUID().toString(), uri = android.net.Uri.fromFile(out), name = "Slow-mo · ${c.name}",
+                    durationMs = dur, startMs = 0, endMs = dur, speed = 0.25f, ramp = null, rampName = null, volKeys = null, muted = true,
+                    stab = Stabilize(), mime = "video/avc", hdr = false, tenBit = false,
+                )
+                load(idx.coerceAtMost(clips.lastIndex), 0, false)
+                message = "AI slow motion: 4× more frames, playing at ¼ speed"
+            } catch (_: com.dronedirector.acluxpro.camera.CloudAi.Stopped) { message = "AI slow-mo stopped" }
+            catch (t: Throwable) { message = t.message ?: "AI slow-mo failed" }
+        }
+    }
+
     /** Freeze frame: 2 s of the frame under the playhead, inserted there (the clip is split around it). */
     fun freezeAtPlayhead() {
         if (videoLocked) { message = "The video track is locked"; return }
@@ -1418,6 +1555,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onFreeze = { freezeAtPlayhead() },
                                 onReverse = { reverseClip(selected) },
                                 onDetach = { detachAudio(selected) },
+                                onSlowMo = { aiSlowMo(selected) },
+                                onReframe = { a -> autoReframe(a) },
                                 onDuplicate = { if (videoLocked) message = "The video track is locked" else clips.add(selected + 1, sc.copy(id = java.util.UUID.randomUUID().toString())) },
                                 onDelete = {
                                     if (videoLocked) { message = "The video track is locked"; return@EditPage }
@@ -1476,6 +1615,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     }
                                 },
                                 onSeek = { seekGlobal(it) },
+                                onCaptions = { lang, clipsOnly, style -> makeCaptions(lang, clipsOnly, style) },
                                 onDelete = { id ->
                                     if (layers.any { it.id == id && it.locked }) message = "This layer is locked — tap its lock to delete it"
                                     else { layers.removeAll { it.id == id }; selectedLayer = layers.lastOrNull()?.id }
@@ -1754,6 +1894,7 @@ private fun EditPage(
     onChange: ((Clip) -> Clip) -> Unit,
     onSplit: () -> Unit, onDuplicate: () -> Unit, onDelete: () -> Unit, onMove: (Int) -> Unit,
     onFreeze: () -> Unit = {}, onReverse: () -> Unit = {}, onDetach: () -> Unit = {},
+    onSlowMo: () -> Unit = {}, onReframe: (Float?) -> Unit = {},
 ) {
     SectionTitle("CLIP ${index + 1} OF $count · ${c.name}".uppercase())
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
@@ -1761,6 +1902,7 @@ private fun EditPage(
         SmallAction(Icons.Filled.PauseCircle, "Freeze", onFreeze)
         SmallAction(Icons.Filled.FastRewind, "Reverse", onReverse)
         SmallAction(Icons.Filled.CallSplit, "Detach audio", onDetach)
+        SmallAction(Icons.Filled.SlowMotionVideo, "AI slow-mo", onSlowMo)
         SmallAction(Icons.Filled.ContentCopy, "Duplicate", onDuplicate)
         SmallAction(Icons.Filled.KeyboardArrowLeft, "Move left") { onMove(-1) }
         SmallAction(Icons.Filled.KeyboardArrowRight, "Move right") { onMove(1) }
@@ -1784,6 +1926,9 @@ private fun EditPage(
     SectionTitle("SPEED")
     val speeds = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 4f)
     Chips(speeds.map { if (it == 1f) "1x" else "${it}x" }, speeds.indexOf(c.speed).coerceAtLeast(0)) { i -> onChange { it.copy(speed = speeds[i]) } }
+    SectionTitle("AUTO-REFRAME (AI)")
+    Chips(listOf("9:16", "1:1", "4:5", "Clear"), -1) { i -> onReframe(listOf(9f / 16f, 1f, 0.8f, null)[i]) }
+    Text("Changes the project to the chosen shape and makes every clip follow its subject (people, animals, vehicles…) so nothing important is cut off.", color = Pro.Dim, fontSize = 11.sp)
     SectionTitle("SPEED RAMP")
     val ramps = RampPreset.entries
     Chips(listOf("None") + ramps.map { it.label }, if (c.ramp == null) 0 else ramps.indexOfFirst { it.label == c.rampName } + 1) { i ->
@@ -2188,8 +2333,23 @@ private fun LayersPage(
     onAddVideo: () -> Unit = {}, onAddImage: () -> Unit = {},
     onUpdate: (Layer) -> Unit, onDelete: (String) -> Unit, onMove: (String, Int) -> Unit,
     onSeek: (Long) -> Unit = {},
+    onCaptions: (String?, Boolean, Int) -> Unit = { _, _, _ -> },
 ) {
     var stickers by remember { mutableStateOf(false) }
+    // AI captions: speech to text (Whisper) turned into caption layers.
+    var capLang by remember { mutableStateOf(0) }
+    var capStyle by remember { mutableStateOf(0) }
+    var capClipsOnly by remember { mutableStateOf(true) }
+    val langs = listOf<Pair<String, String?>>("Auto" to null, "English" to "en", "Danish" to "da", "Faroese" to "fo", "Norwegian" to "no", "Swedish" to "sv", "German" to "de", "Spanish" to "es", "French" to "fr")
+    SectionTitle("AI CAPTIONS")
+    Chips(langs.map { it.first }, capLang) { capLang = it }
+    Chips(listOf("Boxed", "Clean", "Big"), capStyle) { capStyle = it }
+    Chips(listOf("Clips' speech only", "Everything (incl. music)"), if (capClipsOnly) 0 else 1) { capClipsOnly = it == 0 }
+    Text(
+        "MAKE CAPTIONS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onCaptions(langs[capLang].second, capClipsOnly, capStyle) }.padding(10.dp),
+    )
+    Text("Writes timed caption layers from the speech in your edit (Whisper, via your fal.ai account in Cloud AI settings). Edit or delete any caption like a normal text layer.", color = Pro.Dim, fontSize = 11.sp)
     val end = (playheadMs + 3000).coerceAtMost(totalMs.coerceAtLeast(1))
     SectionTitle("ADD LAYER")
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
@@ -2558,3 +2718,17 @@ private fun CropOverlay(editingEnd: Boolean, onGesture: (androidx.compose.ui.geo
 
 /** One undo step in the video editor. */
 private data class EditSnap(val clips: List<Clip>, val layers: List<Layer>, val music: MusicTrack?, val extra: List<MusicTrack>)
+
+/** Splits caption text into pieces of at most two lines of about [max] characters. */
+fun captionPieces(text: String, max: Int): List<String> {
+    val words = text.replace('\n', ' ').split(' ').filter { it.isNotBlank() }
+    val lines = ArrayList<String>()
+    var cur = StringBuilder()
+    for (w in words) {
+        if (cur.isNotEmpty() && cur.length + 1 + w.length > max) { lines += cur.toString(); cur = StringBuilder() }
+        if (cur.isNotEmpty()) cur.append(' ')
+        cur.append(w)
+    }
+    if (cur.isNotEmpty()) lines += cur.toString()
+    return lines.chunked(2).map { it.joinToString("\n") }.ifEmpty { listOf(text) }
+}

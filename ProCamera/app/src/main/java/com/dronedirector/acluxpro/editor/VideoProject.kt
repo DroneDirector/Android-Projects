@@ -185,6 +185,8 @@ class TimelineExport(
     private val extraAudio: List<MusicTrack> = emptyList(),
     private val onProgress: (Int) -> Unit,
     private val onDone: (Uri?, String?) -> Unit,
+    /** Keep the result in this file instead of saving it to the gallery (e.g. sound for captions). */
+    private val toFile: File? = null,
 ) {
     private val audioOnly = settings.audioOnly
     private val out = File(context.cacheDir, "timeline_${System.currentTimeMillis()}." + if (settings.audioOnly) "m4a" else "mp4")
@@ -402,6 +404,11 @@ class TimelineExport(
             .addListener(object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                     finished = true
+                    if (toFile != null) {
+                        val ok = out.renameTo(toFile) || try { out.copyTo(toFile, overwrite = true); out.delete(); true } catch (_: Throwable) { false }
+                        handler.post { onDone(if (ok) Uri.fromFile(toFile) else null, if (ok) null else "Couldn't prepare the sound") }
+                        return
+                    }
                     Thread {
                         val stamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
                         val uri = if (audioOnly) {

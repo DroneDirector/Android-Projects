@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Cloud AI (optional): use your own fal.ai account to run Topaz Labs' professional models on fast cloud servers — photos: Topaz upscale (Standard V2) and Topaz Denoise; video: Topaz Nyx noise reduction (Nyx Fast / Nyx / HF / XL). Key stored encrypted; Wi-Fi-only option; falls back to the on-phone AI.
+- Cloud AI progress (upload, processing, download) in the AI badge with Stop.
 
 ## 1.0.116 — 2026-10-16
 - Video AI noise reduction: export-time info (several minutes up to about 1 hour, depending on hardware) moved behind a "!" button.

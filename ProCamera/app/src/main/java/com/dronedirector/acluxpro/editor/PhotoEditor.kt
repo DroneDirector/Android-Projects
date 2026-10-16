@@ -3,6 +3,7 @@ package com.dronedirector.acluxpro.editor
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -353,11 +354,24 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                         // Full-resolution AI noise reduction (progress badge; can be stopped).
                         val n = full.width * full.height
                         val px = IntArray(n).also { full.getPixels(it, 0, full.width, 0, 0, full.width, full.height) }
-                        val den = AiDenoiser.denoise(context, px, full.width, full.height)
-                        if (den != null) {
+                        // Cloud AI (Topaz Denoise) when chosen in settings; otherwise / on failure the on-phone AI.
+                        var den: IntArray? = null
+                        if (com.dronedirector.acluxpro.camera.CloudAi.usePhotos(context)) {
+                            try {
+                                val jpeg = java.io.ByteArrayOutputStream().also { full.compress(Bitmap.CompressFormat.JPEG, 96, it) }.toByteArray()
+                                val res = com.dronedirector.acluxpro.camera.CloudAi.denoisePhoto(context, jpeg)
+                                BitmapFactory.decodeByteArray(res, 0, res.size)?.let { b ->
+                                    val sized = if (b.width == full.width && b.height == full.height) b else Bitmap.createScaledBitmap(b, full.width, full.height, true)
+                                    den = IntArray(n).also { sized.getPixels(it, 0, full.width, 0, 0, full.width, full.height) }
+                                }
+                            } catch (t: com.dronedirector.acluxpro.camera.CloudAi.Stopped) { throw AiDenoiser.Stopped() } catch (_: Throwable) {}
+                        }
+                        if (den == null) den = AiDenoiser.denoise(context, px, full.width, full.height)
+                        val dn = den
+                        if (dn != null) {
                             val w0 = full.width; val h0 = full.height
                             full.recycle()
-                            full = Bitmap.createBitmap(AiDenoiser.blend(px, den, e.detail.aiDenoise), w0, h0, Bitmap.Config.ARGB_8888)
+                            full = Bitmap.createBitmap(AiDenoiser.blend(px, dn, e.detail.aiDenoise), w0, h0, Bitmap.Config.ARGB_8888)
                         }
                     }
                     val tables = if (e.grade.isIdentity) null else e.grade.tables()
@@ -384,6 +398,11 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
         com.dronedirector.acluxpro.ui.AiBadgeHost(
             AiDenoiser.running, "AI NOISE REDUCTION", 1, AiDenoiser.progress, onStop = { AiDenoiser.stop() },
             modifier = Modifier.align(Alignment.TopCenter).zIndex(20f),
+        )
+        com.dronedirector.acluxpro.ui.AiBadgeHost(
+            com.dronedirector.acluxpro.camera.CloudAi.stage != null, com.dronedirector.acluxpro.camera.CloudAi.stage ?: "", 1,
+            com.dronedirector.acluxpro.camera.CloudAi.progress, onStop = { com.dronedirector.acluxpro.camera.CloudAi.stop() },
+            modifier = Modifier.align(Alignment.TopCenter).zIndex(21f),
         )
         BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
             val wide = maxWidth > maxHeight || maxWidth >= 720.dp

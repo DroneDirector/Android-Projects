@@ -122,6 +122,7 @@ class TimelineExport(
     private val settings: DeliverSettings,
     private val layers: List<Layer> = emptyList(),
     private val music: MusicTrack? = null,
+    private val extraAudio: List<MusicTrack> = emptyList(),
     private val onProgress: (Int) -> Unit,
     private val onDone: (Uri?, String?) -> Unit,
 ) {
@@ -245,9 +246,16 @@ class TimelineExport(
             }
         }
         val abCount = sequences.size - firstTimeline
-        val m = music
-        if (m != null && settings.audio) {
-            val end = (m.offsetMs + totalMs).coerceAtMost(m.durationMs)
+        // Music + extra audio tracks, each placed at its own spot on the timeline.
+        if (settings.audio) for (m in listOfNotNull(music) + extraAudio) {
+            val len = m.playLength(totalMs)
+            if (len < 50) continue
+            val end = m.offsetMs + len
+            // Ducking ranges are relative to where this track starts.
+            val ducks = duckRanges(clips).mapNotNull { r ->
+                val a = r.first - m.startMs; val b = r.last - m.startMs
+                if (b < 0 || a > len) null else a.coerceAtLeast(0) until b.coerceAtMost(len)
+            }
             val musicItem = EditedMediaItem.Builder(
                 MediaItem.Builder().setUri(m.uri)
                     .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(m.offsetMs).setEndPositionMs(end).build())
@@ -256,12 +264,15 @@ class TimelineExport(
                 .setRemoveVideo(true)
                 .setEffects(Effects(listOf(
                     AudioFxProcessor(
-                        m.fx.copy(fadeInMs = m.fadeInMs, fadeOutMs = m.fadeOutMs), m.volume, end - m.offsetMs,
-                        duckRanges = duckRanges(clips), duckGain = 1f - m.duck,
+                        m.fx.copy(fadeInMs = m.fadeInMs, fadeOutMs = m.fadeOutMs), m.volume, len,
+                        duckRanges = ducks, duckGain = 1f - m.duck,
                     )
                 ), emptyList()))
                 .build()
-            sequences += EditedMediaItemSequence.Builder(listOf(musicItem)).build()
+            val seq = EditedMediaItemSequence.Builder(setOf(androidx.media3.common.C.TRACK_TYPE_AUDIO))
+            if (m.startMs > 0) seq.addGap(m.startMs * 1000)
+            seq.addItem(musicItem)
+            sequences += seq.build()
         }
 
         val composition = Composition.Builder(sequences)

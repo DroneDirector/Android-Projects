@@ -83,6 +83,8 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Multi-track timeline**: filmstrips, layer rows and music row, scrubbing playhead, pinch zoom.
 - Under the player: **mute, zoom out, show whole timeline, zoom in, split**, previous / play / next, full screen.
 - **Trim, split, duplicate, reorder, speed, delete** clips.
+- **Hold-and-drag on the timeline**: move layers and audio in time, drag layers up / down to reorder, hold an edge to trim or extend.
+- **Audio in the media pool** (MP3, WAV, AAC…): add to the timeline at the playhead — the first becomes the music track, more become extra audio tracks with volume and fades.
 - Gapless clip-to-clip playback; **full-screen player** with auto-hiding controls.
 - **Preview copies** (optimized media) for heavy HDR / 10-bit / 4K clips, made in the background; choose Auto / Always / Off, H.264 or HEVC, 720p or 1080p.
 - Grade preview drawn on screen (Android 13+) for smooth, instant playback; exports use the full pipeline.

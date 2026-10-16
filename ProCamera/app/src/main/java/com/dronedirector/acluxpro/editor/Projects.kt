@@ -22,6 +22,8 @@ data class VideoProjectData(
     val clips: List<Clip> = emptyList(),
     val layers: List<Layer> = emptyList(),
     val music: MusicTrack? = null,
+    val extraAudio: List<MusicTrack> = emptyList(),
+    val audioPool: List<PoolAudio> = emptyList(),
     val deliver: DeliverSettings = DeliverSettings(),
 )
 
@@ -71,7 +73,7 @@ object ProjectStore {
 
     fun saveVideo(context: Context, p: VideoProjectData, thumb: Bitmap?): VideoProjectData {
         val out = p.copy(savedAt = System.currentTimeMillis())
-        keepAccess(context, out.clips.map { it.uri } + out.layers.flatMap { listOf(it.imageUri, it.videoUri) } + listOf(out.music?.uri))
+        keepAccess(context, out.clips.map { it.uri } + out.layers.flatMap { listOf(it.imageUri, it.videoUri) } + listOf(out.music?.uri) + out.extraAudio.map { it.uri } + out.audioPool.map { it.uri })
         File(dir(context, true), "${out.id}.json").writeText(gson.toJson(out))
         saveThumb(context, true, out.id, thumb)
         return out
@@ -91,6 +93,7 @@ object ProjectStore {
         p.clips.forEach { Defaults.fix(it, Clip(uri = Uri.EMPTY, name = "", durationMs = 1, width = 1, height = 1)) }
         p.layers.forEach { Defaults.fix(it, Layer()) }
         p.music?.let { Defaults.fix(it, MusicTrack(Uri.EMPTY, "", 1)) }
+        p.extraAudio.forEach { Defaults.fix(it, MusicTrack(Uri.EMPTY, "", 1)) }
         p
     } catch (_: Throwable) { null }
 

@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -99,6 +100,12 @@ fun TimelineView(
     onSelectLayer: (String) -> Unit,
     zoom: TimelineZoom,
     onSelectTransition: (Int) -> Unit = {},
+    extraAudio: List<MusicTrack> = emptyList(),
+    /** Hold-and-drag edits: a layer moved / trimmed in time, or moved to another row (index in [layers]). */
+    onLayerTime: (id: String, startMs: Long, endMs: Long) -> Unit = { _, _, _ -> },
+    onLayerOrder: (id: String, toIndex: Int) -> Unit = { _, _ -> },
+    /** An audio track moved / trimmed: new timeline start, in-song offset and length. */
+    onAudioTime: (id: String, startMs: Long, offsetMs: Long, lengthMs: Long) -> Unit = { _, _, _, _ -> },
 ) {
     val density = LocalDensity.current
     val totalMs = timelineLength(clips).coerceAtLeast(1)
@@ -123,7 +130,15 @@ fun TimelineView(
     val musicRow = with(density) { 24.dp.toPx() }
     val gap = with(density) { 3.dp.toPx() }
     val shownLayers = layers.asReversed()
-    val heightPx = ruler + clipRow + gap + shownLayers.size * (layerRow + gap) + (if (music != null) musicRow + gap else 0f) + gap
+    val audioRows = listOfNotNull(music) + extraAudio
+    val heightPx = ruler + clipRow + gap + shownLayers.size * (layerRow + gap) + audioRows.size * (musicRow + gap) + gap
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    // The item being held (highlighted while it's moved or trimmed).
+    var editingId by remember { mutableStateOf<String?>(null) }
+    val curAudio by rememberUpdatedState(audioRows)
+    val curLayerTime by rememberUpdatedState(onLayerTime)
+    val curLayerOrder by rememberUpdatedState(onLayerOrder)
+    val curAudioTime by rememberUpdatedState(onAudioTime)
     val textPaint = remember { Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE; typeface = Typeface.DEFAULT_BOLD } }
     val dimPaint = remember { Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x99FFFFFF.toInt(); typeface = Typeface.MONOSPACE } }
     val accent = Pro.Amber
@@ -155,6 +170,99 @@ fun TimelineView(
                         var moved = 0f
                         dragging = false
                         dragMs = currentHead
+                        // ---- Hold a layer / audio bar to move it, or hold its edge to trim it.
+                        val centerX0 = size.width / 2f
+                        fun xOfMs(ms: Long) = centerX0 + (ms - currentHead) * pxPerSec / 1000f
+                        val edgePx = 18.dp.toPx()
+                        var hitId: String? = null; var hitAudio = false; var hitEdge = 0   // -1 start, 0 body, 1 end
+                        var hitStart = 0L; var hitEnd = 0L; var hitOffset = 0L; var hitRow = -1
+                        run {
+                            val y = down.position.y; val x = down.position.x
+                            var top = ruler + clipRow + gap
+                            curLayers.forEachIndexed { r, l ->
+                                if (y in top..(top + layerRow)) {
+                                    val a = if (l.wholeVideo) 0L else l.startMs; val b = if (l.wholeVideo) curTotal else l.endMs
+                                    val xa = xOfMs(a); val xb = xOfMs(b)
+                                    if (x in (xa - edgePx)..(xb + edgePx)) {
+                                        hitId = l.id; hitStart = a; hitEnd = b; hitRow = r
+                                        hitEdge = if (x < xa + edgePx) -1 else if (x > xb - edgePx) 1 else 0
+                                    }
+                                }
+                                top += layerRow + gap
+                            }
+                            curAudio.forEach { m ->
+                                if (y in top..(top + musicRow)) {
+                                    val a = m.startMs; val b = m.startMs + m.playLength(curTotal)
+                                    val xa = xOfMs(a); val xb = xOfMs(b)
+                                    if (x in (xa - edgePx)..(xb + edgePx)) {
+                                        hitId = m.id; hitAudio = true; hitStart = a; hitEnd = b; hitOffset = m.offsetMs
+                                        hitEdge = if (x < xa + edgePx) -1 else if (x > xb - edgePx) 1 else 0
+                                    }
+                                }
+                                top += musicRow + gap
+                            }
+                        }
+                        if (hitId != null) {
+                            val held = withTimeoutOrNull(380L) {
+                                while (true) {
+                                    val ev = awaitPointerEvent()
+                                    val c = ev.changes.first()
+                                    if (!c.pressed || ev.changes.size > 1) return@withTimeoutOrNull false
+                                    if ((c.position - down.position).getDistance() > viewConfiguration.touchSlop) return@withTimeoutOrNull false
+                                }
+                                @Suppress("UNREACHABLE_CODE") false
+                            } == null
+                            if (held) {
+                                val id = hitId!!
+                                editingId = id
+                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                if (!hitAudio) curSelectLayer(id)
+                                val minLen = 200L
+                                var lastRow = hitRow
+                                do {
+                                    val ev = awaitPointerEvent()
+                                    val c = ev.changes.first()
+                                    val dx = ((c.position.x - down.position.x) / pxPerSec * 1000f).toLong()
+                                    if (hitAudio) {
+                                        val m = curAudio.firstOrNull { it.id == id }
+                                        if (m != null) when (hitEdge) {
+                                            0 -> curAudioTime(id, (hitStart + dx).coerceAtLeast(0), hitOffset, hitEnd - hitStart)
+                                            -1 -> {
+                                                // Trim the front: start later in the song (or earlier, back to its beginning).
+                                                val d = dx.coerceIn(-hitOffset, hitEnd - hitStart - minLen).coerceAtLeast(-hitStart)
+                                                curAudioTime(id, hitStart + d, hitOffset + d, hitEnd - hitStart - d)
+                                            }
+                                            else -> {
+                                                val maxLen = m.durationMs - hitOffset
+                                                curAudioTime(id, hitStart, hitOffset, (hitEnd - hitStart + dx).coerceIn(minLen, maxLen))
+                                            }
+                                        }
+                                    } else {
+                                        when (hitEdge) {
+                                            0 -> {
+                                                val len = hitEnd - hitStart
+                                                val ns = (hitStart + dx).coerceIn(0, (curTotal - len).coerceAtLeast(0))
+                                                curLayerTime(id, ns, ns + len)
+                                                // Up / down: change the stacking order.
+                                                val rowH = layerRow + gap
+                                                val row = (hitRow + ((c.position.y - down.position.y) / rowH).let { if (it < 0) it - 0.5f else it + 0.5f }.toInt())
+                                                    .coerceIn(0, curLayers.size - 1)
+                                                if (row != lastRow) {
+                                                    lastRow = row
+                                                    curLayerOrder(id, curLayers.size - 1 - row)
+                                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                                }
+                                            }
+                                            -1 -> curLayerTime(id, (hitStart + dx).coerceIn(0, hitEnd - minLen), hitEnd)
+                                            else -> curLayerTime(id, hitStart, (hitEnd + dx).coerceIn(hitStart + minLen, curTotal))
+                                        }
+                                    }
+                                    ev.changes.forEach { it.consume() }
+                                } while (ev.changes.any { it.pressed })
+                                editingId = null
+                                return@awaitEachGesture
+                            }
+                        }
                         do {
                             val ev = awaitPointerEvent()
                             val zoom = ev.calculateZoom()
@@ -304,26 +412,33 @@ fun TimelineView(
                         LayerKind.TEXT -> Color(0xFF2EBD8F)
                     }.copy(alpha = if (l.visible) 0.85f else 0.3f)
                     drawRoundRect(col, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), layerRow), CornerRadius(5f))
-                    if (l.id == selectedLayerId) drawRoundRect(accent, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), layerRow), CornerRadius(5f), style = Stroke(3f))
+                    if (l.id == selectedLayerId || l.id == editingId) drawRoundRect(accent, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), layerRow), CornerRadius(5f), style = Stroke(if (l.id == editingId) 5f else 3f))
+                    // Edge grips
+                    if (l.id == editingId || l.id == selectedLayerId) {
+                        drawRoundRect(Color.White.copy(alpha = 0.85f), Offset(x0 + 2f, rowTop + layerRow * 0.25f), Size(4f, layerRow * 0.5f), CornerRadius(2f))
+                        drawRoundRect(Color.White.copy(alpha = 0.85f), Offset(x1 - 6f, rowTop + layerRow * 0.25f), Size(4f, layerRow * 0.5f), CornerRadius(2f))
+                    }
                     textPaint.textSize = 9.sp.toPx()
                     val name = when (l.kind) { LayerKind.TEXT, LayerKind.WATERMARK, LayerKind.STICKER -> l.text.replace('\n', ' '); else -> l.kind.label + " " + l.text }
                     drawContext.canvas.nativeCanvas.drawText(name.take(30), max(x0, 0f) + 5f, rowTop + layerRow * 0.68f, textPaint)
                     rowTop += layerRow + gap
                 }
 
-                // Music
-                if (music != null) {
-                    val len = min(totalMs, music.durationMs - music.offsetMs)
-                    val x0 = xOf(0); val x1 = xOf(len)
-                    drawRoundRect(Color(0xFF1FA35A).copy(alpha = 0.8f), Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), musicRow), CornerRadius(5f))
-                    // Simple level pattern so it reads as audio
+                // Audio tracks (music + extra audio), each at its own place on the timeline.
+                for (m in audioRows) {
+                    val x0 = xOf(m.startMs); val x1 = xOf(m.startMs + m.playLength(totalMs))
+                    val isMain = m.id == music?.id
+                    drawRoundRect((if (isMain) Color(0xFF1FA35A) else Color(0xFF0FA3A3)).copy(alpha = 0.8f), Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), musicRow), CornerRadius(5f))
                     var mx = max(x0, 0f) + 4f
                     while (mx < min(x1, size.width)) {
                         val hgt = musicRow * (0.25f + 0.5f * abs(kotlin.math.sin(mx * 0.37f) * kotlin.math.cos(mx * 0.11f)))
                         drawLine(Color.Black.copy(alpha = 0.35f), Offset(mx, rowTop + (musicRow - hgt) / 2), Offset(mx, rowTop + (musicRow + hgt) / 2), 2f)
-                        mx += 5f
+                        mx += 4f
                     }
-                    drawContext.canvas.nativeCanvas.drawText("♪ " + music.name.take(30), max(x0, 0f) + 5f, rowTop + musicRow * 0.68f, textPaint)
+                    if (m.id == editingId) drawRoundRect(accent, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), musicRow), CornerRadius(5f), style = Stroke(5f))
+                    textPaint.textSize = 9.sp.toPx()
+                    drawContext.canvas.nativeCanvas.drawText("♪ " + m.name.take(30), max(x0, 0f) + 5f, rowTop + musicRow * 0.68f, textPaint)
+                    rowTop += musicRow + gap
                 }
 
                 // End of edit

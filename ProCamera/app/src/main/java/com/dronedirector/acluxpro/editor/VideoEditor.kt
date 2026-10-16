@@ -485,11 +485,20 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
 
     // Live grade on the clip being shown.
     val cur = clips.getOrNull(current)
-    LaunchedEffect(cur?.grade, cur?.detail, effectsOk) {
-        delay(60)
-        val c = cur ?: return@LaunchedEffect
-        if (effectsOk && c.id == loadedId) {
-            try { deck.cur.setVideoEffects(clipEffects(c)) } catch (_: Throwable) { effectsOk = false }
+    // Live grade while dragging: the newest value is applied every ~80 ms (not only after letting go),
+    // the colour table is built off the main thread, and a paused frame is redrawn.
+    val gradeReq = remember { kotlinx.coroutines.channels.Channel<Clip>(kotlinx.coroutines.channels.Channel.CONFLATED) }
+    LaunchedEffect(cur?.grade, cur?.detail, effectsOk) { cur?.let { gradeReq.trySend(it) } }
+    LaunchedEffect(Unit) {
+        for (c in gradeReq) {
+            if (!effectsOk || c.id != loadedId) continue
+            val fx = withContext(Dispatchers.Default) { try { clipEffects(c) } catch (_: Throwable) { null } } ?: continue
+            if (c.id != loadedId) continue
+            try {
+                deck.cur.setVideoEffects(fx)
+                if (!deck.cur.isPlaying) deck.cur.seekTo(deck.cur.currentPosition)
+            } catch (_: Throwable) { effectsOk = false }
+            delay(80)
         }
     }
     val nextClip = clips.getOrNull(current + 1)

@@ -269,17 +269,34 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
         val b = withContext(Dispatchers.IO) { GradeIO.decode(context, uri, 1400) }
         if (b == null) failed = true else base = b
     }
-    LaunchedEffect(base, edit) {
+    // Live preview: while a slider moves, a small copy is re-rendered continuously (never thrown
+    // away half-way); once you pause, the full-size preview follows.
+    val renderReq = remember { kotlinx.coroutines.channels.Channel<PhotoEdit>(kotlinx.coroutines.channels.Channel.CONFLATED) }
+    LaunchedEffect(edit) { renderReq.trySend(edit) }
+    LaunchedEffect(base) {
         val b = base ?: return@LaunchedEffect
-        delay(30)
-        val e = edit
-        val out = withContext(Dispatchers.Default) {
+        fun draw(src: Bitmap, e: PhotoEdit): Bitmap {
             val tables = if (e.grade.isIdentity) null else e.grade.tables()
-            val r = ImageOps.render(b, e.grade, e.detail, e.geometry, tables)
-            e.watermark?.let { stampLayer(context, r, it) } ?: r
+            val r = ImageOps.render(src, e.grade, e.detail, e.geometry, tables)
+            return e.watermark?.let { stampLayer(context, r, it) } ?: r
         }
-        preview = out
-        hist = withContext(Dispatchers.Default) { ImageOps.histogram(out) }
+        val small = withContext(Dispatchers.Default) {
+            val k = 640f / maxOf(b.width, b.height)
+            if (k < 1f) Bitmap.createScaledBitmap(b, (b.width * k).toInt().coerceAtLeast(1), (b.height * k).toInt().coerceAtLeast(1), true) else b
+        }
+        renderReq.trySend(edit)
+        var next: PhotoEdit? = null
+        while (true) {
+            val e = next ?: renderReq.receive()
+            next = null
+            preview = withContext(Dispatchers.Default) { draw(small, e) }
+            // Still dragging? Keep going with the newest value.
+            val newer = kotlinx.coroutines.withTimeoutOrNull(140) { renderReq.receive() }
+            if (newer != null) { next = newer; continue }
+            val full = withContext(Dispatchers.Default) { draw(b, e) }
+            preview = full
+            hist = withContext(Dispatchers.Default) { ImageOps.histogram(full) }
+        }
     }
     // Undo history: record settled states.
     LaunchedEffect(edit) {

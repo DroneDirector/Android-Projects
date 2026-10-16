@@ -7,7 +7,7 @@ DroneDirector. This policy explains what the app does with your information. In 
 photos, videos and sound stay on your phone, unless you choose to send them somewhere** (Cloud AI
 or live streaming). We have no servers, no user accounts, no ads and no analytics.
 
-**Contact:** [CONTACT EMAIL]
+**Contact:** [simon@dronedirector.fo](mailto:simon@dronedirector.fo)
 
 ## 1. What the app uses on your phone
 

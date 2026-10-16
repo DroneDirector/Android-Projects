@@ -337,6 +337,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     Box(Modifier.fillMaxSize().background(Ed.Bg)) {
         BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
             val wide = maxWidth > maxHeight || maxWidth >= 720.dp
+            val boxW = maxWidth.value; val boxH = maxHeight.value
             val previewBox = @Composable { mod: Modifier ->
                 Box(
                     mod.pointerInput(Unit) {
@@ -422,7 +423,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                 // Resizable panels: hold the divider, then drag. Double-tap the divider to reset.
                 if (wide) {
                     val pane = rememberPane("pe_controls_w")
-                    val maxW = maxWidth.value
+                    val maxW = boxW
                     Row(Modifier.fillMaxSize()) {
                         previewBox(Modifier.weight(1f).fillMaxHeight())
                         ResizeHandle(false,
@@ -432,7 +433,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                     }
                 } else {
                     val pane = rememberPane("pe_controls_h")
-                    val maxH = maxHeight.value
+                    val maxH = boxH
                     previewBox(Modifier.fillMaxWidth().weight(1f))
                     ResizeHandle(true,
                         onDrag = { d -> pane.dp = ((if (pane.dp < 0f) 330f else pane.dp) - d).coerceIn(150f, maxH - 220f) },

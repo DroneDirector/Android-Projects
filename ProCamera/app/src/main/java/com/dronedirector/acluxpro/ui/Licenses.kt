@@ -100,3 +100,19 @@ fun LicensesButton() {
             .background(Color.White.copy(alpha = 0.04f)).clickable { open = true }.padding(12.dp),
     )
 }
+
+const val PRIVACY_URL = "https://github.com/DroneDirector/Android-Projects/blob/main/ProCamera/PRIVACY.md"
+
+/** Settings button that opens the privacy policy in the browser. */
+@Composable
+fun PrivacyButton() {
+    val context = LocalContext.current
+    Text(
+        "🔒  PRIVACY POLICY", style = Pro.Label.copy(color = Pro.Dim, fontSize = 11.sp),
+        modifier = Modifier.padding(top = 8.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp))
+            .background(Color.White.copy(alpha = 0.04f)).clickable {
+                try { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(PRIVACY_URL))) } catch (_: Throwable) {}
+            }.padding(12.dp),
+    )
+    Text("Your media stays on your phone unless you use Cloud AI (sent to fal.ai with your own key) or live streaming.", color = Pro.Dim, fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
+}

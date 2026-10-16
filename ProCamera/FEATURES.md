@@ -10,7 +10,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Editor hub** to choose the Photo editor or the Video editor.
 - **Startup choice**: always open in Capture, the Photo editor or the Video editor (set in each one's settings; untick to see the start screen again).
 - App **version** shown bottom-left; animated **Exit** button bottom-right closes the app.
-- **Open-source licences** in every settings gear.
+- **Open-source licences** and the **privacy policy** in every settings gear ([PRIVACY.md](PRIVACY.md)).
 - Separate **guides** for Capture, the Photo editor and the Video editor (Cloud AI key setup, AI features, tips), opened from each settings gear — also in [GUIDE.md](GUIDE.md).
 
 ## Capture

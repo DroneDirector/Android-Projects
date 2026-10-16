@@ -32,12 +32,15 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - Codec choice **H.264 or H.265 (HEVC)** — also for time-lapse / hyperlapse; **10-bit HLG**.
 - Picture profiles: **Standard, Flat, D-Log, D-Log M**.
 - **Stabilization** (off by default).
+- **Pre-record**: keeps 3, 5 or 10 seconds from before you press record.
 - **Cinema clip naming** (camera / reel / clip) or date & time.
 - **Clean feed** (hide the on-screen controls for an HDMI / screen mirror).
 
 ### Pro controls
 - **Shutter angle** read-out for video with a one-tap **180°** button.
 - **Monitoring LUT**: your own .cube LUT on the viewfinder (optionally recorded into videos).
+- **Focus magnifier** (×4) while focusing manually; **rack focus** between two stored points (1 / 2 / 4 s).
+- **Scopes**: histogram, **waveform**, **RGB parade** or **vectorscope** with skin-tone line.
 - **Anamorphic desqueeze** for the viewfinder (1.33×, 1.5×, 1.55×, 1.8×, 2×).
 - Manual **ISO, shutter, focus, white balance** (presets 3200K–7500K and more), **exposure compensation** and **zoom**.
 - Analysis: **zebras**, **false colour**, **focus peaking**, **histogram** (also in Pro Video when the phone can't add an analysis stream).
@@ -46,6 +49,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 ### Audio
 - **Manual input gain** with limiter (applied to finished clips).
 - **Headphone monitoring** with live gain, limiter and volume; audio level graph.
+- **Left / right level meters** (stereo microphones), **wind filter**, Bluetooth headset microphone option; USB / wired mics used automatically.
 
 ### Live streaming
 - Stream to **YouTube, TikTok, Twitch, Facebook** or any **RTMP / RTMPS / SRT** server; **H.264 or H.265**.

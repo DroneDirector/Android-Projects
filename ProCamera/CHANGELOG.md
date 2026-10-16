@@ -4,6 +4,12 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- LUTs: import your own .cube LUTs — Photo editor (Presets), Video editor (Color → Looks, as a look or as the log input conversion) and Capture (monitoring LUT on the viewfinder, optionally recorded).
+- My presets: save your look (grade + detail) and apply it in the photo or the video editor.
+- Photo editor: before / after split view with a draggable divider.
+- Video editor timeline: real audio waveforms for clips and audio tracks; markers; snapping to cuts, markers, the playhead and other items.
+- Video editor Deliver: one-tap export presets (YouTube, Instagram, TikTok…), export a range (in / out), save the current frame as a photo.
+- Capture: shutter shown as an angle with a one-tap 180° button; anamorphic desqueeze for the viewfinder (1.33× – 2×). Video editor: anamorphic desqueeze per clip.
 
 ## 1.0.132 — 2026-10-16
 - Video editor: Undo and Redo are always visible under the player (next to Split); the zoom buttons scroll on narrow screens instead.

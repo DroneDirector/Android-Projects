@@ -79,6 +79,14 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 **Video editor tips**
 - The timeline starts at the left edge: drag one finger (or tap the ruler) to move the playhead; two fingers pinch to zoom and slide to scroll. The scissors under the player split at the playhead.
 - Tap a cut on the timeline to choose one of 34 transitions.
+- Keyframes: select a layer → KEYFRAMES → ◆ ADD KEYFRAME AT PLAYHEAD, move the playhead, then drag / resize / fade the layer — it glides between keyframes (diamonds on the timeline).
+- Audio → VOLUME KEYFRAMES rides a clip's volume over time (e.g. dip it under a voiceover).
+- Edit → SPEED RAMP gives smooth speed curves (Montage, Hero, Bullet, Flash in / out…); the clip's length follows the curve.
+- Edit → Freeze adds a 2 s still of the frame under the playhead; Reverse plays the clip backwards (silent, up to 60 s).
+- Edit → Detach audio turns the clip's sound into its own track — move or extend it for J- and L-cuts.
+- Audio → VOICEOVER records the microphone at the playhead while the edit plays (muted); it lands on its own audio track.
+- Audio → ADD BEAT MARKERS puts a marker on every beat of the music (or tap BEATS on any audio track); with SNAP on, layers lock to them.
+- Layers: BLEND MODE (Screen, Multiply, Overlay…) for picture, text and sticker layers; CHROMA KEY removes green / blue screens from video and image layers.
 - ◆ MARKER above the timeline drops a marker at the playhead (tap again on it to remove); tap the ruler near a marker to jump to it.
 - SNAP makes layers and audio snap to cuts, markers, the playhead and each other while you hold-and-drag them.
 - Audio bars and clips show real waveforms, so you can cut on beats and words.

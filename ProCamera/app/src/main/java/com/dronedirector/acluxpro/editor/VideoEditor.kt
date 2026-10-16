@@ -114,6 +114,9 @@ import com.dronedirector.acluxpro.camera.GradeIO
 import com.dronedirector.acluxpro.ui.Pro
 import com.dronedirector.acluxpro.ui.hintedScroll
 import kotlinx.coroutines.Dispatchers
+import androidx.compose.material.icons.filled.PauseCircle
+import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.CallSplit
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.automirrored.filled.Redo
@@ -292,7 +295,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val c = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }
             if (c == null) { message = "Can't open that video"; return@launch }
             val total = timelineLength(clips)
-            val start = ((clipStarts(clips).getOrNull(current) ?: 0L) + (posMs / (clips.getOrNull(current)?.speed ?: 1f)).toLong()).coerceIn(0, total)
+            val start = ((clipStarts(clips).getOrNull(current) ?: 0L) + (clips.getOrNull(current)?.let { it.tlOffsetOf(it.startMs + posMs) } ?: posMs)).coerceIn(0, total)
             val l = Layer(
                 kind = LayerKind.VIDEO, text = c.name, videoUri = uri, videoDurationMs = c.durationMs,
                 mediaAspect = if (c.height > 0) c.width.toFloat() / c.height else 16f / 9f,
@@ -418,7 +421,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             try { p.setVideoEffects(if (effectsOk) clipEffects(c) else emptyList()) } catch (_: Throwable) { effectsOk = false }
         }
         p.setMediaItem(mediaItemFor(c), startMs.coerceAtLeast(0))
-        p.playbackParameters = PlaybackParameters(c.speed)
+        p.playbackParameters = PlaybackParameters(c.speedAtSrc(c.startMs + startMs))
         p.volume = if (c.muted || previewMuted || videoMuted) 0f else c.volume.coerceAtMost(1f)
         audioFx[players.indexOf(p).coerceAtLeast(0)].fx = c.audio
         p.playWhenReady = play
@@ -453,7 +456,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             current = next
             loadedId = n.id
             videoAspect = aspects[deck.active]
-            deck.cur.playbackParameters = PlaybackParameters(n.speed)
+            deck.cur.playbackParameters = PlaybackParameters(n.speedAtSrc(n.startMs))
             deck.cur.volume = if (n.muted || previewMuted || videoMuted) 0f else n.volume.coerceAtMost(1f)
             deck.cur.play()
             old.pause()
@@ -577,7 +580,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     LaunchedEffect(cur?.audio) { cur?.let { audioFx[deck.active].fx = it.audio } }
     LaunchedEffect(cur?.speed, cur?.volume, cur?.muted, previewMuted, videoMuted) {
         cur?.let {
-            deck.cur.playbackParameters = PlaybackParameters(it.speed)
+            deck.cur.playbackParameters = PlaybackParameters(it.speedAtSrc(it.startMs + deck.cur.currentPosition))
             deck.cur.volume = if (it.muted || previewMuted || videoMuted) 0f else it.volume.coerceAtMost(1f)
         }
     }
@@ -658,7 +661,16 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
             val n = clips.getOrNull(i + 1)
             val ov = overlapMs(clips, i)
-            val local = (deck.cur.currentPosition / c.speed).toLong()
+            val local = c.tlOffsetOf(c.startMs + deck.cur.currentPosition)
+            // Speed ramps: follow the curve while playing.
+            if (c.ramp != null && c.id == loadedId) {
+                val sp = c.speedAtSrc(c.startMs + deck.cur.currentPosition)
+                if (kotlin.math.abs(deck.cur.playbackParameters.speed - sp) > 0.04f) deck.cur.playbackParameters = PlaybackParameters(sp)
+            }
+            // Volume keyframes.
+            if (!c.volKeys.isNullOrEmpty() && c.id == loadedId && !transitionOn[0]) {
+                deck.cur.volume = (vol(c) * volAt(c.volKeys, deck.cur.currentPosition)).coerceIn(0f, 1f)
+            }
             val startT = c.lengthMs - ov
             if (ov > 0 && n != null && preloadedId == n.id && local >= startT && deck.cur.playbackState == Player.STATE_READY) {
                 val p = ((local - startT).toFloat() / ov).coerceIn(0f, 1f)
@@ -666,7 +678,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 if (deck.cur.playWhenReady && !deck.spare.playWhenReady) {
                     if (startedFor != n.id) {
                         startedFor = n.id
-                        val want = ((local - startT) * n.speed).toLong()
+                        val want = n.srcAtOffset(local - startT) - n.startMs
                         if (kotlin.math.abs(deck.spare.currentPosition - want) > 250) deck.spare.seekTo(want)
                     }
                     deck.spare.play()
@@ -704,7 +716,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val ducked = clips.getOrNull(current)?.let { it.audio.duckMusic && !it.muted && it.volume > 0f } == true
             musicPlayer.volume = if (previewMuted || m.muted) 0f else (m.volume * (if (ducked) 1f - m.duck else 1f)).coerceIn(0f, 1f)
             val before = clipStarts(clips).getOrNull(current) ?: 0L
-            val g = before + (deck.cur.currentPosition / (clips.getOrNull(current)?.speed ?: 1f)).toLong()
+            val g = before + (clips.getOrNull(current)?.let { it.tlOffsetOf(it.startMs + deck.cur.currentPosition) } ?: deck.cur.currentPosition)
             val len = m.playLength(timelineLength(clips))
             val want = m.offsetMs + (g - m.startMs)
             if (g < m.startMs || g >= m.startMs + len) { musicPlayer.pause() } else {
@@ -725,7 +737,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         if (!playing) { audioPlayers.values.forEach { it.pause() }; return@LaunchedEffect }
         while (true) {
             val before = clipStarts(clips).getOrNull(current) ?: 0L
-            val g = before + (deck.cur.currentPosition / (clips.getOrNull(current)?.speed ?: 1f)).toLong()
+            val g = before + (clips.getOrNull(current)?.let { it.tlOffsetOf(it.startMs + deck.cur.currentPosition) } ?: deck.cur.currentPosition)
             val total = timelineLength(clips)
             for (t in extraAudio) {
                 val p = audioPlayers[t.id] ?: continue
@@ -791,13 +803,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
 
     val totalMs = timelineLength(clips)
     val beforeMs = clipStarts(clips).getOrNull(current) ?: 0L
-    val globalMs = beforeMs + ((posMs) / (cur?.speed ?: 1f)).toLong()
+    val globalMs = beforeMs + (cur?.tlOffsetOf(cur.startMs + posMs) ?: posMs)
 
     fun seekGlobal(ms: Long) {
         if (clips.isEmpty()) return
         val (i, local) = clipAt(clips, ms)
         val c = clips[i]
-        val off = (local * c.speed).toLong()
+        val off = c.srcAtOffset(local) - c.startMs
         if (i == current && loadedId == c.id) deck.cur.seekTo(off) else load(i, off, deck.cur.isPlaying)
     }
 
@@ -834,6 +846,138 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         clips.add(current + 1, c.copy(id = java.util.UUID.randomUUID().toString(), startMs = cut))
         selected = current
         message = "Split at ${tc(globalMs)}"
+    }
+
+    // ---- Voiceover: record the microphone while the edit plays.
+    var voiceRec by remember { mutableStateOf<android.media.MediaRecorder?>(null) }
+    var voiceFile by remember { mutableStateOf<java.io.File?>(null) }
+    var voiceStart by remember { mutableStateOf(0L) }
+    var voiceMs by remember { mutableStateOf(0L) }
+    var mutedBeforeVoice by remember { mutableStateOf(false) }
+    LaunchedEffect(voiceRec) {
+        val t0 = System.currentTimeMillis()
+        while (voiceRec != null) { voiceMs = System.currentTimeMillis() - t0; delay(200) }
+    }
+    fun beginVoice() {
+        val dir = java.io.File(context.filesDir, "voice").apply { mkdirs() }
+        val f = java.io.File(dir, "voice_${System.currentTimeMillis()}.m4a")
+        val r = try {
+            @Suppress("DEPRECATION")
+            (if (android.os.Build.VERSION.SDK_INT >= 31) android.media.MediaRecorder(context) else android.media.MediaRecorder()).apply {
+                setAudioSource(android.media.MediaRecorder.AudioSource.MIC)
+                setOutputFormat(android.media.MediaRecorder.OutputFormat.MPEG_4)
+                setAudioEncoder(android.media.MediaRecorder.AudioEncoder.AAC)
+                setAudioEncodingBitRate(160_000)
+                setAudioSamplingRate(48_000)
+                setOutputFile(f.path)
+                prepare()
+                start()
+            }
+        } catch (t: Throwable) { message = "Couldn't start the microphone"; return }
+        voiceFile = f; voiceRec = r; voiceStart = globalMs
+        mutedBeforeVoice = previewMuted
+        previewMuted = true
+        if (!deck.cur.isPlaying) deck.cur.play()
+    }
+    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) beginVoice() else message = "Allow the microphone to record a voiceover"
+    }
+    fun startVoice() {
+        if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) beginVoice()
+        else micPermission.launch(android.Manifest.permission.RECORD_AUDIO)
+    }
+    fun stopVoice() {
+        val r = voiceRec ?: return
+        voiceRec = null
+        deck.cur.pause()
+        previewMuted = mutedBeforeVoice
+        try { r.stop() } catch (_: Throwable) {}
+        r.release()
+        val f = voiceFile ?: return
+        val dur = try {
+            android.media.MediaMetadataRetriever().let { m -> m.setDataSource(f.path); val d = m.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L; m.release(); d }
+        } catch (_: Throwable) { 0L }
+        if (dur < 300) { f.delete(); message = "Voiceover too short"; return }
+        val n = extraAudio.count { it.name.startsWith("Voiceover") } + 1
+        extraAudio.add(MusicTrack(uri = android.net.Uri.fromFile(f), name = "Voiceover $n", durationMs = dur, volume = 1f, fadeInMs = 0, fadeOutMs = 150, duck = 0f, startMs = voiceStart))
+        message = "Voiceover $n added at ${tc(voiceStart)}"
+    }
+    DisposableEffect(Unit) { onDispose { voiceRec?.let { try { it.stop() } catch (_: Throwable) {}; it.release() } } }
+
+    /** Beat markers from a music / audio track. */
+    fun addBeatMarkers(t: MusicTrack) {
+        message = "Finding the beat…"
+        layerScope.launch {
+            val pk = waves[t.uri.toString()] ?: withContext(Dispatchers.IO) { Waveforms.load(context, t.uri) }
+            if (pk == null) { message = "Couldn't read that audio"; return@launch }
+            val beats = withContext(Dispatchers.Default) { Beats.detect(pk) }
+            val total = timelineLength(clips)
+            val len = t.playLength(total)
+            var added = 0
+            for (b in beats) {
+                if (b < t.offsetMs || b > t.offsetMs + len) continue
+                val tl = t.startMs + (b - t.offsetMs)
+                if (tl > total || markers.any { kotlin.math.abs(it - tl) < 80 }) continue
+                markers.add(tl); added++
+            }
+            markers.sort()
+            message = if (added > 0) "$added beat markers added" else "No clear beat found"
+        }
+    }
+
+    /** Freeze frame: 2 s of the frame under the playhead, inserted there (the clip is split around it). */
+    fun freezeAtPlayhead() {
+        if (videoLocked) { message = "The video track is locked"; return }
+        val c = clips.getOrNull(current) ?: return
+        val src = c.startMs + deck.cur.currentPosition
+        deck.cur.pause()
+        message = "Making a freeze frame…"
+        layerScope.launch {
+            val fc = withContext(Dispatchers.IO) { try { VideoTools.freeze(context, c, src, 2000) } catch (_: Throwable) { null } }
+            if (fc == null) { message = "Couldn't make a freeze frame"; return@launch }
+            val idx = clips.indexOfFirst { it.id == c.id }
+            if (idx < 0) return@launch
+            if (src > c.startMs + 100 && src < c.endMs - 100) {
+                clips[idx] = c.copy(endMs = src, transition = Transition())
+                clips.add(idx + 1, fc.copy(transition = Transition()))
+                clips.add(idx + 2, c.copy(id = java.util.UUID.randomUUID().toString(), startMs = src))
+            } else clips.add(idx + 1, fc)
+            selected = idx + 1
+            message = "2 s freeze frame added — trim it on the Edit page"
+        }
+    }
+
+    /** Reverse: replaces the clip with a backwards copy (picture only). */
+    fun reverseClip(i: Int) {
+        if (videoLocked) { message = "The video track is locked"; return }
+        val c = clips.getOrNull(i) ?: return
+        deck.cur.pause()
+        message = "Reversing… 0%"
+        layerScope.launch {
+            val rc = withContext(Dispatchers.IO) {
+                try { VideoTools.reverse(context, c) { p -> layerScope.launch { message = "Reversing… $p%" } } } catch (_: Throwable) { null }
+            }
+            val idx = clips.indexOfFirst { it.id == c.id }
+            if (rc == null || idx < 0) { message = "Couldn't reverse this clip"; return@launch }
+            clips[idx] = rc.copy(transition = c.transition)
+            load(idx.coerceAtMost(clips.lastIndex), 0, false)
+            message = if (c.endMs - c.startMs > 60_000) "Reversed (first 60 s) — reversed clips are silent" else "Reversed — reversed clips are silent"
+        }
+    }
+
+    /** Detach audio: the clip's sound becomes its own audio track (move / trim it for J- and L-cuts). */
+    fun detachAudio(i: Int) {
+        if (videoLocked) { message = "The video track is locked"; return }
+        val c = clips.getOrNull(i) ?: return
+        if (c.ramp != null || c.speed != 1f) { message = "Set the clip to 1x without a ramp to detach its audio"; return }
+        if (c.muted) { message = "This clip has no sound to detach"; return }
+        val st = clipStarts(clips).getOrNull(i) ?: 0L
+        extraAudio.add(MusicTrack(
+            uri = c.uri, name = "Audio · ${c.name}", durationMs = c.durationMs, offsetMs = c.startMs, volume = c.volume.coerceAtMost(1.5f),
+            fadeInMs = c.audio.fadeInMs, fadeOutMs = c.audio.fadeOutMs, fx = c.audio, duck = 0f, startMs = st, lengthMs = c.endMs - c.startMs,
+        ))
+        clips[i] = c.copy(muted = true)
+        message = "Audio detached — hold its bar on the timeline to move or extend it"
     }
 
     // ---- Undo / redo: every settled change to clips, layers and audio is a step.
@@ -1008,7 +1152,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 playing = playing,
                                 onMove = { id, dx, dy ->
                                     val i = layers.indexOfFirst { it.id == id }
-                                    if (i >= 0 && !layers[i].locked) layers[i] = layers[i].copy(x = (layers[i].x + dx).coerceIn(0f, 1f), y = (layers[i].y + dy).coerceIn(0f, 1f))
+                                    if (i >= 0 && !layers[i].locked) {
+                                        val o = layers[i]
+                                        val cur = o.animAt(globalMs)
+                                        layers[i] = o.editedAt(globalMs, cur.copy(x = (cur.x + dx).coerceIn(0f, 1f), y = (cur.y + dy).coerceIn(0f, 1f), keys = o.keys))
+                                    }
                                 },
                                 onSelect = { selectedLayer = it; page = Page.LAYERS },
                             )
@@ -1210,7 +1358,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onAddAudio = { pickAudio.launch(arrayOf("audio/*")) },
                                 onPlaceAudio = { a ->
                                     val total = timelineLength(clips)
-                                    val head = ((clipStarts(clips).getOrNull(current) ?: 0L) + (posMs / (clips.getOrNull(current)?.speed ?: 1f)).toLong()).coerceIn(0, total)
+                                    val head = ((clipStarts(clips).getOrNull(current) ?: 0L) + (clips.getOrNull(current)?.let { it.tlOffsetOf(it.startMs + posMs) } ?: posMs)).coerceIn(0, total)
                                     if (music == null) {
                                         music = MusicTrack(a.uri, a.name, a.durationMs, startMs = head)
                                         musicPlayer.setMediaItem(MediaItem.fromUri(a.uri)); musicPlayer.prepare()
@@ -1267,6 +1415,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 sc, selected, clips.size, posMs, deliver, { deliver = it },
                                 onChange = { f -> if (videoLocked) message = "The video track is locked" else update(selected, f) },
                                 onSplit = { splitAtPlayhead() },
+                                onFreeze = { freezeAtPlayhead() },
+                                onReverse = { reverseClip(selected) },
+                                onDetach = { detachAudio(selected) },
                                 onDuplicate = { if (videoLocked) message = "The video track is locked" else clips.add(selected + 1, sc.copy(id = java.util.UUID.randomUUID().toString())) },
                                 onDelete = {
                                     if (videoLocked) { message = "The video track is locked"; return@EditPage }
@@ -1321,9 +1472,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                         val o = layers[i]
                                         // A locked layer only takes lock / show / name changes.
                                         if (o.locked && l.locked && l.copy(visible = o.visible, name = o.name) != o) message = "This layer is locked — tap its lock to edit"
-                                        else layers[i] = l
+                                        else layers[i] = o.editedAt(globalMs, l)
                                     }
                                 },
+                                onSeek = { seekGlobal(it) },
                                 onDelete = { id ->
                                     if (layers.any { it.id == id && it.locked }) message = "This layer is locked — tap its lock to delete it"
                                     else { layers.removeAll { it.id == id }; selectedLayer = layers.lastOrNull()?.id }
@@ -1343,6 +1495,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     val i = extraAudio.indexOfFirst { it.id == id }
                                     if (i >= 0) { if (t == null) extraAudio.removeAt(i) else extraAudio[i] = t }
                                 },
+                                posInClip = if (selected == current) posMs else 0L,
+                                recording = voiceRec != null, recordMs = voiceMs,
+                                onVoice = { if (voiceRec == null) startVoice() else stopVoice() },
+                                onBeats = { t -> addBeatMarkers(t) },
                             )
                             Page.DELIVER -> DeliverPage(deliver, clips, exporting, { deliver = it }, ::startExport, playheadMs = globalMs, onSaveFrame = { saveStill() })
                         }
@@ -1597,10 +1753,14 @@ private fun EditPage(
     c: Clip, index: Int, count: Int, posMs: Long, deliver: DeliverSettings, onDeliver: (DeliverSettings) -> Unit,
     onChange: ((Clip) -> Clip) -> Unit,
     onSplit: () -> Unit, onDuplicate: () -> Unit, onDelete: () -> Unit, onMove: (Int) -> Unit,
+    onFreeze: () -> Unit = {}, onReverse: () -> Unit = {}, onDetach: () -> Unit = {},
 ) {
     SectionTitle("CLIP ${index + 1} OF $count · ${c.name}".uppercase())
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
         SmallAction(Icons.Filled.ContentCut, "Split", onSplit)
+        SmallAction(Icons.Filled.PauseCircle, "Freeze", onFreeze)
+        SmallAction(Icons.Filled.FastRewind, "Reverse", onReverse)
+        SmallAction(Icons.Filled.CallSplit, "Detach audio", onDetach)
         SmallAction(Icons.Filled.ContentCopy, "Duplicate", onDuplicate)
         SmallAction(Icons.Filled.KeyboardArrowLeft, "Move left") { onMove(-1) }
         SmallAction(Icons.Filled.KeyboardArrowRight, "Move right") { onMove(1) }
@@ -1624,6 +1784,25 @@ private fun EditPage(
     SectionTitle("SPEED")
     val speeds = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 4f)
     Chips(speeds.map { if (it == 1f) "1x" else "${it}x" }, speeds.indexOf(c.speed).coerceAtLeast(0)) { i -> onChange { it.copy(speed = speeds[i]) } }
+    SectionTitle("SPEED RAMP")
+    val ramps = RampPreset.entries
+    Chips(listOf("None") + ramps.map { it.label }, if (c.ramp == null) 0 else ramps.indexOfFirst { it.label == c.rampName } + 1) { i ->
+        onChange { if (i == 0) it.copy(ramp = null, rampName = null) else it.copy(ramp = ramps[i - 1].points, rampName = ramps[i - 1].label) }
+    }
+    c.ramp?.let { r ->
+        androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(44.dp).padding(vertical = 4.dp).clip(RoundedCornerShape(6.dp)).background(Ed.Raised)) {
+            val path = androidx.compose.ui.graphics.Path()
+            for (i in 0..60) {
+                val p = i / 60f
+                val v = kotlin.math.ln(rampAt(r, p).toDouble()) / kotlin.math.ln(6.0)   // log scale, ±6x
+                val y = size.height / 2f - (v.toFloat() * size.height / 2f * 0.9f)
+                if (i == 0) path.moveTo(0f, y) else path.lineTo(p * size.width, y)
+            }
+            drawLine(Color.White.copy(alpha = 0.2f), androidx.compose.ui.geometry.Offset(0f, size.height / 2f), androidx.compose.ui.geometry.Offset(size.width, size.height / 2f), 1f)
+            drawPath(path, Pro.Amber, style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
+        }
+        Text("Above the line = faster, below = slow motion. Combined with the speed above; the clip's length on the timeline follows the curve.", color = Pro.Dim, fontSize = 11.sp)
+    }
 }
 
 @Composable
@@ -1747,8 +1926,33 @@ private fun AudioPage(
     c: Clip?, deliver: DeliverSettings, music: MusicTrack?, playing: Boolean,
     onChange: ((Clip) -> Clip) -> Unit, onPickMusic: () -> Unit, onMusic: (MusicTrack?) -> Unit,
     extra: List<MusicTrack> = emptyList(), onExtra: (String, MusicTrack?) -> Unit = { _, _ -> },
+    posInClip: Long = 0L, recording: Boolean = false, recordMs: Long = 0L, onVoice: () -> Unit = {}, onBeats: (MusicTrack) -> Unit = {},
 ) {
     LevelMeter(playing)
+    SectionTitle("VOICEOVER")
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier.size(54.dp).clip(CircleShape).background(if (recording) Pro.Red else Ed.Raised).border(2.dp, Pro.Red, CircleShape).clickable(onClick = onVoice),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (recording) Box(Modifier.size(18.dp).clip(RoundedCornerShape(3.dp)).background(Color.White))
+            else Box(Modifier.size(22.dp).clip(CircleShape).background(Pro.Red))
+        }
+        Column(Modifier.padding(start = 12.dp)) {
+            Text(if (recording) "Recording… ${tc(recordMs)}" else "Record a voiceover", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                if (recording) "Tap to stop — it's added as an audio track where you started." else "Starts at the playhead and plays the edit (muted) while you speak. Headphones help.",
+                color = Pro.Dim, fontSize = 11.sp,
+            )
+        }
+    }
+    if (music != null) {
+        Text(
+            "♪ ADD BEAT MARKERS FROM THE MUSIC", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+            modifier = Modifier.padding(top = 8.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onBeats(music) }.padding(10.dp),
+        )
+        Text("Finds the beat of the music track and drops a marker on every beat — with SNAP on, layers and cuts lock to them.", color = Pro.Dim, fontSize = 11.sp)
+    }
     if (extra.isNotEmpty()) {
         SectionTitle("MORE AUDIO TRACKS")
         extra.forEach { t ->
@@ -1759,6 +1963,7 @@ private fun AudioPage(
                         Text(t.name, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text("at ${tc(t.startMs)}", style = Pro.Label)
                     }
+                    Text("BEATS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable { onBeats(t) }.padding(6.dp))
                     Text("REMOVE", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { onExtra(t.id, null) }.padding(6.dp))
                 }
                 EdSlider("Volume", t.volume, 0f..1.5f, 1f, ::pct) { v -> onExtra(t.id, t.copy(volume = v)) }
@@ -1776,6 +1981,29 @@ private fun AudioPage(
             SmallAction(Icons.Filled.MusicNote, if (fx.duckMusic) "Lowers music" else "Music normal") { setFx { it.copy(duckMusic = !it.duckMusic) } }
         }
         EdSlider("Clip volume", c.volume, 0f..2f, 1f, { "%+.1f dB".format(dbfs(it)) }) { v -> onChange { it.copy(volume = v) } }
+        SectionTitle("VOLUME KEYFRAMES") { onChange { it.copy(volKeys = null) } }
+        Text("Rides the clip's volume over time — e.g. dip it under a voiceover. Add keyframes at different playhead positions and set each level.", color = Pro.Dim, fontSize = 11.sp)
+        Text(
+            "◆ ADD AT PLAYHEAD (${tc(posInClip)})", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+            modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable {
+                onChange { cl ->
+                    val ks = cl.volKeys.orEmpty().filter { kotlin.math.abs(it.t - posInClip) > 100 }
+                    cl.copy(volKeys = (ks + VolKey(posInClip, volAt(cl.volKeys, posInClip))).sortedBy { it.t })
+                }
+            }.padding(10.dp),
+        )
+        c.volKeys.orEmpty().forEachIndexed { ki, k ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) {
+                    EdSlider("◆ ${tc(k.t)}", k.gain, 0f..2f, 1f, { "%+.1f dB".format(dbfs(it)) }) { v ->
+                        onChange { cl -> cl.copy(volKeys = cl.volKeys.orEmpty().mapIndexed { j, x -> if (j == ki) x.copy(gain = v) else x }) }
+                    }
+                }
+                Icon(Icons.Filled.Close, contentDescription = "Delete keyframe", tint = Color.White, modifier = Modifier.padding(start = 6.dp).size(18.dp).clickable {
+                    onChange { cl -> cl.copy(volKeys = cl.volKeys.orEmpty().filterIndexed { j, _ -> j != ki }.ifEmpty { null }) }
+                })
+            }
+        }
         EdSlider("Pan / balance", fx.pan, -1f..1f, 0f, { if (it < -0.01f) "L ${(-it * 100).toInt()}" else if (it > 0.01f) "R ${(it * 100).toInt()}" else "Centre" }) { v -> setFx { it.copy(pan = v) } }
         Text("Channels", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
         Chips(AudioChannels.entries.map { it.label }, fx.channels.ordinal) { i -> setFx { it.copy(channels = AudioChannels.entries[i]) } }
@@ -1893,8 +2121,10 @@ private fun LayerPreview(
         val density = androidx.compose.ui.platform.LocalDensity.current
         val wPx = with(density) { maxWidth.toPx() }.toInt().coerceAtLeast(2)
         val hPx = with(density) { maxHeight.toPx() }.toInt().coerceAtLeast(2)
-        layers.forEach { l ->
-            if (!(l.activeAt(timeMs) || (showAll && l.visible) || l.id == selectedId)) return@forEach
+        layers.forEach { base ->
+            if (!(base.activeAt(timeMs) || (showAll && base.visible) || base.id == selectedId)) return@forEach
+            // Keyframed layers: where they are at this moment.
+            val l = base.animAt(timeMs)
             if (l.kind == LayerKind.VIDEO) {
                 val h = (l.size * hPx).toInt().coerceAtLeast(8)
                 val w = (h * l.mediaAspect).toInt().coerceAtLeast(8)
@@ -1915,17 +2145,20 @@ private fun LayerPreview(
                 }
                 return@forEach
             }
-            val bmp by androidx.compose.runtime.produceState<Bitmap?>(null, l.copy(x = 0f, y = 0f, startMs = 0, endMs = 0), wPx, hPx) {
-                value = withContext(Dispatchers.Default) { LayerRenderer.render(context, l, wPx, hPx) }
+            val bmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, startMs = 0, endMs = 0, keys = null, opacity = 1f), wPx, hPx) {
+                value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx) }
             }
-            val b = bmp ?: return@forEach
-            val left = (l.x * wPx - b.width / 2f).toInt()
-            val top = (l.y * hPx - b.height / 2f).toInt()
+            val b0 = bmp ?: return@forEach
+            // Keyframed size: scale the picture rendered at the layer's own size.
+            val k = if (base.size > 0f) l.size / base.size else 1f
+            val bw = (b0.width * k).toInt().coerceAtLeast(1); val bh = (b0.height * k).toInt().coerceAtLeast(1)
+            val left = (l.x * wPx - bw / 2f).toInt()
+            val top = (l.y * hPx - bh / 2f).toInt()
             val sel = l.id == selectedId
             Box(
                 Modifier
                     .offset { androidx.compose.ui.unit.IntOffset(left, top) }
-                    .size(with(density) { b.width.toDp() }, with(density) { b.height.toDp() })
+                    .size(with(density) { bw.toDp() }, with(density) { bh.toDp() })
                     .then(if (sel) Modifier.border(1.dp, Pro.Amber) else Modifier)
                     .pointerInput(l.id) {
                         detectDragGestures(onDragStart = { onSelect(l.id) }) { change, drag ->
@@ -1935,7 +2168,11 @@ private fun LayerPreview(
                     }
                     .clickable { onSelect(l.id) },
             ) {
-                Image(b.asImageBitmap(), null, modifier = Modifier.fillMaxSize(), alpha = l.opacity)
+                val img = remember(b0) { b0.asImageBitmap() }
+                val mode = (l.blend ?: LayerBlend.NORMAL).compose
+                androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                    drawImage(img, dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()), alpha = l.opacity.coerceIn(0f, 1f), blendMode = mode)
+                }
             }
         }
     }
@@ -1950,6 +2187,7 @@ private fun LayersPage(
     onSelect: (String) -> Unit, onAdd: (Layer) -> Unit, onAddLogo: () -> Unit,
     onAddVideo: () -> Unit = {}, onAddImage: () -> Unit = {},
     onUpdate: (Layer) -> Unit, onDelete: (String) -> Unit, onMove: (String, Int) -> Unit,
+    onSeek: (Long) -> Unit = {},
 ) {
     var stickers by remember { mutableStateOf(false) }
     val end = (playheadMs + 3000).coerceAtMost(totalMs.coerceAtLeast(1))
@@ -2045,8 +2283,10 @@ private fun LayersPage(
         EdSlider("Start inside the video", l.videoStartMs.toFloat(), 0f..(l.videoDurationMs - 500).coerceAtLeast(1).toFloat(), 0f, { tc(it.toLong()) }) { onUpdate(l.copy(videoStartMs = it.toLong())) }
         Text("Overlay videos play muted. Size 100% = full frame height.", color = Pro.Dim, fontSize = 11.sp)
     }
-    EdSlider("Size", l.size, 0.02f..(if (l.isMedia) 1f else 0.4f), 0.07f, ::pct) { onUpdate(l.copy(size = it)) }
-    EdSlider("Opacity", l.opacity, 0.05f..1f, 1f, ::pct) { onUpdate(l.copy(opacity = it)) }
+    // With keyframes, the controls show (and edit) the layer as it is at the playhead.
+    val la = l.animAt(playheadMs)
+    EdSlider("Size", la.size, 0.02f..(if (l.isMedia) 1f else 0.4f), 0.07f, ::pct) { onUpdate(la.copy(size = it)) }
+    EdSlider("Opacity", la.opacity, 0.05f..1f, 1f, ::pct) { onUpdate(la.copy(opacity = it)) }
     SectionTitle("POSITION")
     Text("Drag the layer in the viewer, or snap it:", color = Pro.Dim, fontSize = 11.sp)
     val spots = listOf(0.12f, 0.5f, 0.88f)
@@ -2054,10 +2294,48 @@ private fun LayersPage(
         spots.forEach { y ->
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 2.dp)) {
                 spots.forEach { x ->
-                    val on = kotlin.math.abs(l.x - x) < 0.02f && kotlin.math.abs(l.y - y) < 0.02f
-                    Box(Modifier.size(width = 44.dp, height = 26.dp).clip(RoundedCornerShape(4.dp)).background(if (on) Pro.Amber else Ed.Raised).clickable { onUpdate(l.copy(x = x, y = y)) })
+                    val on = kotlin.math.abs(la.x - x) < 0.02f && kotlin.math.abs(la.y - y) < 0.02f
+                    Box(Modifier.size(width = 44.dp, height = 26.dp).clip(RoundedCornerShape(4.dp)).background(if (on) Pro.Amber else Ed.Raised).clickable { onUpdate(la.copy(x = x, y = y)) })
                 }
             }
+        }
+    }
+    SectionTitle("KEYFRAMES") { onUpdate(l.copy(keys = null)) }
+    Text(
+        "Add a keyframe, move the playhead, then drag / resize / fade the layer — a keyframe is added there and the layer glides between them.",
+        color = Pro.Dim, fontSize = 11.sp,
+    )
+    Text(
+        "◆ ADD KEYFRAME AT PLAYHEAD", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onUpdate(l.keyAt(playheadMs)) }.padding(10.dp),
+    )
+    l.keys.orEmpty().forEach { k ->
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(8.dp))
+                .background(if (kotlin.math.abs(k.t - playheadMs) < 120) Pro.Amber.copy(alpha = 0.16f) else Ed.Raised)
+                .clickable { onSeek(k.t) }.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("◆ ${tc(k.t)}", style = Pro.Value.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.width(96.dp))
+            Text("size ${pct(k.size)} · opacity ${pct(k.opacity)}", style = Pro.Label, modifier = Modifier.weight(1f))
+            Icon(Icons.Filled.Close, contentDescription = "Delete keyframe", tint = Color.White, modifier = Modifier.size(18.dp).clickable {
+                onUpdate(l.copy(keys = l.keys.orEmpty().filter { it !== k }.ifEmpty { null }))
+            })
+        }
+    }
+    if (l.kind != LayerKind.VIDEO) {
+        SectionTitle("BLEND MODE")
+        Chips(LayerBlend.entries.map { it.label }, (l.blend ?: LayerBlend.NORMAL).ordinal) { onUpdate(l.copy(blend = LayerBlend.entries[it].takeIf { b -> b != LayerBlend.NORMAL })) }
+        Text("Screen / Add for light leaks and glows, Multiply for shadows and textures, Overlay / Soft light for colour.", color = Pro.Dim, fontSize = 11.sp)
+    }
+    if (l.kind == LayerKind.VIDEO || l.kind == LayerKind.IMAGE || l.kind == LayerKind.LOGO) {
+        SectionTitle("CHROMA KEY (GREEN SCREEN)")
+        val keyColors = listOf<Int?>(null, 0xFF00B140.toInt(), 0xFF0047BB.toInt(), 0xFF000000.toInt(), 0xFFFFFFFF.toInt())
+        Chips(listOf("Off", "Green", "Blue", "Black", "White"), keyColors.indexOf(l.chroma).coerceAtLeast(0)) { onUpdate(l.copy(chroma = keyColors[it])) }
+        if (l.chroma != null) {
+            EdSlider("Tolerance", l.chromaTol ?: 0.4f, 0f..1f, 0.4f, ::pct) { onUpdate(l.copy(chromaTol = it)) }
+            EdSlider("Edge softness", l.chromaSoft ?: 0.3f, 0f..1f, 0.3f, ::pct) { onUpdate(l.copy(chromaSoft = it)) }
+            if (l.kind == LayerKind.VIDEO && android.os.Build.VERSION.SDK_INT < 33) Text("This phone can't show the key in the preview (Android 13+ needed); the export is keyed.", color = Pro.Dim, fontSize = 11.sp)
         }
     }
     SectionTitle("TIMING")
@@ -2203,6 +2481,7 @@ private fun VideoLayerView(l: Layer, timeMs: Long, play: Boolean) {
     }
     AndroidView(
         factory = { ctx -> android.view.TextureView(ctx).also { p.setVideoTextureView(it) } },
+        update = { tv -> ChromaPreview.apply(tv, l) },
         modifier = Modifier.fillMaxSize().graphicsLayer { alpha = l.opacity },
     )
 }

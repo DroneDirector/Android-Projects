@@ -58,8 +58,13 @@ data class Clip(
     val tenBit: Boolean = false,
     /** Anamorphic squeeze to undo (null / 1 = none), e.g. 1.33 or 1.8. */
     val desqueeze: Float? = null,
+    /** Speed ramp: multipliers through the clip (null = constant speed) and its name. */
+    val ramp: List<Float>? = null,
+    val rampName: String? = null,
+    /** Volume keyframes: (source ms from the clip start, gain 0..2). */
+    val volKeys: List<VolKey>? = null,
 ) {
-    val lengthMs: Long get() = ((endMs - startMs) / speed).toLong().coerceAtLeast(1)
+    val lengthMs: Long get() = (if (ramp != null) rampedLength() else ((endMs - startMs) / speed).toLong()).coerceAtLeast(1)
 }
 
 object ClipLoader {
@@ -134,9 +139,10 @@ fun cutRange(clips: List<Clip>, layers: List<Layer>, music: MusicTrack?, extra: 
         val s0 = st[i]; val e0 = s0 + c.lengthMs
         val from = maxOf(a, s0); val to = minOf(b, e0)
         if (to - from < 40) return@forEachIndexed
-        val ns = c.startMs + ((from - s0) * c.speed).toLong()
-        val ne = (c.startMs + ((to - s0) * c.speed).toLong()).coerceAtMost(c.endMs)
-        out += c.copy(id = java.util.UUID.randomUUID().toString(), startMs = ns, endMs = ne)
+        val ns = c.srcAtOffset(from - s0)
+        val ne = c.srcAtOffset(to - s0).coerceAtMost(c.endMs)
+        // A ramp is kept for whole clips only (a part of a ramp would replay the whole curve).
+        out += c.copy(id = java.util.UUID.randomUUID().toString(), startMs = ns, endMs = ne, ramp = if (ns == c.startMs && ne == c.endMs) c.ramp else null)
     }
     if (out.isNotEmpty()) out[out.lastIndex] = out.last().copy(transition = Transition())
     val len = (b - a).coerceAtLeast(1)
@@ -211,8 +217,8 @@ class TimelineExport(
                 fadeInMs = maxOf(c.audio.fadeInMs, (inMs * c.speed).toLong()),
                 fadeOutMs = maxOf(c.audio.fadeOutMs, (outMs * c.speed).toLong()),
             ) else c.audio
-            if (gain != 1f || !afx.isNeutral) {
-                audio += AudioFxProcessor(afx, gain, c.endMs - c.startMs)
+            if (gain != 1f || !afx.isNeutral || !c.volKeys.isNullOrEmpty()) {
+                audio += AudioFxProcessor(afx, gain, c.endMs - c.startMs, envelope = c.volKeys)
             }
             val video = mutableListOf<Effect>()
             if (!audioOnly) {
@@ -237,7 +243,16 @@ class TimelineExport(
                 .setEffects(Effects(audio, video))
                 .setRemoveAudio(!settings.audio && !audioOnly)
                 .setRemoveVideo(audioOnly)
-            if (c.speed != 1f) {
+            if (c.ramp != null) {
+                // Speed ramp: the speed changes every 40 ms of source time along the curve.
+                b.setSpeed(object : SpeedProvider {
+                    override fun getSpeed(timeUs: Long): Float = c.speedAtSrc(c.startMs + timeUs / 1000)
+                    override fun getNextSpeedChangeTimeUs(timeUs: Long): Long {
+                        val next = (timeUs / 40_000 + 1) * 40_000
+                        return if (next >= (c.endMs - c.startMs) * 1000) androidx.media3.common.C.TIME_UNSET else next
+                    }
+                })
+            } else if (c.speed != 1f) {
                 val s = c.speed
                 b.setSpeed(object : SpeedProvider {
                     override fun getSpeed(timeUs: Long): Float = s
@@ -252,10 +267,16 @@ class TimelineExport(
         if (!audioOnly) global += Presentation.createForWidthAndHeight(outW, outH, layout)
         if (settings.fps > 0 && !audioOnly) global += FrameDropEffect.createDefaultFrameDropEffect(settings.fps.toFloat())
         // Text, stickers, watermarks and logos, bottom layer first.
-        val overlays = if (audioOnly) emptyList() else layers.filter { it.visible && it.kind != LayerKind.VIDEO }.mapNotNull { l ->
+        val pictureLayers = if (audioOnly) emptyList() else layers.filter { it.visible && it.kind != LayerKind.VIDEO }
+        val overlays = pictureLayers.filter { (it.blend ?: LayerBlend.NORMAL) == LayerBlend.NORMAL }.mapNotNull { l ->
             LayerRenderer.render(context, l, outW, outH)?.let { LayerOverlay(it, l) as androidx.media3.effect.TextureOverlay }
         }
         if (overlays.isNotEmpty()) global += androidx.media3.effect.OverlayEffect(overlays)
+        // Layers with a blend mode are drawn by their own shader, in layer order.
+        for (l in pictureLayers) {
+            if ((l.blend ?: LayerBlend.NORMAL) == LayerBlend.NORMAL) continue
+            LayerRenderer.render(context, l, outW, outH)?.let { global += BlendLayerEffect(it, l, outW, outH) }
+        }
 
         // Video layers become extra sequences composited over the main timeline. The compositor puts
         // the first sequence on top, so layers go first (top layer first) and the timeline last.
@@ -274,7 +295,10 @@ class TimelineExport(
                     .build()
             )
                 .setRemoveAudio(true)
-                .setEffects(Effects(emptyList(), listOf(Presentation.createForWidthAndHeight(pw, ph, Presentation.LAYOUT_SCALE_TO_FIT))))
+                .setEffects(Effects(emptyList(), buildList {
+                    add(Presentation.createForWidthAndHeight(pw, ph, Presentation.LAYOUT_SCALE_TO_FIT))
+                    l.chroma?.let { add(ChromaKeyEffect(it, l.chromaTol ?: 0.4f, l.chromaSoft ?: 0.3f)) }
+                }))
                 .build()
             val seq = EditedMediaItemSequence.Builder(setOf(androidx.media3.common.C.TRACK_TYPE_VIDEO))
             if (startMs > 0) seq.addGap(startMs * 1000)
@@ -345,12 +369,15 @@ class TimelineExport(
                         if (ab && inputId >= firstTimeline && inputId < firstTimeline + abCount) {
                             return abSettings(inputId - firstTimeline, presentationTimeUs / 1000, starts, overlaps)
                         }
-                        val l = layerSettings.getOrNull(inputId) ?: return androidx.media3.effect.StaticOverlaySettings.Builder().build()
+                        val l0 = layerSettings.getOrNull(inputId) ?: return androidx.media3.effect.StaticOverlaySettings.Builder().build()
                         val (s, e) = windows[inputId]
                         val on = presentationTimeUs in s..e
+                        val l = l0.animAt(presentationTimeUs / 1000)
+                        val k = if (l0.size > 0f) l.size / l0.size else 1f
                         return androidx.media3.effect.StaticOverlaySettings.Builder()
                             .setBackgroundFrameAnchor((l.x * 2f - 1f).coerceIn(-1f, 1f), (1f - l.y * 2f).coerceIn(-1f, 1f))
                             .setOverlayFrameAnchor(0f, 0f)
+                            .setScale(k, k)
                             .setAlphaScale(if (on) l.opacity.coerceIn(0f, 1f) else 0f)
                             .build()
                     }

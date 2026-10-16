@@ -94,7 +94,7 @@ class ReframeEffect(private val c: Clip, private val motion: Motion?) : MatrixTr
     private val aspect = c.width.toFloat() / c.height.coerceAtLeast(1)
     override fun getMatrix(presentationTimeUs: Long): android.graphics.Matrix {
         if (t0 == Long.MIN_VALUE) t0 = presentationTimeUs
-        val src = c.startMs + ((presentationTimeUs - t0) / 1000f * c.speed).toLong()
+        val src = c.srcAtOffset((presentationTimeUs - t0) / 1000)
         return ClipXform.ndcMatrix(ClipXform.at(c, src, motion), aspect)
     }
 }

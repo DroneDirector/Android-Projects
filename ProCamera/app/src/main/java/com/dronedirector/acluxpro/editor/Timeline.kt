@@ -467,7 +467,7 @@ fun TimelineView(
                             while (tx < x1) {
                                 if (tx + tileW >= 0 && tx <= size.width) {
                                     val timelineOffset = ((tx - x0) / pxPerMs).toLong()
-                                    val src = c.startMs + (timelineOffset * c.speed).toLong()
+                                    val src = c.srcAtOffset(timelineOffset)
                                     strip.frameAt(src)?.let { bmp ->
                                         drawImage(
                                             bmp.asImageBitmap(),
@@ -488,7 +488,7 @@ fun TimelineView(
                         var wx = max(x0, 0f) + 1f
                         val col = if (c.muted || videoMuted) Color.White.copy(alpha = 0.25f) else Color(0xFF7FE0A8).copy(alpha = 0.85f)
                         while (wx < min(x1, size.width)) {
-                            val src = c.startMs + (((wx - x0) / pxPerMs) * c.speed).toLong()
+                            val src = c.srcAtOffset(((wx - x0) / pxPerMs).toLong())
                             val h = wh * peakAt(pk, src, (3f / pxPerMs * c.speed).toLong())
                             drawLine(col, Offset(wx, base), Offset(wx, base - h), 2f)
                             wx += 3f
@@ -500,7 +500,7 @@ fun TimelineView(
                     if (rectW > 50f) {
                         drawRect(Color.Black.copy(alpha = 0.55f), Offset(max(x0, 0f) + 2f, top + clipRow - 16.dp.toPx()), Size(min(rectW - 4f, 220.dp.toPx()), 14.dp.toPx()))
                         textPaint.textSize = 9.sp.toPx()
-                        val label = "${i + 1} ${c.name}" + (if (c.speed != 1f) "  ${c.speed}x" else "") + (if (!c.grade.isIdentity || !c.detail.isZero) "  ●" else "")
+                        val label = "${i + 1} ${c.name}" + (if (c.ramp != null) "  ⤳${c.rampName ?: "ramp"}" else if (c.speed != 1f) "  ${c.speed}x" else "") + (if (!c.grade.isIdentity || !c.detail.isZero) "  ●" else "")
                         drawContext.canvas.nativeCanvas.drawText(label.take(40), max(x0, 0f) + 5f, top + clipRow - 5.dp.toPx(), textPaint)
                     }
                 }
@@ -549,6 +549,12 @@ fun TimelineView(
                     }.copy(alpha = if (l.visible) 0.85f else 0.3f)
                     drawRoundRect(col, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), layerRow), CornerRadius(5f))
                     if (l.locked) lockHatch(x0, x1, rowTop, layerRow)
+                    // Keyframes as small diamonds.
+                    l.keys?.forEach { k ->
+                        val kx = xOf(k.t); val cy = rowTop + layerRow / 2f; val r = layerRow * 0.28f
+                        val d = androidx.compose.ui.graphics.Path().apply { moveTo(kx, cy - r); lineTo(kx + r, cy); lineTo(kx, cy + r); lineTo(kx - r, cy); close() }
+                        drawPath(d, Color.White); drawPath(d, accent, style = Stroke(2f))
+                    }
                     if (l.id == selectedLayerId || l.id == editingId) drawRoundRect(accent, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), layerRow), CornerRadius(5f), style = Stroke(if (l.id == editingId) 5f else 3f))
                     // Edge grips
                     if (l.id == editingId || l.id == selectedLayerId) {

@@ -113,6 +113,8 @@ class AudioFxProcessor(
     private val duckGain: Float = 1f,
     private val meter: Boolean = false,
     private val live: Boolean = false,
+    /** Volume keyframes over the clip (export). */
+    private val envelope: List<VolKey>? = null,
 ) : BaseAudioProcessor() {
     @Volatile var fx: AudioFx = initial
     private var built: AudioFx? = null
@@ -123,7 +125,7 @@ class AudioFxProcessor(
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT) return AudioProcessor.AudioFormat.NOT_SET
-        if (!live && fx.isNeutral && gain == 1f && duckRanges.isEmpty() && !meter) return AudioProcessor.AudioFormat.NOT_SET
+        if (!live && fx.isNeutral && gain == 1f && duckRanges.isEmpty() && !meter && envelope.isNullOrEmpty()) return AudioProcessor.AudioFormat.NOT_SET
         return inputAudioFormat
     }
 
@@ -196,6 +198,7 @@ class AudioFxProcessor(
                 if (f.fadeInMs > 0 && tMs < f.fadeInMs) g *= tMs.toDouble() / f.fadeInMs
                 if (f.fadeOutMs > 0 && totalMs > 0 && tMs > totalMs - f.fadeOutMs) g *= ((totalMs - tMs).toDouble() / f.fadeOutMs).coerceIn(0.0, 1.0)
             }
+            if (!envelope.isNullOrEmpty()) g *= volAt(envelope, tMs)
             if (duckRanges.isNotEmpty()) {
                 val target = if (duckRanges.any { tMs in it }) duckGain.toDouble() else 1.0
                 duck = if (duck > target) (duck - duckStep).coerceAtLeast(target) else (duck + duckStep).coerceAtMost(target)

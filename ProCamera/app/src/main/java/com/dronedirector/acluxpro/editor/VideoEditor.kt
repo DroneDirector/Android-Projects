@@ -215,6 +215,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     var confirmExit by remember { mutableStateOf(false) }
     var fullscreen by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    var cloudExport by remember { mutableStateOf(false) }
+    var cloudJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     var previewMuted by remember { mutableStateOf(false) }
     val thumbs = remember { mutableStateMapOf<String, Bitmap>() }
     val strips = remember { mutableStateMapOf<String, Filmstrip>() }
@@ -780,13 +782,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         seekGlobal(ms)
     }
 
-    fun startExport() {
-        if (exporting || clips.isEmpty()) return
-        deck.cur.pause()
-        exporting = true
-        progress = 0
+    fun runExport(list: List<Clip>) {
         val e = TimelineExport(
-            context, clips.toList(), deliver, layers.toList(), music,
+            context, list, deliver, layers.toList(), music,
             onProgress = { progress = it },
             onDone = { uri, err ->
                 exporting = false; export = null
@@ -797,11 +795,43 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         try { e.start() } catch (t: Throwable) { exporting = false; export = null; message = "Export failed: ${t.message}" }
     }
 
+    fun startExport() {
+        if (exporting || clips.isEmpty()) return
+        deck.cur.pause()
+        exporting = true
+        progress = 0
+        cloudExport = com.dronedirector.acluxpro.camera.CloudAi.useVideo(context) && clips.any { it.detail.aiDenoise > 0f }
+        if (!cloudExport) { runExport(clips.toList()); return }
+        // Cloud AI first (Topaz Nyx on fal.ai), then the normal export with the cleaned clips.
+        cloudJob = layerScope.launch {
+            val list = try {
+                CloudVideoPrep.prepare(context, clips.toList())
+            } catch (_: com.dronedirector.acluxpro.camera.CloudAi.Stopped) {
+                exporting = false; message = "Export stopped"; return@launch
+            } catch (_: kotlinx.coroutines.CancellationException) {
+                exporting = false; return@launch
+            } catch (t: Throwable) {
+                message = "Cloud AI unavailable (${t.message}) — using the phone's AI"
+                cloudExport = false
+                clips.toList()
+            } finally {
+                com.dronedirector.acluxpro.camera.CloudAi.show(null)
+            }
+            runExport(list)
+        }
+    }
+
     Box(Modifier.fillMaxSize().background(Ed.Bg)) {
         com.dronedirector.acluxpro.ui.AiBadgeHost(
-            exporting && clips.any { it.detail.aiDenoise > 0f }, "AI NOISE REDUCTION · EXPORT", 1, progress,
+            exporting && !cloudExport && clips.any { it.detail.aiDenoise > 0f }, "AI NOISE REDUCTION · EXPORT", 1, progress,
             onStop = { export?.cancel(); export = null; exporting = false; AiDenoiser.stop(); message = "Export stopped" },
             modifier = Modifier.align(Alignment.TopCenter).zIndex(20f),
+        )
+        com.dronedirector.acluxpro.ui.AiBadgeHost(
+            com.dronedirector.acluxpro.camera.CloudAi.stage != null, com.dronedirector.acluxpro.camera.CloudAi.stage ?: "", 1,
+            com.dronedirector.acluxpro.camera.CloudAi.progress,
+            onStop = { com.dronedirector.acluxpro.camera.CloudAi.stop(); cloudJob?.cancel(); export?.cancel(); export = null; exporting = false; message = "Export stopped" },
+            modifier = Modifier.align(Alignment.TopCenter).zIndex(21f),
         )
         BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
             val wide = maxWidth > maxHeight || maxWidth >= 720.dp

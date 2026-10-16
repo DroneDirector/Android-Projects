@@ -75,6 +75,7 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("com.google.code.gson:gson:2.11.0")
     implementation("com.google.ai.edge.litert:litert:2.1.0")
+    implementation("androidx.security:security-crypto:1.0.0")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
     // Video colour grading (export with a LUT).
     implementation("androidx.media3:media3-transformer:1.11.1")

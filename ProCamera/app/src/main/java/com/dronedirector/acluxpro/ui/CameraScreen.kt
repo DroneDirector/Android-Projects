@@ -505,6 +505,16 @@ private fun FalseColorLegend(modifier: Modifier = Modifier) {
 @Composable
 private fun UpscaleBadge(modifier: Modifier) {
     val n = com.dronedirector.acluxpro.camera.Upscaler.pending
+    // Cloud AI stage (upload / processing / download) replaces the on-phone badge while it runs.
+    val cloudStage = com.dronedirector.acluxpro.camera.CloudAi.stage
+    if (cloudStage != null) {
+        AiBadge(
+            cloudStage, 1, com.dronedirector.acluxpro.camera.CloudAi.progress,
+            onStop = { com.dronedirector.acluxpro.camera.CloudAi.stop(); com.dronedirector.acluxpro.camera.Upscaler.cancelAll() },
+            modifier = modifier,
+        )
+        return
+    }
     androidx.compose.animation.AnimatedVisibility(
         visible = n > 0,
         modifier = modifier,

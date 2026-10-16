@@ -145,12 +145,31 @@ object Upscaler {
         if (w.toLong() * h >= target * 0.95) return null   // already that big
         val s = sqrt(target / (w.toDouble() * h))
         val tw = (w * s).toInt() / 2 * 2; val th = (h * s).toInt() / 2 * 2
+        val tmp = File(context.cacheDir, "upscale_${System.currentTimeMillis()}.jpg")
 
+        // Cloud AI (Topaz on fal.ai) when chosen in settings; falls back to the phone if it fails.
+        var cloudOk = false
+        var cloudNote: String? = null
+        if (CloudAi.usePhotos(context)) {
+            try {
+                val bytes = cr.openInputStream(uri)!!.use { it.readBytes() }
+                val res = CloudAi.upscalePhoto(context, bytes, s.toFloat())
+                // Resample the cloud result to exactly the chosen size.
+                val bmp = BitmapFactory.decodeByteArray(res, 0, res.size)
+                if (bmp != null) {
+                    val sized = if (bmp.width == tw && bmp.height == th) bmp else Bitmap.createScaledBitmap(bmp, tw, th, true)
+                    tmp.outputStream().use { sized.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+                    if (sized !== bmp) sized.recycle(); bmp.recycle()
+                    cloudOk = true
+                }
+            } catch (_: CloudAi.Stopped) { throw Stopped() } catch (t: Throwable) { cloudNote = t.message }
+        }
+        val ai = if (cloudOk) true else ensureModel(context)
+        if (!cloudOk) {
         val src = cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888 }) }
             ?: return "AI upscale: couldn't read the photo"
 
         val out = Bitmap.createBitmap(tw, th, Bitmap.Config.ARGB_8888)
-        val ai = ensureModel(context)
         if (ai) {
             // ESRGAN is 4×: feed it a smaller copy (Standard) or close to full size (High), then resample.
             val f = factor.coerceAtLeast(1).toDouble()
@@ -163,13 +182,13 @@ object Upscaler {
             Canvas(out).drawBitmap(src, null, RectF(0f, 0f, tw.toFloat(), th.toFloat()), Paint(Paint.FILTER_BITMAP_FLAG))
         }
         src.recycle()
+        tmp.outputStream().use { out.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+        out.recycle()
+        }
 
         // Save as a new JPEG next to the original, keeping its EXIF (orientation, time, GPS, lens).
         val baseName = cr.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
             ?.substringBeforeLast('.') ?: "IMG"
-        val tmp = File(context.cacheDir, "upscale_${System.currentTimeMillis()}.jpg")
-        tmp.outputStream().use { out.compress(Bitmap.CompressFormat.JPEG, 95, it) }
-        out.recycle()
         try {
             val srcExif = cr.openInputStream(uri)?.use { ExifInterface(it) }
             val dst = ExifInterface(tmp.path)
@@ -191,7 +210,12 @@ object Upscaler {
         if (Build.VERSION.SDK_INT >= 29) cr.update(target2, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
         tmp.delete()
         if (!keep) try { cr.delete(uri, null, null) } catch (_: Throwable) {}
-        return if (ai) "AI upscaled to ${mp} MP (${tw}×${th})" else "Upscaled to ${mp} MP (AI model unavailable — classic resize used)"
+        return when {
+            cloudOk -> "Cloud AI upscaled to ${mp} MP (${tw}×${th})"
+            cloudNote != null -> "Cloud AI unavailable ($cloudNote) — upscaled on the phone"
+            ai -> "AI upscaled to ${mp} MP (${tw}×${th})"
+            else -> "Upscaled to ${mp} MP (AI model unavailable — classic resize used)"
+        }
     }
 
     /** Runs ESRGAN over overlapping tiles and paints each result into [out] scaled by kx/ky. */

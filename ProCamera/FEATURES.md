@@ -123,6 +123,13 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 
 ---
 
+## Cloud AI (optional)
+- Bring your own **fal.ai** account (API key stored encrypted on the phone; only sent to fal.ai).
+- **Photos**: Topaz Labs upscale (Standard V2) for AI 24/36/48 MP and Topaz Denoise (Normal / Strong / Extreme / Max) for AI noise reduction.
+- **Video**: Topaz **Nyx** video noise reduction (Nyx Fast, Nyx, Nyx HF, Nyx XL) when exporting — minutes instead of up to an hour on the phone; results cached so re-exports don't pay twice.
+- **Wi-Fi only** option; animated badge shows upload / processing / download with **Stop**; automatic fallback to the on-phone AI.
+- Found in Capture settings and in both editors' settings.
+
 ## Look & feel
 - Same dark "Pro" design across Capture and both editors.
 - **App colour** picker available in Capture settings and in both editors' settings.

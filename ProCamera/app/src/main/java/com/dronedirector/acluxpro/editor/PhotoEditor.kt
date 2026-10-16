@@ -370,6 +370,26 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
             val controls = @Composable { mod: Modifier ->
                 Column(mod.background(Ed.Panel)) {
                     PanelTabs(panel) { panel = it }
+                    CopyPasteBar(
+                        video = false,
+                        onCopy = {
+                            val e = edit
+                            EditClipboard.copy(context, CopiedSettings(fromVideo = false, grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark))
+                            message = "Settings copied — open another photo or a video clip and tap PASTE SETTINGS"
+                        },
+                        onPaste = { parts, _ ->
+                            val c = EditClipboard.current
+                            if (c != null) {
+                                var e = edit
+                                if (PastePart.GRADE in parts) c.grade?.let { e = e.copy(grade = it) }
+                                if (PastePart.DETAIL in parts) c.detail?.let { e = e.copy(detail = it) }
+                                if (PastePart.CROP in parts) c.geometry?.let { e = e.copy(geometry = it) }
+                                if (PastePart.WATERMARK in parts) c.watermark?.let { e = e.copy(watermark = it) }
+                                edit = e
+                                message = "Settings pasted"
+                            }
+                        },
+                    )
                     Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 4.dp)) {
                         PhotoPanelContent(
                             panel, edit, { edit = it },

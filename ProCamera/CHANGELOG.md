@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Privacy policy (PRIVACY.md) linked from every settings gear; Google Play data-safety answers prepared (DATA_SAFETY.md).
 - Open-source licences: listed in every settings gear (© Open-source licences) with the full Apache 2.0 and MIT texts; THIRD_PARTY_NOTICES.md on GitHub. Trademark note added.
 
 ## 1.0.152 — 2026-10-16

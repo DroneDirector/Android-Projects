@@ -143,6 +143,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             CloudAiSettings(GuideVariant.CAPTURE)
             GuideButton(GuideVariant.CAPTURE)
             LicensesButton()
+            PrivacyButton()
 
             Section("VIDEO")
             ToggleRow("Record audio", "Uses the microphone; levels show in the audio graph", s.audio) { c.toggleAudio() }

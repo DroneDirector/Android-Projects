@@ -266,6 +266,7 @@ fun EditorSettingsDialog(
                 com.dronedirector.acluxpro.ui.CloudAiSettings(gv)
                 com.dronedirector.acluxpro.ui.GuideButton(gv)
                 com.dronedirector.acluxpro.ui.LicensesButton()
+                com.dronedirector.acluxpro.ui.PrivacyButton()
                 if (extra != null) extra()
             }
         },

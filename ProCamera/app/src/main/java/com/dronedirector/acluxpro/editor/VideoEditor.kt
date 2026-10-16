@@ -1413,9 +1413,31 @@ private fun ColorPage(
             EdSlider("Sharpness", c.detail.sharpen, 0f..1f, format = ::pct) { v -> detail { it.copy(sharpen = v) } }
             EdSlider("Image detail", c.detail.localDetail) { v -> detail { it.copy(localDetail = v) } }
             EdSlider("Noise reduction", c.detail.denoise, 0f..1f, format = ::pct) { v -> detail { it.copy(denoise = v) } }
-            SectionTitle("AI NOISE REDUCTION")
+            var aiInfo by remember { mutableStateOf(false) }
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("AI NOISE REDUCTION", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp))
+                Box(
+                    Modifier.padding(start = 8.dp).size(20.dp).clip(CircleShape).background(Pro.Amber).clickable { aiInfo = true },
+                    contentAlignment = Alignment.Center,
+                ) { Text("!", color = Color.Black, fontSize = 13.sp, fontWeight = FontWeight.Black) }
+            }
             EdSlider("Strength", c.detail.aiDenoise, 0f..1f, format = { if (it <= 0f) "Off" else pct(it) }) { v -> detail { it.copy(aiDenoise = v) } }
-            Text("Built-in AI (NAFNet). Applied when exporting — every frame is cleaned by the AI, so exports with this on take much longer (roughly 1–3 s per 1080p frame). The preview shows the normal noise reduction.", color = Pro.Dim, fontSize = 11.sp)
+            if (aiInfo) androidx.compose.material3.AlertDialog(
+                onDismissRequest = { aiInfo = false },
+                containerColor = Pro.PanelSolid,
+                title = { Text("AI noise reduction", color = Color.White) },
+                text = {
+                    Text(
+                        "The built-in AI (NAFNet) cleans every single frame of the video when you export. " +
+                            "This is very demanding: depending on your phone's hardware, the clip's length and resolution, " +
+                            "an export can take from several minutes up to about 1 hour.\n\n" +
+                            "You can stop it at any time with the Stop button on the AI badge. " +
+                            "The preview shows the normal noise reduction; the AI result appears in the exported video.",
+                        color = Pro.Dim,
+                    )
+                },
+                confirmButton = { androidx.compose.material3.TextButton(onClick = { aiInfo = false }) { Text("OK", color = Pro.Amber) } },
+            )
             SectionTitle("FINISHING")
             EdSlider("Vignette", c.detail.vignette) { v -> detail { it.copy(vignette = v) } }
             EdSlider("Film grain", c.detail.grain, 0f..1f, format = ::pct) { v -> detail { it.copy(grain = v) } }

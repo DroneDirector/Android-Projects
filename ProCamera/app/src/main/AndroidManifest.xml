@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- HEIC export is only used on Android 9+ (checked in code). -->
+    <uses-sdk tools:overrideLibrary="androidx.heifwriter" />
 
     <uses-feature android:name="android.hardware.camera.any" android:required="true" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />

@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor Deliver: estimated file size of the export, updating as you change resolution, frame rate, bitrate and audio.
 - Video editor: Undo and Redo buttons next to Split under the player (clips, layers, audio).
 - Video editor: rename layers — give a watermark (or any layer) its own name, shown in the layer list and on the timeline; the watermark text is labelled separately.
 

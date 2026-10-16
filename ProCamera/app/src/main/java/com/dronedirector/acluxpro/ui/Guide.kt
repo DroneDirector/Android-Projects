@@ -145,6 +145,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
         GuideSection(GuideTopic.TIPS, "Video editor tips", Icons.Filled.Movie, null, listOf(
             "The timeline starts at the left edge: drag one finger (or tap the ruler) to move the playhead; two fingers pinch to zoom and slide to scroll. The scissors under the player split at the playhead.",
             "Tap a cut on the timeline to choose one of 34 transitions.",
+            "Deliver shows the estimated file size; it updates as you change resolution, frame rate, bitrate and audio.",
             "Undo and redo sit next to the scissors under the player — they step back and forward through clip, layer and audio changes.",
             "Give any layer its own name (Layers → selected layer → name) — handy for telling watermarks apart; the watermark text on the video is a separate field.",
             "Hold a layer or audio bar on the timeline until it buzzes, then drag: left / right moves it in time, up / down changes the layer order.",

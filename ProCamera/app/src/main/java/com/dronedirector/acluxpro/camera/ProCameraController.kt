@@ -1490,6 +1490,7 @@ class ProCameraController(private val context: Context) {
                 everyNth = if (hyper) s.hyperSpeed else 0,
                 zoom = if (hyper && s.lapseStabilize) 0.9f else 1f,
                 onFrame = { n -> _state.update { it.copy(lapseFrames = n) } },
+                hevc = s.videoCodec == VideoCodec.HEVC,
             )
         } catch (t: Throwable) {
             toast("Couldn't start: ${t.message}")

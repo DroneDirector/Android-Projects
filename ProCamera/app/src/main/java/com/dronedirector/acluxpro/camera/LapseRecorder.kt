@@ -35,6 +35,8 @@ class LapseRecorder(
     /** Crop factor for the hyperlapse "stabilise" look (1 = full frame). */
     val zoom: Float,
     private val onFrame: (Int) -> Unit,
+    /** H.265 (HEVC) instead of H.264 when the phone has an encoder for it. */
+    hevc: Boolean = false,
 ) {
     private val thread = HandlerThread("ProCamLapse").apply { start() }
     private val handler = Handler(thread.looper)
@@ -69,13 +71,19 @@ class LapseRecorder(
         muxer = MediaMuxer(pfd.fileDescriptor, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
         muxer.setOrientationHint(orientationHint)
 
-        val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
+        fun fmt(mime: String) = MediaFormat.createVideoFormat(mime, width, height).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-            setInteger(MediaFormat.KEY_BIT_RATE, (width.toLong() * height * 30 * 0.25).toInt().coerceIn(4_000_000, 40_000_000))
+            val k = if (mime == MediaFormat.MIMETYPE_VIDEO_HEVC) 0.15 else 0.25   // H.265 needs less bitrate
+            setInteger(MediaFormat.KEY_BIT_RATE, (width.toLong() * height * 30 * k).toInt().coerceIn(3_000_000, 40_000_000))
             setInteger(MediaFormat.KEY_FRAME_RATE, 30)
             setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
         }
-        codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+        val hevcFormat = fmt(MediaFormat.MIMETYPE_VIDEO_HEVC)
+        val useHevc = hevc && try {
+            android.media.MediaCodecList(android.media.MediaCodecList.REGULAR_CODECS).findEncoderForFormat(hevcFormat) != null
+        } catch (_: Throwable) { false }
+        val format = if (useHevc) hevcFormat else fmt(MediaFormat.MIMETYPE_VIDEO_AVC)
+        codec = MediaCodec.createEncoderByType(if (useHevc) MediaFormat.MIMETYPE_VIDEO_HEVC else MediaFormat.MIMETYPE_VIDEO_AVC)
         codec.setCallback(object : MediaCodec.Callback() {
             override fun onInputBufferAvailable(codec: MediaCodec, index: Int) {}
 

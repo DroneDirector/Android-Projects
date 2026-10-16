@@ -231,6 +231,12 @@ fun LiveSetupPanel(ls: LiveState, live: LiveStreamer) {
                 Choice("Landscape 16:9", !ls.vertical) { live.setVertical(false) }
                 Choice("Vertical 9:16", ls.vertical) { live.setVertical(true) }
             }
+            Text("CODEC", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Choice("H.264 (works everywhere)", !ls.hevc) { live.setHevc(false) }
+                Choice("H.265 / HEVC", ls.hevc) { live.setHevc(true) }
+            }
+            if (ls.hevc) Text("H.265 gives better quality at the same bitrate. YouTube (enhanced RTMP) and SRT servers accept it; some platforms only take H.264.", color = Pro.Dim, fontSize = 11.sp)
             Text("QUALITY", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 LiveQuality.entries.forEach { q ->

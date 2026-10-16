@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.136 — 2026-10-16
 - LUTs: import your own .cube LUTs — Photo editor (Presets), Video editor (Color → Looks, as a look or as the log input conversion) and Capture (monitoring LUT on the viewfinder, optionally recorded).
 - My presets: save your look (grade + detail) and apply it in the photo or the video editor.
 - Photo editor: before / after split view with a draggable divider.

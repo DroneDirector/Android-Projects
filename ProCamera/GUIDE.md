@@ -1,6 +1,6 @@
 # AcluxPro — Guide & tips
 
-The same guide is in the app: tap **?** on the start screen, or **How to add a key** in Cloud AI settings.
+The same guide is in the app: tap **?** on the start screen, **Guide & tips** in any settings menu, or **How to add a key** in Cloud AI settings.
 See also the [feature list](FEATURES.md) and the [changelog](CHANGELOG.md).
 
 ## Cloud AI: add your API key

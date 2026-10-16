@@ -259,7 +259,13 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                                 (previewView.parent as? ViewGroup)?.removeView(previewView)
                                 previewView
                             },
-                            modifier = Modifier.fillMaxSize(),
+                            // Anamorphic lenses: show the picture at its real (desqueezed) shape.
+                            modifier = Modifier.fillMaxSize().graphicsLayer { scaleY = 1f / com.dronedirector.acluxpro.camera.CaptureExtras.desqueeze },
+                        )
+                        if (com.dronedirector.acluxpro.camera.CaptureExtras.desqueeze != 1f && !clean) Text(
+                            "ANAMORPHIC ${com.dronedirector.acluxpro.camera.CaptureExtras.desqueeze}×",
+                            style = Pro.Label.copy(color = Color.Black),
+                            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 6.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(50)).background(Pro.Amber).padding(horizontal = 8.dp, vertical = 2.dp),
                         )
                         if (overlayControls && !clean) {
                             // Soft shading behind the floating controls.

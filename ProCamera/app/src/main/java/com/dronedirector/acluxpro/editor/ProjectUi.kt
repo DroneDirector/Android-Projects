@@ -111,18 +111,23 @@ private fun Modifier.androidxVerticalScroll(): Modifier = this.then(Modifier.ver
 
 /** Asks for a project name the first time a project is saved. */
 @Composable
-fun ProjectNameDialog(initial: String, onSave: (String) -> Unit, onDismiss: () -> Unit) {
+fun ProjectNameDialog(
+    initial: String, onSave: (String) -> Unit, onDismiss: () -> Unit,
+    title: String = "Save project",
+    info: String = "Saves your edit so you can open it again later and continue where you left off. Your original media is not copied.",
+    fieldLabel: String = "Project name",
+) {
     var name by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Pro.PanelSolid,
-        title = { Text("Save project", color = Color.White) },
+        title = { Text(title, color = Color.White) },
         text = {
             Column {
-                Text("Saves your edit so you can open it again later and continue where you left off. Your original media is not copied.", color = Pro.Dim, fontSize = 12.sp)
+                Text(info, color = Pro.Dim, fontSize = 12.sp)
                 OutlinedTextField(
                     value = name, onValueChange = { name = it.take(60) }, singleLine = true,
-                    label = { Text("Project name") }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                    label = { Text(fieldLabel) }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White, unfocusedTextColor = Color.White,
                         focusedBorderColor = Pro.Amber, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,

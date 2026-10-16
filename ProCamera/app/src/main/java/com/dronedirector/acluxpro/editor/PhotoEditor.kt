@@ -16,6 +16,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -229,6 +232,10 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     if (showLoad) LoadProjectDialog(false, onOpen = { showLoad = false; onLoad(it) }, onDismiss = { showLoad = false })
     var panel by remember { mutableStateOf(PhotoPanel.PRESETS) }
     var comparing by remember { mutableStateOf(false) }
+    // Before / after split view with a draggable divider.
+    var split by remember { mutableStateOf(false) }
+    var splitX by remember { mutableStateOf(0.5f) }
+    var beforeImg by remember { mutableStateOf<Bitmap?>(null) }
     var showScope by remember { mutableStateOf(true) }
     var hist by remember { mutableStateOf<Array<FloatArray>?>(null) }
     var busy by remember { mutableStateOf(false) }
@@ -330,6 +337,11 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
             hist = withContext(Dispatchers.Default) { ImageOps.histogram(full) }
         }
     }
+    // "Before" for the split view: the original with the same crop, so both halves line up.
+    LaunchedEffect(split, base, edit.geometry) {
+        val b = base
+        beforeImg = if (!split || b == null) null else withContext(Dispatchers.Default) { ImageOps.render(b, ProGrade(), Detail(), edit.geometry, null) }
+    }
     // Undo history: record settled states.
     LaunchedEffect(edit) {
         delay(600)
@@ -409,23 +421,51 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
             val boxW = maxWidth.value; val boxH = maxHeight.value
             val previewBox = @Composable { mod: Modifier ->
                 Box(
-                    mod.pointerInput(Unit) {
-                        detectTapGestures(onPress = { comparing = true; tryAwaitRelease(); comparing = false })
+                    mod.pointerInput(split) {
+                        if (split) {
+                            // Drag anywhere to move the before / after divider.
+                            detectHorizontalDragGestures { ch, _ -> splitX = (ch.position.x / size.width).coerceIn(0.02f, 0.98f) }
+                        } else detectTapGestures(onPress = { comparing = true; tryAwaitRelease(); comparing = false })
                     },
                     contentAlignment = Alignment.Center,
                 ) {
                     val shown = if (comparing) base else preview ?: base
+                    val before = beforeImg
                     when {
                         failed -> Text("This file can't be opened.", color = Pro.Dim)
+                        split && before != null && shown != null -> {
+                            Image(before.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(6.dp))
+                            Image(
+                                shown.asImageBitmap(), null, contentScale = ContentScale.Fit,
+                                modifier = Modifier.fillMaxSize().padding(6.dp).drawWithContent {
+                                    clipRect(left = size.width * splitX) { this@drawWithContent.drawContent() }
+                                },
+                            )
+                            androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                                val x = size.width * splitX
+                                drawLine(Color.White, androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Offset(x, size.height), 3f)
+                                drawCircle(Color.White, 14.dp.toPx(), androidx.compose.ui.geometry.Offset(x, size.height / 2))
+                                drawCircle(Pro.Amber, 11.dp.toPx(), androidx.compose.ui.geometry.Offset(x, size.height / 2))
+                            }
+                            Text("BEFORE", style = Pro.Label.copy(color = Color.White), modifier = Modifier.align(Alignment.BottomStart).padding(10.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 8.dp, vertical = 3.dp))
+                            Text("AFTER", style = Pro.Label.copy(color = Color.White), modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 8.dp, vertical = 3.dp))
+                        }
                         shown != null -> Image(shown.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(6.dp))
                         else -> CircularProgressIndicator(color = Pro.Amber)
                     }
                     if (showScope && !comparing) Scope(hist, Modifier.align(Alignment.TopEnd).padding(8.dp).width(130.dp).height(64.dp))
-                    Text(
-                        if (comparing) "BEFORE" else "HOLD FOR BEFORE",
-                        style = Pro.Label.copy(color = Color.White),
-                        modifier = Modifier.align(Alignment.TopStart).padding(8.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 8.dp, vertical = 3.dp),
-                    )
+                    Row(Modifier.align(Alignment.TopStart).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (!split) Text(
+                            if (comparing) "BEFORE" else "HOLD FOR BEFORE",
+                            style = Pro.Label.copy(color = Color.White),
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 8.dp, vertical = 3.dp),
+                        )
+                        Text(
+                            if (split) "SPLIT ✓" else "SPLIT",
+                            style = Pro.Label.copy(color = if (split) Color.Black else Color.White),
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(if (split) Pro.Amber else Color.Black.copy(alpha = 0.5f)).clickable { split = !split }.padding(horizontal = 8.dp, vertical = 3.dp),
+                        )
+                    }
                     if (busy) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator(color = Pro.Amber)
@@ -546,6 +586,8 @@ private fun PhotoPanelContent(
 
     when (panel) {
         PhotoPanel.PRESETS -> {
+            UserPresetSection({ g to e.detail }) { p -> set(e.copy(grade = p.grade, detail = p.detail.copy(aiDenoise = e.detail.aiDenoise))) }
+            LutSection(g) { ng -> set(e.copy(grade = ng)) }
             SectionTitle("PROFILE / LOOK")
             LookStrip(g.look) { f -> grade { it.copy(look = f) } }
             if (g.look != Filter.NONE) EdSlider("Amount", g.lookAmount, 0f..1f, 1f, ::pct) { v -> grade { it.copy(lookAmount = v) } }

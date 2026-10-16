@@ -301,7 +301,9 @@ fun ProPanel(s: CameraUiState, c: ProCameraController, isoShown: Int?, shutterSh
         ) {
             val manualOk = s.manualSensor && !sceneLocked
             ParamChip(ProParam.ISO, if (s.manualIso) "${s.iso}" else "A ${isoShown ?: "--"}", s, manualOk, s.manualIso, c)
-            ParamChip(ProParam.SHUTTER, if (s.manualShutter) Stops.shutterLabel(s.shutterNs) else "A ${shutterShown?.let { Stops.shutterLabel(it) } ?: "--"}", s, manualOk, s.manualShutter, c)
+            val angleOn = com.dronedirector.acluxpro.camera.CaptureExtras.shutterAngle && s.isVideo
+            fun sh(ns: Long) = if (angleOn) "${com.dronedirector.acluxpro.camera.CaptureExtras.angleOf(ns, s.fps)}°" else Stops.shutterLabel(ns)
+            ParamChip(ProParam.SHUTTER, if (s.manualShutter) sh(s.shutterNs) else "A ${shutterShown?.let { sh(it) } ?: "--"}", s, manualOk, s.manualShutter, c)
             ParamChip(ProParam.FOCUS, if (s.manualFocus) Stops.focusLabel(s.focusDiopters) else "AF", s, s.minFocusDiopters > 0f && !sceneLocked, s.manualFocus, c)
             ParamChip(ProParam.WB, s.whiteBalance.label + if (s.awbLock) "·L" else "", s, !sceneLocked, s.whiteBalance != WhiteBalance.AUTO || s.awbLock, c)
             ParamChip(ProParam.EV, "%+.1f".format(s.ev * s.evStep), s, s.evMax > s.evMin, s.ev != 0, c)
@@ -417,9 +419,17 @@ private fun ParamEditor(p: ProParam, s: CameraUiState, c: ProCameraController, i
             // Slider runs fast → slow, so put long exposures on the right.
             val stops = s.shutterStops
             val idx = Stops.nearestIndex(stops, shown) { a, b -> abs(ln(a.toDouble() / b)) }
-            EditorRow("SHUTTER", Stops.shutterLabel(shown)) {
+            val x = com.dronedirector.acluxpro.camera.CaptureExtras
+            val angleOn = x.shutterAngle && s.isVideo
+            EditorRow("SHUTTER", if (angleOn) "${x.angleOf(shown, s.fps)}° · ${Stops.shutterLabel(shown)}" else Stops.shutterLabel(shown)) {
                 AutoToggle("AUTO", !s.manualShutter) { c.setShutterAuto() }
                 Spacer(Modifier.width(8.dp))
+                if (s.isVideo) {
+                    AutoToggle("180°", s.manualShutter && kotlin.math.abs(x.angleOf(s.shutterNs, s.fps) - 180) <= 3) {
+                        c.setShutter(x.ns180(s.fps).coerceIn(stops.minOrNull() ?: 0L, stops.maxOrNull() ?: Long.MAX_VALUE))
+                    }
+                    Spacer(Modifier.width(8.dp))
+                }
                 StopSlider(stops.size, idx, { c.setShutter(stops[it]) }, Modifier.weight(1f))
             }
         }

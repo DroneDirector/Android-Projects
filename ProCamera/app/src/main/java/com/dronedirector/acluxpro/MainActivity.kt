@@ -65,6 +65,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.dronedirector.acluxpro.editor.LutLibrary.init(this)
+        com.dronedirector.acluxpro.editor.UserPresets.init(this)
+        com.dronedirector.acluxpro.camera.CaptureExtras.load(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (Build.VERSION.SDK_INT >= 28) {

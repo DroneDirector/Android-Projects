@@ -91,14 +91,23 @@ data class ProGrade(
     val hsl: List<HslBand> = List(8) { HslBand() },
     val look: Filter = Filter.NONE,
     val lookAmount: Float = 1f,
+    /** Your own .cube LUT (id in [LutLibrary]), its strength, and whether it is the input transform. */
+    val lut: String? = null,
+    val lutAmount: Float = 1f,
+    val lutInput: Boolean = false,
 ) {
     val isIdentity: Boolean get() = this == ProGrade()
 
     fun apply(c: FloatArray) {
         var r = c[0]; var g = c[1]; var b = c[2]
+        val userLut = if (lut.isNullOrEmpty()) null else LutLibrary.get(lut)
 
-        // 1. Input transform: log → scene linear → Rec.709 with a soft highlight roll-off.
-        if (input.isLog) {
+        // 1. Input transform: your LUT (e.g. a camera maker's log → Rec.709 LUT), or the built-in
+        //    log → scene linear → Rec.709 with a soft highlight roll-off.
+        if (userLut != null && lutInput) {
+            val o = floatArrayOf(r, g, b); userLut.apply(o)
+            r += (o[0] - r) * lutAmount; g += (o[1] - g) * lutAmount; b += (o[2] - b) * lutAmount
+        } else if (input.isLog) {
             r = display(input.toLinear(r)); g = display(input.toLinear(g)); b = display(input.toLinear(b))
         }
 
@@ -183,6 +192,12 @@ data class ProGrade(
             )
             look.look?.apply(t)
             r += (t[0] - r) * lookAmount; g += (t[1] - g) * lookAmount; b += (t[2] - b) * lookAmount
+        }
+
+        // 9b. Your LUT as a creative look.
+        if (userLut != null && !lutInput && lutAmount > 0f) {
+            val o = floatArrayOf(r.coerceIn(0f, 1f), g.coerceIn(0f, 1f), b.coerceIn(0f, 1f)); userLut.apply(o)
+            r += (o[0] - r) * lutAmount; g += (o[1] - g) * lutAmount; b += (o[2] - b) * lutAmount
         }
 
         // 10. Fade.

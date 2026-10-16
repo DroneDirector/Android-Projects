@@ -56,6 +56,8 @@ data class Clip(
     val mime: String = "",
     val hdr: Boolean = false,
     val tenBit: Boolean = false,
+    /** Anamorphic squeeze to undo (null / 1 = none), e.g. 1.33 or 1.8. */
+    val desqueeze: Float? = null,
 ) {
     val lengthMs: Long get() = ((endMs - startMs) / speed).toLong().coerceAtLeast(1)
 }
@@ -103,12 +105,62 @@ data class DeliverSettings(
     val fill: Boolean = true,
     /** Save only the sound (AAC in an .m4a file, to Music/AcluxPro). */
     val audioOnly: Boolean = false,
+    /** Export only this part of the timeline (ms); null = the whole edit. */
+    val rangeStart: Long? = null,
+    val rangeEnd: Long? = null,
 )
+
+/** One-tap delivery settings for common destinations. */
+data class ExportPreset(val label: String, val shortSide: Int, val fps: Int, val hevc: Boolean, val mbps: Int, val aspect: Float)
+
+val EXPORT_PRESETS = listOf(
+    ExportPreset("YouTube 4K", 2160, 0, false, 50, 16f / 9f),
+    ExportPreset("YouTube 1080p", 1080, 0, false, 20, 16f / 9f),
+    ExportPreset("Instagram Reel", 1080, 30, false, 20, 9f / 16f),
+    ExportPreset("Instagram 4:5", 1080, 30, false, 20, 0.8f),
+    ExportPreset("TikTok", 1080, 30, false, 20, 9f / 16f),
+    ExportPreset("Square 1:1", 1080, 30, false, 20, 1f),
+    ExportPreset("Small file", 720, 30, true, 0, 0f),
+)
+
+/** The part of an edit between [a] and [b] (timeline ms) as its own clips, layers and audio. */
+data class RangeCut(val clips: List<Clip>, val layers: List<Layer>, val music: MusicTrack?, val extra: List<MusicTrack>)
+
+fun cutRange(clips: List<Clip>, layers: List<Layer>, music: MusicTrack?, extra: List<MusicTrack>, a: Long, b: Long): RangeCut {
+    val st = clipStarts(clips)
+    val total = timelineLength(clips)
+    val out = mutableListOf<Clip>()
+    clips.forEachIndexed { i, c ->
+        val s0 = st[i]; val e0 = s0 + c.lengthMs
+        val from = maxOf(a, s0); val to = minOf(b, e0)
+        if (to - from < 40) return@forEachIndexed
+        val ns = c.startMs + ((from - s0) * c.speed).toLong()
+        val ne = (c.startMs + ((to - s0) * c.speed).toLong()).coerceAtMost(c.endMs)
+        out += c.copy(id = java.util.UUID.randomUUID().toString(), startMs = ns, endMs = ne)
+    }
+    if (out.isNotEmpty()) out[out.lastIndex] = out.last().copy(transition = Transition())
+    val len = (b - a).coerceAtLeast(1)
+    val ls = layers.mapNotNull { l ->
+        if (l.wholeVideo) l else {
+            val s = l.startMs - a; val e = l.endMs - a
+            if (e <= 0 || s >= len) null else l.copy(startMs = s.coerceAtLeast(0), endMs = e.coerceAtMost(len), videoStartMs = l.videoStartMs + (if (s < 0) -s else 0))
+        }
+    }
+    fun shift(m: MusicTrack): MusicTrack? {
+        val play = m.playLength(total)
+        val s = m.startMs - a
+        val e = s + play
+        if (e <= 0 || s >= len) return null
+        val cut = if (s < 0) -s else 0
+        return m.copy(startMs = s.coerceAtLeast(0), offsetMs = m.offsetMs + cut, lengthMs = (play - cut).coerceAtLeast(1))
+    }
+    return RangeCut(out, ls, music?.let { shift(it) }, extra.mapNotNull { shift(it) })
+}
 
 /** Output frame size for the project (even numbers, as encoders need). */
 fun outputSize(clips: List<Clip>, s: DeliverSettings): Pair<Int, Int> {
     val first = clips.firstOrNull()
-    val fw = (first?.width ?: 1920).coerceAtLeast(2)
+    val fw = ((first?.width ?: 1920) * (first?.desqueeze ?: 1f)).toInt().coerceAtLeast(2)
     val fh = (first?.height ?: 1080).coerceAtLeast(2)
     val aspect = if (s.aspect > 0f) s.aspect else fw.toFloat() / fh
     val short = if (s.shortSide > 0) s.shortSide else minOf(fw, fh)
@@ -167,6 +219,8 @@ class TimelineExport(
             if (c.detail.aiDenoise > 0f) video += AiDenoiseEffect(context, c.detail.aiDenoise)
             val motion = if (c.stab.enabled) Stabilizer.cached(context, c) else null
             if (!c.reframe.isIdentity || motion != null) video += ReframeEffect(c, motion)
+            // Anamorphic: stretch the squeezed picture back to its real width.
+            c.desqueeze?.takeIf { it > 1f }?.let { video += androidx.media3.effect.ScaleAndRotateTransformation.Builder().setScale(it, 1f).build() }
             video += clipEffects(c)
             // When compositing, every clip is sized to the project frame first.
             if (compositing) video += Presentation.createForWidthAndHeight(outW, outH, layout)

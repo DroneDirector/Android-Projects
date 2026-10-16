@@ -237,6 +237,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val thumbs = remember { mutableStateMapOf<String, Bitmap>() }
     val strips = remember { mutableStateMapOf<String, Filmstrip>() }
     var scopeHist by remember { mutableStateOf<Array<FloatArray>?>(null) }
+    var scopeOpen by remember { mutableStateOf(scopeDrawerOpen(context)) }
     val layers = remember { mutableStateListOf<Layer>().apply { initial?.layers?.let { addAll(it) } } }
     var selectedLayer by remember { mutableStateOf<String?>(null) }
     // Remembered watermark: added to every new project; kept up to date while the option is on.
@@ -790,8 +791,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     // Scope: graded still of the paused frame.
-    LaunchedEffect(page, playing, current, posMs / 500, cur?.grade) {
-        if (page != Page.COLOR || playing) return@LaunchedEffect
+    LaunchedEffect(scopeOpen, fullscreen, playing, current, posMs / 500, cur?.grade) {
+        if (!scopeOpen || fullscreen || playing) return@LaunchedEffect
         val c = cur ?: return@LaunchedEffect
         delay(250)
         scopeHist = withContext(Dispatchers.Default) {
@@ -1348,7 +1349,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         infoText, color = Color.White, fontSize = 10.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                         modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).background(Color.Black.copy(alpha = 0.6f)).padding(4.dp),
                     )
-                    if (page == Page.COLOR) Scope(scopeHist, Modifier.align(Alignment.TopEnd).padding(8.dp).width(130.dp).height(64.dp))
+                    // RGB histogram: a pull-out drawer on the right edge (never in full screen).
+                    if (!fullscreen) ScopeDrawer(scopeHist, Modifier.align(Alignment.CenterEnd)) { scopeOpen = it }
                     Text(
                         "${tc(globalMs)} / ${tc(totalMs)}",
                         style = Pro.Value.copy(fontSize = 12.sp),

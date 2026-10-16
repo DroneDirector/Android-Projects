@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.142 — 2026-10-16
 - Capture: focus magnifier while focusing manually, and rack focus (set A / B, glide in 1–4 s).
 - Capture: waveform, RGB parade and vectorscope as alternatives to the histogram.
 - Capture: pre-record (keeps 3, 5 or 10 seconds from before you press record).

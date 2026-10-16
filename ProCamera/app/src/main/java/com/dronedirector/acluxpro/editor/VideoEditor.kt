@@ -349,6 +349,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val frameViews = remember { arrayOfNulls<android.view.View>(2) }
     val texViews = remember { arrayOfNulls<android.view.View>(2) }
     val transitionOn = remember { booleanArrayOf(false) }
+    val gpuGrade = remember { GradePreview.supported }
+    var errorRetries by remember { mutableStateOf(0) }
     fun motionFor(c: Clip): Motion? = if (c.stab.enabled) motions[Stabilizer.keyOf(c)] else null
     fun analyze(c: Clip) {
         val k = Stabilizer.keyOf(c)
@@ -369,7 +371,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
 
     fun prepareOn(p: ExoPlayer, c: Clip, startMs: Long, play: Boolean) {
         p.stop()
-        try { p.setVideoEffects(if (effectsOk) clipEffects(c) else emptyList()) } catch (_: Throwable) { effectsOk = false }
+        val pi = players.indexOf(p).coerceAtLeast(0)
+        if (gpuGrade) {
+            // Android 13+: the grade is drawn on the view; the player only decodes plain video.
+            texViews[pi]?.let { if (effectsOk) GradePreview.apply(it, c) else GradePreview.clear(it) }
+        } else {
+            try { p.setVideoEffects(if (effectsOk) clipEffects(c) else emptyList()) } catch (_: Throwable) { effectsOk = false }
+        }
         p.setMediaItem(mediaItemFor(c), startMs.coerceAtLeast(0))
         p.playbackParameters = PlaybackParameters(c.speed)
         p.volume = if (c.muted || previewMuted) 0f else c.volume.coerceAtMost(1f)
@@ -438,6 +446,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                     if (idx != deck.active) { preloadedId = null; return }
                     val pos = p.currentPosition
+                    if (gpuGrade) {
+                        // No effects pipeline in the player: just retry a couple of times.
+                        if (errorRetries < 2) { errorRetries++; load(current, pos, p.playWhenReady) }
+                        else message = "Can't play this clip on this phone (${error.errorCodeName})"
+                        return
+                    }
                     if (effectsOk) {
                         // The phone's GPU preview pipeline failed: keep previewing without the live grade.
                         effectsOk = false
@@ -504,6 +518,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     LaunchedEffect(cur?.grade, cur?.detail, effectsOk) { cur?.let { gradeReq.trySend(it) } }
     LaunchedEffect(Unit) {
         for (c in gradeReq) {
+            if (gpuGrade) { if (effectsOk && c.id == loadedId) texViews[deck.active]?.let { GradePreview.apply(it, c) }; continue }
             if (!effectsOk || c.id != loadedId) continue
             val fx = withContext(Dispatchers.Default) { try { clipEffects(c) } catch (_: Throwable) { null } } ?: continue
             if (c.id != loadedId) continue
@@ -551,7 +566,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     // Escalate: reload → reload without live effects → use a preview copy.
                     when (stallTries) {
                         1 -> load(current, p, true)
-                        2 -> { if (effectsOk) { effectsOk = false; message = "Live effects paused in the preview to keep playback smooth (the export keeps them)" }; load(current, p, true) }
+                        2 -> { if (effectsOk && !gpuGrade) { effectsOk = false; message = "Live effects paused in the preview to keep playback smooth (the export keeps them)" }; load(current, p, true) }
                         else -> {
                             if (proxySettings.mode != ProxyMode.OFF && proxies[c0.uri.toString()] == null) {
                                 requestProxy(c0); message = "This clip is heavy for live playback — making a smooth preview copy…"
@@ -561,7 +576,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     }
                 }
             } else stallSince = System.currentTimeMillis()
-            if (deck.cur.isPlaying && deck.cur.currentPosition != stallPos) stallTries = 0
+            if (deck.cur.isPlaying && deck.cur.currentPosition != stallPos) { stallTries = 0; errorRetries = 0 }
             // Safety net: playing but no picture for a while → make a preview copy, or drop the live effects.
             val c = clips.getOrNull(current)
             if (c != null && nowPlaying && renderedFor[deck.active] != c.id && System.currentTimeMillis() - playSince > 2500) {
@@ -598,7 +613,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val i = current
             val c = clips.getOrNull(i) ?: continue
             val a = deck.active
-            if (c.id == loadedId) texViews[a]?.let { ClipXform.applyToView(it, ClipXform.at(c, c.startMs + deck.cur.currentPosition, motionFor(c))) }
+            if (c.id == loadedId) texViews[a]?.let {
+                ClipXform.applyToView(it, ClipXform.at(c, c.startMs + deck.cur.currentPosition, motionFor(c)))
+                if (gpuGrade) { if (effectsOk) GradePreview.apply(it, c, System.nanoTime() / 1e9f) else GradePreview.clear(it) }
+            }
             val n = clips.getOrNull(i + 1)
             val ov = overlapMs(clips, i)
             val local = (deck.cur.currentPosition / c.speed).toLong()
@@ -616,7 +634,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 }
                 if (!deck.cur.playWhenReady && deck.spare.playWhenReady) deck.spare.pause()
                 transitionOn[0] = true
-                texViews[1 - a]?.let { ClipXform.applyToView(it, ClipXform.at(n, n.startMs + deck.spare.currentPosition, motionFor(n))) }
+                texViews[1 - a]?.let {
+                    ClipXform.applyToView(it, ClipXform.at(n, n.startMs + deck.spare.currentPosition, motionFor(n)))
+                    if (gpuGrade && effectsOk) GradePreview.apply(it, n, System.nanoTime() / 1e9f)
+                }
                 frameViews[a]?.let { TransitionPreview.apply(it, c.transition.type, p, false) }
                 frameViews[1 - a]?.let { TransitionPreview.apply(it, c.transition.type, p, true) }
                 deck.cur.volume = vol(c) * (1f - p)

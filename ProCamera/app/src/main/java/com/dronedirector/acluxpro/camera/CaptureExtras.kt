@@ -18,6 +18,19 @@ object CaptureExtras {
     var monitorLut by mutableStateOf<String?>(null)
     /** Also record the LUT into videos (otherwise it's for monitoring only). */
     var bakeLut by mutableStateOf(false)
+    /** Wind filter on recorded sound. */
+    var windFilter by mutableStateOf(false)
+    /** Seconds kept from before you press record (0 = off). */
+    var preRecordSec by mutableStateOf(0)
+    /** Use a Bluetooth headset microphone when one is connected. */
+    var micBluetooth by mutableStateOf(false)
+    /** Magnified view while focusing manually. */
+    var focusMagnifier by mutableStateOf(true)
+    /** Rack focus points (diopters) — not kept between sessions. */
+    var focusA by mutableStateOf<Float?>(null)
+    var focusB by mutableStateOf<Float?>(null)
+    /** Scope shown on the viewfinder in Pro modes: 0 histogram, 1 waveform, 2 RGB parade, 3 vectorscope. */
+    var scope by mutableStateOf(0)
 
     private fun prefs(c: Context) = c.getSharedPreferences("procam", Context.MODE_PRIVATE)
 
@@ -27,6 +40,11 @@ object CaptureExtras {
         desqueeze = p.getFloat("x_desqueeze", 1f)
         monitorLut = p.getString("x_monitor_lut", null)
         bakeLut = p.getBoolean("x_bake_lut", false)
+        windFilter = p.getBoolean("x_wind", false)
+        preRecordSec = p.getInt("x_prerec", 0)
+        micBluetooth = p.getBoolean("x_mic_bt", false)
+        focusMagnifier = p.getBoolean("x_focus_mag", true)
+        scope = p.getInt("x_scope", 0)
     }
 
     fun save(c: Context) {
@@ -35,6 +53,11 @@ object CaptureExtras {
             .putFloat("x_desqueeze", desqueeze)
             .putString("x_monitor_lut", monitorLut)
             .putBoolean("x_bake_lut", bakeLut)
+            .putBoolean("x_wind", windFilter)
+            .putInt("x_prerec", preRecordSec)
+            .putBoolean("x_mic_bt", micBluetooth)
+            .putBoolean("x_focus_mag", focusMagnifier)
+            .putInt("x_scope", scope)
             .apply()
     }
 

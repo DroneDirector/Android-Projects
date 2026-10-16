@@ -146,6 +146,14 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             Section("VIDEO")
             ToggleRow("Record audio", "Uses the microphone; levels show in the audio graph", s.audio) { c.toggleAudio() }
             ToggleRow("High bitrate", "More detail, bigger files", s.highBitrate) { c.toggleBitrate() }
+            run {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val x = com.dronedirector.acluxpro.camera.CaptureExtras
+                ChoiceRow("Pre-record", listOf(0, 3, 5, 10), x.preRecordSec, { if (it == 0) "OFF" else "${it}s" }) {
+                    x.preRecordSec = it; x.save(ctx); c.refreshPreRecord()
+                }
+                Text("Keeps the last few seconds before you press record, so you never miss the moment. The camera keeps a temporary recording running while you wait (uses a little more battery).", color = Pro.Dim, fontSize = 12.sp)
+            }
             if (s.stabilizationSupported) {
                 ToggleRow("Stabilization", "Electronic / optical video stabilization", s.stabilization) { c.toggleStabilization() }
             }
@@ -184,6 +192,9 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 if (x.monitorLut != null) ToggleRow("Record the LUT", "Off: the LUT is only for monitoring and recordings stay log / flat. On: videos are recorded with the LUT applied.", x.bakeLut) {
                     x.bakeLut = !x.bakeLut; x.save(ctx); c.refreshMonitorLut()
                 }
+                ToggleRow("Focus magnifier", "Pro modes: a zoomed-in view while you turn the manual focus, to nail sharpness", x.focusMagnifier) { x.focusMagnifier = !x.focusMagnifier; x.save(ctx) }
+                ChoiceRow("Scope", listOf(0, 1, 2, 3), x.scope, { listOf("HISTOGRAM", "WAVEFORM", "PARADE", "VECTOR")[it] }) { x.scope = it; x.save(ctx) }
+                Text("Pro modes: the brightness graph can be a histogram, a waveform (brightness across the picture), an RGB parade or a vectorscope (colour and skin-tone line).", color = Pro.Dim, fontSize = 12.sp)
                 ToggleRow("Shutter as angle", "Video: show the shutter as an angle (180° = natural motion blur) with a one-tap 180° button", x.shutterAngle) { x.shutterAngle = !x.shutterAngle; x.save(ctx) }
                 ChoiceRow("Anamorphic desqueeze", listOf(1f, 1.33f, 1.5f, 1.55f, 1.8f, 2f), x.desqueeze, { if (it == 1f) "OFF" else "${it}×" }) { x.desqueeze = it; x.save(ctx) }
                 Text("For anamorphic lenses / adapters: the viewfinder is stretched back to the real shape. Recordings stay squeezed — desqueeze them in the video editor (Edit → Anamorphic).", color = Pro.Dim, fontSize = 12.sp)
@@ -206,6 +217,15 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             )
             Text("Raise for quiet sources, lower for loud ones. The audio meter and headphones use the adjusted level; the gain is applied to the sound when each clip is saved.", color = Pro.Dim, fontSize = 12.sp)
             ToggleRow("Limiter", "Rounds off peaks so loud sounds don't distort", s.audioLimiter) { c.toggleAudioLimiter() }
+            run {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val x = com.dronedirector.acluxpro.camera.CaptureExtras
+                ToggleRow("Wind filter", "Cuts the low rumble of wind and handling noise from recorded sound", x.windFilter) { x.windFilter = !x.windFilter; x.save(ctx) }
+                val inputs = androidx.compose.runtime.remember(s.headphones) { c.inputDevices() }
+                Text("Microphones found: " + (inputs.ifEmpty { listOf("phone microphone") }.joinToString(", ")), color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                Text("USB and wired microphones are used automatically when plugged in.", color = Pro.Dim, fontSize = 12.sp)
+                ToggleRow("Bluetooth microphone", "Record with a connected Bluetooth headset's mic (speech quality; works on most phones)", x.micBluetooth) { x.micBluetooth = !x.micBluetooth; x.save(ctx) }
+            }
             ToggleRow(
                 "Headphone monitoring",
                 when (s.headphones) {

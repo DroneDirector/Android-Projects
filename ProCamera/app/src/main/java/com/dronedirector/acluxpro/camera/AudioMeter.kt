@@ -21,7 +21,7 @@ import kotlin.math.sqrt
 import kotlin.math.tanh
 
 /** One snapshot of the audio graph: recent levels (0..1, oldest first) plus current and peak dBFS. */
-class AudioLevels(val history: FloatArray, val db: Float, val peakDb: Float, val live: Boolean)
+class AudioLevels(val history: FloatArray, val db: Float, val peakDb: Float, val live: Boolean, val leftDb: Float = db, val rightDb: Float = db, val stereo: Boolean = false)
 
 /**
  * Real-time microphone levels for the video modes.
@@ -62,22 +62,24 @@ class AudioMeter(private val context: Context) {
         running = true
         thread = Thread({
             val rate = 44_100
-            val minBuf = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
-            if (minBuf <= 0) { running = false; return@Thread }
-            val record = try {
-                AudioRecord(MediaRecorder.AudioSource.CAMCORDER, rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, max(minBuf, 4096))
-            } catch (_: Throwable) {
-                running = false
-                return@Thread
+            // Stereo when the phone has two microphones for video (left / right meters), else mono.
+            fun open(stereo: Boolean): AudioRecord? {
+                val mask = if (stereo) AudioFormat.CHANNEL_IN_STEREO else AudioFormat.CHANNEL_IN_MONO
+                val minBuf = AudioRecord.getMinBufferSize(rate, mask, AudioFormat.ENCODING_PCM_16BIT)
+                if (minBuf <= 0) return null
+                return try {
+                    AudioRecord(MediaRecorder.AudioSource.CAMCORDER, rate, mask, AudioFormat.ENCODING_PCM_16BIT, max(minBuf, 8192))
+                        .takeIf { it.state == AudioRecord.STATE_INITIALIZED && (!stereo || it.channelCount == 2) }
+                } catch (_: Throwable) { null }
             }
-            if (record.state != AudioRecord.STATE_INITIALIZED) {
-                record.release()
-                running = false
-                return@Thread
-            }
+            val record = open(true) ?: open(false)
+            if (record == null) { running = false; return@Thread }
+            val ch = record.channelCount.coerceIn(1, 2)
             // Small reads keep headphone latency low; the meter is updated every ~40 ms.
+            val raw = ShortArray(rate / 100 * ch)
             val buf = ShortArray(rate / 100)
             val out = ShortArray(buf.size)
+            var accL = 0.0; var accR = 0.0
             var track: AudioTrack? = null
             var acc = 0.0
             var accN = 0
@@ -85,8 +87,21 @@ class AudioMeter(private val context: Context) {
             try {
                 record.startRecording()
                 while (running) {
-                    val n = record.read(buf, 0, buf.size)
-                    if (n <= 0) continue
+                    val got = record.read(raw, 0, raw.size)
+                    if (got <= 0) continue
+                    val n = got / ch
+                    val g0 = 10.0.pow(gainDb / 20.0)
+                    if (ch == 2) {
+                        for (i in 0 until n) {
+                            val l = raw[2 * i]; val r = raw[2 * i + 1]
+                            val lf = l / 32768.0 * g0; val rf = r / 32768.0 * g0
+                            accL += lf * lf; accR += rf * rf
+                            buf[i] = ((l + r) / 2).toShort()
+                        }
+                    } else {
+                        for (i in 0 until n) { buf[i] = raw[i]; val x = raw[i] / 32768.0 * g0; accL += x * x }
+                        accR = accL
+                    }
                     val g = 10.0.pow(gainDb / 20.0).toFloat()
                     val lim = limiter
                     var allZero = true
@@ -105,8 +120,8 @@ class AudioMeter(private val context: Context) {
                     zeroRun = if (allZero) zeroRun + n else 0
                     silenced = zeroRun > rate // a full second of digital silence
                     if (accN >= rate / 25) {
-                        pushRms(sqrt(acc / accN).toFloat())
-                        acc = 0.0; accN = 0
+                        pushRms(sqrt(acc / accN).toFloat(), sqrt(accL / accN).toFloat(), sqrt(accR / accN).toFloat(), ch == 2)
+                        acc = 0.0; accN = 0; accL = 0.0; accR = 0.0
                     }
                     if (headphones) {
                         val t = track ?: createTrack(rate).also { track = it }
@@ -175,9 +190,11 @@ class AudioMeter(private val context: Context) {
         _levels.value = AudioLevels(FloatArray(size), MIN_DB, MIN_DB, false)
     }
 
+    private fun toDb(rms: Float) = if (rms <= 0.00001f) MIN_DB else (20f * log10(rms)).coerceIn(MIN_DB, 0f)
+
     @Synchronized
-    private fun pushRms(rms: Float) {
-        val db = if (rms <= 0.00001f) MIN_DB else (20f * log10(rms)).coerceIn(MIN_DB, 0f)
+    private fun pushRms(rms: Float, l: Float = rms, r: Float = rms, stereo: Boolean = false) {
+        val db = toDb(rms)
         ring[head] = (db - MIN_DB) / -MIN_DB
         head = (head + 1) % size
         if (db >= peakDb) {
@@ -187,7 +204,7 @@ class AudioMeter(private val context: Context) {
             peakDb = max(db, peakDb - 1.5f)
         }
         val ordered = FloatArray(size) { ring[(head + it) % size] }
-        _levels.value = AudioLevels(ordered, db, peakDb, true)
+        _levels.value = AudioLevels(ordered, db, peakDb, true, toDb(l), toDb(r), stereo)
     }
 
     companion object {

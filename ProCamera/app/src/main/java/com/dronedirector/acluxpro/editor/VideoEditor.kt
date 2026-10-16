@@ -114,6 +114,8 @@ import com.dronedirector.acluxpro.camera.GradeIO
 import com.dronedirector.acluxpro.ui.Pro
 import com.dronedirector.acluxpro.ui.hintedScroll
 import kotlinx.coroutines.Dispatchers
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.foundation.horizontalScroll
@@ -222,6 +224,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     var cloudExport by remember { mutableStateOf(false) }
     var cloudJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     var previewMuted by remember { mutableStateOf(false) }
+    // Timeline track switches for the main video track (clips).
+    var videoMuted by remember { mutableStateOf(initial?.videoMuted ?: false) }
+    var videoLocked by remember { mutableStateOf(initial?.videoLocked ?: false) }
     val thumbs = remember { mutableStateMapOf<String, Bitmap>() }
     val strips = remember { mutableStateMapOf<String, Filmstrip>() }
     var scopeHist by remember { mutableStateOf<Array<FloatArray>?>(null) }
@@ -402,7 +407,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
         p.setMediaItem(mediaItemFor(c), startMs.coerceAtLeast(0))
         p.playbackParameters = PlaybackParameters(c.speed)
-        p.volume = if (c.muted || previewMuted) 0f else c.volume.coerceAtMost(1f)
+        p.volume = if (c.muted || previewMuted || videoMuted) 0f else c.volume.coerceAtMost(1f)
         audioFx[players.indexOf(p).coerceAtLeast(0)].fx = c.audio
         p.playWhenReady = play
         p.prepare()
@@ -437,7 +442,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             loadedId = n.id
             videoAspect = aspects[deck.active]
             deck.cur.playbackParameters = PlaybackParameters(n.speed)
-            deck.cur.volume = if (n.muted || previewMuted) 0f else n.volume.coerceAtMost(1f)
+            deck.cur.volume = if (n.muted || previewMuted || videoMuted) 0f else n.volume.coerceAtMost(1f)
             deck.cur.play()
             old.pause()
             // Get the following clip ready in the player we just left.
@@ -558,10 +563,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         if (clips.isNotEmpty()) preloadAfter(current)
     }
     LaunchedEffect(cur?.audio) { cur?.let { audioFx[deck.active].fx = it.audio } }
-    LaunchedEffect(cur?.speed, cur?.volume, cur?.muted, previewMuted) {
+    LaunchedEffect(cur?.speed, cur?.volume, cur?.muted, previewMuted, videoMuted) {
         cur?.let {
             deck.cur.playbackParameters = PlaybackParameters(it.speed)
-            deck.cur.volume = if (it.muted || previewMuted) 0f else it.volume.coerceAtMost(1f)
+            deck.cur.volume = if (it.muted || previewMuted || videoMuted) 0f else it.volume.coerceAtMost(1f)
         }
     }
     LaunchedEffect(Unit) {
@@ -629,7 +634,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     LaunchedEffect(Unit) {
         var was = false
         var startedFor: String? = null
-        fun vol(c: Clip) = if (c.muted || previewMuted) 0f else c.volume.coerceAtMost(1f)
+        fun vol(c: Clip) = if (c.muted || previewMuted || videoMuted) 0f else c.volume.coerceAtMost(1f)
         while (true) {
             androidx.compose.runtime.withFrameNanos { }
             val i = current
@@ -681,11 +686,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val m = music
         if (m == null) { musicPlayer.pause(); return@LaunchedEffect }
         musicFxProc.fx = m.fx
-        musicPlayer.volume = if (previewMuted) 0f else m.volume.coerceIn(0f, 1f)
+        musicPlayer.volume = if (previewMuted || m.muted) 0f else m.volume.coerceIn(0f, 1f)
         if (!playing) { musicPlayer.pause(); return@LaunchedEffect }
         while (true) {
             val ducked = clips.getOrNull(current)?.let { it.audio.duckMusic && !it.muted && it.volume > 0f } == true
-            musicPlayer.volume = if (previewMuted) 0f else (m.volume * (if (ducked) 1f - m.duck else 1f)).coerceIn(0f, 1f)
+            musicPlayer.volume = if (previewMuted || m.muted) 0f else (m.volume * (if (ducked) 1f - m.duck else 1f)).coerceIn(0f, 1f)
             val before = clipStarts(clips).getOrNull(current) ?: 0L
             val g = before + (deck.cur.currentPosition / (clips.getOrNull(current)?.speed ?: 1f)).toLong()
             val len = m.playLength(timelineLength(clips))
@@ -712,7 +717,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val total = timelineLength(clips)
             for (t in extraAudio) {
                 val p = audioPlayers[t.id] ?: continue
-                p.volume = if (previewMuted) 0f else t.volume.coerceIn(0f, 1f)
+                p.volume = if (previewMuted || t.muted) 0f else t.volume.coerceIn(0f, 1f)
                 val len = t.playLength(total)
                 if (g < t.startMs || g >= t.startMs + len) { if (p.isPlaying) p.pause(); continue }
                 val want = t.offsetMs + (g - t.startMs)
@@ -792,6 +797,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             id = projectId ?: java.util.UUID.randomUUID().toString(), name = name,
             clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
             extraAudio = extraAudio.toList(), audioPool = audioPool.toList(),
+            videoMuted = videoMuted, videoLocked = videoLocked,
         )
         val saved = try { ProjectStore.saveVideo(context, p, clips.firstOrNull()?.let { thumbs[it.id] }) } catch (_: Throwable) { null }
         if (saved != null) { projectId = saved.id; projectName = saved.name; message = "Project \"${saved.name}\" saved" }
@@ -805,6 +811,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
 
     /** Blade: cut the clip under the playhead at the exact frame shown. */
     fun splitAtPlayhead() {
+        if (videoLocked) { message = "The video track is locked — tap its lock on the timeline to unlock"; return }
         val c = clips.getOrNull(current) ?: return
         val cut = c.startMs + deck.cur.currentPosition
         if (cut <= c.startMs + 100 || cut >= c.endMs - 100) {
@@ -866,11 +873,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
 
     fun runExport(list: List<Clip>) {
         val e = TimelineExport(
-            context, list, deliver, layers.toList(), music, extraAudio.toList(),
+            context, if (videoMuted) list.map { it.copy(muted = true) } else list, deliver, layers.toList(), music, extraAudio.toList(),
             onProgress = { progress = it },
             onDone = { uri, err ->
                 exporting = false; export = null
-                message = if (uri != null) "Exported to DCIM/AcluxPro" else err ?: "Export failed"
+                message = if (uri != null) {
+                    val folder = SaveFolder.get(context, true)?.let { SaveFolder.label(it) } ?: if (deliver.audioOnly) "Music/AcluxPro" else "DCIM/AcluxPro"
+                    (if (deliver.audioOnly) "Audio exported to " else "Exported to ") + folder
+                } else err ?: "Export failed"
             },
         )
         export = e
@@ -882,7 +892,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         deck.cur.pause()
         exporting = true
         progress = 0
-        cloudExport = com.dronedirector.acluxpro.camera.CloudAi.useVideo(context) && clips.any { it.detail.aiDenoise > 0f }
+        cloudExport = !deliver.audioOnly && com.dronedirector.acluxpro.camera.CloudAi.useVideo(context) && clips.any { it.detail.aiDenoise > 0f }
         if (!cloudExport) { runExport(clips.toList()); return }
         // Cloud AI first (Topaz Nyx on fal.ai), then the normal export with the cleaned clips.
         cloudJob = layerScope.launch {
@@ -959,7 +969,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 playing = playing,
                                 onMove = { id, dx, dy ->
                                     val i = layers.indexOfFirst { it.id == id }
-                                    if (i >= 0) layers[i] = layers[i].copy(x = (layers[i].x + dx).coerceIn(0f, 1f), y = (layers[i].y + dy).coerceIn(0f, 1f))
+                                    if (i >= 0 && !layers[i].locked) layers[i] = layers[i].copy(x = (layers[i].x + dx).coerceIn(0f, 1f), y = (layers[i].y + dy).coerceIn(0f, 1f))
                                 },
                                 onSelect = { selectedLayer = it; page = Page.LAYERS },
                             )
@@ -1088,6 +1098,16 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     zoom = zoom,
                     onSelectTransition = { selected = it; page = Page.TRANSITIONS },
                     extraAudio = extraAudio,
+                    videoMuted = videoMuted, videoLocked = videoLocked,
+                    onVideoMute = { videoMuted = !videoMuted; message = if (videoMuted) "Video track sound muted" else "Video track sound on" },
+                    onVideoLock = { videoLocked = !videoLocked; message = if (videoLocked) "Video track locked" else "Video track unlocked" },
+                    onLayerFlags = { l -> val i = layers.indexOfFirst { it.id == l.id }; if (i >= 0) layers[i] = l },
+                    onAudioFlags = { t ->
+                        val m = music
+                        if (m != null && m.id == t.id) music = t
+                        else { val i = extraAudio.indexOfFirst { it.id == t.id }; if (i >= 0) extraAudio[i] = t }
+                    },
+                    onLocked = { message = "Locked — tap the lock at the left of the timeline to unlock" },
                     onLayerTime = { id, a, b ->
                         val i = layers.indexOfFirst { it.id == id }
                         if (i >= 0) layers[i] = layers[i].copy(wholeVideo = false, startMs = a, endMs = b)
@@ -1193,15 +1213,17 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             Page.EDIT -> if (sc != null) Column {
                                 EditPage(
                                 sc, selected, clips.size, posMs, deliver, { deliver = it },
-                                onChange = { f -> update(selected, f) },
+                                onChange = { f -> if (videoLocked) message = "The video track is locked" else update(selected, f) },
                                 onSplit = { splitAtPlayhead() },
-                                onDuplicate = { clips.add(selected + 1, sc.copy(id = java.util.UUID.randomUUID().toString())) },
+                                onDuplicate = { if (videoLocked) message = "The video track is locked" else clips.add(selected + 1, sc.copy(id = java.util.UUID.randomUUID().toString())) },
                                 onDelete = {
+                                    if (videoLocked) { message = "The video track is locked"; return@EditPage }
                                     clips.removeAt(selected)
                                     selected = selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
 
                                 },
                                 onMove = { dir ->
+                                    if (videoLocked) { message = "The video track is locked"; return@EditPage }
                                     val to = selected + dir
                                     if (to in clips.indices) { val c = clips.removeAt(selected); clips.add(to, c); selected = to }
                                 },
@@ -1235,8 +1257,19 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onAddLogo = { pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                                 onAddVideo = { pickLayerVideo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
                                 onAddImage = { pickLayerImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                                onUpdate = { l -> val i = layers.indexOfFirst { it.id == l.id }; if (i >= 0) layers[i] = l },
-                                onDelete = { id -> layers.removeAll { it.id == id }; selectedLayer = layers.lastOrNull()?.id },
+                                onUpdate = { l ->
+                                    val i = layers.indexOfFirst { it.id == l.id }
+                                    if (i >= 0) {
+                                        val o = layers[i]
+                                        // A locked layer only takes lock / show / name changes.
+                                        if (o.locked && l.locked && l.copy(visible = o.visible, name = o.name) != o) message = "This layer is locked — tap its lock to edit"
+                                        else layers[i] = l
+                                    }
+                                },
+                                onDelete = { id ->
+                                    if (layers.any { it.id == id && it.locked }) message = "This layer is locked — tap its lock to delete it"
+                                    else { layers.removeAll { it.id == id }; selectedLayer = layers.lastOrNull()?.id }
+                                },
                                 onMove = { id, dir ->
                                     val i = layers.indexOfFirst { it.id == id }; val to = i + dir
                                     if (i >= 0 && to in layers.indices) { val l = layers.removeAt(i); layers.add(to, l) }
@@ -1901,6 +1934,10 @@ private fun LayersPage(
                 if (l.visible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, contentDescription = "Show",
                 tint = Color.White, modifier = Modifier.padding(start = 8.dp).size(20.dp).clickable { onUpdate(l.copy(visible = !l.visible)) },
             )
+            Icon(
+                if (l.locked) Icons.Filled.Lock else Icons.Filled.LockOpen, contentDescription = "Lock",
+                tint = if (l.locked) Pro.Amber else Pro.Dim, modifier = Modifier.padding(start = 8.dp).size(20.dp).clickable { onUpdate(l.copy(locked = !l.locked)) },
+            )
         }
     }
     val l = layers.firstOrNull { it.id == selectedId } ?: return
@@ -1993,14 +2030,17 @@ private fun DeliverPage(s: DeliverSettings, clips: List<Clip>, exporting: Boolea
     val rates = listOf(0, 20, 50, 80, 120, 200)
     Chips(rates.map { if (it == 0) "Auto" else "$it Mbps" }, rates.indexOf(s.bitrateMbps).coerceAtLeast(0)) { onChange(s.copy(bitrateMbps = rates[it])) }
     SectionTitle("AUDIO")
-    Chips(listOf("Include audio (AAC)", "No audio"), if (s.audio) 0 else 1) { onChange(s.copy(audio = it == 0)) }
+    Chips(listOf("Video with audio", "Video, no audio", "Audio only (.m4a)"), if (s.audioOnly) 2 else if (s.audio) 0 else 1) {
+        onChange(s.copy(audio = it != 1, audioOnly = it == 2))
+    }
+    if (s.audioOnly) Text("Saves just the sound of the timeline — clips, music and audio tracks — as an AAC .m4a file in Music/AcluxPro (or your chosen save folder). Muted tracks are left out.", color = Pro.Dim, fontSize = 11.sp)
     val total = timelineLength(clips)
     // Estimated file size: video bitrate (chosen, or what the encoder picks on Auto) + AAC audio.
     val (ow, oh) = outputSize(clips, s)
     val outFps = if (s.fps > 0) s.fps else 30
     val autoMbps = ow.toDouble() * oh * outFps * 0.14 / 1_000_000
-    val videoMbps = if (s.bitrateMbps > 0) s.bitrateMbps.toDouble() else autoMbps
-    val audioMbps = if (s.audio) 0.13 else 0.0
+    val videoMbps = if (s.audioOnly) 0.0 else if (s.bitrateMbps > 0) s.bitrateMbps.toDouble() else autoMbps
+    val audioMbps = if (s.audio || s.audioOnly) 0.13 else 0.0
     val bytes = (videoMbps + audioMbps) * 1_000_000 / 8 * (total / 1000.0) * 1.01
     SectionTitle("ESTIMATED FILE SIZE")
     Row(
@@ -2009,8 +2049,13 @@ private fun DeliverPage(s: DeliverSettings, clips: List<Clip>, exporting: Boolea
     ) {
         Text("≈ ${fileSizeText(bytes)}", style = Pro.Value.copy(color = Pro.Amber, fontSize = 22.sp), modifier = Modifier.weight(1f))
         Column(horizontalAlignment = Alignment.End) {
-            Text("${ow}×${oh} · ${if (s.fps > 0) "${s.fps} fps" else "source fps"}", style = Pro.Label)
-            Text("%.0f Mbps${if (s.bitrateMbps == 0) " (auto)" else ""} · ${tc(total)}".format(videoMbps + audioMbps), style = Pro.Label)
+            if (s.audioOnly) {
+                Text("Audio only · AAC 128 kbps", style = Pro.Label)
+                Text(tc(total), style = Pro.Label)
+            } else {
+                Text("${ow}×${oh} · ${if (s.fps > 0) "${s.fps} fps" else "source fps"}", style = Pro.Label)
+                Text("%.0f Mbps${if (s.bitrateMbps == 0) " (auto)" else ""} · ${tc(total)}".format(videoMbps + audioMbps), style = Pro.Label)
+            }
         }
     }
     Text(
@@ -2018,7 +2063,7 @@ private fun DeliverPage(s: DeliverSettings, clips: List<Clip>, exporting: Boolea
         color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 8.dp),
     )
     Text(
-        if (exporting) "RENDERING…" else "RENDER & EXPORT",
+        if (exporting) "RENDERING…" else if (s.audioOnly) "EXPORT AUDIO" else "RENDER & EXPORT",
         style = Pro.Value.copy(color = Color.Black, fontSize = 14.sp),
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (exporting || clips.isEmpty()) Pro.Amber.copy(alpha = 0.4f) else Pro.Amber)
             .clickable(enabled = !exporting && clips.isNotEmpty(), onClick = onExport).padding(14.dp),

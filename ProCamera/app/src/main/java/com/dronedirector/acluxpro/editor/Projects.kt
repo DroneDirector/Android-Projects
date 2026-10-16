@@ -25,6 +25,9 @@ data class VideoProjectData(
     val extraAudio: List<MusicTrack> = emptyList(),
     val audioPool: List<PoolAudio> = emptyList(),
     val deliver: DeliverSettings = DeliverSettings(),
+    /** Main video track switches on the timeline. */
+    val videoMuted: Boolean = false,
+    val videoLocked: Boolean = false,
 )
 
 data class PhotoProjectData(

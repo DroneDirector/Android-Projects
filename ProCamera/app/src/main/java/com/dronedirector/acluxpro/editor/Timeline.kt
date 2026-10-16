@@ -25,6 +25,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
@@ -109,6 +116,15 @@ fun TimelineView(
     onLayerOrder: (id: String, toIndex: Int) -> Unit = { _, _ -> },
     /** An audio track moved / trimmed: new timeline start, in-song offset and length. */
     onAudioTime: (id: String, startMs: Long, offsetMs: Long, lengthMs: Long) -> Unit = { _, _, _, _ -> },
+    /** Track header switches: mute / lock the video track, show / lock layers, mute / lock audio. */
+    videoMuted: Boolean = false,
+    videoLocked: Boolean = false,
+    onVideoMute: () -> Unit = {},
+    onVideoLock: () -> Unit = {},
+    onLayerFlags: (Layer) -> Unit = {},
+    onAudioFlags: (MusicTrack) -> Unit = {},
+    /** Something locked was held. */
+    onLocked: () -> Unit = {},
 ) {
     val density = LocalDensity.current
     val totalMs = timelineLength(clips).coerceAtLeast(1)
@@ -120,7 +136,9 @@ fun TimelineView(
     var viewportW by remember { mutableFloatStateOf(1f) }
     var fittedOnce by remember { mutableStateOf(false) }
     val headMs = if (dragging) dragMs else globalMs
-    val leftPad = with(density) { 10.dp.toPx() }
+    // Track header column on the left (mute / show and lock per row); the edit starts right after it.
+    val headerW = with(density) { 50.dp.toPx() }
+    val leftPad = headerW + with(density) { 6.dp.toPx() }
     val totalNow by rememberUpdatedState(totalMs)
     val minPx = { viewportW * 0.9f / (totalNow / 1000f) }
 
@@ -152,6 +170,7 @@ fun TimelineView(
     val curLayerTime by rememberUpdatedState(onLayerTime)
     val curLayerOrder by rememberUpdatedState(onLayerOrder)
     val curAudioTime by rememberUpdatedState(onAudioTime)
+    val curLocked by rememberUpdatedState(onLocked)
     val textPaint = remember { Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE; typeface = Typeface.DEFAULT_BOLD } }
     val dimPaint = remember { Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x99FFFFFF.toInt(); typeface = Typeface.MONOSPACE } }
     val accent = Pro.Amber
@@ -180,6 +199,8 @@ fun TimelineView(
                     // One finger: move the playhead. Two fingers: pinch to zoom, pan to scroll.
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
+                        // The track header has its own buttons.
+                        if (down.position.x < headerW && down.position.y > ruler) return@awaitEachGesture
                         var moved = 0f
                         dragging = false
                         dragMs = currentHead
@@ -218,6 +239,26 @@ fun TimelineView(
                                 }
                                 top += musicRow + gap
                             }
+                        }
+                        val hitLocked = hitId != null && (if (hitAudio) curAudio.firstOrNull { it.id == hitId }?.locked == true else curLayers.firstOrNull { it.id == hitId }?.locked == true)
+                        if (hitLocked) {
+                            // Locked: a hold just says so; a short tap still selects it.
+                            val held = withTimeoutOrNull(380L) {
+                                while (true) {
+                                    val ev = awaitPointerEvent()
+                                    val c = ev.changes.first()
+                                    if (!c.pressed || ev.changes.size > 1) return@withTimeoutOrNull false
+                                    if ((c.position - down.position).getDistance() > viewConfiguration.touchSlop) return@withTimeoutOrNull false
+                                }
+                                @Suppress("UNREACHABLE_CODE") false
+                            } == null
+                            if (held) {
+                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                curLocked()
+                                do { val ev = awaitPointerEvent(); ev.changes.forEach { it.consume() } } while (ev.changes.any { it.pressed })
+                                return@awaitEachGesture
+                            }
+                            hitId = null
                         }
                         if (hitId != null) {
                             val held = withTimeoutOrNull(380L) {
@@ -402,6 +443,8 @@ fun TimelineView(
                     }
                 }
 
+                if (videoLocked) clips.forEachIndexed { i, c -> lockHatch(xOf(starts[i]), xOf(starts[i] + c.lengthMs), top, clipRow) }
+
                 // Transitions: a marker on every cut (tap to choose one).
                 for (i in 0 until clips.size - 1) {
                     val ov = overlapMs(clips, i)
@@ -443,6 +486,7 @@ fun TimelineView(
                         LayerKind.TEXT -> Color(0xFF2EBD8F)
                     }.copy(alpha = if (l.visible) 0.85f else 0.3f)
                     drawRoundRect(col, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), layerRow), CornerRadius(5f))
+                    if (l.locked) lockHatch(x0, x1, rowTop, layerRow)
                     if (l.id == selectedLayerId || l.id == editingId) drawRoundRect(accent, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), layerRow), CornerRadius(5f), style = Stroke(if (l.id == editingId) 5f else 3f))
                     // Edge grips
                     if (l.id == editingId || l.id == selectedLayerId) {
@@ -459,7 +503,8 @@ fun TimelineView(
                 for (m in audioRows) {
                     val x0 = xOf(m.startMs); val x1 = xOf(m.startMs + m.playLength(totalMs))
                     val isMain = m.id == music?.id
-                    drawRoundRect((if (isMain) Color(0xFF1FA35A) else Color(0xFF0FA3A3)).copy(alpha = 0.8f), Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), musicRow), CornerRadius(5f))
+                    drawRoundRect((if (isMain) Color(0xFF1FA35A) else Color(0xFF0FA3A3)).copy(alpha = if (m.muted) 0.3f else 0.8f), Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), musicRow), CornerRadius(5f))
+                    if (m.locked) lockHatch(x0, x1, rowTop, musicRow)
                     var mx = max(x0, 0f) + 4f
                     while (mx < min(x1, size.width)) {
                         val hgt = musicRow * (0.25f + 0.5f * abs(kotlin.math.sin(mx * 0.37f) * kotlin.math.cos(mx * 0.11f)))
@@ -481,7 +526,60 @@ fun TimelineView(
                 drawLine(accent, Offset(headX, 0f), Offset(headX, size.height), 3f)
                 drawCircle(accent, 6.dp.toPx(), Offset(headX, 6.dp.toPx()))
             }
+            // Track headers: one row per track, with its switches.
+            Column(Modifier.width(with(density) { headerW.toDp() }).background(Ed.Panel)) {
+                Box(Modifier.fillMaxWidth().height(with(density) { ruler.toDp() }))
+                TrackHeader(with(density) { clipRow.toDp() }, "V1",
+                    if (videoMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, videoMuted, "Mute video track", onVideoMute,
+                    videoLocked, onVideoLock, vertical = true)
+                for (l in shownLayers) {
+                    Box(Modifier.height(with(density) { gap.toDp() }))
+                    TrackHeader(with(density) { layerRow.toDp() }, null,
+                        if (l.visible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, !l.visible, "Show layer", { onLayerFlags(l.copy(visible = !l.visible)) },
+                        l.locked, { onLayerFlags(l.copy(locked = !l.locked)) })
+                }
+                for (m in audioRows) {
+                    Box(Modifier.height(with(density) { gap.toDp() }))
+                    TrackHeader(with(density) { musicRow.toDp() }, null,
+                        if (m.muted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, m.muted, "Mute audio track", { onAudioFlags(m.copy(muted = !m.muted)) },
+                        m.locked, { onAudioFlags(m.copy(locked = !m.locked)) })
+                }
+            }
         }
+    }
+}
+
+/** Diagonal stripes over a locked item. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.lockHatch(x0: Float, x1: Float, top: Float, h: Float) {
+    val a = max(x0, 0f); val b = min(x1, size.width)
+    if (b <= a) return
+    clipRect(a, top, b, top + h) {
+        var x = a - h
+        while (x < b) {
+            drawLine(Color.Black.copy(alpha = 0.35f), Offset(x, top + h), Offset(x + h, top), 2f)
+            x += 9f
+        }
+    }
+}
+
+/** A row's switches in the timeline's track header. */
+@Composable
+private fun TrackHeader(
+    height: androidx.compose.ui.unit.Dp, label: String?,
+    icon: androidx.compose.ui.graphics.vector.ImageVector, iconOff: Boolean, iconLabel: String, onIcon: () -> Unit,
+    locked: Boolean, onLock: () -> Unit, vertical: Boolean = false,
+) {
+    val btn = @Composable { ic: androidx.compose.ui.graphics.vector.ImageVector, desc: String, active: Boolean, on: () -> Unit ->
+        Box(Modifier.size(24.dp).clip(RoundedCornerShape(5.dp)).background(if (active) Pro.Amber.copy(alpha = 0.22f) else Color.Transparent).clickable(onClick = on), contentAlignment = Alignment.Center) {
+            Icon(ic, contentDescription = desc, tint = if (active) Pro.Amber else Color.White.copy(alpha = 0.8f), modifier = Modifier.size(15.dp))
+        }
+    }
+    val lockIcon = if (locked) Icons.Filled.Lock else Icons.Filled.LockOpen
+    Box(Modifier.fillMaxWidth().height(height).background(Ed.Raised.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
+        if (vertical) Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            if (label != null) Text(label, style = Pro.Label.copy(fontSize = 8.sp))
+            Row { btn(icon, iconLabel, iconOff, onIcon); btn(lockIcon, "Lock track", locked, onLock) }
+        } else Row { btn(icon, iconLabel, iconOff, onIcon); btn(lockIcon, "Lock track", locked, onLock) }
     }
 }
 

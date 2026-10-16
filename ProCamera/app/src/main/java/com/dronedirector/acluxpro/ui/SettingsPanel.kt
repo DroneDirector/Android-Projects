@@ -354,7 +354,7 @@ private fun ChoiceRadio(title: String, subtitle: String, selected: Boolean, onCl
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun AccentPicker() {
+fun AccentPicker() {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     Text("Changes the yellow highlights across the app.", color = Pro.Dim, fontSize = 12.sp)
     Spacer(Modifier.size(10.dp))

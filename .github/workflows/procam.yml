@@ -122,10 +122,30 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.publish
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
+
       - uses: actions/download-artifact@v4
         with:
           name: apk
           path: apk
+
+      - name: Write release notes from the changelog
+        run: |
+          VER="1.0.${{ github.run_number }}"
+          # Everything under "## Unreleased" becomes this version's notes.
+          awk '/^## Unreleased/{f=1;next} /^## /{if(f)exit} f' ProCamera/CHANGELOG.md | sed '/^[[:space:]]*$/d' > notes.txt || true
+          [ -s notes.txt ] || echo "- Maintenance and stability improvements." > notes.txt
+          REPO="https://github.com/${{ github.repository }}/blob/main/ProCamera"
+          {
+            echo "## What's new in AcluxPro $VER"
+            echo
+            cat notes.txt
+            echo
+            echo "📖 [Full feature list]($REPO/FEATURES.md) · 📝 [Changelog]($REPO/CHANGELOG.md)"
+            echo
+            echo "**Install:** tap AcluxPro-$VER.apk below to download, then open it to install."
+          } > release-notes.md
+          cat release-notes.md
 
       - name: Publish download on the Releases page
         env:
@@ -136,5 +156,23 @@ jobs:
           gh release create "acluxpro-1.0.${{ github.run_number }}" "$APK" \
             -R "${{ github.repository }}" \
             --title "${NAME/AcluxPro-/AcluxPro }" \
-            --notes "Tap $(basename "$APK") below to download, then open it to install." \
+            --notes-file release-notes.md \
             --latest
+
+      - name: Move "Unreleased" in the changelog under this version
+        run: |
+          VER="1.0.${{ github.run_number }}"
+          DATE=$(date -u +%Y-%m-%d)
+          python3 - "$VER" "$DATE" <<'PY'
+          import sys
+          ver, date = sys.argv[1], sys.argv[2]
+          p = "ProCamera/CHANGELOG.md"
+          s = open(p).read()
+          s = s.replace("## Unreleased\n", "## Unreleased\n\n## %s — %s\n" % (ver, date), 1)
+          open(p, "w").write(s)
+          PY
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add ProCamera/CHANGELOG.md
+          git commit -m "Changelog: AcluxPro 1.0.${{ github.run_number }} [skip ci]" || exit 0
+          git pull --rebase -q origin main && git push -q origin HEAD:main

@@ -91,6 +91,8 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Trim, split, duplicate, reorder, speed, delete** clips.
 - **Real audio waveforms** on clips and audio tracks.
 - **Markers** and **snapping** (cuts, markers, playhead, other items).
+- **Speed ramps** (8 curves), **freeze frame**, **reverse**, **detach audio** for J- and L-cuts.
+- **Beat markers** found from the music.
 - **Track headers**: mute the video track or any audio track, show / hide layers, **lock** tracks against edits.
 - **Hold-and-drag on the timeline**: move layers and audio in time, drag layers up / down to reorder, hold an edge to trim or extend.
 - **Audio in the media pool** (MP3, WAV, AAC…): add to the timeline at the playhead — the first becomes the music track, more become extra audio tracks with volume and fades.
@@ -119,10 +121,15 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 
 ### Layers
 - **Text, stickers, watermark, logo, image and video (picture-in-picture)** layers with timing, position, size and opacity.
+- **Keyframes** for layer position, size and opacity (smooth easing; diamonds on the timeline).
+- **Blend modes** (Screen, Multiply, Overlay, Add, Lighten, Darken, Soft light, Difference) for picture, text and sticker layers.
+- **Chroma key** (green / blue / black / white screen) for video and image layers, with tolerance and edge softness.
 - **Rename layers** (e.g. name your watermarks) — names show in the layer list and on the timeline.
 
 ### Audio
 - **Music track** with start point, volume, fades and **ducking** under clips.
+- **Voiceover** recording onto its own audio track.
+- **Volume keyframes** per clip.
 - Per clip: volume, pan, channels (stereo / mono / left / right / swap), fades.
 - **3-band EQ**, low cut, voice enhance, **compressor, noise gate, limiter**; presets (Voice, Interview, Wind cut, Warm, Bright, Bass boost, Radio, Loud & punchy); live **level meter**.
 

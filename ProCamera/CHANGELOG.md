@@ -4,6 +4,12 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: keyframes for layers (position, size, opacity) with diamonds on the timeline, and volume keyframes for clips.
+- Video editor: speed ramps (Montage, Hero, Bullet, Flash in / out, Jump cut, Slow in / out) in preview and export.
+- Video editor: freeze frame, reverse clip, detach audio (for J- and L-cuts).
+- Video editor: voiceover recording straight onto an audio track.
+- Video editor: chroma key (green / blue screen) for video and image layers; blend modes for picture, text and sticker layers.
+- Video editor: beat markers from the music.
 
 ## 1.0.136 — 2026-10-16
 - LUTs: import your own .cube LUTs — Photo editor (Presets), Video editor (Color → Looks, as a look or as the log input conversion) and Capture (monitoring LUT on the viewfinder, optionally recorded).

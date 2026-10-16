@@ -18,7 +18,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.exifinterface.media.ExifInterface
-import org.tensorflow.lite.Interpreter
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -69,9 +68,10 @@ object Upscaler {
 
     private val worker = Executors.newSingleThreadExecutor { r -> Thread(r, "ai-upscale").apply { priority = Thread.NORM_PRIORITY - 1 } }
     private val main = Handler(Looper.getMainLooper())
-    private var interpreter: Interpreter? = null
+    private var model: com.google.ai.edge.litert.CompiledModel? = null
+    private var inBufs: List<com.google.ai.edge.litert.TensorBuffer> = emptyList()
+    private var outBufs: List<com.google.ai.edge.litert.TensorBuffer> = emptyList()
     @Volatile private var jobGen = 0
-    private var gpu: AutoCloseable? = null
     private var tileIn = 0
     private var tileOut = 0
     private val factor get() = tileOut / tileIn.coerceAtLeast(1)
@@ -105,61 +105,34 @@ object Upscaler {
 
     /** Loads ESRGAN once; GPU first, CPU if the GPU path isn't available. Returns false if the model isn't in the app. */
     private fun ensureModel(context: Context): Boolean {
-        if (interpreter != null) return true
+        if (model != null) return true
         if (modelMissing) return false
-        val bytes = try { context.assets.open("esrgan.tflite").use { it.readBytes() } } catch (_: Throwable) { modelMissing = true; return false }
-        val buf = ByteBuffer.allocateDirect(bytes.size).order(ByteOrder.nativeOrder()).apply { put(bytes); rewind() }
-        fun build(useGpu: Boolean, size: Int = 0): Interpreter? {
-            var delegate: AutoCloseable? = null
-            var itp: Interpreter? = null
+        try { context.assets.open("esrgan.tflite").close() } catch (_: Throwable) { modelMissing = true; return false }
+        for (acc in listOf(com.google.ai.edge.litert.Accelerator.GPU, com.google.ai.edge.litert.Accelerator.CPU)) {
             try {
-                val opts = Interpreter.Options()
-                if (useGpu) {
-                    val compat = org.tensorflow.lite.gpu.CompatibilityList()
-                    if (!compat.isDelegateSupportedOnThisDevice) return null
-                    val d = org.tensorflow.lite.gpu.GpuDelegate(compat.bestOptionsForThisDevice)
-                    opts.addDelegate(d); delegate = d
-                } else opts.setNumThreads(Runtime.getRuntime().availableProcessors().coerceIn(2, 8))
-                itp = Interpreter(buf, opts)
-                // Bigger tiles = far fewer model runs. Only kept if the self-test below passes.
-                if (size > 0) { itp.resizeInput(0, intArrayOf(1, size, size, 3)); itp.allocateTensors() }
-                // Use the model's real tile sizes (never assume them).
-                val ins = itp.getInputTensor(0).shape()     // [1, h, w, 3]
-                val outs = itp.getOutputTensor(0).shape()
-                if (ins.size != 4 || outs.size != 4 || ins[3] != 3 || outs[3] != 3 || ins[1] != ins[2] || outs[1] != outs[2]) throw IllegalStateException("shape")
-                val tin = ins[1]; val tout = outs[1]
-                if (tout % tin != 0 || tout / tin < 2) throw IllegalStateException("scale")
-                // Self-test on a smooth colour ramp: the result must keep the same colours.
-                val inp = ByteBuffer.allocateDirect(tin * tin * 3 * 4).order(ByteOrder.nativeOrder())
-                var sumIn = 0.0
-                for (y in 0 until tin) for (x in 0 until tin) {
-                    val r = 40f + 160f * x / tin; val g = 60f + 120f * y / tin; val b = 120f
-                    inp.putFloat(r); inp.putFloat(g); inp.putFloat(b); sumIn += r + g + b
-                }
-                inp.rewind()
-                val out = ByteBuffer.allocateDirect(tout * tout * 3 * 4).order(ByteOrder.nativeOrder())
-                itp.run(inp, out)
-                out.rewind()
-                // Each output pixel must roughly match the ramp at the same place (catches layout mix-ups).
+                val m = com.google.ai.edge.litert.CompiledModel.create(context.assets, "esrgan.tflite", com.google.ai.edge.litert.CompiledModel.Options(acc), null)
+                val ins = m.createInputBuffers(); val outs = m.createOutputBuffers()
+                // ESRGAN: 50×50 RGB in (0..255, NHWC) → 200×200 out. Self-test on a colour ramp.
+                val tin = 50; val tout = 200
+                val inp = FloatArray(tin * tin * 3)
+                var i = 0
+                for (y in 0 until tin) for (x in 0 until tin) { inp[i++] = 40f + 160f * x / tin; inp[i++] = 60f + 120f * y / tin; inp[i++] = 120f }
+                ins[0].writeFloat(inp)
+                m.run(ins, outs)
+                val out = outs[0].readFloat()
+                if (out.size != tout * tout * 3) throw IllegalStateException("shape")
                 var err = 0.0; var n = 0
-                val k = tout / tin
                 for (y in 0 until tout step 7) for (x in 0 until tout step 7) {
-                    out.position(((y * tout) + x) * 3 * 4)
-                    val r = out.float; val g = out.float
-                    val er = 40f + 160f * (x / k) / tin; val eg = 60f + 120f * (y / k) / tin
-                    err += kotlin.math.abs(r - er) + kotlin.math.abs(g - eg); n += 2
+                    val o = (y * tout + x) * 3
+                    err += kotlin.math.abs(out[o] - (40f + 160f * (x / 4) / tin)) + kotlin.math.abs(out[o + 1] - (60f + 120f * (y / 4) / tin)); n += 2
                 }
-                if (n == 0 || err / n > 14.0 || sumIn <= 0) throw IllegalStateException("self-test failed")
-                gpu = delegate; tileIn = tin; tileOut = tout
-                return itp
-            } catch (_: Throwable) {
-                try { itp?.close() } catch (_: Throwable) {}
-                try { delegate?.close() } catch (_: Throwable) {}
-                return null
-            }
+                if (err / n > 14.0) throw IllegalStateException("self-test failed")
+                model = m; inBufs = ins; outBufs = outs; tileIn = tin; tileOut = tout
+                return true
+            } catch (_: Throwable) {}
         }
-        interpreter = build(true, 128) ?: build(true, 96) ?: build(true) ?: build(false, 96) ?: build(false)
-        return interpreter != null
+        modelMissing = true
+        return false
     }
 
     private fun process(context: Context, uri: Uri, mp: Int, hq: Boolean, keep: Boolean): String? {
@@ -223,7 +196,7 @@ object Upscaler {
 
     /** Runs ESRGAN over overlapping tiles and paints each result into [out] scaled by kx/ky. */
     private fun runTiles(inp: Bitmap, out: Bitmap, kx: Float, ky: Float) {
-        val itp = interpreter ?: return
+        val m = model ?: return
         val t = tileIn
         val f = factor
         val pad = (t / 10).coerceIn(3, 8)
@@ -231,9 +204,8 @@ object Upscaler {
         val iw = inp.width; val ih = inp.height
         val px = IntArray(iw * ih)
         inp.getPixels(px, 0, iw, 0, 0, iw, ih)
-        val inBuf = ByteBuffer.allocateDirect(t * t * 3 * 4).order(ByteOrder.nativeOrder())
+        val inArr = FloatArray(t * t * 3)
         val ot = tileOut
-        val outBuf = ByteBuffer.allocateDirect(ot * ot * 3 * 4).order(ByteOrder.nativeOrder())
         val tilePx = IntArray(ot * ot)
         val tileBmp = Bitmap.createBitmap(ot, ot, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(out)
@@ -243,15 +215,15 @@ object Upscaler {
         var done = 0
         for (ty in 0 until rows) for (tx in 0 until cols) {
             val x0 = tx * step; val y0 = ty * step
-            inBuf.rewind()
+            var k = 0
             for (yy in 0 until t) {
                 val sy = (y0 - pad + yy).coerceIn(0, ih - 1)
                 for (xx in 0 until t) {
                     val sx = (x0 - pad + xx).coerceIn(0, iw - 1)
                     val c = px[sy * iw + sx]
-                    inBuf.putFloat(((c shr 16) and 0xFF).toFloat())
-                    inBuf.putFloat(((c shr 8) and 0xFF).toFloat())
-                    inBuf.putFloat((c and 0xFF).toFloat())
+                    inArr[k++] = ((c shr 16) and 0xFF).toFloat()
+                    inArr[k++] = ((c shr 8) and 0xFF).toFloat()
+                    inArr[k++] = (c and 0xFF).toFloat()
                 }
             }
             val vw = minOf(step, iw - x0); val vh = minOf(step, ih - y0)
@@ -264,13 +236,13 @@ object Upscaler {
                 if (done % 8 == 0) setProgress(done * 100 / total)
                 continue
             }
-            inBuf.rewind(); outBuf.rewind()
-            itp.run(inBuf, outBuf)
-            outBuf.rewind()
+            inBufs[0].writeFloat(inArr)
+            m.run(inBufs, outBufs)
+            val res = outBufs[0].readFloat()
             for (i in 0 until ot * ot) {
-                val r = outBuf.float.toInt().coerceIn(0, 255)
-                val g = outBuf.float.toInt().coerceIn(0, 255)
-                val b = outBuf.float.toInt().coerceIn(0, 255)
+                val r = res[i * 3].toInt().coerceIn(0, 255)
+                val g = res[i * 3 + 1].toInt().coerceIn(0, 255)
+                val b = res[i * 3 + 2].toInt().coerceIn(0, 255)
                 tilePx[i] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
             }
             tileBmp.setPixels(tilePx, 0, ot, 0, 0, ot, ot)

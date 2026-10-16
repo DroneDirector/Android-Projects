@@ -58,6 +58,9 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 **Photo editor tips**
 - Hold your finger on the photo to see the original.
+- Masks → Subject (AI) / Sky (AI) select the subject or the sky for you (on the phone, or more precisely with Cloud AI).
+- Effects → BACKGROUND (AI): FIND SUBJECT, then blur the background (portrait look), remove it (transparent PNG) or fill it with a colour.
+- Heal → AI ERASE: paint over a person, sign or power line and tap ERASE (Bria Eraser with Cloud AI; on the phone for smaller things).
 - Masks: add a Linear gradient, Radial or Brush mask, then use ADJUST INSIDE THE MASK. Drag the handles on the photo (or paint with the brush); red shows where the mask applies.
 - Heal: tap dust, blemishes or small objects on the photo — a matching patch from nearby covers each one. UNDO LAST removes the latest.
 - Lens: Distortion straightens bulging lines from wide lenses; Vignetting brightens dark corners; Colour fringes removes purple / green outlines.
@@ -90,6 +93,9 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 **Video editor tips**
 - The timeline starts at the left edge: drag one finger (or tap the ruler) to move the playhead; two fingers pinch to zoom and slide to scroll. The scissors under the player split at the playhead.
 - Tap a cut on the timeline to choose one of 34 transitions.
+- Layers → AI CAPTIONS writes timed captions from the speech in your edit (Whisper via your fal.ai key); pick the language and style.
+- Edit → AUTO-REFRAME turns the project into 9:16, 1:1 or 4:5 and makes every clip follow its subject.
+- Edit → AI slow-mo (Cloud AI) adds 3 new frames between every pair and plays the clip at ¼ speed — smooth slow motion from normal footage (clips up to 20 s).
 - Keyframes: select a layer → KEYFRAMES → ◆ ADD KEYFRAME AT PLAYHEAD, move the playhead, then drag / resize / fade the layer — it glides between keyframes (diamonds on the timeline).
 - Audio → VOLUME KEYFRAMES rides a clip's volume over time (e.g. dip it under a voiceover).
 - Edit → SPEED RAMP gives smooth speed curves (Montage, Hero, Bullet, Flash in / out…); the clip's length follows the curve.

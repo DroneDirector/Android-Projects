@@ -265,6 +265,7 @@ fun EditorSettingsDialog(
                 val gv = if (screen == com.dronedirector.acluxpro.ui.AppScreen.VIDEO_EDITOR) com.dronedirector.acluxpro.ui.GuideVariant.VIDEO else com.dronedirector.acluxpro.ui.GuideVariant.PHOTO
                 com.dronedirector.acluxpro.ui.CloudAiSettings(gv)
                 com.dronedirector.acluxpro.ui.GuideButton(gv)
+                com.dronedirector.acluxpro.ui.LicensesButton()
                 if (extra != null) extra()
             }
         },

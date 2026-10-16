@@ -1,7 +1,7 @@
 # AcluxPro — Features
 
 AcluxPro is a pro camera, photo editor and video editor for Android phones and tablets (Android 8.0+).
-App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https://github.com/DroneDirector/Android-Projects/releases); see the [changelog](CHANGELOG.md) for what changed in each version.
+App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https://github.com/DroneDirector/Android-Projects/releases); see the [changelog](CHANGELOG.md) for what changed in each version. Open-source parts and licences: [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ---
 
@@ -10,6 +10,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Editor hub** to choose the Photo editor or the Video editor.
 - **Startup choice**: always open in Capture, the Photo editor or the Video editor (set in each one's settings; untick to see the start screen again).
 - App **version** shown bottom-left; animated **Exit** button bottom-right closes the app.
+- **Open-source licences** in every settings gear.
 - Separate **guides** for Capture, the Photo editor and the Video editor (Cloud AI key setup, AI features, tips), opened from each settings gear — also in [GUIDE.md](GUIDE.md).
 
 ## Capture
@@ -63,7 +64,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 
 ---
 
-## Photo editor (Lightroom-style)
+## Photo editor
 - Open from the gallery, files or recent AcluxPro photos; **saved projects** row on the start page.
 - Panels: **Presets, Light, Curve, Color, HSL Mixer, Grading, Detail, Effects, Crop & format, Watermark, Export**.
 - **Light**: exposure, contrast, highlights, shadows, whites, blacks.
@@ -96,7 +97,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 
 ---
 
-## Video editor (DaVinci Resolve-style)
+## Video editor
 ### Media & timeline
 - Add clips from the gallery or files (MP4, MKV, MOV, WebM, SD card / USB).
 - **Media pool** with codec, HDR / 10-bit badges; delete from the pool with confirmation.

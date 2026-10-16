@@ -44,7 +44,7 @@ class CubeLut(val n: Int, val data: FloatArray, val domainMin: FloatArray, val d
     private fun lerpDomain(t: Float, i: Int) = domainMin[i] + (domainMax[i] - domainMin[i]) * t
 
     companion object {
-        /** Parses Adobe / Resolve .cube text (3D LUTs). */
+        /** Parses .cube text (the common 3D LUT file format). */
         fun parse(text: String): CubeLut {
             var n = 0
             val min = floatArrayOf(0f, 0f, 0f); val max = floatArrayOf(1f, 1f, 1f)

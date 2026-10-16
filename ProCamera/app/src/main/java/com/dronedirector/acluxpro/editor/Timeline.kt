@@ -10,6 +10,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -74,7 +75,7 @@ class Filmstrip(val frames: List<Bitmap>, val sourceDurationMs: Long) {
 
 /**
  * Multi-track timeline: ruler, V1 clips (filmstrips), one row per layer and the music track.
- * The playhead stays in the centre; drag to scrub, pinch or use the buttons to zoom,
+ * The edit starts at the left edge; drag to move the playhead, pinch or use the buttons to zoom,
  * Fit shows the whole edit.
  */
 /** Zoom of the timeline; the zoom buttons live under the player. */
@@ -83,7 +84,9 @@ class TimelineZoom {
     internal var minPx: () -> Float = { 0.5f }
     fun zoomIn() { pxPerSec = (pxPerSec * 1.6f).coerceAtMost(600f) }
     fun zoomOut() { pxPerSec = (pxPerSec / 1.6f).coerceIn(min(minPx(), 0.5f), 600f) }
-    fun fit() { pxPerSec = minPx().coerceIn(0.5f, 600f) }
+    fun fit() { pxPerSec = minPx().coerceIn(0.5f, 600f); scrollMs = 0L }
+    /** Time at the left edge of the timeline view (the edit starts at the left). */
+    var scrollMs by mutableStateOf(0L)
 }
 
 @Composable
@@ -117,12 +120,22 @@ fun TimelineView(
     var viewportW by remember { mutableFloatStateOf(1f) }
     var fittedOnce by remember { mutableStateOf(false) }
     val headMs = if (dragging) dragMs else globalMs
+    val leftPad = with(density) { 10.dp.toPx() }
     val totalNow by rememberUpdatedState(totalMs)
     val minPx = { viewportW * 0.9f / (totalNow / 1000f) }
 
     zoom.minPx = minPx
     fun fit() = zoom.fit()
     LaunchedEffect(viewportW, totalMs) { if (!fittedOnce && viewportW > 10f) { fit(); fittedOnce = true } }
+    // Keep the playhead in view while playing / after zooming (the view scrolls by itself).
+    LaunchedEffect(globalMs, pxPerSec, viewportW) {
+        if (dragging || viewportW < 10f) return@LaunchedEffect
+        val viewMs = ((viewportW - leftPad) / pxPerSec * 1000f).toLong().coerceAtLeast(1)
+        val head = globalMs
+        if (head < zoom.scrollMs || head > zoom.scrollMs + viewMs * 0.85f) {
+            zoom.scrollMs = (head - (viewMs * 0.15f).toLong()).coerceAtLeast(0)
+        }
+    }
 
     val ruler = with(density) { 22.dp.toPx() }
     val clipRow = with(density) { 52.dp.toPx() }
@@ -157,22 +170,26 @@ fun TimelineView(
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(tc(headMs), style = Pro.Value.copy(color = accent, fontSize = 13.sp))
             Text(" / ${tc(totalMs)}", style = Pro.Value.copy(color = Pro.Dim, fontSize = 11.sp), modifier = Modifier.weight(1f))
-            Text("pinch to zoom", style = Pro.Label.copy(fontSize = 9.sp))
+            Text("2 fingers: zoom / scroll", style = Pro.Label.copy(fontSize = 9.sp))
         }
         BoxWithConstraints(
             Modifier
                 .fillMaxWidth()
                 .height(with(density) { heightPx.toDp() })
                 .pointerInput(Unit) {
-                    // One finger: scrub. Two fingers: pinch to zoom.
+                    // One finger: move the playhead. Two fingers: pinch to zoom, pan to scroll.
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         var moved = 0f
                         dragging = false
                         dragMs = currentHead
                         // ---- Hold a layer / audio bar to move it, or hold its edge to trim it.
-                        val centerX0 = size.width / 2f
-                        fun xOfMs(ms: Long) = centerX0 + (ms - currentHead) * pxPerSec / 1000f
+                        fun xOfMs(ms: Long) = leftPad + (ms - zoom.scrollMs) * pxPerSec / 1000f
+                        fun msAt(x: Float) = zoom.scrollMs + ((x - leftPad) / pxPerSec * 1000f).toLong()
+                        fun clampScroll() {
+                            val viewMs = ((size.width - leftPad) / pxPerSec * 1000f).toLong()
+                            zoom.scrollMs = zoom.scrollMs.coerceIn(0, (curTotal - viewMs / 2).coerceAtLeast(0))
+                        }
                         val edgePx = 18.dp.toPx()
                         var hitId: String? = null; var hitAudio = false; var hitEdge = 0   // -1 start, 0 body, 1 end
                         var hitStart = 0L; var hitEnd = 0L; var hitOffset = 0L; var hitRow = -1
@@ -265,15 +282,27 @@ fun TimelineView(
                         }
                         do {
                             val ev = awaitPointerEvent()
-                            val zoom = ev.calculateZoom()
+                            val pinch = ev.calculateZoom()
                             val pan = ev.calculatePan()
-                            if (ev.changes.size > 1 && zoom != 1f) {
-                                pxPerSec = (pxPerSec * zoom).coerceIn(min(minPx(), 0.5f), 600f)
-                            } else if (pan.x != 0f) {
+                            if (ev.changes.size > 1) {
+                                // Two fingers: pinch to zoom around the fingers, pan to scroll.
+                                moved += 100f
+                                val cx = ev.calculateCentroid().x
+                                val tAt = msAt(cx)
+                                if (pinch != 1f) pxPerSec = (pxPerSec * pinch).coerceIn(min(minPx(), 0.5f), 600f)
+                                zoom.scrollMs = tAt - ((cx - leftPad) / pxPerSec * 1000f).toLong() - (pan.x / pxPerSec * 1000f).toLong()
+                                clampScroll()
+                            } else if (pan.x != 0f || pan.y != 0f) {
+                                // One finger: the playhead follows the finger (scrub); near the edges the view scrolls.
                                 moved += abs(pan.x)
                                 if (moved > 6f) {
                                     dragging = true
-                                    dragMs = (dragMs - (pan.x / pxPerSec * 1000f).toLong()).coerceIn(0, curTotal)
+                                    val x = ev.changes.first().position.x
+                                    val edge = 40.dp.toPx()
+                                    if (x > size.width - edge) zoom.scrollMs += ((x - (size.width - edge)) / pxPerSec * 1000f * 0.25f).toLong()
+                                    if (x < leftPad + edge) zoom.scrollMs -= (((leftPad + edge) - x) / pxPerSec * 1000f * 0.25f).toLong()
+                                    clampScroll()
+                                    dragMs = msAt(x).coerceIn(0, curTotal)
                                     currentScrub(dragMs, false)
                                 }
                             }
@@ -284,10 +313,12 @@ fun TimelineView(
                             dragging = false
                         } else {
                             // A tap: select whatever is under the finger.
-                            val centerX = size.width / 2f
-                            val ms = (currentHead + ((down.position.x - centerX) / pxPerSec * 1000f)).toLong()
+                            val ms = msAt(down.position.x)
                             val y = down.position.y
-                            if (y in ruler..(ruler + clipRow)) {
+                            if (y < ruler) {
+                                // A tap on the ruler moves the playhead there.
+                                currentScrub(ms.coerceIn(0, curTotal), true)
+                            } else if (y in ruler..(ruler + clipRow)) {
                                 val st = clipStarts(curClips)
                                 // A tap on a transition (or near a cut) opens the transition.
                                 val tol = (24f / pxPerSec * 1000f).toLong()
@@ -312,14 +343,14 @@ fun TimelineView(
             val w = constraints.maxWidth.toFloat()
             LaunchedEffect(w) { viewportW = w }
             Canvas(Modifier.matchParentSize()) {
-                val centerX = size.width / 2f
+                val scroll = zoom.scrollMs
                 val pxPerMs = pxPerSec / 1000f
-                fun xOf(ms: Long) = centerX + (ms - headMs) * pxPerMs
+                fun xOf(ms: Long) = leftPad + (ms - scroll) * pxPerMs
 
                 // Ruler
                 drawRect(Ed.Panel, Offset(0f, 0f), Size(size.width, ruler))
                 val step = tickStep(pxPerSec)
-                val firstTick = (((headMs - centerX / pxPerMs) / step).toLong() * step).coerceAtLeast(0)
+                val firstTick = ((scroll / step) * step).coerceAtLeast(0)
                 textPaint.textSize = 9.sp.toPx()
                 dimPaint.textSize = 9.sp.toPx()
                 var t = firstTick
@@ -446,8 +477,9 @@ fun TimelineView(
                 if (endX in 0f..size.width) drawLine(Color.White.copy(alpha = 0.3f), Offset(endX, ruler), Offset(endX, size.height), 2f)
 
                 // Playhead
-                drawLine(accent, Offset(centerX, 0f), Offset(centerX, size.height), 3f)
-                drawCircle(accent, 6.dp.toPx(), Offset(centerX, 6.dp.toPx()))
+                val headX = xOf(headMs)
+                drawLine(accent, Offset(headX, 0f), Offset(headX, size.height), 3f)
+                drawCircle(accent, 6.dp.toPx(), Offset(headX, 6.dp.toPx()))
             }
         }
     }

@@ -71,7 +71,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - On the phone it can take several minutes up to about an hour (tap ⓘ next to it); Cloud AI does it in minutes. STOP on the AI badge cancels.
 
 **Video editor tips**
-- Pinch the timeline to zoom; the scissors under the player split at the playhead.
+- The timeline starts at the left edge: drag one finger (or tap the ruler) to move the playhead; two fingers pinch to zoom and slide to scroll. The scissors under the player split at the playhead.
 - Tap a cut on the timeline to choose one of 34 transitions.
 - Hold a layer or audio bar until it buzzes, then drag: left / right moves it in time, up / down changes the layer order.
 - Hold the start or end edge of a layer or audio bar, then slide to shorten or extend it.

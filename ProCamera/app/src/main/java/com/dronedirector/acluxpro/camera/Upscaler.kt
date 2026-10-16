@@ -70,20 +70,33 @@ object Upscaler {
     private val worker = Executors.newSingleThreadExecutor { r -> Thread(r, "ai-upscale").apply { priority = Thread.NORM_PRIORITY - 1 } }
     private val main = Handler(Looper.getMainLooper())
     private var interpreter: Interpreter? = null
+    @Volatile private var jobGen = 0
     private var gpu: AutoCloseable? = null
     private var tileIn = 0
     private var tileOut = 0
     private val factor get() = tileOut / tileIn.coerceAtLeast(1)
     private var modelMissing = false
 
+    /** Bumped by "stop": queued and running jobs from an older generation end straight away. */
+    private val generation = java.util.concurrent.atomic.AtomicInteger(0)
+    private class Stopped : RuntimeException()
+
+    fun cancelAll() {
+        generation.incrementAndGet()
+        lastNote = "AI upscaling stopped"
+    }
+
     fun enqueue(context: Context, uri: Uri, mp: Int) {
+        val gen = generation.get()
         if (mp <= 0) return
         val app = context.applicationContext
         val hq = UpscaleSettings.high
         val keep = UpscaleSettings.keepOriginal
         main.post { pending++ }
         worker.execute {
-            val note = try { process(app, uri, mp, hq, keep) } catch (t: Throwable) { "AI upscale failed: ${t.message ?: t.javaClass.simpleName}" }
+            val note = try {
+                if (gen != generation.get()) null else { jobGen = gen; process(app, uri, mp, hq, keep) }
+            } catch (_: Stopped) { null } catch (t: Throwable) { "AI upscale failed: ${t.message ?: t.javaClass.simpleName}" }
             main.post { pending--; progress = 0; if (note != null) lastNote = note }
         }
     }
@@ -247,6 +260,7 @@ object Upscaler {
             if (isFlat(px, iw, x0, y0, vw, vh)) {
                 canvas.drawBitmap(inp, android.graphics.Rect(x0, y0, x0 + vw, y0 + vh), dst, paint)
                 done++
+                if (jobGen != generation.get()) { tileBmp.recycle(); throw Stopped() }
                 if (done % 8 == 0) setProgress(done * 100 / total)
                 continue
             }
@@ -264,6 +278,7 @@ object Upscaler {
             val srcR = android.graphics.Rect(pad * f, pad * f, (pad + vw) * f, (pad + vh) * f)
             canvas.drawBitmap(tileBmp, srcR, dst, paint)
             done++
+            if (jobGen != generation.get()) { tileBmp.recycle(); throw Stopped() }
             if (done % 4 == 0) setProgress(done * 100 / total)
         }
         tileBmp.recycle()

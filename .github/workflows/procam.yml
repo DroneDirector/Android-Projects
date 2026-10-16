@@ -45,6 +45,9 @@ jobs:
           curl -fsSL --retry 3 -o app/src/main/assets/esrgan.tflite \
             https://storage.googleapis.com/download.tensorflow.org/models/tflite/esrgan/ESRGAN.tflite \
             || echo "::warning::ESRGAN model download failed; AI upscale will fall back to classic resize"
+          curl -fsSL --retry 3 -o app/src/main/assets/nafnet.tflite \
+            https://huggingface.co/litert-community/NAFNet-SIDD-width32-LiteRT/resolve/main/nafnet_sidd_width32_fp16.tflite \
+            || echo "::warning::NAFNet model download failed; AI noise reduction will be unavailable"
           ls -l app/src/main/assets || true
 
       - name: Build APK

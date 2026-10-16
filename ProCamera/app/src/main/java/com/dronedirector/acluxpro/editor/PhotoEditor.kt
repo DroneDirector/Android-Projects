@@ -61,6 +61,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -273,16 +274,46 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     // away half-way); once you pause, the full-size preview follows.
     val renderReq = remember { kotlinx.coroutines.channels.Channel<PhotoEdit>(kotlinx.coroutines.channels.Channel.CONFLATED) }
     LaunchedEffect(edit) { renderReq.trySend(edit) }
-    LaunchedEffect(base) {
+    // AI noise reduction: the AI cleans the preview image once; the strength slider then just blends.
+    var aiBase by remember { mutableStateOf<Bitmap?>(null) }
+    val aiOn = edit.detail.aiDenoise > 0f
+    LaunchedEffect(base, aiOn) {
         val b = base ?: return@LaunchedEffect
-        fun draw(src: Bitmap, e: PhotoEdit): Bitmap {
-            val tables = if (e.grade.isIdentity) null else e.grade.tables()
-            val r = ImageOps.render(src, e.grade, e.detail, e.geometry, tables)
-            return e.watermark?.let { stampLayer(context, r, it) } ?: r
+        if (!aiOn || aiBase != null) return@LaunchedEffect
+        val res = withContext(Dispatchers.IO) {
+            try {
+                val px = IntArray(b.width * b.height).also { b.getPixels(it, 0, b.width, 0, 0, b.width, b.height) }
+                AiDenoiser.denoise(context, px, b.width, b.height)?.let { Bitmap.createBitmap(it, b.width, b.height, Bitmap.Config.ARGB_8888) } ?: "unavailable"
+            } catch (_: AiDenoiser.Stopped) { "stopped" } catch (t: Throwable) { if (t.cause is AiDenoiser.Stopped) "stopped" else "unavailable" }
         }
-        val small = withContext(Dispatchers.Default) {
-            val k = 640f / maxOf(b.width, b.height)
-            if (k < 1f) Bitmap.createScaledBitmap(b, (b.width * k).toInt().coerceAtLeast(1), (b.height * k).toInt().coerceAtLeast(1), true) else b
+        when (res) {
+            is Bitmap -> aiBase = res
+            "stopped" -> { edit = edit.copy(detail = edit.detail.copy(aiDenoise = 0f)); message = "AI noise reduction stopped" }
+            else -> { edit = edit.copy(detail = edit.detail.copy(aiDenoise = 0f)); message = "AI noise reduction isn't available on this phone" }
+        }
+    }
+    LaunchedEffect(base, aiBase) {
+        val b = base ?: return@LaunchedEffect
+        val ai = aiBase
+        fun mixed(src: Bitmap, aiSrc: Bitmap?, t: Float): Bitmap {
+            if (aiSrc == null || t <= 0f || aiSrc.width != src.width || aiSrc.height != src.height) return src
+            val n = src.width * src.height
+            val a = IntArray(n).also { src.getPixels(it, 0, src.width, 0, 0, src.width, src.height) }
+            val c = IntArray(n).also { aiSrc.getPixels(it, 0, src.width, 0, 0, src.width, src.height) }
+            return Bitmap.createBitmap(AiDenoiser.blend(a, c, t), src.width, src.height, Bitmap.Config.ARGB_8888)
+        }
+        fun scaleDown(x: Bitmap): Bitmap {
+            val k = 640f / maxOf(x.width, x.height)
+            return if (k < 1f) Bitmap.createScaledBitmap(x, (x.width * k).toInt().coerceAtLeast(1), (x.height * k).toInt().coerceAtLeast(1), true) else x
+        }
+        val small = withContext(Dispatchers.Default) { scaleDown(b) }
+        val aiSmall = withContext(Dispatchers.Default) { ai?.let { scaleDown(it) } }
+        fun draw(src: Bitmap, e: PhotoEdit): Bitmap {
+            val isSmall = src === small
+            val s0 = if (e.detail.aiDenoise > 0f) mixed(src, if (isSmall) aiSmall else ai, e.detail.aiDenoise) else src
+            val tables = if (e.grade.isIdentity) null else e.grade.tables()
+            val r = ImageOps.render(s0, e.grade, e.detail, e.geometry, tables)
+            return e.watermark?.let { stampLayer(context, r, it) } ?: r
         }
         renderReq.trySend(edit)
         var next: PhotoEdit? = null
@@ -317,7 +348,18 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
         scope.launch {
             val ok = withContext(Dispatchers.IO) {
                 try {
-                    val full = GradeIO.decode(context, uri, sizes[sizeIdx]) ?: return@withContext null
+                    var full = GradeIO.decode(context, uri, sizes[sizeIdx]) ?: return@withContext null
+                    if (e.detail.aiDenoise > 0f) {
+                        // Full-resolution AI noise reduction (progress badge; can be stopped).
+                        val n = full.width * full.height
+                        val px = IntArray(n).also { full.getPixels(it, 0, full.width, 0, 0, full.width, full.height) }
+                        val den = AiDenoiser.denoise(context, px, full.width, full.height)
+                        if (den != null) {
+                            val w0 = full.width; val h0 = full.height
+                            full.recycle()
+                            full = Bitmap.createBitmap(AiDenoiser.blend(px, den, e.detail.aiDenoise), w0, h0, Bitmap.Config.ARGB_8888)
+                        }
+                    }
                     val tables = if (e.grade.isIdentity) null else e.grade.tables()
                     var out = ImageOps.render(full, e.grade, e.detail, e.geometry, tables)
                     full.recycle()
@@ -325,16 +367,24 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                     savePicture(context, out, png = format == 1, quality = (quality * 100).toInt())
                 } catch (_: OutOfMemoryError) {
                     null
-                } catch (_: Throwable) {
-                    null
+                } catch (t: Throwable) {
+                    if (t is AiDenoiser.Stopped || t.cause is AiDenoiser.Stopped) "stopped" else null
                 }
             }
             busy = false
-            message = if (ok != null) "Saved to DCIM/AcluxPro" else "Couldn't export — try a smaller size"
+            message = when {
+                ok == "stopped" -> "Export stopped"
+                ok != null -> "Saved"
+                else -> "Couldn't export — try a smaller size"
+            }
         }
     }
 
     Box(Modifier.fillMaxSize().background(Ed.Bg)) {
+        com.dronedirector.acluxpro.ui.AiBadgeHost(
+            AiDenoiser.running, "AI NOISE REDUCTION", 1, AiDenoiser.progress, onStop = { AiDenoiser.stop() },
+            modifier = Modifier.align(Alignment.TopCenter).zIndex(20f),
+        )
         BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
             val wide = maxWidth > maxHeight || maxWidth >= 720.dp
             val boxW = maxWidth.value; val boxH = maxHeight.value
@@ -525,6 +575,9 @@ private fun PhotoPanelContent(
         PhotoPanel.DETAIL -> {
             SectionTitle("SHARPENING")
             EdSlider("Amount", e.detail.sharpen, 0f..1f, format = ::pct) { v -> detail { it.copy(sharpen = v) } }
+            SectionTitle("AI NOISE REDUCTION")
+            EdSlider("Strength", e.detail.aiDenoise, 0f..1f, format = { if (it <= 0f) "Off" else pct(it) }) { v -> detail { it.copy(aiDenoise = v) } }
+            Text("Built-in AI (NAFNet, trained on real phone-camera noise). Runs on the phone; cleaning the full photo takes a little longer when exporting.", color = Pro.Dim, fontSize = 11.sp)
             SectionTitle("NOISE REDUCTION")
             EdSlider("Luminance & colour", e.detail.denoise, 0f..1f, format = ::pct) { v -> detail { it.copy(denoise = v) } }
             SectionTitle("PRESENCE")

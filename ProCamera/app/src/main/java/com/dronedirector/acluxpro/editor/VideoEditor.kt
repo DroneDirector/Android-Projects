@@ -91,6 +91,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -797,6 +798,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     Box(Modifier.fillMaxSize().background(Ed.Bg)) {
+        com.dronedirector.acluxpro.ui.AiBadgeHost(
+            exporting && clips.any { it.detail.aiDenoise > 0f }, "AI NOISE REDUCTION · EXPORT", 1, progress,
+            onStop = { export?.cancel(); export = null; exporting = false; AiDenoiser.stop(); message = "Export stopped" },
+            modifier = Modifier.align(Alignment.TopCenter).zIndex(20f),
+        )
         BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
             val wide = maxWidth > maxHeight || maxWidth >= 720.dp
             val boxW = maxWidth.value; val boxH = maxHeight.value
@@ -1407,6 +1413,9 @@ private fun ColorPage(
             EdSlider("Sharpness", c.detail.sharpen, 0f..1f, format = ::pct) { v -> detail { it.copy(sharpen = v) } }
             EdSlider("Image detail", c.detail.localDetail) { v -> detail { it.copy(localDetail = v) } }
             EdSlider("Noise reduction", c.detail.denoise, 0f..1f, format = ::pct) { v -> detail { it.copy(denoise = v) } }
+            SectionTitle("AI NOISE REDUCTION")
+            EdSlider("Strength", c.detail.aiDenoise, 0f..1f, format = { if (it <= 0f) "Off" else pct(it) }) { v -> detail { it.copy(aiDenoise = v) } }
+            Text("Built-in AI (NAFNet). Applied when exporting — every frame is cleaned by the AI, so exports with this on take much longer (roughly 1–3 s per 1080p frame). The preview shows the normal noise reduction.", color = Pro.Dim, fontSize = 11.sp)
             SectionTitle("FINISHING")
             EdSlider("Vignette", c.detail.vignette) { v -> detail { it.copy(vignette = v) } }
             EdSlider("Film grain", c.detail.grain, 0f..1f, format = ::pct) { v -> detail { it.copy(grain = v) } }

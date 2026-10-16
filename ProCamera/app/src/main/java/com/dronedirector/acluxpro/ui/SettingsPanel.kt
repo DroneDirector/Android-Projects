@@ -140,8 +140,8 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 ToggleRow("Keep the original", "Also keep the normal-size photo", up.keepOriginal) { up.set(upCtx, keep = !up.keepOriginal) }
             }
 
-            CloudAiSettings()
-            GuideButton()
+            CloudAiSettings(GuideVariant.CAPTURE)
+            GuideButton(GuideVariant.CAPTURE)
 
             Section("VIDEO")
             ToggleRow("Record audio", "Uses the microphone; levels show in the audio graph", s.audio) { c.toggleAudio() }

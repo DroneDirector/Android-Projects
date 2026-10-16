@@ -32,14 +32,14 @@ import com.dronedirector.acluxpro.camera.CloudAi
 
 /** "Cloud AI" settings: the user's own fal.ai key, and what runs in the cloud (Topaz models). */
 @Composable
-fun CloudAiSettings() {
+fun CloudAiSettings(variant: GuideVariant) {
     val ctx = LocalContext.current
     LaunchedEffect(Unit) { CloudAi.load(ctx) }
     val uri = LocalUriHandler.current
     var keyText by remember { mutableStateOf("") }
     var showKey by remember { mutableStateOf(false) }
     var guide by remember { mutableStateOf(false) }
-    if (guide) GuideDialog(GuideTopic.CLOUD) { guide = false }
+    if (guide) GuideDialog(variant, GuideTopic.CLOUD) { guide = false }
     Text("CLOUD AI", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
     Text(
         "Optional. Runs Topaz Labs' professional AI models on fast cloud servers through your own fal.ai account " +
@@ -112,11 +112,11 @@ private fun CloudChips(title: String, options: List<String>, selected: Int, onSe
 
 /** "Guide & tips" button for settings menus. */
 @Composable
-fun GuideButton() {
+fun GuideButton(variant: GuideVariant) {
     var open by remember { mutableStateOf(false) }
-    if (open) GuideDialog(onDismiss = { open = false })
+    if (open) GuideDialog(variant, onDismiss = { open = false })
     Text(
-        "?  GUIDE & TIPS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        "?  " + variant.title.uppercase(), style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
         modifier = Modifier.padding(top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp))
             .background(Color.White.copy(alpha = 0.06f)).clickable { open = true }.padding(12.dp),
     )

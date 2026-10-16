@@ -877,7 +877,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     load(current, deck.cur.currentPosition, true)
                     return
                 }
-                if (deck.cur.playWhenReady) deck.cur.pause() else {
+                if (deck.cur.playWhenReady && deck.cur.playbackState != Player.STATE_ENDED) deck.cur.pause() else {
                     when {
                         deck.cur.playbackState == Player.STATE_ENDED && current == clips.lastIndex -> load(0, 0, true)
                         deck.cur.playbackState == Player.STATE_IDLE -> load(current, posMs, true)

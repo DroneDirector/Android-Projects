@@ -885,6 +885,7 @@ private fun PhotoPanelContent(
                 }
             }
         }
+        PhotoPanel.MASKS, PhotoPanel.HEAL, PhotoPanel.LENS -> {}   // drawn by the workspace
         PhotoPanel.EXPORT -> {
             SectionTitle("FORMAT")
             Chips(PHOTO_FORMATS, exportState.format) { onExportState(it, exportState.quality, exportState.sizeIdx) }

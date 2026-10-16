@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor timeline: hold a layer or audio bar to move it in time or drag it up / down to reorder layers; hold its start / end edge to trim or extend.
+- Video editor media pool: add audio files (Media → Audio) and place them on the timeline at the playhead — music track plus any number of extra audio tracks (volume, fades) in preview and export.
 
 ## 1.0.123 — 2026-10-16
 - Guides: separate Capture, Photo editor and Video editor guides, each showing only what applies there (Cloud AI key setup, AI features, tips). Open them from each settings gear (guide button, or "How to add a key" under Cloud AI). Also on GitHub as GUIDE.md.

@@ -73,6 +73,9 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 **Video editor tips**
 - Pinch the timeline to zoom; the scissors under the player split at the playhead.
 - Tap a cut on the timeline to choose one of 34 transitions.
+- Hold a layer or audio bar until it buzzes, then drag: left / right moves it in time, up / down changes the layer order.
+- Hold the start or end edge of a layer or audio bar, then slide to shorten or extend it.
+- Media → Audio adds music and sound files to the media pool; ADD TO TIMELINE places them at the playhead.
 - Edit → Crop & zoom: pinch, drag and twist on the player; Ken Burns animates start → end.
 - COPY / PASTE SETTINGS copies a clip's grade, audio and more to other clips (or all clips).
 - Heavy clips (HDR, 10-bit, 4K) get a light preview copy for smooth playback; exports use the originals.

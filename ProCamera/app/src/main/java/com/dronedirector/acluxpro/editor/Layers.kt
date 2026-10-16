@@ -154,7 +154,22 @@ data class MusicTrack(
     val fx: AudioFx = AudioFx(),
     /** How much the music drops under clips marked "lower music" (0..1). */
     val duck: Float = 0.6f,
-)
+    val id: String = java.util.UUID.randomUUID().toString(),
+    /** Where the track starts on the timeline. */
+    val startMs: Long = 0L,
+    /** How long it plays (0 = until the song or the timeline ends). */
+    val lengthMs: Long = 0L,
+) {
+    /** Length on a timeline of [total] ms. */
+    fun playLength(total: Long): Long {
+        val avail = (durationMs - offsetMs).coerceAtLeast(0)
+        val want = if (lengthMs > 0) lengthMs.coerceAtMost(avail) else avail
+        return want.coerceAtMost((total - startMs).coerceAtLeast(0))
+    }
+}
+
+/** An audio file in the media pool (not necessarily on the timeline). */
+data class PoolAudio(val uri: android.net.Uri, val name: String, val durationMs: Long)
 
 /** Gain with fade-in / fade-out for a stream of known length (16-bit PCM). */
 @UnstableApi

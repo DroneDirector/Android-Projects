@@ -233,6 +233,20 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val wmOn = WatermarkMemory.isOn(context, true)
     LaunchedEffect(wmLayer, wmOn) { if (wmOn && wmLayer != null) WatermarkMemory.save(context, true, wmLayer) }
     var music by remember { mutableStateOf(initial?.music) }
+    // Extra audio tracks on the timeline, and audio files in the media pool.
+    val extraAudio = remember { mutableStateListOf<MusicTrack>().apply { initial?.extraAudio?.let { addAll(it) } } }
+    val audioPool = remember { mutableStateListOf<PoolAudio>().apply { initial?.audioPool?.let { addAll(it) } } }
+    val audioPlayers = remember { HashMap<String, ExoPlayer>() }
+    DisposableEffect(Unit) { onDispose { audioPlayers.values.forEach { it.release() } } }
+    val pickAudio = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        for (uri in uris) {
+            try { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
+            val mmr = android.media.MediaMetadataRetriever()
+            val dur = try { mmr.setDataSource(context, uri); mmr.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L } catch (_: Throwable) { 0L } finally { try { mmr.release() } catch (_: Throwable) {} }
+            val name = context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null } ?: "Audio"
+            if (dur > 0 && audioPool.none { it.uri == uri }) audioPool.add(PoolAudio(uri, name, dur))
+        }
+    }
     val musicFxProc = remember { AudioFxProcessor(live = true) }
     val musicPlayer = remember { fxPlayer(context, musicFxProc) }
     DisposableEffect(Unit) { onDispose { musicPlayer.release() } }
@@ -245,6 +259,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val name = context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null } ?: "Music"
             if (dur > 0) {
                 music = MusicTrack(uri, name, dur)
+                if (audioPool.none { it.uri == uri }) audioPool.add(PoolAudio(uri, name, dur))
                 musicPlayer.setMediaItem(MediaItem.fromUri(uri))
                 musicPlayer.prepare()
             }
@@ -669,12 +684,38 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             musicPlayer.volume = if (previewMuted) 0f else (m.volume * (if (ducked) 1f - m.duck else 1f)).coerceIn(0f, 1f)
             val before = clipStarts(clips).getOrNull(current) ?: 0L
             val g = before + (deck.cur.currentPosition / (clips.getOrNull(current)?.speed ?: 1f)).toLong()
-            val want = m.offsetMs + g
-            if (want >= m.durationMs) { musicPlayer.pause() } else {
+            val len = m.playLength(timelineLength(clips))
+            val want = m.offsetMs + (g - m.startMs)
+            if (g < m.startMs || g >= m.startMs + len) { musicPlayer.pause() } else {
                 if (kotlin.math.abs(musicPlayer.currentPosition - want) > 350) musicPlayer.seekTo(want)
                 if (!musicPlayer.isPlaying) musicPlayer.play()
             }
             delay(500)
+        }
+    }
+    // Extra audio tracks follow the timeline too.
+    LaunchedEffect(playing, extraAudio.toList(), previewMuted) {
+        // Players for new tracks; drop players of removed tracks.
+        val ids = extraAudio.map { it.id }.toSet()
+        audioPlayers.keys.filter { it !in ids }.forEach { audioPlayers.remove(it)?.release() }
+        for (t in extraAudio) audioPlayers.getOrPut(t.id) {
+            ExoPlayer.Builder(context).build().apply { setMediaItem(MediaItem.fromUri(t.uri)); prepare() }
+        }
+        if (!playing) { audioPlayers.values.forEach { it.pause() }; return@LaunchedEffect }
+        while (true) {
+            val before = clipStarts(clips).getOrNull(current) ?: 0L
+            val g = before + (deck.cur.currentPosition / (clips.getOrNull(current)?.speed ?: 1f)).toLong()
+            val total = timelineLength(clips)
+            for (t in extraAudio) {
+                val p = audioPlayers[t.id] ?: continue
+                p.volume = if (previewMuted) 0f else t.volume.coerceIn(0f, 1f)
+                val len = t.playLength(total)
+                if (g < t.startMs || g >= t.startMs + len) { if (p.isPlaying) p.pause(); continue }
+                val want = t.offsetMs + (g - t.startMs)
+                if (kotlin.math.abs(p.currentPosition - want) > 350) p.seekTo(want)
+                if (!p.isPlaying) p.play()
+            }
+            delay(400)
         }
     }
     LaunchedEffect(current) { if (page != Page.MEDIA) selected = current.coerceIn(0, (clips.size - 1).coerceAtLeast(0)) }
@@ -746,6 +787,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val p = VideoProjectData(
             id = projectId ?: java.util.UUID.randomUUID().toString(), name = name,
             clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
+            extraAudio = extraAudio.toList(), audioPool = audioPool.toList(),
         )
         val saved = try { ProjectStore.saveVideo(context, p, clips.firstOrNull()?.let { thumbs[it.id] }) } catch (_: Throwable) { null }
         if (saved != null) { projectId = saved.id; projectName = saved.name; message = "Project \"${saved.name}\" saved" }
@@ -784,7 +826,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
 
     fun runExport(list: List<Clip>) {
         val e = TimelineExport(
-            context, list, deliver, layers.toList(), music,
+            context, list, deliver, layers.toList(), music, extraAudio.toList(),
             onProgress = { progress = it },
             onDone = { uri, err ->
                 exporting = false; export = null
@@ -1002,6 +1044,20 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     onSelectLayer = { selectedLayer = it; page = Page.LAYERS },
                     zoom = zoom,
                     onSelectTransition = { selected = it; page = Page.TRANSITIONS },
+                    extraAudio = extraAudio,
+                    onLayerTime = { id, a, b ->
+                        val i = layers.indexOfFirst { it.id == id }
+                        if (i >= 0) layers[i] = layers[i].copy(wholeVideo = false, startMs = a, endMs = b)
+                    },
+                    onLayerOrder = { id, to ->
+                        val i = layers.indexOfFirst { it.id == id }
+                        if (i >= 0 && to in layers.indices && to != i) { val l = layers.removeAt(i); layers.add(to, l) }
+                    },
+                    onAudioTime = { id, st, off, len ->
+                        val m = music
+                        if (m != null && m.id == id) music = m.copy(startMs = st, offsetMs = off, lengthMs = len)
+                        else { val i = extraAudio.indexOfFirst { it.id == id }; if (i >= 0) extraAudio[i] = extraAudio[i].copy(startMs = st, offsetMs = off, lengthMs = len) }
+                    },
                 )
             }
 
@@ -1034,6 +1090,26 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         when (page) {
                             Page.MEDIA -> MediaPage(
                                 clips, onAddGallery, onAddFiles,
+                                audioPool = audioPool,
+                                audioUses = { a -> (if (music?.uri == a.uri) 1 else 0) + extraAudio.count { it.uri == a.uri } },
+                                onAddAudio = { pickAudio.launch(arrayOf("audio/*")) },
+                                onPlaceAudio = { a ->
+                                    val total = timelineLength(clips)
+                                    val head = ((clipStarts(clips).getOrNull(current) ?: 0L) + (posMs / (clips.getOrNull(current)?.speed ?: 1f)).toLong()).coerceIn(0, total)
+                                    if (music == null) {
+                                        music = MusicTrack(a.uri, a.name, a.durationMs, startMs = head)
+                                        musicPlayer.setMediaItem(MediaItem.fromUri(a.uri)); musicPlayer.prepare()
+                                        message = "${a.name} added as the music track"
+                                    } else {
+                                        extraAudio.add(MusicTrack(a.uri, a.name, a.durationMs, volume = 1f, fadeInMs = 0, fadeOutMs = 300, startMs = head))
+                                        message = "${a.name} added to the timeline at ${tc(head)}"
+                                    }
+                                },
+                                onRemoveAudio = { a ->
+                                    audioPool.remove(a)
+                                    extraAudio.removeAll { it.uri == a.uri }
+                                    if (music?.uri == a.uri) { music = null; musicPlayer.stop() }
+                                },
                                 proxyState = { c ->
                                     val k = c.uri.toString()
                                     when {
@@ -1128,6 +1204,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onChange = { f -> update(selected, f) },
                                 onPickMusic = { pickMusic.launch(arrayOf("audio/*")) },
                                 onMusic = { music = it; if (it == null) musicPlayer.stop() },
+                                extra = extraAudio,
+                                onExtra = { id, t ->
+                                    val i = extraAudio.indexOfFirst { it.id == id }
+                                    if (i >= 0) { if (t == null) extraAudio.removeAt(i) else extraAudio[i] = t }
+                                },
                             )
                             Page.DELIVER -> DeliverPage(deliver, clips, exporting, { deliver = it }, ::startExport)
                         }
@@ -1275,6 +1356,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
 @Composable
 private fun MediaPage(
     clips: List<Clip>, onAddGallery: () -> Unit, onAddFiles: () -> Unit,
+    audioPool: List<PoolAudio>, audioUses: (PoolAudio) -> Int, onAddAudio: () -> Unit,
+    onPlaceAudio: (PoolAudio) -> Unit, onRemoveAudio: (PoolAudio) -> Unit,
     proxyState: (Clip) -> String?, onProxyToggle: (Clip) -> Unit, onRemove: (Clip) -> Unit,
 ) {
     var confirm by remember { mutableStateOf<Clip?>(null) }
@@ -1301,6 +1384,7 @@ private fun MediaPage(
         BigButton(Icons.Filled.PhotoLibrary, "Gallery", Modifier.weight(1f), onAddGallery)
         BigButton(Icons.Filled.FolderOpen, "Files (MKV…)", Modifier.weight(1f), onAddFiles)
     }
+    BigButton(Icons.Filled.MusicNote, "Audio (MP3, WAV, AAC…)", Modifier.fillMaxWidth().padding(top = 8.dp), onAddAudio)
     Text(
         "Clips are added to the end of the timeline. Heavy clips (HDR, 10-bit, 4K) get a light preview copy so grades and effects play smoothly; exports always use the original files.",
         color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 6.dp),
@@ -1336,6 +1420,40 @@ private fun MediaPage(
                 )
             }
         }
+    }
+    if (audioPool.isNotEmpty()) {
+        var confirmAudio by remember { mutableStateOf<PoolAudio?>(null) }
+        confirmAudio?.let { a ->
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { confirmAudio = null },
+                containerColor = Pro.PanelSolid,
+                title = { Text("Delete this file?", color = Color.White) },
+                text = { Text("Are you sure you want to delete \"${a.name}\" from the media pool? It will also be removed from the timeline. The original on your phone is kept.", color = Pro.Dim) },
+                confirmButton = { androidx.compose.material3.TextButton(onClick = { onRemoveAudio(a); confirmAudio = null }) { Text("Yes", color = Pro.Red) } },
+                dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmAudio = null }) { Text("No", color = Pro.Amber) } },
+            )
+        }
+        SectionTitle("AUDIO")
+        audioPool.forEach { a ->
+            Column(Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).padding(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.MusicNote, contentDescription = null, tint = Pro.Amber, modifier = Modifier.size(20.dp))
+                    Column(Modifier.weight(1f).padding(start = 8.dp)) {
+                        Text(a.name, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        val n = audioUses(a)
+                        Text(tc(a.durationMs) + if (n > 0) " · on timeline ×$n" else "", style = Pro.Label)
+                    }
+                    Box(Modifier.size(36.dp).clip(CircleShape).clickable { confirmAudio = a }, contentAlignment = Alignment.Center) {
+                        Icon(Icons.Filled.Delete, contentDescription = "Delete from media pool", tint = Pro.Red, modifier = Modifier.size(20.dp))
+                    }
+                }
+                Text(
+                    "ADD TO TIMELINE (AT PLAYHEAD)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp),
+                    modifier = Modifier.padding(top = 4.dp).clip(RoundedCornerShape(6.dp)).clickable { onPlaceAudio(a) }.padding(6.dp),
+                )
+            }
+        }
+        Text("On the timeline: hold an audio bar to move it, or hold its start or end edge to trim it.", color = Pro.Dim, fontSize = 11.sp)
     }
 }
 
@@ -1491,8 +1609,27 @@ private fun ColorPage(
 private fun AudioPage(
     c: Clip?, deliver: DeliverSettings, music: MusicTrack?, playing: Boolean,
     onChange: ((Clip) -> Clip) -> Unit, onPickMusic: () -> Unit, onMusic: (MusicTrack?) -> Unit,
+    extra: List<MusicTrack> = emptyList(), onExtra: (String, MusicTrack?) -> Unit = { _, _ -> },
 ) {
     LevelMeter(playing)
+    if (extra.isNotEmpty()) {
+        SectionTitle("MORE AUDIO TRACKS")
+        extra.forEach { t ->
+            Column(Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).padding(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.MusicNote, contentDescription = null, tint = Color(0xFF0FA3A3))
+                    Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
+                        Text(t.name, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("at ${tc(t.startMs)}", style = Pro.Label)
+                    }
+                    Text("REMOVE", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { onExtra(t.id, null) }.padding(6.dp))
+                }
+                EdSlider("Volume", t.volume, 0f..1.5f, 1f, ::pct) { v -> onExtra(t.id, t.copy(volume = v)) }
+                EdSlider("Fade in", t.fadeInMs / 1000f, 0f..5f, 0f, { "%.1f s".format(it) }) { v -> onExtra(t.id, t.copy(fadeInMs = (v * 1000).toLong())) }
+                EdSlider("Fade out", t.fadeOutMs / 1000f, 0f..5f, 0.3f, { "%.1f s".format(it) }) { v -> onExtra(t.id, t.copy(fadeOutMs = (v * 1000).toLong())) }
+            }
+        }
+    }
     if (c != null) {
         val fx = c.audio
         fun setFx(f: (AudioFx) -> AudioFx) = onChange { it.copy(audio = f(it.audio)) }

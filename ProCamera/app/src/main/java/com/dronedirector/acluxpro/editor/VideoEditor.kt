@@ -799,6 +799,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     Box(Modifier.fillMaxSize().background(Ed.Bg)) {
         BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
             val wide = maxWidth > maxHeight || maxWidth >= 720.dp
+            val boxW = maxWidth.value; val boxH = maxHeight.value
 
             val viewer = @Composable { mod: Modifier ->
                 Box(mod.background(Color.Black), contentAlignment = Alignment.Center) {
@@ -1181,7 +1182,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 }
                 if (wide) {
                     val insp = rememberPane("ve_inspector_w")
-                    val maxW = maxWidth.value
+                    val maxW = boxW
                     Row(Modifier.fillMaxWidth().weight(1f)) {
                         Column(Modifier.weight(1f).fillMaxHeight()) {
                             viewer(Modifier.fillMaxWidth().weight(1f))
@@ -1193,13 +1194,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         inspector(Modifier.width((if (insp.dp < 0f) 390f else insp.dp).dp).fillMaxHeight())
                     }
                     ResizeHandle(true,
-                        onDrag = { d -> tlPane.dp = ((if (tlPane.dp < 0f) 150f else tlPane.dp) - d).coerceIn(70f, maxHeight.value * 0.6f) },
+                        onDrag = { d -> tlPane.dp = ((if (tlPane.dp < 0f) 150f else tlPane.dp) - d).coerceIn(70f, boxH * 0.6f) },
                         onEnd = { tlPane.save() }, onReset = { tlPane.reset() })
                     timelineBox()
                 } else {
                     val viewerPane = rememberPane("ve_viewer_port")
-                    val autoViewer = maxWidth.value * 9f / 16f
-                    val maxH = maxHeight.value
+                    val autoViewer = boxW * 9f / 16f
+                    val maxH = boxH
                     viewer(Modifier.fillMaxWidth().height((if (viewerPane.dp < 0f) autoViewer else viewerPane.dp).dp))
                     ResizeHandle(true,
                         onDrag = { d -> viewerPane.dp = ((if (viewerPane.dp < 0f) autoViewer else viewerPane.dp) + d).coerceIn(110f, maxH - 300f) },

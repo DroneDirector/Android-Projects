@@ -83,6 +83,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Multi-track timeline** starting at the left edge: filmstrips, layer rows and audio rows; drag the playhead or tap the ruler; two-finger pinch zoom and scroll; follows the playhead while playing.
 - Under the player: **mute, zoom out, show whole timeline, zoom in, split, undo, redo**, previous / play / next, full screen.
 - **Trim, split, duplicate, reorder, speed, delete** clips.
+- **Track headers**: mute the video track or any audio track, show / hide layers, **lock** tracks against edits.
 - **Hold-and-drag on the timeline**: move layers and audio in time, drag layers up / down to reorder, hold an edge to trim or extend.
 - **Audio in the media pool** (MP3, WAV, AAC…): add to the timeline at the playhead — the first becomes the music track, more become extra audio tracks with volume and fades.
 - Gapless clip-to-clip playback; **full-screen player** with auto-hiding controls.
@@ -116,6 +117,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **3-band EQ**, low cut, voice enhance, **compressor, noise gate, limiter**; presets (Voice, Interview, Wind cut, Warm, Bright, Bass boost, Radio, Loud & punchy); live **level meter**.
 
 ### Deliver
+- **Audio only** export (.m4a, AAC) to Music/AcluxPro.
 - Resolution up to **4K UHD**, frame rate, **H.264 / HEVC**, bitrate up to very high, audio on/off.
 - Project formats: Original, 16:9, 9:16, 1:1, 4:5, 4:3 and more; fill or fit.
 - **Estimated file size** shown live as you change the settings.

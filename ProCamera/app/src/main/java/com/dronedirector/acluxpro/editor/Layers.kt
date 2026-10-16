@@ -60,6 +60,8 @@ data class Layer(
     val mediaAspect: Float = 16f / 9f,
     /** Optional name you give the layer (shown in the layer list and on the timeline). */
     val name: String? = null,
+    /** Locked on the timeline: can't be moved, trimmed, dragged or deleted. */
+    val locked: Boolean = false,
 ) {
     /** The name shown for this layer: your own name, else its text / kind. */
     val displayName: String get() = name?.takeIf { it.isNotBlank() }
@@ -164,6 +166,9 @@ data class MusicTrack(
     val startMs: Long = 0L,
     /** How long it plays (0 = until the song or the timeline ends). */
     val lengthMs: Long = 0L,
+    /** Track switches on the timeline: silenced, and protected from edits. */
+    val muted: Boolean = false,
+    val locked: Boolean = false,
 ) {
     /** Length on a timeline of [total] ms. */
     fun playLength(total: Long): Long {

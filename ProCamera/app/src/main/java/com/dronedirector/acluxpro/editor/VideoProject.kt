@@ -101,6 +101,8 @@ data class DeliverSettings(
     val aspect: Float = 0f,
     /** true = fill the frame (crop), false = fit inside (bars). */
     val fill: Boolean = true,
+    /** Save only the sound (AAC in an .m4a file, to Music/AcluxPro). */
+    val audioOnly: Boolean = false,
 )
 
 /** Output frame size for the project (even numbers, as encoders need). */
@@ -126,20 +128,21 @@ class TimelineExport(
     private val onProgress: (Int) -> Unit,
     private val onDone: (Uri?, String?) -> Unit,
 ) {
-    private val out = File(context.cacheDir, "timeline_${System.currentTimeMillis()}.mp4")
+    private val audioOnly = settings.audioOnly
+    private val out = File(context.cacheDir, "timeline_${System.currentTimeMillis()}." + if (settings.audioOnly) "m4a" else "mp4")
     private val handler = Handler(Looper.getMainLooper())
     private var finished = false
     private lateinit var transformer: Transformer
 
     fun start() {
         val (outW, outH) = outputSize(clips, settings)
-        val videoLayers = layers.filter { it.visible && it.kind == LayerKind.VIDEO && it.videoUri != null }
+        val videoLayers = if (audioOnly) emptyList() else layers.filter { it.visible && it.kind == LayerKind.VIDEO && it.videoUri != null }
         val layout = if (settings.fill) Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP else Presentation.LAYOUT_SCALE_TO_FIT
         val totalMs = timelineLength(clips)
         val starts = clipStarts(clips)
         val overlaps = LongArray(clips.size) { overlapMs(clips, it) }
         val ab = overlaps.any { it > 0 }
-        val compositing = videoLayers.isNotEmpty() || ab
+        val compositing = !audioOnly && (videoLayers.isNotEmpty() || ab)
         val items = clips.mapIndexed { i, c ->
             val media = MediaItem.Builder()
                 .setUri(c.uri)
@@ -160,6 +163,7 @@ class TimelineExport(
                 audio += AudioFxProcessor(afx, gain, c.endMs - c.startMs)
             }
             val video = mutableListOf<Effect>()
+            if (!audioOnly) {
             if (c.detail.aiDenoise > 0f) video += AiDenoiseEffect(context, c.detail.aiDenoise)
             val motion = if (c.stab.enabled) Stabilizer.cached(context, c) else null
             if (!c.reframe.isIdentity || motion != null) video += ReframeEffect(c, motion)
@@ -174,9 +178,11 @@ class TimelineExport(
                 val outMode = if (top && c.transition.type.kind == TransitionKind.MASK) 2 else 0
                 video += TransitionEffect(TransitionWindows(c.lengthMs, prevT, inMs, inMode, c.transition.type, outMs, outMode))
             }
+            }
             val b = EditedMediaItem.Builder(media)
                 .setEffects(Effects(audio, video))
-                .setRemoveAudio(!settings.audio)
+                .setRemoveAudio(!settings.audio && !audioOnly)
+                .setRemoveVideo(audioOnly)
             if (c.speed != 1f) {
                 val s = c.speed
                 b.setSpeed(object : SpeedProvider {
@@ -189,10 +195,10 @@ class TimelineExport(
 
         val global = mutableListOf<Effect>()
         // Project frame: size + shape, filling (crop) or fitting (bars).
-        global += Presentation.createForWidthAndHeight(outW, outH, layout)
-        if (settings.fps > 0) global += FrameDropEffect.createDefaultFrameDropEffect(settings.fps.toFloat())
+        if (!audioOnly) global += Presentation.createForWidthAndHeight(outW, outH, layout)
+        if (settings.fps > 0 && !audioOnly) global += FrameDropEffect.createDefaultFrameDropEffect(settings.fps.toFloat())
         // Text, stickers, watermarks and logos, bottom layer first.
-        val overlays = layers.filter { it.visible && it.kind != LayerKind.VIDEO }.mapNotNull { l ->
+        val overlays = if (audioOnly) emptyList() else layers.filter { it.visible && it.kind != LayerKind.VIDEO }.mapNotNull { l ->
             LayerRenderer.render(context, l, outW, outH)?.let { LayerOverlay(it, l) as androidx.media3.effect.TextureOverlay }
         }
         if (overlays.isNotEmpty()) global += androidx.media3.effect.OverlayEffect(overlays)
@@ -229,7 +235,8 @@ class TimelineExport(
         if (!ab) {
             sequences += EditedMediaItemSequence.Builder(items).build()
         } else {
-            val types = if (settings.audio) setOf(androidx.media3.common.C.TRACK_TYPE_AUDIO, androidx.media3.common.C.TRACK_TYPE_VIDEO)
+            val types = if (audioOnly) setOf(androidx.media3.common.C.TRACK_TYPE_AUDIO)
+            else if (settings.audio) setOf(androidx.media3.common.C.TRACK_TYPE_AUDIO, androidx.media3.common.C.TRACK_TYPE_VIDEO)
             else setOf(androidx.media3.common.C.TRACK_TYPE_VIDEO)
             for (parity in 0..1) {
                 val seq = EditedMediaItemSequence.Builder(types)
@@ -247,7 +254,7 @@ class TimelineExport(
         }
         val abCount = sequences.size - firstTimeline
         // Music + extra audio tracks, each placed at its own spot on the timeline.
-        if (settings.audio) for (m in listOfNotNull(music) + extraAudio) {
+        if (settings.audio || audioOnly) for (m in (listOfNotNull(music) + extraAudio).filter { !it.muted }) {
             val len = m.playLength(totalMs)
             if (len < 50) continue
             val end = m.offsetMs + len
@@ -315,11 +322,18 @@ class TimelineExport(
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                     finished = true
                     Thread {
-                        val name = "EDIT_" + java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date()) + ".mp4"
-                        val uri = SaveFolder.write(context, true, name, "video/mp4") { os -> out.inputStream().use { it.copyTo(os) } }
-                            ?: GradeIO.publishVideo(context, out)
+                        val stamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
+                        val uri = if (audioOnly) {
+                            val name = "AUDIO_$stamp.m4a"
+                            SaveFolder.write(context, true, name, "audio/mp4") { os -> out.inputStream().use { it.copyTo(os) } }
+                                ?: publishAudio(context, out, name)
+                        } else {
+                            val name = "EDIT_$stamp.mp4"
+                            SaveFolder.write(context, true, name, "video/mp4") { os -> out.inputStream().use { it.copyTo(os) } }
+                                ?: GradeIO.publishVideo(context, out)
+                        }
                         out.delete()
-                        handler.post { onDone(uri, if (uri == null) "Couldn't save the video" else null) }
+                        handler.post { onDone(uri, if (uri == null) (if (audioOnly) "Couldn't save the audio" else "Couldn't save the video") else null) }
                     }.start()
                 }
 
@@ -375,6 +389,33 @@ class TimelineExport(
         transformer.cancel()
         out.delete()
     }
+}
+
+/** Saves an exported sound file to Music/AcluxPro. */
+fun publishAudio(context: Context, file: File, name: String): Uri? {
+    val resolver = context.contentResolver
+    if (android.os.Build.VERSION.SDK_INT >= 29) {
+        val values = android.content.ContentValues().apply {
+            put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "audio/mp4")
+            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Music/AcluxPro")
+            put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        val target = resolver.insert(android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values) ?: return null
+        return try {
+            resolver.openOutputStream(target)?.use { o -> file.inputStream().use { it.copyTo(o, 1 shl 16) } }
+            resolver.update(target, android.content.ContentValues().apply { put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+            target
+        } catch (_: Throwable) { resolver.delete(target, null, null); null }
+    }
+    return try {
+        @Suppress("DEPRECATION")
+        val dir = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC), "AcluxPro").apply { mkdirs() }
+        val dest = File(dir, name)
+        file.inputStream().use { i -> dest.outputStream().use { i.copyTo(it) } }
+        android.media.MediaScannerConnection.scanFile(context, arrayOf(dest.path), arrayOf("audio/mp4"), null)
+        Uri.fromFile(dest)
+    } catch (_: Throwable) { null }
 }
 
 /** Timeline ranges (ms) of clips that ask for the music to be lowered under them. */

@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor Deliver: Audio only — save just the sound of the edit as an .m4a file (Music/AcluxPro or your save folder).
+- Video editor timeline: track headers on the left — mute the video track or any audio track, show / hide layers, and lock tracks so they can't be moved, trimmed, split or deleted.
 - Video editor Deliver: estimated file size of the export, updating as you change resolution, frame rate, bitrate and audio.
 - Video editor: Undo and Redo buttons next to Split under the player (clips, layers, audio).
 - Video editor: rename layers — give a watermark (or any layer) its own name, shown in the layer list and on the timeline; the watermark text is labelled separately.

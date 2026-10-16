@@ -896,6 +896,27 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val inspector = @Composable { mod: Modifier ->
                 Column(mod.background(Ed.Panel)) {
                     Chips(Page.entries.map { it.label }, page.ordinal) { page = Page.entries[it] }
+                    if (clips.isNotEmpty() && (page == Page.EDIT || page == Page.COLOR || page == Page.AUDIO)) CopyPasteBar(
+                        video = true,
+                        onCopy = {
+                            clips.getOrNull(selected)?.let { c ->
+                                EditClipboard.copy(context, CopiedSettings(
+                                    fromVideo = true, grade = c.grade, detail = c.detail, reframe = c.reframe, stab = c.stab,
+                                    audio = c.audio, volume = c.volume, muted = c.muted, speed = c.speed,
+                                ))
+                                message = "Clip ${selected + 1} settings copied — select another clip and tap PASTE SETTINGS"
+                            }
+                        },
+                        onPaste = { parts, all ->
+                            if (all) {
+                                for (i in clips.indices) clips[i] = EditClipboard.pasteOnClip(clips[i], parts)
+                                message = "Settings pasted on all ${clips.size} clips"
+                            } else {
+                                update(selected) { EditClipboard.pasteOnClip(it, parts) }
+                                message = "Settings pasted on clip ${selected + 1}"
+                            }
+                        },
+                    )
                     Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 4.dp)) {
                         val sc = clips.getOrNull(selected)
                         when (page) {

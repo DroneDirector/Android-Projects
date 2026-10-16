@@ -44,7 +44,7 @@ data class ProjectEntry(val id: String, val name: String, val savedAt: Long, val
 
 /** Saves editor projects (settings + links to the media, never copies of it) in the app's private storage. */
 object ProjectStore {
-    private val gson: Gson = GsonBuilder()
+    internal val gson: Gson = GsonBuilder()
         .registerTypeHierarchyAdapter(Uri::class.java, JsonSerializer<Uri> { src, _, _ -> JsonPrimitive(src.toString()) })
         .registerTypeHierarchyAdapter(Uri::class.java, JsonDeserializer { json, _, _ -> Uri.parse(json.asString) })
         .create()

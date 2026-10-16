@@ -277,6 +277,8 @@ data class Detail(
     val localDetail: Float = 0f,
     val fx: VideoFx = VideoFx.NONE,
     val fxAmount: Float = 0.6f,
+    /** AI noise reduction strength (0 = off). */
+    val aiDenoise: Float = 0f,
 ) {
     val isZero get() = this == Detail()
     /** Parts the video GPU effect handles. */

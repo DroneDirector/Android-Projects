@@ -19,7 +19,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 ### Photo
 - Photo **size per camera** (megapixel choice), aspect **4:3 / 16:9 / 1:1**.
 - Android 12+ **full-resolution sensor mode** when the phone allows it, plus a read-out of what the sensor offers to apps.
-- **AI upscale** (optional, off by default): AI 24 / 36 / 48 MP sizes in the size picker. An on-device AI model (ESRGAN, runs on the phone, no internet) rebuilds each photo at the bigger size in the background; Standard or High quality; keep or replace the original; animated progress badge.
+- **AI upscale** (optional, off by default): AI 24 / 36 / 48 MP sizes in the size picker. An on-device AI model (ESRGAN, runs on the phone, no internet) rebuilds each photo at the bigger size in the background; Standard or High quality; keep or replace the original; animated progress badge with a **Stop** button.
 - **JPEG, RAW (DNG) and RAW+JPEG** in Pro.
 - Scenes: **Standard, HDR, Night, Bokeh, Auto+** (where the phone supports them).
 - **Burst** (×3/×5/×10), **self-timer**, **interval** shooting, **exposure bracketing** (±1 / ±2).
@@ -28,7 +28,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 
 ### Video
 - **4K, 1080p, 720p, 480p**; high-bitrate option.
-- Codec choice **H.264 or HEVC**; **10-bit HLG**.
+- Codec choice **H.264 or H.265 (HEVC)** — also for time-lapse / hyperlapse; **10-bit HLG**.
 - Picture profiles: **Standard, Flat, D-Log, D-Log M**.
 - **Stabilization** (off by default).
 - **Cinema clip naming** (camera / reel / clip) or date & time.
@@ -44,7 +44,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Headphone monitoring** with live gain, limiter and volume; audio level graph.
 
 ### Live streaming
-- Stream to **YouTube, TikTok, Twitch, Facebook** or any **RTMP / RTMPS / SRT** server.
+- Stream to **YouTube, TikTok, Twitch, Facebook** or any **RTMP / RTMPS / SRT** server; **H.264 or H.265**.
 
 ### Gallery
 - Full-screen in-app gallery for photos and videos; **Favourites**; separate **RAW** tab with badges.
@@ -63,7 +63,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Color**: temperature, tint, saturation, vibrance, dehaze, fade.
 - **HSL mixer** (8 colour bands: hue, saturation, luminance).
 - **Colour grading wheels** for shadows, midtones and highlights; lift / gamma / gain.
-- **Detail**: sharpen, noise reduction, clarity, texture, vignette, grain.
+- **Detail**: sharpen, noise reduction, **AI noise reduction** (built-in NAFNet model), clarity, texture, vignette, grain.
 - **Crop & format**: common aspect ratios, rotate, flip, straighten, zoom.
 - **Watermark**: text or logo, font, colour, size, position, opacity; optional **Remember watermark**.
 - Live **histogram**, **hold for before**, **undo / redo**.
@@ -96,6 +96,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 ### Color
 - Log input transforms: **D-Log, D-Log M, S-Log3, V-Log, LogC3, HLG, Flat**.
 - Wheels (lift / gamma / gain), primaries, curves, HSL, detail, effects, looks; scope; copy grade to all clips.
+- **AI noise reduction** per clip (built-in NAFNet), applied on export with a stoppable progress badge.
 
 ### Crop, zoom & stabilization
 - **Crop & zoom on the player** (pinch, drag, twist) with thirds grid; zoom 0.25×–4×, position, rotate, flip.

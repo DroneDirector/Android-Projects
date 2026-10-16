@@ -159,6 +159,7 @@ class TimelineExport(
                 audio += AudioFxProcessor(afx, gain, c.endMs - c.startMs)
             }
             val video = mutableListOf<Effect>()
+            if (c.detail.aiDenoise > 0f) video += AiDenoiseEffect(context, c.detail.aiDenoise)
             val motion = if (c.stab.enabled) Stabilizer.cached(context, c) else null
             if (!c.reframe.isIdentity || motion != null) video += ReframeEffect(c, motion)
             video += clipEffects(c)

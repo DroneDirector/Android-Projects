@@ -5,6 +5,9 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 
 ## Unreleased
 - Release notes and changelog: every release now lists what's new, with links to the full feature list.
+- H.265 (HEVC): labelled H.265 everywhere; time-lapse and hyperlapse follow the H.265 setting; H.264 / H.265 choice for live streaming.
+- AI noise reduction (NAFNet, built in) for photos and video clips — Detail panels; photos clean up in the preview, video clips when exporting.
+- AI progress badge with a Stop button — for AI upscaling in Capture and AI noise reduction in both editors.
 
 ## 1.0.108 — 2026-10-16
 - Editors: resizable panels — hold a divider, then drag; double-tap to reset; remembered per orientation.

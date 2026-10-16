@@ -289,6 +289,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     var stallPos by remember { mutableStateOf(-1L) }
     var stallSince by remember { mutableStateOf(0L) }
     var stallTries by remember { mutableStateOf(0) }
+    var showInfo by remember { mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("ve_info", false)) }
+    var infoText by remember { mutableStateOf("") }
     fun sourceFor(c: Clip): Uri {
         val k = c.uri.toString()
         return if (k !in proxyOff) proxies[k] ?: c.uri else c.uri
@@ -301,6 +303,16 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     if (showSettings) EditorSettingsDialog(
         "Video editor", com.dronedirector.acluxpro.ui.AppScreen.VIDEO_EDITOR,
         extra = {
+            Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Show playback info", color = Color.White, fontSize = 15.sp)
+                    Text("Small read-out on the player for troubleshooting", color = Pro.Dim, fontSize = 12.sp)
+                }
+                androidx.compose.material3.Switch(showInfo, {
+                    showInfo = it
+                    context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("ve_info", it).apply()
+                }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
+            }
             Text("PLAYBACK / PREVIEW COPIES", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
             Text("Light copies used only for smooth playback with grades and effects. Exports always use your original files.", color = Pro.Dim, fontSize = 12.sp)
             Chips(ProxyMode.entries.map { it.label }, proxySettings.mode.ordinal) { proxySettings = proxySettings.copy(mode = ProxyMode.entries[it]); ProxySettings.save(context, proxySettings) }
@@ -519,6 +531,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         while (true) {
             posMs = deck.cur.currentPosition
             val c0 = clips.getOrNull(current)
+            if (showInfo) {
+                fun st(p: ExoPlayer) = when (p.playbackState) { Player.STATE_IDLE -> "IDLE"; Player.STATE_BUFFERING -> "LOAD"; Player.STATE_READY -> "READY"; else -> "END" } +
+                    (if (p.playWhenReady) "▶" else "‖") + " " + (p.currentPosition / 100) / 10f + "s" + (p.playerError?.let { " ERR ${it.errorCodeName}" } ?: "")
+                infoText = "clip ${current + 1}/${clips.size} · player ${deck.active + 1}\n" +
+                    "A: ${st(players[0])}  B: ${st(players[1])}\n" +
+                    "src ${if (c0 != null && proxies[c0.uri.toString()] != null && c0.uri.toString() !in proxyOff) "proxy" else "original"} · fx ${if (effectsOk) "on" else "off"} · frame ${if (renderedFor[deck.active] == c0?.id) "ok" else "none"} · stalls $stallTries"
+            }
             val nowPlaying = deck.cur.isPlaying
             if (nowPlaying && !playing) playSince = System.currentTimeMillis()
             playing = nowPlaying
@@ -851,6 +870,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             Text("Playback switches to it automatically", color = Pro.Dim, fontSize = 11.sp)
                         }
                     }
+                    if (showInfo) Text(
+                        infoText, color = Color.White, fontSize = 10.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).background(Color.Black.copy(alpha = 0.6f)).padding(4.dp),
+                    )
                     if (page == Page.COLOR) Scope(scopeHist, Modifier.align(Alignment.TopEnd).padding(8.dp).width(130.dp).height(64.dp))
                     Text(
                         "${tc(globalMs)} / ${tc(totalMs)}",

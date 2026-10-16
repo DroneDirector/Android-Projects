@@ -1173,19 +1173,42 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         modifier = Modifier.padding(horizontal = 6.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !exporting) { page = Page.DELIVER }.padding(horizontal = 14.dp, vertical = 7.dp),
                     )
                 }
+                // Resizable panels: hold a divider, then drag. Double-tap a divider to reset it.
+                val tlPane = rememberPane(if (wide) "ve_timeline_land" else "ve_timeline_port")
+                val timelineBox = @Composable {
+                    if (tlPane.dp < 0f) timeline()
+                    else Box(Modifier.fillMaxWidth().height(tlPane.dp.dp).verticalScroll(rememberScrollState())) { timeline() }
+                }
                 if (wide) {
+                    val insp = rememberPane("ve_inspector_w")
+                    val maxW = maxWidth.value
                     Row(Modifier.fillMaxWidth().weight(1f)) {
                         Column(Modifier.weight(1f).fillMaxHeight()) {
                             viewer(Modifier.fillMaxWidth().weight(1f))
                             transport()
                         }
-                        inspector(Modifier.width(390.dp).fillMaxHeight())
+                        ResizeHandle(false,
+                            onDrag = { d -> insp.dp = ((if (insp.dp < 0f) 390f else insp.dp) - d).coerceIn(240f, maxW - 260f) },
+                            onEnd = { insp.save() }, onReset = { insp.reset() })
+                        inspector(Modifier.width((if (insp.dp < 0f) 390f else insp.dp).dp).fillMaxHeight())
                     }
-                    timeline()
+                    ResizeHandle(true,
+                        onDrag = { d -> tlPane.dp = ((if (tlPane.dp < 0f) 150f else tlPane.dp) - d).coerceIn(70f, maxHeight.value * 0.6f) },
+                        onEnd = { tlPane.save() }, onReset = { tlPane.reset() })
+                    timelineBox()
                 } else {
-                    viewer(Modifier.fillMaxWidth().aspectRatio(16f / 9f))
+                    val viewerPane = rememberPane("ve_viewer_port")
+                    val autoViewer = maxWidth.value * 9f / 16f
+                    val maxH = maxHeight.value
+                    viewer(Modifier.fillMaxWidth().height((if (viewerPane.dp < 0f) autoViewer else viewerPane.dp).dp))
+                    ResizeHandle(true,
+                        onDrag = { d -> viewerPane.dp = ((if (viewerPane.dp < 0f) autoViewer else viewerPane.dp) + d).coerceIn(110f, maxH - 300f) },
+                        onEnd = { viewerPane.save() }, onReset = { viewerPane.reset() })
                     transport()
-                    timeline()
+                    timelineBox()
+                    ResizeHandle(true,
+                        onDrag = { d -> tlPane.dp = ((if (tlPane.dp < 0f) 150f else tlPane.dp) + d).coerceIn(70f, maxH * 0.5f) },
+                        onEnd = { tlPane.save() }, onReset = { tlPane.reset() })
                     inspector(Modifier.fillMaxWidth().weight(1f))
                 }
             }

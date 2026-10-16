@@ -61,6 +61,8 @@ data class LiveState(
     val key: String = "",
     val vertical: Boolean = false,
     val quality: LiveQuality = LiveQuality.HD,
+    /** H.265 (HEVC) stream — smaller for the same quality; needs a server that accepts it. */
+    val hevc: Boolean = false,
     val status: LiveStatus = LiveStatus.IDLE,
     val seconds: Long = 0,
     val kbps: Int = 0,
@@ -113,6 +115,7 @@ class LiveStreamer(private val context: Context) : ConnectChecker {
             key = prefs.getString("key_${p.name}", null) ?: "",
             vertical = prefs.getBoolean("vertical_${p.name}", p.vertical),
             quality = LiveQuality.entries.getOrElse(prefs.getInt("quality", 1)) { LiveQuality.HD },
+            hevc = prefs.getBoolean("hevc_${p.name}", false),
         )
     }
 
@@ -146,6 +149,13 @@ class LiveStreamer(private val context: Context) : ConnectChecker {
         if (_state.value.isBusy || _state.value.vertical == vertical) return
         prefs.edit().putBoolean("vertical_${_state.value.platform.name}", vertical).apply()
         _state.update { it.copy(vertical = vertical) }
+        reconfigure()
+    }
+
+    fun setHevc(on: Boolean) {
+        if (_state.value.isBusy || _state.value.hevc == on) return
+        prefs.edit().putBoolean("hevc_${_state.value.platform.name}", on).apply()
+        _state.update { it.copy(hevc = on) }
         reconfigure()
     }
 
@@ -187,6 +197,9 @@ class LiveStreamer(private val context: Context) : ConnectChecker {
         val s = stream ?: return false
         val st = _state.value
         val ok = try {
+            try {
+                s.setVideoCodec(if (st.hevc) com.pedro.common.VideoCodec.H265 else com.pedro.common.VideoCodec.H264)
+            } catch (_: Throwable) {}
             s.prepareVideo(st.quality.width, st.quality.height, st.quality.bitrate, 30, 2, if (st.vertical) 90 else 0) &&
                 s.prepareAudio(44_100, true, 128_000)
         } catch (_: Throwable) {

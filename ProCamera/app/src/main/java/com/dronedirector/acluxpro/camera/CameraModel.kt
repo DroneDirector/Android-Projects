@@ -328,7 +328,7 @@ object Stops {
 
 enum class VideoCodec(val label: String, val mime: String) {
     H264("H.264", "video/avc"),
-    HEVC("HEVC", "video/hevc"),
+    HEVC("H.265", "video/hevc"),
 }
 
 /**

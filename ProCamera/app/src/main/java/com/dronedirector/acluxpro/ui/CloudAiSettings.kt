@@ -38,6 +38,8 @@ fun CloudAiSettings() {
     val uri = LocalUriHandler.current
     var keyText by remember { mutableStateOf("") }
     var showKey by remember { mutableStateOf(false) }
+    var guide by remember { mutableStateOf(false) }
+    if (guide) GuideDialog(GuideTopic.CLOUD) { guide = false }
     Text("CLOUD AI", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
     Text(
         "Optional. Runs Topaz Labs' professional AI models on fast cloud servers through your own fal.ai account " +
@@ -50,8 +52,8 @@ fun CloudAiSettings() {
             modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Color.White.copy(alpha = 0.08f)).clickable { showKey = !showKey }.padding(8.dp),
         )
         Text(
-            "GET A KEY", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp),
-            modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { uri.openUri("https://fal.ai/dashboard/keys") }.padding(8.dp),
+            "HOW TO ADD A KEY", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp),
+            modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { guide = true }.padding(8.dp),
         )
     }
     if (showKey) {

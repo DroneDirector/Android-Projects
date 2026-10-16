@@ -58,6 +58,12 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 **Photo editor tips**
 - Hold your finger on the photo to see the original.
+- Masks: add a Linear gradient, Radial or Brush mask, then use ADJUST INSIDE THE MASK. Drag the handles on the photo (or paint with the brush); red shows where the mask applies.
+- Heal: tap dust, blemishes or small objects on the photo — a matching patch from nearby covers each one. UNDO LAST removes the latest.
+- Lens: Distortion straightens bulging lines from wide lenses; Vignetting brightens dark corners; Colour fringes removes purple / green outlines.
+- Crop & perspective → PERSPECTIVE: Vertical straightens buildings that lean in at the top.
+- Export: JPEG, PNG, WebP or HEIC; sizes for Instagram / web / 4K; AI 2× / 4× upscale; keep or remove camera info and location; BATCH EXPORT applies your edit to up to 50 photos.
+- Start page → MERGE PHOTOS: HDR merge (bracketed shots), Panorama (overlapping shots, left to right) or Focus stack — the result opens in the editor.
 - SPLIT (top-left of the photo) shows before / after side by side — drag to move the divider.
 - Presets → MY PRESETS → + SAVE CURRENT LOOK saves your grade; tap a preset to apply it, hold to delete. Presets also work in the Video editor.
 - Presets → MY LUTS → + IMPORT adds your own .cube LUTs; use Strength to blend, hold a LUT to delete it.

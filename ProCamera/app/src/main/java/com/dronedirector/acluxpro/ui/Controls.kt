@@ -433,7 +433,7 @@ private fun ParamEditor(p: ProParam, s: CameraUiState, c: ProCameraController, i
                 StopSlider(stops.size, idx, { c.setShutter(stops[it]) }, Modifier.weight(1f))
             }
         }
-        ProParam.FOCUS -> {
+        ProParam.FOCUS -> Column {
             val shown = if (s.manualFocus) s.focusDiopters else (s.liveFocusDiopters ?: 0f)
             EditorRow("FOCUS", Stops.focusLabel(shown)) {
                 AutoToggle("AF", !s.manualFocus) { c.setFocusAuto() }
@@ -448,6 +448,17 @@ private fun ParamEditor(p: ProParam, s: CameraUiState, c: ProCameraController, i
                     modifier = Modifier.weight(1f).padding(horizontal = 6.dp),
                 )
                 Text("MACRO", style = Pro.Label)
+            }
+            // Rack focus: store two focus points, then glide between them.
+            val x = com.dronedirector.acluxpro.camera.CaptureExtras
+            var rackSec by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(2) }
+            Row(Modifier.padding(top = 4.dp).hintedScroll(horizontal = true), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("RACK", style = Pro.Label)
+                AutoToggle(if (x.focusA != null) "SET A ✓" else "SET A", x.focusA != null) { x.focusA = shown }
+                AutoToggle(if (x.focusB != null) "SET B ✓" else "SET B", x.focusB != null) { x.focusB = shown }
+                x.focusA?.let { a -> AutoToggle("→ A", false) { c.rackFocus(a, rackSec * 1000L) } }
+                x.focusB?.let { b -> AutoToggle("→ B", false) { c.rackFocus(b, rackSec * 1000L) } }
+                for (sec in listOf(1, 2, 4)) AutoToggle("${sec}s", rackSec == sec) { rackSec = sec }
             }
         }
         ProParam.WB -> {

@@ -341,12 +341,17 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                             }
                             if (s.showHistogram) {
                                 DraggableOverlay("histogram", Alignment.TopEnd, s.layoutVersion) {
-                                    Histogram(
+                                    val scope = com.dronedirector.acluxpro.camera.CaptureExtras.scope
+                                    if (scope == 0) Histogram(
                                         analysis,
                                         width = if (tablet) 150.dp else 112.dp,
                                         height = if (tablet) 62.dp else 52.dp,
-                                    )
+                                    ) else LiveScope(previewView, scope, if (tablet) 180.dp else 132.dp, if (tablet) 90.dp else 70.dp)
                                 }
+                            }
+                            // Focus magnifier while the manual focus control is open.
+                            if (com.dronedirector.acluxpro.camera.CaptureExtras.focusMagnifier && s.activeParam == com.dronedirector.acluxpro.camera.ProParam.FOCUS && s.manualFocus) {
+                                FocusMagnifier(previewView, s.focusPoint, Modifier.align(Alignment.Center))
                             }
                         }
                         if (s.mode.isNormalVideo && s.audio) {

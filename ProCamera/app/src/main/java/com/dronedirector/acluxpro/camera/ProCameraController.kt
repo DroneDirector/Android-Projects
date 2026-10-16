@@ -552,6 +552,8 @@ class ProCameraController(private val context: Context) {
         val s = st
 
         camera?.cameraInfo?.zoomState?.removeObservers(owner)
+        // A pre-record buffer ends with the old camera setup (it restarts once bound again).
+        if (preBuffer != null && preUserNs < 0) { preJob?.cancel(); try { preBuffer?.stop() } catch (_: Throwable) {} }
         p.unbindAll()
         startScreenAnalysis(false)
         camera = null
@@ -704,7 +706,122 @@ class ProCameraController(private val context: Context) {
         }
         set { it.copy(ready = true) }
         applyControls()
+        if (s.mode.isNormalVideo) scope.launch { delay(600); startPreBuffer() }
     }
+
+    // ---------------------------------------------------------------- pre-record buffer
+    private var preBuffer: Recording? = null
+    private var preFile: java.io.File? = null
+    private var preUserNs = -1L
+    private var preElapsedNs = 0L
+    private var preJob: kotlinx.coroutines.Job? = null
+    private var preHasAudio = false
+
+    private fun preAllowed(s: CameraUiState) =
+        CaptureExtras.preRecordSec > 0 && s.mode.isNormalVideo && !s.mode.isSlowMo && s.ready
+
+    /** Settings changed: start or stop the pre-record buffer. */
+    fun refreshPreRecord() {
+        if (CaptureExtras.preRecordSec > 0) startPreBuffer()
+        else if (preBuffer != null && preUserNs < 0) { preJob?.cancel(); try { preBuffer?.stop() } catch (_: Throwable) {} }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun startPreBuffer() {
+        val s = st
+        val vc = videoCapture ?: return
+        if (!preAllowed(s) || recording != null || preBuffer != null) return
+        val file = java.io.File(context.cacheDir, "prerec_${System.currentTimeMillis()}.mp4")
+        var pending = vc.output.prepareRecording(context, FileOutputOptions.Builder(file).build())
+        val mic = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        preHasAudio = s.audio && mic
+        if (preHasAudio) { btMic(CaptureExtras.micBluetooth); pending = pending.withAudioEnabled() }
+        preFile = file; preUserNs = -1L; preElapsedNs = 0L
+        try {
+            preBuffer = pending.start(mainExecutor) { e -> onPreEvent(e) }
+        } catch (_: Throwable) {
+            preBuffer = null; preFile = null; file.delete(); return
+        }
+        // Start a fresh buffer now and then so the temporary file stays small.
+        preJob?.cancel()
+        preJob = scope.launch { delay(90_000); if (preUserNs < 0) try { preBuffer?.stop() } catch (_: Throwable) {} }
+    }
+
+    private fun onPreEvent(e: VideoRecordEvent) {
+        when (e) {
+            is VideoRecordEvent.Status -> {
+                preElapsedNs = e.recordingStats.recordedDurationNanos
+                if (preUserNs >= 0) {
+                    onRecordEvent(e)
+                    set { it.copy(recordSeconds = (preElapsedNs - preUserNs) / 1_000_000_000L + CaptureExtras.preRecordSec) }
+                } else {
+                    val amp = try { e.recordingStats.audioStats.audioAmplitude.toFloat() } catch (_: Throwable) { 0f }
+                    if (!audioMeter.isRunning) audioMeter.pushAmplitude((amp * 10f.pow(st.audioGainDb / 20f)).coerceAtMost(1f))
+                }
+            }
+            is VideoRecordEvent.Pause, is VideoRecordEvent.Resume -> if (preUserNs >= 0) onRecordEvent(e)
+            is VideoRecordEvent.Finalize -> {
+                val file = preFile
+                preFile = null; preBuffer = null
+                val userNs = preUserNs
+                preUserNs = -1L
+                if (userNs >= 0 && file != null) {
+                    recording = null
+                    btMic(false)
+                    set { it.copy(recording = false, paused = false, audioLevel = 0f, processing = true) }
+                    val fromUs = userNs / 1000 - CaptureExtras.preRecordSec * 1_000_000L
+                    val volume = st.storageVolume
+                    val name = "${clipName()}.mp4"
+                    val gainDb = st.audioGainDb; val limiter = st.audioLimiter; val wind = CaptureExtras.windFilter
+                    val withAudio = preHasAudio
+                    scope.launch {
+                        val uri = withContext(Dispatchers.IO) { PreRoll.trim(context, file, fromUs, volume, name) }
+                        if (uri != null && withAudio && (gainDb != 0 || wind)) withContext(Dispatchers.IO) { AudioGain.apply(context, uri, gainDb, limiter, wind) }
+                        set { it.copy(processing = false, lastMedia = uri ?: it.lastMedia) }
+                        if (uri == null) toast("Couldn't save the recording")
+                        delay(300)
+                        startPreBuffer()
+                    }
+                    videoCapture?.setTargetRotation(rotation)
+                } else {
+                    file?.delete()
+                    if (preAllowed(st)) scope.launch { delay(300); startPreBuffer() }
+                }
+            }
+            else -> {}
+        }
+    }
+
+    /** Bluetooth headset microphone on / off (when chosen in settings). */
+    private fun btMic(on: Boolean) {
+        try {
+            if (on) {
+                if (Build.VERSION.SDK_INT >= 31) {
+                    audioManager.availableCommunicationDevices.firstOrNull { it.type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
+                        ?.let { audioManager.setCommunicationDevice(it) }
+                } else {
+                    @Suppress("DEPRECATION") audioManager.startBluetoothSco()
+                    @Suppress("DEPRECATION") audioManager.isBluetoothScoOn = true
+                }
+            } else {
+                if (Build.VERSION.SDK_INT >= 31) audioManager.clearCommunicationDevice()
+                else { @Suppress("DEPRECATION") audioManager.stopBluetoothSco(); @Suppress("DEPRECATION") audioManager.isBluetoothScoOn = false }
+            }
+        } catch (_: Throwable) {}
+    }
+
+    /** Microphones the phone reports right now (for the settings read-out). */
+    fun inputDevices(): List<String> = try {
+        audioManager.getDevices(android.media.AudioManager.GET_DEVICES_INPUTS).mapNotNull { d ->
+            when (d.type) {
+                android.media.AudioDeviceInfo.TYPE_BUILTIN_MIC -> "Phone microphone"
+                android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Wired headset mic"
+                android.media.AudioDeviceInfo.TYPE_USB_DEVICE, android.media.AudioDeviceInfo.TYPE_USB_HEADSET -> "USB mic (${d.productName})"
+                android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "Bluetooth mic (${d.productName})"
+                else -> null
+            }
+        }.distinct()
+    } catch (_: Throwable) { emptyList() }
 
     private var screenAnalysisJob: kotlinx.coroutines.Job? = null
     /** Test hook: behave like a phone that can't add an analysis stream. */
@@ -1005,6 +1122,25 @@ class ProCameraController(private val context: Context) {
         if (st.minFocusDiopters <= 0f) return
         set { it.copy(manualFocus = true, focusDiopters = diopters.coerceIn(0f, it.minFocusDiopters)) }
         applyControls()
+    }
+
+    private var rackJob: kotlinx.coroutines.Job? = null
+
+    /** Rack focus: glide the manual focus to [target] diopters over [durMs] (eased). */
+    fun rackFocus(target: Float, durMs: Long) {
+        if (st.minFocusDiopters <= 0f) return
+        rackJob?.cancel()
+        val from = if (st.manualFocus) st.focusDiopters else (st.liveFocusDiopters ?: st.focusDiopters)
+        rackJob = scope.launch {
+            val t0 = System.currentTimeMillis()
+            while (true) {
+                val p = ((System.currentTimeMillis() - t0).toFloat() / durMs.coerceAtLeast(1)).coerceIn(0f, 1f)
+                val e = p * p * (3f - 2f * p)
+                setFocus(from + (target - from) * e)
+                if (p >= 1f) break
+                delay(33)
+            }
+        }
     }
 
     fun setFocusAuto() {
@@ -1803,6 +1939,18 @@ class ProCameraController(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     private fun startRecording() {
+        // Pre-record running: the clip simply continues from the buffer.
+        val pb = preBuffer
+        if (pb != null && preUserNs < 0) {
+            preUserNs = preElapsedNs
+            preJob?.cancel()
+            recording = pb
+            recordingHasAudio = preHasAudio
+            if (!monitorWhileRecording) audioMeter.stopMonitoring()
+            playSound(MediaActionSound.START_VIDEO_RECORDING)
+            set { it.copy(recording = true, paused = false, recordSeconds = CaptureExtras.preRecordSec.toLong()) }
+            return
+        }
         val vc = videoCapture ?: return
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, "${clipName()}.mp4")
@@ -1828,7 +1976,7 @@ class ProCameraController(private val context: Context) {
         val micGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
         recordingHasAudio = s0.mode.isNormalVideo && st.audio && micGranted
-        if (recordingHasAudio) pending = pending.withAudioEnabled()
+        if (recordingHasAudio) { btMic(CaptureExtras.micBluetooth); pending = pending.withAudioEnabled() }
         if (s0.mode.isNormalVideo && st.audio && !micGranted) toast("Recording without sound (microphone not allowed)")
         playSound(MediaActionSound.START_VIDEO_RECORDING)
         try {
@@ -1881,6 +2029,8 @@ class ProCameraController(private val context: Context) {
             }
             is VideoRecordEvent.Finalize -> {
                 recording = null
+                btMic(false)
+                scope.launch { delay(400); startPreBuffer() }
                 val slowFile = slowMoFile
                 slowMoFile = null
                 if (slowFile != null) {
@@ -1911,11 +2061,12 @@ class ProCameraController(private val context: Context) {
                 }
                 // Manual input gain: re-encode the sound of the finished clip.
                 val gainDb = st.audioGainDb
-                if (recordingHasAudio && gainDb != 0 && uri != Uri.EMPTY) {
+                val wind = CaptureExtras.windFilter
+                if (recordingHasAudio && (gainDb != 0 || wind) && uri != Uri.EMPTY) {
                     val limiter = st.audioLimiter
                     set { it.copy(processing = true) }
                     scope.launch {
-                        val ok = withContext(Dispatchers.IO) { AudioGain.apply(context, uri, gainDb, limiter) }
+                        val ok = withContext(Dispatchers.IO) { AudioGain.apply(context, uri, gainDb, limiter, wind) }
                         set { it.copy(processing = false) }
                         if (!ok) toast("Couldn't apply the audio gain; the clip was saved without it")
                     }

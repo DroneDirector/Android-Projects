@@ -24,8 +24,8 @@ import kotlin.math.tanh
 object AudioGain {
 
     /** Rewrites [uri] in place. Returns false (leaving the clip untouched) if anything fails. */
-    fun apply(context: Context, uri: Uri, gainDb: Int, limiter: Boolean): Boolean {
-        if (gainDb == 0) return true
+    fun apply(context: Context, uri: Uri, gainDb: Int, limiter: Boolean, wind: Boolean = false): Boolean {
+        if (gainDb == 0 && !wind) return true
         val tmp = File(context.cacheDir, "gain_${System.currentTimeMillis()}.mp4")
         val ex = MediaExtractor()
         var dec: MediaCodec? = null
@@ -45,6 +45,8 @@ object AudioGain {
             val rate = aFmt.getInteger(MediaFormat.KEY_SAMPLE_RATE)
             val ch = aFmt.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
             val gain = 10f.pow(gainDb / 20f)
+            // Wind filter: steep cut below ~120 Hz where wind rumble lives (per channel).
+            val hp = if (wind) List(ch) { WindCut(rate) } else null
 
             // ---- 1. decode, apply gain, re-encode the sound into memory
             ex.selectTrack(aIdx)
@@ -91,7 +93,7 @@ object AudioGain {
                         if (info.size > 0) {
                             val buf = dec.getOutputBuffer(o)!!
                             buf.position(info.offset); buf.limit(info.offset + info.size)
-                            pending = process(buf.slice().order(ByteOrder.nativeOrder()), gain, limiter)
+                            pending = process(buf.slice().order(ByteOrder.nativeOrder()), gain, limiter, hp)
                             pendingOff = 0
                             pendingPts = info.presentationTimeUs
                             lastPts = info.presentationTimeUs
@@ -180,11 +182,13 @@ object AudioGain {
     }
 
     /** 16-bit PCM in, gain + soft limiter applied, little-endian bytes out. */
-    private fun process(src: ByteBuffer, gain: Float, limiter: Boolean): ByteArray {
+    private fun process(src: ByteBuffer, gain: Float, limiter: Boolean, hp: List<WindCut>? = null): ByteArray {
         val shorts = src.asShortBuffer()
         val out = ByteBuffer.allocate(shorts.remaining() * 2).order(ByteOrder.nativeOrder())
+        var c = 0
         while (shorts.hasRemaining()) {
             var x = shorts.get() / 32768f * gain
+            if (hp != null) { x = hp[c].process(x); c = (c + 1) % hp.size }
             if (limiter) {
                 val a = abs(x)
                 if (a > 0.8f) x = (0.8f + 0.2f * tanh((a - 0.8f) / 0.2f)) * if (x < 0) -1f else 1f
@@ -193,5 +197,30 @@ object AudioGain {
             out.putShort((x * 32768f).toInt().toShort())
         }
         return out.array()
+    }
+}
+
+/** 4th-order high-pass (two biquads) at 120 Hz — removes wind rumble and handling noise. */
+class WindCut(rate: Int) {
+    private val b = DoubleArray(3); private val a = DoubleArray(3)
+    private val z1 = DoubleArray(2); private val z2 = DoubleArray(2)
+
+    init {
+        val w = 2 * Math.PI * 120.0 / rate
+        val cs = Math.cos(w); val al = Math.sin(w) / (2 * 0.7071)
+        val a0 = 1 + al
+        b[0] = (1 + cs) / 2 / a0; b[1] = -(1 + cs) / a0; b[2] = (1 + cs) / 2 / a0
+        a[1] = -2 * cs / a0; a[2] = (1 - al) / a0
+    }
+
+    fun process(x: Float): Float {
+        var v = x.toDouble()
+        for (s in 0 until 2) {
+            val y = b[0] * v + z1[s]
+            z1[s] = b[1] * v - a[1] * y + z2[s]
+            z2[s] = b[2] * v - a[2] * y
+            v = y
+        }
+        return v.toFloat()
     }
 }

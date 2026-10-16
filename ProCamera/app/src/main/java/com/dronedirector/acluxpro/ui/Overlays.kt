@@ -411,6 +411,24 @@ fun AudioGraph(levels: com.dronedirector.acluxpro.camera.AudioLevels, width: Dp,
                 drawLine(Color.White, Offset(size.width - 6.dp.toPx(), py), Offset(size.width, py), 2.dp.toPx())
             }
         }
+        // Left / right meters (stereo microphones), green → amber → red.
+        Spacer(Modifier.height(3.dp))
+        for ((label, d) in listOf("L" to levels.leftDb, "R" to levels.rightDb)) {
+            Row(Modifier.width(width).padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(label, style = Pro.Label.copy(fontSize = 7.sp, color = Pro.Dim), modifier = Modifier.width(8.dp))
+                Canvas(Modifier.weight(1f).height(4.dp)) {
+                    val v = if (!levels.live) 0f else ((d - com.dronedirector.acluxpro.camera.AudioMeter.MIN_DB) / -com.dronedirector.acluxpro.camera.AudioMeter.MIN_DB).coerceIn(0f, 1f)
+                    drawRect(Color.White.copy(alpha = 0.12f), Offset.Zero, size)
+                    val segs = 24
+                    val sw = size.width / segs
+                    for (i in 0 until (v * segs).toInt()) {
+                        val f = i / segs.toFloat()
+                        drawRect(if (f > 0.95f) Pro.Red else if (f > 0.8f) Pro.Amber else Pro.Green, Offset(i * sw, 0f), Size(sw - 1f, size.height))
+                    }
+                }
+            }
+        }
+        if (levels.live && !levels.stereo) Text("mono mic", style = Pro.Label.copy(fontSize = 7.sp, color = Pro.Dim))
     }
 }
 

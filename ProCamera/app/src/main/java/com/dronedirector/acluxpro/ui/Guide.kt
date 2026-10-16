@@ -143,7 +143,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Video editor tips", Icons.Filled.Movie, null, listOf(
-            "Pinch the timeline to zoom; the scissors under the player split at the playhead.",
+            "The timeline starts at the left edge: drag one finger (or tap the ruler) to move the playhead; two fingers pinch to zoom and slide to scroll. The scissors under the player split at the playhead.",
             "Tap a cut on the timeline to choose one of 34 transitions.",
             "Hold a layer or audio bar on the timeline until it buzzes, then drag: left / right moves it in time, up / down changes the layer order.",
             "Hold the start or end edge of a layer or audio bar, then slide to shorten or extend it.",

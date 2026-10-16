@@ -1,0 +1,378 @@
+package com.dronedirector.acluxpro.editor
+
+import android.content.ContentValues
+import android.content.Context
+import android.graphics.Bitmap
+import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Gradient
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.dronedirector.acluxpro.ui.Pro
+import com.dronedirector.acluxpro.ui.hintedScroll
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import kotlin.math.abs
+import kotlin.math.hypot
+import kotlin.math.min
+
+/** UI-only state of the Masks and Heal panels. */
+class LocalToolsState {
+    var selected by mutableStateOf<String?>(null)
+    var brushSize by mutableStateOf(0.08f)
+    var brushSoft by mutableStateOf(0.5f)
+    var erase by mutableStateOf(false)
+    var showOverlay by mutableStateOf(true)
+    var healSize by mutableStateOf(0.025f)
+}
+
+/** Where a Fit-scaled picture sits inside a box (with [pad] around). */
+private data class FitRect(val left: Float, val top: Float, val w: Float, val h: Float)
+
+private fun fit(boxW: Float, boxH: Float, imgW: Int, imgH: Int, pad: Float): FitRect {
+    val aw = boxW - 2 * pad; val ah = boxH - 2 * pad
+    val s = min(aw / imgW.coerceAtLeast(1), ah / imgH.coerceAtLeast(1))
+    val w = imgW * s; val h = imgH * s
+    return FitRect(pad + (aw - w) / 2, pad + (ah - h) / 2, w, h)
+}
+
+/** On-photo handles for the selected mask: drag gradient ends, move / size the ellipse, or paint. */
+@Composable
+fun MaskEditOverlay(mask: PhotoMask, imgW: Int, imgH: Int, ui: LocalToolsState, onChange: (PhotoMask) -> Unit) {
+    val cur by rememberUpdatedState(mask)
+    val change by rememberUpdatedState(onChange)
+    val live = remember { mutableStateListOf<Float>() }
+    // Mask preview: red where the mask applies.
+    var tint by remember { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(mask, ui.showOverlay, imgW, imgH) {
+        if (!ui.showOverlay || imgW <= 0) { tint = null; return@LaunchedEffect }
+        tint = withContext(Dispatchers.Default) {
+            val w = 220; val h = (220f * imgH / imgW).toInt().coerceIn(20, 600)
+            val wt = PhotoLocal.weights(mask.copy(amount = 1f), w, h)
+            Bitmap.createBitmap(IntArray(w * h) { ((wt[it] * 140).toInt().coerceIn(0, 255) shl 24) or 0xFF3030 }, w, h, Bitmap.Config.ARGB_8888)
+        }
+    }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        val bw = with(density) { maxWidth.toPx() }; val bh = with(density) { maxHeight.toPx() }
+        val r = fit(bw, bh, imgW, imgH, with(density) { 6.dp.toPx() })
+        fun toImg(o: Offset) = ((o.x - r.left) / r.w) to ((o.y - r.top) / r.h)
+        fun toScreen(x: Float, y: Float) = Offset(r.left + x * r.w, r.top + y * r.h)
+        tint?.let {
+            Image(
+                it.asImageBitmap(), null, contentScale = ContentScale.FillBounds,
+                modifier = Modifier.offset { IntOffset(r.left.toInt(), r.top.toInt()) }.size(with(density) { r.w.toDp() }, with(density) { r.h.toDp() }),
+            )
+        }
+        Canvas(
+            Modifier.fillMaxSize().pointerInput(mask.type, r) {
+                var mode = 0   // 1 = start handle / centre, 2 = end handle / edge, 3 = paint
+                var startMask = cur
+                var startPt = Offset.Zero
+                detectDragGestures(
+                    onDragStart = { o ->
+                        startMask = cur; startPt = o
+                        val m = cur
+                        mode = when (m.type) {
+                            MaskType.LINEAR -> if ((o - toScreen(m.x0, m.y0)).getDistance() < (o - toScreen(m.x1, m.y1)).getDistance()) 1 else 2
+                            MaskType.RADIAL -> {
+                                val c = toScreen(m.cx, m.cy)
+                                val d = hypot(((o.x - c.x) / (m.rx * r.w)).toDouble(), ((o.y - c.y) / (m.ry * r.h)).toDouble())
+                                if (d > 0.75) 2 else 1
+                            }
+                            MaskType.BRUSH -> { live.clear(); val (x, y) = toImg(o); live += x; live += y; 3 }
+                            else -> 0
+                        }
+                    },
+                    onDragEnd = {
+                        if (mode == 3 && live.size >= 2) {
+                            val m = cur
+                            change(m.copy(strokes = m.strokes + BrushStroke(live.toList(), ui.brushSize, ui.erase, ui.brushSoft)))
+                            live.clear()
+                        }
+                        mode = 0
+                    },
+                ) { ch, _ ->
+                    ch.consume()
+                    val (x, y) = toImg(ch.position)
+                    val m = startMask
+                    when (m.type) {
+                        MaskType.LINEAR -> change(if (mode == 1) cur.copy(x0 = x, y0 = y) else cur.copy(x1 = x, y1 = y))
+                        MaskType.RADIAL -> if (mode == 1) {
+                            val (sx, sy) = toImg(startPt)
+                            change(cur.copy(cx = (m.cx + x - sx).coerceIn(-0.2f, 1.2f), cy = (m.cy + y - sy).coerceIn(-0.2f, 1.2f)))
+                        } else {
+                            val c = toScreen(m.cx, m.cy)
+                            val k = ((ch.position - c).getDistance() / (startPt - c).getDistance().coerceAtLeast(1f)).coerceIn(0.1f, 6f)
+                            change(cur.copy(rx = (m.rx * k).coerceIn(0.02f, 2f), ry = (m.ry * k).coerceIn(0.02f, 2f)))
+                        }
+                        MaskType.BRUSH -> { live += x; live += y }
+                        else -> {}
+                    }
+                }
+            }.pointerInput(mask.type, r, "tap") {
+                // A tap with the brush paints a dot.
+                if (mask.type == MaskType.BRUSH) detectTapGestures { o ->
+                    val (x, y) = toImg(o)
+                    val m = cur
+                    change(m.copy(strokes = m.strokes + BrushStroke(listOf(x, y), ui.brushSize, ui.erase, ui.brushSoft)))
+                }
+            },
+        ) {
+            val accent = Pro.Amber
+            when (mask.type) {
+                MaskType.LINEAR -> {
+                    val a = toScreen(mask.x0, mask.y0); val b = toScreen(mask.x1, mask.y1)
+                    val dir = (b - a); val len = dir.getDistance().coerceAtLeast(1f)
+                    val n = Offset(-dir.y / len, dir.x / len) * 2000f
+                    drawLine(Color.White, a - n, a + n, 2f)
+                    drawLine(Color.White.copy(alpha = 0.6f), b - n, b + n, 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(16f, 12f)))
+                    drawLine(accent, a, b, 3f)
+                    drawCircle(accent, 12.dp.toPx(), a); drawCircle(Color.White, 12.dp.toPx(), b, style = Stroke(4f))
+                }
+                MaskType.RADIAL -> {
+                    val c = toScreen(mask.cx, mask.cy)
+                    val sz = Size(mask.rx * r.w * 2, mask.ry * r.h * 2)
+                    drawOval(Color.White, Offset(c.x - sz.width / 2, c.y - sz.height / 2), sz, style = Stroke(3f))
+                    val inner = 1f - mask.feather.coerceIn(0.02f, 1f)
+                    val si = Size(sz.width * inner, sz.height * inner)
+                    drawOval(Color.White.copy(alpha = 0.5f), Offset(c.x - si.width / 2, c.y - si.height / 2), si, style = Stroke(2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 10f))))
+                    drawCircle(accent, 10.dp.toPx(), c)
+                }
+                MaskType.BRUSH -> {
+                    if (live.size >= 4) {
+                        val p = androidx.compose.ui.graphics.Path()
+                        val s0 = toScreen(live[0], live[1]); p.moveTo(s0.x, s0.y)
+                        var i = 2
+                        while (i + 1 < live.size) { val s = toScreen(live[i], live[i + 1]); p.lineTo(s.x, s.y); i += 2 }
+                        drawPath(p, (if (ui.erase) Color.White else accent).copy(alpha = 0.5f), style = Stroke(ui.brushSize * r.w, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+}
+
+/** Heal: tap a blemish to remove it; circles show healed spots. */
+@Composable
+fun HealOverlay(spots: List<Spot>, imgW: Int, imgH: Int, size: Float, onTap: (Float, Float) -> Unit) {
+    val tap by rememberUpdatedState(onTap)
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        val bw = with(density) { maxWidth.toPx() }; val bh = with(density) { maxHeight.toPx() }
+        val r = fit(bw, bh, imgW, imgH, with(density) { 6.dp.toPx() })
+        Canvas(Modifier.fillMaxSize().pointerInput(r) {
+            detectTapGestures { o ->
+                val x = (o.x - r.left) / r.w; val y = (o.y - r.top) / r.h
+                if (x in 0f..1f && y in 0f..1f) tap(x, y)
+            }
+        }) {
+            for (s in spots) {
+                val c = Offset(r.left + s.x * r.w, r.top + s.y * r.h)
+                drawCircle(Color.White, s.r * r.w, c, style = Stroke(2f))
+                val src = Offset(c.x + s.dx * r.w, c.y + s.dy * r.w)
+                drawCircle(Color.White.copy(alpha = 0.5f), s.r * r.w, src, style = Stroke(1.5f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f))))
+                drawLine(Color.White.copy(alpha = 0.4f), c, src, 1.5f)
+            }
+            // Brush size preview in the corner.
+            drawCircle(Pro.Amber, size * r.w, Offset(r.left + size * r.w + 12f, r.top + size * r.w + 12f), style = Stroke(3f))
+        }
+    }
+}
+
+/** The Masks panel: add, pick, show / hide, delete masks; edit the selected mask's settings. */
+@Composable
+fun MasksPanel(masks: List<PhotoMask>, ui: LocalToolsState, onMasks: (List<PhotoMask>) -> Unit, onAi: ((MaskType) -> Unit)? = null) {
+    SectionTitle("ADD A MASK")
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
+        SmallAction(Icons.Filled.Gradient, "Linear") { val m = PhotoMask(type = MaskType.LINEAR); onMasks(masks + m); ui.selected = m.id }
+        SmallAction(Icons.Filled.RadioButtonUnchecked, "Radial") { val m = PhotoMask(type = MaskType.RADIAL); onMasks(masks + m); ui.selected = m.id }
+        SmallAction(Icons.Filled.Brush, "Brush") { val m = PhotoMask(type = MaskType.BRUSH); onMasks(masks + m); ui.selected = m.id }
+        if (onAi != null) {
+            SmallAction(Icons.Filled.Visibility, "Subject (AI)") { onAi(MaskType.SUBJECT) }
+            SmallAction(Icons.Filled.Visibility, "Sky (AI)") { onAi(MaskType.SKY) }
+        }
+    }
+    if (masks.isEmpty()) {
+        Text("Masks change only part of the photo: a linear gradient (e.g. darken a sky), a radial (spotlight a face) or a brush you paint with.", color = Pro.Dim, fontSize = 11.sp)
+        return
+    }
+    SectionTitle("MASKS")
+    masks.forEachIndexed { i, m ->
+        val sel = m.id == ui.selected
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(8.dp))
+                .background(if (sel) Pro.Amber.copy(alpha = 0.16f) else Ed.Raised)
+                .border(1.dp, if (sel) Pro.Amber else Color.Transparent, RoundedCornerShape(8.dp))
+                .clickable { ui.selected = m.id }.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("${i + 1}. ${m.type.label}" + if (m.invert) " (inverted)" else "", color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
+            Icon(if (m.visible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, contentDescription = "Show", tint = Color.White,
+                modifier = Modifier.size(20.dp).clickable { onMasks(masks.map { if (it.id == m.id) it.copy(visible = !it.visible) else it }) })
+            Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = Color.White,
+                modifier = Modifier.padding(start = 10.dp).size(20.dp).clickable { onMasks(masks.filter { it.id != m.id }); if (sel) ui.selected = null })
+        }
+    }
+    val m = masks.firstOrNull { it.id == ui.selected } ?: return
+    fun upd(f: (PhotoMask) -> PhotoMask) = onMasks(masks.map { if (it.id == m.id) f(it) else it })
+    fun g(f: (ProGrade) -> ProGrade) = upd { it.copy(grade = f(it.grade)) }
+    SectionTitle("MASK ${masks.indexOf(m) + 1} · ${m.type.label.uppercase()}")
+    when (m.type) {
+        MaskType.LINEAR -> Text("Drag the filled handle (full effect) and the ring (no effect) on the photo.", color = Pro.Dim, fontSize = 11.sp)
+        MaskType.RADIAL -> {
+            Text("Drag the middle to move it, drag near the edge to resize.", color = Pro.Dim, fontSize = 11.sp)
+            EdSlider("Feather", m.feather, 0.02f..1f, 0.5f, ::pct) { v -> upd { it.copy(feather = v) } }
+        }
+        MaskType.BRUSH -> {
+            Text("Paint on the photo with your finger.", color = Pro.Dim, fontSize = 11.sp)
+            Chips(listOf("Add", "Erase"), if (ui.erase) 1 else 0) { ui.erase = it == 1 }
+            EdSlider("Brush size", ui.brushSize, 0.01f..0.3f, 0.08f, ::pct) { ui.brushSize = it }
+            EdSlider("Softness", ui.brushSoft, 0f..1f, 0.5f, ::pct) { ui.brushSoft = it }
+            Text("CLEAR STROKES", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { upd { it.copy(strokes = emptyList()) } }.padding(6.dp))
+        }
+        else -> Text("Selected by the AI.", color = Pro.Dim, fontSize = 11.sp)
+    }
+    Chips(listOf("Normal", "Inverted"), if (m.invert) 1 else 0) { i -> upd { it.copy(invert = i == 1) } }
+    Chips(listOf("Show mask", "Hide mask"), if (ui.showOverlay) 0 else 1) { ui.showOverlay = it == 0 }
+    EdSlider("Mask strength", m.amount, 0f..1f, 1f, ::pct) { v -> upd { it.copy(amount = v) } }
+    SectionTitle("ADJUST INSIDE THE MASK") { g { ProGrade() } }
+    val gr = m.grade
+    EdSlider("Exposure", gr.exposure, -3f..3f, format = ::ev) { v -> g { it.copy(exposure = v) } }
+    EdSlider("Contrast", gr.contrast) { v -> g { it.copy(contrast = v) } }
+    EdSlider("Highlights", gr.highlights) { v -> g { it.copy(highlights = v) } }
+    EdSlider("Shadows", gr.shadows) { v -> g { it.copy(shadows = v) } }
+    EdSlider("Temperature", gr.temperature) { v -> g { it.copy(temperature = v) } }
+    EdSlider("Tint", gr.tint) { v -> g { it.copy(tint = v) } }
+    EdSlider("Saturation", gr.saturation) { v -> g { it.copy(saturation = v) } }
+    EdSlider("Dehaze", gr.dehaze) { v -> g { it.copy(dehaze = v) } }
+}
+
+/** Camera details copied from the original into an exported photo. */
+private val EXIF_KEEP = listOf(
+    androidx.exifinterface.media.ExifInterface.TAG_DATETIME_ORIGINAL, androidx.exifinterface.media.ExifInterface.TAG_DATETIME,
+    androidx.exifinterface.media.ExifInterface.TAG_OFFSET_TIME_ORIGINAL, androidx.exifinterface.media.ExifInterface.TAG_MAKE,
+    androidx.exifinterface.media.ExifInterface.TAG_MODEL, androidx.exifinterface.media.ExifInterface.TAG_F_NUMBER,
+    androidx.exifinterface.media.ExifInterface.TAG_EXPOSURE_TIME, androidx.exifinterface.media.ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY,
+    androidx.exifinterface.media.ExifInterface.TAG_FOCAL_LENGTH, androidx.exifinterface.media.ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM,
+    androidx.exifinterface.media.ExifInterface.TAG_LENS_MAKE, androidx.exifinterface.media.ExifInterface.TAG_LENS_MODEL,
+    androidx.exifinterface.media.ExifInterface.TAG_WHITE_BALANCE, androidx.exifinterface.media.ExifInterface.TAG_FLASH,
+    androidx.exifinterface.media.ExifInterface.TAG_ARTIST, androidx.exifinterface.media.ExifInterface.TAG_COPYRIGHT,
+)
+private val EXIF_GPS = listOf(
+    androidx.exifinterface.media.ExifInterface.TAG_GPS_LATITUDE, androidx.exifinterface.media.ExifInterface.TAG_GPS_LATITUDE_REF,
+    androidx.exifinterface.media.ExifInterface.TAG_GPS_LONGITUDE, androidx.exifinterface.media.ExifInterface.TAG_GPS_LONGITUDE_REF,
+    androidx.exifinterface.media.ExifInterface.TAG_GPS_ALTITUDE, androidx.exifinterface.media.ExifInterface.TAG_GPS_ALTITUDE_REF,
+    androidx.exifinterface.media.ExifInterface.TAG_GPS_TIMESTAMP, androidx.exifinterface.media.ExifInterface.TAG_GPS_DATESTAMP,
+)
+
+val PHOTO_FORMATS = listOf("JPEG", "PNG", "WebP", "HEIC")
+
+/**
+ * Saves an exported photo as JPEG, PNG, WebP or HEIC, optionally with the original's camera
+ * details (and location unless [stripGps]), into the chosen folder or DCIM/AcluxPro.
+ */
+fun savePhotoAs(context: Context, bmp: Bitmap, format: Int, quality: Int, exifFrom: Uri?, stripGps: Boolean): Uri? {
+    val f = if (format == 3 && Build.VERSION.SDK_INT < 28) 0 else format
+    val ext = listOf("jpg", "png", "webp", "heic")[f]
+    val mime = listOf("image/jpeg", "image/png", "image/webp", "image/heic")[f]
+    val name = "EDIT_" + java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date()) + ".$ext"
+    val tmp = File(context.cacheDir, "export_${System.currentTimeMillis()}.$ext")
+    try {
+        when (f) {
+            3 -> {
+                val w = androidx.heifwriter.HeifWriter.Builder(tmp.path, bmp.width, bmp.height, androidx.heifwriter.HeifWriter.INPUT_MODE_BITMAP)
+                    .setQuality(quality.coerceIn(1, 100)).build()
+                w.start(); w.addBitmap(bmp); w.stop(60_000); w.close()
+            }
+            else -> tmp.outputStream().use { os ->
+                val cf = when (f) {
+                    1 -> Bitmap.CompressFormat.PNG
+                    2 -> if (Build.VERSION.SDK_INT >= 30) Bitmap.CompressFormat.WEBP_LOSSY else @Suppress("DEPRECATION") Bitmap.CompressFormat.WEBP
+                    else -> Bitmap.CompressFormat.JPEG
+                }
+                bmp.compress(cf, quality, os)
+            }
+        }
+        // Camera details (EXIF) for JPEG / WebP.
+        if (exifFrom != null && (f == 0 || f == 2)) try {
+            val src = context.contentResolver.openInputStream(exifFrom)?.use { androidx.exifinterface.media.ExifInterface(it) }
+            if (src != null) {
+                val dst = androidx.exifinterface.media.ExifInterface(tmp.path)
+                for (t in EXIF_KEEP) src.getAttribute(t)?.let { dst.setAttribute(t, it) }
+                if (!stripGps) for (t in EXIF_GPS) src.getAttribute(t)?.let { dst.setAttribute(t, it) }
+                dst.setAttribute(androidx.exifinterface.media.ExifInterface.TAG_SOFTWARE, "AcluxPro")
+                dst.saveAttributes()
+            }
+        } catch (_: Throwable) {}
+        SaveFolder.write(context, false, name, mime) { os -> tmp.inputStream().use { it.copyTo(os) } }?.let { return it }
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(MediaStore.MediaColumns.MIME_TYPE, mime)
+            if (Build.VERSION.SDK_INT >= 29) {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+        }
+        val resolver = context.contentResolver
+        val target = resolver.insert(com.dronedirector.acluxpro.camera.Storage.imagesUri(com.dronedirector.acluxpro.camera.Storage.load(context)), values) ?: return null
+        return try {
+            resolver.openOutputStream(target)?.use { os -> tmp.inputStream().use { it.copyTo(os) } }
+            if (Build.VERSION.SDK_INT >= 29) resolver.update(target, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+            target
+        } catch (_: Throwable) { resolver.delete(target, null, null); null }
+    } finally { tmp.delete() }
+}
+

@@ -4,6 +4,8 @@ import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.rememberUpdatedState
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -85,6 +87,7 @@ import com.dronedirector.acluxpro.ui.Pro
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.dronedirector.acluxpro.ui.hintedScroll
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -95,11 +98,15 @@ private data class PhotoEdit(
     val detail: Detail = Detail(),
     val geometry: Geometry = Geometry(),
     val watermark: Layer? = null,
+    val masks: List<PhotoMask> = emptyList(),
+    val spots: List<Spot> = emptyList(),
+    val lens: LensFix = LensFix(),
 )
 
 private enum class PhotoPanel(val label: String) {
     PRESETS("Presets"), LIGHT("Light"), CURVE("Curve"), COLOR("Color"), MIXER("HSL Mixer"),
-    GRADING("Grading"), DETAIL("Detail"), EFFECTS("Effects"), CROP("Crop & format"), WATERMARK("Watermark"), EXPORT("Export"),
+    GRADING("Grading"), DETAIL("Detail"), EFFECTS("Effects"), MASKS("Masks"), HEAL("Heal"), LENS("Lens"),
+    CROP("Crop & perspective"), WATERMARK("Watermark"), EXPORT("Export"),
 }
 
 @Composable
@@ -110,11 +117,40 @@ fun PhotoEditorScreen(onExit: () -> Unit) {
 
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> if (uri != null) source = uri }
     val browse = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) source = uri }
+    // Merge several photos (HDR, panorama, focus stack) into a new one, then edit it.
+    val scope = rememberCoroutineScope()
+    var mergeKind by remember { mutableStateOf<MergeKind?>(null) }
+    var merging by remember { mutableStateOf<String?>(null) }
+    val mergePick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(8)) { list ->
+        val kind = mergeKind ?: return@rememberLauncherForActivityResult
+        if (list.size < 2) { if (list.isNotEmpty()) android.widget.Toast.makeText(context, "Pick at least 2 photos", android.widget.Toast.LENGTH_SHORT).show(); return@rememberLauncherForActivityResult }
+        merging = "Starting…"
+        scope.launch {
+            val uri = withContext(Dispatchers.Default) {
+                try {
+                    val b = Merge.run(context, kind, list) { msg -> scope.launch { merging = msg } } ?: return@withContext null
+                    savePhotoAs(context, b, 0, 95, list[list.size / 2], false).also { b.recycle() }
+                } catch (_: OutOfMemoryError) { null } catch (_: Throwable) { null }
+            }
+            merging = null
+            if (uri != null) { project = null; source = uri }
+            else android.widget.Toast.makeText(context, "Couldn't merge those photos", android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
 
     val src = source
     if (src == null) {
         BackHandler { onExit() }
+        merging?.let { msg ->
+            androidx.compose.ui.window.Dialog(onDismissRequest = {}) {
+                Column(Modifier.clip(RoundedCornerShape(16.dp)).background(Pro.PanelSolid).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Pro.Amber)
+                    Text(msg, color = Color.White, modifier = Modifier.padding(top = 12.dp))
+                }
+            }
+        }
         MediaChooser(
+            onMerge = { k -> mergeKind = k; mergePick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             title = "Photo editor",
             subtitle = "Choose a photo to edit. The original is never changed; edits are exported as a new picture.",
             videos = false,
@@ -150,6 +186,7 @@ fun MediaChooser(
     onFiles: () -> Unit,
     onRecent: (Uri) -> Unit,
     onOpenProject: (String) -> Unit = {},
+    onMerge: ((MergeKind) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     var settings by remember { mutableStateOf(false) }
@@ -169,6 +206,17 @@ fun MediaChooser(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             BigButton(Icons.Filled.PhotoLibrary, if (videos) "Gallery videos" else "Gallery photos", Modifier.weight(1f), onGallery)
             BigButton(Icons.Filled.FolderOpen, "Browse files", Modifier.weight(1f), onFiles)
+        }
+        if (onMerge != null) {
+            Text("MERGE PHOTOS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp, bottom = 4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
+                MergeKind.entries.forEach { k ->
+                    Column(Modifier.width(150.dp).clip(RoundedCornerShape(10.dp)).background(Ed.Raised).clickable { onMerge(k) }.padding(10.dp)) {
+                        Text(k.label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text(k.hint, color = Pro.Dim, fontSize = 10.sp, maxLines = 3)
+                    }
+                }
+            }
         }
         if (videos) {
             Text("Browse files also opens MKV, MOV, WebM and clips from SD cards or USB drives.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
@@ -221,7 +269,8 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     var preview by remember { mutableStateOf<Bitmap?>(null) }
     var edit by remember {
         mutableStateOf(
-            if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark)
+            @Suppress("USELESS_ELVIS")
+            if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix())
             else PhotoEdit(watermark = WatermarkMemory.load(context, false))
         )
     }
@@ -251,13 +300,22 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     // Export options
     var format by remember { mutableStateOf(initial?.format ?: 0) }       // JPEG, PNG
     var quality by remember { mutableStateOf(initial?.quality ?: 0.95f) }
-    var sizeIdx by remember { mutableStateOf(initial?.sizeIdx ?: 0) }       // Full, 4096, 2560, 1920, 1080
+    var sizeIdx by remember { mutableStateOf(initial?.sizeIdx ?: 0) }       // see `sizes`
+    var aiScale by remember { mutableStateOf(0) }                          // 0 = off, 2, 4
+    var keepExif by remember { mutableStateOf(true) }
+    var stripGps by remember { mutableStateOf(false) }
+    val tools = remember { LocalToolsState() }
+    // AI masks (subject / sky) are kept as grey pictures in the app's files.
+    val aiMasks = remember { mutableStateMapOf<String, Bitmap>() }
+    LaunchedEffect(edit.masks.mapNotNull { it.maskFile }) {
+        for (f in edit.masks.mapNotNull { it.maskFile }) if (aiMasks[f] == null) withContext(Dispatchers.IO) { BitmapFactory.decodeFile(f) }?.let { aiMasks[f] = it }
+    }
     fun saveProject(name: String) {
         val e = edit
         val p = PhotoProjectData(
             id = projectId ?: java.util.UUID.randomUUID().toString(), name = name, uri = uri,
             grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark,
-            format = format, quality = quality, sizeIdx = sizeIdx,
+            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens,
         )
         val thumb = preview
         scope.launch {
@@ -267,7 +325,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
         }
     }
     if (askName) ProjectNameDialog(ProjectStore.defaultName(false), onSave = { askName = false; saveProject(it) }, onDismiss = { askName = false })
-    val sizes = listOf(4800, 4096, 2560, 1920, 1080)
+    val sizes = listOf(4800, 4096, 2560, 1920, 1080, 2048, 3840)
 
     BackHandler { if (!busy) onClose() }
     val pickLogo = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { u ->
@@ -300,6 +358,9 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
             else -> { edit = edit.copy(detail = edit.detail.copy(aiDenoise = 0f)); message = "AI noise reduction isn't available on this phone" }
         }
     }
+    // Heal works on the whole, uncropped photo so taps land where they should.
+    val healMode = rememberUpdatedState(panel == PhotoPanel.HEAL)
+    LaunchedEffect(panel == PhotoPanel.HEAL, aiMasks.size) { renderReq.trySend(edit) }
     LaunchedEffect(base, aiBase) {
         val b = base ?: return@LaunchedEffect
         val ai = aiBase
@@ -320,8 +381,9 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
             val isSmall = src === small
             val s0 = if (e.detail.aiDenoise > 0f) mixed(src, if (isSmall) aiSmall else ai, e.detail.aiDenoise) else src
             val tables = if (e.grade.isIdentity) null else e.grade.tables()
-            val r = ImageOps.render(s0, e.grade, e.detail, e.geometry, tables)
-            return e.watermark?.let { stampLayer(context, r, it) } ?: r
+            val healNow = healMode.value
+            val r = ImageOps.renderPhoto(s0, e.grade, e.detail, if (healNow) Geometry() else e.geometry, tables, e.lens, e.spots, if (healNow) null else e.masks, aiMasks.toMap())
+            return if (healNow) r else (e.watermark?.let { stampLayer(context, r, it) } ?: r)
         }
         renderReq.trySend(edit)
         var next: PhotoEdit? = null
@@ -387,10 +449,19 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                         }
                     }
                     val tables = if (e.grade.isIdentity) null else e.grade.tables()
-                    var out = ImageOps.render(full, e.grade, e.detail, e.geometry, tables)
+                    var out = ImageOps.renderPhoto(full, e.grade, e.detail, e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap())
                     full.recycle()
+                    // AI upscale (×2 / ×4, at most 24 MP).
+                    if (aiScale > 1) {
+                        val k = minOf(aiScale.toFloat(), kotlin.math.sqrt(24e6f / (out.width.toFloat() * out.height)))
+                        if (k > 1.05f) {
+                            val up = com.dronedirector.acluxpro.camera.Upscaler.upscaleBitmap(context, out, (out.width * k).toInt() / 2 * 2, (out.height * k).toInt() / 2 * 2)
+                                ?: throw AiDenoiser.Stopped()
+                            out.recycle(); out = up
+                        }
+                    }
                     e.watermark?.let { out = stampLayer(context, out, it) }
-                    savePicture(context, out, png = format == 1, quality = (quality * 100).toInt())
+                    savePhotoAs(context, out, format, (quality * 100).toInt(), if (keepExif) uri else null, stripGps)
                 } catch (_: OutOfMemoryError) {
                     null
                 } catch (t: Throwable) {
@@ -406,10 +477,56 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
         }
     }
 
+    // AI selections and AI erase (filled in by the AI tools).
+    val aiMaskAction: ((MaskType) -> Unit)? = null
+    val aiEraseSection: @Composable () -> Unit = {}
+
+    /** Heal: tap a spot; the patch source is picked automatically. */
+    fun addSpot(x: Float, y: Float) {
+        val b = base ?: return
+        val r = tools.healSize
+        scope.launch {
+            val (dx, dy) = withContext(Dispatchers.Default) { PhotoLocal.findSource(b, x, y, r) }
+            edit = edit.copy(spots = edit.spots + Spot(x, y, r, dx, dy))
+        }
+    }
+
+    /** Batch: the current look (and optionally crop, masks and watermark) applied to many photos. */
+    var batchWithCrop by remember { mutableStateOf(false) }
+    val batchPick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(50)) { list ->
+        if (list.isEmpty() || busy) return@rememberLauncherForActivityResult
+        busy = true
+        val e = edit
+        scope.launch {
+            var done = 0
+            for ((i, u) in list.withIndex()) {
+                message = "Batch ${i + 1} / ${list.size}…"
+                val ok = withContext(Dispatchers.IO) {
+                    try {
+                        val full = GradeIO.decode(context, u, sizes[sizeIdx]) ?: return@withContext false
+                        val tables = if (e.grade.isIdentity) null else e.grade.tables()
+                        var out = ImageOps.renderPhoto(full, e.grade, e.detail.copy(aiDenoise = 0f), if (batchWithCrop) e.geometry else Geometry(), tables, e.lens, null, if (batchWithCrop) e.masks.filter { it.maskFile == null } else null)
+                        full.recycle()
+                        if (batchWithCrop) e.watermark?.let { out = stampLayer(context, out, it) }
+                        savePhotoAs(context, out, format, (quality * 100).toInt(), if (keepExif) u else null, stripGps) != null
+                    } catch (_: Throwable) { false }
+                }
+                if (ok) done++
+            }
+            busy = false
+            message = "Batch done: $done of ${list.size} photos saved"
+        }
+    }
+
     Box(Modifier.fillMaxSize().background(Ed.Bg)) {
         com.dronedirector.acluxpro.ui.AiBadgeHost(
             AiDenoiser.running, "AI NOISE REDUCTION", 1, AiDenoiser.progress, onStop = { AiDenoiser.stop() },
             modifier = Modifier.align(Alignment.TopCenter).zIndex(20f),
+        )
+        com.dronedirector.acluxpro.ui.AiBadgeHost(
+            com.dronedirector.acluxpro.camera.Upscaler.pending > 0, "AI UPSCALING", 1, com.dronedirector.acluxpro.camera.Upscaler.progress,
+            onStop = { com.dronedirector.acluxpro.camera.Upscaler.cancelAll() },
+            modifier = Modifier.align(Alignment.TopCenter).zIndex(22f),
         )
         com.dronedirector.acluxpro.ui.AiBadgeHost(
             com.dronedirector.acluxpro.camera.CloudAi.stage != null, com.dronedirector.acluxpro.camera.CloudAi.stage ?: "", 1,
@@ -421,11 +538,13 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
             val boxW = maxWidth.value; val boxH = maxHeight.value
             val previewBox = @Composable { mod: Modifier ->
                 Box(
-                    mod.pointerInput(split) {
+                    mod.pointerInput(split, panel) {
                         if (split) {
                             // Drag anywhere to move the before / after divider.
                             detectHorizontalDragGestures { ch, _ -> splitX = (ch.position.x / size.width).coerceIn(0.02f, 0.98f) }
-                        } else detectTapGestures(onPress = { comparing = true; tryAwaitRelease(); comparing = false })
+                        } else if (panel != PhotoPanel.MASKS && panel != PhotoPanel.HEAL) {
+                            detectTapGestures(onPress = { comparing = true; tryAwaitRelease(); comparing = false })
+                        }
                     },
                     contentAlignment = Alignment.Center,
                 ) {
@@ -452,6 +571,15 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                         }
                         shown != null -> Image(shown.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(6.dp))
                         else -> CircularProgressIndicator(color = Pro.Amber)
+                    }
+                    // Mask handles / brush, and heal taps, on top of the photo.
+                    val shownNow = if (comparing) base else preview ?: base
+                    if (!split && !comparing && shownNow != null) {
+                        val selMask = edit.masks.firstOrNull { it.id == tools.selected }
+                        if (panel == PhotoPanel.MASKS && selMask != null) MaskEditOverlay(selMask, shownNow.width, shownNow.height, tools) { m ->
+                            edit = edit.copy(masks = edit.masks.map { if (it.id == m.id) m else it })
+                        }
+                        if (panel == PhotoPanel.HEAL) HealOverlay(edit.spots, shownNow.width, shownNow.height, tools.healSize) { x, y -> addSpot(x, y) }
                     }
                     if (showScope && !comparing) Scope(hist, Modifier.align(Alignment.TopEnd).padding(8.dp).width(130.dp).height(64.dp))
                     Row(Modifier.align(Alignment.TopStart).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -501,14 +629,54 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                         },
                     )
                     Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 4.dp)) {
-                        PhotoPanelContent(
-                            panel, edit, { edit = it },
-                            exportState = ExportState(format, quality, sizeIdx),
-                            onExportState = { f, q, si -> format = f; quality = q; sizeIdx = si },
-                            onExport = { export() },
-                            busy = busy,
-                            onPickLogo = { pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                        )
+                        when (panel) {
+                            PhotoPanel.MASKS -> MasksPanel(edit.masks, tools, { edit = edit.copy(masks = it) }, onAi = aiMaskAction)
+                            PhotoPanel.HEAL -> {
+                                SectionTitle("HEAL / REMOVE SPOTS") { edit = edit.copy(spots = emptyList()) }
+                                Text("Tap dust, blemishes or small objects on the photo. A matching patch from nearby is blended over each one (the whole photo is shown while you heal).", color = Pro.Dim, fontSize = 11.sp)
+                                EdSlider("Size", tools.healSize, 0.005f..0.12f, 0.025f, ::pct) { tools.healSize = it }
+                                Text("${edit.spots.size} spot(s) healed", style = Pro.Label)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("UNDO LAST", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable { edit = edit.copy(spots = edit.spots.dropLast(1)) }.padding(8.dp))
+                                    Text("CLEAR ALL", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { edit = edit.copy(spots = emptyList()) }.padding(8.dp))
+                                }
+                                aiEraseSection()
+                            }
+                            PhotoPanel.LENS -> {
+                                val l = edit.lens
+                                SectionTitle("LENS CORRECTIONS") { edit = edit.copy(lens = LensFix()) }
+                                EdSlider("Distortion", l.distortion) { v -> edit = edit.copy(lens = l.copy(distortion = v)) }
+                                Text("+ straightens bulging lines from wide / ultra-wide lenses, − fixes pinched lines from telephotos.", color = Pro.Dim, fontSize = 11.sp)
+                                EdSlider("Vignetting", l.vignette, 0f..1f, 0f, ::pct) { v -> edit = edit.copy(lens = l.copy(vignette = v)) }
+                                EdSlider("Colour fringes", l.fringe) { v -> edit = edit.copy(lens = l.copy(fringe = v)) }
+                                Text("Colour fringes lines up red and blue at the edges of the picture (purple / green outlines).", color = Pro.Dim, fontSize = 11.sp)
+                            }
+                            else -> PhotoPanelContent(
+                                panel, edit, { edit = it },
+                                exportState = ExportState(format, quality, sizeIdx),
+                                onExportState = { f, q, si -> format = f; quality = q; sizeIdx = si },
+                                onExport = { export() },
+                                busy = busy,
+                                onPickLogo = { pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                            )
+                        }
+                        if (panel == PhotoPanel.EXPORT) {
+                            SectionTitle("AI UPSCALE")
+                            Chips(listOf("Off", "AI 2×", "AI 4×"), when (aiScale) { 2 -> 1; 4 -> 2; else -> 0 }) { aiScale = listOf(0, 2, 4)[it] }
+                            Text("Makes the exported photo bigger with the built-in AI (ESRGAN) — or Topaz in the cloud when Cloud AI is on. Up to 24 MP.", color = Pro.Dim, fontSize = 11.sp)
+                            SectionTitle("CAMERA INFO")
+                            Chips(listOf("Keep camera info", "Remove all"), if (keepExif) 0 else 1) { keepExif = it == 0 }
+                            if (keepExif) Chips(listOf("Keep location", "Remove location"), if (stripGps) 1 else 0) { stripGps = it == 1 }
+                            Text("Date, camera, lens and settings are copied into JPEG and WebP exports.", color = Pro.Dim, fontSize = 11.sp)
+                            SectionTitle("BATCH")
+                            Chips(listOf("Look only", "Look + crop + masks + watermark"), if (batchWithCrop) 1 else 0) { batchWithCrop = it == 1 }
+                            Text(
+                                if (busy) "WORKING…" else "BATCH EXPORT MANY PHOTOS…", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                                modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised)
+                                    .clickable(enabled = !busy) { batchPick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }.padding(10.dp),
+                            )
+                            Text("Pick up to 50 photos: each gets this edit and is exported with the settings above.", color = Pro.Dim, fontSize = 11.sp)
+                        }
                     }
                 }
             }
@@ -667,6 +835,10 @@ private fun PhotoPanelContent(
                 SmallAction(Icons.Filled.Flip, "Flip V") { geo { it.copy(flipV = !it.flipV) } }
             }
             EdSlider("Straighten", geom.straighten, -45f..45f, format = { "%+.1f°".format(it) }) { v -> geo { it.copy(straighten = v) } }
+            SectionTitle("PERSPECTIVE") { geo { it.copy(vertical = 0f, horizontal = 0f) } }
+            EdSlider("Vertical", geom.vertical) { v -> geo { it.copy(vertical = v) } }
+            Text("+ straightens buildings that lean in at the top (shot from below), − the opposite.", color = Pro.Dim, fontSize = 11.sp)
+            EdSlider("Horizontal", geom.horizontal) { v -> geo { it.copy(horizontal = v) } }
             SectionTitle("FRAMING")
             EdSlider("Zoom", geom.zoom, 1f..4f, 1f, { "%.2fx".format(it) }) { v -> geo { it.copy(zoom = v) } }
             EdSlider("Horizontal", geom.offsetX) { v -> geo { it.copy(offsetX = v) } }
@@ -715,10 +887,11 @@ private fun PhotoPanelContent(
         }
         PhotoPanel.EXPORT -> {
             SectionTitle("FORMAT")
-            Chips(listOf("JPEG", "PNG (lossless)"), exportState.format) { onExportState(it, exportState.quality, exportState.sizeIdx) }
-            if (exportState.format == 0) EdSlider("Quality", exportState.quality, 0.6f..1f, 0.95f, ::pct) { onExportState(exportState.format, it, exportState.sizeIdx) }
+            Chips(PHOTO_FORMATS, exportState.format) { onExportState(it, exportState.quality, exportState.sizeIdx) }
+            if (exportState.format == 3) Text("HEIC: about half the size of JPEG (Android 9+).", color = Pro.Dim, fontSize = 11.sp)
+            if (exportState.format != 1) EdSlider("Quality", exportState.quality, 0.6f..1f, 0.95f, ::pct) { onExportState(exportState.format, it, exportState.sizeIdx) }
             SectionTitle("SIZE (LONG EDGE)")
-            Chips(listOf("Full (≤4800)", "4096", "2560", "1920", "1080"), exportState.sizeIdx) { onExportState(exportState.format, exportState.quality, it) }
+            Chips(listOf("Full (≤4800)", "4096", "2560", "1920", "Instagram 1080", "Web 2048", "4K 3840"), exportState.sizeIdx) { onExportState(exportState.format, exportState.quality, it) }
             Text("Exports a new picture to DCIM/AcluxPro; the original stays untouched.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 8.dp))
             Text(
                 if (busy) "EXPORTING…" else "EXPORT PHOTO",

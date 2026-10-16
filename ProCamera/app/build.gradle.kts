@@ -77,6 +77,7 @@ dependencies {
     implementation("com.google.ai.edge.litert:litert:2.1.0")
     implementation("androidx.security:security-crypto:1.0.0")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
+    implementation("androidx.heifwriter:heifwriter:1.0.0")
     // Video colour grading (export with a LUT).
     implementation("androidx.media3:media3-transformer:1.11.1")
     implementation("androidx.media3:media3-effect:1.11.1")

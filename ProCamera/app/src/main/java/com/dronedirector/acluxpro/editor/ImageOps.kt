@@ -22,6 +22,9 @@ data class Geometry(
     val zoom: Float = 1f,          // 1..4, crop tighter
     val offsetX: Float = 0f,       // -1..1
     val offsetY: Float = 0f,
+    /** Perspective (keystone): vertical and horizontal, -1..1. */
+    val vertical: Float = 0f,
+    val horizontal: Float = 0f,
 ) {
     val isIdentity get() = this == Geometry()
 }
@@ -29,8 +32,9 @@ data class Geometry(
 object ImageOps {
 
     /** Applies geometry: rotation, flip, straighten (auto-zoomed to avoid empty corners), crop. */
-    fun geometry(src: Bitmap, g: Geometry): Bitmap {
-        if (g.isIdentity) return src
+    fun geometry(src0: Bitmap, g: Geometry): Bitmap {
+        if (g.isIdentity) return src0
+        val src = PhotoLocal.perspective(src0, g.vertical, g.horizontal)
         val turns = ((g.rotate90 % 4) + 4) % 4
         val rw = if (turns % 2 == 1) src.height else src.width
         val rh = if (turns % 2 == 1) src.width else src.height
@@ -54,6 +58,7 @@ object ImageOps {
         val maxPanX = (rw - cw) / 2f; val maxPanY = (rh - ch) / 2f
         m.postTranslate(outW / 2f - g.offsetX * maxPanX, outH / 2f - g.offsetY * maxPanY)
         Canvas(out).drawBitmap(src, m, Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
+        if (src !== src0) src.recycle()
         return out
     }
 
@@ -203,6 +208,29 @@ object ImageOps {
         val g = (((a shr 8) and 0xFF) * (1 - t) + ((b shr 8) and 0xFF) * t).toInt()
         val bl = ((a and 0xFF) * (1 - t) + (b and 0xFF) * t).toInt()
         return (0xFF shl 24) or (r shl 16) or (g shl 8) or bl
+    }
+
+    /**
+     * Photo editor render: healing and lens fixes on the original, then geometry, colour, detail
+     * and the local masks.
+     */
+    fun renderPhoto(
+        src: Bitmap, grade: ProGrade, detail: Detail, geometry: Geometry, tables: Array<FloatArray>?,
+        lens: LensFix?, spots: List<Spot>?, masks: List<PhotoMask>?, aiMasks: Map<String, Bitmap> = emptyMap(),
+    ): Bitmap {
+        var b = src
+        if (!spots.isNullOrEmpty()) b = PhotoLocal.heal(b, spots)
+        if (lens != null && !lens.isIdentity) { val l = PhotoLocal.lens(b, lens); if (b !== src && l !== b) b.recycle(); b = l }
+        val g = geometry(b, geometry)
+        if (b !== src && g !== b) b.recycle()
+        val w = g.width; val h = g.height
+        val px = IntArray(w * h)
+        g.getPixels(px, 0, w, 0, 0, w, h)
+        if (g !== src) g.recycle()
+        if (tables != null) applyLut(px, tables)
+        detail(px, w, h, detail)
+        if (!masks.isNullOrEmpty()) PhotoLocal.applyMasks(px, w, h, masks, aiMasks)
+        return Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
     }
 
     /** Full render: geometry, colour, detail. */

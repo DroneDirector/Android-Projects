@@ -1417,9 +1417,10 @@ private fun ColorPage(
             Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("AI NOISE REDUCTION", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp))
                 Box(
-                    Modifier.padding(start = 8.dp).size(20.dp).clip(CircleShape).background(Pro.Amber).clickable { aiInfo = true },
+                    Modifier.padding(start = 8.dp).size(22.dp).clip(CircleShape)
+                        .border(1.5.dp, Pro.Amber, CircleShape).clickable { aiInfo = true },
                     contentAlignment = Alignment.Center,
-                ) { Text("!", color = Color.Black, fontSize = 13.sp, fontWeight = FontWeight.Black) }
+                ) { Text("!", color = Pro.Amber, fontSize = 13.sp, fontWeight = FontWeight.Black) }
             }
             EdSlider("Strength", c.detail.aiDenoise, 0f..1f, format = { if (it <= 0f) "Off" else pct(it) }) { v -> detail { it.copy(aiDenoise = v) } }
             if (aiInfo) androidx.compose.material3.AlertDialog(

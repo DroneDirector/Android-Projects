@@ -217,8 +217,10 @@ object ImageOps {
     fun renderPhoto(
         src: Bitmap, grade: ProGrade, detail: Detail, geometry: Geometry, tables: Array<FloatArray>?,
         lens: LensFix?, spots: List<Spot>?, masks: List<PhotoMask>?, aiMasks: Map<String, Bitmap> = emptyMap(),
+        bg: PhotoBackground? = null,
     ): Bitmap {
         var b = src
+        val srcW = src.width; val srcH = src.height
         if (!spots.isNullOrEmpty()) b = PhotoLocal.heal(b, spots)
         if (lens != null && !lens.isIdentity) { val l = PhotoLocal.lens(b, lens); if (b !== src && l !== b) b.recycle(); b = l }
         val g = geometry(b, geometry)
@@ -229,8 +231,24 @@ object ImageOps {
         if (g !== src) g.recycle()
         if (tables != null) applyLut(px, tables)
         detail(px, w, h, detail)
-        if (!masks.isNullOrEmpty()) PhotoLocal.applyMasks(px, w, h, masks, aiMasks)
-        return Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
+        // AI selections are made on the uncropped photo: give them the same crop / rotation.
+        val used = (masks.orEmpty().filter { it.visible }.mapNotNull { it.maskFile } + listOfNotNull(bg?.takeIf { it.active }?.maskFile)).distinct()
+        val placed = HashMap<String, Bitmap>()
+        for (f in used) aiMasks[f]?.let { m ->
+            val s = Bitmap.createScaledBitmap(m, srcW, srcH, true)
+            val gm = geometry(s, geometry)
+            if (gm !== s) s.recycle()
+            placed[f] = gm
+        }
+        if (!masks.isNullOrEmpty()) PhotoLocal.applyMasks(px, w, h, masks, placed)
+        var hasAlpha = false
+        if (bg != null && bg.active) placed[bg.maskFile]?.let { m ->
+            val wt = PhotoLocal.weights(PhotoMask(type = MaskType.SUBJECT, maskFile = bg.maskFile), w, h, m)
+            PhotoLocal.background(px, w, h, wt, bg)
+            hasAlpha = bg.mode == 2
+        }
+        placed.values.forEach { it.recycle() }
+        return Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888).also { if (hasAlpha) it.setHasAlpha(true) }
     }
 
     /** Full render: geometry, colour, detail. */

@@ -27,9 +27,22 @@ data class Reframe(
     val end: Frame = Frame(),
     val animate: Boolean = false,
     val flip: Boolean = false,
+    /** Auto-reframe: horizontal shift (fraction of the frame) at evenly spaced points through the clip. */
+    val track: List<Float>? = null,
 ) {
-    val isIdentity get() = start == Frame() && (!animate || end == Frame()) && !flip
+    val isIdentity get() = start == Frame() && (!animate || end == Frame()) && !flip && track.isNullOrEmpty()
     fun at(f: Float): Frame {
+        val t = track
+        if (!t.isNullOrEmpty()) {
+            val x = f.coerceIn(0f, 1f) * (t.size - 1)
+            val i = x.toInt().coerceAtMost(t.size - 2).coerceAtLeast(0)
+            val tx = if (t.size == 1) t[0] else t[i] + (t[i + 1] - t[i]) * (x - i)
+            return (if (animate) atKenBurns(f) else start).copy(x = tx)
+        }
+        return atKenBurns(f)
+    }
+
+    private fun atKenBurns(f: Float): Frame {
         if (!animate) return start
         val e = TransitionMath.ease(f.coerceIn(0f, 1f))
         return Frame(

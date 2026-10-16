@@ -41,6 +41,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -101,6 +102,8 @@ private data class PhotoEdit(
     val masks: List<PhotoMask> = emptyList(),
     val spots: List<Spot> = emptyList(),
     val lens: LensFix = LensFix(),
+    val bg: PhotoBackground = PhotoBackground(),
+    val baseFile: String? = null,
 )
 
 private enum class PhotoPanel(val label: String) {
@@ -270,7 +273,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     var edit by remember {
         mutableStateOf(
             @Suppress("USELESS_ELVIS")
-            if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix())
+            if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix(), initial.bg ?: PhotoBackground(), initial.baseFile)
             else PhotoEdit(watermark = WatermarkMemory.load(context, false))
         )
     }
@@ -307,15 +310,15 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     val tools = remember { LocalToolsState() }
     // AI masks (subject / sky) are kept as grey pictures in the app's files.
     val aiMasks = remember { mutableStateMapOf<String, Bitmap>() }
-    LaunchedEffect(edit.masks.mapNotNull { it.maskFile }) {
-        for (f in edit.masks.mapNotNull { it.maskFile }) if (aiMasks[f] == null) withContext(Dispatchers.IO) { BitmapFactory.decodeFile(f) }?.let { aiMasks[f] = it }
+    LaunchedEffect(edit.masks.mapNotNull { it.maskFile } + listOfNotNull(edit.bg.maskFile)) {
+        for (f in edit.masks.mapNotNull { it.maskFile } + listOfNotNull(edit.bg.maskFile)) if (aiMasks[f] == null) withContext(Dispatchers.IO) { BitmapFactory.decodeFile(f) }?.let { aiMasks[f] = it }
     }
     fun saveProject(name: String) {
         val e = edit
         val p = PhotoProjectData(
             id = projectId ?: java.util.UUID.randomUUID().toString(), name = name, uri = uri,
             grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark,
-            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens,
+            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile,
         )
         val thumb = preview
         scope.launch {
@@ -332,8 +335,10 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
         if (u != null) edit = edit.copy(watermark = Layer(kind = LayerKind.LOGO, imageUri = u, size = 0.1f, x = 0.86f, y = 0.9f, opacity = 0.85f, wholeVideo = true))
     }
 
-    LaunchedEffect(uri) {
-        val b = withContext(Dispatchers.IO) { GradeIO.decode(context, uri, 1400) }
+    // The photo being edited: the original, or its AI-erased copy.
+    fun sourceUri(e: PhotoEdit): Uri = e.baseFile?.let { Uri.fromFile(java.io.File(it)) } ?: uri
+    LaunchedEffect(uri, edit.baseFile) {
+        val b = withContext(Dispatchers.IO) { GradeIO.decode(context, sourceUri(edit), 1400) }
         if (b == null) failed = true else base = b
     }
     // Live preview: while a slider moves, a small copy is re-rendered continuously (never thrown
@@ -342,6 +347,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     LaunchedEffect(edit) { renderReq.trySend(edit) }
     // AI noise reduction: the AI cleans the preview image once; the strength slider then just blends.
     var aiBase by remember { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(edit.baseFile) { aiBase = null }
     val aiOn = edit.detail.aiDenoise > 0f
     LaunchedEffect(base, aiOn) {
         val b = base ?: return@LaunchedEffect
@@ -382,7 +388,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
             val s0 = if (e.detail.aiDenoise > 0f) mixed(src, if (isSmall) aiSmall else ai, e.detail.aiDenoise) else src
             val tables = if (e.grade.isIdentity) null else e.grade.tables()
             val healNow = healMode.value
-            val r = ImageOps.renderPhoto(s0, e.grade, e.detail, if (healNow) Geometry() else e.geometry, tables, e.lens, e.spots, if (healNow) null else e.masks, aiMasks.toMap())
+            val r = ImageOps.renderPhoto(s0, e.grade, e.detail, if (healNow) Geometry() else e.geometry, tables, e.lens, e.spots, if (healNow) null else e.masks, aiMasks.toMap(), if (healNow) null else e.bg)
             return if (healNow) r else (e.watermark?.let { stampLayer(context, r, it) } ?: r)
         }
         renderReq.trySend(edit)
@@ -423,7 +429,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
         scope.launch {
             val ok = withContext(Dispatchers.IO) {
                 try {
-                    var full = GradeIO.decode(context, uri, sizes[sizeIdx]) ?: return@withContext null
+                    var full = GradeIO.decode(context, sourceUri(e), sizes[sizeIdx]) ?: return@withContext null
                     if (e.detail.aiDenoise > 0f) {
                         // Full-resolution AI noise reduction (progress badge; can be stopped).
                         val n = full.width * full.height
@@ -449,7 +455,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                         }
                     }
                     val tables = if (e.grade.isIdentity) null else e.grade.tables()
-                    var out = ImageOps.renderPhoto(full, e.grade, e.detail, e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap())
+                    var out = ImageOps.renderPhoto(full, e.grade, e.detail, e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg)
                     full.recycle()
                     // AI upscale (×2 / ×4, at most 24 MP).
                     if (aiScale > 1) {
@@ -461,7 +467,9 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                         }
                     }
                     e.watermark?.let { out = stampLayer(context, out, it) }
-                    savePhotoAs(context, out, format, (quality * 100).toInt(), if (keepExif) uri else null, stripGps)
+                    // A removed background needs a format with transparency.
+                    val fmt = if (e.bg.active && e.bg.mode == 2 && format != 1 && format != 2) 1 else format
+                    savePhotoAs(context, out, fmt, (quality * 100).toInt(), if (keepExif) uri else null, stripGps)
                 } catch (_: OutOfMemoryError) {
                     null
                 } catch (t: Throwable) {
@@ -477,9 +485,105 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
         }
     }
 
-    // AI selections and AI erase (filled in by the AI tools).
-    val aiMaskAction: ((MaskType) -> Unit)? = null
-    val aiEraseSection: @Composable () -> Unit = {}
+    // ---- AI selections (subject / sky), background and AI erase.
+    val useCloud = com.dronedirector.acluxpro.camera.CloudAi.usePhotos(context)
+    fun findMask(type: MaskType, done: (String) -> Unit) {
+        val b = base ?: return
+        message = if (type == MaskType.SKY) "Finding the sky…" else "Finding the subject…"
+        scope.launch {
+            val path = withContext(Dispatchers.IO) {
+                try {
+                    val m = if (type == MaskType.SKY) AiSegment.sky(context, b, useCloud) else AiSegment.subject(context, b, useCloud)
+                    m?.let { AiSegment.saveMask(context, it) }
+                } catch (_: Throwable) { null }
+            }
+            if (path == null) message = if (type == MaskType.SKY) "Couldn't find a sky" else
+                "Couldn't find a subject" + if (!useCloud && !AiSegment.hasModel(context)) " — turn on Cloud AI for photos" else ""
+            else { message = null; done(path) }
+        }
+    }
+    val aiMaskAction: ((MaskType) -> Unit)? = { type ->
+        findMask(type) { path ->
+            val pm = PhotoMask(type = type, maskFile = path)
+            edit = edit.copy(masks = edit.masks + pm)
+            tools.selected = pm.id
+        }
+    }
+    var eraseMask by remember { mutableStateOf<PhotoMask?>(null) }
+    fun runErase() {
+        val em = eraseMask ?: return
+        if (em.strokes.isEmpty() || busy) return
+        busy = true
+        val e = edit
+        scope.launch {
+            val path = withContext(Dispatchers.IO) {
+                try {
+                    val full = GradeIO.decode(context, sourceUri(e), 2400) ?: return@withContext null
+                    val wt = PhotoLocal.weights(em.copy(amount = 1f), full.width, full.height)
+                    val mask = Bitmap.createBitmap(IntArray(wt.size) { if (wt[it] > 0.25f) -1 else 0xFF000000.toInt() }, full.width, full.height, Bitmap.Config.ARGB_8888)
+                    var result: Bitmap? = null
+                    if (useCloud) try {
+                        val jpeg = java.io.ByteArrayOutputStream().also { full.compress(Bitmap.CompressFormat.JPEG, 95, it) }.toByteArray()
+                        val png = java.io.ByteArrayOutputStream().also { mask.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
+                        val res = com.dronedirector.acluxpro.camera.CloudAi.erase(context, jpeg, png)
+                        result = BitmapFactory.decodeByteArray(res, 0, res.size)?.let { if (it.width == full.width && it.height == full.height) it else Bitmap.createScaledBitmap(it, full.width, full.height, true) }
+                    } catch (_: com.dronedirector.acluxpro.camera.CloudAi.Stopped) { return@withContext "stopped" } catch (_: Throwable) {}
+                    if (result == null) result = AiSegment.fill(full, mask)
+                    val dir = java.io.File(context.filesDir, "erased").apply { mkdirs() }
+                    val f = java.io.File(dir, "erased_${System.currentTimeMillis()}.jpg")
+                    f.outputStream().use { result.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+                    f.path
+                } catch (_: Throwable) { null }
+            }
+            busy = false
+            when (path) {
+                null -> message = "Couldn't erase"
+                "stopped" -> message = "AI erase stopped"
+                else -> { edit = edit.copy(baseFile = path); eraseMask = null; message = "Erased" + if (!useCloud) " (on the phone — Cloud AI gives better results on big objects)" else "" }
+            }
+        }
+    }
+    val aiEraseSection: @Composable () -> Unit = {
+        SectionTitle("AI ERASE") { if (edit.baseFile != null) edit = edit.copy(baseFile = null) }
+        if (eraseMask == null) {
+            Text("Remove bigger things — a person, a sign, a power line: paint over them, then tap ERASE.", color = Pro.Dim, fontSize = 11.sp)
+            Text(
+                "PAINT WHAT TO REMOVE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { eraseMask = PhotoMask(type = MaskType.BRUSH) }.padding(10.dp),
+            )
+            if (edit.baseFile != null) Text("The photo has AI-erased parts. Tap RESET above to go back to the original.", color = Pro.Dim, fontSize = 11.sp)
+        } else {
+            EdSlider("Brush size", tools.brushSize, 0.01f..0.3f, 0.08f, ::pct) { tools.brushSize = it }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(if (busy) "ERASING…" else "ERASE", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp),
+                    modifier = Modifier.clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !busy) { runErase() }.padding(horizontal = 16.dp, vertical = 8.dp))
+                Text("CANCEL", style = Pro.Label.copy(color = Color.White, fontSize = 11.sp), modifier = Modifier.clickable { eraseMask = null }.padding(8.dp))
+            }
+            Text(if (useCloud) "Uses Bria Eraser in the cloud (your fal.ai account)." else "Runs on the phone. For big objects, turn on Cloud AI for photos (Bria Eraser).", color = Pro.Dim, fontSize = 11.sp)
+        }
+    }
+    val backgroundSection: @Composable () -> Unit = {
+        val bg = edit.bg
+        SectionTitle("BACKGROUND (AI)") { edit = edit.copy(bg = PhotoBackground()) }
+        if (bg.maskFile == null) {
+            Text("Finds the subject (people, pets, objects) so you can blur, remove or recolour everything behind it.", color = Pro.Dim, fontSize = 11.sp)
+            Text(
+                "FIND SUBJECT", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { findMask(MaskType.SUBJECT) { p -> edit = edit.copy(bg = edit.bg.copy(maskFile = p, mode = 1)) } }.padding(10.dp),
+            )
+        } else {
+            Chips(listOf("Off", "Blur (portrait)", "Remove", "Colour"), bg.mode) { m -> edit = edit.copy(bg = bg.copy(mode = m)) }
+            if (bg.mode == 1) EdSlider("Blur", bg.blur, 0.05f..1f, 0.5f, ::pct) { v -> edit = edit.copy(bg = bg.copy(blur = v)) }
+            if (bg.mode == 2) Text("Exported as PNG (or WebP) with a transparent background.", color = Pro.Dim, fontSize = 11.sp)
+            if (bg.mode == 3) Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                listOf(0xFFFFFFFF, 0xFF000000, 0xFF1E1E1E, 0xFFF2E8DA, 0xFF2D6CDF, 0xFF34C759, 0xFFFF7EB6, 0xFFFFB300).map { it.toInt() }.forEach { c ->
+                    Box(Modifier.size(28.dp).clip(CircleShape).background(Color(c)).border(if (c == bg.color) 3.dp else 1.dp, if (c == bg.color) Pro.Amber else Pro.Line, CircleShape)
+                        .clickable { edit = edit.copy(bg = bg.copy(color = c)) })
+                }
+            }
+            Text("FIND SUBJECT AGAIN", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable { findMask(MaskType.SUBJECT) { p -> edit = edit.copy(bg = edit.bg.copy(maskFile = p)) } }.padding(8.dp))
+        }
+    }
 
     /** Heal: tap a spot; the patch source is picked automatically. */
     fun addSpot(x: Float, y: Float) {
@@ -579,7 +683,9 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                         if (panel == PhotoPanel.MASKS && selMask != null) MaskEditOverlay(selMask, shownNow.width, shownNow.height, tools) { m ->
                             edit = edit.copy(masks = edit.masks.map { if (it.id == m.id) m else it })
                         }
-                        if (panel == PhotoPanel.HEAL) HealOverlay(edit.spots, shownNow.width, shownNow.height, tools.healSize) { x, y -> addSpot(x, y) }
+                        val em = eraseMask
+                        if (panel == PhotoPanel.HEAL && em != null) MaskEditOverlay(em, shownNow.width, shownNow.height, tools) { m -> eraseMask = m }
+                        else if (panel == PhotoPanel.HEAL) HealOverlay(edit.spots, shownNow.width, shownNow.height, tools.healSize) { x, y -> addSpot(x, y) }
                     }
                     if (showScope && !comparing) Scope(hist, Modifier.align(Alignment.TopEnd).padding(8.dp).width(130.dp).height(64.dp))
                     Row(Modifier.align(Alignment.TopStart).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -660,6 +766,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                                 onPickLogo = { pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                             )
                         }
+                        if (panel == PhotoPanel.EFFECTS) backgroundSection()
                         if (panel == PhotoPanel.EXPORT) {
                             SectionTitle("AI UPSCALE")
                             Chips(listOf("Off", "AI 2×", "AI 4×"), when (aiScale) { 2 -> 1; 4 -> 2; else -> 0 }) { aiScale = listOf(0, 2, 4)[it] }

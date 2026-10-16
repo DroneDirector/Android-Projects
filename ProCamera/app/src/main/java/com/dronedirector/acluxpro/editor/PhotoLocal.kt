@@ -45,6 +45,12 @@ data class PhotoMask(
 /** A healed spot: centre and radius (share of the width) and where the patch is taken from (offset, same units). */
 data class Spot(val x: Float, val y: Float, val r: Float, val dx: Float, val dy: Float)
 
+/** What to do with everything except the subject (needs an AI subject selection). */
+data class PhotoBackground(val mode: Int = 0, val blur: Float = 0.5f, val color: Int = 0xFFFFFFFF.toInt(), val maskFile: String? = null) {
+    /** 0 off, 1 blur (portrait), 2 remove (transparent), 3 colour. */
+    val active get() = mode != 0 && maskFile != null
+}
+
 /** Lens corrections. */
 data class LensFix(
     /** + removes barrel distortion (wide lenses), − removes pincushion. */
@@ -293,6 +299,62 @@ object PhotoLocal {
             out[i] = (if (mb.hasAlpha() && a < 255) a else l) / 255f
         }
         if (s !== mb) s.recycle()
+    }
+
+    /** Portrait blur, transparent or coloured background outside the subject ([wt] = subject 0..1). */
+    fun background(px: IntArray, w: Int, h: Int, wt: FloatArray, bg: PhotoBackground) {
+        when (bg.mode) {
+            1 -> {
+                // Blur at a quarter size (fast, and a wide soft blur looks like a real lens).
+                val sw = max(1, w / 4); val sh = max(1, h / 4)
+                val full = Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
+                val small = Bitmap.createScaledBitmap(full, sw, sh, true)
+                full.recycle()
+                val sp = IntArray(sw * sh); small.getPixels(sp, 0, sw, 0, 0, sw, sh); small.recycle()
+                val r = (bg.blur * max(sw, sh) * 0.03f).toInt().coerceIn(1, 60)
+                val blurred = boxBlur(sp, sw, sh, r)
+                val bb = Bitmap.createScaledBitmap(Bitmap.createBitmap(blurred, sw, sh, Bitmap.Config.ARGB_8888), w, h, true)
+                val bp = IntArray(w * h); bb.getPixels(bp, 0, w, 0, 0, w, h); bb.recycle()
+                for (i in px.indices) px[i] = mixPx(bp[i], px[i], wt[i])
+            }
+            2 -> for (i in px.indices) px[i] = ((wt[i] * 255).toInt().coerceIn(0, 255) shl 24) or (px[i] and 0x00FFFFFF)
+            3 -> for (i in px.indices) px[i] = mixPx(bg.color, px[i], wt[i])
+        }
+    }
+
+    private fun mixPx(a: Int, b: Int, t: Float): Int {
+        val k = t.coerceIn(0f, 1f)
+        val r = (((a shr 16) and 0xFF) * (1 - k) + ((b shr 16) and 0xFF) * k).toInt()
+        val g = (((a shr 8) and 0xFF) * (1 - k) + ((b shr 8) and 0xFF) * k).toInt()
+        val bl = ((a and 0xFF) * (1 - k) + (b and 0xFF) * k).toInt()
+        return (0xFF shl 24) or (r shl 16) or (g shl 8) or bl
+    }
+
+    private fun boxBlur(src: IntArray, w: Int, h: Int, r: Int): IntArray {
+        var a = src.copyOf(); val t = IntArray(src.size)
+        repeat(3) {
+            for (y in 0 until h) {
+                var sr = 0; var sg = 0; var sb = 0
+                for (x in -r..r) { val c = a[y * w + x.coerceIn(0, w - 1)]; sr += (c shr 16) and 0xFF; sg += (c shr 8) and 0xFF; sb += c and 0xFF }
+                for (x in 0 until w) {
+                    val n = 2 * r + 1
+                    t[y * w + x] = (0xFF shl 24) or ((sr / n) shl 16) or ((sg / n) shl 8) or (sb / n)
+                    val add = a[y * w + (x + r + 1).coerceAtMost(w - 1)]; val rem = a[y * w + (x - r).coerceAtLeast(0)]
+                    sr += ((add shr 16) and 0xFF) - ((rem shr 16) and 0xFF); sg += ((add shr 8) and 0xFF) - ((rem shr 8) and 0xFF); sb += (add and 0xFF) - (rem and 0xFF)
+                }
+            }
+            for (x in 0 until w) {
+                var sr = 0; var sg = 0; var sb = 0
+                for (y in -r..r) { val c = t[y.coerceIn(0, h - 1) * w + x]; sr += (c shr 16) and 0xFF; sg += (c shr 8) and 0xFF; sb += c and 0xFF }
+                for (y in 0 until h) {
+                    val n = 2 * r + 1
+                    a[y * w + x] = (0xFF shl 24) or ((sr / n) shl 16) or ((sg / n) shl 8) or (sb / n)
+                    val add = t[(y + r + 1).coerceAtMost(h - 1) * w + x]; val rem = t[(y - r).coerceAtLeast(0) * w + x]
+                    sr += ((add shr 16) and 0xFF) - ((rem shr 16) and 0xFF); sg += ((add shr 8) and 0xFF) - ((rem shr 8) and 0xFF); sb += (add and 0xFF) - (rem and 0xFF)
+                }
+            }
+        }
+        return a
     }
 
     /** Applies every visible mask's own grade where the mask is. */

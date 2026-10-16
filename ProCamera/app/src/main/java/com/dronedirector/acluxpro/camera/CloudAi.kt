@@ -136,6 +136,60 @@ object CloudAi {
         if (!tmp.renameTo(out)) throw CloudError("Couldn't save the cloud result")
     }
 
+    /** Speech to text (Whisper): timed segments (start ms, end ms, text) of an audio file. */
+    fun transcribe(c: Context, audio: File, language: String?): List<Triple<Long, Long, String>> = job(c, "AI CAPTIONS") {
+        val url = audio.inputStream().use { upload(c, it, audio.length(), "audio.m4a", "audio/mp4") }
+        val input = JSONObject().put("audio_url", url).put("task", "transcribe").put("chunk_level", "segment")
+        if (!language.isNullOrBlank()) input.put("language", language)
+        val res = run(c, "fal-ai/whisper", input)
+        val out = ArrayList<Triple<Long, Long, String>>()
+        val chunks = res.optJSONArray("chunks")
+        if (chunks != null) for (i in 0 until chunks.length()) {
+            val ch = chunks.getJSONObject(i)
+            val text = ch.optString("text").trim()
+            if (text.isEmpty()) continue
+            val ts = ch.optJSONArray("timestamp")
+            val start = ts?.optDouble(0, Double.NaN) ?: ch.optDouble("start", Double.NaN)
+            var end = ts?.optDouble(1, Double.NaN) ?: ch.optDouble("end", Double.NaN)
+            if (start.isNaN()) continue
+            if (end.isNaN() || end <= start) end = start + 2.5
+            out += Triple((start * 1000).toLong(), (end * 1000).toLong(), text)
+        }
+        if (out.isEmpty() && res.optString("text").isNotBlank()) out += Triple(0L, 4000L, res.optString("text").trim())
+        out
+    }
+
+    /** Selection mask (PNG bytes, white = selected) for [prompt] (e.g. "sky"), via EVF-SAM2. */
+    fun segment(c: Context, jpeg: ByteArray, prompt: String): ByteArray = job(c, "AI SELECT") {
+        val url = upload(c, jpeg.inputStream(), jpeg.size.toLong(), "photo.jpg", "image/jpeg")
+        val res = run(c, "fal-ai/evf-sam", JSONObject().put("image_url", url).put("prompt", prompt).put("mask_only", true).put("fill_holes", true))
+        download(res.getJSONObject("image").getString("url"))
+    }
+
+    /** Subject cut-out (PNG with transparent background) via BiRefNet. */
+    fun cutout(c: Context, jpeg: ByteArray): ByteArray = job(c, "AI SUBJECT") {
+        val url = upload(c, jpeg.inputStream(), jpeg.size.toLong(), "photo.jpg", "image/jpeg")
+        val res = run(c, "fal-ai/birefnet", JSONObject().put("image_url", url).put("output_format", "png"))
+        download(res.getJSONObject("image").getString("url"))
+    }
+
+    /** Object removal (Bria Eraser): [maskPng] white where things should disappear. */
+    fun erase(c: Context, jpeg: ByteArray, maskPng: ByteArray): ByteArray = job(c, "AI ERASE") {
+        val url = upload(c, jpeg.inputStream(), jpeg.size.toLong(), "photo.jpg", "image/jpeg")
+        val murl = upload(c, maskPng.inputStream(), maskPng.size.toLong(), "mask.png", "image/png")
+        val res = run(c, "fal-ai/bria/eraser", JSONObject().put("image_url", url).put("mask_url", murl).put("mask_type", "manual"))
+        download(res.getJSONObject("image").getString("url"))
+    }
+
+    /** Frame interpolation (RIFE): [frames] new frames between each pair, written to [out]. */
+    fun interpolate(c: Context, source: File, out: File, frames: Int) = job(c, "AI SLOW MOTION") {
+        val url = source.inputStream().use { upload(c, it, source.length(), "clip.mp4", "video/mp4") }
+        val res = run(c, "fal-ai/rife/video", JSONObject().put("video_url", url).put("num_frames", frames.coerceIn(1, 4)).put("use_calculated_fps", true).put("use_scene_detection", true))
+        val tmp = File(out.parentFile, out.name + ".part")
+        tmp.outputStream().use { downloadTo(res.getJSONObject("video").getString("url"), it) }
+        if (!tmp.renameTo(out)) throw CloudError("Couldn't save the cloud result")
+    }
+
     private fun <T> job(c: Context, title: String, block: () -> T): T {
         load(c)
         val k = key(c)

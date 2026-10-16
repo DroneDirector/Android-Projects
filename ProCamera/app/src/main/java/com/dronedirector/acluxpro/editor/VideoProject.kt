@@ -83,7 +83,7 @@ object ClipLoader {
 /** Live preview effects for a clip (same pipeline as the export). */
 @UnstableApi
 fun clipEffects(c: Clip): List<Effect> = buildList {
-    if (!c.grade.isIdentity) add(SingleColorLut.createFromCube(c.grade.cube()))
+    if (!c.grade.isIdentity) add(LutCache.get(c.grade))
     if (c.detail.needsVideoPass) add(DetailEffect(c.detail))
 }
 
@@ -369,4 +369,14 @@ fun duckRanges(clips: List<Clip>): List<LongRange> {
     val s = clipStarts(clips)
     clips.forEachIndexed { i, c -> if (c.audio.duckMusic && !c.muted && c.volume > 0f) out += s[i] until s[i] + c.lengthMs }
     return out
+}
+
+/** Building a colour table takes a moment; reuse the last few instead of rebuilding on every load. */
+@UnstableApi
+private object LutCache {
+    private val map = object : LinkedHashMap<ProGrade, Effect>(8, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<ProGrade, Effect>?) = size > 8
+    }
+    @Synchronized
+    fun get(g: ProGrade): Effect = map.getOrPut(g) { SingleColorLut.createFromCube(g.cube()) }
 }

@@ -288,6 +288,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     var playSince by remember { mutableStateOf(0L) }
     var stallPos by remember { mutableStateOf(-1L) }
     var stallSince by remember { mutableStateOf(0L) }
+    var stallTries by remember { mutableStateOf(0) }
     fun sourceFor(c: Clip): Uri {
         val k = c.uri.toString()
         return if (k !in proxyOff) proxies[k] ?: c.uri else c.uri
@@ -496,7 +497,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             if (c.id != loadedId) continue
             try {
                 deck.cur.setVideoEffects(fx)
-                if (!deck.cur.isPlaying) deck.cur.seekTo(deck.cur.currentPosition)
+                // Redraw a paused frame (never while loading or playing).
+                if (!deck.cur.playWhenReady && deck.cur.playbackState == Player.STATE_READY) deck.cur.seekTo(deck.cur.currentPosition)
             } catch (_: Throwable) { effectsOk = false }
             delay(80)
         }
@@ -524,11 +526,23 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             if (deck.cur.playWhenReady && deck.cur.playbackState != Player.STATE_ENDED && c0 != null && c0.id == loadedId) {
                 val p = deck.cur.currentPosition
                 if (p != stallPos) { stallPos = p; stallSince = System.currentTimeMillis() }
-                else if (System.currentTimeMillis() - stallSince > 2000) {
-                    stallSince = System.currentTimeMillis() + 3000
-                    load(current, p, true)
+                else if (System.currentTimeMillis() - stallSince > 2500 && stallTries < 3) {
+                    stallSince = System.currentTimeMillis() + 2000
+                    stallTries++
+                    // Escalate: reload → reload without live effects → use a preview copy.
+                    when (stallTries) {
+                        1 -> load(current, p, true)
+                        2 -> { if (effectsOk) { effectsOk = false; message = "Live effects paused in the preview to keep playback smooth (the export keeps them)" }; load(current, p, true) }
+                        else -> {
+                            if (proxySettings.mode != ProxyMode.OFF && proxies[c0.uri.toString()] == null) {
+                                requestProxy(c0); message = "This clip is heavy for live playback — making a smooth preview copy…"
+                            } else message = "Playback stalled — tap play to retry"
+                            deck.cur.pause()
+                        }
+                    }
                 }
             } else stallSince = System.currentTimeMillis()
+            if (deck.cur.isPlaying && deck.cur.currentPosition != stallPos) stallTries = 0
             // Safety net: playing but no picture for a while → make a preview copy, or drop the live effects.
             val c = clips.getOrNull(current)
             if (c != null && nowPlaying && renderedFor[deck.active] != c.id && System.currentTimeMillis() - playSince > 2500) {
@@ -826,6 +840,17 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).clip(RoundedCornerShape(4.dp)).background(Pro.Amber).padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
+                    clips.getOrNull(current)?.let { cc ->
+                        val pp = proxyProgress[cc.uri.toString()]
+                        if (pp != null && proxies[cc.uri.toString()] == null) Column(
+                            Modifier.align(Alignment.Center).clip(RoundedCornerShape(12.dp)).background(Color.Black.copy(alpha = 0.7f)).padding(horizontal = 18.dp, vertical = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            CircularProgressIndicator(progress = { pp / 100f }, color = Pro.Amber, modifier = Modifier.size(34.dp))
+                            Text("Making smooth preview copy · $pp%", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                            Text("Playback switches to it automatically", color = Pro.Dim, fontSize = 11.sp)
+                        }
+                    }
                     if (page == Page.COLOR) Scope(scopeHist, Modifier.align(Alignment.TopEnd).padding(8.dp).width(130.dp).height(64.dp))
                     Text(
                         "${tc(globalMs)} / ${tc(totalMs)}",
@@ -846,7 +871,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
 
             fun togglePlay() {
-                if (deck.cur.isPlaying) deck.cur.pause() else {
+                // Stuck loading? Play pressed again means "try again", not "do nothing".
+                if (deck.cur.playWhenReady && !deck.cur.isPlaying && deck.cur.playbackState == Player.STATE_BUFFERING) {
+                    stallTries = 0
+                    load(current, deck.cur.currentPosition, true)
+                    return
+                }
+                if (deck.cur.playWhenReady) deck.cur.pause() else {
                     when {
                         deck.cur.playbackState == Player.STATE_ENDED && current == clips.lastIndex -> load(0, 0, true)
                         deck.cur.playbackState == Player.STATE_IDLE -> load(current, posMs, true)

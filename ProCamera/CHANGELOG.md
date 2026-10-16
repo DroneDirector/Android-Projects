@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.123 — 2026-10-16
 - Guides: separate Capture, Photo editor and Video editor guides, each showing only what applies there (Cloud AI key setup, AI features, tips). Open them from each settings gear (guide button, or "How to add a key" under Cloud AI). Also on GitHub as GUIDE.md.
 
 ## 1.0.119 — 2026-10-16

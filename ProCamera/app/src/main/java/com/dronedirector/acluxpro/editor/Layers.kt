@@ -62,6 +62,14 @@ data class Layer(
     val name: String? = null,
     /** Locked on the timeline: can't be moved, trimmed, dragged or deleted. */
     val locked: Boolean = false,
+    /** Keyframes (timeline ms) for position, size and opacity; null / empty = static. */
+    val keys: List<LayerKey>? = null,
+    /** Blend mode for picture layers. */
+    val blend: LayerBlend? = null,
+    /** Chroma key: colour to remove (null = off), tolerance and softness (0..1). */
+    val chroma: Int? = null,
+    val chromaTol: Float? = null,
+    val chromaSoft: Float? = null,
 ) {
     /** The name shown for this layer: your own name, else its text / kind. */
     val displayName: String get() = name?.takeIf { it.isNotBlank() }
@@ -85,7 +93,9 @@ object LayerRenderer {
                 }
                 val h = px.toInt().coerceAtLeast(4)
                 val w = (src.width * (h.toFloat() / src.height)).toInt().coerceAtLeast(4)
-                Bitmap.createScaledBitmap(src, min(w, frameW), h, true)
+                val scaled = Bitmap.createScaledBitmap(src, min(w, frameW), h, true)
+                val key = l.chroma
+                if (key != null) chromaKeyBitmap(scaled, key, l.chromaTol ?: 0.4f, l.chromaSoft ?: 0.3f) else scaled
             }
             else -> renderText(l, px, frameW)
         }
@@ -130,7 +140,7 @@ fun stampLayer(context: Context, src: Bitmap, l: Layer): Bitmap {
 
 /** Media3 overlay for one layer: shown only inside its time window. */
 @UnstableApi
-class LayerOverlay(private val bitmap: Bitmap, l: Layer) : BitmapOverlay() {
+class LayerOverlay(private val bitmap: Bitmap, private val l: Layer) : BitmapOverlay() {
     private val blank = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
     private val startUs = l.startMs * 1000
     private val endUs = l.endMs * 1000
@@ -144,7 +154,18 @@ class LayerOverlay(private val bitmap: Bitmap, l: Layer) : BitmapOverlay() {
     override fun getBitmap(presentationTimeUs: Long): Bitmap =
         if (whole || presentationTimeUs in startUs..endUs) bitmap else blank
 
-    override fun getOverlaySettings(presentationTimeUs: Long): OverlaySettings = settings
+    override fun getOverlaySettings(presentationTimeUs: Long): OverlaySettings {
+        if (l.keys.isNullOrEmpty()) return settings
+        // Keyframes: move, scale and fade over time.
+        val a = l.animAt(presentationTimeUs / 1000)
+        val k = if (l.size > 0f) a.size / l.size else 1f
+        return StaticOverlaySettings.Builder()
+            .setBackgroundFrameAnchor((a.x * 2f - 1f).coerceIn(-1f, 1f), (1f - a.y * 2f).coerceIn(-1f, 1f))
+            .setOverlayFrameAnchor(0f, 0f)
+            .setScale(k, k)
+            .setAlphaScale(a.opacity.coerceIn(0f, 1f))
+            .build()
+    }
 }
 
 /** Background music for the video editor. */

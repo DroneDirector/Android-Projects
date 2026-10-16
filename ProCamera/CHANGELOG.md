@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: Undo and Redo are always visible under the player (next to Split); the zoom buttons scroll on narrow screens instead.
 
 ## 1.0.130 — 2026-10-16
 - Video editor Deliver: Audio only — save just the sound of the edit as an .m4a file (Music/AcluxPro or your save folder).

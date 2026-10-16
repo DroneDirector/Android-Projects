@@ -1070,14 +1070,15 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = Color.White.copy(alpha = 0.15f)),
                     )
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        // Split, undo and redo are always on screen; the zoom tools scroll if the row is narrow.
+                        TransportIcon(Icons.Filled.ContentCut, "Split at playhead", accent = true) { splitAtPlayhead() }
+                        TransportIcon(Icons.AutoMirrored.Filled.Undo, "Undo", tint = if (histPos > 0) Color.White else Pro.Dim) { undo() }
+                        TransportIcon(Icons.AutoMirrored.Filled.Redo, "Redo", tint = if (histPos < history.lastIndex) Color.White else Pro.Dim) { redo() }
                       Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
                         TransportIcon(if (previewMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute preview") { previewMuted = !previewMuted }
                         TransportIcon(Icons.Filled.ZoomOut, "Zoom timeline out") { zoom.zoomOut() }
                         TransportIcon(Icons.Filled.FitScreen, "Show whole timeline") { zoom.fit() }
                         TransportIcon(Icons.Filled.ZoomIn, "Zoom timeline in") { zoom.zoomIn() }
-                        TransportIcon(Icons.Filled.ContentCut, "Split at playhead", accent = true) { splitAtPlayhead() }
-                        TransportIcon(Icons.AutoMirrored.Filled.Undo, "Undo", tint = if (histPos > 0) Color.White else Pro.Dim) { undo() }
-                        TransportIcon(Icons.AutoMirrored.Filled.Redo, "Redo", tint = if (histPos < history.lastIndex) Color.White else Pro.Dim) { redo() }
                       }
                         TransportIcon(Icons.Filled.SkipPrevious, "Previous clip") { prevClip() }
                         TransportIcon(if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Pro.Amber) { togglePlay() }
@@ -2133,7 +2134,7 @@ private class Deck(val players: List<ExoPlayer>) {
 @Composable
 private fun TransportIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color = Color.White, accent: Boolean = false, onClick: () -> Unit) {
     Box(
-        Modifier.size(36.dp).clip(CircleShape).then(if (accent) Modifier.background(Pro.Amber) else Modifier).clickable(onClick = onClick),
+        Modifier.size(34.dp).clip(CircleShape).then(if (accent) Modifier.background(Pro.Amber) else Modifier).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = label, tint = if (accent) Color.Black else tint, modifier = Modifier.size(20.dp))

@@ -36,6 +36,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -119,10 +120,18 @@ private fun HubLayout(title: String, subtitle: String, onBack: (() -> Unit)?, ti
     val angle by spin.animateFloat(0f, 360f, infiniteRepeatable(tween(60_000, easing = LinearEasing)), label = "angle")
     val pulse by spin.animateFloat(0.55f, 1f, infiniteRepeatable(tween(2600), RepeatMode.Reverse), label = "pulse")
     val accent = Pro.Amber
+    // Exit: the whole screen fades and shrinks away, then the app closes.
+    var exiting by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    val leave by androidx.compose.animation.core.animateFloatAsState(
+        if (exiting) 1f else 0f, tween(520),
+        finishedListener = { if (it >= 1f) (context as? android.app.Activity)?.finishAndRemoveTask() },
+        label = "leave",
+    )
 
     Box(
         Modifier
             .fillMaxSize()
+            .graphicsLayer { alpha = 1f - leave; scaleX = 1f - leave * 0.08f; scaleY = 1f - leave * 0.08f }
             .background(Brush.radialGradient(listOf(Color(0xFF1B1710), Color(0xFF0B0B0D), Color(0xFF050506)), radius = 1600f))
     ) {
         // Slowly turning aperture rings behind everything.
@@ -188,6 +197,7 @@ private fun HubLayout(title: String, subtitle: String, onBack: (() -> Unit)?, ti
                     tileViews(Modifier.fillMaxWidth().widthIn(max = 520.dp))
                 }
             }
+            if (showVersion) ExitButton(angle, pulse, Modifier.align(Alignment.BottomEnd)) { exiting = true }
             if (showVersion && version.isNotEmpty()) {
                 Text(
                     "v$version",
@@ -220,5 +230,40 @@ private fun HubTile(t: Tile, modifier: Modifier) {
             Text(t.detail, color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
         }
         Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = accent)
+    }
+}
+
+/** Power-style exit button: turning gradient ring, breathing glow, press flash. */
+@Composable
+private fun ExitButton(angle: Float, pulse: Float, modifier: Modifier, onExit: () -> Unit) {
+    val accent = Pro.Amber
+    var pressed by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    val flash by androidx.compose.animation.core.animateFloatAsState(if (pressed) 1f else 0f, tween(260), label = "flash")
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            Modifier.size(64.dp).graphicsLayer { val k = 1f + flash * 0.12f; scaleX = k; scaleY = k }
+                .clip(CircleShape)
+                .clickable { if (!pressed) { pressed = true; onExit() } },
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(Modifier.fillMaxSize()) {
+                val c = Offset(size.width / 2f, size.height / 2f)
+                val r = size.minDimension / 2f
+                // breathing glow
+                drawCircle(Brush.radialGradient(listOf(accent.copy(alpha = 0.35f * pulse + flash * 0.4f), Color.Transparent), c, r), r, c)
+                // dark core
+                drawCircle(Brush.radialGradient(listOf(Color(0xFF22252B), Color(0xFF0D0E11)), c, r * 0.8f), r * 0.78f, c)
+                // turning gradient ring
+                rotate(angle * 6f, c) {
+                    drawCircle(
+                        Brush.sweepGradient(listOf(accent, accent.copy(alpha = 0.05f), Color.White.copy(alpha = 0.9f), accent.copy(alpha = 0.05f), accent), c),
+                        r * 0.8f, c, style = Stroke(3.dp.toPx()),
+                    )
+                }
+                drawCircle(Color.White.copy(alpha = flash * 0.5f), r * 0.78f, c)
+            }
+            Icon(Icons.Filled.PowerSettingsNew, contentDescription = "Exit", tint = accent, modifier = Modifier.size(26.dp))
+        }
+        Text("EXIT", style = Pro.Label.copy(color = accent.copy(alpha = 0.85f), fontSize = 10.sp, letterSpacing = 3.sp), modifier = Modifier.padding(top = 2.dp))
     }
 }

@@ -419,14 +419,25 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                         modifier = Modifier.padding(start = 4.dp, end = 4.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !busy) { panel = PhotoPanel.EXPORT }.padding(horizontal = 10.dp, vertical = 7.dp),
                     )
                 }
+                // Resizable panels: hold the divider, then drag. Double-tap the divider to reset.
                 if (wide) {
+                    val pane = rememberPane("pe_controls_w")
+                    val maxW = maxWidth.value
                     Row(Modifier.fillMaxSize()) {
                         previewBox(Modifier.weight(1f).fillMaxHeight())
-                        controls(Modifier.width(380.dp).fillMaxHeight())
+                        ResizeHandle(false,
+                            onDrag = { d -> pane.dp = ((if (pane.dp < 0f) 380f else pane.dp) - d).coerceIn(240f, maxW - 220f) },
+                            onEnd = { pane.save() }, onReset = { pane.reset() })
+                        controls(Modifier.width((if (pane.dp < 0f) 380f else pane.dp).dp).fillMaxHeight())
                     }
                 } else {
+                    val pane = rememberPane("pe_controls_h")
+                    val maxH = maxHeight.value
                     previewBox(Modifier.fillMaxWidth().weight(1f))
-                    controls(Modifier.fillMaxWidth().height(330.dp))
+                    ResizeHandle(true,
+                        onDrag = { d -> pane.dp = ((if (pane.dp < 0f) 330f else pane.dp) - d).coerceIn(150f, maxH - 220f) },
+                        onEnd = { pane.save() }, onReset = { pane.reset() })
+                    controls(Modifier.fillMaxWidth().height((if (pane.dp < 0f) 330f else pane.dp).dp))
                 }
             }
         }

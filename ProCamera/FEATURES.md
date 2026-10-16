@@ -81,7 +81,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - Add clips from the gallery or files (MP4, MKV, MOV, WebM, SD card / USB).
 - **Media pool** with codec, HDR / 10-bit badges; delete from the pool with confirmation.
 - **Multi-track timeline** starting at the left edge: filmstrips, layer rows and audio rows; drag the playhead or tap the ruler; two-finger pinch zoom and scroll; follows the playhead while playing.
-- Under the player: **mute, zoom out, show whole timeline, zoom in, split**, previous / play / next, full screen.
+- Under the player: **mute, zoom out, show whole timeline, zoom in, split, undo, redo**, previous / play / next, full screen.
 - **Trim, split, duplicate, reorder, speed, delete** clips.
 - **Hold-and-drag on the timeline**: move layers and audio in time, drag layers up / down to reorder, hold an edge to trim or extend.
 - **Audio in the media pool** (MP3, WAV, AAC…): add to the timeline at the playhead — the first becomes the music track, more become extra audio tracks with volume and fades.
@@ -108,6 +108,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 
 ### Layers
 - **Text, stickers, watermark, logo, image and video (picture-in-picture)** layers with timing, position, size and opacity.
+- **Rename layers** (e.g. name your watermarks) — names show in the layer list and on the timeline.
 
 ### Audio
 - **Music track** with start point, volume, fades and **ducking** under clips.

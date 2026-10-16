@@ -114,6 +114,10 @@ import com.dronedirector.acluxpro.camera.GradeIO
 import com.dronedirector.acluxpro.ui.Pro
 import com.dronedirector.acluxpro.ui.hintedScroll
 import kotlinx.coroutines.Dispatchers
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.runtime.derivedStateOf
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -813,6 +817,42 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         message = "Split at ${tc(globalMs)}"
     }
 
+    // ---- Undo / redo: every settled change to clips, layers and audio is a step.
+    val history = remember { mutableStateListOf<EditSnap>() }
+    var histPos by remember { mutableStateOf(-1) }
+    val snapNow by remember { derivedStateOf { EditSnap(clips.toList(), layers.toList(), music, extraAudio.toList()) } }
+    LaunchedEffect(snapNow) {
+        delay(450)   // a slider drag or a held timeline move becomes one step
+        if (histPos in history.indices && history[histPos] == snapNow) return@LaunchedEffect
+        while (history.lastIndex > histPos) history.removeAt(history.lastIndex)
+        history.add(snapNow)
+        if (history.size > 80) history.removeAt(0)
+        histPos = history.lastIndex
+    }
+    fun applySnap(s: EditSnap) {
+        val wasPlaying = deck.cur.isPlaying
+        val pos = deck.cur.currentPosition
+        clips.clear(); clips.addAll(s.clips)
+        layers.clear(); layers.addAll(s.layers)
+        music = s.music
+        extraAudio.clear(); extraAudio.addAll(s.extra)
+        if (selectedLayer != null && layers.none { it.id == selectedLayer }) selectedLayer = null
+        if (clips.isNotEmpty()) {
+            val i = current.coerceIn(0, clips.lastIndex)
+            selected = selected.coerceIn(0, clips.lastIndex)
+            val c = clips[i]
+            load(i, pos.coerceIn(0, (c.endMs - c.startMs - 50).coerceAtLeast(0)), wasPlaying)
+        }
+    }
+    fun undo() {
+        if (histPos <= 0) { message = "Nothing to undo"; return }
+        histPos--; applySnap(history[histPos]); message = "Undo"
+    }
+    fun redo() {
+        if (histPos >= history.lastIndex) { message = "Nothing to redo"; return }
+        histPos++; applySnap(history[histPos]); message = "Redo"
+    }
+
     var lastScrub by remember { mutableStateOf(0L) }
     /** Timeline scrubbing: fast keyframe seeks while dragging, exact frame when released. */
     fun scrub(ms: Long, final: Boolean) {
@@ -1020,12 +1060,15 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = Color.White.copy(alpha = 0.15f)),
                     )
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                      Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
                         TransportIcon(if (previewMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute preview") { previewMuted = !previewMuted }
                         TransportIcon(Icons.Filled.ZoomOut, "Zoom timeline out") { zoom.zoomOut() }
                         TransportIcon(Icons.Filled.FitScreen, "Show whole timeline") { zoom.fit() }
                         TransportIcon(Icons.Filled.ZoomIn, "Zoom timeline in") { zoom.zoomIn() }
                         TransportIcon(Icons.Filled.ContentCut, "Split at playhead", accent = true) { splitAtPlayhead() }
-                        Spacer(Modifier.weight(1f))
+                        TransportIcon(Icons.AutoMirrored.Filled.Undo, "Undo", tint = if (histPos > 0) Color.White else Pro.Dim) { undo() }
+                        TransportIcon(Icons.AutoMirrored.Filled.Redo, "Redo", tint = if (histPos < history.lastIndex) Color.White else Pro.Dim) { redo() }
+                      }
                         TransportIcon(Icons.Filled.SkipPrevious, "Previous clip") { prevClip() }
                         TransportIcon(if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Pro.Amber) { togglePlay() }
                         TransportIcon(Icons.Filled.SkipNext, "Next clip") { nextClip() }
@@ -1852,7 +1895,7 @@ private fun LayersPage(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(l.kind.label.uppercase(), style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.width(78.dp))
-            Text(if (l.kind == LayerKind.LOGO || l.kind == LayerKind.IMAGE) "Image" else l.text.replace('\n', ' '), color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Text(l.displayName, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             Text(if (l.wholeVideo) "ALL" else "${tc(l.startMs)}", style = Pro.Label)
             Icon(
                 if (l.visible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, contentDescription = "Show",
@@ -1868,11 +1911,22 @@ private fun LayersPage(
         SmallAction(Icons.Filled.ContentCopy, "Copy") { onAdd(l.copy(id = java.util.UUID.randomUUID().toString(), x = (l.x + 0.05f).coerceAtMost(1f), y = (l.y + 0.05f).coerceAtMost(1f))) }
         SmallAction(Icons.Filled.Delete, "Delete") { onDelete(l.id) }
     }
+    androidx.compose.material3.OutlinedTextField(
+        value = l.name ?: "", onValueChange = { onUpdate(l.copy(name = it)) },
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        singleLine = true,
+        label = { Text(if (l.kind == LayerKind.WATERMARK) "Watermark name (list & timeline)" else "Layer name (list & timeline)") },
+        placeholder = { Text(l.displayName, color = Pro.Dim) },
+        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,
+            ),
+    )
     if (l.kind == LayerKind.TEXT || l.kind == LayerKind.WATERMARK) {
         androidx.compose.material3.OutlinedTextField(
             value = l.text, onValueChange = { onUpdate(l.copy(text = it)) },
             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-            label = { Text("Text") },
+            label = { Text(if (l.kind == LayerKind.WATERMARK) "Watermark text (shown on the video)" else "Text") },
             colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
                 focusedTextColor = Color.White, unfocusedTextColor = Color.White,
                 focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,
@@ -2058,3 +2112,6 @@ private fun CropOverlay(editingEnd: Boolean, onGesture: (androidx.compose.ui.geo
         )
     }
 }
+
+/** One undo step in the video editor. */
+private data class EditSnap(val clips: List<Clip>, val layers: List<Layer>, val music: MusicTrack?, val extra: List<MusicTrack>)

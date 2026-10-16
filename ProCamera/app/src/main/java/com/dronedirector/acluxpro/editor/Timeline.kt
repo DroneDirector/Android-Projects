@@ -450,7 +450,7 @@ fun TimelineView(
                         drawRoundRect(Color.White.copy(alpha = 0.85f), Offset(x1 - 6f, rowTop + layerRow * 0.25f), Size(4f, layerRow * 0.5f), CornerRadius(2f))
                     }
                     textPaint.textSize = 9.sp.toPx()
-                    val name = when (l.kind) { LayerKind.TEXT, LayerKind.WATERMARK, LayerKind.STICKER -> l.text.replace('\n', ' '); else -> l.kind.label + " " + l.text }
+                    val name = l.name?.takeIf { it.isNotBlank() } ?: when (l.kind) { LayerKind.TEXT, LayerKind.WATERMARK, LayerKind.STICKER -> l.text.replace('\n', ' '); else -> l.kind.label + " " + l.text }
                     drawContext.canvas.nativeCanvas.drawText(name.take(30), max(x0, 0f) + 5f, rowTop + layerRow * 0.68f, textPaint)
                     rowTop += layerRow + gap
                 }

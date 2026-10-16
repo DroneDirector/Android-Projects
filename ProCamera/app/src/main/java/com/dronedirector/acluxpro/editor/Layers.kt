@@ -58,7 +58,12 @@ data class Layer(
     val videoDurationMs: Long = 0L,
     val videoStartMs: Long = 0L,
     val mediaAspect: Float = 16f / 9f,
+    /** Optional name you give the layer (shown in the layer list and on the timeline). */
+    val name: String? = null,
 ) {
+    /** The name shown for this layer: your own name, else its text / kind. */
+    val displayName: String get() = name?.takeIf { it.isNotBlank() }
+        ?: when (kind) { LayerKind.TEXT, LayerKind.WATERMARK, LayerKind.STICKER -> text.replace('\n', ' '); LayerKind.LOGO, LayerKind.IMAGE -> "Image"; else -> kind.label }
     val isMedia get() = kind == LayerKind.VIDEO || kind == LayerKind.IMAGE || kind == LayerKind.LOGO
     fun activeAt(ms: Long) = visible && (wholeVideo || ms in startMs..endMs)
 }

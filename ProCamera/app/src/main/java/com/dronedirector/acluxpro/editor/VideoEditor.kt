@@ -129,7 +129,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private enum class Page(val label: String) { MEDIA("Media"), EDIT("Edit"), TRANSITIONS("Transitions"), COLOR("Color"), LAYERS("Layers"), AUDIO("Audio"), DELIVER("Deliver") }
-private enum class ColorTab(val label: String) { INPUT("Input"), WHEELS("Wheels"), PRIMARIES("Primaries"), CURVES("Curves"), HSL("HSL"), DETAIL("Detail"), EFFECTS("Effects"), LOOKS("Looks") }
+private enum class ColorTab(val label: String) { INPUT("Input"), LUTS("LUTs"), WHEELS("Wheels"), PRIMARIES("Primaries"), CURVES("Curves"), HSL("HSL"), DETAIL("Detail"), EFFECTS("Effects"), LOOKS("Looks") }
 
 @Composable
 fun VideoEditorScreen(onExit: () -> Unit) {
@@ -1980,7 +1980,13 @@ private fun ColorPage(
                 }
             }
             Text("10-bit HDR (HLG / HDR10) clips are tone-mapped to SDR automatically on export.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
-            Text("Have the camera maker's conversion LUT? Import it under Looks → My LUTs and switch on \"Use as input conversion\".", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+            Text("Have the camera maker's conversion LUT? Import it in the LUTs tab and switch on \"Use as input conversion\".", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+        }
+        ColorTab.LUTS -> {
+            Text("Import your own 3D LUTs (.cube) — from DaVinci Resolve, camera makers (DJI, Sony, Panasonic…), or LUT packs. Tap + IMPORT, pick the file, then choose how it's used.", color = Pro.Dim, fontSize = 11.sp)
+            LutSection(g) { ng -> grade { ng } }
+            SectionTitle("TIP")
+            Text("For log footage, switch on \"Use as input conversion\" with the camera maker's log → Rec.709 LUT, then grade on top. For a creative look, leave it off and lower Strength to taste. COPY GRADE TO ALL CLIPS applies the LUT to the whole edit.", color = Pro.Dim, fontSize = 11.sp)
         }
         ColorTab.WHEELS -> {
             SectionTitle("PRIMARY WHEELS")
@@ -2060,7 +2066,6 @@ private fun ColorPage(
             SectionTitle("LOOKS / CREATIVE LUTS")
             LookStrip(g.look) { f -> grade { it.copy(look = f) } }
             if (g.look != Filter.NONE) EdSlider("Strength", g.lookAmount, 0f..1f, 1f, ::pct) { v -> grade { it.copy(lookAmount = v) } }
-            LutSection(g) { ng -> grade { ng } }
             UserPresetSection({ g to c.detail }) { p -> onChange { it.copy(grade = p.grade, detail = p.detail.copy(aiDenoise = it.detail.aiDenoise)) } }
         }
     }

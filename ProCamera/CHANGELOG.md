@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: own LUTs now have their own tab — Color → LUTs → + IMPORT (.cube files).
 
 ## 1.0.150 — 2026-10-16
 - Video editor: AI captions — timed caption layers from speech (Whisper via your fal.ai account), 9 languages incl. Faroese and Danish.

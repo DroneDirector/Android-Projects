@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.139 — 2026-10-16
 - Video editor: keyframes for layers (position, size, opacity) with diamonds on the timeline, and volume keyframes for clips.
 - Video editor: speed ramps (Montage, Hero, Bullet, Flash in / out, Jump cut, Slow in / out) in preview and export.
 - Video editor: freeze frame, reverse clip, detach audio (for J- and L-cuts).

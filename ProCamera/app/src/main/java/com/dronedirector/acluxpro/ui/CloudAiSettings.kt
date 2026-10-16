@@ -109,3 +109,15 @@ private fun CloudChips(title: String, options: List<String>, selected: Int, onSe
         }
     }
 }
+
+/** "Guide & tips" button for settings menus. */
+@Composable
+fun GuideButton() {
+    var open by remember { mutableStateOf(false) }
+    if (open) GuideDialog(onDismiss = { open = false })
+    Text(
+        "?  GUIDE & TIPS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp))
+            .background(Color.White.copy(alpha = 0.06f)).clickable { open = true }.padding(12.dp),
+    )
+}

@@ -263,6 +263,7 @@ fun EditorSettingsDialog(
                 Text("APP COLOUR", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp, bottom = 4.dp))
                 com.dronedirector.acluxpro.ui.AccentPicker()
                 com.dronedirector.acluxpro.ui.CloudAiSettings()
+                com.dronedirector.acluxpro.ui.GuideButton()
                 if (extra != null) extra()
             }
         },

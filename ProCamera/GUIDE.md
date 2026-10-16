@@ -107,7 +107,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - ◆ MARKER above the timeline drops a marker at the playhead (tap again on it to remove); tap the ruler near a marker to jump to it.
 - SNAP makes layers and audio snap to cuts, markers, the playhead and each other while you hold-and-drag them.
 - Audio bars and clips show real waveforms, so you can cut on beats and words.
-- Color → Looks → MY LUTS imports .cube LUTs; "Use as input conversion" turns a camera maker's log LUT into the clip's input transform. MY PRESETS saves and applies your looks.
+- Color → LUTs → + IMPORT adds your own .cube LUTs; "Use as input conversion" turns a camera maker's log LUT into the clip's input transform. MY PRESETS saves and applies your looks.
 - Deliver → PRESETS sets YouTube, Instagram, TikTok and more in one tap; RANGE exports only the part between IN and OUT; SAVE FRAME AS PHOTO saves a still.
 - Edit → ANAMORPHIC DESQUEEZE stretches clips from anamorphic lenses back to their real shape.
 - Deliver shows the estimated file size; it updates as you change resolution, frame rate, bitrate and audio.

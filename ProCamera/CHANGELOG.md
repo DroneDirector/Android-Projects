@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture settings: rows with many choices (Scope, Anamorphic desqueeze, Interval…) now show the title above the choices — no more vertical text or big empty gaps.
 
 ## 1.0.155 — 2026-10-16
 - Privacy policy (PRIVACY.md) linked from every settings gear; Google Play data-safety answers prepared (DATA_SAFETY.md).

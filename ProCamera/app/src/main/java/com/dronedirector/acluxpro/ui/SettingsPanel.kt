@@ -356,14 +356,14 @@ private fun ToggleRow(title: String, subtitle: String, checked: Boolean, onToggl
 
 @Composable
 private fun <T> ChoiceRow(title: String, options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    val chips = @Composable { mod: Modifier ->
+        Row(mod, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             options.forEach { o ->
                 val sel = o == selected
                 Text(
                     label(o),
                     style = Pro.Value.copy(fontSize = 12.sp, color = if (sel) Color.Black else Color.White),
+                    maxLines = 1, softWrap = false,
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
                         .background(if (sel) Pro.Amber else Color.White.copy(alpha = 0.1f))
@@ -371,6 +371,20 @@ private fun <T> ChoiceRow(title: String, options: List<T>, selected: T, label: (
                         .padding(horizontal = 10.dp, vertical = 6.dp),
                 )
             }
+        }
+    }
+    // Many / long choices: title on its own line, choices underneath (scroll sideways if needed),
+    // so the title is never squeezed into a narrow column.
+    val stacked = options.size > 4 || options.sumOf { label(it).length } + title.length > 26
+    if (stacked) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+            Text(title, color = Color.White, fontSize = 15.sp)
+            chips(Modifier.padding(top = 6.dp).hintedScroll(horizontal = true))
+        }
+    } else {
+        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(title, color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))
+            chips(Modifier)
         }
     }
 }

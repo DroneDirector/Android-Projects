@@ -141,7 +141,7 @@ data class ProGrade(
         var l = luma(r, g, b)
         val d = shadows * 0.22f * (1f - smooth(0f, 0.55f, l)) + highlights * 0.22f * smooth(0.45f, 1f, l) +
             blacks * 0.12f * (1f - smooth(0f, 0.25f, l)) + whites * 0.12f * smooth(0.75f, 1f, l) +
-            // Parametric curve: four wide, overlapping regions (like Lightroom's region curve).
+            // Parametric curve: four wide, overlapping regions (a region curve).
             curveShadows * 0.26f * bump(l, 0.10f, 0.26f) + curveDarks * 0.26f * bump(l, 0.34f, 0.28f) +
             curveLights * 0.26f * bump(l, 0.64f, 0.30f) + curveHighlights * 0.26f * bump(l.coerceAtMost(1f), 0.90f, 0.32f)
         r += d; g += d; b += d

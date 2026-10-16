@@ -51,6 +51,12 @@ jobs:
           curl -fsSL --retry 3 -o app/src/main/assets/deeplab.tflite \
             https://storage.googleapis.com/download.tensorflow.org/models/tflite/gpu/deeplabv3_257_mv_gpu.tflite \
             || echo "::warning::DeepLab model download failed; on-phone AI subject masks will be unavailable"
+          # Licence texts shown in the app (Settings → Open-source licences).
+          mkdir -p app/src/main/assets/licenses
+          curl -fsSL --retry 3 -o app/src/main/assets/licenses/apache-2.0.txt https://www.apache.org/licenses/LICENSE-2.0.txt \
+            || echo "::warning::Apache licence text download failed; the app links to it instead"
+          curl -fsSL --retry 3 -o app/src/main/assets/licenses/nafnet-mit.txt https://raw.githubusercontent.com/megvii-research/NAFNet/main/LICENSE \
+            || echo "::warning::NAFNet licence text download failed; the app links to it instead"
           ls -l app/src/main/assets || true
 
       - name: Build APK

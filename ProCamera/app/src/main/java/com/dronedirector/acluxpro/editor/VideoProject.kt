@@ -83,7 +83,9 @@ object ClipLoader {
 /** Live preview effects for a clip (same pipeline as the export). */
 @UnstableApi
 fun clipEffects(c: Clip): List<Effect> = buildList {
-    if (!c.grade.isIdentity) add(LutCache.get(c.grade))
+    // A fresh LUT effect every time: an effect instance holds a GPU texture that belongs to one
+    // player's GL context and must never be shared between the two preview players or the export.
+    if (!c.grade.isIdentity) add(SingleColorLut.createFromCube(LutCache.cube(c.grade)))
     if (c.detail.needsVideoPass) add(DetailEffect(c.detail))
 }
 
@@ -371,12 +373,11 @@ fun duckRanges(clips: List<Clip>): List<LongRange> {
     return out
 }
 
-/** Building a colour table takes a moment; reuse the last few instead of rebuilding on every load. */
-@UnstableApi
+/** Computing a colour table takes a moment; reuse the numbers (never the GPU effect itself). */
 private object LutCache {
-    private val map = object : LinkedHashMap<ProGrade, Effect>(8, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<ProGrade, Effect>?) = size > 8
+    private val map = object : LinkedHashMap<ProGrade, Array<Array<IntArray>>>(8, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<ProGrade, Array<Array<IntArray>>>?) = size > 8
     }
     @Synchronized
-    fun get(g: ProGrade): Effect = map.getOrPut(g) { SingleColorLut.createFromCube(g.cube()) }
+    fun cube(g: ProGrade): Array<Array<IntArray>> = map.getOrPut(g) { g.cube() }
 }

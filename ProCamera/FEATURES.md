@@ -118,6 +118,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 ### Deliver
 - Resolution up to **4K UHD**, frame rate, **H.264 / HEVC**, bitrate up to very high, audio on/off.
 - Project formats: Original, 16:9, 9:16, 1:1, 4:5, 4:3 and more; fill or fit.
+- **Estimated file size** shown live as you change the settings.
 - Choose the **save folder** (default DCIM/AcluxPro).
 
 ### Projects & workflow

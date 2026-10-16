@@ -1995,8 +1995,26 @@ private fun DeliverPage(s: DeliverSettings, clips: List<Clip>, exporting: Boolea
     SectionTitle("AUDIO")
     Chips(listOf("Include audio (AAC)", "No audio"), if (s.audio) 0 else 1) { onChange(s.copy(audio = it == 0)) }
     val total = timelineLength(clips)
+    // Estimated file size: video bitrate (chosen, or what the encoder picks on Auto) + AAC audio.
+    val (ow, oh) = outputSize(clips, s)
+    val outFps = if (s.fps > 0) s.fps else 30
+    val autoMbps = ow.toDouble() * oh * outFps * 0.14 / 1_000_000
+    val videoMbps = if (s.bitrateMbps > 0) s.bitrateMbps.toDouble() else autoMbps
+    val audioMbps = if (s.audio) 0.13 else 0.0
+    val bytes = (videoMbps + audioMbps) * 1_000_000 / 8 * (total / 1000.0) * 1.01
+    SectionTitle("ESTIMATED FILE SIZE")
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Ed.Raised).border(1.dp, Pro.Amber.copy(alpha = 0.5f), RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("≈ ${fileSizeText(bytes)}", style = Pro.Value.copy(color = Pro.Amber, fontSize = 22.sp), modifier = Modifier.weight(1f))
+        Column(horizontalAlignment = Alignment.End) {
+            Text("${ow}×${oh} · ${if (s.fps > 0) "${s.fps} fps" else "source fps"}", style = Pro.Label)
+            Text("%.0f Mbps${if (s.bitrateMbps == 0) " (auto)" else ""} · ${tc(total)}".format(videoMbps + audioMbps), style = Pro.Label)
+        }
+    }
     Text(
-        "Timeline ${tc(total)} · ${clips.size} clips. If the phone's encoder can't do the chosen size or bitrate, the closest supported setting is used.",
+        "Timeline ${tc(total)} · ${clips.size} clips. The real size can differ a little${if (s.bitrateMbps == 0) " (on Auto the phone's encoder decides the bitrate)" else ""}. If the phone's encoder can't do the chosen size or bitrate, the closest supported setting is used.",
         color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 8.dp),
     )
     Text(
@@ -2005,6 +2023,13 @@ private fun DeliverPage(s: DeliverSettings, clips: List<Clip>, exporting: Boolea
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (exporting || clips.isEmpty()) Pro.Amber.copy(alpha = 0.4f) else Pro.Amber)
             .clickable(enabled = !exporting && clips.isNotEmpty(), onClick = onExport).padding(14.dp),
     )
+}
+
+/** 1.2 GB / 340 MB style. */
+fun fileSizeText(bytes: Double): String = when {
+    bytes >= 1e9 -> "%.2f GB".format(bytes / 1e9)
+    bytes >= 1e6 -> "%.0f MB".format(bytes / 1e6)
+    else -> "%.0f KB".format((bytes / 1e3).coerceAtLeast(1.0))
 }
 
 /** Timecode mm:ss.ff-style (hours when needed). */

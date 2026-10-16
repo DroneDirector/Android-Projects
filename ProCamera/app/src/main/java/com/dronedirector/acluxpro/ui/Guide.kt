@@ -97,6 +97,9 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Capture tips", Icons.Filled.CameraAlt, null, listOf(
             "Use the volume keys as a shutter / record button.",
+            "Settings → MONITORING & LENS → Monitoring LUT: import a .cube LUT and see it on the viewfinder (e.g. shoot D-Log, see Rec.709). \"Record the LUT\" also burns it into videos.",
+            "Shutter as angle (settings) shows the video shutter in degrees; the 180° button in the shutter control sets natural motion blur for your frame rate.",
+            "Anamorphic desqueeze (settings) stretches the viewfinder back to the real shape for anamorphic lenses; desqueeze the clips later in the Video editor.",
             "PRO and PRO VIDEO give manual ISO, shutter, focus, white balance and exposure.",
             "Zebras, false colour and focus peaking help judge exposure and focus.",
             "H.265 records smaller files at the same quality; H.264 plays everywhere.",
@@ -121,6 +124,9 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Photo editor tips", Icons.Filled.Photo, null, listOf(
             "Hold your finger on the photo to see the original.",
+            "SPLIT (top-left of the photo) shows before / after side by side — drag to move the divider.",
+            "Presets → MY PRESETS → + SAVE CURRENT LOOK saves your grade; tap a preset to apply it, hold to delete. Presets also work in the Video editor.",
+            "Presets → MY LUTS → + IMPORT adds your own .cube LUTs; use Strength to blend, hold a LUT to delete it.",
             "Sliders update live while you drag.",
             "COPY SETTINGS / PASTE SETTINGS moves a look to another photo — or to a video clip.",
             "SAVE keeps the edit as a project; LOAD opens it again later.",
@@ -145,6 +151,12 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
         GuideSection(GuideTopic.TIPS, "Video editor tips", Icons.Filled.Movie, null, listOf(
             "The timeline starts at the left edge: drag one finger (or tap the ruler) to move the playhead; two fingers pinch to zoom and slide to scroll. The scissors under the player split at the playhead.",
             "Tap a cut on the timeline to choose one of 34 transitions.",
+            "◆ MARKER above the timeline drops a marker at the playhead (tap again on it to remove); tap the ruler near a marker to jump to it.",
+            "SNAP makes layers and audio snap to cuts, markers, the playhead and each other while you hold-and-drag them.",
+            "Audio bars and clips show real waveforms, so you can cut on beats and words.",
+            "Color → Looks → MY LUTS imports .cube LUTs; \"Use as input conversion\" turns a camera maker's log LUT into the clip's input transform. MY PRESETS saves and applies your looks.",
+            "Deliver → PRESETS sets YouTube, Instagram, TikTok and more in one tap; RANGE exports only the part between IN and OUT; SAVE FRAME AS PHOTO saves a still.",
+            "Edit → ANAMORPHIC DESQUEEZE stretches clips from anamorphic lenses back to their real shape.",
             "Deliver shows the estimated file size; it updates as you change resolution, frame rate, bitrate and audio.",
             "The buttons at the left of each timeline row mute the video track or an audio track, hide a layer, or lock the row so it can't be moved, trimmed, split or deleted.",
             "Deliver → Audio only saves just the sound of your edit as an .m4a file.",

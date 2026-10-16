@@ -36,6 +36,9 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Clean feed** (hide the on-screen controls for an HDMI / screen mirror).
 
 ### Pro controls
+- **Shutter angle** read-out for video with a one-tap **180°** button.
+- **Monitoring LUT**: your own .cube LUT on the viewfinder (optionally recorded into videos).
+- **Anamorphic desqueeze** for the viewfinder (1.33×, 1.5×, 1.55×, 1.8×, 2×).
 - Manual **ISO, shutter, focus, white balance** (presets 3200K–7500K and more), **exposure compensation** and **zoom**.
 - Analysis: **zebras**, **false colour**, **focus peaking**, **histogram** (also in Pro Video when the phone can't add an analysis stream).
 - **Composition grids** (3×3, phi, 4×4, crosshair) and **frame guides** (2.39, 1.85, 4:3, 1:1, 9:16).
@@ -68,6 +71,9 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Crop & format**: common aspect ratios, rotate, flip, straighten, zoom.
 - **Watermark**: text or logo, font, colour, size, position, opacity; optional **Remember watermark**.
 - Live **histogram**, **hold for before**, **undo / redo**.
+- **Before / after split view** with a draggable divider.
+- **My LUTs**: import .cube LUTs, blend by strength.
+- **My presets**: save your look and reuse it (also in the video editor).
 - **Real-time preview** while dragging sliders.
 - **Copy / Paste settings** (choose what to paste) — also between photos and video clips.
 - **LOAD / SAVE projects** next to Export.
@@ -83,6 +89,8 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Multi-track timeline** starting at the left edge: filmstrips, layer rows and audio rows; drag the playhead or tap the ruler; two-finger pinch zoom and scroll; follows the playhead while playing.
 - Under the player: **mute, zoom out, show whole timeline, zoom in, split, undo, redo**, previous / play / next, full screen.
 - **Trim, split, duplicate, reorder, speed, delete** clips.
+- **Real audio waveforms** on clips and audio tracks.
+- **Markers** and **snapping** (cuts, markers, playhead, other items).
 - **Track headers**: mute the video track or any audio track, show / hide layers, **lock** tracks against edits.
 - **Hold-and-drag on the timeline**: move layers and audio in time, drag layers up / down to reorder, hold an edge to trim or extend.
 - **Audio in the media pool** (MP3, WAV, AAC…): add to the timeline at the playhead — the first becomes the music track, more become extra audio tracks with volume and fades.
@@ -100,11 +108,13 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 ### Color
 - Log input transforms: **D-Log, D-Log M, S-Log3, V-Log, LogC3, HLG, Flat**.
 - Wheels (lift / gamma / gain), primaries, curves, HSL, detail, effects, looks; scope; copy grade to all clips.
+- **My LUTs** (.cube) as a creative look or as the log → Rec.709 input conversion; **my presets** shared with the photo editor.
 - **AI noise reduction** per clip (built-in NAFNet), applied on export with a stoppable progress badge.
 
 ### Crop, zoom & stabilization
 - **Crop & zoom on the player** (pinch, drag, twist) with thirds grid; zoom 0.25×–4×, position, rotate, flip.
 - **Ken Burns** animation from a start framing to an end framing.
+- **Anamorphic desqueeze** per clip (preview and export).
 - **Stabilization**: motion analysis with smooth or locked (tripod) modes, smoothness and auto-crop.
 
 ### Layers
@@ -120,6 +130,8 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Audio only** export (.m4a, AAC) to Music/AcluxPro.
 - Resolution up to **4K UHD**, frame rate, **H.264 / HEVC**, bitrate up to very high, audio on/off.
 - Project formats: Original, 16:9, 9:16, 1:1, 4:5, 4:3 and more; fill or fit.
+- **Export presets** (YouTube 4K / 1080p, Instagram Reel / 4:5, TikTok, Square, small file).
+- **Export a range** (in / out) and **save a frame as a photo**.
 - **Estimated file size** shown live as you change the settings.
 - Choose the **save folder** (default DCIM/AcluxPro).
 

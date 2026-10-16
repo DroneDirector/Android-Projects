@@ -28,6 +28,8 @@ data class VideoProjectData(
     /** Main video track switches on the timeline. */
     val videoMuted: Boolean = false,
     val videoLocked: Boolean = false,
+    /** Timeline markers (ms). */
+    val markers: List<Long> = emptyList(),
 )
 
 data class PhotoProjectData(

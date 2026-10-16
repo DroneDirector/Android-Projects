@@ -227,6 +227,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     // Timeline track switches for the main video track (clips).
     var videoMuted by remember { mutableStateOf(initial?.videoMuted ?: false) }
     var videoLocked by remember { mutableStateOf(initial?.videoLocked ?: false) }
+    // Timeline markers and snapping.
+    val markers = remember { mutableStateListOf<Long>().apply { initial?.markers?.let { addAll(it) } } }
+    var snapping by remember { mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_snap", true)) }
     val thumbs = remember { mutableStateMapOf<String, Bitmap>() }
     val strips = remember { mutableStateMapOf<String, Filmstrip>() }
     var scopeHist by remember { mutableStateOf<Array<FloatArray>?>(null) }
@@ -246,6 +249,15 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val extraAudio = remember { mutableStateListOf<MusicTrack>().apply { initial?.extraAudio?.let { addAll(it) } } }
     val audioPool = remember { mutableStateListOf<PoolAudio>().apply { initial?.audioPool?.let { addAll(it) } } }
     val audioPlayers = remember { HashMap<String, ExoPlayer>() }
+    // Real waveforms for clips and audio tracks (decoded once in the background).
+    val waves = remember { mutableStateMapOf<String, FloatArray>() }
+    LaunchedEffect(clips.map { it.uri }.distinct(), music?.uri, extraAudio.map { it.uri }) {
+        val uris = (clips.map { it.uri } + listOfNotNull(music?.uri) + extraAudio.map { it.uri }).distinct()
+        for (u in uris) {
+            if (waves[u.toString()] != null) continue
+            withContext(Dispatchers.IO) { Waveforms.load(context, u) }?.let { waves[u.toString()] = it }
+        }
+    }
     DisposableEffect(Unit) { onDispose { audioPlayers.values.forEach { it.release() } } }
     val pickAudio = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         for (uri in uris) {
@@ -797,7 +809,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             id = projectId ?: java.util.UUID.randomUUID().toString(), name = name,
             clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
             extraAudio = extraAudio.toList(), audioPool = audioPool.toList(),
-            videoMuted = videoMuted, videoLocked = videoLocked,
+            videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
         )
         val saved = try { ProjectStore.saveVideo(context, p, clips.firstOrNull()?.let { thumbs[it.id] }) } catch (_: Throwable) { null }
         if (saved != null) { projectId = saved.id; projectName = saved.name; message = "Project \"${saved.name}\" saved" }
@@ -871,9 +883,15 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         seekGlobal(ms)
     }
 
-    fun runExport(list: List<Clip>) {
+    fun runExport(list0: List<Clip>) {
+        // Export range: cut the edit down to the chosen part first.
+        val ra = deliver.rangeStart; val rb = deliver.rangeEnd
+        val cut = if (ra != null && rb != null && rb > ra) cutRange(list0, layers.toList(), music, extraAudio.toList(), ra, rb)
+        else RangeCut(list0, layers.toList(), music, extraAudio.toList())
+        if (cut.clips.isEmpty()) { exporting = false; message = "Nothing to export in that range"; return }
+        val list = cut.clips
         val e = TimelineExport(
-            context, if (videoMuted) list.map { it.copy(muted = true) } else list, deliver, layers.toList(), music, extraAudio.toList(),
+            context, if (videoMuted) list.map { it.copy(muted = true) } else list, deliver, cut.layers, cut.music, cut.extra,
             onProgress = { progress = it },
             onDone = { uri, err ->
                 exporting = false; export = null
@@ -885,6 +903,26 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         )
         export = e
         try { e.start() } catch (t: Throwable) { exporting = false; export = null; message = "Export failed: ${t.message}" }
+    }
+
+    /** Saves the frame under the playhead (graded, with its text / logo layers) as a photo. */
+    fun saveStill() {
+        val c = clips.getOrNull(current) ?: return
+        val src = c.startMs + deck.cur.currentPosition
+        val at = globalMs
+        val shownLayers = layers.filter { it.activeAt(at) && it.kind != LayerKind.VIDEO }
+        message = "Saving frame…"
+        layerScope.launch {
+            val uri = withContext(Dispatchers.IO) {
+                try {
+                    val f = GradeIO.videoFrame(context, c.uri, src * 1000, 4096) ?: return@withContext null
+                    var out = ImageOps.render(f, c.grade, c.detail.copy(aiDenoise = 0f), Geometry(), if (c.grade.isIdentity) null else c.grade.tables())
+                    for (l in shownLayers) out = stampLayer(context, out, l)
+                    savePicture(context, out, png = false, quality = 95)
+                } catch (_: Throwable) { null }
+            }
+            message = if (uri != null) "Frame saved as a photo" else "Couldn't save the frame"
+        }
     }
 
     fun startExport() {
@@ -955,7 +993,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     for (i in 0..1) {
                                         val frame = root.getChildAt(i) as AspectRatioFrameLayout
                                         frame.resizeMode = if (deliver.fill) AspectRatioFrameLayout.RESIZE_MODE_ZOOM else AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                        frame.setAspectRatio(aspects[i])
+                                        val shownClip = if (i == deck.active) clips.getOrNull(current) else clips.getOrNull(current + 1)
+                                        frame.setAspectRatio(aspects[i] * (shownClip?.desqueeze ?: 1f))
                                         if (!transitionOn[0]) frame.alpha = if (i == deck.active) 1f else 0f
                                     }
                                 },
@@ -1109,6 +1148,18 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         else { val i = extraAudio.indexOfFirst { it.id == t.id }; if (i >= 0) extraAudio[i] = t }
                     },
                     onLocked = { message = "Locked — tap the lock at the left of the timeline to unlock" },
+                    waves = waves,
+                    markers = markers, snapping = snapping,
+                    onToggleMarker = {
+                        val near = markers.firstOrNull { kotlin.math.abs(it - globalMs) < 250 }
+                        if (near != null) { markers.remove(near); message = "Marker removed" }
+                        else { markers.add(globalMs); markers.sort(); message = "Marker at ${tc(globalMs)} — tap ◆ MARKER on it again to remove" }
+                    },
+                    onToggleSnap = {
+                        snapping = !snapping
+                        context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("tl_snap", snapping).apply()
+                        message = if (snapping) "Snapping on" else "Snapping off"
+                    },
                     onLayerTime = { id, a, b ->
                         val i = layers.indexOfFirst { it.id == id }
                         if (i >= 0) layers[i] = layers[i].copy(wholeVideo = false, startMs = a, endMs = b)
@@ -1245,6 +1296,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     onChange = { f -> update(selected, f) },
                                     onAnalyze = { analyze(sc) },
                                 )
+                                SectionTitle("ANAMORPHIC DESQUEEZE")
+                                val sq = listOf(1f, 1.33f, 1.5f, 1.55f, 1.8f, 2f)
+                                Chips(sq.map { if (it == 1f) "Off" else "${it}×" }, sq.indexOfFirst { it == (sc.desqueeze ?: 1f) }.coerceAtLeast(0)) { i ->
+                                    update(selected) { it.copy(desqueeze = sq[i].takeIf { v -> v > 1f }) }
+                                }
+                                Text("For clips filmed with an anamorphic lens or adapter: stretches the picture back to its real shape (preview and export).", color = Pro.Dim, fontSize = 11.sp)
                             }
                             Page.COLOR -> if (sc != null) ColorPage(sc, colorTab, { colorTab = it }, onChange = { f -> update(selected, f) }, onCopyToAll = {
                                 val g = sc.grade; val d = sc.detail
@@ -1287,7 +1344,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     if (i >= 0) { if (t == null) extraAudio.removeAt(i) else extraAudio[i] = t }
                                 },
                             )
-                            Page.DELIVER -> DeliverPage(deliver, clips, exporting, { deliver = it }, ::startExport)
+                            Page.DELIVER -> DeliverPage(deliver, clips, exporting, { deliver = it }, ::startExport, playheadMs = globalMs, onSaveFrame = { saveStill() })
                         }
                         if (clips.isEmpty() && page != Page.MEDIA && page != Page.DELIVER) Text("Add a clip in the Media page.", color = Pro.Dim, modifier = Modifier.padding(12.dp))
                     }
@@ -1599,6 +1656,7 @@ private fun ColorPage(
                 }
             }
             Text("10-bit HDR (HLG / HDR10) clips are tone-mapped to SDR automatically on export.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
+            Text("Have the camera maker's conversion LUT? Import it under Looks → My LUTs and switch on \"Use as input conversion\".", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
         }
         ColorTab.WHEELS -> {
             SectionTitle("PRIMARY WHEELS")
@@ -1678,6 +1736,8 @@ private fun ColorPage(
             SectionTitle("LOOKS / CREATIVE LUTS")
             LookStrip(g.look) { f -> grade { it.copy(look = f) } }
             if (g.look != Filter.NONE) EdSlider("Strength", g.lookAmount, 0f..1f, 1f, ::pct) { v -> grade { it.copy(lookAmount = v) } }
+            LutSection(g) { ng -> grade { ng } }
+            UserPresetSection({ g to c.detail }) { p -> onChange { it.copy(grade = p.grade, detail = p.detail.copy(aiDenoise = it.detail.aiDenoise)) } }
         }
     }
 }
@@ -2018,7 +2078,40 @@ private fun LayersPage(
 }
 
 @Composable
-private fun DeliverPage(s: DeliverSettings, clips: List<Clip>, exporting: Boolean, onChange: (DeliverSettings) -> Unit, onExport: () -> Unit) {
+private fun DeliverPage(
+    s: DeliverSettings, clips: List<Clip>, exporting: Boolean, onChange: (DeliverSettings) -> Unit, onExport: () -> Unit,
+    playheadMs: Long = 0L, onSaveFrame: () -> Unit = {},
+) {
+    SectionTitle("PRESETS")
+    Chips(EXPORT_PRESETS.map { it.label }, EXPORT_PRESETS.indexOfFirst { p ->
+        s.shortSide == p.shortSide && s.fps == p.fps && s.hevc == p.hevc && s.bitrateMbps == p.mbps && s.aspect == p.aspect
+    }) { i ->
+        val p = EXPORT_PRESETS[i]
+        onChange(s.copy(shortSide = p.shortSide, fps = p.fps, hevc = p.hevc, bitrateMbps = p.mbps, aspect = p.aspect, audioOnly = false, audio = true))
+    }
+    Text("Sets size, shape, frame rate and quality for where the video is going. Change anything below afterwards.", color = Pro.Dim, fontSize = 11.sp)
+    SectionTitle("RANGE") { onChange(s.copy(rangeStart = null, rangeEnd = null)) }
+    val total0 = timelineLength(clips)
+    val ra = s.rangeStart; val rb = s.rangeEnd
+    Chips(listOf("Whole timeline", "Part (in / out)"), if (ra != null && rb != null) 1 else 0) { i ->
+        if (i == 0) onChange(s.copy(rangeStart = null, rangeEnd = null))
+        else onChange(s.copy(rangeStart = ra ?: 0L, rangeEnd = rb ?: total0))
+    }
+    if (ra != null && rb != null) {
+        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("IN ${tc(ra)}", style = Pro.Value.copy(fontSize = 12.sp), modifier = Modifier.weight(1f))
+            Text("SET IN", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { onChange(s.copy(rangeStart = playheadMs.coerceAtMost(rb - 100))) }.padding(8.dp))
+            Text("OUT ${tc(rb)}", style = Pro.Value.copy(fontSize = 12.sp), modifier = Modifier.weight(1f))
+            Text("SET OUT", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { onChange(s.copy(rangeEnd = playheadMs.coerceAtLeast(ra + 100))) }.padding(8.dp))
+        }
+        Text("Move the playhead on the timeline, then tap SET IN / SET OUT. Only that part is exported (${tc(rb - ra)}).", color = Pro.Dim, fontSize = 11.sp)
+    }
+    SectionTitle("STILL FRAME")
+    Text(
+        "SAVE FRAME AS PHOTO", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable(onClick = onSaveFrame).padding(10.dp),
+    )
+    Text("Saves the frame under the playhead, with its grade and text / logo layers, as a full-size JPEG.", color = Pro.Dim, fontSize = 11.sp)
     SectionTitle("RESOLUTION")
     val res = listOf(0 to "Source", 720 to "720p", 1080 to "1080p", 1440 to "1440p", 2160 to "4K UHD")
     Chips(res.map { it.second }, res.indexOfFirst { it.first == s.shortSide }.coerceAtLeast(0)) { onChange(s.copy(shortSide = res[it].first)) }
@@ -2035,7 +2128,7 @@ private fun DeliverPage(s: DeliverSettings, clips: List<Clip>, exporting: Boolea
         onChange(s.copy(audio = it != 1, audioOnly = it == 2))
     }
     if (s.audioOnly) Text("Saves just the sound of the timeline — clips, music and audio tracks — as an AAC .m4a file in Music/AcluxPro (or your chosen save folder). Muted tracks are left out.", color = Pro.Dim, fontSize = 11.sp)
-    val total = timelineLength(clips)
+    val total = if (s.rangeStart != null && s.rangeEnd != null) (s.rangeEnd - s.rangeStart).coerceAtLeast(0) else timelineLength(clips)
     // Estimated file size: video bitrate (chosen, or what the encoder picks on Auto) + AAC audio.
     val (ow, oh) = outputSize(clips, s)
     val outFps = if (s.fps > 0) s.fps else 30

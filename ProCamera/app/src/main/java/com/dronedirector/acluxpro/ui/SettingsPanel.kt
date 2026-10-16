@@ -161,6 +161,34 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 color = Pro.Dim, fontSize = 12.sp,
             )
 
+            Section("MONITORING & LENS")
+            run {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val x = com.dronedirector.acluxpro.camera.CaptureExtras
+                val luts = com.dronedirector.acluxpro.editor.LutLibrary.luts
+                val importer = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+                    if (uri != null) try {
+                        val l = com.dronedirector.acluxpro.editor.LutLibrary.import(ctx, uri)
+                        x.monitorLut = l.id; x.save(ctx); c.refreshMonitorLut()
+                    } catch (t: Throwable) { android.widget.Toast.makeText(ctx, t.message ?: "Not a .cube LUT", android.widget.Toast.LENGTH_SHORT).show() }
+                }
+                Text("Monitoring LUT", color = Color.White, fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp))
+                Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    com.dronedirector.acluxpro.editor.PillChip("Off", x.monitorLut == null) { x.monitorLut = null; x.save(ctx); c.refreshMonitorLut() }
+                    luts.forEach { l ->
+                        com.dronedirector.acluxpro.editor.PillChip(l.name, x.monitorLut == l.id) { x.monitorLut = l.id; x.save(ctx); c.refreshMonitorLut() }
+                    }
+                    com.dronedirector.acluxpro.editor.PillChip("+ IMPORT .CUBE", false, accentText = true) { importer.launch(arrayOf("*/*")) }
+                }
+                Text("Shows your LUT on the viewfinder — e.g. shoot D-Log / Flat and see a normal Rec.709 picture. Same LUT library as the editors.", color = Pro.Dim, fontSize = 12.sp)
+                if (x.monitorLut != null) ToggleRow("Record the LUT", "Off: the LUT is only for monitoring and recordings stay log / flat. On: videos are recorded with the LUT applied.", x.bakeLut) {
+                    x.bakeLut = !x.bakeLut; x.save(ctx); c.refreshMonitorLut()
+                }
+                ToggleRow("Shutter as angle", "Video: show the shutter as an angle (180° = natural motion blur) with a one-tap 180° button", x.shutterAngle) { x.shutterAngle = !x.shutterAngle; x.save(ctx) }
+                ChoiceRow("Anamorphic desqueeze", listOf(1f, 1.33f, 1.5f, 1.55f, 1.8f, 2f), x.desqueeze, { if (it == 1f) "OFF" else "${it}×" }) { x.desqueeze = it; x.save(ctx) }
+                Text("For anamorphic lenses / adapters: the viewfinder is stretched back to the real shape. Recordings stay squeezed — desqueeze them in the video editor (Edit → Anamorphic).", color = Pro.Dim, fontSize = 12.sp)
+            }
+
             Section("AUDIO")
             Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Input gain", color = Color.White, fontSize = 15.sp, modifier = Modifier.weight(1f))

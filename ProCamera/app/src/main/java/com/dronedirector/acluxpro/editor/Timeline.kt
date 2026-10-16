@@ -125,6 +125,13 @@ fun TimelineView(
     onAudioFlags: (MusicTrack) -> Unit = {},
     /** Something locked was held. */
     onLocked: () -> Unit = {},
+    /** Real audio peaks per file (uri string → peaks every [Waveforms.BUCKET_MS]). */
+    waves: Map<String, FloatArray> = emptyMap(),
+    /** Timeline markers (ms) and the marker / snapping buttons. */
+    markers: List<Long> = emptyList(),
+    snapping: Boolean = true,
+    onToggleMarker: () -> Unit = {},
+    onToggleSnap: () -> Unit = {},
 ) {
     val density = LocalDensity.current
     val totalMs = timelineLength(clips).coerceAtLeast(1)
@@ -171,6 +178,8 @@ fun TimelineView(
     val curLayerOrder by rememberUpdatedState(onLayerOrder)
     val curAudioTime by rememberUpdatedState(onAudioTime)
     val curLocked by rememberUpdatedState(onLocked)
+    val curMarkers by rememberUpdatedState(markers)
+    val curSnap by rememberUpdatedState(snapping)
     val textPaint = remember { Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE; typeface = Typeface.DEFAULT_BOLD } }
     val dimPaint = remember { Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x99FFFFFF.toInt(); typeface = Typeface.MONOSPACE } }
     val accent = Pro.Amber
@@ -189,7 +198,14 @@ fun TimelineView(
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(tc(headMs), style = Pro.Value.copy(color = accent, fontSize = 13.sp))
             Text(" / ${tc(totalMs)}", style = Pro.Value.copy(color = Pro.Dim, fontSize = 11.sp), modifier = Modifier.weight(1f))
-            Text("2 fingers: zoom / scroll", style = Pro.Label.copy(fontSize = 9.sp))
+            Text(
+                "◆ MARKER", style = Pro.Label.copy(color = accent, fontSize = 10.sp),
+                modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onToggleMarker).padding(horizontal = 8.dp, vertical = 4.dp),
+            )
+            Text(
+                if (snapping) "SNAP ✓" else "SNAP", style = Pro.Label.copy(color = if (snapping) Color.Black else Color.White, fontSize = 10.sp),
+                modifier = Modifier.padding(start = 4.dp).clip(RoundedCornerShape(50)).background(if (snapping) accent else Color.White.copy(alpha = 0.1f)).clickable(onClick = onToggleSnap).padding(horizontal = 8.dp, vertical = 4.dp),
+            )
         }
         BoxWithConstraints(
             Modifier
@@ -277,6 +293,36 @@ fun TimelineView(
                                 if (!hitAudio) curSelectLayer(id)
                                 val minLen = 200L
                                 var lastRow = hitRow
+                                // Snapping: cuts, markers, the playhead and other items' edges.
+                                val cands: LongArray = if (!curSnap) LongArray(0) else buildList {
+                                    add(0L); add(curTotal); add(currentHead)
+                                    val st = clipStarts(curClips)
+                                    curClips.forEachIndexed { i, cl -> add(st[i]); add(st[i] + cl.lengthMs) }
+                                    addAll(curMarkers)
+                                    curLayers.forEach { if (it.id != id && !it.wholeVideo) { add(it.startMs); add(it.endMs) } }
+                                    curAudio.forEach { if (it.id != id) { add(it.startMs); add(it.startMs + it.playLength(curTotal)) } }
+                                }.toLongArray()
+                                val snapTol = (12.dp.toPx() / pxPerSec * 1000f).toLong()
+                                var lastSnap = Long.MIN_VALUE
+                                fun nearest(ms: Long): Long? {
+                                    var best: Long? = null; var bd = snapTol + 1
+                                    for (cand in cands) { val d = abs(cand - ms); if (d < bd) { bd = d; best = cand } }
+                                    return best
+                                }
+                                fun feel(target: Long?) {
+                                    if (target != null && target != lastSnap) haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                    lastSnap = target ?: Long.MIN_VALUE
+                                }
+                                fun snap(ms: Long): Long { val n = nearest(ms); feel(n); return n ?: ms }
+                                fun snapMove(start: Long, len: Long): Long {
+                                    val a = nearest(start); val b = nearest(start + len)
+                                    val r = when {
+                                        a != null && (b == null || abs(a - start) <= abs(b - start - len)) -> { feel(a); a }
+                                        b != null -> { feel(b); b - len }
+                                        else -> { feel(null); start }
+                                    }
+                                    return r
+                                }
                                 do {
                                     val ev = awaitPointerEvent()
                                     val c = ev.changes.first()
@@ -284,22 +330,22 @@ fun TimelineView(
                                     if (hitAudio) {
                                         val m = curAudio.firstOrNull { it.id == id }
                                         if (m != null) when (hitEdge) {
-                                            0 -> curAudioTime(id, (hitStart + dx).coerceAtLeast(0), hitOffset, hitEnd - hitStart)
+                                            0 -> curAudioTime(id, snapMove((hitStart + dx).coerceAtLeast(0), hitEnd - hitStart).coerceAtLeast(0), hitOffset, hitEnd - hitStart)
                                             -1 -> {
                                                 // Trim the front: start later in the song (or earlier, back to its beginning).
-                                                val d = dx.coerceIn(-hitOffset, hitEnd - hitStart - minLen).coerceAtLeast(-hitStart)
+                                                val d = (snap(hitStart + dx) - hitStart).coerceIn(-hitOffset, hitEnd - hitStart - minLen).coerceAtLeast(-hitStart)
                                                 curAudioTime(id, hitStart + d, hitOffset + d, hitEnd - hitStart - d)
                                             }
                                             else -> {
                                                 val maxLen = m.durationMs - hitOffset
-                                                curAudioTime(id, hitStart, hitOffset, (hitEnd - hitStart + dx).coerceIn(minLen, maxLen))
+                                                curAudioTime(id, hitStart, hitOffset, (snap(hitEnd + dx) - hitStart).coerceIn(minLen, maxLen))
                                             }
                                         }
                                     } else {
                                         when (hitEdge) {
                                             0 -> {
                                                 val len = hitEnd - hitStart
-                                                val ns = (hitStart + dx).coerceIn(0, (curTotal - len).coerceAtLeast(0))
+                                                val ns = snapMove(hitStart + dx, len).coerceIn(0, (curTotal - len).coerceAtLeast(0))
                                                 curLayerTime(id, ns, ns + len)
                                                 // Up / down: change the stacking order.
                                                 val rowH = layerRow + gap
@@ -311,8 +357,8 @@ fun TimelineView(
                                                     haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
                                                 }
                                             }
-                                            -1 -> curLayerTime(id, (hitStart + dx).coerceIn(0, hitEnd - minLen), hitEnd)
-                                            else -> curLayerTime(id, hitStart, (hitEnd + dx).coerceIn(hitStart + minLen, curTotal))
+                                            -1 -> curLayerTime(id, snap(hitStart + dx).coerceIn(0, hitEnd - minLen), hitEnd)
+                                            else -> curLayerTime(id, hitStart, snap(hitEnd + dx).coerceIn(hitStart + minLen, curTotal))
                                         }
                                     }
                                     ev.changes.forEach { it.consume() }
@@ -357,8 +403,10 @@ fun TimelineView(
                             val ms = msAt(down.position.x)
                             val y = down.position.y
                             if (y < ruler) {
-                                // A tap on the ruler moves the playhead there.
-                                currentScrub(ms.coerceIn(0, curTotal), true)
+                                // A tap on the ruler moves the playhead there (onto a marker when close).
+                                val tol = (14.dp.toPx() / pxPerSec * 1000f).toLong()
+                                val mk = curMarkers.minByOrNull { abs(it - ms) }?.takeIf { abs(it - ms) <= tol }
+                                currentScrub((mk ?: ms).coerceIn(0, curTotal), true)
                             } else if (y in ruler..(ruler + clipRow)) {
                                 val st = clipStarts(curClips)
                                 // A tap on a transition (or near a cut) opens the transition.
@@ -430,6 +478,20 @@ fun TimelineView(
                                 }
                                 tx += tileW
                             }
+                        }
+                    }
+                    // The clip's own sound as a waveform along the bottom edge.
+                    waves[c.uri.toString()]?.let { pk ->
+                        val wh = clipRow * 0.32f
+                        val base = top + clipRow - 1f
+                        drawRect(Color.Black.copy(alpha = 0.35f), Offset(max(x0, 0f), base - wh), Size(min(x1, size.width) - max(x0, 0f), wh))
+                        var wx = max(x0, 0f) + 1f
+                        val col = if (c.muted || videoMuted) Color.White.copy(alpha = 0.25f) else Color(0xFF7FE0A8).copy(alpha = 0.85f)
+                        while (wx < min(x1, size.width)) {
+                            val src = c.startMs + (((wx - x0) / pxPerMs) * c.speed).toLong()
+                            val h = wh * peakAt(pk, src, (3f / pxPerMs * c.speed).toLong())
+                            drawLine(col, Offset(wx, base), Offset(wx, base - h), 2f)
+                            wx += 3f
                         }
                     }
                     val sel = i == selectedClip
@@ -505,11 +567,15 @@ fun TimelineView(
                     val isMain = m.id == music?.id
                     drawRoundRect((if (isMain) Color(0xFF1FA35A) else Color(0xFF0FA3A3)).copy(alpha = if (m.muted) 0.3f else 0.8f), Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), musicRow), CornerRadius(5f))
                     if (m.locked) lockHatch(x0, x1, rowTop, musicRow)
-                    var mx = max(x0, 0f) + 4f
+                    val peaks = waves[m.uri.toString()]
+                    var mx = max(x0, 0f) + 1f
                     while (mx < min(x1, size.width)) {
-                        val hgt = musicRow * (0.25f + 0.5f * abs(kotlin.math.sin(mx * 0.37f) * kotlin.math.cos(mx * 0.11f)))
-                        drawLine(Color.Black.copy(alpha = 0.35f), Offset(mx, rowTop + (musicRow - hgt) / 2), Offset(mx, rowTop + (musicRow + hgt) / 2), 2f)
-                        mx += 4f
+                        val hgt = if (peaks != null) {
+                            val srcMs = m.offsetMs + ((mx - x0) / pxPerMs).toLong()
+                            musicRow * (0.06f + 0.86f * peakAt(peaks, srcMs, (3f / pxPerMs).toLong()))
+                        } else musicRow * 0.12f
+                        drawLine(Color.Black.copy(alpha = 0.45f), Offset(mx, rowTop + (musicRow - hgt) / 2), Offset(mx, rowTop + (musicRow + hgt) / 2), 2f)
+                        mx += 3f
                     }
                     if (m.id == editingId) drawRoundRect(accent, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), musicRow), CornerRadius(5f), style = Stroke(5f))
                     textPaint.textSize = 9.sp.toPx()
@@ -520,6 +586,15 @@ fun TimelineView(
                 // End of edit
                 val endX = xOf(totalMs)
                 if (endX in 0f..size.width) drawLine(Color.White.copy(alpha = 0.3f), Offset(endX, ruler), Offset(endX, size.height), 2f)
+
+                // Markers: a flag on the ruler and a faint line through the tracks.
+                for (mk in markers) {
+                    val mx = xOf(mk)
+                    if (mx < leftPad - 4f || mx > size.width + 4f) continue
+                    drawLine(accent.copy(alpha = 0.35f), Offset(mx, ruler), Offset(mx, size.height), 1.5f)
+                    val tri = androidx.compose.ui.graphics.Path().apply { moveTo(mx - 6f, 0f); lineTo(mx + 6f, 0f); lineTo(mx, ruler * 0.6f); close() }
+                    drawPath(tri, accent)
+                }
 
                 // Playhead
                 val headX = xOf(headMs)
@@ -547,6 +622,15 @@ fun TimelineView(
             }
         }
     }
+}
+
+/** Loudest peak (0..1) over [spanMs] starting at [ms]. */
+private fun peakAt(peaks: FloatArray, ms: Long, spanMs: Long): Float {
+    val a = (ms / Waveforms.BUCKET_MS).toInt()
+    val b = ((ms + spanMs.coerceAtLeast(1)) / Waveforms.BUCKET_MS).toInt().coerceAtLeast(a)
+    var p = 0f
+    for (i in a..b) if (i in peaks.indices && peaks[i] > p) p = peaks[i]
+    return p
 }
 
 /** Diagonal stripes over a locked item. */

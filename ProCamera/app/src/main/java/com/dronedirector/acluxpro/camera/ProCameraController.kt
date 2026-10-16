@@ -260,6 +260,10 @@ class ProCameraController(private val context: Context) {
         this.owner = owner
         previewView = view
         refreshStorage()
+        // Monitoring LUT chosen in settings (no rebind needed yet: bind() follows).
+        CaptureExtras.monitorLut?.let { com.dronedirector.acluxpro.editor.LutLibrary.get(it) }?.strip(33)?.let {
+            filterProcessor.setLut(it, toPreview = true, toVideo = CaptureExtras.bakeLut)
+        }
         if (!deviceCallbackRegistered) {
             deviceCallbackRegistered = true
             try { audioManager.registerAudioDeviceCallback(deviceCallback, null) } catch (_: Throwable) {}
@@ -1378,7 +1382,19 @@ class ProCameraController(private val context: Context) {
         if (s.mode.isLapse) return true
         if (s.mode.isSlowMo) return false
         if (s.mode == CaptureMode.PRO_VIDEO && s.profile == VideoProfile.HLG && s.hlgSupported) return false
-        return s.filter != Filter.NONE || logCurve(s) != 0
+        return s.filter != Filter.NONE || logCurve(s) != 0 || filterProcessor.hasLut
+    }
+
+    /** Applies the Capture monitoring LUT (settings) to the viewfinder and, if chosen, recordings. */
+    fun refreshMonitorLut() {
+        val s = st
+        val before = needsEffect(s)
+        val strip = CaptureExtras.monitorLut?.let { com.dronedirector.acluxpro.editor.LutLibrary.get(it) }?.strip(33)
+        filterProcessor.setLut(strip, toPreview = true, toVideo = CaptureExtras.bakeLut)
+        if (needsEffect(s) != before) {
+            if (s.recording) { toast("The LUT applies after this recording"); return }
+            bind()
+        }
     }
 
     fun toggleLogAssist() {

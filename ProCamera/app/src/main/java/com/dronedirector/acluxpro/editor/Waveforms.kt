@@ -1,0 +1,110 @@
+package com.dronedirector.acluxpro.editor
+
+import android.content.Context
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
+import android.net.Uri
+import java.io.File
+import java.nio.ByteOrder
+import kotlin.math.abs
+import kotlin.math.max
+
+/**
+ * Real audio waveforms for the timeline: the sound is decoded once and reduced to one peak
+ * (0..1) per [BUCKET_MS]; results are kept in memory and on disk.
+ */
+object Waveforms {
+    const val BUCKET_MS = 20L
+    private val mem = HashMap<String, FloatArray>()
+
+    fun cached(uri: Uri): FloatArray? = synchronized(mem) { mem[uri.toString()] }
+
+    /** Decodes (or loads the saved copy). Slow: call off the main thread. */
+    fun load(context: Context, uri: Uri): FloatArray? {
+        cached(uri)?.let { return it }
+        val file = File(File(context.cacheDir, "waves").apply { mkdirs() }, uri.toString().hashCode().toUInt().toString(16) + ".wav1")
+        if (file.exists()) {
+            try {
+                val bytes = file.readBytes()
+                val out = FloatArray(bytes.size) { (bytes[it].toInt() and 0xFF) / 255f }
+                synchronized(mem) { mem[uri.toString()] = out }
+                return out
+            } catch (_: Throwable) {}
+        }
+        val peaks = decode(context, uri) ?: return null
+        try { file.writeBytes(ByteArray(peaks.size) { (peaks[it] * 255f).toInt().coerceIn(0, 255).toByte() }) } catch (_: Throwable) {}
+        synchronized(mem) { mem[uri.toString()] = peaks }
+        return peaks
+    }
+
+    private fun decode(context: Context, uri: Uri): FloatArray? {
+        val ex = MediaExtractor()
+        var codec: MediaCodec? = null
+        try {
+            ex.setDataSource(context, uri, null)
+            val track = (0 until ex.trackCount).firstOrNull { ex.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true } ?: return null
+            val fmt = ex.getTrackFormat(track)
+            ex.selectTrack(track)
+            val durUs = if (fmt.containsKey(MediaFormat.KEY_DURATION)) fmt.getLong(MediaFormat.KEY_DURATION) else 0L
+            val buckets = ArrayList<Float>(((durUs / 1000) / BUCKET_MS + 16).toInt().coerceIn(16, 2_000_000))
+            codec = MediaCodec.createDecoderByType(fmt.getString(MediaFormat.KEY_MIME)!!)
+            codec.configure(fmt, null, null, 0)
+            codec.start()
+            var sampleRate = fmt.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+            var channels = fmt.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+            var samplesPerBucket = (sampleRate * BUCKET_MS / 1000).toInt().coerceAtLeast(1)
+            var count = 0; var peak = 0
+            val info = MediaCodec.BufferInfo()
+            var inDone = false; var outDone = false
+            while (!outDone) {
+                if (!inDone) {
+                    val i = codec.dequeueInputBuffer(10_000)
+                    if (i >= 0) {
+                        val buf = codec.getInputBuffer(i)!!
+                        val n = ex.readSampleData(buf, 0)
+                        if (n < 0) { codec.queueInputBuffer(i, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM); inDone = true }
+                        else { codec.queueInputBuffer(i, 0, n, ex.sampleTime, 0); ex.advance() }
+                    }
+                }
+                val o = codec.dequeueOutputBuffer(info, 10_000)
+                when {
+                    o == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                        val f = codec.outputFormat
+                        sampleRate = f.getInteger(MediaFormat.KEY_SAMPLE_RATE); channels = f.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                        samplesPerBucket = (sampleRate * BUCKET_MS / 1000).toInt().coerceAtLeast(1)
+                    }
+                    o >= 0 -> {
+                        val buf = codec.getOutputBuffer(o)
+                        if (buf != null && info.size > 0) {
+                            val sb = buf.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+                            sb.position(info.offset / 2); sb.limit((info.offset + info.size) / 2)
+                            var ch = 0
+                            while (sb.hasRemaining()) {
+                                val v = abs(sb.get().toInt())
+                                if (v > peak) peak = v
+                                if (++ch == channels) {
+                                    ch = 0
+                                    if (++count == samplesPerBucket) { buckets += peak / 32768f; count = 0; peak = 0 }
+                                }
+                            }
+                        }
+                        codec.releaseOutputBuffer(o, false)
+                        if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outDone = true
+                    }
+                }
+            }
+            if (count > 0) buckets += peak / 32768f
+            // Normalise so quiet recordings are still readable.
+            var mx = 0.05f
+            for (b in buckets) mx = max(mx, b)
+            return FloatArray(buckets.size) { (buckets[it] / mx).coerceIn(0f, 1f) }
+        } catch (_: Throwable) {
+            return null
+        } finally {
+            try { codec?.stop() } catch (_: Throwable) {}
+            try { codec?.release() } catch (_: Throwable) {}
+            ex.release()
+        }
+    }
+}

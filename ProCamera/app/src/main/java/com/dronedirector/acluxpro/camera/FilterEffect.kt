@@ -73,6 +73,22 @@ class FilterProcessor : SurfaceProcessor {
         this.assist = viewAssist
     }
 
+    // Your LUT (33³ strip from the LUT library), on the viewfinder and optionally in recordings.
+    @Volatile private var lutStrip: IntArray? = null
+    @Volatile private var lutDirty = false
+    @Volatile private var lutPreview = false
+    @Volatile private var lutVideo = false
+    private var lutTex = 0
+
+    fun setLut(strip: IntArray?, toPreview: Boolean, toVideo: Boolean) {
+        lutStrip = strip
+        lutDirty = true
+        lutPreview = strip != null && toPreview
+        lutVideo = strip != null && toVideo
+    }
+
+    val hasLut: Boolean get() = lutStrip != null
+
     fun setFilter(filter: Filter) {
         colorMatrix = filter.glMatrix()
         colorOffset = filter.glOffset()
@@ -178,7 +194,7 @@ class FilterProcessor : SurfaceProcessor {
             GLES20.glViewport(0, 0, size.width, size.height)
             output.updateTransformMatrix(outMatrix, texMatrix)
             val toVideo = (output.targets and CameraEffect.VIDEO_CAPTURE) != 0
-            draw(outMatrix, if (assist && !toVideo) 0 else curve)
+            draw(outMatrix, if (assist && !toVideo) 0 else curve, lut = if (toVideo) lutVideo else lutPreview)
             EGLExt.eglPresentationTimeANDROID(display, egl, timestamp)
             if (!EGL14.eglSwapBuffers(display, egl)) dead += output
         }
@@ -208,12 +224,34 @@ class FilterProcessor : SurfaceProcessor {
         if (!EGL14.eglMakeCurrent(display, lapseSurface, lapseSurface, context)) return
         GLES20.glViewport(0, 0, rec.width, rec.height)
         // Camera-native orientation: the MP4 carries a rotation hint instead.
-        draw(texMatrix, curve, rec.zoom)
+        draw(texMatrix, curve, rec.zoom, lut = lutVideo)
         EGLExt.eglPresentationTimeANDROID(display, lapseSurface, pts)
         if (EGL14.eglSwapBuffers(display, lapseSurface)) rec.frameSubmitted()
     }
 
-    private fun draw(matrix: FloatArray, curveId: Int, zoom: Float = 1f) {
+    private fun uploadLut() {
+        if (!lutDirty) return
+        lutDirty = false
+        val strip = lutStrip ?: return
+        val n = 33
+        if (lutTex == 0) {
+            val t = IntArray(1); GLES20.glGenTextures(1, t, 0); lutTex = t[0]
+        }
+        val buf = ByteBuffer.allocateDirect(strip.size * 4).order(ByteOrder.nativeOrder())
+        for (px in strip) { buf.put(((px shr 16) and 0xFF).toByte()); buf.put(((px shr 8) and 0xFF).toByte()); buf.put((px and 0xFF).toByte()); buf.put(0xFF.toByte()) }
+        buf.position(0)
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE1)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, lutTex)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, n * n, n, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf)
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+    }
+
+    private fun draw(matrix: FloatArray, curveId: Int, zoom: Float = 1f, lut: Boolean = false) {
+        uploadLut()
         GLES20.glUseProgram(program)
         val aPos = GLES20.glGetAttribLocation(program, "aPos")
         val aTex = GLES20.glGetAttribLocation(program, "aTex")
@@ -238,6 +276,13 @@ class FilterProcessor : SurfaceProcessor {
             GLES20.glUniform1f(GLES20.glGetUniformLocation(program, "uFade"), lk.fade)
         }
 
+        val useLut = lut && lutTex != 0 && lutStrip != null
+        GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uLutOn"), if (useLut) 1 else 0)
+        if (useLut) {
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE1)
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, lutTex)
+            GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uLut"), 1)
+        }
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
         GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uTex"), 0)
@@ -310,6 +355,22 @@ class FilterProcessor : SurfaceProcessor {
             uniform vec3 uHigh;
             uniform float uSCurve;
             uniform float uFade;
+            uniform sampler2D uLut;
+            uniform int uLutOn;
+
+            // Your 3D LUT, stored as 33 slices of 33×33 side by side (blue picks the slice).
+            vec3 lut3(vec3 c) {
+                float n = 33.0;
+                c = clamp(c, 0.0, 1.0);
+                float b = c.b * (n - 1.0);
+                float b0 = floor(b);
+                float b1 = min(b0 + 1.0, n - 1.0);
+                float x = (c.r * (n - 1.0) + 0.5) / (n * n);
+                float y = (c.g * (n - 1.0) + 0.5) / n;
+                vec3 lo = texture2D(uLut, vec2(x + b0 / n, y)).rgb;
+                vec3 hi = texture2D(uLut, vec2(x + b1 / n, y)).rgb;
+                return mix(lo, hi, b - b0);
+            }
 
             // DJI D-Log, from DJI's published D-Log transfer function (scene linear -> code value).
             float dlog(float x) {
@@ -342,6 +403,7 @@ class FilterProcessor : SurfaceProcessor {
                     rgb = clamp(uFade + rgb * (1.0 - uFade), 0.0, 1.0);
                 }
                 if (uCurve != 0) rgb = clamp(applyCurve(rgb), 0.0, 1.0);
+                if (uLutOn == 1) rgb = lut3(rgb);
                 gl_FragColor = vec4(rgb, 1.0);
             }
             """.trimIndent(),

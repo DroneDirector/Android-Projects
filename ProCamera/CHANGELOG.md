@@ -4,6 +4,10 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor: masks — linear gradient, radial and brush — each with its own exposure, contrast, highlights, shadows, temperature, tint, saturation and dehaze.
+- Photo editor: heal / spot removal, perspective (vertical / horizontal keystone), lens corrections (distortion, vignetting, colour fringes).
+- Photo editor export: WebP and HEIC, Instagram / web / 4K sizes, AI 2× / 4× upscale, keep or remove camera info and location, batch export of up to 50 photos.
+- Photo editor: merge photos — HDR (exposure fusion), panorama stitching and focus stacking.
 
 ## 1.0.142 — 2026-10-16
 - Capture: focus magnifier while focusing manually, and rack focus (set A / B, glide in 1–4 s).

@@ -73,6 +73,11 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Colour grading wheels** for shadows, midtones and highlights; lift / gamma / gain.
 - **Detail**: sharpen, noise reduction, **AI noise reduction** (built-in NAFNet model), clarity, texture, vignette, grain.
 - **Crop & format**: common aspect ratios, rotate, flip, straighten, zoom.
+- **Perspective** correction (vertical / horizontal keystone).
+- **Lens corrections**: distortion, vignetting, colour fringes.
+- **Masks**: linear gradient, radial and brush, each with its own light and colour settings.
+- **Heal / spot removal**: tap to remove dust, blemishes and small objects.
+- **Merge photos**: HDR (exposure fusion), panorama stitching, focus stacking.
 - **Watermark**: text or logo, font, colour, size, position, opacity; optional **Remember watermark**.
 - Live **histogram**, **hold for before**, **undo / redo**.
 - **Before / after split view** with a draggable divider.
@@ -82,6 +87,8 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Copy / Paste settings** (choose what to paste) — also between photos and video clips.
 - **LOAD / SAVE projects** next to Export.
 - Export **JPEG or PNG**, quality and size choice; choose the **save folder** (default DCIM/AcluxPro).
+- Also **WebP** and **HEIC**; Instagram / web / 4K sizes; **AI upscale** 2× / 4× in the export; keep or remove **camera info and location**.
+- **Batch export**: apply the current edit to up to 50 photos at once.
 - **Resizable panels** (hold the divider, then drag; double-tap to reset).
 
 ---

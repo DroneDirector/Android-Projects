@@ -1149,6 +1149,47 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     /** Detach audio: the clip's sound becomes its own audio track (move / trim it for J- and L-cuts). */
+    /** Cuts the pauses out of one clip (or every clip), using the clip's sound. */
+    fun removeSilences(all: Boolean, db: Float, minMs: Long) {
+        if (videoLocked) { message = "The video track is locked — tap its lock on the timeline to unlock"; return }
+        if (clips.isEmpty()) return
+        val targets = if (all) clips.indices.toList() else listOf(selected)
+        message = "Listening for pauses…"
+        layerScope.launch {
+            val list = clips.toList()
+            var removedMs = 0L; var cuts = 0; var skipped = 0
+            val out = mutableListOf<Clip>()
+            for ((i, c) in list.withIndex()) {
+                if (i !in targets) { out += c; continue }
+                if (c.ramp != null) { skipped++; out += c; continue }
+                val pk = waves[c.uri.toString()] ?: withContext(Dispatchers.IO) { Waveforms.load(context, c.uri) }
+                if (pk == null) { skipped++; out += c; continue }
+                val keeps = withContext(Dispatchers.Default) { Silence.keeps(pk, c.startMs, c.endMs, db, minMs) }
+                if (keeps.size <= 1 && keeps.firstOrNull() == c.startMs..c.endMs) { out += c; continue }
+                val kept = keeps.sumOf { it.last - it.first }
+                removedMs += ((c.endMs - c.startMs) - kept)
+                cuts += (keeps.size - 1).coerceAtLeast(0) + (if (keeps.isEmpty()) 1 else 0)
+                keeps.forEachIndexed { k, r ->
+                    val last = k == keeps.lastIndex
+                    out += c.copy(
+                        id = if (k == 0) c.id else java.util.UUID.randomUUID().toString(),
+                        startMs = r.first, endMs = r.last,
+                        transition = if (last) c.transition else Transition(),
+                        volKeys = null,
+                    )
+                }
+            }
+            if (out.isEmpty()) { message = "Everything was quiet — nothing was removed"; return@launch }
+            clips.clear(); clips.addAll(out)
+            selected = selected.coerceIn(0, clips.lastIndex); current = current.coerceIn(0, clips.lastIndex)
+            load(current, 0, false)
+            message = when {
+                removedMs < 100 -> "No pauses found" + if (skipped > 0) " ($skipped clip(s) skipped)" else ""
+                else -> "Removed %.1f s of pauses in %d cut(s)".format(removedMs / 1000f, cuts) + if (skipped > 0) " · $skipped clip(s) skipped" else ""
+            }
+        }
+    }
+
     fun detachAudio(i: Int) {
         if (videoLocked) { message = "The video track is locked"; return }
         val c = clips.getOrNull(i) ?: return
@@ -1210,16 +1251,51 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         seekGlobal(ms)
     }
 
+    /** Loudness: render the sound once, measure it, then export with every track turned up / down to the target. */
     fun runExport(list0: List<Clip>) {
+        val target = deliver.loudness
+        if (target == null || (!deliver.audio && !deliver.audioOnly)) { runExportNow(list0, 1f); return }
+        message = "Measuring loudness…"
+        val tmp = java.io.File(context.cacheDir, "loudness_${System.currentTimeMillis()}.m4a")
+        val ra = deliver.rangeStart; val rb = deliver.rangeEnd
+        val cut = if (ra != null && rb != null && rb > ra) cutRange(list0, layers.toList(), music, extraAudio.toList(), ra, rb)
+        else RangeCut(list0, layers.toList(), music, extraAudio.toList())
+        if (cut.clips.isEmpty()) { runExportNow(list0, 1f); return }
+        val probe = TimelineExport(
+            context, if (videoMuted) cut.clips.map { it.copy(muted = true) } else cut.clips,
+            deliver.copy(audioOnly = true, audio = true, loudness = null, rangeStart = null, rangeEnd = null),
+            emptyList(), cut.music, cut.extra,
+            onProgress = { progress = it / 5 },
+            onDone = { uri, _ ->
+                export = null
+                layerScope.launch {
+                    val lufs = if (uri != null) withContext(Dispatchers.IO) { Loudness.measure(context, android.net.Uri.fromFile(tmp)) } else null
+                    tmp.delete()
+                    if (!exporting) return@launch
+                    val g = lufs?.let { Loudness.gainFor(it, target) } ?: 1f
+                    message = if (lufs != null) "Loudness %.1f LUFS → %.0f LUFS".format(lufs, target) else "Couldn't measure the loudness — exporting as mixed"
+                    runExportNow(list0, g)
+                }
+            },
+            toFile = tmp,
+        )
+        export = probe
+        try { probe.start() } catch (t: Throwable) { runExportNow(list0, 1f) }
+    }
+
+    fun runExportNow(list0: List<Clip>, loudGain: Float) {
         // Export range: cut the edit down to the chosen part first.
         val ra = deliver.rangeStart; val rb = deliver.rangeEnd
         val cut = if (ra != null && rb != null && rb > ra) cutRange(list0, layers.toList(), music, extraAudio.toList(), ra, rb)
         else RangeCut(list0, layers.toList(), music, extraAudio.toList())
         if (cut.clips.isEmpty()) { exporting = false; message = "Nothing to export in that range"; return }
-        val list = cut.clips
+        val g = loudGain
+        val list = if (g == 1f) cut.clips else cut.clips.map { it.copy(volume = it.volume * g) }
+        val cutMusic = cut.music?.let { if (g == 1f) it else it.copy(volume = it.volume * g) }
+        val cutExtra = if (g == 1f) cut.extra else cut.extra.map { it.copy(volume = it.volume * g) }
         val e = TimelineExport(
-            context, if (videoMuted) list.map { it.copy(muted = true) } else list, deliver, cut.layers, cut.music, cut.extra,
-            onProgress = { progress = it },
+            context, if (videoMuted) list.map { it.copy(muted = true) } else list, deliver, cut.layers, cutMusic, cutExtra,
+            onProgress = { progress = if (deliver.loudness != null && (deliver.audio || deliver.audioOnly)) 20 + it * 4 / 5 else it },
             onDone = { uri, err ->
                 exporting = false; export = null
                 message = if (uri != null) {
@@ -1615,6 +1691,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onFreeze = { freezeAtPlayhead() },
                                 onReverse = { reverseClip(selected) },
                                 onDetach = { detachAudio(selected) },
+                                onRemoveSilence = { all, db, ms -> removeSilences(all, db, ms) },
                                 onSlowMo = { aiSlowMo(selected) },
                                 onReframe = { a -> autoReframe(a) },
                                 onDuplicate = { if (videoLocked) message = "The video track is locked" else clips.add(selected + 1, sc.copy(id = java.util.UUID.randomUUID().toString())) },
@@ -1972,6 +2049,7 @@ private fun EditPage(
     onSplit: () -> Unit, onDuplicate: () -> Unit, onDelete: () -> Unit, onMove: (Int) -> Unit,
     onFreeze: () -> Unit = {}, onReverse: () -> Unit = {}, onDetach: () -> Unit = {},
     onSlowMo: () -> Unit = {}, onReframe: (Float?) -> Unit = {},
+    onRemoveSilence: (all: Boolean, db: Float, minMs: Long) -> Unit = { _, _, _ -> },
 ) {
     SectionTitle("CLIP ${index + 1} OF $count · ${c.name}".uppercase())
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
@@ -1985,6 +2063,18 @@ private fun EditPage(
         SmallAction(Icons.Filled.KeyboardArrowRight, "Move right") { onMove(1) }
         SmallAction(Icons.Filled.Delete, "Delete", onDelete)
     }
+    SectionTitle("REMOVE SILENCES")
+    Text("Cuts out the pauses in talking clips. Quieter than the level below for longer than the minimum pause = removed.", color = Pro.Dim, fontSize = 11.sp)
+    var silDb by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(-32f) }
+    var silMin by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0.6f) }
+    EdSlider("Silence level", silDb, -50f..-18f, -32f, { "${it.toInt()} dB" }) { silDb = it }
+    EdSlider("Minimum pause", silMin, 0.2f..2f, 0.6f, { "%.1f s".format(it) }) { silMin = it }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf("THIS CLIP" to false, "ALL CLIPS" to true).forEach { (label, all) ->
+            Text(label, style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { onRemoveSilence(all, silDb, (silMin * 1000).toLong()) }.padding(10.dp))
+        }
+    }
+    Text("Undo brings it all back. Clips with a speed ramp are skipped.", color = Pro.Dim, fontSize = 11.sp)
     SectionTitle("TRIM  ·  ${tc(c.startMs)} → ${tc(c.endMs)}")
     RangeSlider(
         value = c.startMs.toFloat()..c.endMs.toFloat(),
@@ -2377,15 +2467,18 @@ private fun LayerPreview(
                 }
                 return@forEach
             }
-            val bmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, startMs = 0, endMs = 0, keys = null, opacity = 1f), wPx, hPx) {
-                value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx) }
+            // In / out animation (not while you're editing this layer with the video paused).
+            val fx = if ((base.id == selectedId && !playing) || !base.activeAt(timeMs)) AnimFx() else LayerAnims.at(base, timeMs)
+            val chars = LayerAnims.charCount(base, fx.chars)
+            val bmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, startMs = 0, endMs = 0, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null), wPx, hPx, chars) {
+                value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, chars) }
             }
             val b0 = bmp ?: return@forEach
             // Keyframed size: scale the picture rendered at the layer's own size.
-            val k = if (base.size > 0f) l.size / base.size else 1f
+            val k = (if (base.size > 0f) l.size / base.size else 1f) * fx.scale
             val bw = (b0.width * k).toInt().coerceAtLeast(1); val bh = (b0.height * k).toInt().coerceAtLeast(1)
-            val left = (l.x * wPx - bw / 2f).toInt()
-            val top = (l.y * hPx - bh / 2f).toInt()
+            val left = ((l.x + fx.dx) * wPx - bw / 2f).toInt()
+            val top = ((l.y + fx.dy) * hPx - bh / 2f).toInt()
             val sel = l.id == selectedId
             Box(
                 Modifier
@@ -2403,7 +2496,9 @@ private fun LayerPreview(
                 val img = remember(b0) { b0.asImageBitmap() }
                 val mode = (l.blend ?: LayerBlend.NORMAL).compose
                 androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                    drawImage(img, dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()), alpha = l.opacity.coerceIn(0f, 1f), blendMode = mode)
+                    androidx.compose.ui.graphics.drawscope.clipRect(right = size.width * fx.reveal.coerceIn(0f, 1f)) {
+                        drawImage(img, dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()), alpha = (l.opacity * fx.alpha).coerceIn(0f, 1f), blendMode = mode)
+                    }
                 }
             }
         }
@@ -2585,6 +2680,18 @@ private fun LayersPage(
             if (l.kind == LayerKind.VIDEO && android.os.Build.VERSION.SDK_INT < 33) Text("This phone can't show the key in the preview (Android 13+ needed); the export is keyed.", color = Pro.Dim, fontSize = 11.sp)
         }
     }
+    if (l.kind != LayerKind.VIDEO) {
+        SectionTitle("ANIMATION") { onUpdate(l.copy(animIn = null, animOut = null, animMs = null)) }
+        val anims = LayerAnim.entries.filter { it != LayerAnim.TYPEWRITER || l.kind == LayerKind.TEXT || l.kind == LayerKind.WATERMARK }
+        Text("IN", style = Pro.Label)
+        Chips(anims.map { it.label }, anims.indexOf(l.animIn ?: LayerAnim.NONE)) { i -> onUpdate(l.copy(animIn = anims[i])) }
+        if (!l.wholeVideo) {
+            Text("OUT", style = Pro.Label)
+            Chips(anims.map { it.label }, anims.indexOf(l.animOut ?: LayerAnim.NONE)) { i -> onUpdate(l.copy(animOut = anims[i])) }
+        }
+        if (LayerAnims.hasAny(l)) EdSlider("Animation length", (l.animMs ?: 500L) / 1000f, 0.1f..3f, 0.5f, { "%.1f s".format(it) }) { v -> onUpdate(l.copy(animMs = (v * 1000).toLong())) }
+        Text("Plays when the layer appears and disappears. Press play to see it (it stays still while you edit this layer).", color = Pro.Dim, fontSize = 11.sp)
+    }
     SectionTitle("TIMING")
     Chips(listOf("Part of the video", "Whole video"), if (l.wholeVideo) 1 else 0) { onUpdate(l.copy(wholeVideo = it == 1)) }
     if (!l.wholeVideo && totalMs > 0) {
@@ -2653,6 +2760,12 @@ private fun DeliverPage(
         onChange(s.copy(audio = it != 1, audioOnly = it == 2))
     }
     if (s.audioOnly) Text("Saves just the sound of the timeline — clips, music and audio tracks — as an AAC .m4a file in Music/AcluxPro (or your chosen save folder). Muted tracks are left out.", color = Pro.Dim, fontSize = 11.sp)
+    if (s.audio || s.audioOnly) {
+        SectionTitle("LOUDNESS")
+        val opts = listOf<Float?>(null) + Loudness.TARGETS
+        Chips(listOf("As mixed", "−14 LUFS (YouTube, Instagram, Spotify)", "−16 LUFS (Apple, podcasts)", "−23 LUFS (TV broadcast)"), opts.indexOf(s.loudness).coerceAtLeast(0)) { i -> onChange(s.copy(loudness = opts[i])) }
+        Text("Makes every export equally loud, so it sounds right next to other videos. The sound is measured first (a few seconds), then the whole mix is turned up or down; a limiter stops it from clipping.", color = Pro.Dim, fontSize = 11.sp)
+    }
     val total = if (s.rangeStart != null && s.rangeEnd != null) (s.rangeEnd - s.rangeStart).coerceAtLeast(0) else timelineLength(clips)
     // Estimated file size: video bitrate (chosen, or what the encoder picks on Auto) + AAC audio.
     val (ow, oh) = outputSize(clips, s)

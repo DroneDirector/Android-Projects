@@ -88,7 +88,13 @@ object MaskUniforms {
 /** Export (and older-phone preview): each mask's own grade, blended in where the mask is. */
 @UnstableApi
 class MaskGradeEffect(private val masks: List<PhotoMask>) : GlEffect {
-    override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram = MaskGradeProgram(masks.take(MAX_VIDEO_MASKS), useHdr)
+    override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram = try {
+        MaskGradeProgram(masks.take(MAX_VIDEO_MASKS), useHdr)
+    } catch (t: Throwable) {
+        // A GPU that can't build the mask shader: export without the masks instead of failing.
+        android.util.Log.w("MaskGradeEffect", "Mask shader unavailable: ${t.message}")
+        androidx.media3.effect.Contrast(0f).toGlShaderProgram(context, useHdr)
+    }
     override fun isNoOp(inputWidth: Int, inputHeight: Int): Boolean = masks.isEmpty()
 }
 

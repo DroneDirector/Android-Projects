@@ -24,6 +24,9 @@ object CaptureExtras {
     var noiseReduce by mutableStateOf(0)
     /** Blur faces live in the viewfinder and in recordings / photos. */
     var faceBlur by mutableStateOf(false)
+    /** Portrait mode: background blur strength (index into Portrait.APERTURES) and whether to keep the unblurred photo too. */
+    var portraitAperture by mutableStateOf(1)
+    var portraitKeepOriginal by mutableStateOf(false)
     /** Auto-enhance photos right after they're taken (saved as an extra copy). */
     var autoEnhance by mutableStateOf(false)
     /** Title burned into videos: text, on / off, position (0 lower third, 1 centre, 2 top) and seconds shown (0 = whole clip). */
@@ -66,6 +69,8 @@ object CaptureExtras {
         windFilter = p.getBoolean("x_wind", false)
         noiseReduce = p.getInt("x_nr", 0)
         faceBlur = p.getBoolean("x_face_blur", false)
+        portraitAperture = p.getInt("x_portrait_f", 1)
+        portraitKeepOriginal = p.getBoolean("x_portrait_keep", false)
         autoEnhance = p.getBoolean("x_auto_enh", false)
         titleText = p.getString("x_title", "") ?: ""
         titleOn = p.getBoolean("x_title_on", false)
@@ -95,6 +100,8 @@ object CaptureExtras {
             .putBoolean("x_wind", windFilter)
             .putInt("x_nr", noiseReduce)
             .putBoolean("x_face_blur", faceBlur)
+            .putInt("x_portrait_f", portraitAperture)
+            .putBoolean("x_portrait_keep", portraitKeepOriginal)
             .putBoolean("x_auto_enh", autoEnhance)
             .putString("x_title", titleText)
             .putBoolean("x_title_on", titleOn)

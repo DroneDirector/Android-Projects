@@ -24,7 +24,7 @@ only when you leave "Keep camera info" on; you can remove all of it or only the 
 
 All on-phone AI features (AI upscale, AI noise reduction, AI subject selection, auto-reframe, the
 on-phone AI erase and the privacy **face blur**) run **entirely on your phone**. Nothing is uploaded.
-Face blur uses Google ML Kit's on-device face detection; the faces it finds are not stored or sent
+Face blur and portrait mode use Google ML Kit's on-device face detection and selfie segmentation; what they find is not stored or sent
 anywhere. Google may collect anonymous ML Kit usage statistics (no images) as described in the
 [ML Kit terms](https://developers.google.com/ml-kit/terms).
 

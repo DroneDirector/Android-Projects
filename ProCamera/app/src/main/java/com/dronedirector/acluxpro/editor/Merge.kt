@@ -28,7 +28,12 @@ object Merge {
             val frames = uris.mapNotNull { GradeIO.decode(context, it, 2400)?.let { b -> com.dronedirector.acluxpro.camera.Panorama.prepareFrame(b, 0) } }
             if (frames.size < 2) return null
             onProgress("Stitching…")
-            return com.dronedirector.acluxpro.camera.Panorama.stitch(frames, 1, Filter.NONE)
+            // Field of view from the first photo's lens info (35 mm equivalent), else a typical phone lens.
+            val f35 = try {
+                context.contentResolver.openInputStream(uris[0])?.use { androidx.exifinterface.media.ExifInterface(it).getAttributeInt(androidx.exifinterface.media.ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM, 0) } ?: 0
+            } catch (_: Throwable) { 0 }
+            val fov = if (f35 in 8..400) Math.toDegrees(2 * kotlin.math.atan(36.0 / (2 * f35))).toFloat() else 65f
+            return com.dronedirector.acluxpro.camera.Panorama.stitch(frames, null, fov, 1, Filter.NONE)
         }
         onProgress("Loading photos…")
         val maxPx = 2200

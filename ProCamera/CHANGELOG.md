@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture: PORTRAIT mode (Smart modes) — the person (or any subject) stays sharp and the background is blurred like a fast lens; choose f/1.4 – f/5.6 under the viewfinder. People are found on the phone; other subjects with the subject AI (or Cloud AI when it's on).
 - Capture: rebuilt panorama — the gyroscope decides when to take each frame (about 180°, no more turning almost all the way round); frames are projected onto a cylinder, aligned in 2D, brightness-matched, blended with wide soft seams and trimmed, so no more black gaps or jumps.
 
 ## 1.0.226 — 2026-10-17

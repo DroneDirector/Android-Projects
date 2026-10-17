@@ -2087,6 +2087,7 @@ class ProCameraController(private val context: Context) {
         val format = ic.outputFormat
         val filter = st.filter
         val aiMp = if (UpscaleSettings.enabled && !st.isVideo) st.photoSize?.aiMp ?: 0 else 0
+        val portrait = st.mode == CaptureMode.PORTRAIT
         val name = stamp()
         playSound(MediaActionSound.SHUTTER_CLICK)
         set { it.copy(shutterFlash = it.shutterFlash + 1) }
@@ -2113,6 +2114,16 @@ class ProCameraController(private val context: Context) {
                     // Privacy: blur faces in the saved photo.
                     if (uri != null && isJpeg && CaptureExtras.faceBlur) {
                         ioExecutor.execute { if (!FaceBlur.applyToSavedJpeg(context, uri)) toast("Couldn't blur the faces in this photo") }
+                    }
+                    // Portrait: blur the background (after face blur, before the extra copies).
+                    if (uri != null && isJpeg && portrait) {
+                        set { it.copy(processing = true) }
+                        val f = CaptureExtras.portraitAperture; val keep = CaptureExtras.portraitKeepOriginal
+                        ioExecutor.execute {
+                            val out = try { Portrait.applyToSaved(context, uri, f, keep) } catch (_: Throwable) { null }
+                            set { it.copy(processing = false, lastMedia = out ?: it.lastMedia) }
+                            toast(if (out != null) "Portrait saved (${Portrait.APERTURES[f]})" else "No person or subject found — saved without background blur")
+                        }
                     }
                     // Auto-enhance: an extra, improved copy next to the original.
                     if (uri != null && isJpeg && CaptureExtras.autoEnhance) {

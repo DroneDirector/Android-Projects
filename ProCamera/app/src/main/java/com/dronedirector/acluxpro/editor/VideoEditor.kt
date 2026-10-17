@@ -1784,7 +1784,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onVoice = { if (voiceRec == null) startVoice() else stopVoice() },
                                 onBeats = { t -> addBeatMarkers(t) },
                             )
-                            Page.DELIVER -> DeliverPage(deliver, clips, exporting, { deliver = it }, ::startExport, playheadMs = globalMs, onSaveFrame = { saveStill() })
+                            Page.DELIVER -> DeliverPage(deliver, clips, exporting, { deliver = it }, ::startExport, playheadMs = globalMs, onSaveFrame = { saveStill() }, markers = markers.toList(), projectName = projectName)
                         }
                         if (clips.isEmpty() && page != Page.MEDIA && page != Page.DELIVER) Text("Add a clip in the Media page.", color = Pro.Dim, modifier = Modifier.padding(12.dp))
                     }
@@ -2720,7 +2720,27 @@ private fun LayersPage(
 private fun DeliverPage(
     s: DeliverSettings, clips: List<Clip>, exporting: Boolean, onChange: (DeliverSettings) -> Unit, onExport: () -> Unit,
     playheadMs: Long = 0L, onSaveFrame: () -> Unit = {},
+    markers: List<Long> = emptyList(), projectName: String? = null,
 ) {
+    // Send the edit to a desktop editor (DaVinci Resolve, Premiere Pro, Final Cut Pro).
+    val ictx = LocalContext.current
+    val fpsX = if (s.fps > 0) s.fps else 30
+    val title = projectName?.takeIf { it.isNotBlank() } ?: "AcluxPro edit"
+    var xNote by remember { mutableStateOf<String?>(null) }
+    fun writeTo(uri: android.net.Uri?, text: String) {
+        if (uri == null) return
+        xNote = try {
+            ictx.contentResolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray()) }
+            "Saved. On the computer, import it and point the editor at the folder with the original clips."
+        } catch (t: Throwable) { "Couldn't save: ${t.message}" }
+    }
+    val saveEdl = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { u ->
+        writeTo(u, Interchange.edl(title, clips, fpsX))
+    }
+    val saveXml = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/xml")) { u ->
+        val (w, h) = outputSize(clips, s)
+        writeTo(u, Interchange.fcpxml(title, clips, fpsX, w, h, markers))
+    }
     SectionTitle("PRESETS")
     Chips(EXPORT_PRESETS.map { it.label }, EXPORT_PRESETS.indexOfFirst { p ->
         s.shortSide == p.shortSide && s.fps == p.fps && s.hevc == p.hevc && s.bitrateMbps == p.mbps && s.aspect == p.aspect
@@ -2781,6 +2801,14 @@ private fun DeliverPage(
     val videoMbps = if (s.audioOnly) 0.0 else if (s.bitrateMbps > 0) s.bitrateMbps.toDouble() else autoMbps
     val audioMbps = if (s.audio || s.audioOnly) 0.13 else 0.0
     val bytes = (videoMbps + audioMbps) * 1_000_000 / 8 * (total / 1000.0) * 1.01
+    SectionTitle("SEND TO DESKTOP EDITOR")
+    Text("Continue the edit on a computer: the cuts (and dissolves / speed in the EDL) open in DaVinci Resolve, Premiere Pro, Avid or Final Cut Pro. Grades, effects and layers stay here. Copy the original clips to the computer too.", color = Pro.Dim, fontSize = 11.sp)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+        Text("EDL (.edl)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(enabled = clips.isNotEmpty()) { saveEdl.launch(title.replace(Regex("[^A-Za-z0-9 _-]"), "") + ".edl") }.padding(10.dp))
+        Text("FCPXML (.fcpxml)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(enabled = clips.isNotEmpty()) { saveXml.launch(title.replace(Regex("[^A-Za-z0-9 _-]"), "") + ".fcpxml") }.padding(10.dp))
+    }
+    Text("Frame rate: $fpsX fps (set it under FRAME RATE above to match your clips).", color = Pro.Dim, fontSize = 11.sp)
+    xNote?.let { Text(it, color = Color.White, fontSize = 11.sp) }
     SectionTitle("ESTIMATED FILE SIZE")
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Ed.Raised).border(1.dp, Pro.Amber.copy(alpha = 0.5f), RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 10.dp),

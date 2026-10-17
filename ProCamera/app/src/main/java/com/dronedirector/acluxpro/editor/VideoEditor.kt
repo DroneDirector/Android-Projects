@@ -2842,6 +2842,39 @@ private fun DeliverPage(
     }
     Text("Frame rate: $fpsX fps (set it under FRAME RATE above to match your clips).", color = Pro.Dim, fontSize = 11.sp)
     xNote?.let { Text(it, color = Color.White, fontSize = 11.sp) }
+    // Animated GIF of the timeline (or the chosen range), up to 20 seconds.
+    SectionTitle("ANIMATED GIF")
+    val gScope = rememberCoroutineScope()
+    var gifW by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(480) }
+    var gifFps by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(12) }
+    var gifProgress by remember { mutableStateOf<Int?>(null) }
+    val gTotal = timelineLength(clips)
+    val gFrom = (s.rangeStart ?: 0L).coerceIn(0, gTotal)
+    val gTo = minOf(s.rangeEnd ?: gTotal, gTotal, gFrom + 20_000)
+    val saveGif = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("image/gif")) { u ->
+        if (u == null) return@rememberLauncherForActivityResult
+        gifProgress = 0
+        gScope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                try {
+                    ictx.contentResolver.openOutputStream(u, "wt")?.use { o ->
+                        GifExport.render(ictx, clips, layers, gFrom, gTo, gifW, gifFps, java.io.BufferedOutputStream(o)) { p -> gifProgress = p }
+                    } ?: false
+                } catch (_: Throwable) { false }
+            }
+            gifProgress = null
+            xNote = if (ok) "GIF saved" else "Couldn't make the GIF"
+        }
+    }
+    Chips(listOf("320 px", "480 px", "640 px"), listOf(320, 480, 640).indexOf(gifW)) { gifW = listOf(320, 480, 640)[it] }
+    Chips(listOf("10 fps", "12 fps", "15 fps"), listOf(10, 12, 15).indexOf(gifFps)) { gifFps = listOf(10, 12, 15)[it] }
+    val gp = gifProgress
+    Text(
+        if (gp != null) "MAKING GIF… $gp%" else "SAVE GIF (%.1f s)".format((gTo - gFrom) / 1000f),
+        style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(enabled = gp == null && clips.isNotEmpty()) { saveGif.launch(title.replace(Regex("[^A-Za-z0-9 _-]"), "") + ".gif") }.padding(10.dp),
+    )
+    Text("Uses the RANGE above if set (up to 20 s). Includes the grade and text / logo layers; no sound.", color = Pro.Dim, fontSize = 11.sp)
     SectionTitle("ESTIMATED FILE SIZE")
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Ed.Raised).border(1.dp, Pro.Amber.copy(alpha = 0.5f), RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 10.dp),

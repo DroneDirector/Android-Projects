@@ -5,6 +5,8 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 
 ## Unreleased
 
+## 1.0.166 — 2026-10-17
+
 ## 1.0.164 — 2026-10-17
 - Photo editor: Panels menu (icon next to the settings gear) — hide the tools panel, copy / paste bar, histogram or before / after buttons; the photo grows into the space and shrinks back when a panel returns. Presets: Full, View, Edit, Color. Triple-tap the icon to reset the layout.
 - Photo editor: the histogram on / off choice is now remembered.

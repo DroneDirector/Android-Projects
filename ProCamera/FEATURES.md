@@ -184,6 +184,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Voiceover** recording onto its own audio track.
 - **Volume keyframes** per clip.
 - Per clip: volume, pan, channels (stereo / mono / left / right / swap), fades.
+- **Voice noise reduction** per clip (Light / Strong, on export).
 - **3-band EQ**, low cut, voice enhance, **compressor, noise gate, limiter**; presets (Voice, Interview, Wind cut, Warm, Bright, Bass boost, Radio, Loud & punchy); live **level meter**.
 
 ### Deliver

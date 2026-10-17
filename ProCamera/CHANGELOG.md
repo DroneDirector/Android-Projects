@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.239 — 2026-10-17
 - Photo editor: removed the back arrow from the top bar so the EXPORT button is no longer squeezed (it stays on one line). Use the phone's back gesture / button to leave the editor.
 
 ## 1.0.237 — 2026-10-17

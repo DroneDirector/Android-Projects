@@ -124,7 +124,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - Under the player: **mute, zoom out, show whole timeline, zoom in, split, undo, redo**, previous / play / next, full screen.
 - **Trim, split, duplicate, reorder, speed, delete** clips.
 - **Real audio waveforms** on clips and audio tracks.
-- **Markers** and **snapping** (cuts, markers, playhead, other items).
+- **Markers** with notes (list on the Media page, jump to any marker) and **snapping** (cuts, markers, playhead, other items).
 - **Speed ramps** (8 curves), **freeze frame**, **reverse**, **detach audio** for J- and L-cuts.
 - **Beat markers** found from the music.
 - **Remove silences**: cut the pauses out of one clip or all clips (silence level and minimum pause adjustable; undo restores).

@@ -52,7 +52,7 @@ object Interchange {
     private fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
     private fun t(frames: Long, fps: Int) = "${frames * 100}/${fps * 100}s"
 
-    fun fcpxml(title: String, clips: List<Clip>, fps: Int, width: Int, height: Int, markers: List<Long>): String {
+    fun fcpxml(title: String, clips: List<Clip>, fps: Int, width: Int, height: Int, markers: List<Long>, notes: Map<Long, String> = emptyMap()): String {
         val sb = StringBuilder()
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE fcpxml>\n<fcpxml version=\"1.9\">\n  <resources>\n")
         sb.append("    <format id=\"r1\" frameDuration=\"100/${fps * 100}s\" width=\"$width\" height=\"$height\"/>\n")
@@ -77,7 +77,7 @@ object Interchange {
             }
             for (m in markers) if (m >= ms && m < ms + c.lengthMs) {
                 val at = frames(c.startMs, fps) + frames(m - ms, fps)
-                sb.append("              <marker start=\"${t(at, fps)}\" duration=\"100/${fps * 100}s\" value=\"Marker\"/>\n")
+                sb.append("              <marker start=\"${t(at, fps)}\" duration=\"100/${fps * 100}s\" value=\"${esc(notes[m] ?: "Marker")}\"/>\n")
             }
             sb.append("            </asset-clip>\n")
             off += len; ms += c.lengthMs

@@ -235,6 +235,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     var videoLocked by remember { mutableStateOf(initial?.videoLocked ?: false) }
     // Timeline markers and snapping.
     val markers = remember { mutableStateListOf<Long>().apply { initial?.markers?.let { addAll(it) } } }
+    val markerNotes = remember { mutableStateMapOf<Long, String>().apply { initial?.markerNotes?.forEach { (k, v) -> k.toLongOrNull()?.let { put(it, v) } } } }
     var snapping by remember { mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_snap", true)) }
     val thumbs = remember { mutableStateMapOf<String, Bitmap>() }
     val strips = remember { mutableStateMapOf<String, Filmstrip>() }
@@ -873,6 +874,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
             extraAudio = extraAudio.toList(), audioPool = audioPool.toList(),
             videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
+            markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
         )
         val saved = try { ProjectStore.saveVideo(context, p, clips.firstOrNull()?.let { thumbs[it.id] }) } catch (_: Throwable) { null }
         if (saved != null) { projectId = saved.id; projectName = saved.name; message = "Project \"${saved.name}\" saved" }
@@ -1577,7 +1579,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     markers = markers, snapping = snapping,
                     onToggleMarker = {
                         val near = markers.firstOrNull { kotlin.math.abs(it - globalMs) < 250 }
-                        if (near != null) { markers.remove(near); message = "Marker removed" }
+                        if (near != null) { markers.remove(near); markerNotes.remove(near); message = "Marker removed" }
                         else { markers.add(globalMs); markers.sort(); message = "Marker at ${tc(globalMs)} — tap ◆ MARKER on it again to remove" }
                     },
                     onToggleSnap = {
@@ -1628,7 +1630,24 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 4.dp)) {
                         val sc = clips.getOrNull(selected)
                         when (page) {
-                            Page.MEDIA -> MediaPage(
+                            Page.MEDIA -> Column {
+                            if (markers.isNotEmpty()) {
+                                SectionTitle("MARKERS") { markers.clear(); markerNotes.clear() }
+                                markers.toList().forEach { m ->
+                                    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Text(tc(m), style = Pro.Value.copy(fontSize = 12.sp, color = Pro.Amber), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { seekGlobal(m) }.padding(6.dp))
+                                        androidx.compose.material3.OutlinedTextField(
+                                            value = markerNotes[m] ?: "", onValueChange = { v -> if (v.isBlank()) markerNotes.remove(m) else markerNotes[m] = v.take(120) },
+                                            placeholder = { Text("Note", color = Pro.Dim, fontSize = 12.sp) }, singleLine = true,
+                                            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 13.sp),
+                                            modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+                                        )
+                                        Text("✕", color = Pro.Red, fontSize = 13.sp, modifier = Modifier.clickable { markers.remove(m); markerNotes.remove(m) }.padding(8.dp))
+                                    }
+                                }
+                                Text("Tap a time to jump there. Notes travel with the project and into the FCPXML export.", color = Pro.Dim, fontSize = 11.sp)
+                            }
+                            MediaPage(
                                 clips, onAddGallery, onAddFiles,
                                 audioPool = audioPool,
                                 audioUses = { a -> (if (music?.uri == a.uri) 1 else 0) + extraAudio.count { it.uri == a.uri } },
@@ -1678,6 +1697,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     message = "${c.name} removed from the project"
                                 },
                             )
+                            }
                             Page.TRANSITIONS -> TransitionsPanel(
                                 clips, selected, thumbs,
                                 onChange = { t -> update(selected, { it.copy(transition = t) }) },
@@ -1786,7 +1806,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onVoice = { if (voiceRec == null) startVoice() else stopVoice() },
                                 onBeats = { t -> addBeatMarkers(t) },
                             )
-                            Page.DELIVER -> DeliverPage(deliver, clips, exporting, { deliver = it }, ::startExport, playheadMs = globalMs, onSaveFrame = { saveStill() }, markers = markers.toList(), projectName = projectName, layers = layers.toList())
+                            Page.DELIVER -> DeliverPage(deliver, clips, exporting, { deliver = it }, ::startExport, playheadMs = globalMs, onSaveFrame = { saveStill() }, markers = markers.toList(), projectName = projectName, layers = layers.toList(), markerNotes = markerNotes.toMap())
                         }
                         if (clips.isEmpty() && page != Page.MEDIA && page != Page.DELIVER) Text("Add a clip in the Media page.", color = Pro.Dim, modifier = Modifier.padding(12.dp))
                     }
@@ -2726,6 +2746,7 @@ private fun DeliverPage(
     s: DeliverSettings, clips: List<Clip>, exporting: Boolean, onChange: (DeliverSettings) -> Unit, onExport: () -> Unit,
     playheadMs: Long = 0L, onSaveFrame: () -> Unit = {},
     markers: List<Long> = emptyList(), projectName: String? = null, layers: List<Layer> = emptyList(),
+    markerNotes: Map<Long, String> = emptyMap(),
 ) {
     // Send the edit to a desktop editor (DaVinci Resolve, Premiere Pro, Final Cut Pro).
     val ictx = LocalContext.current
@@ -2747,7 +2768,7 @@ private fun DeliverPage(
     }
     val saveXml = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/xml")) { u ->
         val (w, h) = outputSize(clips, s)
-        writeTo(u, Interchange.fcpxml(title, clips, fpsX, w, h, markers))
+        writeTo(u, Interchange.fcpxml(title, clips, fpsX, w, h, markers, markerNotes))
     }
     SectionTitle("PRESETS")
     Chips(EXPORT_PRESETS.map { it.label }, EXPORT_PRESETS.indexOfFirst { p ->

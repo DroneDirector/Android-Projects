@@ -916,6 +916,8 @@ fun SimpleBar(s: CameraUiState, c: ProCameraController, modifier: Modifier = Mod
             .padding(horizontal = 8.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        // Portrait blur control sits above the filter / zoom bar, never on top of it.
+        PortraitPanel(s, Modifier.padding(bottom = 8.dp))
         AnimatedVisibility(visible = s.showFilters, enter = fadeIn(), exit = fadeOut()) {
             FilterStrip(s, c, Modifier.padding(bottom = 6.dp))
         }

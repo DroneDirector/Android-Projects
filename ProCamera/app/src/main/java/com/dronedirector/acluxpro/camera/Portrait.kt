@@ -21,9 +21,33 @@ import kotlin.math.roundToInt
  * sharp and the background is blurred like a fast lens, with a soft, halo-free edge.
  */
 object Portrait {
-    /** Blur strengths, shown as lens apertures. */
-    val APERTURES = listOf("f/1.4", "f/2", "f/2.8", "f/4", "f/5.6")
-    private val STRENGTH = floatArrayOf(1f, 0.75f, 0.55f, 0.38f, 0.24f)
+    /** Blur strengths, shown as lens apertures: f/1.4 (most blur) to f/16 (least), in third stops. */
+    val F_STOPS = floatArrayOf(1.4f, 1.6f, 1.8f, 2f, 2.2f, 2.5f, 2.8f, 3.2f, 3.5f, 4f, 4.5f, 5f, 5.6f, 6.3f, 7.1f, 8f, 9f, 10f, 11f, 13f, 14f, 16f)
+    /** Pass as the f-number to let the app pick the blur from how much of the frame the subject fills. */
+    const val AUTO = 0f
+
+    fun label(f: Float): String = "f/" + if (f >= 10f) f.roundToInt().toString()
+        else String.format(java.util.Locale.US, "%.1f", f).removeSuffix(".0")
+
+    /** Nearest third-stop index for an f-number. */
+    fun indexOf(f: Float): Int = F_STOPS.indices.minByOrNull { kotlin.math.abs(F_STOPS[it] - f) } ?: 3
+
+    /** 1 at f/1.4, a bit under ¾ per stop after that (matches the old five-step scale). */
+    private fun strength(f: Float): Float {
+        val stops = 2f * (kotlin.math.ln(f / 1.4f) / kotlin.math.ln(2f))
+        return Math.pow(0.72, stops.toDouble()).toFloat().coerceIn(0.06f, 1f)
+    }
+
+    /** Auto: close-ups get a gentler blur (hair edges stay clean), small / distant subjects a stronger one so it still reads. */
+    private fun autoF(mask: FloatArray): Float {
+        val cover = mask.count { it > 0.5f }.toFloat() / mask.size
+        return when {
+            cover >= 0.45f -> 2.8f
+            cover >= 0.25f -> 2.2f
+            cover >= 0.12f -> 1.8f
+            else -> 1.4f
+        }
+    }
     private const val MAX_SIDE = 3264
     private const val MASK = 512
 
@@ -91,19 +115,20 @@ object Portrait {
         }
     }
 
-    /** Background blur on an upright picture; null if no subject was found. */
-    fun render(context: Context, img: Bitmap, aperture: Int): Bitmap? {
+    /** Background blur on an upright picture, with the f-number used; null if no subject was found. [fNumber] ≤ 0 = auto. */
+    fun render(context: Context, img: Bitmap, fNumber: Float): Pair<Bitmap, Float>? {
         val w = img.width; val h = img.height
         val ms = MASK.toFloat() / max(w, h)
         val mw = (w * ms).roundToInt().coerceAtLeast(8); val mh = (h * ms).roundToInt().coerceAtLeast(8)
         val small = Bitmap.createScaledBitmap(img, mw, mh, true)
         val mask = personMask(small) ?: subjectMask(context, small) ?: return null
+        val f = if (fNumber <= 0f) autoF(mask) else fNumber.coerceIn(F_STOPS.first(), F_STOPS.last())
         // Firm up, then soften the edge a little (no hard cut-out look).
         for (i in mask.indices) mask[i] = ((mask[i] - 0.35f) / 0.4f).coerceIn(0f, 1f)
         blurPlane(mask, mw, mh, 1, 2)
 
         // Blur at a reduced size (fast, and a large blur looks the same).
-        val strength = STRENGTH[aperture.coerceIn(0, STRENGTH.size - 1)]
+        val strength = strength(f)
         val bs = 4
         val bw = (w / bs).coerceAtLeast(8); val bh = (h / bs).coerceAtLeast(8)
         val bsmall = Bitmap.createScaledBitmap(img, bw, bh, true)
@@ -152,14 +177,15 @@ object Portrait {
             out.setPixels(rowO, 0, w, 0, y, w, 1)
         }
         blurred.recycle(); small.recycle()
-        return out
+        return out to f
     }
 
     /**
      * Blurs the background of a saved JPEG. Rewrites it in place (or saves a copy next to it when
-     * [keepOriginal]), keeping its camera info. Returns the portrait's uri, or null if nothing was found.
+     * [keepOriginal]), keeping its camera info. Returns the portrait's uri and the f-number used
+     * ([fNumber] ≤ 0 = auto), or null if nothing was found.
      */
-    fun applyToSaved(context: Context, uri: Uri, aperture: Int, keepOriginal: Boolean): Uri? {
+    fun applyToSaved(context: Context, uri: Uri, fNumber: Float, keepOriginal: Boolean): Pair<Uri, Float>? {
         val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
         val exif = ExifInterface(bytes.inputStream())
         val rot = when (exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
@@ -175,7 +201,7 @@ object Portrait {
             bmp = Bitmap.createScaledBitmap(bmp, (bmp.width * s).roundToInt(), (bmp.height * s).roundToInt(), true)
         }
         if (rot != 0) bmp = Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, Matrix().apply { postRotate(rot.toFloat()) }, true)
-        val out = render(context, bmp, aperture) ?: return null
+        val (out, usedF) = render(context, bmp, fNumber) ?: return null
         bmp.recycle()
         val tmp = java.io.File(context.cacheDir, "portrait_${System.currentTimeMillis()}.jpg")
         try {
@@ -190,7 +216,7 @@ object Portrait {
                     ExifInterface.TAG_GPS_LONGITUDE, ExifInterface.TAG_GPS_LONGITUDE_REF, ExifInterface.TAG_ARTIST, ExifInterface.TAG_COPYRIGHT,
                 )) exif.getAttribute(tag)?.let { o.setAttribute(tag, it) }
                 o.setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL.toString())
-                o.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, "AcluxPro portrait ${APERTURES[aperture.coerceIn(0, APERTURES.size - 1)]}")
+                o.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, "AcluxPro portrait ${label(usedF)}${if (fNumber <= 0f) " (auto)" else ""}")
                 o.saveAttributes()
             } catch (_: Throwable) {}
             return if (keepOriginal) {
@@ -205,10 +231,10 @@ object Portrait {
                 val target = Storage.insert(context, Storage.load(context), values, Storage.Kind.IMAGE) ?: return null
                 context.contentResolver.openOutputStream(target)?.use { o -> tmp.inputStream().use { it.copyTo(o) } }
                 Storage.publish(context, target)
-                target
+                target to usedF
             } else {
                 context.contentResolver.openOutputStream(uri, "wt")?.use { o -> tmp.inputStream().use { it.copyTo(o) } }
-                uri
+                uri to usedF
             }
         } finally { tmp.delete() }
     }

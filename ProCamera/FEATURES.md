@@ -97,6 +97,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **AI masks**: subject and sky selected automatically.
 - **Colour-range and brightness-range masks**: tap the photo to pick a colour or brightness (e.g. only the blues, only the highlights), with range and softness.
 - **Background (AI)**: portrait blur, transparent background or colour fill behind the subject.
+- **Sky replacement (AI)**: 5 built-in skies or your own picture, with strength and light matching.
 - **AI erase**: paint over bigger objects to remove them.
 - **Merge photos**: HDR (exposure fusion), panorama stitching, focus stacking.
 - **Watermark**: text or logo, font, colour, size, position, opacity; optional **Remember watermark**.

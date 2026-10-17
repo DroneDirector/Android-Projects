@@ -218,6 +218,7 @@ object ImageOps {
         src: Bitmap, grade: ProGrade, detail: Detail, geometry: Geometry, tables: Array<FloatArray>?,
         lens: LensFix?, spots: List<Spot>?, masks: List<PhotoMask>?, aiMasks: Map<String, Bitmap> = emptyMap(),
         bg: PhotoBackground? = null,
+        sky: SkySwap? = null,
     ): Bitmap {
         var b = src
         val srcW = src.width; val srcH = src.height
@@ -232,7 +233,7 @@ object ImageOps {
         if (tables != null) applyLut(px, tables)
         detail(px, w, h, detail)
         // AI selections are made on the uncropped photo: give them the same crop / rotation.
-        val used = (masks.orEmpty().filter { it.visible }.mapNotNull { it.maskFile } + listOfNotNull(bg?.takeIf { it.active }?.maskFile)).distinct()
+        val used = (masks.orEmpty().filter { it.visible }.mapNotNull { it.maskFile } + listOfNotNull(bg?.takeIf { it.active }?.maskFile, sky?.takeIf { it.active }?.maskFile)).distinct()
         val placed = HashMap<String, Bitmap>()
         for (f in used) aiMasks[f]?.let { m ->
             val s = Bitmap.createScaledBitmap(m, srcW, srcH, true)
@@ -241,6 +242,21 @@ object ImageOps {
             placed[f] = gm
         }
         if (!masks.isNullOrEmpty()) PhotoLocal.applyMasks(px, w, h, masks, placed)
+        // Sky replacement.
+        if (sky != null && sky.active) placed[sky.maskFile]?.let { m ->
+            val wt = PhotoLocal.weights(PhotoMask(type = MaskType.SKY, maskFile = sky.maskFile), w, h, m)
+            val custom = sky.imagePath?.let { aiMasks[it] }
+            val skyPx = if (custom != null) {
+                // Cover the frame with your picture (keep its top).
+                val sc = maxOf(w.toFloat() / custom.width, h.toFloat() / custom.height)
+                val cw = (custom.width * sc).toInt().coerceAtLeast(w); val ch = (custom.height * sc).toInt().coerceAtLeast(h)
+                val big = Bitmap.createScaledBitmap(custom, cw, ch, true)
+                val arr = IntArray(w * h); big.getPixels(arr, 0, w, (cw - w) / 2, 0, w, h)
+                if (big !== custom) big.recycle()
+                arr
+            } else Skies.preset(sky.preset, w, h)
+            Skies.apply(px, w, h, wt, skyPx, sky)
+        }
         var hasAlpha = false
         if (bg != null && bg.active) placed[bg.maskFile]?.let { m ->
             val wt = PhotoLocal.weights(PhotoMask(type = MaskType.SUBJECT, maskFile = bg.maskFile), w, h, m)

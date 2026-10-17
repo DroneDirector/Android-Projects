@@ -58,6 +58,64 @@ data class PhotoBackground(val mode: Int = 0, val blur: Float = 0.5f, val color:
     val active get() = mode != 0 && maskFile != null
 }
 
+/** Sky replacement: the AI sky selection filled with a built-in sky or your own picture. */
+data class SkySwap(val maskFile: String? = null, val preset: Int = 0, val imagePath: String? = null, val amount: Float = 1f, val warm: Float = 0.3f) {
+    val active get() = maskFile != null && amount > 0f
+}
+
+object Skies {
+    val names = listOf("Clear blue", "Golden hour", "Sunset", "Dramatic", "Night")
+
+    /** A built-in sky as a w×h picture (top to horizon). */
+    fun preset(i: Int, w: Int, h: Int): IntArray {
+        val stops: List<Pair<Float, Int>> = when (i) {
+            1 -> listOf(0f to 0xFF5A7FC2.toInt(), 0.6f to 0xFFE9B784.toInt(), 1f to 0xFFF8D49A.toInt())
+            2 -> listOf(0f to 0xFF2E2463.toInt(), 0.5f to 0xFFC4506A.toInt(), 0.8f to 0xFFF27B4E.toInt(), 1f to 0xFFFFC77D.toInt())
+            3 -> listOf(0f to 0xFF2B3038.toInt(), 0.55f to 0xFF59616B.toInt(), 1f to 0xFFA8B0B8.toInt())
+            4 -> listOf(0f to 0xFF03081A.toInt(), 0.7f to 0xFF0F2347.toInt(), 1f to 0xFF27426E.toInt())
+            else -> listOf(0f to 0xFF1F5FC9.toInt(), 0.65f to 0xFF6FA6E8.toInt(), 1f to 0xFFBFDCF7.toInt())
+        }
+        val out = IntArray(w * h)
+        val rnd = java.util.Random(7L + i)
+        for (y in 0 until h) {
+            val t = y.toFloat() / (h - 1).coerceAtLeast(1)
+            var k = 0
+            while (k < stops.size - 2 && t > stops[k + 1].first) k++
+            val (t0, c0) = stops[k]; val (t1, c1) = stops[k + 1]
+            val f = ((t - t0) / (t1 - t0).coerceAtLeast(1e-4f)).coerceIn(0f, 1f)
+            for (x in 0 until w) {
+                // A little noise so the gradient doesn't band.
+                val n = (rnd.nextFloat() - 0.5f) * 3f
+                fun ch(s: Int) = (((c0 shr s) and 0xFF) * (1 - f) + ((c1 shr s) and 0xFF) * f + n).toInt().coerceIn(0, 255)
+                out[y * w + x] = (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
+            }
+        }
+        if (i == 4) repeat(w * h / 2500) { val p = rnd.nextInt(w * (h * 2 / 3).coerceAtLeast(1)); out[p] = 0xFFFFFFFF.toInt() }
+        return out
+    }
+
+    /** Puts the sky into [px] where the sky mask is; the rest gets a touch of the sky's warmth. */
+    fun apply(px: IntArray, w: Int, h: Int, wt: FloatArray, sky: IntArray, s: SkySwap) {
+        var sr = 0L; var sg = 0L; var sb = 0L
+        for (c in sky) { sr += (c shr 16) and 0xFF; sg += (c shr 8) and 0xFF; sb += c and 0xFF }
+        val n = sky.size.coerceAtLeast(1)
+        val tr = sr / n / 255f; val tg = sg / n / 255f; val tb = sb / n / 255f
+        val avg = (tr + tg + tb) / 3f
+        for (i in px.indices) {
+            val a = (wt[i] * s.amount).coerceIn(0f, 1f)
+            val o = px[i]; val k = sky[i]
+            var r = ((o shr 16) and 0xFF).toFloat(); var g = ((o shr 8) and 0xFF).toFloat(); var b = (o and 0xFF).toFloat()
+            // Match the foreground's colour to the new light, gently.
+            val m = s.warm * (1f - a)
+            r *= 1f + m * (tr - avg); g *= 1f + m * (tg - avg); b *= 1f + m * (tb - avg)
+            r = r * (1 - a) + ((k shr 16) and 0xFF) * a
+            g = g * (1 - a) + ((k shr 8) and 0xFF) * a
+            b = b * (1 - a) + (k and 0xFF) * a
+            px[i] = (o and 0xFF000000.toInt()) or (r.toInt().coerceIn(0, 255) shl 16) or (g.toInt().coerceIn(0, 255) shl 8) or b.toInt().coerceIn(0, 255)
+        }
+    }
+}
+
 /** Lens corrections. */
 data class LensFix(
     /** + removes barrel distortion (wide lenses), − removes pincushion. */

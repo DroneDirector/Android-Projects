@@ -32,6 +32,8 @@ data class AudioFx(
     val fadeOutMs: Long = 0L,
     val duckMusic: Boolean = false,
     val limiter: Boolean = true,
+    /** Voice noise reduction on export: 0 off, 1 light, 2 strong. */
+    val denoise: Int = 0,
 ) {
     val isNeutral get() = this == AudioFx() || this == AudioFx(limiter = false)
 }
@@ -129,7 +131,7 @@ class AudioFxProcessor(
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT) return AudioProcessor.AudioFormat.NOT_SET
-        if (!live && fx.isNeutral && gain == 1f && duckRanges.isEmpty() && !meter && envelope.isNullOrEmpty() && xOut == null && xIn == null) return AudioProcessor.AudioFormat.NOT_SET
+        if (!live && fx.isNeutral && fx.denoise == 0 && gain == 1f && duckRanges.isEmpty() && !meter && envelope.isNullOrEmpty() && xOut == null && xIn == null) return AudioProcessor.AudioFormat.NOT_SET
         return inputAudioFormat
     }
 
@@ -143,11 +145,28 @@ class AudioFxProcessor(
         built = f; builtRate = rate
     }
 
-    override fun queueInput(inputBuffer: ByteBuffer) {
+    private var nr: com.dronedirector.acluxpro.camera.NoiseReducer? = null
+    private var nrDrop = 0
+
+    override fun queueInput(inputBuffer0: ByteBuffer) {
         val fmt = inputAudioFormat
         val ch = fmt.channelCount.coerceIn(1, 8)
         val rate = fmt.sampleRate.coerceAtLeast(1)
         val f = fx
+        // Voice noise reduction (export only): cleaned first, then EQ and dynamics as usual.
+        var inputBuffer = inputBuffer0
+        if (!live && f.denoise > 0) {
+            val r = nr ?: com.dronedirector.acluxpro.camera.NoiseReducer(ch, f.denoise).also { nr = it; nrDrop = it.delay * ch }
+            val sb = inputBuffer0.order(java.nio.ByteOrder.nativeOrder()).asShortBuffer()
+            val inF = FloatArray(sb.remaining()) { sb.get() / 32768f }
+            inputBuffer0.position(inputBuffer0.limit())
+            var outF = r.process(inF)
+            if (nrDrop > 0) { val d = minOf(nrDrop, outF.size); outF = outF.copyOfRange(d, outF.size); nrDrop -= d }
+            val bb = ByteBuffer.allocate(outF.size * 2).order(java.nio.ByteOrder.nativeOrder())
+            for (v in outF) bb.putShort((v.coerceIn(-1f, 0.99997f) * 32768f).toInt().toShort())
+            bb.flip()
+            inputBuffer = bb
+        }
         if (f != built || rate != builtRate) rebuild(f, rate)
         val out = replaceOutputBuffer(inputBuffer.remaining())
         val frame = DoubleArray(ch)
@@ -226,7 +245,7 @@ class AudioFxProcessor(
         }
     }
 
-    private fun clear() { frames = 0; env = 0.0; gateGain = 1.0; duck = 1.0; listOf(hp, ls, pk, hs, pres).forEach { it.reset() } }
+    private fun clear() { frames = 0; env = 0.0; gateGain = 1.0; duck = 1.0; nr = null; nrDrop = 0; listOf(hp, ls, pk, hs, pres).forEach { it.reset() } }
     override fun onFlush() = clear()
     override fun onReset() { clear(); built = null }
 }

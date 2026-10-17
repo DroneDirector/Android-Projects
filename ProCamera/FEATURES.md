@@ -131,8 +131,11 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - Match video (default), hard cut, constant gain, constant power, exponential fade, dip to silence, quick out / slow in, slow out / quick in — each with a small volume-curve picture.
 - Work over the video transition, or on a plain cut as a fade out / in around the cut (adjustable 0.1–3 s); in the preview and the export; apply to all cuts.
 
-**Sound effects on cuts (10)**
-- Cinematic impact, cinematic boom, trailer hit, sub drop, whoosh, fast swoosh, swirl, riser, reverse cymbal, glitch.
+**Sound effects on cuts (24)**
+- **Hits & impacts**: cinematic impact, cinematic boom, trailer hit, braam, drum hit, punch, thunder, heartbeat, sub drop.
+- **Whooshes & air**: whoosh, fast swoosh, deep whoosh, swirl, wind gust.
+- **Builds & risers**: riser, reverse cymbal, clock tick build, tape stop.
+- **Stylized & sci-fi**: glitch, record scratch, laser zap, magic shimmer, camera shutter, TV static.
 - Made by the app itself (no downloaded audio). Impacts land on the cut; risers and reverse cymbals build up to it. Effect volume, ▶ listen, heard in the preview and mixed into the export.
 - **My sounds**: import your own transition sounds (MP3, WAV, M4A, AAC, OGG, FLAC); they're copied into the app, can be used on any cut, and can start on, centre on or end on the cut. ✕ removes one.
 

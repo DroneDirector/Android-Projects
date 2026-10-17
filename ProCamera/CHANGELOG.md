@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.235 — 2026-10-17
 - Capture: PORTRAIT now shows the background blur live in the viewfinder, following the slider (or AUTO) as you move it.
 - Capture: PORTRAIT works on more than people — pets, flowers, rocks, tree branches and other subjects that stand out (ML Kit subject segmentation on the phone), both live and in the saved photo. "no subject" shows when nothing is found yet.
 

@@ -1720,7 +1720,6 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 Row(Modifier.fillMaxWidth().height(50.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     TopIcon(Icons.AutoMirrored.Filled.ArrowBack, "Close", enabled = !exporting) { confirmExit = true }
                     Column(Modifier.weight(1f).padding(start = 4.dp)) {
-                        Text("Video editor", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                         Text("${clips.size} CLIPS · ${tc(totalMs)}", style = Pro.Label)
                     }
                     VideoPanelsButton(

@@ -949,7 +949,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
             Column(Modifier.fillMaxSize()) {
                 // Top bar
                 Row(Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TopIcon(Icons.AutoMirrored.Filled.ArrowBack, "Close", enabled = !busy) { onClose() }
+                    // No back arrow here (it squeezed EXPORT); the phone's back gesture / button closes the editor.
                     androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
                     BarIcon(Icons.AutoMirrored.Filled.Undo, "Undo", enabled = undoPos > 0) { undoPos--; edit = undo[undoPos] }
                     BarIcon(Icons.AutoMirrored.Filled.Redo, "Redo", enabled = undoPos < undo.lastIndex) { undoPos++; edit = undo[undoPos] }
@@ -967,7 +967,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                     BarButton("LOAD", enabled = !busy) { showLoad = true }
                     BarButton("SAVE", enabled = !busy) { if (projectId == null) askName = true else saveProject(projectName) }
                     Text(
-                        "EXPORT", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp),
+                        "EXPORT", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp), maxLines = 1, softWrap = false,
                         modifier = Modifier.padding(start = 4.dp, end = 4.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !busy) { panel = PhotoPanel.EXPORT; com.dronedirector.acluxpro.ui.Panels.set(context, "pe.controls", true) }.padding(horizontal = 10.dp, vertical = 7.dp),
                     )
                 }

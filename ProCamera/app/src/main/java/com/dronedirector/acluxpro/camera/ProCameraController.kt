@@ -623,8 +623,10 @@ class ProCameraController(private val context: Context) {
         val main: UseCase? = when {
             s.mode.isLapse -> null
             !s.isVideo -> buildImageCapture(s, resolution, useScene).also { ic = it }
-            else -> buildVideoCapture(s).also { vc = it }
+            else -> buildVideoCapture(s, strict = true).also { vc = it }
         }
+        // Video: if the chosen quality can't run in any combination, fall back to a lower one.
+        val fallbackVideo: VideoCapture<Recorder>? = if (vc != null) buildVideoCapture(s, strict = false) else null
 
         // Live filter: a GPU effect on the preview (and on the recording in video modes).
         val wantEffect = needsEffect(s) && !useScene
@@ -635,11 +637,18 @@ class ProCameraController(private val context: Context) {
             FilterEffect(targets, filterProcessor) { t -> mainExecutor.execute { toast("Filter error: ${t.message}") } }
         } else null
 
-        data class Attempt(val effect: Boolean, val analysis: Boolean)
+        data class Attempt(val effect: Boolean, val analysis: Boolean, val fallback: Boolean = false)
         val attempts = buildList {
+            // The chosen video quality comes first: the analysis stream (histogram etc. — it falls back
+            // to reading the screen) and then the live filter are dropped before the resolution is.
             if (effect != null) { add(Attempt(true, true)); add(Attempt(true, false)) }
             add(Attempt(false, true)); add(Attempt(false, false))
+            if (fallbackVideo != null) {
+                if (effect != null) add(Attempt(true, false, fallback = true))
+                add(Attempt(false, false, fallback = true))
+            }
         }.filter { !forceScreenAnalysis || !it.analysis }
+        var usedFallback = false
         var bound: Camera? = null
         var withAnalysis = false
         var withEffect = false
@@ -648,12 +657,14 @@ class ProCameraController(private val context: Context) {
             try {
                 p.unbindAll()
                 val group = UseCaseGroup.Builder().addUseCase(preview)
-                if (main != null) group.addUseCase(main)
+                val useMain = if (a.fallback) fallbackVideo else main
+                if (useMain != null) group.addUseCase(useMain)
                 if (a.analysis) group.addUseCase(analysis)
                 if (a.effect && effect != null) group.addEffect(effect)
                 bound = p.bindToLifecycle(owner, selector, group.build())
                 withAnalysis = a.analysis
                 withEffect = a.effect
+                usedFallback = a.fallback
                 effectBound = a.effect && effect != null
                 break
             } catch (t: Throwable) {
@@ -699,7 +710,18 @@ class ProCameraController(private val context: Context) {
 
         camera = bound
         imageCapture = ic
+        if (usedFallback) vc = fallbackVideo
         videoCapture = vc
+        // Tell the user if the recording won't be in the chosen resolution.
+        vc?.let { v ->
+            val got = try { v.resolutionInfo?.resolution } catch (_: Throwable) { null }
+            val want = s.videoRes
+            if (got != null) {
+                val long = maxOf(got.width, got.height)
+                val wantLong = when (want.quality) { Quality.UHD -> 3840; Quality.FHD -> 1920; Quality.HD -> 1280; else -> 0 }
+                if (wantLong > 0 && long < wantLong * 0.9) toast("${want.label} isn't possible with these settings on this camera — recording in ${long}×${minOf(got.width, got.height)}. Try 30 fps or turn off stabilisation.")
+            }
+        }
         imageAnalysis = if (withAnalysis) analysis else null
         if (!withAnalysis) _analysis.value = null
         // Without its own analysis stream (common alongside video), read the on-screen picture instead.
@@ -922,10 +944,11 @@ class ProCameraController(private val context: Context) {
     }
 
     @SuppressLint("RestrictedApi")
-    private fun buildVideoCapture(s: CameraUiState): VideoCapture<Recorder> {
+    private fun buildVideoCapture(s: CameraUiState, strict: Boolean = false): VideoCapture<Recorder> {
         val q = s.videoRes.quality
+        // Strict: exactly the chosen quality (binding fails rather than silently dropping, e.g. 4K → 1080p).
         val recorderBuilder = Recorder.Builder()
-            .setQualitySelector(QualitySelector.from(q, FallbackStrategy.lowerQualityOrHigherThan(q)))
+            .setQualitySelector(if (strict) QualitySelector.from(q) else QualitySelector.from(q, FallbackStrategy.lowerQualityOrHigherThan(q)))
         if (s.highBitrate) recorderBuilder.setTargetVideoEncodingBitRate(s.videoRes.highBitrate)
         // 8-bit codec choice; 10-bit HLG is always HEVC and is left to CameraX.
         val hlg = s.isPro && s.profile == VideoProfile.HLG && s.hlgSupported

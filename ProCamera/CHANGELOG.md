@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture: 4K recordings were sometimes saved in 1080p — the camera now keeps the chosen resolution first (dropping the extra analysis stream instead) and tells you if a resolution really isn't possible with the current settings.
 
 ## 1.0.224 — 2026-10-17
 - Photo editor: better heal — the patch is colour-matched smoothly from its edge inward and the automatic source avoids edges and objects; heal and clone spots can now be dragged (solid circle = the spot, dashed circle = where it copies from) and held to delete.

@@ -685,7 +685,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                     val shownNow = if (comparing) base else preview ?: base
                     if (!split && !comparing && shownNow != null) {
                         val selMask = edit.masks.firstOrNull { it.id == tools.selected }
-                        if (panel == PhotoPanel.MASKS && selMask != null) MaskEditOverlay(selMask, shownNow.width, shownNow.height, tools) { m ->
+                        if (panel == PhotoPanel.MASKS && selMask != null) MaskEditOverlay(selMask, shownNow.width, shownNow.height, tools, image = shownNow) { m ->
                             edit = edit.copy(masks = edit.masks.map { if (it.id == m.id) m else it })
                         }
                         val em = eraseMask

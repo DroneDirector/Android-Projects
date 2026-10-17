@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.Contrast
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Gradient
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -89,17 +91,22 @@ private fun fit(boxW: Float, boxH: Float, imgW: Int, imgH: Int, pad: Float): Fit
 
 /** On-photo handles for the selected mask: drag gradient ends, move / size the ellipse, or paint. */
 @Composable
-fun MaskEditOverlay(mask: PhotoMask, imgW: Int, imgH: Int, ui: LocalToolsState, onChange: (PhotoMask) -> Unit) {
+fun MaskEditOverlay(mask: PhotoMask, imgW: Int, imgH: Int, ui: LocalToolsState, image: Bitmap? = null, onChange: (PhotoMask) -> Unit) {
     val cur by rememberUpdatedState(mask)
     val change by rememberUpdatedState(onChange)
     val live = remember { mutableStateListOf<Float>() }
     // Mask preview: red where the mask applies.
     var tint by remember { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(mask, ui.showOverlay, imgW, imgH) {
-        if (!ui.showOverlay || imgW <= 0) { tint = null; return@LaunchedEffect }
+    val ranged = mask.type == MaskType.COLOR_RANGE || mask.type == MaskType.LUMA_RANGE
+    LaunchedEffect(mask, ui.showOverlay, imgW, imgH, image) {
+        if (!(ui.showOverlay || ranged) || imgW <= 0) { tint = null; return@LaunchedEffect }
         tint = withContext(Dispatchers.Default) {
-            val w = 220; val h = (220f * imgH / imgW).toInt().coerceIn(20, 600)
-            val wt = PhotoLocal.weights(mask.copy(amount = 1f), w, h)
+            val w = if (ranged) 360 else 220; val h = (w.toFloat() * imgH / imgW).toInt().coerceIn(20, 900)
+            val px = if (ranged && image != null) try {
+                val sm = Bitmap.createScaledBitmap(image, w, h, true)
+                IntArray(w * h).also { sm.getPixels(it, 0, w, 0, 0, w, h); if (sm !== image) sm.recycle() }
+            } catch (_: Throwable) { null } else null
+            val wt = PhotoLocal.weights(mask.copy(amount = 1f), w, h, px = px)
             Bitmap.createBitmap(IntArray(w * h) { ((wt[it] * 140).toInt().coerceIn(0, 255) shl 24) or 0xFF3030 }, w, h, Bitmap.Config.ARGB_8888)
         }
     }
@@ -161,9 +168,25 @@ fun MaskEditOverlay(mask: PhotoMask, imgW: Int, imgH: Int, ui: LocalToolsState, 
                         else -> {}
                     }
                 }
-            }.pointerInput(mask.type, r, "tap") {
+            }.pointerInput(mask.type, r, "tap", image) {
+                // Range masks: tap the photo to pick the colour / brightness under your finger.
+                if (ranged && image != null) detectTapGestures { o ->
+                    val (x, y) = toImg(o)
+                    if (x !in 0f..1f || y !in 0f..1f) return@detectTapGestures
+                    val c = image.getPixel((x * (image.width - 1)).toInt(), (y * (image.height - 1)).toInt())
+                    val rr = (c shr 16) and 0xFF; val gg = (c shr 8) and 0xFF; val bb = c and 0xFF
+                    val m = cur
+                    if (m.type == MaskType.COLOR_RANGE) {
+                        val hsv = FloatArray(3); android.graphics.Color.RGBToHSV(rr, gg, bb, hsv)
+                        change(m.copy(hue = hsv[0]))
+                    } else {
+                        val l = (0.2126f * rr + 0.7152f * gg + 0.0722f * bb) / 255f
+                        val half = ((m.lumHigh - m.lumLow) / 2f).coerceIn(0.05f, 0.5f)
+                        change(m.copy(lumLow = (l - half).coerceIn(0f, 1f), lumHigh = (l + half).coerceIn(0f, 1f)))
+                    }
+                }
                 // A tap with the brush paints a dot.
-                if (mask.type == MaskType.BRUSH) detectTapGestures { o ->
+                else if (mask.type == MaskType.BRUSH) detectTapGestures { o ->
                     val (x, y) = toImg(o)
                     val m = cur
                     change(m.copy(strokes = m.strokes + BrushStroke(listOf(x, y), ui.brushSize, ui.erase, ui.brushSoft)))
@@ -240,13 +263,15 @@ fun MasksPanel(masks: List<PhotoMask>, ui: LocalToolsState, onMasks: (List<Photo
         SmallAction(Icons.Filled.Gradient, "Linear") { val m = PhotoMask(type = MaskType.LINEAR); onMasks(masks + m); ui.selected = m.id }
         SmallAction(Icons.Filled.RadioButtonUnchecked, "Radial") { val m = PhotoMask(type = MaskType.RADIAL); onMasks(masks + m); ui.selected = m.id }
         SmallAction(Icons.Filled.Brush, "Brush") { val m = PhotoMask(type = MaskType.BRUSH); onMasks(masks + m); ui.selected = m.id }
+        SmallAction(Icons.Filled.Palette, "Colour range") { val m = PhotoMask(type = MaskType.COLOR_RANGE); onMasks(masks + m); ui.selected = m.id }
+        SmallAction(Icons.Filled.Contrast, "Brightness range") { val m = PhotoMask(type = MaskType.LUMA_RANGE); onMasks(masks + m); ui.selected = m.id }
         if (onAi != null) {
             SmallAction(Icons.Filled.Visibility, "Subject (AI)") { onAi(MaskType.SUBJECT) }
             SmallAction(Icons.Filled.Visibility, "Sky (AI)") { onAi(MaskType.SKY) }
         }
     }
     if (masks.isEmpty()) {
-        Text("Masks change only part of the photo: a linear gradient (e.g. darken a sky), a radial (spotlight a face) or a brush you paint with.", color = Pro.Dim, fontSize = 11.sp)
+        Text("Masks change only part of the photo: a linear gradient (e.g. darken a sky), a radial (spotlight a face), a brush you paint with, or a colour / brightness range (e.g. only the blues, only the highlights).", color = Pro.Dim, fontSize = 11.sp)
         return
     }
     SectionTitle("MASKS")
@@ -282,6 +307,26 @@ fun MasksPanel(masks: List<PhotoMask>, ui: LocalToolsState, onMasks: (List<Photo
             EdSlider("Brush size", ui.brushSize, 0.01f..0.3f, 0.08f, ::pct) { ui.brushSize = it }
             EdSlider("Softness", ui.brushSoft, 0f..1f, 0.5f, ::pct) { ui.brushSoft = it }
             Text("CLEAR STROKES", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { upd { it.copy(strokes = emptyList()) } }.padding(6.dp))
+        }
+        MaskType.COLOR_RANGE -> {
+            Text("Tap a colour on the photo to select everything with that colour (e.g. the blue of the sky). Red shows what's selected.", color = Pro.Dim, fontSize = 11.sp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(22.dp).clip(RoundedCornerShape(4.dp)).background(Color(android.graphics.Color.HSVToColor(floatArrayOf(m.hue, 0.8f, 0.9f)))))
+                Text("  Picked colour", color = Pro.Dim, fontSize = 11.sp)
+            }
+            EdSlider("Colour", m.hue, 0f..360f, 210f, { "${it.toInt()}°" }) { v -> upd { it.copy(hue = v) } }
+            EdSlider("Range", m.hueWidth, 4f..160f, 40f, { "${it.toInt()}°" }) { v -> upd { it.copy(hueWidth = v) } }
+            EdSlider("Softness", m.rangeSoft, 0f..1f, 0.4f, ::pct) { v -> upd { it.copy(rangeSoft = v) } }
+        }
+        MaskType.LUMA_RANGE -> {
+            Text("Selects by brightness — e.g. only the highlights or only the shadows. Tap the photo to centre the range on a spot.", color = Pro.Dim, fontSize = 11.sp)
+            Chips(listOf("Shadows", "Midtones", "Highlights"), -1) { i ->
+                val (a, b) = listOf(0f to 0.3f, 0.3f to 0.7f, 0.7f to 1f)[i]
+                upd { it.copy(lumLow = a, lumHigh = b) }
+            }
+            EdSlider("From", m.lumLow, 0f..1f, 0.7f, ::pct) { v -> upd { it.copy(lumLow = v.coerceAtMost(it.lumHigh)) } }
+            EdSlider("To", m.lumHigh, 0f..1f, 1f, ::pct) { v -> upd { it.copy(lumHigh = v.coerceAtLeast(it.lumLow)) } }
+            EdSlider("Softness", m.rangeSoft, 0f..1f, 0.4f, ::pct) { v -> upd { it.copy(rangeSoft = v) } }
         }
         else -> Text("Selected by the AI.", color = Pro.Dim, fontSize = 11.sp)
     }

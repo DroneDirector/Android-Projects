@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.226 — 2026-10-17
 - Capture: 4K recordings were sometimes saved in 1080p — the camera now keeps the chosen resolution first (dropping the extra analysis stream instead) and tells you if a resolution really isn't possible with the current settings.
 
 ## 1.0.224 — 2026-10-17

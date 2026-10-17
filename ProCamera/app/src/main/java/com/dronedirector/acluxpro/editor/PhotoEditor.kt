@@ -106,6 +106,7 @@ private data class PhotoEdit(
     val baseFile: String? = null,
     /** Text and sticker layers drawn on the photo (Text tab). */
     val texts: List<Layer> = emptyList(),
+    val sky: SkySwap = SkySwap(),
 )
 
 private enum class PhotoPanel(val label: String) {
@@ -275,7 +276,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     var edit by remember {
         mutableStateOf(
             @Suppress("USELESS_ELVIS")
-            if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix(), initial.bg ?: PhotoBackground(), initial.baseFile, initial.texts ?: emptyList())
+            if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix(), initial.bg ?: PhotoBackground(), initial.baseFile, initial.texts ?: emptyList(), initial.sky ?: SkySwap())
             else PhotoEdit(watermark = WatermarkMemory.load(context, false))
         )
     }
@@ -323,15 +324,15 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     val tools = remember { LocalToolsState() }
     // AI masks (subject / sky) are kept as grey pictures in the app's files.
     val aiMasks = remember { mutableStateMapOf<String, Bitmap>() }
-    LaunchedEffect(edit.masks.mapNotNull { it.maskFile } + listOfNotNull(edit.bg.maskFile)) {
-        for (f in edit.masks.mapNotNull { it.maskFile } + listOfNotNull(edit.bg.maskFile)) if (aiMasks[f] == null) withContext(Dispatchers.IO) { BitmapFactory.decodeFile(f) }?.let { aiMasks[f] = it }
+    LaunchedEffect(edit.masks.mapNotNull { it.maskFile } + listOfNotNull(edit.bg.maskFile, edit.sky.maskFile, edit.sky.imagePath)) {
+        for (f in edit.masks.mapNotNull { it.maskFile } + listOfNotNull(edit.bg.maskFile, edit.sky.maskFile, edit.sky.imagePath)) if (aiMasks[f] == null) withContext(Dispatchers.IO) { BitmapFactory.decodeFile(f) }?.let { aiMasks[f] = it }
     }
     fun saveProject(name: String) {
         val e = edit
         val p = PhotoProjectData(
             id = projectId ?: java.util.UUID.randomUUID().toString(), name = name, uri = uri,
             grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark,
-            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts,
+            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky,
         )
         val thumb = preview
         scope.launch {
@@ -401,7 +402,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
             val s0 = if (e.detail.aiDenoise > 0f) mixed(src, if (isSmall) aiSmall else ai, e.detail.aiDenoise) else src
             val tables = if (e.grade.isIdentity) null else e.grade.tables()
             val healNow = healMode.value
-            val r = ImageOps.renderPhoto(s0, e.grade, e.detail, if (healNow) Geometry() else e.geometry, tables, e.lens, e.spots, if (healNow) null else e.masks, aiMasks.toMap(), if (healNow) null else e.bg)
+            val r = ImageOps.renderPhoto(s0, e.grade, e.detail, if (healNow) Geometry() else e.geometry, tables, e.lens, e.spots, if (healNow) null else e.masks, aiMasks.toMap(), if (healNow) null else e.bg, if (healNow) null else e.sky)
             if (healNow) return r
             var o = r
             for (t in e.texts) o = stampLayer(context, o, t)
@@ -476,7 +477,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                         }
                     }
                     val tables = if (e.grade.isIdentity) null else e.grade.tables()
-                    var out = ImageOps.renderPhoto(full, e.grade, e.detail, e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg)
+                    var out = ImageOps.renderPhoto(full, e.grade, e.detail, e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg, e.sky)
                     full.recycle()
                     // AI upscale (×2 / ×4, at most 24 MP).
                     if (aiScale > 1) {
@@ -589,6 +590,36 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                 Text("CANCEL", style = Pro.Label.copy(color = Color.White, fontSize = 11.sp), modifier = Modifier.clickable { eraseMask = null }.padding(8.dp))
             }
             Text(if (useCloud) "Uses Bria Eraser in the cloud (your fal.ai account)." else "Runs on the phone. For big objects, turn on Cloud AI for photos (Bria Eraser).", color = Pro.Dim, fontSize = 11.sp)
+        }
+    }
+    // Sky replacement: your own sky picture is copied into the app.
+    val pickSky = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { u ->
+        if (u == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val path = withContext(Dispatchers.IO) {
+                try {
+                    val f = java.io.File(java.io.File(context.filesDir, "skies").apply { mkdirs() }, java.util.UUID.randomUUID().toString() + ".jpg")
+                    GradeIO.decode(context, u, 3000)?.let { b -> f.outputStream().use { b.compress(Bitmap.CompressFormat.JPEG, 92, it) }; f.path }
+                } catch (_: Throwable) { null }
+            }
+            if (path != null) edit = edit.copy(sky = edit.sky.copy(imagePath = path)) else message = "Couldn't open that picture"
+        }
+    }
+    val skySection: @Composable () -> Unit = {
+        val sk = edit.sky
+        SectionTitle("SKY REPLACEMENT (AI)") { edit = edit.copy(sky = SkySwap()) }
+        if (sk.maskFile == null) {
+            Text("Finds the sky and swaps it for a new one — the rest of the photo takes on a little of its light.", color = Pro.Dim, fontSize = 11.sp)
+            Text("FIND SKY", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { findMask(MaskType.SKY) { p -> edit = edit.copy(sky = edit.sky.copy(maskFile = p)) } }.padding(10.dp))
+        } else {
+            Chips(Skies.names + "Your picture…", if (sk.imagePath != null) Skies.names.size else sk.preset) { i ->
+                if (i == Skies.names.size) pickSky.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                else edit = edit.copy(sky = sk.copy(preset = i, imagePath = null))
+            }
+            EdSlider("Strength", sk.amount, 0f..1f, 1f, ::pct) { v -> edit = edit.copy(sky = sk.copy(amount = v)) }
+            EdSlider("Match the light", sk.warm, 0f..1f, 0.3f, ::pct) { v -> edit = edit.copy(sky = sk.copy(warm = v)) }
+            Text("FIND SKY AGAIN", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable { findMask(MaskType.SKY) { p -> edit = edit.copy(sky = edit.sky.copy(maskFile = p)) } }.padding(8.dp))
         }
     }
     val backgroundSection: @Composable () -> Unit = {
@@ -889,7 +920,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                                 onPickLogo = { pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                             )
                         }
-                        if (panel == PhotoPanel.EFFECTS) backgroundSection()
+                        if (panel == PhotoPanel.EFFECTS) { backgroundSection(); skySection() }
                         if (panel == PhotoPanel.EXPORT) {
                             SectionTitle("AI UPSCALE")
                             Chips(listOf("Off", "AI 2×", "AI 4×"), when (aiScale) { 2 -> 1; 4 -> 2; else -> 0 }) { aiScale = listOf(0, 2, 4)[it] }

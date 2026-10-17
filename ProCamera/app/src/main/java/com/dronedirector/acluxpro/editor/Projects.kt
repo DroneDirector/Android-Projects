@@ -30,6 +30,8 @@ data class VideoProjectData(
     val videoLocked: Boolean = false,
     /** Timeline markers (ms). */
     val markers: List<Long> = emptyList(),
+    /** Notes on markers, keyed by the marker's time (ms) as text. */
+    val markerNotes: Map<String, String>? = null,
 )
 
 data class PhotoProjectData(

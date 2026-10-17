@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.198 — 2026-10-17
 - Copyright: your name and copyright notice (Settings → COPYRIGHT) are written into every photo you take and every photo exported from the photo editor.
 - Gallery: culling — 1–5 star ratings, ✓ pick and ✕ reject in the viewer; marks on the thumbnails; filters (★1+, ★3+, ★5, picks, rejects, hide rejects); delete all rejects at once.
 - Video editor: send the edit to a desktop editor — Deliver → SEND TO DESKTOP EDITOR saves an EDL (cuts, dissolves, speed) or FCPXML (cuts, markers) for DaVinci Resolve, Premiere Pro, Avid or Final Cut Pro.

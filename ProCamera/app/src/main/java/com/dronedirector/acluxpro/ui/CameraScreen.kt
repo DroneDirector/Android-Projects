@@ -334,6 +334,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                         FocusReticle(s.focusPoint, s.focusId, locked = s.aeLock || s.manualFocusActive)
                         if (!clean) AeLockOverlay(s, controller)
                         PanoramaOverlay(s)
+                        if (!clean) PortraitOverlay(s)
                         ShutterFlash(s.shutterFlash)
                         Countdown(s.countdown)
 

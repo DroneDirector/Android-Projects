@@ -9,6 +9,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -469,6 +470,41 @@ fun FrameGuideOverlay(guide: com.dronedirector.acluxpro.camera.FrameGuide, modif
             drawRect(dim, Offset(left + w, 0f), Size(left, size.height))
             drawLine(line, Offset(left, 0f), Offset(left, size.height), sw)
             drawLine(line, Offset(left + w, 0f), Offset(left + w, size.height), sw)
+        }
+    }
+}
+
+// ------------------------------------------------------------------ portrait
+
+/** Portrait mode: background blur strength (tap an aperture) under the viewfinder. */
+@Composable
+fun PortraitOverlay(s: CameraUiState, modifier: Modifier = Modifier) {
+    if (s.mode != CaptureMode.PORTRAIT) return
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    Box(modifier.fillMaxSize()) {
+        Column(
+            Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp)
+                .clip(RoundedCornerShape(10.dp)).background(Color.Black.copy(alpha = 0.55f))
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("BACKGROUND BLUR", style = Pro.Label.copy(fontSize = 10.sp, color = Pro.Amber))
+            Spacer(Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                com.dronedirector.acluxpro.camera.Portrait.APERTURES.forEachIndexed { i, a ->
+                    val sel = i == com.dronedirector.acluxpro.camera.CaptureExtras.portraitAperture
+                    Text(
+                        a, style = Pro.Value.copy(fontSize = 12.sp, color = if (sel) Color.Black else Color.White),
+                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(if (sel) Pro.Amber else Color.White.copy(alpha = 0.12f))
+                            .clickable {
+                                com.dronedirector.acluxpro.camera.CaptureExtras.portraitAperture = i
+                                com.dronedirector.acluxpro.camera.CaptureExtras.save(ctx)
+                            }.padding(horizontal = 8.dp, vertical = 5.dp),
+                    )
+                }
+            }
+            Spacer(Modifier.height(3.dp))
+            Text("Blur is added right after the shot · lower f = more blur", style = Pro.Label.copy(fontSize = 9.sp, letterSpacing = 0.sp))
         }
     }
 }

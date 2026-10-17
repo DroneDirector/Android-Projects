@@ -7,6 +7,7 @@ import androidx.camera.extensions.ExtensionMode
 import androidx.camera.video.Quality
 
 enum class CaptureMode(val label: String, val isVideo: Boolean, val isPro: Boolean) {
+    PORTRAIT("PORTRAIT", false, false),
     PANORAMA("PANO", false, false),
     TIMELAPSE("TIME-LAPSE", true, false),
     HYPERLAPSE("HYPERLAPSE", true, false),
@@ -28,7 +29,7 @@ enum class CaptureMode(val label: String, val isVideo: Boolean, val isPro: Boole
 
     companion object {
         /** Mode groups, in the order they appear in the mode switch. */
-        val SMART = listOf(PANORAMA, HYPERLAPSE, TIMELAPSE, SLOW_MO, SUPER_SLOW_MO, BURST)
+        val SMART = listOf(PORTRAIT, PANORAMA, HYPERLAPSE, TIMELAPSE, SLOW_MO, SUPER_SLOW_MO, BURST)
         val REGULAR = listOf(PHOTO, PRO_PHOTO, VIDEO, PRO_VIDEO, LIVE)
     }
 }

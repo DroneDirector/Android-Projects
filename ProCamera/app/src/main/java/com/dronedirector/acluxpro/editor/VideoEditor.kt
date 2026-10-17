@@ -217,6 +217,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     var exporting by remember { mutableStateOf(false) }
     var progress by remember { mutableStateOf(0) }
     var message by remember { mutableStateOf<String?>(null) }
+    var trackingId by remember { mutableStateOf<String?>(null) }
+    var trackStop by remember { mutableStateOf(false) }
     var deliver by remember { mutableStateOf(initial?.deliver ?: DeliverSettings()) }
     var projectId by remember { mutableStateOf(initial?.id) }
     var projectName by remember { mutableStateOf(initial?.name ?: "") }
@@ -983,6 +985,42 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
             markers.sort()
             message = if (added > 0) "$added beat markers added" else "No clear beat found"
+        }
+    }
+
+    // ---- Motion tracking: the selected layer follows the spot under it from the playhead on
+    fun trackLayer(id: String) {
+        if (trackingId != null) { trackStop = true; return }
+        val l0 = layers.firstOrNull { it.id == id } ?: return
+        if (clips.isEmpty()) return
+        deck.cur.pause()
+        val from = globalMs
+        val starts = clipStarts(clips)
+        val ci = starts.indices.lastOrNull { starts[it] <= from } ?: 0
+        val to = if (l0.wholeVideo) timelineLength(clips) else l0.endMs
+        if (to - from < 300) { message = "Move the playhead to where tracking should start"; return }
+        val at = l0.animAt(from)
+        trackingId = id; trackStop = false; message = "Tracking… 0%"
+        val snapshot = clips.toList()
+        layerScope.launch {
+            val path = withContext(Dispatchers.Default) {
+                Tracker.track(context, snapshot, ci, from, to, at.x, at.y,
+                    progress = { p -> layerScope.launch { if (trackingId != null) message = "Tracking… $p% — tap TRACK again to stop" } },
+                    cancelled = { trackStop })
+            }
+            trackingId = null
+            val i = layers.indexOfFirst { it.id == id }
+            if (i < 0 || path.size < 2) { message = "Couldn't follow that spot — try a sharper, high-contrast area"; return@launch }
+            val l = layers[i]
+            val end = path.last().first
+            // Keep keyframes before and after the tracked stretch; one key every 200 ms in between.
+            val kept = l.keys.orEmpty().filter { it.t < from - 60 || it.t > end + 60 }
+            val newKeys = path.filterIndexed { k, _ -> k % 2 == 0 || k == path.lastIndex }.map { (t, x, y) ->
+                val cur = l.animAt(t); LayerKey(t, x, y, cur.size, cur.opacity)
+            }
+            layers[i] = l.copy(keys = (kept + newKeys).sortedBy { it.t })
+            message = if (end < to - 250) "Tracked to ${tc(end)} — the spot was lost there (${newKeys.size} keyframes)"
+            else "Tracked ${newKeys.size} keyframes — the layer now follows the motion"
         }
     }
 
@@ -1790,6 +1828,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 },
                                 onSeek = { seekGlobal(it) },
                                 onCaptions = { lang, clipsOnly, style -> makeCaptions(lang, clipsOnly, style) },
+                                onTrack = { trackLayer(it) }, trackingId = trackingId,
                                 onDelete = { id ->
                                     if (layers.any { it.id == id && it.locked }) message = "This layer is locked — tap its lock to delete it"
                                     else { layers.removeAll { it.id == id }; selectedLayer = layers.lastOrNull()?.id }
@@ -2562,6 +2601,7 @@ private fun LayersPage(
     onUpdate: (Layer) -> Unit, onDelete: (String) -> Unit, onMove: (String, Int) -> Unit,
     onSeek: (Long) -> Unit = {},
     onCaptions: (String?, Boolean, Int) -> Unit = { _, _, _ -> },
+    onTrack: (String) -> Unit = {}, trackingId: String? = null,
 ) {
     var stickers by remember { mutableStateOf(false) }
     // AI captions: speech to text (Whisper) turned into caption layers.
@@ -2721,7 +2761,17 @@ private fun LayersPage(
         "◆ ADD KEYFRAME AT PLAYHEAD", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
         modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onUpdate(l.keyAt(playheadMs)) }.padding(10.dp),
     )
-    l.keys.orEmpty().forEach { k ->
+    Text(
+        if (trackingId == l.id) "■ STOP TRACKING" else "⌖ TRACK MOTION FROM PLAYHEAD", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onTrack(l.id) }.padding(10.dp),
+    )
+    Text(
+        "Place the layer's centre on the object at the playhead, then track: it follows the object to the layer's end. Works best on sharp, high-contrast spots.",
+        color = Pro.Dim, fontSize = 11.sp,
+    )
+    val keyList = l.keys.orEmpty()
+    if (keyList.size > 24) Text("${keyList.size} keyframes (tracked) — showing the first and last", style = Pro.Label, modifier = Modifier.padding(vertical = 2.dp))
+    (if (keyList.size > 24) keyList.take(4) + keyList.takeLast(4) else keyList).forEach { k ->
         Row(
             Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(8.dp))
                 .background(if (kotlin.math.abs(k.t - playheadMs) < 120) Pro.Amber.copy(alpha = 0.16f) else Ed.Raised)

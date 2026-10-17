@@ -191,6 +191,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Estimated file size** shown live as you change the settings.
 - **Loudness normalisation**: −14 / −16 / −23 LUFS (measured per BS.1770, then the whole mix is set to the target, with a limiter).
 - Choose the **save folder** (default DCIM/AcluxPro).
+- **Send to desktop editor**: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) for DaVinci Resolve, Premiere Pro, Avid and Final Cut Pro.
 
 ### Projects & workflow
 - **LOAD / SAVE projects** next to Export; **Save & leave** when exiting; saved projects on the start page.

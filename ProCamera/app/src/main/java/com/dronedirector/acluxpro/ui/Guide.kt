@@ -140,6 +140,14 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Exporting cleans the full-size photo (on the phone, or in the cloud if Cloud AI is on).",
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),
+        GuideSection(GuideTopic.TIPS, "RAW (DNG) photos", Icons.Filled.Photo, null, listOf(
+            "Open a DNG (from AcluxPro's Pro mode or any phone / camera that saves DNG) and the RAW badge appears: the editor develops the sensor data itself.",
+            "Light → RAW PROFILE picks the base look: Standard, Flat (most room for grading), Vivid, Portrait, Landscape or Mono.",
+            "Exposure (±5 stops), Highlights, Shadows, Whites and Blacks work on the full-range data — pull Highlights down to bring back bright skies, lift Shadows without the blotches you'd get from a JPEG.",
+            "Color → WHITE BALANCE: As shot, Auto, Daylight, Cloudy, Shade, Tungsten or Fluorescent, then fine-tune with Temperature and Tint.",
+            "The DNG is never changed; exports are JPEG, PNG, WebP or HEIC. RAW exports take a little longer (the full-size photo is developed again at top quality).",
+            "AI erase on a RAW makes a normal copy to work on; after that, the photo is edited like a JPEG.",
+        ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Photo editor tips", Icons.Filled.Photo, null, listOf(
             "Hold your finger on the photo to see the original.",
             "Leave the editor with your phone's back gesture or back button (the top bar has no back arrow, so EXPORT always fits).",

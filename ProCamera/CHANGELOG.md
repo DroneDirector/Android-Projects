@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor: History panel — every step (tap to go back) and snapshots you can save and jump between.
 - Video and photo editors: the pull-out scope drawer now has HIST, WAVE (waveform), PARADE (RGB parade) and VECT (vectorscope).
 - Video editor: export the AI captions as subtitles (.srt) — Deliver → SEND TO DESKTOP EDITOR.
 - Capture: safe areas — action-safe (90 %) and title-safe (80 %) frames (Settings → MONITORING & LENS).

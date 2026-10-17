@@ -109,7 +109,7 @@ private data class PhotoEdit(
 private enum class PhotoPanel(val label: String) {
     PRESETS("Presets"), LIGHT("Light"), CURVE("Curve"), COLOR("Color"), MIXER("HSL Mixer"),
     GRADING("Grading"), DETAIL("Detail"), EFFECTS("Effects"), MASKS("Masks"), HEAL("Heal"), LENS("Lens"),
-    CROP("Crop & perspective"), WATERMARK("Watermark"), EXPORT("Export"),
+    CROP("Crop & perspective"), WATERMARK("Watermark"), HISTORY("History"), EXPORT("Export"),
 }
 
 @Composable
@@ -308,6 +308,8 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     val wmOn = WatermarkMemory.isOn(context, false)
     LaunchedEffect(edit.watermark, wmOn) { if (wmOn && edit.watermark != null) WatermarkMemory.save(context, false, edit.watermark) }
     var undoPos by remember { mutableStateOf(0) }
+    // Snapshots: named versions of this edit you can jump between (History panel).
+    val snapshots = remember { mutableStateListOf<Pair<String, PhotoEdit>>() }
 
     // Export options
     var format by remember { mutableStateOf(initial?.format ?: 0) }       // JPEG, PNG
@@ -783,6 +785,26 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                                 }
                                 aiEraseSection()
                             }
+                            PhotoPanel.HISTORY -> {
+                                SectionTitle("SNAPSHOTS")
+                                Text("Save the look as it is now, try something else, and jump back any time. Snapshots last while this photo is open; SAVE the project to keep the current one.", color = Pro.Dim, fontSize = 11.sp)
+                                Text("+ SAVE SNAPSHOT", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                                    modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { snapshots.add("Snapshot ${snapshots.size + 1}" to edit); message = "Snapshot ${snapshots.size} saved" }.padding(10.dp))
+                                snapshots.toList().forEachIndexed { i, (name, se) ->
+                                    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(8.dp)).background(if (se == edit) Pro.Amber.copy(alpha = 0.16f) else Ed.Raised)
+                                        .clickable { edit = se; message = "$name" }.padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Text(name, color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                                        Text("✕", color = Pro.Red, fontSize = 13.sp, modifier = Modifier.clickable { snapshots.removeAt(i) }.padding(horizontal = 8.dp))
+                                    }
+                                }
+                                SectionTitle("HISTORY")
+                                Text("Every change, newest at the top — tap one to go back to it.", color = Pro.Dim, fontSize = 11.sp)
+                                for (i in undo.indices.reversed()) {
+                                    val label = if (i == 0) "Original" else "Step $i"
+                                    Text(label + if (i == undoPos) "  ●" else "", color = if (i == undoPos) Pro.Amber else Color.White, fontSize = 13.sp,
+                                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).clickable { undoPos = i; edit = undo[i] }.padding(horizontal = 10.dp, vertical = 6.dp))
+                                }
+                            }
                             PhotoPanel.LENS -> {
                                 val l = edit.lens
                                 SectionTitle("LENS CORRECTIONS") { edit = edit.copy(lens = LensFix()) }
@@ -1039,7 +1061,7 @@ private fun PhotoPanelContent(
                 }
             }
         }
-        PhotoPanel.MASKS, PhotoPanel.HEAL, PhotoPanel.LENS -> {}   // drawn by the workspace
+        PhotoPanel.MASKS, PhotoPanel.HEAL, PhotoPanel.LENS, PhotoPanel.HISTORY -> {}   // drawn by the workspace
         PhotoPanel.EXPORT -> {
             SectionTitle("FORMAT")
             Chips(PHOTO_FORMATS, exportState.format) { onExportState(it, exportState.quality, exportState.sizeIdx) }

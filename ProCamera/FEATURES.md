@@ -98,6 +98,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **AI erase**: paint over bigger objects to remove them.
 - **Merge photos**: HDR (exposure fusion), panorama stitching, focus stacking.
 - **Watermark**: text or logo, font, colour, size, position, opacity; optional **Remember watermark**.
+- **History & snapshots**: jump to any step, save named versions and switch between them.
 - Live RGB **histogram** as a pull-out drawer on the right edge (same as the video editor) with waveform, RGB parade and vectorscope, **hold for before**, **undo / redo**.
 - **Before / after split view** with a draggable divider.
 - **My LUTs**: import .cube LUTs, blend by strength.

@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.180 — 2026-10-17
 - Photo editor: colour-range and brightness-range masks — tap the photo to pick a colour or brightness; range and softness sliders.
 - Video editor: colour masks (Color → Masks) — up to 3 per clip: gradient, radial, colour range, brightness range, each with its own grade; live on the player and in the export.
 - Video editor: Remove silences (Edit) — cuts the pauses out of talking clips, for one clip or all clips.

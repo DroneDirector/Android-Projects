@@ -52,6 +52,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -98,6 +99,35 @@ import kotlin.math.roundToInt
 private fun <T> List<T>.next(current: T): T = if (isEmpty()) current else this[(indexOf(current) + 1).mod(size)]
 
 // ------------------------------------------------------------------ quick settings bar
+
+/** C1 / C2 / C3 custom set-ups: tap to recall, hold to save the current settings. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun PresetItem(slot: Int, c: ProCameraController, enabled: Boolean) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    var saved by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(com.dronedirector.acluxpro.camera.CamPresets.load(ctx, slot) != null) }
+    Column(
+        Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .combinedClickable(
+                enabled = enabled,
+                onClick = { c.recallPreset(slot) },
+                onLongClick = {
+                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    c.savePreset(slot); saved = true
+                },
+            )
+            .alpha(if (enabled) 1f else 0.35f)
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .widthIn(min = 36.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("SET", style = Pro.Label)
+        Spacer(Modifier.height(2.dp))
+        Text("C$slot", style = Pro.Value.copy(color = if (saved) Pro.Amber else Color.White.copy(alpha = 0.6f)), maxLines = 1)
+    }
+}
 
 @Composable
 private fun QuickItem(label: String, value: String, active: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
@@ -221,6 +251,10 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
     }
     if (s.mode != CaptureMode.PANORAMA) {
         QuickItem("GRID", s.grid.label, active = s.grid != GridMode.OFF) { c.setGrid(GridMode.entries.next(s.grid)) }
+    }
+    // Custom set-ups C1 / C2 / C3 (can be hidden in the Panels menu).
+    if (panelOn("cap.presets") && mode != CaptureMode.LIVE) {
+        for (slot in 1..3) PresetItem(slot, c, enabled = !s.recording)
     }
     // Quick switches for privacy blur and the video title (can be hidden in the Panels menu).
     val x = com.dronedirector.acluxpro.camera.CaptureExtras

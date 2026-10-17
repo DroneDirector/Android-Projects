@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.186 — 2026-10-17
 - Video editor and photo editor: estimated time remaining shown under "Rendering…" / "Exporting…" while exporting (batch exports too).
 - Photo editor: the RGB histogram is now the same pull-out drawer as in the video editor — drag or tap the tab on the right edge of the photo.
 - Capture: voice noise reduction (Light / Strong) for recorded sound.

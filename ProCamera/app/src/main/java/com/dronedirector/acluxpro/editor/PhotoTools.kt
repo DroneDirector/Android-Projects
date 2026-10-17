@@ -405,6 +405,8 @@ fun savePhotoAs(context: Context, bmp: Bitmap, format: Int, quality: Int, exifFr
                 dst.saveAttributes()
             }
         } catch (_: Throwable) {}
+        // Your name and copyright (Settings → COPYRIGHT) in every export.
+        if (f == 0 || f == 2 || f == 1) com.dronedirector.acluxpro.camera.Copyright.stampFile(context, tmp)
         SaveFolder.write(context, false, name, mime) { os -> tmp.inputStream().use { it.copyTo(os) } }?.let { return it }
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, name)

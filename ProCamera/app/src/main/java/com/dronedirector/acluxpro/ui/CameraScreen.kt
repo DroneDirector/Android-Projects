@@ -588,6 +588,7 @@ private fun CapturePanelsButton(s: CameraUiState, controller: ProCameraControlle
             get = { s.showLevel }, put = { controller.toggleLevel() }),
         PanelDef("cap.controls", "Pro controls bar", "ISO, shutter, focus, WB, EV and zoom chips (Pro modes)"),
         PanelDef("cap.hints", "Tips & scene badge", "Hints for smart modes and the active scene label"),
+        PanelDef("cap.presets", "Custom set-ups C1–C3", "Tap to recall, hold to save the current settings"),
         PanelDef("cap.qblur", "Face blur switch", "BLUR on / off in the quick bar"),
         PanelDef("cap.qtitle", "Title switch", "TITLE on / off in the quick bar (video)"),
         PanelDef("cap.titlepreview", "Title preview", "Shows where your video title will appear"),

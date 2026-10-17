@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture: custom set-ups C1 / C2 / C3 in the quick bar — hold to save the current settings, tap to recall (can be hidden in the Panels menu).
 
 ## 1.0.191 — 2026-10-17
 - Capture: the long-press exposure lock now works the same on tablets (fixed hold time, not affected by pinch zoom); also works in clean feed.

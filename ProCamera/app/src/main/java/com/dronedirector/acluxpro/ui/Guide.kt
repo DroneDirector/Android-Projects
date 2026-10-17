@@ -97,6 +97,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Capture tips", Icons.Filled.CameraAlt, null, listOf(
             "Use the volume keys as a shutter / record button.",
+            "C1 / C2 / C3 in the quick bar: hold one to save all your current settings (mode, lens, ISO, shutter, white balance, resolution, frame rate, profile, filter…), tap it to bring them back.",
             "Long press the viewfinder to lock the exposure there; drag the slider under the lock to brighten or darken while it stays locked. Long press again, or tap the small ✕, to unlock.",
             "Settings → AUDIO → Voice noise reduction (Light / Strong) cleans hiss, hum and background noise from recorded sound.",
             "Settings → PRIVACY & TITLE → Face blur pixelates faces in the viewfinder, videos and photos. The BLUR switch in the quick bar turns it on / off.",

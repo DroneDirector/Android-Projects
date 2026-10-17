@@ -1075,6 +1075,45 @@ class ProCameraController(private val context: Context) {
         setMode(if (smart) lastSmartMode else lastRegularMode)
     }
 
+    /** Custom set-ups C1 / C2 / C3: hold to save the current settings, tap to bring them back. */
+    fun savePreset(slot: Int) {
+        CamPresets.save(context, slot, CamPreset.from(st))
+        toast("C$slot saved")
+    }
+
+    fun recallPreset(slot: Int) {
+        val p = CamPresets.load(context, slot)
+        if (p == null) { toast("C$slot is empty — hold it to save your current settings"); return }
+        if (st.recording) { toast("Stop recording first"); return }
+        if (p.mode == CaptureMode.LIVE) return
+        if (p.mode != st.mode) setMode(p.mode)
+        if (p.lensIndex in st.lenses.indices && p.lensIndex != st.lensIndex) selectLens(p.lensIndex)
+        set { s ->
+            s.copy(
+                manualIso = p.manualIso && s.manualSensor, manualShutter = p.manualShutter && s.manualSensor,
+                iso = p.iso, shutterNs = p.shutterNs,
+                manualFocus = p.manualFocus && s.minFocusDiopters > 0f, focusDiopters = p.focusDiopters,
+                whiteBalance = p.whiteBalance, ev = p.ev.coerceIn(s.evMin, s.evMax),
+                photoFormat = if (p.photoFormat == PhotoFormat.JPEG || s.rawSupported) p.photoFormat else PhotoFormat.JPEG,
+                aspect = p.aspect, flash = if (s.hasFlash) p.flash else FlashSetting.OFF,
+                timerSec = p.timerSec, burst = p.burst, grid = p.grid,
+                zebras = p.zebras, zebraLevel = p.zebraLevel, peaking = p.peaking, falseColor = p.falseColor,
+                videoRes = if (p.videoRes in s.videoResolutions) p.videoRes else s.videoRes,
+                fps = if (p.fps in s.fpsOptions) p.fps else s.fps,
+                stabilization = p.stabilization && s.stabilizationSupported,
+                profile = if (p.profile == VideoProfile.HLG && !s.hlgSupported) VideoProfile.STANDARD else p.profile,
+                highBitrate = p.highBitrate, logAssist = p.logAssist,
+                videoCodec = if (p.videoCodec == VideoCodec.HEVC && !s.hevcSupported) VideoCodec.H264 else p.videoCodec,
+                audioGainDb = p.audioGainDb, audioLimiter = p.audioLimiter,
+                filter = p.filter, guide = p.guide,
+                aeLock = false, aeLockPoint = null, activeParam = null,
+            )
+        }
+        bind()
+        applyControls()
+        toast("C$slot")
+    }
+
     fun selectLens(index: Int) {
         if (st.recording || index == st.lensIndex || index !in st.lenses.indices) return
         set { it.copy(lensIndex = index, manualFocus = false) }

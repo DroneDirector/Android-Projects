@@ -38,6 +38,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Clean feed** (hide the on-screen controls for an HDMI / screen mirror).
 
 ### Pro controls
+- **Safe areas**: action-safe 90 % and title-safe 80 % frames.
 - **Tally border**, **touch lock** while recording, and **storage / battery / heat warnings**.
 - **Custom set-ups C1 / C2 / C3**: hold to save all current settings, tap to recall.
 - **Long-press exposure lock** with an EV slider under the lock; long press again or tap ✕ to unlock.
@@ -193,6 +194,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Estimated file size** shown live as you change the settings.
 - **Loudness normalisation**: −14 / −16 / −23 LUFS (measured per BS.1770, then the whole mix is set to the target, with a limiter).
 - Choose the **save folder** (default DCIM/AcluxPro).
+- **Subtitles (.srt)** from the AI captions.
 - **Send to desktop editor**: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) for DaVinci Resolve, Premiere Pro, Avid and Final Cut Pro.
 
 ### Projects & workflow

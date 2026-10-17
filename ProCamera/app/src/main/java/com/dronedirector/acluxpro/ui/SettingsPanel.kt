@@ -200,6 +200,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                     x.bakeLut = !x.bakeLut; x.save(ctx); c.refreshMonitorLut()
                 }
                 ToggleRow("Focus magnifier", "Pro modes: a zoomed-in view while you turn the manual focus, to nail sharpness", x.focusMagnifier) { x.focusMagnifier = !x.focusMagnifier; x.save(ctx) }
+                ToggleRow("Safe areas", "Action-safe (90 %) and title-safe (80 %) frames, for broadcast and social crops", x.safeAreas) { x.safeAreas = !x.safeAreas; x.save(ctx) }
                 ChoiceRow("Scope", listOf(0, 1, 2, 3), x.scope, { listOf("HISTOGRAM", "WAVEFORM", "PARADE", "VECTOR")[it] }) { x.scope = it; x.save(ctx) }
                 Text("Pro modes: the brightness graph can be a histogram, a waveform (brightness across the picture), an RGB parade or a vectorscope (colour and skin-tone line).", color = Pro.Dim, fontSize = 12.sp)
                 ToggleRow("Shutter as angle", "Video: show the shutter as an angle (180° = natural motion blur) with a one-tap 180° button", x.shutterAngle) { x.shutterAngle = !x.shutterAngle; x.save(ctx) }

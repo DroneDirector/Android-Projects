@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: export the AI captions as subtitles (.srt) — Deliver → SEND TO DESKTOP EDITOR.
+- Capture: safe areas — action-safe (90 %) and title-safe (80 %) frames (Settings → MONITORING & LENS).
 
 ## 1.0.198 — 2026-10-17
 - Copyright: your name and copyright notice (Settings → COPYRIGHT) are written into every photo you take and every photo exported from the photo editor.

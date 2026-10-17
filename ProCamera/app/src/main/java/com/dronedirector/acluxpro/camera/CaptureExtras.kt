@@ -32,6 +32,8 @@ object CaptureExtras {
     var titlePos by mutableStateOf(0)
     var titleSec by mutableStateOf(5)
     /** Written into every photo (EXIF Artist / Copyright). */
+    /** Title-safe (80 %) and action-safe (90 %) frames in the viewfinder. */
+    var safeAreas by mutableStateOf(false)
     var creator by mutableStateOf("")
     var copyright by mutableStateOf("")
     /** Seconds kept from before you press record (0 = off). */
@@ -63,6 +65,7 @@ object CaptureExtras {
         titlePos = p.getInt("x_title_pos", 0)
         titleSec = p.getInt("x_title_sec", 5)
         creator = p.getString("x_creator", "") ?: ""
+        safeAreas = p.getBoolean("x_safe", false)
         copyright = p.getString("x_copyright", "") ?: ""
         preRecordSec = p.getInt("x_prerec", 0)
         micBluetooth = p.getBoolean("x_mic_bt", false)
@@ -85,6 +88,7 @@ object CaptureExtras {
             .putInt("x_title_pos", titlePos)
             .putInt("x_title_sec", titleSec)
             .putString("x_creator", creator)
+            .putBoolean("x_safe", safeAreas)
             .putString("x_copyright", copyright)
             .putInt("x_prerec", preRecordSec)
             .putBoolean("x_mic_bt", micBluetooth)

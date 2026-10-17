@@ -85,4 +85,13 @@ object Interchange {
         sb.append("          </spine>\n        </sequence>\n      </project>\n    </event>\n  </library>\n</fcpxml>\n")
         return sb.toString()
     }
+
+    /** Subtitles (.srt) from the caption layers, in timeline order. */
+    fun srt(layers: List<Layer>): String {
+        fun ts(ms: Long): String { val m = ms.coerceAtLeast(0); return "%02d:%02d:%02d,%03d".format(m / 3_600_000, (m / 60_000) % 60, (m / 1000) % 60, m % 1000) }
+        val caps = layers.filter { it.kind == LayerKind.TEXT && it.name == "Caption" && !it.wholeVideo && it.text.isNotBlank() }.sortedBy { it.startMs }
+        val sb = StringBuilder()
+        caps.forEachIndexed { i, l -> sb.append(i + 1).append('\n').append(ts(l.startMs)).append(" --> ").append(ts(l.endMs)).append('\n').append(l.text.trim()).append("\n\n") }
+        return sb.toString()
+    }
 }

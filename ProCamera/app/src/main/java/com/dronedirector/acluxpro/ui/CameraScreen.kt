@@ -18,7 +18,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
+import detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
@@ -454,6 +455,8 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                     )
                 }
 
+                // Pro status: red tally border while recording, low storage / battery / heat warnings, touch lock.
+                if (!clean) ProStatus(s)
                 ToastHost(s.message, s.messageId, Modifier.align(Alignment.Center))
                 ToastHost(liveState.message, liveState.messageId, Modifier.align(Alignment.Center))
                 if (liveMode) LiveSetupPanel(liveState, controller.live)
@@ -588,6 +591,8 @@ private fun CapturePanelsButton(s: CameraUiState, controller: ProCameraControlle
             get = { s.showLevel }, put = { controller.toggleLevel() }),
         PanelDef("cap.controls", "Pro controls bar", "ISO, shutter, focus, WB, EV and zoom chips (Pro modes)"),
         PanelDef("cap.hints", "Tips & scene badge", "Hints for smart modes and the active scene label"),
+        PanelDef("cap.tally", "Tally border", "Red frame around the screen while recording"),
+        PanelDef("cap.warnings", "Warnings", "Low storage, low battery and heat warnings"),
         PanelDef("cap.presets", "Custom set-ups C1–C3", "Tap to recall, hold to save the current settings"),
         PanelDef("cap.qblur", "Face blur switch", "BLUR on / off in the quick bar"),
         PanelDef("cap.qtitle", "Title switch", "TITLE on / off in the quick bar (video)"),
@@ -693,6 +698,84 @@ private fun Modifier.holdToLock(onHold: (androidx.compose.ui.geometry.Offset) ->
                     ev.changes.forEach { it.consume() }
                 } while (ev.changes.any { it.pressed })
             }
+        }
+    }
+}
+
+/**
+ * Tally border while recording, warnings (storage, battery, heat) and a touch lock that stops
+ * accidental taps during a take (hold the padlock for a moment to unlock).
+ */
+@Composable
+private fun ProStatus(s: CameraUiState) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var locked by remember { mutableStateOf(false) }
+    if (!s.recording && locked) locked = false
+    // Warnings, checked every few seconds.
+    var warn by remember { mutableStateOf<List<String>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val w = mutableListOf<String>()
+            try {
+                val free = android.os.Environment.getExternalStorageDirectory().usableSpace
+                if (free < 2L * 1024 * 1024 * 1024) w += "STORAGE %.1f GB".format(free / 1e9)
+            } catch (_: Throwable) {}
+            try {
+                val bm = ctx.getSystemService(android.content.Context.BATTERY_SERVICE) as android.os.BatteryManager
+                val pct = bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                if (pct in 1..15 && !bm.isCharging) w += "BATTERY $pct%"
+            } catch (_: Throwable) {}
+            if (android.os.Build.VERSION.SDK_INT >= 29) try {
+                val pm = ctx.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+                val t = pm.currentThermalStatus
+                if (t >= android.os.PowerManager.THERMAL_STATUS_SEVERE) w += "HOT — MAY STOP" else if (t >= android.os.PowerManager.THERMAL_STATUS_MODERATE) w += "WARM"
+            } catch (_: Throwable) {}
+            warn = w
+            delay(5000)
+        }
+    }
+    Box(Modifier.fillMaxSize()) {
+        if (s.recording && panelOn("cap.tally")) {
+            androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                drawRect(Pro.Red, style = androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx()))
+            }
+        }
+        if (warn.isNotEmpty() && panelOn("cap.warnings")) {
+            Row(Modifier.align(Alignment.TopCenter).padding(top = 64.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                warn.forEach {
+                    Text(it, style = Pro.Label.copy(color = Color.Black, fontSize = 10.sp),
+                        modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(Pro.Amber).padding(horizontal = 6.dp, vertical = 3.dp))
+                }
+            }
+        }
+        if (s.recording) {
+            if (locked) {
+                // Eats every touch except the padlock.
+                Box(Modifier.fillMaxSize().pointerInput(Unit) {
+                    detectTapGestures { }
+                })
+            }
+            val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+            Box(
+                Modifier.align(Alignment.CenterStart).padding(start = 12.dp).size(44.dp).clip(CircleShape)
+                    .background((if (locked) Pro.Red else Color.Black).copy(alpha = 0.6f))
+                    .pointerInput(locked) {
+                        detectTapGestures(
+                            onTap = { if (!locked) { locked = true; haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) } },
+                            onLongPress = { if (locked) { locked = false; haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) } },
+                        )
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                androidx.compose.material3.Icon(
+                    if (locked) androidx.compose.material.icons.Icons.Filled.Lock else androidx.compose.material.icons.Icons.Filled.LockOpen,
+                    contentDescription = if (locked) "Screen locked — hold to unlock" else "Lock the screen", tint = Color.White, modifier = Modifier.size(20.dp),
+                )
+            }
+            if (locked) Text(
+                "Screen locked · hold 🔒 to unlock", style = Pro.Label.copy(color = Color.White, fontSize = 10.sp),
+                modifier = Modifier.align(Alignment.CenterStart).padding(start = 62.dp).clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.5f)).padding(4.dp),
+            )
         }
     }
 }

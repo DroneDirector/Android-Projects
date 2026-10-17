@@ -26,6 +26,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Standard is faster; High keeps more real detail. Choose whether to keep the original. STOP on the AI badge cancels.
 
 **Capture tips**
+- Long press the viewfinder to lock the exposure there; drag the slider under the lock to brighten or darken while it stays locked. Long press again, or tap the small ✕, to unlock.
 - Settings → AUDIO → Voice noise reduction (Light / Strong) cleans hiss, hum and background noise from recorded sound.
 - Settings → PRIVACY & TITLE → Face blur pixelates faces in the viewfinder, videos and photos. The BLUR switch in the quick bar turns it on / off.
 - Settings → PRIVACY & TITLE → Title on videos: type a title, pick lower third / centre / top and how long it shows; it is added when each clip is saved (TITLE switch in the quick bar).

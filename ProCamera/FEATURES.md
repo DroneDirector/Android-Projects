@@ -38,6 +38,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Clean feed** (hide the on-screen controls for an HDMI / screen mirror).
 
 ### Pro controls
+- **Long-press exposure lock** with an EV slider under the lock; long press again or tap ✕ to unlock.
 - **Shutter angle** read-out for video with a one-tap **180°** button.
 - **Monitoring LUT**: your own .cube LUT on the viewfinder (optionally recorded into videos).
 - **Focus magnifier** (×4) while focusing manually; **rack focus** between two stored points (1 / 2 / 4 s).

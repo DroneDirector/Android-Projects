@@ -1161,8 +1161,38 @@ class ProCameraController(private val context: Context) {
     }
 
     fun toggleAeLock() {
-        set { it.copy(aeLock = !it.aeLock) }
+        set { it.copy(aeLock = !it.aeLock, aeLockPoint = null) }
         applyControls()
+    }
+
+    /** Long press on the viewfinder: meter at that spot, then lock the exposure there. */
+    fun lockExposureAt(x: Float, y: Float) {
+        val s = st
+        if (s.manualExposure) { toast("Exposure is manual — no lock needed"); return }
+        set { it.copy(aeLock = false, aeLockPoint = x to y, focusPoint = x to y, focusId = it.focusId + 1) }
+        applyControls()
+        val cam = camera; val view = previewView
+        if (cam != null && view != null) try {
+            val point = view.meteringPointFactory.createPoint(x, y)
+            cam.cameraControl.startFocusAndMetering(
+                FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AE or FocusMeteringAction.FLAG_AF).disableAutoCancel().build()
+            )
+        } catch (_: Throwable) {}
+        // Let the exposure settle on the new spot, then hold it.
+        scope.launch {
+            delay(700)
+            if (st.aeLockPoint == (x to y)) {
+                set { it.copy(aeLock = true) }
+                applyControls()
+            }
+        }
+    }
+
+    /** Long press again, or the small X: exposure follows the scene again. */
+    fun unlockExposure() {
+        set { it.copy(aeLock = false, aeLockPoint = null, ev = 0) }
+        applyControls()
+        try { camera?.cameraControl?.cancelFocusAndMetering() } catch (_: Throwable) {}
     }
 
     fun setEv(index: Int) {

@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.203 — 2026-10-17
 - Video editor: voice noise reduction per clip (Audio → Off / Light / Strong), applied on export.
 - Photo editor: History panel — every step (tap to go back) and snapshots you can save and jump between.
 - Video and photo editors: the pull-out scope drawer now has HIST, WAVE (waveform), PARADE (RGB parade) and VECT (vectorscope).

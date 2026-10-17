@@ -702,6 +702,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 if (lastG >= 0 && gNow > lastG && gNow - lastG < 400) {
                     for (k in 0 until clips.lastIndex) {
                         val tr = clips[k].transition
+                        val user = UserSfxLibrary.find(context, tr.userSfx)
+                        if (user != null) {
+                            val at = cutSoundStart(clips, st, k, user.hitMs)
+                            if (at in (lastG + 1)..gNow) UserSfxLibrary.play(context, user, tr.sfxVolume)
+                            continue
+                        }
                         val fx = tr.sfx ?: continue
                         val at = sfxStartMs(clips, st, k) ?: continue
                         if (at in (lastG + 1)..gNow) SfxPlayer.play(context, fx, tr.sfxVolume)
@@ -1583,8 +1589,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onChange = { t -> update(selected, { it.copy(transition = t) }) },
                                 onApplyAll = { t -> for (i in 0 until clips.lastIndex) clips[i] = clips[i].copy(transition = t); message = "${t.type.label} on every cut" },
                                 onApplyAllAudio = { t ->
-                                    for (i in 0 until clips.lastIndex) clips[i] = clips[i].copy(transition = clips[i].transition.copy(audio = t.audio, audioMs = t.audioMs, sfx = t.sfx, sfxVol = t.sfxVol))
-                                    message = "${t.audioType.label}" + (t.sfx?.let { " + ${it.label}" } ?: "") + " on every cut"
+                                    for (i in 0 until clips.lastIndex) clips[i] = clips[i].copy(transition = clips[i].transition.copy(audio = t.audio, audioMs = t.audioMs, sfx = t.sfx, sfxVol = t.sfxVol, userSfx = t.userSfx))
+                                    val snd = UserSfxLibrary.find(context, t.userSfx)?.name ?: t.sfx?.label
+                                    message = "${t.audioType.label}" + (snd?.let { " + $it" } ?: "") + " on every cut"
                                 },
                                 onPreview = {
                                     val st = clipStarts(clips)

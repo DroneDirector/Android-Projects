@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: import your own transition sounds — Transitions → Audio transitions → MY SOUNDS → + IMPORT SOUND (MP3, WAV, M4A, AAC, OGG, FLAC). Choose whether each sound starts on, centres on or ends on the cut; ▶ to listen, ✕ to remove.
 - Video editor: sound effects on cuts — Transitions → Audio transitions → SOUND EFFECTS: cinematic impact, cinematic boom, trailer hit, sub drop, whoosh, fast swoosh, swirl, riser, reverse cymbal and glitch. Impacts land on the cut; risers build up to it. Volume per cut, ▶ to listen, in the preview and the export; APPLY TO ALL CUTS includes the effect.
 
 ## 1.0.168 — 2026-10-17
@@ -11,6 +12,7 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 - New audio transitions: match video, hard cut, constant gain, constant power, exponential fade, dip to silence, quick out / slow in and slow out / quick in. They work in the preview and the export, over a video transition or on a plain cut (fade out / in around the cut, 0.1–3 s), with APPLY TO ALL CUTS.
 
 ## 1.0.166 — 2026-10-17
+- Video editor: the histogram toggle in the Panels menu is now called "Histogram pull-out".
 
 ## 1.0.164 — 2026-10-17
 - Photo editor: Panels menu (icon next to the settings gear) — hide the tools panel, copy / paste bar, histogram or before / after buttons; the photo grows into the space and shrinks back when a panel returns. Presets: Full, View, Edit, Color. Triple-tap the icon to reset the layout.

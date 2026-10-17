@@ -134,6 +134,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 **Sound effects on cuts (10)**
 - Cinematic impact, cinematic boom, trailer hit, sub drop, whoosh, fast swoosh, swirl, riser, reverse cymbal, glitch.
 - Made by the app itself (no downloaded audio). Impacts land on the cut; risers and reverse cymbals build up to it. Effect volume, ▶ listen, heard in the preview and mixed into the export.
+- **My sounds**: import your own transition sounds (MP3, WAV, M4A, AAC, OGG, FLAC); they're copied into the app, can be used on any cut, and can start on, centre on or end on the cut. ✕ removes one.
 
 ### Color
 - Log input transforms: **D-Log, D-Log M, S-Log3, V-Log, LogC3, HLG, Flat**.

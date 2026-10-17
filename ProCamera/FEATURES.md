@@ -83,6 +83,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - Open from the gallery, files or recent AcluxPro photos; **saved projects** row on the start page.
 - Panels: **Presets, Light, Curve, Color, HSL Mixer, Grading, Detail, Effects, Crop & format, Watermark, Export**.
 - **Light**: exposure, contrast, highlights, shadows, whites, blacks.
+- **Point curves** (RGB, R, G, B) with draggable points.
 - **Parametric tone curve** (highlights, lights, darks, shadows) with contrast pivot.
 - **Color**: temperature, tint, saturation, vibrance, dehaze, fade.
 - **HSL mixer** (8 colour bands: hue, saturation, luminance).

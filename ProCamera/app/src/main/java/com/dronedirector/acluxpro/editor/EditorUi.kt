@@ -9,6 +9,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -290,4 +294,91 @@ fun etaFromProgress(startMs: Long, percent: Int): String? {
     val elapsed = System.currentTimeMillis() - startMs
     if (percent < 3 || elapsed < 2000) return null
     return etaText(elapsed * (100 - percent) / percent)
+}
+
+/**
+ * Point curve editor (RGB / R / G / B): drag points, tap the curve to add one, double-tap a point
+ * to remove it. [pts] are x, y pairs 0..1; null means a straight line.
+ */
+@androidx.compose.runtime.Composable
+fun CurveEditor(
+    channel: Int, onChannel: (Int) -> Unit,
+    pts: List<Float>?, onChange: (List<Float>?) -> Unit,
+    others: List<List<Float>?> = emptyList(),
+) {
+    val colors = listOf(Color.White, Color(0xFFFF5252), Color(0xFF4CDB6A), Color(0xFF4D8BFF))
+    Chips(listOf("RGB", "Red", "Green", "Blue"), channel) { onChannel(it) }
+    val cur = pts ?: listOf(0f, 0f, 1f, 1f)
+    val latest by androidx.compose.runtime.rememberUpdatedState(cur)
+    val change by androidx.compose.runtime.rememberUpdatedState(onChange)
+    var drag by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(-1) }
+    androidx.compose.foundation.layout.Box(
+        Modifier.fillMaxWidth().aspectRatio(1.4f).padding(vertical = 6.dp)
+            .clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(alpha = 0.35f))
+            .pointerInput(channel) {
+                detectTapGestures(
+                    onDoubleTap = { o ->
+                        val x = o.x / size.width; val y = 1f - o.y / size.height
+                        val l = latest
+                        val n = l.size / 2
+                        val near = (0 until n).minByOrNull { kotlin.math.hypot((l[it * 2] - x).toDouble(), (l[it * 2 + 1] - y).toDouble()) } ?: return@detectTapGestures
+                        if (near != 0 && near != n - 1) change(l.toMutableList().apply { removeAt(near * 2); removeAt(near * 2) })
+                    },
+                    onTap = { o ->
+                        val x = (o.x / size.width).coerceIn(0.01f, 0.99f)
+                        val l = latest
+                        val y = PointCurve.eval(l, x)
+                        val pairs = (0 until l.size / 2).map { l[it * 2] to l[it * 2 + 1] } + (x to y)
+                        change(pairs.sortedBy { it.first }.flatMap { listOf(it.first, it.second) })
+                    },
+                )
+            }
+            .pointerInput(channel, "drag") {
+                androidx.compose.foundation.gestures.detectDragGestures(
+                    onDragStart = { o ->
+                        val x = o.x / size.width; val y = 1f - o.y / size.height
+                        val l = latest
+                        drag = (0 until l.size / 2).minByOrNull { kotlin.math.hypot((l[it * 2] - x).toDouble(), (l[it * 2 + 1] - y).toDouble()) } ?: -1
+                    },
+                    onDragEnd = { drag = -1 }, onDragCancel = { drag = -1 },
+                ) { ch, _ ->
+                    ch.consume()
+                    val i = drag; val l = latest
+                    if (i < 0 || i >= l.size / 2) return@detectDragGestures
+                    val n = l.size / 2
+                    val lo = if (i == 0) 0f else l[(i - 1) * 2] + 0.01f
+                    val hi = if (i == n - 1) 1f else l[(i + 1) * 2] - 0.01f
+                    val x = if (i == 0) 0f else if (i == n - 1) 1f else (ch.position.x / size.width).coerceIn(lo, hi)
+                    val y = (1f - ch.position.y / size.height).coerceIn(0f, 1f)
+                    change(l.toMutableList().apply { set(i * 2, x); set(i * 2 + 1, y) })
+                }
+            },
+    ) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            val grid = Color.White.copy(alpha = 0.12f)
+            for (k in 1..3) {
+                drawLine(grid, androidx.compose.ui.geometry.Offset(size.width * k / 4, 0f), androidx.compose.ui.geometry.Offset(size.width * k / 4, size.height))
+                drawLine(grid, androidx.compose.ui.geometry.Offset(0f, size.height * k / 4), androidx.compose.ui.geometry.Offset(size.width, size.height * k / 4))
+            }
+            drawLine(grid, androidx.compose.ui.geometry.Offset(0f, size.height), androidx.compose.ui.geometry.Offset(size.width, 0f))
+            fun curve(p: List<Float>, col: Color, w: Float) {
+                val path = androidx.compose.ui.graphics.Path()
+                for (s in 0..64) {
+                    val x = s / 64f
+                    val px = x * size.width; val py = (1f - PointCurve.eval(p, x).coerceIn(0f, 1f)) * size.height
+                    if (s == 0) path.moveTo(px, py) else path.lineTo(px, py)
+                }
+                drawPath(path, col, style = androidx.compose.ui.graphics.drawscope.Stroke(w))
+            }
+            others.forEachIndexed { k, o -> if (o != null && k != channel) curve(o, colors[k].copy(alpha = 0.35f), 1.5f) }
+            curve(cur, colors[channel], 2.5f)
+            for (i in 0 until cur.size / 2) {
+                drawCircle(colors[channel], 6.dp.toPx(), androidx.compose.ui.geometry.Offset(cur[i * 2] * size.width, (1f - cur[i * 2 + 1]) * size.height))
+            }
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("RESET CURVE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable { onChange(null) }.padding(8.dp))
+        Text("Tap to add a point · drag to move · double-tap to remove", color = Pro.Dim, fontSize = 10.sp, modifier = Modifier.padding(top = 8.dp))
+    }
 }

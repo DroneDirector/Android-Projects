@@ -2210,6 +2210,12 @@ private fun ColorPage(
             EdSlider("Dehaze", g.dehaze) { v -> grade { it.copy(dehaze = v) } }
         }
         ColorTab.CURVES -> {
+            var ch by remember { mutableStateOf(0) }
+            SectionTitle("POINT CURVES") { grade { it.copy(curveRgb = null, curveR = null, curveG = null, curveB = null) } }
+            val all = listOf(g.curveRgb, g.curveR, g.curveG, g.curveB)
+            CurveEditor(ch, { ch = it }, all[ch], { p ->
+                grade { when (ch) { 1 -> it.copy(curveR = p); 2 -> it.copy(curveG = p); 3 -> it.copy(curveB = p); else -> it.copy(curveRgb = p) } }
+            }, others = all)
             SectionTitle("CUSTOM CURVE (REGIONS)") { grade { it.copy(curveHighlights = 0f, curveLights = 0f, curveDarks = 0f, curveShadows = 0f) } }
             EdSlider("Highlights", g.curveHighlights) { v -> grade { it.copy(curveHighlights = v) } }
             EdSlider("Lights", g.curveLights) { v -> grade { it.copy(curveLights = v) } }

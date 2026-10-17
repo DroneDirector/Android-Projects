@@ -95,6 +95,11 @@ data class ProGrade(
     val lut: String? = null,
     val lutAmount: Float = 1f,
     val lutInput: Boolean = false,
+    /** Point curves: x, y pairs (0..1) for all channels, red, green and blue; null = straight. */
+    val curveRgb: List<Float>? = null,
+    val curveR: List<Float>? = null,
+    val curveG: List<Float>? = null,
+    val curveB: List<Float>? = null,
 ) {
     val isIdentity: Boolean get() = this == ProGrade()
 
@@ -145,6 +150,12 @@ data class ProGrade(
             curveShadows * 0.26f * bump(l, 0.10f, 0.26f) + curveDarks * 0.26f * bump(l, 0.34f, 0.28f) +
             curveLights * 0.26f * bump(l, 0.64f, 0.30f) + curveHighlights * 0.26f * bump(l.coerceAtMost(1f), 0.90f, 0.32f)
         r += d; g += d; b += d
+
+        // 5b. Point curves (all channels, then red / green / blue).
+        curveRgb?.let { pts -> r = PointCurve.eval(pts, r); g = PointCurve.eval(pts, g); b = PointCurve.eval(pts, b) }
+        curveR?.let { r = PointCurve.eval(it, r) }
+        curveG?.let { g = PointCurve.eval(it, g) }
+        curveB?.let { b = PointCurve.eval(it, b) }
 
         // 6. Colour grading tints by tonal range.
         l = luma(r, g, b).coerceIn(0f, 1f)
@@ -303,4 +314,33 @@ data class Detail(
 enum class VideoFx(val label: String) {
     NONE("None"), MONO("Mono"), BLUR("Soft blur"), GLOW("Glow"), PIXELATE("Pixelate"), MIRROR("Mirror"),
     RGB_SPLIT("RGB split"), VHS("VHS"), POSTERIZE("Posterize"), INVERT("Invert"), DREAM("Dream"),
+}
+
+/** Smooth curve through points (x, y pairs, 0..1), monotone so it never overshoots. */
+object PointCurve {
+    fun eval(pts: List<Float>, x: Float): Float {
+        val n = pts.size / 2
+        if (n < 2) return x
+        val xs = FloatArray(n) { pts[it * 2] }; val ys = FloatArray(n) { pts[it * 2 + 1] }
+        val v = x.coerceIn(0f, 1f)
+        if (v <= xs[0]) return ys[0] + (x - v)
+        if (v >= xs[n - 1]) return ys[n - 1] + (x - v)
+        var i = 0
+        while (i < n - 2 && v > xs[i + 1]) i++
+        val h = (xs[i + 1] - xs[i]).coerceAtLeast(1e-4f)
+        fun slope(k: Int): Float {
+            val dPrev = if (k > 0) (ys[k] - ys[k - 1]) / (xs[k] - xs[k - 1]).coerceAtLeast(1e-4f) else null
+            val dNext = if (k < n - 1) (ys[k + 1] - ys[k]) / (xs[k + 1] - xs[k]).coerceAtLeast(1e-4f) else null
+            return when {
+                dPrev == null -> dNext ?: 0f
+                dNext == null -> dPrev
+                dPrev * dNext <= 0f -> 0f
+                else -> 2f / (1f / dPrev + 1f / dNext)
+            }
+        }
+        val t = (v - xs[i]) / h
+        val m0 = slope(i) * h; val m1 = slope(i + 1) * h
+        val t2 = t * t; val t3 = t2 * t
+        return (2 * t3 - 3 * t2 + 1) * ys[i] + (t3 - 2 * t2 + t) * m0 + (-2 * t3 + 3 * t2) * ys[i + 1] + (t3 - t2) * m1
+    }
 }

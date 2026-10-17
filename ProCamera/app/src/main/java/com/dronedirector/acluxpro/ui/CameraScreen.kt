@@ -305,6 +305,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                         if (!clean) {
                             if (!s.isVideo && s.mode != CaptureMode.PANORAMA && s.aspect == AspectMode.R1_1) SquareMask()
                             if (s.mode == CaptureMode.PRO_VIDEO) FrameGuideOverlay(s.guide)
+                            if (com.dronedirector.acluxpro.camera.CaptureExtras.safeAreas && s.mode != CaptureMode.PANORAMA) SafeAreasOverlay()
                             if (s.mode != CaptureMode.PANORAMA) GridOverlay(s.grid)
                             if (s.showLevel && s.mode != CaptureMode.PANORAMA) LevelIndicator()
                         }

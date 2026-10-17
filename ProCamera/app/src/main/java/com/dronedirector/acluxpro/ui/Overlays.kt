@@ -435,6 +435,19 @@ fun AudioGraph(levels: com.dronedirector.acluxpro.camera.AudioLevels, width: Dp,
 // ------------------------------------------------------------------ frame guides (pro video)
 
 @Composable
+fun SafeAreasOverlay(modifier: Modifier = Modifier) {
+    Canvas(modifier.fillMaxSize()) {
+        val sw = 1.dp.toPx()
+        val dash = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
+        for ((k, a) in listOf(0.9f to 0.7f, 0.8f to 0.45f)) {
+            val w = size.width * k; val h = size.height * k
+            drawRect(Color.White.copy(alpha = a), Offset((size.width - w) / 2, (size.height - h) / 2), Size(w, h),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(sw, pathEffect = if (k < 0.85f) dash else null))
+        }
+    }
+}
+
+@Composable
 fun FrameGuideOverlay(guide: com.dronedirector.acluxpro.camera.FrameGuide, modifier: Modifier = Modifier) {
     if (guide == com.dronedirector.acluxpro.camera.FrameGuide.OFF) return
     Canvas(modifier.fillMaxSize()) {

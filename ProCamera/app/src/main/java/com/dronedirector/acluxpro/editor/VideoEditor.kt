@@ -1784,7 +1784,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onVoice = { if (voiceRec == null) startVoice() else stopVoice() },
                                 onBeats = { t -> addBeatMarkers(t) },
                             )
-                            Page.DELIVER -> DeliverPage(deliver, clips, exporting, { deliver = it }, ::startExport, playheadMs = globalMs, onSaveFrame = { saveStill() }, markers = markers.toList(), projectName = projectName)
+                            Page.DELIVER -> DeliverPage(deliver, clips, exporting, { deliver = it }, ::startExport, playheadMs = globalMs, onSaveFrame = { saveStill() }, markers = markers.toList(), projectName = projectName, layers = layers.toList())
                         }
                         if (clips.isEmpty() && page != Page.MEDIA && page != Page.DELIVER) Text("Add a clip in the Media page.", color = Pro.Dim, modifier = Modifier.padding(12.dp))
                     }
@@ -2720,7 +2720,7 @@ private fun LayersPage(
 private fun DeliverPage(
     s: DeliverSettings, clips: List<Clip>, exporting: Boolean, onChange: (DeliverSettings) -> Unit, onExport: () -> Unit,
     playheadMs: Long = 0L, onSaveFrame: () -> Unit = {},
-    markers: List<Long> = emptyList(), projectName: String? = null,
+    markers: List<Long> = emptyList(), projectName: String? = null, layers: List<Layer> = emptyList(),
 ) {
     // Send the edit to a desktop editor (DaVinci Resolve, Premiere Pro, Final Cut Pro).
     val ictx = LocalContext.current
@@ -2736,6 +2736,9 @@ private fun DeliverPage(
     }
     val saveEdl = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { u ->
         writeTo(u, Interchange.edl(title, clips, fpsX))
+    }
+    val saveSrt = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/x-subrip")) { u ->
+        writeTo(u, Interchange.srt(layers))
     }
     val saveXml = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/xml")) { u ->
         val (w, h) = outputSize(clips, s)
@@ -2806,6 +2809,10 @@ private fun DeliverPage(
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
         Text("EDL (.edl)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(enabled = clips.isNotEmpty()) { saveEdl.launch(title.replace(Regex("[^A-Za-z0-9 _-]"), "") + ".edl") }.padding(10.dp))
         Text("FCPXML (.fcpxml)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(enabled = clips.isNotEmpty()) { saveXml.launch(title.replace(Regex("[^A-Za-z0-9 _-]"), "") + ".fcpxml") }.padding(10.dp))
+    }
+    if (layers.any { it.name == "Caption" && it.kind == LayerKind.TEXT }) {
+        Text("SUBTITLES (.srt)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { saveSrt.launch(title.replace(Regex("[^A-Za-z0-9 _-]"), "") + ".srt") }.padding(10.dp))
+        Text("The AI captions as a subtitle file — for YouTube, Vimeo or a desktop editor.", color = Pro.Dim, fontSize = 11.sp)
     }
     Text("Frame rate: $fpsX fps (set it under FRAME RATE above to match your clips).", color = Pro.Dim, fontSize = 11.sp)
     xNote?.let { Text(it, color = Color.White, fontSize = 11.sp) }

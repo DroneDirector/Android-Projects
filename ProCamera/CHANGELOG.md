@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.241 — 2026-10-17
 - Photo editor: RAW (DNG) develop. DNGs are now developed from the real sensor data instead of being opened as a JPEG-like picture: exposure (±5 stops), highlights, shadows, whites, blacks and white balance work with the full range (bright skies come back, shadows lift cleanly). New RAW PROFILE choice (Standard, Flat, Vivid, Portrait, Landscape, Mono) and white balance presets (As shot, Auto, Daylight, Cloudy, Shade, Tungsten, Fluorescent). RAW badge on the photo; full-quality demosaic on export; RAWs in batch exports are developed too.
 
 ## 1.0.239 — 2026-10-17

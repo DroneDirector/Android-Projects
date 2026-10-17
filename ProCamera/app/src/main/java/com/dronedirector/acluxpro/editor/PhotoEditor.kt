@@ -107,7 +107,12 @@ private data class PhotoEdit(
     /** Text and sticker layers drawn on the photo (Text tab). */
     val texts: List<Layer> = emptyList(),
     val sky: SkySwap = SkySwap(),
+    /** RAW (DNG) develop choices: profile and white balance preset. */
+    val raw: RawDng.Dev = RawDng.Dev(),
 )
+
+/** RAW develop does exposure, white balance and the tonal ranges itself; the 8-bit grade skips them. */
+private fun ProGrade.rawRest() = copy(exposure = 0f, highlights = 0f, shadows = 0f, whites = 0f, blacks = 0f, temperature = 0f, tint = 0f)
 
 private enum class PhotoPanel(val label: String) {
     PRESETS("Presets"), LIGHT("Light"), CURVE("Curve"), COLOR("Color"), MIXER("HSL Mixer"),
@@ -276,7 +281,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     var edit by remember {
         mutableStateOf(
             @Suppress("USELESS_ELVIS")
-            if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix(), initial.bg ?: PhotoBackground(), initial.baseFile, initial.texts ?: emptyList(), initial.sky ?: SkySwap())
+            if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix(), initial.bg ?: PhotoBackground(), initial.baseFile, initial.texts ?: emptyList(), initial.sky ?: SkySwap(), initial.raw ?: RawDng.Dev())
             else PhotoEdit(watermark = WatermarkMemory.load(context, false))
         )
     }
@@ -332,7 +337,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
         val p = PhotoProjectData(
             id = projectId ?: java.util.UUID.randomUUID().toString(), name = name, uri = uri,
             grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark,
-            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky,
+            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw,
         )
         val thumb = preview
         scope.launch {
@@ -351,9 +356,32 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
 
     // The photo being edited: the original, or its AI-erased copy.
     fun sourceUri(e: PhotoEdit): Uri = e.baseFile?.let { Uri.fromFile(java.io.File(it)) } ?: uri
+    // RAW (DNG): the sensor data, developed by the editor itself (see RawDng). Null for other photos.
+    var rawMeta by remember { mutableStateOf<RawDng.Meta?>(null) }
+    var rawLin by remember { mutableStateOf<RawDng.Linear?>(null) }
     LaunchedEffect(uri, edit.baseFile) {
-        val b = withContext(Dispatchers.IO) { GradeIO.decode(context, sourceUri(edit), 1400) }
+        val src = sourceUri(edit)
+        var note: String? = null
+        val r = if (edit.baseFile != null) null else withContext(Dispatchers.IO) {
+            try {
+                if (RawDng.isDng(context, src)) RawDng.open(context, src).let { m -> m to RawDng.preview(context, m, 1400) } else null
+            } catch (t: RawDng.UnsupportedRaw) { note = "${t.message} — opened as a normal photo"; null }
+            catch (_: OutOfMemoryError) { note = "This RAW is too big for the phone's memory — opened as a normal photo"; null }
+            catch (_: Throwable) { null }
+        }
+        rawMeta = r?.first; rawLin = r?.second
+        note?.let { message = it }
+        val b = if (r != null) withContext(Dispatchers.Default) { RawDng.develop(r.second, r.first, RawDng.Dev(), 0f, 0f, 0f, 0f, 0f, 0f, 0f) }
+            else withContext(Dispatchers.IO) { GradeIO.decode(context, src, 1400) }
         if (b == null) failed = true else base = b
+    }
+    /** True while the edit works on the RAW data (not after AI erase, which makes a normal copy). */
+    fun rawOn(e: PhotoEdit) = rawMeta != null && rawLin != null && e.baseFile == null
+    /** Developed RAW at full quality for export / AI steps; [sliders] false = neutral (they're applied later in 8-bit). */
+    fun rawExport(e: PhotoEdit, maxPx: Int, sliders: Boolean = true): Bitmap {
+        val g = e.grade
+        return if (sliders) RawDng.export(context, rawMeta!!, e.raw, g.exposure, g.highlights, g.shadows, g.whites, g.blacks, g.temperature, g.tint, maxPx)
+        else RawDng.export(context, rawMeta!!, e.raw, 0f, 0f, 0f, 0f, 0f, 0f, 0f, maxPx)
     }
     // Live preview: while a slider moves, a small copy is re-rendered continuously (never thrown
     // away half-way); once you pause, the full-size preview follows.
@@ -381,9 +409,11 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     // Heal works on the whole, uncropped photo so taps land where they should.
     val healMode = rememberUpdatedState(panel == PhotoPanel.HEAL)
     LaunchedEffect(panel == PhotoPanel.HEAL, aiMasks.size) { renderReq.trySend(edit) }
-    LaunchedEffect(base, aiBase) {
+    LaunchedEffect(base, aiBase, rawLin) {
         val b = base ?: return@LaunchedEffect
         val ai = aiBase
+        val rl = rawLin; val rm = rawMeta
+        val rawSmall = rl?.let { withContext(Dispatchers.Default) { RawDng.shrink(it, 640) } }
         fun mixed(src: Bitmap, aiSrc: Bitmap?, t: Float): Bitmap {
             if (aiSrc == null || t <= 0f || aiSrc.width != src.width || aiSrc.height != src.height) return src
             val n = src.width * src.height
@@ -397,12 +427,32 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
         }
         val small = withContext(Dispatchers.Default) { scaleDown(b) }
         val aiSmall = withContext(Dispatchers.Default) { ai?.let { scaleDown(it) } }
+        // RAW + AI noise reduction: the AI cleaned the neutral develop once; its noise-free difference is reused.
+        fun residual(dev: Bitmap, neutral: Bitmap, aiSrc: Bitmap?, t: Float): Bitmap {
+            if (aiSrc == null || t <= 0f || aiSrc.width != neutral.width || aiSrc.height != neutral.height || dev.width != neutral.width || dev.height != neutral.height) return dev
+            val n = dev.width * dev.height
+            val d = IntArray(n).also { dev.getPixels(it, 0, dev.width, 0, 0, dev.width, dev.height) }
+            val a = IntArray(n).also { neutral.getPixels(it, 0, dev.width, 0, 0, dev.width, dev.height) }
+            val c = IntArray(n).also { aiSrc.getPixels(it, 0, dev.width, 0, 0, dev.width, dev.height) }
+            for (i in 0 until n) {
+                fun ch(sh: Int): Int { val v = (d[i] shr sh) and 0xFF; val nz = ((a[i] shr sh) and 0xFF) - ((c[i] shr sh) and 0xFF); return (v - nz * t).toInt().coerceIn(0, 255) }
+                d[i] = (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
+            }
+            return Bitmap.createBitmap(d, dev.width, dev.height, Bitmap.Config.ARGB_8888)
+        }
         fun draw(src: Bitmap, e: PhotoEdit): Bitmap {
             val isSmall = src === small
-            val s0 = if (e.detail.aiDenoise > 0f) mixed(src, if (isSmall) aiSmall else ai, e.detail.aiDenoise) else src
-            val tables = if (e.grade.isIdentity) null else e.grade.tables()
+            val raw = rl != null && rm != null && e.baseFile == null
+            val s0 = if (raw) {
+                val g = e.grade
+                var dev = RawDng.develop(if (isSmall && rawSmall != null) rawSmall else rl!!, rm!!, e.raw, g.exposure, g.highlights, g.shadows, g.whites, g.blacks, g.temperature, g.tint)
+                if (dev.width != src.width || dev.height != src.height) dev = Bitmap.createScaledBitmap(dev, src.width, src.height, true)
+                if (e.detail.aiDenoise > 0f) residual(dev, src, if (isSmall) aiSmall else ai, e.detail.aiDenoise) else dev
+            } else if (e.detail.aiDenoise > 0f) mixed(src, if (isSmall) aiSmall else ai, e.detail.aiDenoise) else src
+            val eg = if (raw) e.grade.rawRest() else e.grade
+            val tables = if (eg.isIdentity) null else eg.tables()
             val healNow = healMode.value
-            val r = ImageOps.renderPhoto(s0, e.grade, e.detail, if (healNow) Geometry() else e.geometry, tables, e.lens, e.spots, if (healNow) null else e.masks, aiMasks.toMap(), if (healNow) null else e.bg, if (healNow) null else e.sky)
+            val r = ImageOps.renderPhoto(s0, eg, e.detail, if (healNow) Geometry() else e.geometry, tables, e.lens, e.spots, if (healNow) null else e.masks, aiMasks.toMap(), if (healNow) null else e.bg, if (healNow) null else e.sky)
             if (healNow) return r
             var o = r
             for (t in e.texts) o = stampLayer(context, o, t)
@@ -451,7 +501,8 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
         scope.launch {
             val ok = withContext(Dispatchers.IO) {
                 try {
-                    var full = GradeIO.decode(context, sourceUri(e), sizes[sizeIdx]) ?: return@withContext null
+                    val raw = rawOn(e)
+                    var full = (if (raw) rawExport(e, sizes[sizeIdx]) else GradeIO.decode(context, sourceUri(e), sizes[sizeIdx])) ?: return@withContext null
                     if (e.detail.aiDenoise > 0f) {
                         // Full-resolution AI noise reduction (progress badge; can be stopped).
                         val n = full.width * full.height
@@ -476,8 +527,9 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                             full = Bitmap.createBitmap(AiDenoiser.blend(px, dn, e.detail.aiDenoise), w0, h0, Bitmap.Config.ARGB_8888)
                         }
                     }
-                    val tables = if (e.grade.isIdentity) null else e.grade.tables()
-                    var out = ImageOps.renderPhoto(full, e.grade, e.detail, e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg, e.sky)
+                    val eg = if (raw) e.grade.rawRest() else e.grade
+                    val tables = if (eg.isIdentity) null else eg.tables()
+                    var out = ImageOps.renderPhoto(full, eg, e.detail, e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg, e.sky)
                     full.recycle()
                     // AI upscale (×2 / ×4, at most 24 MP).
                     if (aiScale > 1) {
@@ -548,7 +600,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
         scope.launch {
             val path = withContext(Dispatchers.IO) {
                 try {
-                    val full = GradeIO.decode(context, sourceUri(e), 2400) ?: return@withContext null
+                    val full = (if (rawOn(e)) rawExport(e, 2400, sliders = false) else GradeIO.decode(context, sourceUri(e), 2400)) ?: return@withContext null
                     val wt = PhotoLocal.weights(em.copy(amount = 1f), full.width, full.height)
                     val mask = Bitmap.createBitmap(IntArray(wt.size) { if (wt[it] > 0.25f) -1 else 0xFF000000.toInt() }, full.width, full.height, Bitmap.Config.ARGB_8888)
                     var result: Bitmap? = null
@@ -680,9 +732,15 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                 message = "Batch ${i + 1} / ${list.size}…"
                 val ok = withContext(Dispatchers.IO) {
                     try {
-                        val full = GradeIO.decode(context, u, sizes[sizeIdx]) ?: return@withContext false
-                        val tables = if (e.grade.isIdentity) null else e.grade.tables()
-                        var out = ImageOps.renderPhoto(full, e.grade, e.detail.copy(aiDenoise = 0f), if (batchWithCrop) e.geometry else Geometry(), tables, e.lens, null, if (batchWithCrop) e.masks.filter { it.maskFile == null } else null)
+                        // RAW files in the batch are developed with the same settings.
+                        val developed = if (RawDng.isDng(context, u)) {
+                            val g = e.grade
+                            try { RawDng.export(context, RawDng.open(context, u), e.raw, g.exposure, g.highlights, g.shadows, g.whites, g.blacks, g.temperature, g.tint, sizes[sizeIdx]) } catch (_: RawDng.UnsupportedRaw) { null }
+                        } else null
+                        val full = developed ?: GradeIO.decode(context, u, sizes[sizeIdx]) ?: return@withContext false
+                        val eg = if (developed != null) e.grade.rawRest() else e.grade
+                        val tables = if (eg.isIdentity) null else eg.tables()
+                        var out = ImageOps.renderPhoto(full, eg, e.detail.copy(aiDenoise = 0f), if (batchWithCrop) e.geometry else Geometry(), tables, e.lens, null, if (batchWithCrop) e.masks.filter { it.maskFile == null } else null)
                         full.recycle()
                         if (batchWithCrop) e.watermark?.let { out = stampLayer(context, out, it) }
                         savePhotoAs(context, out, format, (quality * 100).toInt(), if (keepExif) u else null, stripGps) != null
@@ -766,6 +824,10 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                     }
                     // RGB histogram: the same pull-out drawer as in the video editor, on the right edge.
                     if (showScope && !comparing) ScopeDrawer(hist, Modifier.align(Alignment.CenterEnd), frame = preview ?: base)
+                    if (rawOn(edit)) Text(
+                        "RAW", style = Pro.Label.copy(color = Color.Black),
+                        modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
                     if (showCompare || split) Row(Modifier.align(Alignment.TopStart).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (!split) Text(
                             if (comparing) "BEFORE" else "HOLD FOR BEFORE",
@@ -922,6 +984,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                                 onExport = { export() },
                                 busy = busy,
                                 onPickLogo = { pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                                isRaw = rawOn(edit),
                             )
                         }
                         if (panel == PhotoPanel.EFFECTS) { backgroundSection(); skySection() }
@@ -1023,6 +1086,7 @@ private fun PhotoPanelContent(
     onExport: () -> Unit,
     busy: Boolean,
     onPickLogo: () -> Unit = {},
+    isRaw: Boolean = false,
 ) {
     val g = e.grade
     fun grade(f: (ProGrade) -> ProGrade) = set(e.copy(grade = f(g)))
@@ -1046,8 +1110,13 @@ private fun PhotoPanelContent(
             )
         }
         PhotoPanel.LIGHT -> {
+            if (isRaw) {
+                SectionTitle("RAW PROFILE") { set(e.copy(raw = e.raw.copy(profile = 0))) }
+                Chips(RawDng.PROFILES.map { it.label }, e.raw.profile) { i -> set(e.copy(raw = e.raw.copy(profile = i))) }
+                Text("RAW (DNG): exposure, highlights, shadows, whites, blacks and white balance work on the sensor data, with headroom above white.", color = Pro.Dim, fontSize = 11.sp)
+            }
             SectionTitle("LIGHT") { grade { it.copy(exposure = 0f, contrast = 0f, highlights = 0f, shadows = 0f, whites = 0f, blacks = 0f) } }
-            EdSlider("Exposure", g.exposure, -3f..3f, format = ::ev) { v -> grade { it.copy(exposure = v) } }
+            EdSlider("Exposure", g.exposure, if (isRaw) -5f..5f else -3f..3f, format = ::ev) { v -> grade { it.copy(exposure = v) } }
             EdSlider("Contrast", g.contrast) { v -> grade { it.copy(contrast = v) } }
             EdSlider("Highlights", g.highlights) { v -> grade { it.copy(highlights = v) } }
             EdSlider("Shadows", g.shadows) { v -> grade { it.copy(shadows = v) } }
@@ -1070,7 +1139,8 @@ private fun PhotoPanelContent(
             EdSlider("Pivot", g.pivot, 0.2f..0.7f, 0.435f, ::pct) { v -> grade { it.copy(pivot = v) } }
         }
         PhotoPanel.COLOR -> {
-            SectionTitle("WHITE BALANCE") { grade { it.copy(temperature = 0f, tint = 0f) } }
+            SectionTitle("WHITE BALANCE") { set(e.copy(raw = if (isRaw) e.raw.copy(wb = 0) else e.raw, grade = g.copy(temperature = 0f, tint = 0f))) }
+            if (isRaw) Chips(RawDng.WB_PRESETS.map { it.first }, e.raw.wb) { i -> set(e.copy(raw = e.raw.copy(wb = i))) }
             EdSlider("Temperature", g.temperature) { v -> grade { it.copy(temperature = v) } }
             EdSlider("Tint", g.tint) { v -> grade { it.copy(tint = v) } }
             SectionTitle("PRESENCE") { grade { it.copy(vibrance = 0f, saturation = 0f) } }

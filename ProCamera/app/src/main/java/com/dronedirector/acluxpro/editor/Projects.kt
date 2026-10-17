@@ -54,6 +54,8 @@ data class PhotoProjectData(
     val bg: PhotoBackground = PhotoBackground(),
     /** Photo after AI erase (a copy kept in the app's files), used instead of the original. */
     val baseFile: String? = null,
+    /** RAW (DNG) develop choices. */
+    val raw: RawDng.Dev? = null,
 )
 
 /** A saved project as shown in the list. */

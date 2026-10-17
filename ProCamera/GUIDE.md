@@ -69,6 +69,14 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - The preview is cleaned once by the AI; then the slider works instantly.
 - Exporting cleans the full-size photo (on the phone, or in the cloud if Cloud AI is on). STOP on the AI badge cancels.
 
+**RAW (DNG) photos**
+- Open a DNG (from AcluxPro's Pro mode or any phone / camera that saves DNG) and the RAW badge appears: the editor develops the sensor data itself.
+- Light → RAW PROFILE picks the base look: Standard, Flat (most room for grading), Vivid, Portrait, Landscape or Mono.
+- Exposure (±5 stops), Highlights, Shadows, Whites and Blacks work on the full-range data — pull Highlights down to bring back bright skies, lift Shadows without the blotches you'd get from a JPEG.
+- Color → WHITE BALANCE: As shot, Auto, Daylight, Cloudy, Shade, Tungsten or Fluorescent, then fine-tune with Temperature and Tint.
+- The DNG is never changed; exports are JPEG, PNG, WebP or HEIC. RAW exports take a little longer (the full-size photo is developed again at top quality).
+- AI erase on a RAW makes a normal copy to work on; after that, the photo is edited like a JPEG.
+
 **Photo editor tips**
 - Leave the editor with your phone's back gesture or back button (the top bar has no back arrow, so EXPORT always fits).
 - History panel: tap any step to go back to it; + SAVE SNAPSHOT keeps a version you can return to while the photo is open.

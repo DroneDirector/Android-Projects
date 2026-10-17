@@ -226,13 +226,14 @@ private class BlendProgram(private val bitmap: Bitmap, private val l: Layer, pri
             val ms = presentationTimeUs / 1000
             val on = l.wholeVideo || ms in l.startMs..l.endMs
             val a = l.animAt(ms)
-            val k = if (l.size > 0f) a.size / l.size else 1f
+            val fx = LayerAnims.at(l, ms)
+            val k = (if (l.size > 0f) a.size / l.size else 1f) * fx.scale
             val hw = bitmap.width * k / (2f * frameW); val hh = bitmap.height * k / (2f * frameH)
             program.use()
             program.setSamplerTexIdUniform("uTexSampler", inputTexId, 0)
             program.setSamplerTexIdUniform("uLayer", tex, 1)
-            program.setFloatsUniform("uRect", floatArrayOf(a.x, 1f - a.y, hw, hh))
-            program.setFloatUniform("uAlpha", if (on) a.opacity.coerceIn(0f, 1f) else 0f)
+            program.setFloatsUniform("uRect", floatArrayOf(a.x + fx.dx, 1f - (a.y + fx.dy), hw, hh))
+            program.setFloatUniform("uAlpha", if (on) (a.opacity * fx.alpha).coerceIn(0f, 1f) else 0f)
             program.setIntUniform("uMode", (l.blend ?: LayerBlend.NORMAL).ordinal)
             program.bindAttributesAndUniforms()
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)

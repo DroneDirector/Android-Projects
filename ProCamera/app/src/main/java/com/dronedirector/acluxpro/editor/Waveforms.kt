@@ -148,3 +148,39 @@ object Beats {
         return out
     }
 }
+
+/** Finds the pauses in a clip's sound so they can be cut out (Edit → Remove silences). */
+object Silence {
+    /**
+     * Parts of [startMs]..[endMs] (source time) to keep. Quiet stretches (peaks below [thresholdDb]
+     * relative to the loudest moment in the file) longer than [minSilenceMs] are dropped, leaving
+     * [padMs] of quiet on each side so words aren't clipped.
+     */
+    fun keeps(peaks: FloatArray, startMs: Long, endMs: Long, thresholdDb: Float, minSilenceMs: Long, padMs: Long = 120L): List<LongRange> {
+        val b = Waveforms.BUCKET_MS
+        val thr = Math.pow(10.0, thresholdDb / 20.0).toFloat()
+        val i0 = (startMs / b).toInt().coerceIn(0, peaks.size)
+        val i1 = (endMs / b).toInt().coerceIn(i0, peaks.size)
+        val quiet = mutableListOf<LongRange>()
+        var runStart = -1
+        for (i in i0..i1) {
+            val q = i < i1 && peaks[i] < thr
+            if (q && runStart < 0) runStart = i
+            if (!q && runStart >= 0) {
+                val a = runStart * b; val e = i * b
+                if (e - a >= minSilenceMs) quiet += (a + padMs)..(e - padMs)
+                runStart = -1
+            }
+        }
+        if (quiet.isEmpty()) return listOf(startMs..endMs)
+        val out = mutableListOf<LongRange>()
+        var cur = startMs
+        for (q in quiet) {
+            val s = q.first.coerceIn(startMs, endMs); val e = q.last.coerceIn(startMs, endMs)
+            if (s - cur >= 200) out += cur..s
+            cur = maxOf(cur, e)
+        }
+        if (endMs - cur >= 200) out += cur..endMs
+        return out
+    }
+}

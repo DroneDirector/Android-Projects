@@ -70,6 +70,10 @@ data class Layer(
     val chroma: Int? = null,
     val chromaTol: Float? = null,
     val chromaSoft: Float? = null,
+    /** Animation when the layer appears / disappears, and how long each takes (ms). */
+    val animIn: LayerAnim? = null,
+    val animOut: LayerAnim? = null,
+    val animMs: Long? = null,
 ) {
     /** The name shown for this layer: your own name, else its text / kind. */
     val displayName: String get() = name?.takeIf { it.isNotBlank() }
@@ -78,11 +82,94 @@ data class Layer(
     fun activeAt(ms: Long) = visible && (wholeVideo || ms in startMs..endMs)
 }
 
+/** In / out animations for layers (Layers → ANIMATION). */
+enum class LayerAnim(val label: String) {
+    NONE("None"), FADE("Fade"), SLIDE_UP("Slide up"), SLIDE_DOWN("Slide down"), SLIDE_LEFT("Slide left"), SLIDE_RIGHT("Slide right"),
+    POP("Pop"), ZOOM("Zoom"), BOUNCE("Bounce"), REVEAL("Wipe reveal"), TYPEWRITER("Typewriter"),
+}
+
+/** How an animation changes a layer at one moment: move (share of the frame), scale, fade, wipe and typed characters. */
+data class AnimFx(val dx: Float = 0f, val dy: Float = 0f, val scale: Float = 1f, val alpha: Float = 1f, val reveal: Float = 1f, val chars: Float = 1f) {
+    val isIdentity get() = this == AnimFx()
+    operator fun times(o: AnimFx) = AnimFx(dx + o.dx, dy + o.dy, scale * o.scale, alpha * o.alpha, reveal * o.reveal, chars * o.chars)
+}
+
+object LayerAnims {
+    fun hasAny(l: Layer) = (l.animIn ?: LayerAnim.NONE) != LayerAnim.NONE || (!l.wholeVideo && (l.animOut ?: LayerAnim.NONE) != LayerAnim.NONE)
+
+    /** The animation state of [l] at timeline [ms]. */
+    fun at(l: Layer, ms: Long): AnimFx {
+        if (!hasAny(l)) return AnimFx()
+        val len = if (l.wholeVideo) Long.MAX_VALUE else (l.endMs - l.startMs).coerceAtLeast(1)
+        val d = (l.animMs ?: 500L).coerceIn(50, if (l.wholeVideo) 10_000 else len / 2 + 1)
+        var fx = AnimFx()
+        val ai = l.animIn ?: LayerAnim.NONE
+        if (ai != LayerAnim.NONE) {
+            val start = if (l.wholeVideo) 0L else l.startMs
+            val p = (ms - start).toFloat() / d
+            if (p < 1f) fx *= shape(l, ai, p.coerceIn(0f, 1f), true)
+        }
+        val ao = l.animOut ?: LayerAnim.NONE
+        if (!l.wholeVideo && ao != LayerAnim.NONE) {
+            val p = (l.endMs - ms).toFloat() / d
+            if (p < 1f) fx *= shape(l, ao, p.coerceIn(0f, 1f), false)
+        }
+        return fx
+    }
+
+    private fun easeOut(p: Float) = 1f - (1f - p) * (1f - p) * (1f - p)
+    private fun backOut(p: Float): Float { val c1 = 1.70158f; val c3 = c1 + 1f; val q = p - 1f; return 1f + c3 * q * q * q + c1 * q * q }
+    private fun bounceOut(p: Float): Float {
+        val n = 7.5625f; val d = 2.75f
+        return when {
+            p < 1f / d -> n * p * p
+            p < 2f / d -> { val q = p - 1.5f / d; n * q * q + 0.75f }
+            p < 2.5f / d -> { val q = p - 2.25f / d; n * q * q + 0.9375f }
+            else -> { val q = p - 2.625f / d; n * q * q + 0.984375f }
+        }
+    }
+
+    /** [p]: 0 = fully gone, 1 = settled in place. Out-animations leave in the named direction. */
+    private fun shape(l: Layer, a: LayerAnim, p: Float, incoming: Boolean): AnimFx {
+        val e = easeOut(p)
+        val dir = if (incoming) 1f else -1f
+        val text = l.kind == LayerKind.TEXT || l.kind == LayerKind.WATERMARK
+        return when (a) {
+            LayerAnim.NONE -> AnimFx()
+            LayerAnim.FADE -> AnimFx(alpha = e)
+            LayerAnim.SLIDE_UP -> AnimFx(dy = (1f - e) * 0.15f * dir, alpha = e)
+            LayerAnim.SLIDE_DOWN -> AnimFx(dy = -(1f - e) * 0.15f * dir, alpha = e)
+            LayerAnim.SLIDE_LEFT -> AnimFx(dx = (1f - e) * 0.2f * dir, alpha = e)
+            LayerAnim.SLIDE_RIGHT -> AnimFx(dx = -(1f - e) * 0.2f * dir, alpha = e)
+            LayerAnim.POP -> AnimFx(scale = backOut(p).coerceAtLeast(0.01f), alpha = (p * 3f).coerceAtMost(1f))
+            LayerAnim.ZOOM -> AnimFx(scale = 1f + (1f - e) * 0.8f, alpha = e)
+            LayerAnim.BOUNCE -> AnimFx(dy = -(1f - bounceOut(p)) * 0.25f * dir, alpha = (p * 4f).coerceAtMost(1f))
+            LayerAnim.REVEAL -> AnimFx(reveal = e)
+            LayerAnim.TYPEWRITER -> if (text) AnimFx(chars = p) else AnimFx(reveal = e)
+        }
+    }
+
+    /** Characters shown for a typewriter state ([chars] 0..1 of the text). */
+    fun charCount(l: Layer, chars: Float): Int {
+        val n = l.text.replace("\n", "").length
+        return if (chars >= 1f) Int.MAX_VALUE else (n * chars).toInt().coerceIn(0, n)
+    }
+
+    /** A copy of [full] with only the left [reveal] share visible (same size, so it stays in place). */
+    fun revealed(full: Bitmap, reveal: Float): Bitmap {
+        if (reveal >= 1f) return full
+        val out = Bitmap.createBitmap(full.width, full.height, Bitmap.Config.ARGB_8888)
+        val w = (full.width * reveal.coerceIn(0f, 1f)).toInt()
+        if (w > 0) Canvas(out).drawBitmap(full, android.graphics.Rect(0, 0, w, full.height), android.graphics.Rect(0, 0, w, full.height), null)
+        return out
+    }
+}
+
 object LayerRenderer {
     private val logoCache = HashMap<String, Bitmap>()
 
     /** Draws a layer at the size it should have on a [frameW]×[frameH] frame. */
-    fun render(context: Context, l: Layer, frameW: Int, frameH: Int): Bitmap? {
+    fun render(context: Context, l: Layer, frameW: Int, frameH: Int, chars: Int = Int.MAX_VALUE): Bitmap? {
         val px = max(8f, l.size * frameH)
         return when (l.kind) {
             LayerKind.VIDEO -> null
@@ -97,11 +184,12 @@ object LayerRenderer {
                 val key = l.chroma
                 if (key != null) chromaKeyBitmap(scaled, key, l.chromaTol ?: 0.4f, l.chromaSoft ?: 0.3f) else scaled
             }
-            else -> renderText(l, px, frameW)
+            else -> renderText(l, px, frameW, chars)
         }
     }
 
-    private fun renderText(l: Layer, px: Float, frameW: Int): Bitmap {
+    /** [chars]: how many characters to draw (typewriter); the size and layout always follow the full text. */
+    private fun renderText(l: Layer, px: Float, frameW: Int, chars: Int = Int.MAX_VALUE): Bitmap {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textSize = px
             color = l.color
@@ -120,9 +208,12 @@ object LayerRenderer {
         if (l.box) {
             c.drawRoundRect(RectF(0f, 0f, w.toFloat(), h.toFloat()), px * 0.3f, px * 0.3f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x99000000.toInt() })
         }
+        var left = chars
         lines.forEachIndexed { i, line ->
             val lw = paint.measureText(line)
-            c.drawText(line, (w - lw) / 2f, pad - fm.ascent + i * lineH, paint)
+            val part = if (left >= line.length) line else line.substring(0, left.coerceAtLeast(0))
+            left -= line.length
+            if (part.isNotEmpty()) c.drawText(part, (w - lw) / 2f, pad - fm.ascent + i * lineH, paint)
         }
         return bmp
     }
@@ -140,30 +231,52 @@ fun stampLayer(context: Context, src: Bitmap, l: Layer): Bitmap {
 
 /** Media3 overlay for one layer: shown only inside its time window. */
 @UnstableApi
-class LayerOverlay(private val bitmap: Bitmap, private val l: Layer) : BitmapOverlay() {
+class LayerOverlay(
+    private val bitmap: Bitmap,
+    private val l: Layer,
+    /** Draws the layer with only the first n characters (typewriter animation). */
+    private val partial: ((Int) -> Bitmap?)? = null,
+) : BitmapOverlay() {
     private val blank = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
     private val startUs = l.startMs * 1000
     private val endUs = l.endMs * 1000
     private val whole = l.wholeVideo
+    private val animated = LayerAnims.hasAny(l)
+    private val frames = HashMap<Int, Bitmap>()
     private val settings: OverlaySettings = StaticOverlaySettings.Builder()
         .setBackgroundFrameAnchor((l.x * 2f - 1f).coerceIn(-1f, 1f), (1f - l.y * 2f).coerceIn(-1f, 1f))
         .setOverlayFrameAnchor(0f, 0f)
         .setAlphaScale(l.opacity.coerceIn(0f, 1f))
         .build()
 
-    override fun getBitmap(presentationTimeUs: Long): Bitmap =
-        if (whole || presentationTimeUs in startUs..endUs) bitmap else blank
+    override fun getBitmap(presentationTimeUs: Long): Bitmap {
+        if (!(whole || presentationTimeUs in startUs..endUs)) return blank
+        if (!animated) return bitmap
+        val fx = LayerAnims.at(l, presentationTimeUs / 1000)
+        if (fx.chars < 1f && partial != null) {
+            val n = LayerAnims.charCount(l, fx.chars)
+            return frames.getOrPut(-1 - n) { partial.invoke(n) ?: bitmap }
+        }
+        if (fx.reveal < 1f) {
+            val step = (fx.reveal * 40).toInt()
+            return frames.getOrPut(step) { LayerAnims.revealed(bitmap, step / 40f) }
+        }
+        return bitmap
+    }
 
     override fun getOverlaySettings(presentationTimeUs: Long): OverlaySettings {
-        if (l.keys.isNullOrEmpty()) return settings
-        // Keyframes: move, scale and fade over time.
-        val a = l.animAt(presentationTimeUs / 1000)
-        val k = if (l.size > 0f) a.size / l.size else 1f
+        if (l.keys.isNullOrEmpty() && !animated) return settings
+        // Keyframes and in / out animations: move, scale and fade over time.
+        val ms = presentationTimeUs / 1000
+        val a = l.animAt(ms)
+        val fx = LayerAnims.at(l, ms)
+        val k = (if (l.size > 0f) a.size / l.size else 1f) * fx.scale
+        val x = a.x + fx.dx; val y = a.y + fx.dy
         return StaticOverlaySettings.Builder()
-            .setBackgroundFrameAnchor((a.x * 2f - 1f).coerceIn(-1f, 1f), (1f - a.y * 2f).coerceIn(-1f, 1f))
+            .setBackgroundFrameAnchor((x * 2f - 1f).coerceIn(-1.5f, 1.5f), (1f - y * 2f).coerceIn(-1.5f, 1.5f))
             .setOverlayFrameAnchor(0f, 0f)
             .setScale(k, k)
-            .setAlphaScale(a.opacity.coerceIn(0f, 1f))
+            .setAlphaScale((a.opacity * fx.alpha).coerceIn(0f, 1f))
             .build()
     }
 }

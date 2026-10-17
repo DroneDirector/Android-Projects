@@ -38,13 +38,27 @@ object GradePreview {
         }
     }
 
+    /** False when this phone couldn't build the shader with masks; the plain one is used then. */
+    @Volatile private var masksOk = true
+
+    private fun newShader(): RuntimeShader {
+        if (masksOk) {
+            try { return RuntimeShader(AGSL_MASKED) } catch (t: Throwable) {
+                masksOk = false
+                android.util.Log.w("GradePreview", "Mask shader unavailable: ${t.message}")
+            }
+        }
+        return RuntimeShader(AGSL_PLAIN)
+    }
+
     fun apply(view: View, c: Clip?, timeSec: Float = 0f) {
         if (!supported) return
-        val masks = c?.activeMasks() ?: emptyList()
-        if (c == null || (c.grade.isIdentity && !c.detail.needsVideoPass && masks.isEmpty())) { clear(view); return }
+        val masks0 = c?.activeMasks() ?: emptyList()
+        if (c == null || (c.grade.isIdentity && !c.detail.needsVideoPass && masks0.isEmpty())) { clear(view); return }
         if (view.width <= 0 || view.height <= 0) return
-        val st = states.getOrPut(view) { ViewState(RuntimeShader(AGSL)) }
+        val st = states.getOrPut(view) { ViewState(newShader()) }
         val sh = st.shader as RuntimeShader
+        val masks = if (masksOk) masks0 else emptyList()
         val key = Triple(c.grade, c.detail, Triple(view.width, view.height, masks))
         if (st.key == key && !animated(c)) return
         st.key = key
@@ -68,8 +82,8 @@ object GradePreview {
         sh.setFloatUniform("uFx", d.fx.ordinal.toFloat())
         sh.setFloatUniform("uFxAmt", d.fxAmount)
         // Masks: each with its own grade, blended in where the mask is.
-        sh.setFloatUniform("uMCount", masks.size.toFloat())
-        for (k in 0 until MAX_VIDEO_MASKS) {
+        if (masksOk) sh.setFloatUniform("uMCount", masks.size.toFloat())
+        if (masksOk) for (k in 0 until MAX_VIDEO_MASKS) {
             val m = masks.getOrNull(k)
             val g = m?.let { MaskUniforms.geo(it) } ?: FloatArray(4)
             val o = m?.let { MaskUniforms.opt(it) } ?: floatArrayOf(0f, 0.5f, 0f, 0f)
@@ -129,7 +143,7 @@ object GradePreview {
         }
     """
 
-    private const val AGSL = """
+    private const val HEAD = """
         uniform shader content;
         uniform shader lut;
         uniform float2 uSize;
@@ -142,14 +156,16 @@ object GradePreview {
         uniform float uTime;
         uniform float uFx;
         uniform float uFxAmt;
+"""
+    private const val MASK_DECL = """
         uniform shader mlut0;
         uniform shader mlut1;
         uniform shader mlut2;
         uniform float uMCount;
         uniform float4 uG0; uniform float4 uG1; uniform float4 uG2;
         uniform float4 uO0; uniform float4 uO1; uniform float4 uO2;
-    """ + MaskUniforms.WEIGHT_GLSL + MLUT0 + MLUT1 + MLUT2 + """
-
+"""
+    private const val BODY = """
         bool fxIs(float id) { return abs(uFx - id) < 0.5; }
         float rnd(float2 c) { return fract(sin(dot(c, float2(12.9898, 78.233)) + uTime * 7.0) * 43758.5453); }
         float3 px(float2 p) {
@@ -191,12 +207,7 @@ object GradePreview {
                 if (uSharpen > 0.0) rgb = rgb + (rgb - blur) * uSharpen * 1.5;
             }
             if (uHasLut > 0.5) rgb = applyLut(rgb);
-            if (uMCount > 0.5) {
-                float3 base = rgb;
-                if (uMCount > 0.5) rgb = mix(rgb, mlutApply0(rgb), clamp(mWeight(uG0, uO0, uv, uSize, base), 0.0, 1.0));
-                if (uMCount > 1.5) rgb = mix(rgb, mlutApply1(rgb), clamp(mWeight(uG1, uO1, uv, uSize, base), 0.0, 1.0));
-                if (uMCount > 2.5) rgb = mix(rgb, mlutApply2(rgb), clamp(mWeight(uG2, uO2, uv, uSize, base), 0.0, 1.0));
-            }
+/*MASKS*/
             if (fxIs(1.0)) { float l = dot(rgb, float3(0.299, 0.587, 0.114)); rgb = mix(rgb, float3(l), uFxAmt); }
             if (fxIs(8.0)) { float lv = mix(12.0, 3.0, uFxAmt); rgb = floor(rgb * lv + 0.5) / lv; }
             if (fxIs(9.0)) rgb = mix(rgb, 1.0 - rgb, uFxAmt);
@@ -210,4 +221,18 @@ object GradePreview {
             return half4(half3(rgb * a), half(a));
         }
     """
+    private const val MASK_APPLY = """
+            if (uMCount > 0.5) {
+                float3 base = rgb;
+                if (uMCount > 0.5) rgb = mix(rgb, mlutApply0(rgb), clamp(mWeight(uG0, uO0, uv, uSize, base), 0.0, 1.0));
+                if (uMCount > 1.5) rgb = mix(rgb, mlutApply1(rgb), clamp(mWeight(uG1, uO1, uv, uSize, base), 0.0, 1.0));
+                if (uMCount > 2.5) rgb = mix(rgb, mlutApply2(rgb), clamp(mWeight(uG2, uO2, uv, uSize, base), 0.0, 1.0));
+            }
+"""
+    /** AGSL is SkSL: use its float2 / float3 / float4 names for the shared GLSL maths. */
+    private fun sksl(s: String) = s.replace("vec4", "float4").replace("vec3", "float3").replace("vec2", "float2")
+    private val AGSL_MASKED: String by lazy {
+        HEAD + MASK_DECL + sksl(MaskUniforms.WEIGHT_GLSL) + MLUT0 + MLUT1 + MLUT2 + BODY.replace("/*MASKS*/", MASK_APPLY)
+    }
+    private val AGSL_PLAIN: String by lazy { HEAD + BODY.replace("/*MASKS*/", "") }
 }

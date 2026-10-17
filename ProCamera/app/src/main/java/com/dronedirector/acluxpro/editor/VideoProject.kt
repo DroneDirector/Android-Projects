@@ -116,6 +116,8 @@ data class DeliverSettings(
     /** Export only this part of the timeline (ms); null = the whole edit. */
     val rangeStart: Long? = null,
     val rangeEnd: Long? = null,
+    /** Bring the finished sound to this loudness (LUFS), e.g. −14; null = leave as mixed. */
+    val loudness: Float? = null,
 )
 
 /** One-tap delivery settings for common destinations. */
@@ -273,7 +275,9 @@ class TimelineExport(
         // Text, stickers, watermarks and logos, bottom layer first.
         val pictureLayers = if (audioOnly) emptyList() else layers.filter { it.visible && it.kind != LayerKind.VIDEO }
         val overlays = pictureLayers.filter { (it.blend ?: LayerBlend.NORMAL) == LayerBlend.NORMAL }.mapNotNull { l ->
-            LayerRenderer.render(context, l, outW, outH)?.let { LayerOverlay(it, l) as androidx.media3.effect.TextureOverlay }
+            LayerRenderer.render(context, l, outW, outH)?.let {
+                LayerOverlay(it, l, partial = { n -> LayerRenderer.render(context, l, outW, outH, n) }) as androidx.media3.effect.TextureOverlay
+            }
         }
         if (overlays.isNotEmpty()) global += androidx.media3.effect.OverlayEffect(overlays)
         // Layers with a blend mode are drawn by their own shader, in layer order.

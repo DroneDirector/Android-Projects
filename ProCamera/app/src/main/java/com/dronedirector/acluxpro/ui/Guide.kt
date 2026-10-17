@@ -146,6 +146,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "COPY SETTINGS / PASTE SETTINGS moves a look to another photo — or to a video clip.",
             "SAVE keeps the edit as a project; LOAD opens it again later.",
             "Hold the divider between the photo and the controls, then drag to resize. Double-tap to reset.",
+            "Panels icon (next to the settings gear): hide or show the tools panel, copy / paste bar, histogram and before / after buttons — the photo grows into the space and shrinks back when a panel returns. Presets: Full, View, Edit, Color. Triple-tap the icon to reset the whole layout.",
             "Undo / redo are in the top bar; the histogram toggles with the chart icon.",
         ), numbered = false),
         GuideSection(GuideTopic.GENERAL, "General", Icons.Filled.Tune, null, listOf(

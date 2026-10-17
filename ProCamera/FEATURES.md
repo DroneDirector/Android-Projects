@@ -95,6 +95,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - Also **WebP** and **HEIC**; Instagram / web / 4K sizes; **AI upscale** 2× / 4× in the export; keep or remove **camera info and location**.
 - **Batch export**: apply the current edit to up to 50 photos at once.
 - **Resizable panels** (hold the divider, then drag; double-tap to reset).
+- **Panels menu** (icon next to the gear): show / hide the tools panel, copy / paste bar, histogram and before / after buttons — the photo fills freed space and returns to its saved size; presets **Full / View / Edit / Color**; **triple-tap** the icon to restore the original layout. The histogram button (bar-chart icon) choice is now remembered.
 
 ---
 

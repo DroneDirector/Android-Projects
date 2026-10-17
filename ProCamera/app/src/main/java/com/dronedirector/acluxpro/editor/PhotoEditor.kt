@@ -288,7 +288,12 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     var split by remember { mutableStateOf(false) }
     var splitX by remember { mutableStateOf(0.5f) }
     var beforeImg by remember { mutableStateOf<Bitmap?>(null) }
-    var showScope by remember { mutableStateOf(true) }
+    // Panels menu (layout icon next to the settings gear): which parts of the editor are shown.
+    val showScope = com.dronedirector.acluxpro.ui.panelOn("pe.scope")
+    val showControls = com.dronedirector.acluxpro.ui.panelOn("pe.controls")
+    val showCopyBar = com.dronedirector.acluxpro.ui.panelOn("pe.copypaste")
+    val showCompare = com.dronedirector.acluxpro.ui.panelOn("pe.compare")
+    var paneVersion by remember { mutableStateOf(0) }
     var hist by remember { mutableStateOf<Array<FloatArray>?>(null) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
@@ -688,7 +693,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                         else if (panel == PhotoPanel.HEAL) HealOverlay(edit.spots, shownNow.width, shownNow.height, tools.healSize) { x, y -> addSpot(x, y) }
                     }
                     if (showScope && !comparing) Scope(hist, Modifier.align(Alignment.TopEnd).padding(8.dp).width(130.dp).height(64.dp))
-                    Row(Modifier.align(Alignment.TopStart).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (showCompare || split) Row(Modifier.align(Alignment.TopStart).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (!split) Text(
                             if (comparing) "BEFORE" else "HOLD FOR BEFORE",
                             style = Pro.Label.copy(color = Color.White),
@@ -714,7 +719,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
             val controls = @Composable { mod: Modifier ->
                 Column(mod.background(Ed.Panel)) {
                     PanelTabs(panel) { panel = it }
-                    CopyPasteBar(
+                    if (showCopyBar) CopyPasteBar(
                         video = false,
                         onCopy = {
                             val e = edit
@@ -795,18 +800,30 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                     Text("Photo editor", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Clip, modifier = Modifier.weight(1f).padding(start = 4.dp))
                     BarIcon(Icons.AutoMirrored.Filled.Undo, "Undo", enabled = undoPos > 0) { undoPos--; edit = undo[undoPos] }
                     BarIcon(Icons.AutoMirrored.Filled.Redo, "Redo", enabled = undoPos < undo.lastIndex) { undoPos++; edit = undo[undoPos] }
-                    BarIcon(Icons.Filled.BarChart, "Scope", tint = if (showScope) Pro.Amber else Color.White) { showScope = !showScope }
+                    BarIcon(Icons.Filled.BarChart, "Scope", tint = if (showScope) Pro.Amber else Color.White) { com.dronedirector.acluxpro.ui.Panels.set(context, "pe.scope", !showScope) }
+                    PhotoPanelsButton(
+                        onTab = { panel = it },
+                        onReset = {
+                            listOf("pe_controls_w", "pe_controls_h").forEach { PaneSizes.set(context, it, -1f) }
+                            paneVersion++
+                            split = false
+                            message = "Layout reset to original"
+                        },
+                    )
                     BarIcon(Icons.Filled.Settings, "Settings") { showSettings = true }
                     BarButton("LOAD", enabled = !busy) { showLoad = true }
                     BarButton("SAVE", enabled = !busy) { if (projectId == null) askName = true else saveProject(projectName) }
                     Text(
                         "EXPORT", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp),
-                        modifier = Modifier.padding(start = 4.dp, end = 4.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !busy) { panel = PhotoPanel.EXPORT }.padding(horizontal = 10.dp, vertical = 7.dp),
+                        modifier = Modifier.padding(start = 4.dp, end = 4.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !busy) { panel = PhotoPanel.EXPORT; com.dronedirector.acluxpro.ui.Panels.set(context, "pe.controls", true) }.padding(horizontal = 10.dp, vertical = 7.dp),
                     )
                 }
                 // Resizable panels: hold the divider, then drag. Double-tap the divider to reset.
-                if (wide) {
-                    val pane = rememberPane("pe_controls_w")
+                // With the tools panel hidden, the photo fills the screen; shown again, it returns to its saved size.
+                if (!showControls) {
+                    previewBox(Modifier.fillMaxWidth().weight(1f))
+                } else if (wide) {
+                    val pane = rememberPane("pe_controls_w", paneVersion)
                     val maxW = boxW
                     Row(Modifier.fillMaxSize()) {
                         previewBox(Modifier.weight(1f).fillMaxHeight())
@@ -816,7 +833,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                         controls(Modifier.width((if (pane.dp < 0f) 380f else pane.dp).dp).fillMaxHeight())
                     }
                 } else {
-                    val pane = rememberPane("pe_controls_h")
+                    val pane = rememberPane("pe_controls_h", paneVersion)
                     val maxH = boxH
                     previewBox(Modifier.fillMaxWidth().weight(1f))
                     ResizeHandle(true,
@@ -1081,4 +1098,27 @@ private fun BarIcon(icon: ImageVector, label: String, enabled: Boolean = true, t
     Box(Modifier.size(36.dp).clip(CircleShape).clickable(enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
         Icon(icon, contentDescription = label, tint = if (enabled) tint else tint.copy(alpha = 0.3f), modifier = Modifier.size(21.dp))
     }
+}
+
+/** Panels menu for the photo editor: the photo always stays; the rest can be hidden. */
+@Composable
+private fun PhotoPanelsButton(onTab: (PhotoPanel) -> Unit, onReset: () -> Unit) {
+    val panels = listOf(
+        com.dronedirector.acluxpro.ui.PanelDef("pe.controls", "Tools panel", "Presets, Light, Color, Masks, Heal, Export and the other tabs"),
+        com.dronedirector.acluxpro.ui.PanelDef("pe.copypaste", "Copy / paste bar", "Copy settings to other photos or video clips"),
+        com.dronedirector.acluxpro.ui.PanelDef("pe.scope", "Histogram", "RGB histogram on the photo"),
+        com.dronedirector.acluxpro.ui.PanelDef("pe.compare", "Before / after buttons", "HOLD FOR BEFORE and SPLIT on the photo"),
+    )
+    val all = panels.map { it.key }.toSet()
+    com.dronedirector.acluxpro.ui.PanelsButton(
+        prefix = "pe",
+        panels = panels,
+        presets = listOf(
+            com.dronedirector.acluxpro.ui.PanelPreset("Full", all),
+            com.dronedirector.acluxpro.ui.PanelPreset("View", emptySet()),
+            com.dronedirector.acluxpro.ui.PanelPreset("Edit", setOf("pe.controls", "pe.compare")) { onTab(PhotoPanel.LIGHT) },
+            com.dronedirector.acluxpro.ui.PanelPreset("Color", setOf("pe.controls", "pe.scope", "pe.compare")) { onTab(PhotoPanel.COLOR) },
+        ),
+        onReset = onReset,
+    )
 }

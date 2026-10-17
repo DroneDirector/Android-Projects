@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture: slate & shot log — scene / shot / take and notes on the viewfinder and in photos; every clip and photo logged with its settings; export as .csv; automatic next take.
 
 ## 1.0.203 — 2026-10-17
 - Video editor: voice noise reduction per clip (Audio → Off / Light / Strong), applied on export.

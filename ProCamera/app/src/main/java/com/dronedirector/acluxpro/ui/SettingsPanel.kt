@@ -278,6 +278,34 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 }
             }
 
+            Section("SLATE & SHOT LOG")
+            run {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val x = com.dronedirector.acluxpro.camera.CaptureExtras
+                var logCount by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(com.dronedirector.acluxpro.camera.Slate.count(ctx)) }
+                val exportLog = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/csv")) { u ->
+                    if (u != null) c.toast(if (com.dronedirector.acluxpro.camera.Slate.export(ctx, u)) "Shot log saved" else "Couldn't save the shot log")
+                }
+                ToggleRow("Slate", "Scene / shot / take on the viewfinder, in photos and in a shot log for every clip", x.slateOn) { x.slateOn = !x.slateOn; x.save(ctx) }
+                if (x.slateOn) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        androidx.compose.material3.OutlinedTextField(value = x.slateScene, onValueChange = { v -> x.slateScene = v.take(12); x.save(ctx) }, label = { Text("Scene") }, singleLine = true, modifier = Modifier.weight(1f))
+                        androidx.compose.material3.OutlinedTextField(value = x.slateShot, onValueChange = { v -> x.slateShot = v.take(12); x.save(ctx) }, label = { Text("Shot") }, singleLine = true, modifier = Modifier.weight(1f))
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+                        Text("Take ${x.slateTake}", color = Color.White, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                        Stepper("TK ${x.slateTake}", onMinus = { x.slateTake = (x.slateTake - 1).coerceAtLeast(1); x.save(ctx) }, onPlus = { x.slateTake = (x.slateTake + 1).coerceAtMost(999); x.save(ctx) })
+                    }
+                    ToggleRow("Next take automatically", "The take number goes up after each recording", x.slateAutoTake) { x.slateAutoTake = !x.slateAutoTake; x.save(ctx) }
+                    androidx.compose.material3.OutlinedTextField(value = x.slateNotes, onValueChange = { v -> x.slateNotes = v.take(200); x.save(ctx) }, label = { Text("Notes (e.g. good take, focus soft)") }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        androidx.compose.material3.TextButton(onClick = { exportLog.launch("AcluxPro_shot_log.csv") }) { Text("Export shot log (.csv) · $logCount", color = Pro.Amber) }
+                        androidx.compose.material3.TextButton(onClick = { com.dronedirector.acluxpro.camera.Slate.clear(ctx); logCount = 0 }) { Text("Clear log", color = Pro.Red) }
+                    }
+                    Text("The log opens in Excel, Google Sheets or Numbers: date, file, scene, shot, take, notes and camera settings for each clip and photo.", color = Pro.Dim, fontSize = 12.sp)
+                }
+            }
+
             Section("COPYRIGHT")
             run {
                 val ctx = androidx.compose.ui.platform.LocalContext.current

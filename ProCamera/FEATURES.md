@@ -38,6 +38,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Clean feed** (hide the on-screen controls for an HDMI / screen mirror).
 
 ### Pro controls
+- **Slate & shot log**: scene / shot / take and notes, viewfinder badge, photo description, CSV shot log with camera settings, automatic take numbers.
 - **Safe areas**: action-safe 90 % and title-safe 80 % frames.
 - **Tally border**, **touch lock** while recording, and **storage / battery / heat warnings**.
 - **Custom set-ups C1 / C2 / C3**: hold to save all current settings, tap to recall.

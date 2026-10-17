@@ -31,6 +31,9 @@ object CaptureExtras {
     var titleOn by mutableStateOf(false)
     var titlePos by mutableStateOf(0)
     var titleSec by mutableStateOf(5)
+    /** Written into every photo (EXIF Artist / Copyright). */
+    var creator by mutableStateOf("")
+    var copyright by mutableStateOf("")
     /** Seconds kept from before you press record (0 = off). */
     var preRecordSec by mutableStateOf(0)
     /** Use a Bluetooth headset microphone when one is connected. */
@@ -59,6 +62,8 @@ object CaptureExtras {
         titleOn = p.getBoolean("x_title_on", false)
         titlePos = p.getInt("x_title_pos", 0)
         titleSec = p.getInt("x_title_sec", 5)
+        creator = p.getString("x_creator", "") ?: ""
+        copyright = p.getString("x_copyright", "") ?: ""
         preRecordSec = p.getInt("x_prerec", 0)
         micBluetooth = p.getBoolean("x_mic_bt", false)
         focusMagnifier = p.getBoolean("x_focus_mag", true)
@@ -79,6 +84,8 @@ object CaptureExtras {
             .putBoolean("x_title_on", titleOn)
             .putInt("x_title_pos", titlePos)
             .putInt("x_title_sec", titleSec)
+            .putString("x_creator", creator)
+            .putString("x_copyright", copyright)
             .putInt("x_prerec", preRecordSec)
             .putBoolean("x_mic_bt", micBluetooth)
             .putBoolean("x_focus_mag", focusMagnifier)
@@ -91,4 +98,31 @@ object CaptureExtras {
 
     /** Exposure time for a 180° shutter at [fps]. */
     fun ns180(fps: Int): Long = (1e9 / (2.0 * fps.coerceAtLeast(1))).toLong()
+}
+
+/** Your name and copyright notice, written into photos as they're saved (EXIF Artist / Copyright). */
+object Copyright {
+    private fun active() = CaptureExtras.creator.isNotBlank() || CaptureExtras.copyright.isNotBlank()
+
+    private fun apply(e: androidx.exifinterface.media.ExifInterface) {
+        if (CaptureExtras.creator.isNotBlank()) e.setAttribute(androidx.exifinterface.media.ExifInterface.TAG_ARTIST, CaptureExtras.creator.trim())
+        if (CaptureExtras.copyright.isNotBlank()) e.setAttribute(androidx.exifinterface.media.ExifInterface.TAG_COPYRIGHT, CaptureExtras.copyright.trim())
+        e.saveAttributes()
+    }
+
+    fun stampFile(context: android.content.Context, f: java.io.File) {
+        CaptureExtras.load(context)
+        if (!active()) return
+        try { apply(androidx.exifinterface.media.ExifInterface(f.path)) } catch (_: Throwable) {}
+    }
+
+    /** For a photo already in the gallery (camera captures). Call off the main thread. */
+    fun stampUri(context: android.content.Context, uri: android.net.Uri) {
+        if (!active()) return
+        try {
+            context.contentResolver.openFileDescriptor(uri, "rw")?.use { pfd ->
+                apply(androidx.exifinterface.media.ExifInterface(pfd.fileDescriptor))
+            }
+        } catch (_: Throwable) {}
+    }
 }

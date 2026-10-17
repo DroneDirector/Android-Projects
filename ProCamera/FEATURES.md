@@ -71,6 +71,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Colour grading** for photos and videos straight from the gallery.
 
 ### Settings
+- **Copyright**: your name and copyright written into every photo (camera and photo editor exports).
 - Save to phone storage or SD card; **app colour** (accent) picker; layout and control options.
 - **Panels menu** (icon next to the gear): show / hide the exposure read-out, histogram, audio meter, level, Pro controls bar and tips; presets **Full / Minimal / Video**; **triple-tap** the icon to restore the original layout.
 

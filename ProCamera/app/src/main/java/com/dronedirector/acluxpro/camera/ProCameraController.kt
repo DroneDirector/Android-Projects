@@ -1989,6 +1989,8 @@ class ProCameraController(private val context: Context) {
                     if (uri != null && isJpeg && filter != Filter.NONE) {
                         ioExecutor.execute { Filter.applyToSavedJpeg(context, uri, filter) }
                     }
+                    // Your name / copyright in the photo's details.
+                    if (uri != null && isJpeg) ioExecutor.execute { Copyright.stampUri(context, uri) }
                     // Privacy: blur faces in the saved photo.
                     if (uri != null && isJpeg && CaptureExtras.faceBlur) {
                         ioExecutor.execute { if (!FaceBlur.applyToSavedJpeg(context, uri)) toast("Couldn't blur the faces in this photo") }

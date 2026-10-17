@@ -277,6 +277,23 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 }
             }
 
+            Section("COPYRIGHT")
+            run {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val x = com.dronedirector.acluxpro.camera.CaptureExtras
+                androidx.compose.material3.OutlinedTextField(
+                    value = x.creator, onValueChange = { v -> x.creator = v.take(80); x.save(ctx) },
+                    label = { Text("Your name (creator)") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = x.copyright, onValueChange = { v -> x.copyright = v.take(120); x.save(ctx) },
+                    label = { Text("Copyright, e.g. © 2026 Your Name") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                )
+                Text("Written into every photo you take and every photo you export from the photo editor (Artist and Copyright in the photo's details). Leave empty to skip.", color = Pro.Dim, fontSize = 12.sp)
+            }
+
             Section("CLIP NAMING")
             com.dronedirector.acluxpro.camera.ClipNaming.entries.forEach { n ->
                 ChoiceRadio(

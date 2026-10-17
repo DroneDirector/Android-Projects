@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.224 — 2026-10-17
 - Photo editor: better heal — the patch is colour-matched smoothly from its edge inward and the automatic source avoids edges and objects; heal and clone spots can now be dragged (solid circle = the spot, dashed circle = where it copies from) and held to delete.
 
 ## 1.0.221 — 2026-10-17

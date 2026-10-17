@@ -274,6 +274,11 @@ class TimelineExport(
         // Project frame: size + shape, filling (crop) or fitting (bars).
         if (!audioOnly) global += Presentation.createForWidthAndHeight(outW, outH, layout)
         if (settings.fps > 0 && !audioOnly) global += FrameDropEffect.createDefaultFrameDropEffect(settings.fps.toFloat())
+        // Adjustment layers: a grade over everything under them, inside their time window.
+        if (!audioOnly) {
+            val adj = layers.filter { it.visible && it.kind == LayerKind.ADJUST && it.adjGrade != null && !it.adjGrade.isIdentity }.take(MAX_VIDEO_MASKS)
+            if (adj.isNotEmpty()) global += MaskGradeEffect(adj.map { asMask(it) }, adj.map { if (it.wholeVideo) null else it.startMs..it.endMs })
+        }
         // Text, stickers, watermarks and logos, bottom layer first.
         val pictureLayers = if (audioOnly) emptyList() else layers.filter { it.visible && it.kind != LayerKind.VIDEO }
         val overlays = pictureLayers.filter { (it.blend ?: LayerBlend.NORMAL) == LayerBlend.NORMAL }.mapNotNull { l ->

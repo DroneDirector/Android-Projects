@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: adjustment layers (Layers → Adjustment) — one grade (exposure, contrast, colour, look…) over every clip in its time range, with strength; live in the preview and in the export.
 
 ## 1.0.214 — 2026-10-17
 - Video editor: keep HDR (HLG / HDR10) in the export — Deliver → DYNAMIC RANGE (10-bit HEVC).

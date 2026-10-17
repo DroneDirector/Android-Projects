@@ -209,6 +209,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Heavy clips (HDR, 10-bit, 4K) get a light preview copy for smooth playback; exports use the originals.",
             "If playback stalls, turn on \"Show playback info\" here and share a screenshot.",
             "Hold a divider to resize the player, timeline or controls; double-tap to reset.",
+            "Layers → Adjustment: one grade over every clip in its time range (e.g. a look for a whole scene); set its length on the timeline and its strength.",
             "Deliver → SEND TO DESKTOP EDITOR: save the edit as an EDL or FCPXML to finish it in DaVinci Resolve, Premiere Pro, Avid or Final Cut Pro (copy the original clips to the computer too).",
             "Color → Masks: up to 3 masks per clip (gradient, radial, colour range, brightness range), each with its own grade; drag the handles on the player.",
             "Edit → Remove silences: cuts the pauses out of talking clips (this clip or all clips); set the silence level and minimum pause. Undo brings them back.",

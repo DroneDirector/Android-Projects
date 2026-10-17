@@ -87,9 +87,9 @@ object MaskUniforms {
 
 /** Export (and older-phone preview): each mask's own grade, blended in where the mask is. */
 @UnstableApi
-class MaskGradeEffect(private val masks: List<PhotoMask>) : GlEffect {
+class MaskGradeEffect(private val masks: List<PhotoMask>, private val windows: List<LongRange?>? = null) : GlEffect {
     override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram = try {
-        MaskGradeProgram(masks.take(MAX_VIDEO_MASKS), useHdr)
+        MaskGradeProgram(masks.take(MAX_VIDEO_MASKS), useHdr, windows)
     } catch (t: Throwable) {
         // A GPU that can't build the mask shader: export without the masks instead of failing.
         android.util.Log.w("MaskGradeEffect", "Mask shader unavailable: ${t.message}")
@@ -99,7 +99,7 @@ class MaskGradeEffect(private val masks: List<PhotoMask>) : GlEffect {
 }
 
 @UnstableApi
-private class MaskGradeProgram(private val masks: List<PhotoMask>, useHdr: Boolean) : BaseGlShaderProgram(useHdr, 1) {
+private class MaskGradeProgram(private val masks: List<PhotoMask>, useHdr: Boolean, private val windows: List<LongRange?>? = null) : BaseGlShaderProgram(useHdr, 1) {
     private val program = try { GlProgram(VERT, FRAG) } catch (e: GlUtil.GlException) { throw VideoFrameProcessingException(e) }
     private val strips = masks.map { MaskUniforms.strip(it.grade) }
     private val tex = IntArray(MAX_VIDEO_MASKS)
@@ -138,7 +138,9 @@ private class MaskGradeProgram(private val masks: List<PhotoMask>, useHdr: Boole
             for (k in 0 until MAX_VIDEO_MASKS) {
                 val m = masks.getOrNull(k)
                 program.setFloatsUniform("uG$k", m?.let { MaskUniforms.geo(it) } ?: FloatArray(4))
-                program.setFloatsUniform("uO$k", m?.let { MaskUniforms.opt(it) } ?: floatArrayOf(0f, 0.5f, 0f, 0f))
+                // Adjustment layers: only inside their time window (ms on the timeline).
+                val on = windows?.getOrNull(k)?.let { (presentationTimeUs / 1000) in it } ?: true
+                program.setFloatsUniform("uO$k", m?.let { MaskUniforms.opt(it).also { o -> if (!on) o[3] = 0f } } ?: floatArrayOf(0f, 0.5f, 0f, 0f))
                 program.setSamplerTexIdUniform("uLut$k", tex[k], 1 + k)
             }
             program.bindAttributesAndUniforms()
@@ -199,3 +201,11 @@ private class MaskGradeProgram(private val masks: List<PhotoMask>, useHdr: Boole
         """
     }
 }
+
+/** Adjustment layers at [ms] as full-frame "masks" (strength = the layer's opacity). */
+fun adjustMasks(layers: List<Layer>, ms: Long?): List<PhotoMask> =
+    layers.filter { it.visible && it.kind == LayerKind.ADJUST && it.adjGrade != null && !it.adjGrade.isIdentity && (ms == null || it.activeAt(ms)) }
+        .take(MAX_VIDEO_MASKS)
+        .map { asMask(it) }
+
+fun asMask(l: Layer) = PhotoMask(id = l.id, type = MaskType.LUMA_RANGE, lumLow = 0f, lumHigh = 1f, rangeSoft = 0f, grade = l.adjGrade ?: ProGrade(), amount = l.opacity.coerceIn(0f, 1f))

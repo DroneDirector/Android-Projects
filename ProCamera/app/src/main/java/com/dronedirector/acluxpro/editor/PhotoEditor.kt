@@ -296,6 +296,10 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     var paneVersion by remember { mutableStateOf(0) }
     var hist by remember { mutableStateOf<Array<FloatArray>?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var exportT0 by remember { mutableStateOf(0L) }
+    var exportEstMs by remember { mutableStateOf(0L) }
+    var batchN by remember { mutableStateOf(0) }
+    var batchI by remember { mutableStateOf(0) }
     var message by remember { mutableStateOf<String?>(null) }
     var failed by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
@@ -430,6 +434,11 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     fun export() {
         if (busy) return
         busy = true
+        exportT0 = System.currentTimeMillis(); batchN = 0; batchI = 0
+        // Time estimate from earlier exports (ms per megapixel), or a first guess.
+        val mp = exportMp(base, sizes[sizeIdx])
+        val per = context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getFloat("pe_ms_per_mp", 250f)
+        exportEstMs = (mp * per * (if (aiScale > 1) 4 else 1)).toLong()
         val e = edit
         scope.launch {
             val ok = withContext(Dispatchers.IO) {
@@ -482,6 +491,13 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                 }
             }
             busy = false
+            // Learn how long exports take on this phone (plain exports only, no AI steps).
+            if (ok != null && ok != "stopped" && e.detail.aiDenoise <= 0f && aiScale <= 1) {
+                val mpDone = exportMp(base, sizes[sizeIdx])
+                val took = (System.currentTimeMillis() - exportT0) / mpDone.coerceAtLeast(0.5f)
+                val p = context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE)
+                p.edit().putFloat("pe_ms_per_mp", p.getFloat("pe_ms_per_mp", took) * 0.6f + took * 0.4f).apply()
+            }
             message = when {
                 ok == "stopped" -> "Export stopped"
                 ok != null -> "Saved"
@@ -606,9 +622,11 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
         if (list.isEmpty() || busy) return@rememberLauncherForActivityResult
         busy = true
         val e = edit
+        exportT0 = System.currentTimeMillis(); batchN = list.size; batchI = 0
         scope.launch {
             var done = 0
             for ((i, u) in list.withIndex()) {
+                batchI = i
                 message = "Batch ${i + 1} / ${list.size}…"
                 val ok = withContext(Dispatchers.IO) {
                     try {
@@ -710,6 +728,17 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator(color = Pro.Amber)
                             Text("Exporting…", color = Color.White, modifier = Modifier.padding(top = 8.dp))
+                            // Estimated time remaining: learned from earlier exports (batch: from the photos done so far).
+                            var now by remember { mutableStateOf(System.currentTimeMillis()) }
+                            LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(500) } }
+                            val elapsed = now - exportT0
+                            val eta = when {
+                                batchN > 0 && batchI > 0 -> etaText(elapsed * (batchN - batchI) / batchI)
+                                batchN > 0 -> "Estimating time left…"
+                                exportEstMs > 0 -> if (elapsed < exportEstMs) etaText(exportEstMs - elapsed) else "Almost done…"
+                                else -> "Estimating time left…"
+                            }
+                            Text(eta, color = Pro.Dim, fontSize = 13.sp)
                         }
                     }
                     message?.let {
@@ -1122,4 +1151,10 @@ private fun PhotoPanelsButton(onTab: (PhotoPanel) -> Unit, onReset: () -> Unit) 
         ),
         onReset = onReset,
     )
+}
+
+/** Megapixels an export will have: long side [longSide] with the photo's shape. */
+private fun exportMp(b: Bitmap?, longSide: Int): Float {
+    val aspect = if (b != null && b.width > 0 && b.height > 0) minOf(b.width, b.height).toFloat() / maxOf(b.width, b.height) else 0.75f
+    return longSide.toFloat() * longSide * aspect / 1e6f
 }

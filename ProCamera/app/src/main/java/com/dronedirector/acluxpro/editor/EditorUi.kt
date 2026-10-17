@@ -273,3 +273,21 @@ fun EditorSettingsDialog(
         confirmButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Done", color = Pro.Amber) } },
     )
 }
+
+/** "About 2 min 10 s left" for export progress. */
+fun etaText(remainingMs: Long): String {
+    val s = (remainingMs / 1000).coerceAtLeast(0)
+    return when {
+        s < 5 -> "Almost done…"
+        s < 60 -> "About $s s left"
+        s < 3600 -> "About ${s / 60} min ${(s % 60) / 5 * 5} s left"
+        else -> "About ${s / 3600} h ${(s % 3600) / 60} min left"
+    }
+}
+
+/** Remaining time from progress so far (percent 0..100), or null while it's too early to tell. */
+fun etaFromProgress(startMs: Long, percent: Int): String? {
+    val elapsed = System.currentTimeMillis() - startMs
+    if (percent < 3 || elapsed < 2000) return null
+    return etaText(elapsed * (100 - percent) / percent)
+}

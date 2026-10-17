@@ -240,6 +240,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val strips = remember { mutableStateMapOf<String, Filmstrip>() }
     var scopeHist by remember { mutableStateOf<Array<FloatArray>?>(null) }
     var scopeOpen by remember { mutableStateOf(scopeDrawerOpen(context)) }
+    var exportStartAt by remember { mutableStateOf(0L) }
     // Panels menu (layout icon next to the settings gear): which parts of the editor are shown.
     var paneVersion by remember { mutableStateOf(0) }
     val showInspector = com.dronedirector.acluxpro.ui.panelOn("ve.inspector")
@@ -1332,6 +1333,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     fun startExport() {
         if (exporting || clips.isEmpty()) return
         deck.cur.pause()
+        exportStartAt = System.currentTimeMillis()
         exporting = true
         progress = 0
         cloudExport = !deliver.audioOnly && com.dronedirector.acluxpro.camera.CloudAi.useVideo(context) && clips.any { it.detail.aiDenoise > 0f }
@@ -1490,6 +1492,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             CircularProgressIndicator(color = Pro.Amber)
                             Text("Rendering… $progress%", color = Color.White, fontSize = 15.sp)
+                            // Estimated time remaining, from the progress so far.
+                            var now by remember { mutableStateOf(0L) }
+                            LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
+                            Text(if (now > 0) etaFromProgress(exportStartAt, progress) ?: "Estimating time left…" else "Estimating time left…", color = Pro.Dim, fontSize = 13.sp)
                             Text("CANCEL", style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { export?.cancel(); export = null; exporting = false }.padding(10.dp))
                         }
                     }

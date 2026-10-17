@@ -18,7 +18,7 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
- * Portrait mode (Smart → PORTRAIT): after the shot, the person (ML Kit selfie segmentation, on the
+ * Portrait modes (Smart → PORTRAIT and AI PORTRAIT): after the shot, the person (ML Kit selfie segmentation, on the
  * phone) — or any other subject (the editor's subject model, or Cloud AI when it's on) — is kept
  * sharp and the background is blurred like a fast lens, with a soft, halo-free edge.
  */

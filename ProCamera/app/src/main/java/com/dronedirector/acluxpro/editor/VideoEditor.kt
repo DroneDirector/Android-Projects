@@ -129,7 +129,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private enum class Page(val label: String) { MEDIA("Media"), EDIT("Edit"), TRANSITIONS("Transitions"), COLOR("Color"), LAYERS("Layers"), AUDIO("Audio"), DELIVER("Deliver") }
-private enum class ColorTab(val label: String) { INPUT("Input"), LUTS("LUTs"), WHEELS("Wheels"), PRIMARIES("Primaries"), CURVES("Curves"), HSL("HSL"), DETAIL("Detail"), EFFECTS("Effects"), LOOKS("Looks") }
+private enum class ColorTab(val label: String) { INPUT("Input"), LUTS("LUTs"), WHEELS("Wheels"), PRIMARIES("Primaries"), CURVES("Curves"), HSL("HSL"), MASKS("Masks"), DETAIL("Detail"), EFFECTS("Effects"), LOOKS("Looks") }
 
 @Composable
 fun VideoEditorScreen(onExit: () -> Unit) {
@@ -207,6 +207,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val context = LocalContext.current
     var page by remember { mutableStateOf(Page.EDIT) }
     var colorTab by remember { mutableStateOf(ColorTab.INPUT) }
+    val maskTools = remember { LocalToolsState() }
     var selected by remember { mutableStateOf(0) }
     var playing by remember { mutableStateOf(false) }
     var posMs by remember { mutableStateOf(0L) }      // position inside the current clip (source time)
@@ -567,7 +568,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     // Live grade while dragging: the newest value is applied every ~80 ms (not only after letting go),
     // the colour table is built off the main thread, and a paused frame is redrawn.
     val gradeReq = remember { kotlinx.coroutines.channels.Channel<Clip>(kotlinx.coroutines.channels.Channel.CONFLATED) }
-    LaunchedEffect(cur?.grade, cur?.detail, effectsOk) { cur?.let { gradeReq.trySend(it) } }
+    LaunchedEffect(cur?.grade, cur?.detail, cur?.masks, effectsOk) { cur?.let { gradeReq.trySend(it) } }
     LaunchedEffect(Unit) {
         for (c in gradeReq) {
             if (gpuGrade) { if (effectsOk && c.id == loadedId) texViews[deck.active]?.let { GradePreview.apply(it, c) }; continue }
@@ -1342,6 +1343,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 },
                                 onSelect = { selectedLayer = it; page = Page.LAYERS },
                             )
+                            // Colour mask handles on the player (Color → Masks).
+                            val mc = clips.getOrNull(current)
+                            val selMask = mc?.masks?.firstOrNull { it.id == maskTools.selected }
+                            if (page == Page.COLOR && colorTab == ColorTab.MASKS && selMask != null && selected == current && !playing) {
+                                MaskEditOverlay(selMask, ow, oh, maskTools, image = thumbs[mc.id], pad = 0.dp) { m ->
+                                    update(current) { cl -> cl.copy(masks = cl.masks?.map { if (it.id == m.id) m else it }) }
+                                }
+                            }
                             if (cropMode) CropOverlay(
                                 editingEnd = cropEditEnd && clips.getOrNull(current)?.reframe?.animate == true,
                                 onGesture = { pan, zf, rot, w, h ->
@@ -1644,7 +1653,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 }
                                 Text("For clips filmed with an anamorphic lens or adapter: stretches the picture back to its real shape (preview and export).", color = Pro.Dim, fontSize = 11.sp)
                             }
-                            Page.COLOR -> if (sc != null) ColorPage(sc, colorTab, { colorTab = it }, onChange = { f -> update(selected, f) }, onCopyToAll = {
+                            Page.COLOR -> if (sc != null) ColorPage(sc, colorTab, { colorTab = it }, maskTools = maskTools, onChange = { f -> update(selected, f) }, onCopyToAll = {
                                 val g = sc.grade; val d = sc.detail
                                 for (i in clips.indices) clips[i] = clips[i].copy(grade = g, detail = d)
                                 message = "Grade copied to all clips"
@@ -2022,6 +2031,7 @@ private fun EditPage(
 private fun ColorPage(
     c: Clip, tab: ColorTab, onTab: (ColorTab) -> Unit,
     onChange: ((Clip) -> Clip) -> Unit, onCopyToAll: () -> Unit,
+    maskTools: LocalToolsState,
 ) {
     val g = c.grade
     fun grade(f: (ProGrade) -> ProGrade) = onChange { it.copy(grade = f(it.grade)) }
@@ -2089,6 +2099,10 @@ private fun ColorPage(
             EdSlider("Fade (lift blacks)", g.fade, 0f..1f, format = ::pct) { v -> grade { it.copy(fade = v) } }
         }
         ColorTab.HSL -> HslMixer(g.hsl) { list -> grade { it.copy(hsl = list) } }
+        ColorTab.MASKS -> {
+            Text("Grade only part of the picture: a gradient (e.g. darken the sky), a radial (lift a face), or a colour / brightness range. Up to $MAX_VIDEO_MASKS masks per clip; drag the handles on the player.", color = Pro.Dim, fontSize = 11.sp)
+            MasksPanel(c.masks ?: emptyList(), maskTools, { list -> onChange { it.copy(masks = list) } }, video = true)
+        }
         ColorTab.DETAIL -> {
             SectionTitle("DETAIL") { detail { Detail() } }
             EdSlider("Sharpness", c.detail.sharpen, 0f..1f, format = ::pct) { v -> detail { it.copy(sharpen = v) } }

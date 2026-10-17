@@ -40,11 +40,12 @@ object GradePreview {
 
     fun apply(view: View, c: Clip?, timeSec: Float = 0f) {
         if (!supported) return
-        if (c == null || (c.grade.isIdentity && !c.detail.needsVideoPass)) { clear(view); return }
+        val masks = c?.activeMasks() ?: emptyList()
+        if (c == null || (c.grade.isIdentity && !c.detail.needsVideoPass && masks.isEmpty())) { clear(view); return }
         if (view.width <= 0 || view.height <= 0) return
         val st = states.getOrPut(view) { ViewState(RuntimeShader(AGSL)) }
         val sh = st.shader as RuntimeShader
-        val key = Triple(c.grade, c.detail, Pair(view.width, view.height))
+        val key = Triple(c.grade, c.detail, Triple(view.width, view.height, masks))
         if (st.key == key && !animated(c)) return
         st.key = key
         sh.setFloatUniform("uSize", view.width.toFloat(), view.height.toFloat())
@@ -66,6 +67,18 @@ object GradePreview {
         sh.setFloatUniform("uTime", timeSec % 10f)
         sh.setFloatUniform("uFx", d.fx.ordinal.toFloat())
         sh.setFloatUniform("uFxAmt", d.fxAmount)
+        // Masks: each with its own grade, blended in where the mask is.
+        sh.setFloatUniform("uMCount", masks.size.toFloat())
+        for (k in 0 until MAX_VIDEO_MASKS) {
+            val m = masks.getOrNull(k)
+            val g = m?.let { MaskUniforms.geo(it) } ?: FloatArray(4)
+            val o = m?.let { MaskUniforms.opt(it) } ?: floatArrayOf(0f, 0.5f, 0f, 0f)
+            sh.setFloatUniform("uG$k", g[0], g[1], g[2], g[3])
+            sh.setFloatUniform("uO$k", o[0], o[1], o[2], o[3])
+            sh.setInputShader("mlut$k", BitmapShader(lut(m?.grade ?: ProGrade()), Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply {
+                filterMode = BitmapShader.FILTER_MODE_LINEAR
+            })
+        }
         view.setRenderEffect(RenderEffect.createRuntimeShaderEffect(sh, "content"))
     }
 
@@ -75,6 +88,46 @@ object GradePreview {
         if (st?.key != null || st == null) view.setRenderEffect(null)
         st?.key = null
     }
+
+    private const val MLUT0 = """
+        float3 mlutApply0(float3 c) {
+            float n = uN;
+            float3 s = clamp(c, 0.0, 1.0) * (n - 1.0);
+            float b0 = floor(s.b);
+            float b1 = min(b0 + 1.0, n - 1.0);
+            float f = s.b - b0;
+            float2 p = float2(s.r + 0.5, s.g + 0.5);
+            float3 c0 = float3(mlut0.eval(float2(b0 * n + p.x, p.y)).rgb);
+            float3 c1 = float3(mlut0.eval(float2(b1 * n + p.x, p.y)).rgb);
+            return mix(c0, c1, f);
+        }
+    """
+    private const val MLUT1 = """
+        float3 mlutApply1(float3 c) {
+            float n = uN;
+            float3 s = clamp(c, 0.0, 1.0) * (n - 1.0);
+            float b0 = floor(s.b);
+            float b1 = min(b0 + 1.0, n - 1.0);
+            float f = s.b - b0;
+            float2 p = float2(s.r + 0.5, s.g + 0.5);
+            float3 c0 = float3(mlut1.eval(float2(b0 * n + p.x, p.y)).rgb);
+            float3 c1 = float3(mlut1.eval(float2(b1 * n + p.x, p.y)).rgb);
+            return mix(c0, c1, f);
+        }
+    """
+    private const val MLUT2 = """
+        float3 mlutApply2(float3 c) {
+            float n = uN;
+            float3 s = clamp(c, 0.0, 1.0) * (n - 1.0);
+            float b0 = floor(s.b);
+            float b1 = min(b0 + 1.0, n - 1.0);
+            float f = s.b - b0;
+            float2 p = float2(s.r + 0.5, s.g + 0.5);
+            float3 c0 = float3(mlut2.eval(float2(b0 * n + p.x, p.y)).rgb);
+            float3 c1 = float3(mlut2.eval(float2(b1 * n + p.x, p.y)).rgb);
+            return mix(c0, c1, f);
+        }
+    """
 
     private const val AGSL = """
         uniform shader content;
@@ -89,6 +142,13 @@ object GradePreview {
         uniform float uTime;
         uniform float uFx;
         uniform float uFxAmt;
+        uniform shader mlut0;
+        uniform shader mlut1;
+        uniform shader mlut2;
+        uniform float uMCount;
+        uniform float4 uG0; uniform float4 uG1; uniform float4 uG2;
+        uniform float4 uO0; uniform float4 uO1; uniform float4 uO2;
+    """ + MaskUniforms.WEIGHT_GLSL + MLUT0 + MLUT1 + MLUT2 + """
 
         bool fxIs(float id) { return abs(uFx - id) < 0.5; }
         float rnd(float2 c) { return fract(sin(dot(c, float2(12.9898, 78.233)) + uTime * 7.0) * 43758.5453); }
@@ -131,6 +191,12 @@ object GradePreview {
                 if (uSharpen > 0.0) rgb = rgb + (rgb - blur) * uSharpen * 1.5;
             }
             if (uHasLut > 0.5) rgb = applyLut(rgb);
+            if (uMCount > 0.5) {
+                float3 base = rgb;
+                if (uMCount > 0.5) rgb = mix(rgb, mlutApply0(rgb), clamp(mWeight(uG0, uO0, uv, uSize, base), 0.0, 1.0));
+                if (uMCount > 1.5) rgb = mix(rgb, mlutApply1(rgb), clamp(mWeight(uG1, uO1, uv, uSize, base), 0.0, 1.0));
+                if (uMCount > 2.5) rgb = mix(rgb, mlutApply2(rgb), clamp(mWeight(uG2, uO2, uv, uSize, base), 0.0, 1.0));
+            }
             if (fxIs(1.0)) { float l = dot(rgb, float3(0.299, 0.587, 0.114)); rgb = mix(rgb, float3(l), uFxAmt); }
             if (fxIs(8.0)) { float lv = mix(12.0, 3.0, uFxAmt); rgb = floor(rgb * lv + 0.5) / lv; }
             if (fxIs(9.0)) rgb = mix(rgb, 1.0 - rgb, uFxAmt);

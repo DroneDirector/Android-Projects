@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor: Text tab — add text (font, colour, plain / shadow / box) and stickers, with size, position and opacity; saved in projects and exports.
 - Capture: slate & shot log — scene / shot / take and notes on the viewfinder and in photos; every clip and photo logged with its settings; export as .csv; automatic next take.
 
 ## 1.0.203 — 2026-10-17

@@ -104,12 +104,14 @@ private data class PhotoEdit(
     val lens: LensFix = LensFix(),
     val bg: PhotoBackground = PhotoBackground(),
     val baseFile: String? = null,
+    /** Text and sticker layers drawn on the photo (Text tab). */
+    val texts: List<Layer> = emptyList(),
 )
 
 private enum class PhotoPanel(val label: String) {
     PRESETS("Presets"), LIGHT("Light"), CURVE("Curve"), COLOR("Color"), MIXER("HSL Mixer"),
     GRADING("Grading"), DETAIL("Detail"), EFFECTS("Effects"), MASKS("Masks"), HEAL("Heal"), LENS("Lens"),
-    CROP("Crop & perspective"), WATERMARK("Watermark"), HISTORY("History"), EXPORT("Export"),
+    CROP("Crop & perspective"), WATERMARK("Watermark"), TEXT("Text"), HISTORY("History"), EXPORT("Export"),
 }
 
 @Composable
@@ -273,7 +275,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     var edit by remember {
         mutableStateOf(
             @Suppress("USELESS_ELVIS")
-            if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix(), initial.bg ?: PhotoBackground(), initial.baseFile)
+            if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix(), initial.bg ?: PhotoBackground(), initial.baseFile, initial.texts ?: emptyList())
             else PhotoEdit(watermark = WatermarkMemory.load(context, false))
         )
     }
@@ -329,7 +331,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
         val p = PhotoProjectData(
             id = projectId ?: java.util.UUID.randomUUID().toString(), name = name, uri = uri,
             grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark,
-            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile,
+            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts,
         )
         val thumb = preview
         scope.launch {
@@ -400,7 +402,10 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
             val tables = if (e.grade.isIdentity) null else e.grade.tables()
             val healNow = healMode.value
             val r = ImageOps.renderPhoto(s0, e.grade, e.detail, if (healNow) Geometry() else e.geometry, tables, e.lens, e.spots, if (healNow) null else e.masks, aiMasks.toMap(), if (healNow) null else e.bg)
-            return if (healNow) r else (e.watermark?.let { stampLayer(context, r, it) } ?: r)
+            if (healNow) return r
+            var o = r
+            for (t in e.texts) o = stampLayer(context, o, t)
+            return e.watermark?.let { stampLayer(context, o, it) } ?: o
         }
         renderReq.trySend(edit)
         var next: PhotoEdit? = null
@@ -482,6 +487,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                             out.recycle(); out = up
                         }
                     }
+                    for (t in e.texts) out = stampLayer(context, out, t)
                     e.watermark?.let { out = stampLayer(context, out, it) }
                     // A removed background needs a format with transparency.
                     val fmt = if (e.bg.active && e.bg.mode == 2 && format != 1 && format != 2) 1 else format
@@ -785,6 +791,50 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                                 }
                                 aiEraseSection()
                             }
+                            PhotoPanel.TEXT -> {
+                                // Text and sticker layers on the photo.
+                                var selText by remember { mutableStateOf<String?>(null) }
+                                SectionTitle("TEXT & STICKERS") { edit = edit.copy(texts = emptyList()) }
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("+ TEXT", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable {
+                                        val l = Layer(kind = LayerKind.TEXT, text = "Your text", size = 0.07f, x = 0.5f, y = 0.5f, wholeVideo = true)
+                                        edit = edit.copy(texts = edit.texts + l); selText = l.id
+                                    }.padding(10.dp))
+                                    listOf("⭐", "❤️", "📍", "🔥", "✅", "➡️").forEach { em ->
+                                        Text(em, fontSize = 20.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable {
+                                            val l = Layer(kind = LayerKind.STICKER, text = em, size = 0.12f, x = 0.5f, y = 0.5f, wholeVideo = true, shadow = false)
+                                            edit = edit.copy(texts = edit.texts + l); selText = l.id
+                                        }.padding(horizontal = 8.dp, vertical = 4.dp))
+                                    }
+                                }
+                                edit.texts.forEach { t ->
+                                    val sel = t.id == selText
+                                    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(8.dp)).background(if (sel) Pro.Amber.copy(alpha = 0.16f) else Ed.Raised)
+                                        .clickable { selText = t.id }.padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Text(t.text.replace('\n', ' ').take(30), color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                                        Text("✕", color = Pro.Red, fontSize = 13.sp, modifier = Modifier.clickable { edit = edit.copy(texts = edit.texts.filter { it.id != t.id }) }.padding(horizontal = 8.dp))
+                                    }
+                                }
+                                val t = edit.texts.firstOrNull { it.id == selText }
+                                if (t != null) {
+                                    fun upd(n: Layer) { edit = edit.copy(texts = edit.texts.map { if (it.id == t.id) n else it }) }
+                                    if (t.kind == LayerKind.TEXT) {
+                                        androidx.compose.material3.OutlinedTextField(value = t.text, onValueChange = { upd(t.copy(text = it)) }, label = { Text("Text") }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
+                                        Chips(LayerFont.entries.map { it.label }, t.font.ordinal) { upd(t.copy(font = LayerFont.entries[it])) }
+                                        val cols = listOf(0xFFFFFFFF.toInt(), 0xFF000000.toInt(), 0xFFFFB300.toInt(), 0xFFFF3B30.toInt(), 0xFF34C759.toInt(), 0xFF0A84FF.toInt())
+                                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+                                            cols.forEach { cl -> Box(Modifier.size(26.dp).clip(CircleShape).background(Color(cl)).border(2.dp, if (t.color == cl) Pro.Amber else Pro.Line, CircleShape).clickable { upd(t.copy(color = cl)) }) }
+                                        }
+                                        Chips(listOf("Plain", "Shadow", "Box"), if (t.box) 2 else if (t.shadow) 1 else 0) { i -> upd(t.copy(shadow = i == 1, box = i == 2)) }
+                                    }
+                                    EdSlider("Size", t.size, 0.02f..0.4f, 0.07f, ::pct) { upd(t.copy(size = it)) }
+                                    EdSlider("Across", t.x, 0f..1f, 0.5f, ::pct) { upd(t.copy(x = it)) }
+                                    EdSlider("Down", t.y, 0f..1f, 0.5f, ::pct) { upd(t.copy(y = it)) }
+                                    EdSlider("Opacity", t.opacity, 0.05f..1f, 1f, ::pct) { upd(t.copy(opacity = it)) }
+                                } else if (edit.texts.isEmpty()) {
+                                    Text("Add titles, captions, labels or stickers to the photo. They are drawn on top of the edit and saved with the export.", color = Pro.Dim, fontSize = 11.sp)
+                                }
+                            }
                             PhotoPanel.HISTORY -> {
                                 SectionTitle("SNAPSHOTS")
                                 Text("Save the look as it is now, try something else, and jump back any time. Snapshots last while this photo is open; SAVE the project to keep the current one.", color = Pro.Dim, fontSize = 11.sp)
@@ -1061,7 +1111,7 @@ private fun PhotoPanelContent(
                 }
             }
         }
-        PhotoPanel.MASKS, PhotoPanel.HEAL, PhotoPanel.LENS, PhotoPanel.HISTORY -> {}   // drawn by the workspace
+        PhotoPanel.MASKS, PhotoPanel.HEAL, PhotoPanel.LENS, PhotoPanel.HISTORY, PhotoPanel.TEXT -> {}   // drawn by the workspace
         PhotoPanel.EXPORT -> {
             SectionTitle("FORMAT")
             Chips(PHOTO_FORMATS, exportState.format) { onExportState(it, exportState.quality, exportState.sizeIdx) }

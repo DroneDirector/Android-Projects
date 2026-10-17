@@ -65,7 +65,11 @@ data class Transition(
     val durationMs: Long = 800L,
     val audio: AudioTransitionType? = null,
     val audioMs: Long? = null,
+    /** Sound effect on the cut (impact, whoosh…); null = none. */
+    val sfx: TransitionSfx? = null,
+    val sfxVol: Float? = null,
 ) {
+    val sfxVolume: Float get() = sfxVol ?: 0.8f
     val audioType: AudioTransitionType get() = audio ?: AudioTransitionType.AUTO
     val audioLen: Long get() = audioMs ?: 600L
 }

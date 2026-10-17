@@ -645,6 +645,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             delay(100)
         }
     }
+    // Make the sound effects used on cuts ahead of time (preview and export).
+    LaunchedEffect(clips.mapNotNull { it.transition.sfx }.toSet()) {
+        val used = clips.mapNotNull { it.transition.sfx }.toSet()
+        withContext(Dispatchers.IO) { used.forEach { runCatching { SfxSynth.file(context, it) } } }
+    }
     // Load saved stabilisation results.
     LaunchedEffect(clips.filter { it.stab.enabled }.map { Stabilizer.keyOf(it) }.distinct()) {
         for (c in clips.toList()) {
@@ -659,6 +664,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     LaunchedEffect(Unit) {
         var was = false
         var cutFaded = false
+        var lastG = -1L
         var startedFor: String? = null
         fun vol(c: Clip) = if (c.muted || previewMuted || videoMuted) 0f else c.volume.coerceAtMost(1f)
         while (true) {
@@ -689,6 +695,20 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     cutFaded = m < 1f
                 }
             }
+            // Sound effects on cuts: start each one as the playhead passes its start.
+            if (playing && !previewMuted && c.id == loadedId) {
+                val st = clipStarts(clips)
+                val gNow = (st.getOrNull(i) ?: 0L) + local
+                if (lastG >= 0 && gNow > lastG && gNow - lastG < 400) {
+                    for (k in 0 until clips.lastIndex) {
+                        val tr = clips[k].transition
+                        val fx = tr.sfx ?: continue
+                        val at = sfxStartMs(clips, st, k) ?: continue
+                        if (at in (lastG + 1)..gNow) SfxPlayer.play(context, fx, tr.sfxVolume)
+                    }
+                }
+                lastG = gNow
+            } else lastG = -1L
             val startT = c.lengthMs - ov
             if (ov > 0 && n != null && preloadedId == n.id && local >= startT && deck.cur.playbackState == Player.STATE_READY) {
                 val p = ((local - startT).toFloat() / ov).coerceIn(0f, 1f)
@@ -1562,9 +1582,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 clips, selected, thumbs,
                                 onChange = { t -> update(selected, { it.copy(transition = t) }) },
                                 onApplyAll = { t -> for (i in 0 until clips.lastIndex) clips[i] = clips[i].copy(transition = t); message = "${t.type.label} on every cut" },
-                                onApplyAllAudio = { type, ms ->
-                                    for (i in 0 until clips.lastIndex) clips[i] = clips[i].copy(transition = clips[i].transition.copy(audio = type, audioMs = ms))
-                                    message = "${type.label} sound on every cut"
+                                onApplyAllAudio = { t ->
+                                    for (i in 0 until clips.lastIndex) clips[i] = clips[i].copy(transition = clips[i].transition.copy(audio = t.audio, audioMs = t.audioMs, sfx = t.sfx, sfxVol = t.sfxVol))
+                                    message = "${t.audioType.label}" + (t.sfx?.let { " + ${it.label}" } ?: "") + " on every cut"
                                 },
                                 onPreview = {
                                     val st = clipStarts(clips)

@@ -131,6 +131,10 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - Match video (default), hard cut, constant gain, constant power, exponential fade, dip to silence, quick out / slow in, slow out / quick in — each with a small volume-curve picture.
 - Work over the video transition, or on a plain cut as a fade out / in around the cut (adjustable 0.1–3 s); in the preview and the export; apply to all cuts.
 
+**Sound effects on cuts (10)**
+- Cinematic impact, cinematic boom, trailer hit, sub drop, whoosh, fast swoosh, swirl, riser, reverse cymbal, glitch.
+- Made by the app itself (no downloaded audio). Impacts land on the cut; risers and reverse cymbals build up to it. Effect volume, ▶ listen, heard in the preview and mixed into the export.
+
 ### Color
 - Log input transforms: **D-Log, D-Log M, S-Log3, V-Log, LogC3, HLG, Flat**.
 - Wheels (lift / gamma / gain), primaries, curves, HSL, detail, effects, looks; scope; copy grade to all clips.

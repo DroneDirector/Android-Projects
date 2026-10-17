@@ -166,7 +166,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Video editor tips", Icons.Filled.Movie, null, listOf(
             "The timeline starts at the left edge: drag one finger (or tap the ruler) to move the playhead; two fingers pinch to zoom and slide to scroll. The scissors under the player split at the playhead.",
-            "Tap a cut on the timeline to open Transitions: VIDEO TRANSITIONS has 34 picture transitions; AUDIO TRANSITIONS sets how the sound changes (constant power, exponential, dip to silence and more). On a plain cut the sound fades out and in around the cut.",
+            "Tap a cut on the timeline to open Transitions: VIDEO TRANSITIONS has 34 picture transitions; AUDIO TRANSITIONS sets how the sound changes (constant power, exponential, dip to silence and more). On a plain cut the sound fades out and in around the cut. SOUND EFFECTS (same page) puts a sound on the cut: cinematic impact, boom, trailer hit, sub drop, whoosh, swoosh, swirl, riser, reverse cymbal, glitch — tap ▶ to listen.",
             "The RGB histogram is a pull-out drawer on the right edge of the player: drag the small tab to the left to pull it out, drag it back (or tap the tab) to tuck it away. It never shows in full screen.",
             "Layers → AI CAPTIONS writes timed captions from the speech in your edit (Whisper via your fal.ai key); pick the language and style.",
             "Edit → AUTO-REFRAME turns the project into 9:16, 1:1 or 4:5 and makes every clip follow its subject.",

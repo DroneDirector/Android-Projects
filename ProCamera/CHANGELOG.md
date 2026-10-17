@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: sound effects on cuts — Transitions → Audio transitions → SOUND EFFECTS: cinematic impact, cinematic boom, trailer hit, sub drop, whoosh, fast swoosh, swirl, riser, reverse cymbal and glitch. Impacts land on the cut; risers build up to it. Volume per cut, ▶ to listen, in the preview and the export; APPLY TO ALL CUTS includes the effect.
 
 ## 1.0.168 — 2026-10-17
 - Video editor: the Transitions page now has two sub-menus — VIDEO TRANSITIONS (the existing 34) and AUDIO TRANSITIONS.

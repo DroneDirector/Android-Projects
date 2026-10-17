@@ -48,7 +48,7 @@ import com.dronedirector.acluxpro.ui.Pro
 fun TransitionsPanel(
     clips: List<Clip>, index: Int, thumbs: Map<String, Bitmap>,
     onChange: (Transition) -> Unit, onApplyAll: (Transition) -> Unit, onPreview: () -> Unit,
-    onApplyAllAudio: (AudioTransitionType, Long) -> Unit = { _, _ -> },
+    onApplyAllAudio: (Transition) -> Unit = {},
 ) {
     val a = clips.getOrNull(index)
     val b = clips.getOrNull(index + 1)
@@ -207,12 +207,13 @@ fun ReframePanel(
 private fun AudioTransitionsPanel(
     t: Transition,
     onChange: (Transition) -> Unit,
-    onApplyAll: (AudioTransitionType, Long) -> Unit,
+    onApplyAll: (Transition) -> Unit,
     onPreview: () -> Unit,
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val cur = t.audioType
     Row(Modifier.padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        listOf("PREVIEW" to onPreview, "APPLY TO ALL CUTS" to { onApplyAll(cur, t.audioLen) }).forEach { (label, f) ->
+        listOf("PREVIEW" to onPreview, "APPLY TO ALL CUTS" to { onApplyAll(t) }).forEach { (label, f) ->
             Text(label, style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(onClick = f).padding(8.dp))
         }
     }
@@ -240,6 +241,32 @@ private fun AudioTransitionsPanel(
                 Text(type.label, color = if (sel) Pro.Amber else Color.White, fontSize = 13.sp)
                 Text(type.detail, color = Pro.Dim, fontSize = 11.sp)
             }
+        }
+    }
+
+    SectionTitle("SOUND EFFECTS")
+    Text("Plays a sound on the cut: impacts and booms land on it, risers and reverse cymbals build up to it. Tap ▶ to listen.", color = Pro.Dim, fontSize = 11.sp)
+    val fxSel = t.sfx
+    if (fxSel != null) {
+        EdSlider("Effect volume", t.sfxVolume, 0f..1f, 0.8f, { "${(it * 100).toInt()}%" }) { onChange(t.copy(sfxVol = it)) }
+    }
+    (listOf<TransitionSfx?>(null) + TransitionSfx.entries).forEach { fx ->
+        val sel = fx == fxSel
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(8.dp))
+                .border(if (sel) 2.dp else 1.dp, if (sel) Pro.Amber else Pro.Line, RoundedCornerShape(8.dp))
+                .clickable { onChange(t.copy(sfx = fx)); if (fx != null) SfxPlayer.play(context, fx, t.sfxVolume) }
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(fx?.label ?: "No sound effect", color = if (sel) Pro.Amber else Color.White, fontSize = 13.sp)
+                if (fx != null) Text(fx.detail, color = Pro.Dim, fontSize = 11.sp)
+            }
+            if (fx != null) Text(
+                "▶", color = Pro.Amber, fontSize = 16.sp,
+                modifier = Modifier.clip(RoundedCornerShape(50)).background(Ed.Raised).clickable { SfxPlayer.play(context, fx, t.sfxVolume) }.padding(horizontal = 12.dp, vertical = 6.dp),
+            )
         }
     }
 }

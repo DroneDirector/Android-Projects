@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture: fixed privacy face blur turning the viewfinder / recording black on some devices; if a device's graphics chip can't run the face-blur shader, the picture now stays normal instead.
 
 ## 1.0.217 — 2026-10-17
 - Video editor: motion tracking (Layers → KEYFRAMES → TRACK MOTION) — a layer follows a moving object; the path becomes position keyframes you can still adjust.

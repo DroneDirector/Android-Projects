@@ -212,15 +212,14 @@ class TimelineExport(
                 .build()
             val audio = mutableListOf<AudioProcessor>()
             val gain = if (c.muted) 0f else c.volume
-            // Transitions crossfade the sound too.
+            // Audio transitions (Transitions → Audio) shape the sound at each cut.
             val inMs = if (i > 0) overlaps[i - 1] else 0L
             val outMs = overlaps[i]
-            val afx = if (inMs > 0 || outMs > 0) c.audio.copy(
-                fadeInMs = maxOf(c.audio.fadeInMs, (inMs * c.speed).toLong()),
-                fadeOutMs = maxOf(c.audio.fadeOutMs, (outMs * c.speed).toLong()),
-            ) else c.audio
-            if (gain != 1f || !afx.isNeutral || !c.volKeys.isNullOrEmpty()) {
-                audio += AudioFxProcessor(afx, gain, c.endMs - c.startMs, envelope = c.volKeys)
+            val xIn = if (i > 0) AudioXfade.forCut(clips, i - 1).second?.scaled(c.speed) else null
+            val xOut = AudioXfade.forCut(clips, i).first?.scaled(c.speed)
+            val afx = c.audio
+            if (gain != 1f || !afx.isNeutral || !c.volKeys.isNullOrEmpty() || xIn != null || xOut != null) {
+                audio += AudioFxProcessor(afx, gain, c.endMs - c.startMs, envelope = c.volKeys, xOut = xOut, xIn = xIn)
             }
             val video = mutableListOf<Effect>()
             if (!audioOnly) {

@@ -658,6 +658,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     // Every frame: crop/zoom/stabilise the picture and play transitions between clips.
     LaunchedEffect(Unit) {
         var was = false
+        var cutFaded = false
         var startedFor: String? = null
         fun vol(c: Clip) = if (c.muted || previewMuted || videoMuted) 0f else c.volume.coerceAtMost(1f)
         while (true) {
@@ -677,9 +678,16 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 val sp = c.speedAtSrc(c.startMs + deck.cur.currentPosition)
                 if (kotlin.math.abs(deck.cur.playbackParameters.speed - sp) > 0.04f) deck.cur.playbackParameters = PlaybackParameters(sp)
             }
-            // Volume keyframes.
-            if (!c.volKeys.isNullOrEmpty() && c.id == loadedId && !transitionOn[0]) {
-                deck.cur.volume = (vol(c) * volAt(c.volKeys, deck.cur.currentPosition)).coerceIn(0f, 1f)
+            // Volume keyframes, and audio transitions on plain cuts (fade out / in around the cut).
+            if (c.id == loadedId && !transitionOn[0]) {
+                var m = 1f
+                if (ov == 0L) AudioXfade.forCut(clips, i).first?.let { m *= it.gain(c.lengthMs - local) }
+                if (i > 0 && overlapMs(clips, i - 1) == 0L) AudioXfade.forCut(clips, i - 1).second?.let { m *= it.gain(local) }
+                val keyed = !c.volKeys.isNullOrEmpty()
+                if (keyed || m < 1f || cutFaded) {
+                    deck.cur.volume = (vol(c) * (if (keyed) volAt(c.volKeys, deck.cur.currentPosition) else 1f) * m).coerceIn(0f, 1f)
+                    cutFaded = m < 1f
+                }
             }
             val startT = c.lengthMs - ov
             if (ov > 0 && n != null && preloadedId == n.id && local >= startT && deck.cur.playbackState == Player.STATE_READY) {
@@ -701,8 +709,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 }
                 frameViews[a]?.let { TransitionPreview.apply(it, c.transition.type, p, false) }
                 frameViews[1 - a]?.let { TransitionPreview.apply(it, c.transition.type, p, true) }
-                deck.cur.volume = vol(c) * (1f - p)
-                deck.spare.volume = vol(n) * p
+                // Audio transition over the overlap.
+                val (fo, fi) = AudioXfade.forCut(clips, i)
+                deck.cur.volume = (vol(c) * (fo?.gain(((1f - p) * ov).toLong()) ?: (1f - p))).coerceIn(0f, 1f)
+                deck.spare.volume = (vol(n) * (fi?.gain((p * ov).toLong()) ?: p)).coerceIn(0f, 1f)
                 was = true
             } else if (was) {
                 was = false
@@ -1552,6 +1562,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 clips, selected, thumbs,
                                 onChange = { t -> update(selected, { it.copy(transition = t) }) },
                                 onApplyAll = { t -> for (i in 0 until clips.lastIndex) clips[i] = clips[i].copy(transition = t); message = "${t.type.label} on every cut" },
+                                onApplyAllAudio = { type, ms ->
+                                    for (i in 0 until clips.lastIndex) clips[i] = clips[i].copy(transition = clips[i].transition.copy(audio = type, audioMs = ms))
+                                    message = "${type.label} sound on every cut"
+                                },
                                 onPreview = {
                                     val st = clipStarts(clips)
                                     if (selected + 1 < clips.size) { seekGlobal((st[selected + 1] - 1500).coerceAtLeast(st[selected])); if (!deck.cur.isPlaying) deck.cur.play() }

@@ -115,6 +115,10 @@ class AudioFxProcessor(
     private val live: Boolean = false,
     /** Volume keyframes over the clip (export). */
     private val envelope: List<VolKey>? = null,
+    /** Audio transition into the next clip (export). */
+    private val xOut: FadeOut? = null,
+    /** Audio transition from the previous clip (export). */
+    private val xIn: FadeIn? = null,
 ) : BaseAudioProcessor() {
     @Volatile var fx: AudioFx = initial
     private var built: AudioFx? = null
@@ -125,7 +129,7 @@ class AudioFxProcessor(
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT) return AudioProcessor.AudioFormat.NOT_SET
-        if (!live && fx.isNeutral && gain == 1f && duckRanges.isEmpty() && !meter && envelope.isNullOrEmpty()) return AudioProcessor.AudioFormat.NOT_SET
+        if (!live && fx.isNeutral && gain == 1f && duckRanges.isEmpty() && !meter && envelope.isNullOrEmpty() && xOut == null && xIn == null) return AudioProcessor.AudioFormat.NOT_SET
         return inputAudioFormat
     }
 
@@ -197,6 +201,8 @@ class AudioFxProcessor(
             if (!live) {
                 if (f.fadeInMs > 0 && tMs < f.fadeInMs) g *= tMs.toDouble() / f.fadeInMs
                 if (f.fadeOutMs > 0 && totalMs > 0 && tMs > totalMs - f.fadeOutMs) g *= ((totalMs - tMs).toDouble() / f.fadeOutMs).coerceIn(0.0, 1.0)
+                if (xIn != null) g *= xIn.gain(tMs)
+                if (xOut != null && totalMs > 0) g *= xOut.gain(totalMs - tMs)
             }
             if (!envelope.isNullOrEmpty()) g *= volAt(envelope, tMs)
             if (duckRanges.isNotEmpty()) {

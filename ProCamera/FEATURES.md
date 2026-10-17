@@ -51,6 +51,13 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Manual input gain** with limiter (applied to finished clips).
 - **Headphone monitoring** with live gain, limiter and volume; audio level graph.
 - **Left / right level meters** (stereo microphones), **wind filter**, Bluetooth headset microphone option; USB / wired mics used automatically.
+- **Voice noise reduction** (Light / Strong): cleans hiss, hum and background noise from recorded sound.
+
+### Privacy & titles
+- **Face blur**: faces are pixelated live in the viewfinder, in videos and in photos (on-device face detection). Quick BLUR switch.
+- **Title on videos**: your text burned into each clip — lower third, centre or top, for 3 / 5 / 10 s or the whole clip, with a fade / slide in and out; quick TITLE switch and viewfinder preview.
+- **Auto-enhance** photos: an extra, improved copy of each photo (exposure, contrast, white balance, vibrance); the original is kept.
+- Panels menu toggles for the BLUR and TITLE switches and the title preview.
 
 ### Live streaming
 - Stream to **YouTube, TikTok, Twitch, Facebook** or any **RTMP / RTMPS / SRT** server; **H.264 or H.265**.

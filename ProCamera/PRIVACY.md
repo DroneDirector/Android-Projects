@@ -22,8 +22,11 @@ Edits, projects, presets, LUTs, AI selections and settings are stored inside the
 Exported files keep the camera details (date, camera, lens, and location if the original had it)
 only when you leave "Keep camera info" on; you can remove all of it or only the location.
 
-All on-phone AI features (AI upscale, AI noise reduction, AI subject selection, auto-reframe and the
-on-phone AI erase) run **entirely on your phone**. Nothing is uploaded.
+All on-phone AI features (AI upscale, AI noise reduction, AI subject selection, auto-reframe, the
+on-phone AI erase and the privacy **face blur**) run **entirely on your phone**. Nothing is uploaded.
+Face blur uses Google ML Kit's on-device face detection; the faces it finds are not stored or sent
+anywhere. Google may collect anonymous ML Kit usage statistics (no images) as described in the
+[ML Kit terms](https://developers.google.com/ml-kit/terms).
 
 ## 2. Cloud AI (optional, off by default)
 

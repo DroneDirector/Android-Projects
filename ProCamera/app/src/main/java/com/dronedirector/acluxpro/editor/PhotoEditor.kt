@@ -692,7 +692,8 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                         if (panel == PhotoPanel.HEAL && em != null) MaskEditOverlay(em, shownNow.width, shownNow.height, tools) { m -> eraseMask = m }
                         else if (panel == PhotoPanel.HEAL) HealOverlay(edit.spots, shownNow.width, shownNow.height, tools.healSize) { x, y -> addSpot(x, y) }
                     }
-                    if (showScope && !comparing) Scope(hist, Modifier.align(Alignment.TopEnd).padding(8.dp).width(130.dp).height(64.dp))
+                    // RGB histogram: the same pull-out drawer as in the video editor, on the right edge.
+                    if (showScope && !comparing) ScopeDrawer(hist, Modifier.align(Alignment.CenterEnd))
                     if (showCompare || split) Row(Modifier.align(Alignment.TopStart).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (!split) Text(
                             if (comparing) "BEFORE" else "HOLD FOR BEFORE",
@@ -1106,7 +1107,7 @@ private fun PhotoPanelsButton(onTab: (PhotoPanel) -> Unit, onReset: () -> Unit) 
     val panels = listOf(
         com.dronedirector.acluxpro.ui.PanelDef("pe.controls", "Tools panel", "Presets, Light, Color, Masks, Heal, Export and the other tabs"),
         com.dronedirector.acluxpro.ui.PanelDef("pe.copypaste", "Copy / paste bar", "Copy settings to other photos or video clips"),
-        com.dronedirector.acluxpro.ui.PanelDef("pe.scope", "Histogram", "RGB histogram on the photo"),
+        com.dronedirector.acluxpro.ui.PanelDef("pe.scope", "Histogram pull-out", "Show or hide the RGB histogram tab on the right edge of the photo"),
         com.dronedirector.acluxpro.ui.PanelDef("pe.compare", "Before / after buttons", "HOLD FOR BEFORE and SPLIT on the photo"),
     )
     val all = panels.map { it.key }.toSet()

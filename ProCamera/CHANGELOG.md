@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor: the RGB histogram is now the same pull-out drawer as in the video editor — drag or tap the tab on the right edge of the photo.
 - Capture: voice noise reduction (Light / Strong) for recorded sound.
 - Capture: privacy face blur — faces pixelated live in the viewfinder, in videos and in photos (on-device detection); quick BLUR switch.
 - Capture: title on videos — lower third, centre or top, timed, with a fade / slide in; quick TITLE switch and a viewfinder preview.

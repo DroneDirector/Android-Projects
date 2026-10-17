@@ -711,7 +711,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                         else if (panel == PhotoPanel.HEAL) HealOverlay(edit.spots, shownNow.width, shownNow.height, tools.healSize) { x, y -> addSpot(x, y) }
                     }
                     // RGB histogram: the same pull-out drawer as in the video editor, on the right edge.
-                    if (showScope && !comparing) ScopeDrawer(hist, Modifier.align(Alignment.CenterEnd))
+                    if (showScope && !comparing) ScopeDrawer(hist, Modifier.align(Alignment.CenterEnd), frame = preview ?: base)
                     if (showCompare || split) Row(Modifier.align(Alignment.TopStart).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (!split) Text(
                             if (comparing) "BEFORE" else "HOLD FOR BEFORE",

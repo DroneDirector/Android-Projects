@@ -239,6 +239,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val thumbs = remember { mutableStateMapOf<String, Bitmap>() }
     val strips = remember { mutableStateMapOf<String, Filmstrip>() }
     var scopeHist by remember { mutableStateOf<Array<FloatArray>?>(null) }
+    var scopeFrame by remember { mutableStateOf<Bitmap?>(null) }
     var scopeOpen by remember { mutableStateOf(scopeDrawerOpen(context)) }
     var exportStartAt by remember { mutableStateOf(0L) }
     // Panels menu (layout icon next to the settings gear): which parts of the editor are shown.
@@ -845,6 +846,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         scopeHist = withContext(Dispatchers.Default) {
             val frame = GradeIO.videoFrame(context, c.uri, (c.startMs + posMs) * 1000, 360) ?: return@withContext null
             val out = ImageOps.render(frame, c.grade, Detail(), Geometry(), if (c.grade.isIdentity) null else c.grade.tables())
+            scopeFrame = out
             ImageOps.histogram(out)
         }
     }
@@ -1482,7 +1484,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).background(Color.Black.copy(alpha = 0.6f)).padding(4.dp),
                     )
                     // RGB histogram: a pull-out drawer on the right edge (never in full screen).
-                    if (!fullscreen && showScope) ScopeDrawer(scopeHist, Modifier.align(Alignment.CenterEnd)) { scopeOpen = it }
+                    if (!fullscreen && showScope) ScopeDrawer(scopeHist, Modifier.align(Alignment.CenterEnd), frame = scopeFrame) { scopeOpen = it }
                     if (showTimecode) Text(
                         "${tc(globalMs)} / ${tc(totalMs)}",
                         style = Pro.Value.copy(fontSize = 12.sp),

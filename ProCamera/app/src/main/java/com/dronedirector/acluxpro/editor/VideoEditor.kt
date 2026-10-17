@@ -2771,7 +2771,7 @@ private fun VideoPanelsButton(onPage: (Page) -> Unit, onReset: () -> Unit) {
     val panels = listOf(
         com.dronedirector.acluxpro.ui.PanelDef("ve.inspector", "Tools panel", "Media, Edit, Color, Layers, Audio and Deliver pages"),
         com.dronedirector.acluxpro.ui.PanelDef("ve.transport", "Transport bar", "Play, split, undo / redo, timeline zoom"),
-        com.dronedirector.acluxpro.ui.PanelDef("ve.scope", "Histogram", "RGB histogram drawer on the right of the viewer"),
+        com.dronedirector.acluxpro.ui.PanelDef("ve.scope", "Histogram pull-out", "Show or hide the RGB histogram tab on the right edge of the player"),
         com.dronedirector.acluxpro.ui.PanelDef("ve.timecode", "Timecode", "Time read-out on the viewer"),
         com.dronedirector.acluxpro.ui.PanelDef("ve.waves", "Audio waveforms", "Sound waves drawn on the timeline clips"),
     )

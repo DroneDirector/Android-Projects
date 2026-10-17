@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor: clone stamp (Heal → Clone stamp) — tap the source, then tap where to paint exact copies with the same offset.
 
 ## 1.0.210 — 2026-10-17
 - Photo and video editors: point curves — RGB, red, green and blue; tap to add points, drag to move, double-tap to remove (Curve / Curves tab).

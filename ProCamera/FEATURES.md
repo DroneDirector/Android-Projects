@@ -98,7 +98,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **AI erase**: paint over bigger objects to remove them.
 - **Merge photos**: HDR (exposure fusion), panorama stitching, focus stacking.
 - **Watermark**: text or logo, font, colour, size, position, opacity; optional **Remember watermark**.
-- Live RGB **histogram** as a pull-out drawer on the right edge (same as the video editor), **hold for before**, **undo / redo**.
+- Live RGB **histogram** as a pull-out drawer on the right edge (same as the video editor) with waveform, RGB parade and vectorscope, **hold for before**, **undo / redo**.
 - **Before / after split view** with a draggable divider.
 - **My LUTs**: import .cube LUTs, blend by strength.
 - **My presets**: save your look and reuse it (also in the video editor).
@@ -156,7 +156,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 
 ### Color
 - Log input transforms: **D-Log, D-Log M, S-Log3, V-Log, LogC3, HLG, Flat**.
-- Wheels (lift / gamma / gain), primaries, curves, HSL, detail, effects, looks; scope; copy grade to all clips.
+- Wheels (lift / gamma / gain), primaries, curves, HSL, detail, effects, looks; scope drawer (histogram, waveform, RGB parade, vectorscope); copy grade to all clips.
 - **My LUTs** (.cube) as a creative look or as the log → Rec.709 input conversion; **my presets** shared with the photo editor.
 - **AI noise reduction** per clip (built-in NAFNet), applied on export with a stoppable progress badge.
 - **Colour masks** (up to 3 per clip): gradient, radial, colour range and brightness range, each with its own grade; handles on the player; live preview and export.

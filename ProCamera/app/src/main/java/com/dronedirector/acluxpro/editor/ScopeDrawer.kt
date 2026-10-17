@@ -25,6 +25,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,8 +54,19 @@ fun scopeDrawerOpen(c: Context) = prefs(c).getBoolean("scope_drawer_open", false
  * the left to pull it out, to the right to tuck it away; a tap on the tab toggles it.
  */
 @Composable
-fun ScopeDrawer(hist: Array<FloatArray>?, modifier: Modifier = Modifier, onOpenChange: (Boolean) -> Unit = {}) {
+fun ScopeDrawer(hist: Array<FloatArray>?, modifier: Modifier = Modifier, frame: android.graphics.Bitmap? = null, onOpenChange: (Boolean) -> Unit = {}) {
     val context = LocalContext.current
+    // 0 histogram, 1 waveform, 2 RGB parade, 3 vectorscope (needs the [frame]).
+    var mode by remember { androidx.compose.runtime.mutableIntStateOf(prefs(context).getInt("scope_drawer_mode", 0)) }
+    val scopeImg by androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, frame, mode) {
+        val f = frame
+        value = if (mode == 0 || f == null) null else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            try {
+                val small = android.graphics.Bitmap.createScaledBitmap(f, 180, (180f * f.height / f.width).toInt().coerceAtLeast(1), true)
+                com.dronedirector.acluxpro.ui.ScopeMath.render(small, mode).asImageBitmap()
+            } catch (_: Throwable) { null }
+        }
+    }
     val density = LocalDensity.current
     val panelW = 176.dp
     val panelPx = with(density) { panelW.toPx() }
@@ -107,14 +121,21 @@ fun ScopeDrawer(hist: Array<FloatArray>?, modifier: Modifier = Modifier, onOpenC
                 .then(drag)
                 .padding(8.dp),
         ) {
+            // Scope type: histogram, waveform, RGB parade, vectorscope.
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("RGB", style = Pro.Label.copy(color = Pro.Amber, fontSize = 9.sp))
-                Text("  HISTOGRAM", style = Pro.Label.copy(fontSize = 9.sp), modifier = Modifier.weight(1f))
-                for ((c, l) in listOf(Color(0xFFFF4D4D) to "R", Color(0xFF4DFF6A) to "G", Color(0xFF4D8BFF) to "B")) {
-                    Text(l, style = Pro.Label.copy(color = c, fontSize = 9.sp), modifier = Modifier.padding(start = 4.dp))
+                listOf("HIST", "WAVE", "PARADE", "VECT").forEachIndexed { i, l ->
+                    if (i > 0 && frame == null) return@forEachIndexed
+                    Text(l, style = Pro.Label.copy(color = if (mode == i) Pro.Amber else Color.White.copy(alpha = 0.6f), fontSize = 8.sp),
+                        modifier = Modifier.clip(RoundedCornerShape(4.dp)).pointerInput(i) { detectTapGestures { mode = i; prefs(context).edit().putInt("scope_drawer_mode", i).apply() } }.padding(horizontal = 4.dp, vertical = 3.dp))
                 }
             }
-            Scope(hist, Modifier.padding(top = 4.dp).fillMaxWidth().height(70.dp))
+            val img = scopeImg
+            if (mode == 0 || img == null) {
+                Scope(hist, Modifier.padding(top = 4.dp).fillMaxWidth().height(70.dp))
+            } else {
+                androidx.compose.foundation.Image(img, contentDescription = "Scope", contentScale = androidx.compose.ui.layout.ContentScale.FillBounds,
+                    modifier = Modifier.padding(top = 4.dp).fillMaxWidth().height(if (mode == 3) 150.dp else 80.dp).clip(RoundedCornerShape(4.dp)))
+            }
             Text("Paused frame · drag to tuck away", style = Pro.Label.copy(fontSize = 8.sp), modifier = Modifier.padding(top = 3.dp))
         }
     }

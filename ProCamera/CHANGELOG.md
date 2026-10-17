@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.188 — 2026-10-17
 - Capture: long press the viewfinder to lock the exposure, with an EV slider under the lock; long press again or tap the small ✕ to unlock.
 
 ## 1.0.186 — 2026-10-17

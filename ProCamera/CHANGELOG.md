@@ -4,6 +4,11 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor: colour-range and brightness-range masks — tap the photo to pick a colour or brightness; range and softness sliders.
+- Video editor: colour masks (Color → Masks) — up to 3 per clip: gradient, radial, colour range, brightness range, each with its own grade; live on the player and in the export.
+- Video editor: Remove silences (Edit) — cuts the pauses out of talking clips, for one clip or all clips.
+- Video editor: layer animations (Layers → ANIMATION) — fade, slide, pop, zoom, bounce, wipe reveal and typewriter, in and out.
+- Video editor: loudness normalisation (Deliver → LOUDNESS) — −14, −16 or −23 LUFS.
 
 ## 1.0.174 — 2026-10-17
 - Video editor: 14 more transition sounds (24 in all), now grouped — Hits & impacts (braam, drum hit, punch, thunder, heartbeat), Whooshes & air (deep whoosh, wind gust), Builds & risers (clock tick build, tape stop), Stylized & sci-fi (record scratch, laser zap, magic shimmer, camera shutter, TV static).

@@ -80,6 +80,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Masks**: linear gradient, radial and brush, each with its own light and colour settings.
 - **Heal / spot removal**: tap to remove dust, blemishes and small objects.
 - **AI masks**: subject and sky selected automatically.
+- **Colour-range and brightness-range masks**: tap the photo to pick a colour or brightness (e.g. only the blues, only the highlights), with range and softness.
 - **Background (AI)**: portrait blur, transparent background or colour fill behind the subject.
 - **AI erase**: paint over bigger objects to remove them.
 - **Merge photos**: HDR (exposure fusion), panorama stitching, focus stacking.
@@ -110,6 +111,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Markers** and **snapping** (cuts, markers, playhead, other items).
 - **Speed ramps** (8 curves), **freeze frame**, **reverse**, **detach audio** for J- and L-cuts.
 - **Beat markers** found from the music.
+- **Remove silences**: cut the pauses out of one clip or all clips (silence level and minimum pause adjustable; undo restores).
 - **Track headers**: mute the video track or any audio track, show / hide layers, **lock** tracks against edits.
 - **Hold-and-drag on the timeline**: move layers and audio in time, drag layers up / down to reorder, hold an edge to trim or extend.
 - **Audio in the media pool** (MP3, WAV, AAC…): add to the timeline at the playhead — the first becomes the music track, more become extra audio tracks with volume and fades.
@@ -144,6 +146,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - Wheels (lift / gamma / gain), primaries, curves, HSL, detail, effects, looks; scope; copy grade to all clips.
 - **My LUTs** (.cube) as a creative look or as the log → Rec.709 input conversion; **my presets** shared with the photo editor.
 - **AI noise reduction** per clip (built-in NAFNet), applied on export with a stoppable progress badge.
+- **Colour masks** (up to 3 per clip): gradient, radial, colour range and brightness range, each with its own grade; handles on the player; live preview and export.
 
 ### Crop, zoom & stabilization
 - **Crop & zoom on the player** (pinch, drag, twist) with thirds grid; zoom 0.25×–4×, position, rotate, flip.
@@ -159,6 +162,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Blend modes** (Screen, Multiply, Overlay, Add, Lighten, Darken, Soft light, Difference) for picture, text and sticker layers.
 - **Chroma key** (green / blue / black / white screen) for video and image layers, with tolerance and edge softness.
 - **AI captions** from the speech in the edit (Whisper via Cloud AI), boxed / clean / big styles.
+- **Layer animations**: in / out — fade, slide up / down / left / right, pop, zoom, bounce, wipe reveal, typewriter — with adjustable length.
 - **Rename layers** (e.g. name your watermarks) — names show in the layer list and on the timeline.
 
 ### Audio
@@ -175,6 +179,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Export presets** (YouTube 4K / 1080p, Instagram Reel / 4:5, TikTok, Square, small file).
 - **Export a range** (in / out) and **save a frame as a photo**.
 - **Estimated file size** shown live as you change the settings.
+- **Loudness normalisation**: −14 / −16 / −23 LUFS (measured per BS.1770, then the whole mix is set to the target, with a limiter).
 - Choose the **save folder** (default DCIM/AcluxPro).
 
 ### Projects & workflow

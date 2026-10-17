@@ -79,6 +79,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.math.abs
+import kotlin.math.atan
+import kotlin.math.tan
 import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.pow
@@ -188,6 +190,12 @@ class ProCameraController(private val context: Context) {
 
     // Panorama capture state (main thread).
     private val panoFrames = ArrayList<Bitmap>()
+    private val panoAngles = ArrayList<Float>()
+    private var panoGyro: PanoGyro? = null
+    private var panoTurn = 0f
+    private var panoLastShot = 0f
+    private var panoStepDeg = 20f
+    private var panoFovLong = 65f
     private var panoAccum = 0f
     private var panoBusy = false
     private var panoTimerJob: kotlinx.coroutines.Job? = null
@@ -1886,11 +1894,20 @@ class ProCameraController(private val context: Context) {
         if (imageCapture == null) return
         panoFrames.forEach { it.recycle() }
         panoFrames.clear()
+        panoAngles.clear()
         panoAccum = 0f
         panoBusy = false
+        panoTurn = 0f; panoLastShot = 0f
+        panoFovLong = cameraFovLong()
+        // Frames are taken every ~third of the frame's width (horizontal field of view of the upright frame).
+        val landscape = rotation == android.view.Surface.ROTATION_90 || rotation == android.view.Surface.ROTATION_270
+        val hfov = if (landscape) panoFovLong else Math.toDegrees(2 * atan(tan(Math.toRadians(panoFovLong / 2.0)) * 0.75)).toFloat()
+        panoStepDeg = (hfov * Panorama.STEP).coerceIn(6f, 40f)
         set { it.copy(panoActive = true, panoFrames = 0, panoDirection = 0, panoProgress = 0f) }
         applyControls() // lock exposure and white balance so frames match
         capturePanoFrame()
+        val gyro = PanoGyro(context) { deg -> mainExecutor.execute { onPanoTurn(deg) } }
+        if (gyro.start()) { panoGyro = gyro; return }
         if (imageAnalysis == null) {
             // No motion tracking available: take frames on a steady rhythm instead.
             panoTimerJob = scope.launch {
@@ -1903,9 +1920,35 @@ class ProCameraController(private val context: Context) {
         }
     }
 
+    /** Camera's field of view across the long side of the picture, at the current zoom. */
+    private fun cameraFovLong(): Float = try {
+        val c2 = Camera2CameraInfo.from(camera!!.cameraInfo)
+        val f = c2.getCameraCharacteristic(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)!!.first()
+        val size = c2.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)!!
+        val z = st.zoom.coerceAtLeast(0.3f)
+        Math.toDegrees(2 * atan(max(size.width, size.height) / (2.0 * f * z))).toFloat().coerceIn(30f, 130f)
+    } catch (_: Throwable) { 65f }
+
+    /** Gyroscope: total turn in degrees (right = positive). */
+    private fun onPanoTurn(deg: Float) {
+        val s = st
+        if (!s.panoActive) return
+        panoTurn = deg
+        if (s.panoDirection == 0) {
+            if (abs(deg) > 3f) set { it.copy(panoDirection = if (deg > 0) 1 else -1) }
+            return
+        }
+        val turned = deg * s.panoDirection
+        set { it.copy(panoProgress = (turned / Panorama.TARGET_DEG).coerceIn(0f, 1f)) }
+        if (!panoBusy && turned - panoLastShot >= panoStepDeg) {
+            capturePanoFrame()
+        }
+        if (turned >= Panorama.TARGET_DEG + panoStepDeg * 0.5f && !panoBusy) finishPanorama()
+    }
+
     private fun onPanoMotion(dx: Float) {
         val s = st
-        if (!s.panoActive || panoBusy) return
+        if (!s.panoActive || panoBusy || panoGyro != null) return
         // Ignore jitter until a clear direction appears.
         if (s.panoDirection == 0) {
             panoAccum += dx
@@ -1925,6 +1968,8 @@ class ProCameraController(private val context: Context) {
         val ic = imageCapture ?: return
         if (panoBusy || !st.panoActive) return
         panoBusy = true
+        val angle = panoTurn
+        panoLastShot = angle * (if (st.panoDirection == 0) 1 else st.panoDirection)
         playSound(MediaActionSound.FOCUS_COMPLETE)
         ic.takePicture(ioExecutor, object : ImageCapture.OnImageCapturedCallback() {
             override fun onCaptureSuccess(image: ImageProxy) {
@@ -1935,8 +1980,10 @@ class ProCameraController(private val context: Context) {
                     panoBusy = false
                     if (frame == null || !st.panoActive) { frame?.recycle(); return@execute }
                     panoFrames += frame
+                    panoAngles += angle
                     val n = panoFrames.size
-                    set { it.copy(panoFrames = n, panoProgress = (n - 1f) / (Panorama.MAX_FRAMES - 1)) }
+                    if (panoGyro == null) set { it.copy(panoFrames = n, panoProgress = (n - 1f) / (Panorama.MAX_FRAMES - 1)) }
+                    else set { it.copy(panoFrames = n) }
                     if (n >= Panorama.MAX_FRAMES) finishPanorama()
                 }
             }
@@ -1950,8 +1997,12 @@ class ProCameraController(private val context: Context) {
     private fun finishPanorama() {
         panoTimerJob?.cancel()
         panoTimerJob = null
+        val hadGyro = panoGyro != null
+        panoGyro?.stop(); panoGyro = null
         val frames = ArrayList(panoFrames)
-        panoFrames.clear()
+        val angles = if (hadGyro) ArrayList(panoAngles) else null
+        val fovLong = panoFovLong
+        panoFrames.clear(); panoAngles.clear()
         val direction = st.panoDirection
         val filter = st.filter
         val volume = st.storageVolume
@@ -1964,7 +2015,7 @@ class ProCameraController(private val context: Context) {
         }
         scope.launch {
             val uri = withContext(Dispatchers.Default) {
-                val pano = try { Panorama.stitch(frames, direction, filter) } catch (_: Throwable) { null }
+                val pano = try { Panorama.stitch(frames, angles, fovLong, direction, filter) } catch (_: Throwable) { null }
                 frames.forEach { it.recycle() }
                 pano?.let { p -> saveBitmap(p, stamp() + "_pano.jpg", volume).also { p.recycle() } }
             }

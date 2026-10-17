@@ -361,24 +361,22 @@ class TimelineExport(
             sequences += seq.build()
         }
 
-        // Sound effects on cuts: impacts start on the cut, risers end on it.
+        // Sound effects on cuts (built-in or imported): impacts start on the cut, risers end on it.
         if (settings.audio || audioOnly) for (k in 0 until clips.lastIndex) {
-            val tr = clips[k].transition
-            val fx = tr.sfx ?: continue
-            var at = sfxStartMs(clips, starts, k) ?: continue
+            val snd = try { cutSound(context, clips, k) } catch (_: Throwable) { null } ?: continue
+            var at = cutSoundStart(clips, starts, k, snd.hitMs)
             var trim = 0L
             if (at < 0) { trim = -at; at = 0 }
-            var len = fx.lengthMs - trim
+            var len = snd.lengthMs - trim
             if (at + len > totalMs) len = totalMs - at
             if (len < 50) continue
-            val f = try { SfxSynth.file(context, fx) } catch (_: Throwable) { continue }
             val item = EditedMediaItem.Builder(
-                MediaItem.Builder().setUri(Uri.fromFile(f))
+                MediaItem.Builder().setUri(Uri.fromFile(snd.file))
                     .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(trim).setEndPositionMs(trim + len).build())
                     .build()
             )
                 .setRemoveVideo(true)
-                .setEffects(Effects(listOf(AudioFxProcessor(AudioFx(), tr.sfxVolume, len)), emptyList()))
+                .setEffects(Effects(listOf(AudioFxProcessor(AudioFx(), snd.volume, len)), emptyList()))
                 .build()
             val seq = EditedMediaItemSequence.Builder(setOf(androidx.media3.common.C.TRACK_TYPE_AUDIO))
             if (at > 0) seq.addGap(at * 1000)

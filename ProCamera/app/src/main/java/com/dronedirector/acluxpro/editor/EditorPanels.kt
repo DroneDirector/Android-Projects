@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
+import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dronedirector.acluxpro.ui.Pro
@@ -246,16 +247,78 @@ private fun AudioTransitionsPanel(
 
     SectionTitle("SOUND EFFECTS")
     Text("Plays a sound on the cut: impacts and booms land on it, risers and reverse cymbals build up to it. Tap ▶ to listen.", color = Pro.Dim, fontSize = 11.sp)
-    val fxSel = t.sfx
-    if (fxSel != null) {
+    UserSfxLibrary.load(context)
+    val userSel = UserSfxLibrary.find(context, t.userSfx)
+    val fxSel = if (userSel != null) null else t.sfx
+    if (fxSel != null || userSel != null) {
         EdSlider("Effect volume", t.sfxVolume, 0f..1f, 0.8f, { "${(it * 100).toInt()}%" }) { onChange(t.copy(sfxVol = it)) }
     }
+
+    // My sounds: the user's own files.
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var importing by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var note by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    val pick = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        importing = true; note = null
+        scope.launch {
+            val s = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { UserSfxLibrary.import(context, uri) }
+            importing = false
+            if (s == null) note = "Couldn't read that file — try MP3, WAV, M4A, AAC, OGG or FLAC."
+            else { onChange(t.copy(userSfx = s.id, sfx = null)); note = "${s.name} added to My sounds" }
+        }
+    }
+    Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("MY SOUNDS", style = Pro.Label.copy(color = Color.White, fontSize = 10.sp), modifier = Modifier.weight(1f))
+        Text(
+            if (importing) "IMPORTING…" else "+ IMPORT SOUND",
+            style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp),
+            modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(enabled = !importing) { pick.launch(arrayOf("audio/*")) }.padding(8.dp),
+        )
+    }
+    note?.let { Text(it, color = Pro.Dim, fontSize = 11.sp) }
+    if (UserSfxLibrary.items.isEmpty()) {
+        Text("Import your own whooshes, hits or risers (MP3, WAV, M4A…). They're copied into the app and can be used on any cut.", color = Pro.Dim, fontSize = 11.sp)
+    }
+    UserSfxLibrary.items.toList().forEach { u ->
+        val sel = u.id == userSel?.id
+        Column(
+            Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(8.dp))
+                .border(if (sel) 2.dp else 1.dp, if (sel) Pro.Amber else Pro.Line, RoundedCornerShape(8.dp))
+                .clickable { onChange(t.copy(userSfx = u.id, sfx = null)); UserSfxLibrary.play(context, u, t.sfxVolume) }
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(u.name, color = if (sel) Pro.Amber else Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("%.1f s · %s".format(u.lengthMs / 1000f, u.anchorOrStart.label.lowercase()), color = Pro.Dim, fontSize = 11.sp)
+                }
+                Text(
+                    "▶", color = Pro.Amber, fontSize = 16.sp,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).background(Ed.Raised).clickable { UserSfxLibrary.play(context, u, t.sfxVolume) }.padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+                Text(
+                    "✕", color = Pro.Red, fontSize = 14.sp,
+                    modifier = Modifier.padding(start = 6.dp).clip(RoundedCornerShape(50)).clickable {
+                        if (sel) onChange(t.copy(userSfx = null))
+                        UserSfxLibrary.remove(context, u.id)
+                    }.padding(horizontal = 10.dp, vertical = 6.dp),
+                )
+            }
+            if (sel) {
+                Text("Where it sits on the cut:", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
+                Chips(SfxAnchor.entries.map { it.label }, u.anchorOrStart.ordinal) { UserSfxLibrary.setAnchor(context, u.id, SfxAnchor.entries[it]) }
+            }
+        }
+    }
+
+    Text("BUILT-IN", style = Pro.Label.copy(color = Color.White, fontSize = 10.sp), modifier = Modifier.padding(top = 10.dp, bottom = 2.dp))
     (listOf<TransitionSfx?>(null) + TransitionSfx.entries).forEach { fx ->
-        val sel = fx == fxSel
+        val sel = if (fx == null) fxSel == null && userSel == null else fx == fxSel
         Row(
             Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(8.dp))
                 .border(if (sel) 2.dp else 1.dp, if (sel) Pro.Amber else Pro.Line, RoundedCornerShape(8.dp))
-                .clickable { onChange(t.copy(sfx = fx)); if (fx != null) SfxPlayer.play(context, fx, t.sfxVolume) }
+                .clickable { onChange(t.copy(sfx = fx, userSfx = null)); if (fx != null) SfxPlayer.play(context, fx, t.sfxVolume) }
                 .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

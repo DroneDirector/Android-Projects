@@ -243,3 +243,107 @@ object SfxPlayer {
         }.start()
     }
 }
+
+/** Where an imported sound sits on the cut. */
+enum class SfxAnchor(val label: String) { START("Starts on the cut"), MIDDLE("Centred on the cut"), END("Ends on the cut") }
+
+/** A sound the user imported for transitions (copied into the app, so it keeps working). */
+data class UserSfx(val id: String, val name: String, val file: String, val lengthMs: Long, val anchor: SfxAnchor? = null) {
+    val anchorOrStart get() = anchor ?: SfxAnchor.START
+    val hitMs: Long get() = when (anchorOrStart) { SfxAnchor.START -> 0L; SfxAnchor.MIDDLE -> lengthMs / 2; SfxAnchor.END -> lengthMs }
+}
+
+/** The user's own transition sounds (Transitions → Audio transitions → MY SOUNDS). */
+object UserSfxLibrary {
+    private const val PREFS = "acluxpro_user_sfx"
+    private val gson = com.google.gson.Gson()
+    val items = androidx.compose.runtime.mutableStateListOf<UserSfx>()
+    private var loaded = false
+
+    fun load(context: Context) {
+        if (loaded) return
+        loaded = true
+        val json = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("list", null) ?: return
+        try {
+            gson.fromJson(json, Array<UserSfx>::class.java)?.filter { File(it.file).exists() }?.let { items.clear(); items.addAll(it) }
+        } catch (_: Throwable) {}
+    }
+
+    private fun save(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("list", gson.toJson(items.toTypedArray())).apply()
+    }
+
+    fun find(context: Context, id: String?): UserSfx? { if (id == null) return null; load(context); return items.firstOrNull { it.id == id } }
+
+    /** Copies the picked sound into the app. Call off the main thread. Returns null if it can't be read. */
+    fun import(context: Context, uri: android.net.Uri): UserSfx? {
+        load(context)
+        val cr = context.contentResolver
+        var name = "Sound"
+        try {
+            cr.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                if (c.moveToFirst()) name = c.getString(0) ?: name
+            }
+        } catch (_: Throwable) {}
+        val ext = name.substringAfterLast('.', "").lowercase().takeIf { it.length in 2..4 } ?: "audio"
+        val id = java.util.UUID.randomUUID().toString()
+        val dir = File(context.filesDir, "user_sfx").apply { mkdirs() }
+        val f = File(dir, "$id.$ext")
+        try {
+            cr.openInputStream(uri)?.use { i -> f.outputStream().use { i.copyTo(it) } } ?: return null
+        } catch (_: Throwable) { f.delete(); return null }
+        val len = try {
+            val m = android.media.MediaMetadataRetriever()
+            m.setDataSource(f.path)
+            val d = m.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+            m.release(); d
+        } catch (_: Throwable) { 0L }
+        if (len < 50) { f.delete(); return null }
+        val s = UserSfx(id, name.substringBeforeLast('.'), f.path, len, SfxAnchor.START)
+        items.add(s); save(context)
+        return s
+    }
+
+    fun setAnchor(context: Context, id: String, a: SfxAnchor) {
+        val i = items.indexOfFirst { it.id == id }
+        if (i >= 0) { items[i] = items[i].copy(anchor = a); save(context) }
+    }
+
+    fun remove(context: Context, id: String) {
+        items.firstOrNull { it.id == id }?.let { File(it.file).delete() }
+        items.removeAll { it.id == id }
+        save(context)
+    }
+
+    fun play(context: Context, s: UserSfx, volume: Float) {
+        Thread {
+            try {
+                val mp = android.media.MediaPlayer()
+                mp.setDataSource(s.file)
+                mp.setOnCompletionListener { it.release() }
+                mp.prepare()
+                val v = volume.coerceIn(0f, 1f); mp.setVolume(v, v)
+                mp.start()
+            } catch (_: Throwable) {}
+        }.start()
+    }
+}
+
+/** The sound on the cut after clip [k], built-in or imported: file, length and the moment that lands on the cut. */
+data class CutSound(val file: File, val lengthMs: Long, val hitMs: Long, val volume: Float)
+
+/** Call off the main thread (a built-in effect may need to be made first). */
+fun cutSound(context: Context, clips: List<Clip>, k: Int): CutSound? {
+    val tr = clips.getOrNull(k)?.transition ?: return null
+    if (k + 1 > clips.lastIndex) return null
+    UserSfxLibrary.find(context, tr.userSfx)?.let { u ->
+        val f = File(u.file)
+        if (f.exists()) return CutSound(f, u.lengthMs, u.hitMs, tr.sfxVolume)
+    }
+    val fx = tr.sfx ?: return null
+    return CutSound(SfxSynth.file(context, fx), fx.lengthMs.toLong(), fx.hitMs.toLong(), tr.sfxVolume)
+}
+
+/** Timeline ms where the sound on the cut after clip [k] starts (may be negative near the start). */
+fun cutSoundStart(clips: List<Clip>, starts: LongArray, k: Int, hitMs: Long): Long =
+    starts[k + 1] + overlapMs(clips, k) / 2 - hitMs

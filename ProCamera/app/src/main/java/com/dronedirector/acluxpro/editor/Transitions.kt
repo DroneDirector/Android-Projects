@@ -68,6 +68,8 @@ data class Transition(
     /** Sound effect on the cut (impact, whoosh…); null = none. */
     val sfx: TransitionSfx? = null,
     val sfxVol: Float? = null,
+    /** An imported sound (UserSfxLibrary id); used instead of [sfx] when set. */
+    val userSfx: String? = null,
 ) {
     val sfxVolume: Float get() = sfxVol ?: 0.8f
     val audioType: AudioTransitionType get() = audio ?: AudioTransitionType.AUTO

@@ -81,6 +81,8 @@ dependencies {
     // On-device face detection for the privacy face blur (ML Kit, bundled model; free for commercial apps).
     implementation("com.google.mlkit:face-detection:16.1.7")
     implementation("com.google.mlkit:segmentation-selfie:16.0.0-beta6")
+    // Portrait mode: any subject (pets, flowers, rocks, branches…) — ML Kit via Google Play services; free for commercial apps.
+    implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
     // Video colour grading (export with a LUT).
     implementation("androidx.media3:media3-transformer:1.11.1")
     implementation("androidx.media3:media3-effect:1.11.1")

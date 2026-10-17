@@ -37,6 +37,7 @@ private val NOTICES = listOf(
     Notice("RootEncoder (live streaming)", "pedroSG94", "Apache License 2.0", "https://github.com/pedroSG94/RootEncoder"),
     Notice("ESRGAN model (AI upscale)", "TensorFlow authors (esrgan-tf2)", "Apache License 2.0", "https://www.tensorflow.org/lite/examples/super_resolution/overview"),
     Notice("DeepLab v3 model (AI subject selection)", "The TensorFlow Authors", "Apache License 2.0", "https://github.com/tensorflow/models/tree/master/research/deeplab"),
+    Notice("Google ML Kit — face detection, selfie and subject segmentation", "Google LLC", "ML Kit Terms of Service", "https://developers.google.com/ml-kit/terms"),
     Notice("NAFNet model, SIDD width-32 weights (AI noise reduction), LiteRT conversion by litert-community", "megvii-research", "MIT License", "https://github.com/megvii-research/NAFNet"),
     Notice("SIDD dataset (used to train the noise-reduction model)", "Abdelhamed, Lin, Brown", "MIT License", "https://www.eecs.yorku.ca/~kamel/sidd/"),
 )

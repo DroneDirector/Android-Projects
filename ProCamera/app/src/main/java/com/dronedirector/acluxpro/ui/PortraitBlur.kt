@@ -5,7 +5,9 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -26,12 +28,20 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -43,6 +53,11 @@ import com.dronedirector.acluxpro.camera.CameraUiState
 import com.dronedirector.acluxpro.camera.CaptureExtras
 import com.dronedirector.acluxpro.camera.CaptureMode
 import com.dronedirector.acluxpro.camera.Portrait
+import com.dronedirector.acluxpro.camera.PortraitLive
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 /**
@@ -70,9 +85,13 @@ fun PortraitPanel(s: CameraUiState, modifier: Modifier = Modifier) {
             Text("BACKGROUND BLUR", style = Pro.Label.copy(fontSize = 10.sp, color = Pro.Amber))
             Spacer(Modifier.width(8.dp))
             Text(
-                if (auto) "AUTO" else Portrait.label(CaptureExtras.portraitF),
+                if (auto) (if (PortraitLive.found != 0) "AUTO ${Portrait.label(PortraitLive.autoF)}" else "AUTO") else Portrait.label(CaptureExtras.portraitF),
                 style = Pro.Value.copy(fontSize = 12.sp, color = Color.White),
             )
+            if (PortraitLive.found == 0) {
+                Spacer(Modifier.width(6.dp))
+                Text("no subject", style = Pro.Label.copy(fontSize = 9.sp, letterSpacing = 0.sp))
+            }
             Spacer(Modifier.weight(1f))
             // Minimise = auto; expand = manual slider.
             Row(
@@ -162,4 +181,39 @@ fun BlurSlider(fNumber: Float, onChange: (Float) -> Unit, onSettled: () -> Unit,
         drawCircle(amber, 7.dp.toPx(), Offset(tx, cy))
         drawCircle(Color.Black.copy(alpha = 0.35f), 2.dp.toPx(), Offset(tx, cy))
     }
+}
+
+/** Portrait mode: the viewfinder's background blurred live, at the slider's strength (or AUTO). */
+@Composable
+fun PortraitLivePreview(previewView: PreviewView, modifier: Modifier = Modifier) {
+    val ctx = LocalContext.current
+    var img by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    DisposableEffect(Unit) { onDispose { PortraitLive.found = 0 } }
+    LaunchedEffect(Unit) {
+        PortraitLive.reset()
+        while (isActive) {
+            val t0 = System.currentTimeMillis()
+            val snap = try { previewView.bitmap } catch (_: Throwable) { null }
+            if (snap != null && snap.width > 8 && snap.height > 8) {
+                val fNum = if (CaptureExtras.portraitAuto) Portrait.AUTO else CaptureExtras.portraitF
+                val res = withContext(Dispatchers.Default) {
+                    try {
+                        val sc = PortraitLive.SIDE.toFloat() / maxOf(snap.width, snap.height)
+                        val small = android.graphics.Bitmap.createScaledBitmap(
+                            snap, (snap.width * sc).roundToInt().coerceAtLeast(8), (snap.height * sc).roundToInt().coerceAtLeast(8), true,
+                        )
+                        snap.recycle()
+                        PortraitLive.render(ctx, small, fNum).also { small.recycle() }
+                    } catch (_: Throwable) { null }
+                }
+                if (res != null) {
+                    img = res.overlay
+                    PortraitLive.found = res.kind
+                    if (res.kind != 0) PortraitLive.autoF = res.f
+                }
+            }
+            delay((80L - (System.currentTimeMillis() - t0)).coerceAtLeast(15L))
+        }
+    }
+    img?.let { Image(it.asImageBitmap(), contentDescription = null, contentScale = ContentScale.FillBounds, modifier = modifier) }
 }

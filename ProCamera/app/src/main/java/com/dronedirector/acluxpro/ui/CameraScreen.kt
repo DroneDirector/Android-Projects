@@ -270,6 +270,11 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                             // Anamorphic lenses: show the picture at its real (desqueezed) shape.
                             modifier = Modifier.fillMaxSize().graphicsLayer { scaleY = 1f / com.dronedirector.acluxpro.camera.CaptureExtras.desqueeze },
                         )
+                        // Portrait: live background blur over the viewfinder (the subject stays live and sharp).
+                        if (s.mode == CaptureMode.PORTRAIT) PortraitLivePreview(
+                            previewView,
+                            Modifier.fillMaxSize().graphicsLayer { scaleY = 1f / com.dronedirector.acluxpro.camera.CaptureExtras.desqueeze },
+                        )
                         if (com.dronedirector.acluxpro.camera.CaptureExtras.desqueeze != 1f && !clean) Text(
                             "ANAMORPHIC ${com.dronedirector.acluxpro.camera.CaptureExtras.desqueeze}×",
                             style = Pro.Label.copy(color = Color.Black),

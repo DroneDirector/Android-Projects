@@ -121,6 +121,11 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             ChoiceRow("Self-timer", listOf(0, 3, 5, 10), s.timerSec, { if (it == 0) "OFF" else "${it}s" }) { c.setTimer(it) }
             ChoiceRow("Interval", listOf(0, 2, 5, 10, 30), s.intervalSec, { if (it == 0) "OFF" else "${it}s" }) { c.setInterval(it) }
             ChoiceRow("Bracket (PRO)", com.dronedirector.acluxpro.camera.Bracket.entries.toList(), s.bracket, { it.label }) { c.setBracket(it) }
+            run {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val x = com.dronedirector.acluxpro.camera.CaptureExtras
+                ToggleRow("Auto-enhance", "Saves an extra, improved copy of each photo (exposure, contrast, white balance); the original is kept", x.autoEnhance) { x.autoEnhance = !x.autoEnhance; x.save(ctx) }
+            }
 
             Section("AI UPSCALE")
             val upCtx = androidx.compose.ui.platform.LocalContext.current
@@ -223,6 +228,8 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 val ctx = androidx.compose.ui.platform.LocalContext.current
                 val x = com.dronedirector.acluxpro.camera.CaptureExtras
                 ToggleRow("Wind filter", "Cuts the low rumble of wind and handling noise from recorded sound", x.windFilter) { x.windFilter = !x.windFilter; x.save(ctx) }
+                ChoiceRow("Voice noise reduction", listOf(0, 1, 2), x.noiseReduce, { listOf("OFF", "LIGHT", "STRONG")[it] }) { x.noiseReduce = it; x.save(ctx) }
+                Text("Cleans hiss, hum and background noise from the recorded sound so voices stand out. Applied when each clip is saved; Strong is for noisy places.", color = Pro.Dim, fontSize = 12.sp)
                 val inputs = androidx.compose.runtime.remember(s.headphones) { c.inputDevices() }
                 Text("Microphones found: " + (inputs.ifEmpty { listOf("phone microphone") }.joinToString(", ")), color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
                 Text("USB and wired microphones are used automatically when plugged in.", color = Pro.Dim, fontSize = 12.sp)
@@ -248,6 +255,26 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                     valueRange = 0f..100f,
                     colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber),
                 )
+            }
+
+            Section("PRIVACY & TITLE")
+            run {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val x = com.dronedirector.acluxpro.camera.CaptureExtras
+                ToggleRow("Face blur", "Pixelates faces live in the viewfinder, in videos and in photos (found on the phone; nothing is uploaded)", x.faceBlur) { c.setFaceBlur(!x.faceBlur) }
+                ToggleRow("Title on videos", "Burns your title into each video when it's saved", x.titleOn) { x.titleOn = !x.titleOn; x.save(ctx) }
+                if (x.titleOn) {
+                    androidx.compose.material3.OutlinedTextField(
+                        value = x.titleText,
+                        onValueChange = { v -> x.titleText = v.take(80); x.save(ctx) },
+                        label = { Text("Title text") },
+                        singleLine = false, maxLines = 2,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    )
+                    ChoiceRow("Position", listOf(0, 1, 2), x.titlePos, { listOf("LOWER THIRD", "CENTRE", "TOP")[it] }) { x.titlePos = it; x.save(ctx) }
+                    ChoiceRow("Show for", listOf(3, 5, 10, 0), x.titleSec, { if (it == 0) "WHOLE CLIP" else "${it}s" }) { x.titleSec = it; x.save(ctx) }
+                    Text("The title fades in at the start. Adding it takes a short moment after you stop recording.", color = Pro.Dim, fontSize = 12.sp)
+                }
             }
 
             Section("CLIP NAMING")

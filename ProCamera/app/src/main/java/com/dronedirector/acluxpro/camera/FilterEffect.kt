@@ -276,6 +276,11 @@ class FilterProcessor : SurfaceProcessor {
             GLES20.glUniform1f(GLES20.glGetUniformLocation(program, "uFade"), lk.fade)
         }
 
+        // Privacy face blur (Settings → PRIVACY).
+        val faces = if (CaptureExtras.faceBlur) FaceBlur.current() else FloatArray(0)
+        val fn = (faces.size / 4).coerceAtMost(FaceBlur.MAX)
+        GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uFaceN"), fn)
+        if (fn > 0) GLES20.glUniform4fv(GLES20.glGetUniformLocation(program, "uFaces"), fn, faces, 0)
         val useLut = lut && lutTex != 0 && lutStrip != null
         GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uLutOn"), if (useLut) 1 else 0)
         if (useLut) {
@@ -357,6 +362,9 @@ class FilterProcessor : SurfaceProcessor {
             uniform float uFade;
             uniform sampler2D uLut;
             uniform int uLutOn;
+            // Privacy face blur: faces as (centre, half size) in the camera texture.
+            uniform vec4 uFaces[8];
+            uniform int uFaceN;
 
             // Your 3D LUT, stored as 33 slices of 33×33 side by side (blue picks the slice).
             vec3 lut3(vec3 c) {
@@ -393,7 +401,19 @@ class FilterProcessor : SurfaceProcessor {
                 return c;
             }
             void main() {
-                vec4 c = texture2D(uTex, vTex);
+                vec2 tc = vTex;
+                for (int i = 0; i < 8; i++) {
+                    if (i >= uFaceN) break;
+                    vec4 f = uFaces[i];
+                    vec2 d = (vTex - f.xy) / max(f.zw, vec2(0.001));
+                    if (dot(d, d) < 1.0) {
+                        // Pixelate the face: about 12 blocks across.
+                        vec2 cell = max(f.zw / 6.0, vec2(0.002));
+                        tc = (floor(vTex / cell) + 0.5) * cell;
+                        break;
+                    }
+                }
+                vec4 c = texture2D(uTex, tc);
                 vec3 rgb = clamp(uColor * c.rgb + uOffset, 0.0, 1.0);
                 if (uLook == 1) {
                     float l = dot(rgb, vec3(0.2126, 0.7152, 0.0722));

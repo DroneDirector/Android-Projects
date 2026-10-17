@@ -20,6 +20,17 @@ object CaptureExtras {
     var bakeLut by mutableStateOf(false)
     /** Wind filter on recorded sound. */
     var windFilter by mutableStateOf(false)
+    /** Voice noise reduction on recorded sound: 0 off, 1 light, 2 strong. */
+    var noiseReduce by mutableStateOf(0)
+    /** Blur faces live in the viewfinder and in recordings / photos. */
+    var faceBlur by mutableStateOf(false)
+    /** Auto-enhance photos right after they're taken (saved as an extra copy). */
+    var autoEnhance by mutableStateOf(false)
+    /** Title burned into videos: text, on / off, position (0 lower third, 1 centre, 2 top) and seconds shown (0 = whole clip). */
+    var titleText by mutableStateOf("")
+    var titleOn by mutableStateOf(false)
+    var titlePos by mutableStateOf(0)
+    var titleSec by mutableStateOf(5)
     /** Seconds kept from before you press record (0 = off). */
     var preRecordSec by mutableStateOf(0)
     /** Use a Bluetooth headset microphone when one is connected. */
@@ -41,6 +52,13 @@ object CaptureExtras {
         monitorLut = p.getString("x_monitor_lut", null)
         bakeLut = p.getBoolean("x_bake_lut", false)
         windFilter = p.getBoolean("x_wind", false)
+        noiseReduce = p.getInt("x_nr", 0)
+        faceBlur = p.getBoolean("x_face_blur", false)
+        autoEnhance = p.getBoolean("x_auto_enh", false)
+        titleText = p.getString("x_title", "") ?: ""
+        titleOn = p.getBoolean("x_title_on", false)
+        titlePos = p.getInt("x_title_pos", 0)
+        titleSec = p.getInt("x_title_sec", 5)
         preRecordSec = p.getInt("x_prerec", 0)
         micBluetooth = p.getBoolean("x_mic_bt", false)
         focusMagnifier = p.getBoolean("x_focus_mag", true)
@@ -54,6 +72,13 @@ object CaptureExtras {
             .putString("x_monitor_lut", monitorLut)
             .putBoolean("x_bake_lut", bakeLut)
             .putBoolean("x_wind", windFilter)
+            .putInt("x_nr", noiseReduce)
+            .putBoolean("x_face_blur", faceBlur)
+            .putBoolean("x_auto_enh", autoEnhance)
+            .putString("x_title", titleText)
+            .putBoolean("x_title_on", titleOn)
+            .putInt("x_title_pos", titlePos)
+            .putInt("x_title_sec", titleSec)
             .putInt("x_prerec", preRecordSec)
             .putBoolean("x_mic_bt", micBluetooth)
             .putBoolean("x_focus_mag", focusMagnifier)

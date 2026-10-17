@@ -82,6 +82,7 @@ class FrameAnalyzer(
     }
 
     private fun process(image: ImageProxy) {
+        if (CaptureExtras.faceBlur) FaceBlur.submit(image)
         val cfg0 = config()
         val wantAny = cfg0.histogram || cfg0.zebras || cfg0.peaking || cfg0.falseColor || cfg0.motion
         if (!wantAny && lastOverlay == null) return

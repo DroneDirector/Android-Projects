@@ -772,11 +772,12 @@ class ProCameraController(private val context: Context) {
                     val fromUs = userNs / 1000 - CaptureExtras.preRecordSec * 1_000_000L
                     val volume = st.storageVolume
                     val name = "${clipName()}.mp4"
-                    val gainDb = st.audioGainDb; val limiter = st.audioLimiter; val wind = CaptureExtras.windFilter
+                    val gainDb = st.audioGainDb; val limiter = st.audioLimiter; val wind = CaptureExtras.windFilter; val nr = CaptureExtras.noiseReduce
                     val withAudio = preHasAudio
                     scope.launch {
                         val uri = withContext(Dispatchers.IO) { PreRoll.trim(context, file, fromUs, volume, name) }
-                        if (uri != null && withAudio && (gainDb != 0 || wind)) withContext(Dispatchers.IO) { AudioGain.apply(context, uri, gainDb, limiter, wind) }
+                        if (uri != null && withAudio && (gainDb != 0 || wind || nr > 0)) withContext(Dispatchers.IO) { AudioGain.apply(context, uri, gainDb, limiter, wind, nr) }
+                        if (uri != null && CaptureExtras.titleOn && CaptureExtras.titleText.isNotBlank()) burnTitle(uri)
                         set { it.copy(processing = false, lastMedia = uri ?: it.lastMedia) }
                         if (uri == null) toast("Couldn't save the recording")
                         delay(300)
@@ -1518,7 +1519,25 @@ class ProCameraController(private val context: Context) {
         if (s.mode.isLapse) return true
         if (s.mode.isSlowMo) return false
         if (s.mode == CaptureMode.PRO_VIDEO && s.profile == VideoProfile.HLG && s.hlgSupported) return false
-        return s.filter != Filter.NONE || logCurve(s) != 0 || filterProcessor.hasLut
+        return s.filter != Filter.NONE || logCurve(s) != 0 || filterProcessor.hasLut || CaptureExtras.faceBlur
+    }
+
+    /** Title overlay (Settings → TITLE): burned into the finished clip. */
+    private suspend fun burnTitle(uri: Uri) {
+        val ok = com.dronedirector.acluxpro.editor.TitleBurn.apply(context, uri, CaptureExtras.titleText, CaptureExtras.titlePos, CaptureExtras.titleSec)
+        if (!ok) toast("Couldn't add the title; the clip was saved without it")
+    }
+
+    /** Privacy face blur on / off (needs the live filter, so the camera is set up again). */
+    fun setFaceBlur(on: Boolean) {
+        val before = needsEffect(st)
+        CaptureExtras.faceBlur = on
+        CaptureExtras.save(context)
+        if (!on) FaceBlur.clear()
+        if (needsEffect(st) != before) {
+            if (st.recording) { toast("Face blur changes after this recording"); return }
+            bind()
+        }
     }
 
     /** Applies the Capture monitoring LUT (settings) to the viewfinder and, if chosen, recordings. */
@@ -1901,6 +1920,14 @@ class ProCameraController(private val context: Context) {
                     if (uri != null && isJpeg && filter != Filter.NONE) {
                         ioExecutor.execute { Filter.applyToSavedJpeg(context, uri, filter) }
                     }
+                    // Privacy: blur faces in the saved photo.
+                    if (uri != null && isJpeg && CaptureExtras.faceBlur) {
+                        ioExecutor.execute { if (!FaceBlur.applyToSavedJpeg(context, uri)) toast("Couldn't blur the faces in this photo") }
+                    }
+                    // Auto-enhance: an extra, improved copy next to the original.
+                    if (uri != null && isJpeg && CaptureExtras.autoEnhance) {
+                        ioExecutor.execute { com.dronedirector.acluxpro.editor.AutoEnhance.saveCopy(context, uri) }
+                    }
                     // Optional AI upscale (after any look has been applied to the saved JPEG).
                     if (uri != null && isJpeg && aiMp > 0) {
                         ioExecutor.execute { Upscaler.enqueue(context, uri, aiMp) }
@@ -2062,13 +2089,19 @@ class ProCameraController(private val context: Context) {
                 // Manual input gain: re-encode the sound of the finished clip.
                 val gainDb = st.audioGainDb
                 val wind = CaptureExtras.windFilter
-                if (recordingHasAudio && (gainDb != 0 || wind) && uri != Uri.EMPTY) {
+                val nr = CaptureExtras.noiseReduce
+                val doAudio = recordingHasAudio && (gainDb != 0 || wind || nr > 0)
+                val doTitle = CaptureExtras.titleOn && CaptureExtras.titleText.isNotBlank()
+                if ((doAudio || doTitle) && uri != Uri.EMPTY) {
                     val limiter = st.audioLimiter
                     set { it.copy(processing = true) }
                     scope.launch {
-                        val ok = withContext(Dispatchers.IO) { AudioGain.apply(context, uri, gainDb, limiter, wind) }
+                        if (doAudio) {
+                            val ok = withContext(Dispatchers.IO) { AudioGain.apply(context, uri, gainDb, limiter, wind, nr) }
+                            if (!ok) toast("Couldn't process the sound; the clip was saved without it")
+                        }
+                        if (doTitle) burnTitle(uri)
                         set { it.copy(processing = false) }
-                        if (!ok) toast("Couldn't apply the audio gain; the clip was saved without it")
                     }
                 }
                 // Apply any rotation change that happened while recording.

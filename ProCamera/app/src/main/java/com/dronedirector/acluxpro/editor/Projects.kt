@@ -47,6 +47,7 @@ data class PhotoProjectData(
     val masks: List<PhotoMask> = emptyList(),
     val spots: List<Spot> = emptyList(),
     val lens: LensFix = LensFix(),
+    val texts: List<Layer>? = null,
     val bg: PhotoBackground = PhotoBackground(),
     /** Photo after AI erase (a copy kept in the app's files), used instead of the original. */
     val baseFile: String? = null,

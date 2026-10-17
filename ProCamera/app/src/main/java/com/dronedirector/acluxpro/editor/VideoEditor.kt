@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.WaterDrop
@@ -252,6 +253,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val showWaves = com.dronedirector.acluxpro.ui.panelOn("ve.waves")
     LaunchedEffect(showScope) { if (!showScope) scopeOpen = false }
     val layers = remember { mutableStateListOf<Layer>().apply { initial?.layers?.let { addAll(it) } } }
+    // Adjustment layers in the preview: their grade is added to the clip being shown.
+    var adjNowMs by remember { mutableStateOf(0L) }
+    fun adjOf(c: Clip): Clip {
+        val a = adjustMasks(layers, adjNowMs)
+        return if (a.isEmpty()) c else c.copy(masks = a + (c.masks ?: emptyList()))
+    }
     var selectedLayer by remember { mutableStateOf<String?>(null) }
     // Remembered watermark: added to every new project; kept up to date while the option is on.
     LaunchedEffect(Unit) {
@@ -431,9 +438,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val pi = players.indexOf(p).coerceAtLeast(0)
         if (gpuGrade) {
             // Android 13+: the grade is drawn on the view; the player only decodes plain video.
-            texViews[pi]?.let { if (effectsOk) GradePreview.apply(it, c) else GradePreview.clear(it) }
+            texViews[pi]?.let { if (effectsOk) GradePreview.apply(it, adjOf(c)) else GradePreview.clear(it) }
         } else {
-            try { p.setVideoEffects(if (effectsOk) clipEffects(c) else emptyList()) } catch (_: Throwable) { effectsOk = false }
+            try { p.setVideoEffects(if (effectsOk) clipEffects(adjOf(c)) else emptyList()) } catch (_: Throwable) { effectsOk = false }
         }
         p.setMediaItem(mediaItemFor(c), startMs.coerceAtLeast(0))
         p.playbackParameters = PlaybackParameters(c.speedAtSrc(c.startMs + startMs))
@@ -575,9 +582,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     LaunchedEffect(cur?.grade, cur?.detail, cur?.masks, effectsOk) { cur?.let { gradeReq.trySend(it) } }
     LaunchedEffect(Unit) {
         for (c in gradeReq) {
-            if (gpuGrade) { if (effectsOk && c.id == loadedId) texViews[deck.active]?.let { GradePreview.apply(it, c) }; continue }
+            if (gpuGrade) { if (effectsOk && c.id == loadedId) texViews[deck.active]?.let { GradePreview.apply(it, adjOf(c)) }; continue }
             if (!effectsOk || c.id != loadedId) continue
-            val fx = withContext(Dispatchers.Default) { try { clipEffects(c) } catch (_: Throwable) { null } } ?: continue
+            val fx = withContext(Dispatchers.Default) { try { clipEffects(adjOf(c)) } catch (_: Throwable) { null } } ?: continue
             if (c.id != loadedId) continue
             try {
                 deck.cur.setVideoEffects(fx)
@@ -679,7 +686,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val a = deck.active
             if (c.id == loadedId) texViews[a]?.let {
                 ClipXform.applyToView(it, ClipXform.at(c, c.startMs + deck.cur.currentPosition, motionFor(c)))
-                if (gpuGrade) { if (effectsOk) GradePreview.apply(it, c, System.nanoTime() / 1e9f) else GradePreview.clear(it) }
+                if (gpuGrade) { if (effectsOk) GradePreview.apply(it, adjOf(c), System.nanoTime() / 1e9f) else GradePreview.clear(it) }
             }
             val n = clips.getOrNull(i + 1)
             val ov = overlapMs(clips, i)
@@ -736,7 +743,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 transitionOn[0] = true
                 texViews[1 - a]?.let {
                     ClipXform.applyToView(it, ClipXform.at(n, n.startMs + deck.spare.currentPosition, motionFor(n)))
-                    if (gpuGrade && effectsOk) GradePreview.apply(it, n, System.nanoTime() / 1e9f)
+                    if (gpuGrade && effectsOk) GradePreview.apply(it, adjOf(n), System.nanoTime() / 1e9f)
                 }
                 frameViews[a]?.let { TransitionPreview.apply(it, c.transition.type, p, false) }
                 frameViews[1 - a]?.let { TransitionPreview.apply(it, c.transition.type, p, true) }
@@ -856,6 +863,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val totalMs = timelineLength(clips)
     val beforeMs = clipStarts(clips).getOrNull(current) ?: 0L
     val globalMs = beforeMs + (cur?.tlOffsetOf(cur.startMs + posMs) ?: posMs)
+    androidx.compose.runtime.SideEffect { adjNowMs = globalMs }
 
     fun seekGlobal(ms: Long) {
         if (clips.isEmpty()) return
@@ -2581,6 +2589,9 @@ private fun LayersPage(
         SmallAction(Icons.Filled.Movie, "Video", onAddVideo)
         SmallAction(Icons.Filled.Photo, "Image", onAddImage)
         SmallAction(Icons.Filled.Image, "Logo", onAddLogo)
+        SmallAction(Icons.Filled.Tune, "Adjustment") {
+            onAdd(Layer(kind = LayerKind.ADJUST, text = "Adjustment", startMs = playheadMs, endMs = end, adjGrade = ProGrade(exposure = 0f), opacity = 1f))
+        }
     }
     if (stickers) {
         Column(Modifier.padding(vertical = 6.dp)) {
@@ -2638,6 +2649,26 @@ private fun LayersPage(
                 focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,
             ),
     )
+    if (l.kind == LayerKind.ADJUST) {
+        // Adjustment layer: one grade over every clip under it.
+        val g = l.adjGrade ?: ProGrade()
+        fun ag(f: (ProGrade) -> ProGrade) = onUpdate(l.copy(adjGrade = f(g)))
+        Text("Grades everything under it on the timeline — every clip in its time range — without touching the clips themselves. Up to $MAX_VIDEO_MASKS adjustment layers at a time.", color = Pro.Dim, fontSize = 11.sp)
+        EdSlider("Strength", l.opacity, 0f..1f, 1f, ::pct) { v -> onUpdate(l.copy(opacity = v)) }
+        SectionTitle("GRADE") { onUpdate(l.copy(adjGrade = ProGrade())) }
+        EdSlider("Exposure", g.exposure, -3f..3f, format = ::ev) { v -> ag { it.copy(exposure = v) } }
+        EdSlider("Contrast", g.contrast) { v -> ag { it.copy(contrast = v) } }
+        EdSlider("Highlights", g.highlights) { v -> ag { it.copy(highlights = v) } }
+        EdSlider("Shadows", g.shadows) { v -> ag { it.copy(shadows = v) } }
+        EdSlider("Temperature", g.temperature) { v -> ag { it.copy(temperature = v) } }
+        EdSlider("Tint", g.tint) { v -> ag { it.copy(tint = v) } }
+        EdSlider("Saturation", g.saturation) { v -> ag { it.copy(saturation = v) } }
+        EdSlider("Vibrance", g.vibrance) { v -> ag { it.copy(vibrance = v) } }
+        EdSlider("Fade", g.fade, 0f..1f, format = ::pct) { v -> ag { it.copy(fade = v) } }
+        SectionTitle("LOOK")
+        LookStrip(g.look) { f -> ag { it.copy(look = f) } }
+        if (g.look != Filter.NONE) EdSlider("Look strength", g.lookAmount, 0f..1f, 1f, ::pct) { v -> ag { it.copy(lookAmount = v) } }
+    }
     if (l.kind == LayerKind.TEXT || l.kind == LayerKind.WATERMARK) {
         androidx.compose.material3.OutlinedTextField(
             value = l.text, onValueChange = { onUpdate(l.copy(text = it)) },
@@ -2667,6 +2698,7 @@ private fun LayersPage(
     val la = l.animAt(playheadMs)
     EdSlider("Size", la.size, 0.02f..(if (l.isMedia) 1f else 0.4f), 0.07f, ::pct) { onUpdate(la.copy(size = it)) }
     EdSlider("Opacity", la.opacity, 0.05f..1f, 1f, ::pct) { onUpdate(la.copy(opacity = it)) }
+    if (l.kind != LayerKind.ADJUST) {
     SectionTitle("POSITION")
     Text("Drag the layer in the viewer, or snap it:", color = Pro.Dim, fontSize = 11.sp)
     val spots = listOf(0.12f, 0.5f, 0.88f)
@@ -2729,6 +2761,7 @@ private fun LayersPage(
         }
         if (LayerAnims.hasAny(l)) EdSlider("Animation length", (l.animMs ?: 500L) / 1000f, 0.1f..3f, 0.5f, { "%.1f s".format(it) }) { v -> onUpdate(l.copy(animMs = (v * 1000).toLong())) }
         Text("Plays when the layer appears and disappears. Press play to see it (it stays still while you edit this layer).", color = Pro.Dim, fontSize = 11.sp)
+    }
     }
     SectionTitle("TIMING")
     Chips(listOf("Part of the video", "Whole video"), if (l.wholeVideo) 1 else 0) { onUpdate(l.copy(wholeVideo = it == 1)) }

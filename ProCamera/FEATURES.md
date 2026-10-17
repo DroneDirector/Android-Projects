@@ -177,6 +177,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 ### Layers
 - **Text, stickers, watermark, logo, image and video (picture-in-picture)** layers with timing, position, size and opacity.
 - **Keyframes** for layer position, size and opacity (smooth easing; diamonds on the timeline).
+- **Adjustment layers**: a grade over everything under them for their time range, with strength (up to 3 at a time).
 - **Blend modes** (Screen, Multiply, Overlay, Add, Lighten, Darken, Soft light, Difference) for picture, text and sticker layers.
 - **Chroma key** (green / blue / black / white screen) for video and image layers, with tolerance and edge softness.
 - **AI captions** from the speech in the edit (Whisper via Cloud AI), boxed / clean / big styles.

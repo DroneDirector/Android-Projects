@@ -20,7 +20,7 @@ import java.util.UUID
 import kotlin.math.max
 import kotlin.math.min
 
-enum class LayerKind(val label: String) { TEXT("Text"), STICKER("Sticker"), WATERMARK("Watermark"), LOGO("Logo"), IMAGE("Image"), VIDEO("Video") }
+enum class LayerKind(val label: String) { TEXT("Text"), STICKER("Sticker"), WATERMARK("Watermark"), LOGO("Logo"), IMAGE("Image"), VIDEO("Video"), ADJUST("Adjustment") }
 
 enum class LayerFont(val label: String, val typeface: Typeface) {
     SANS("Sans", Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)),
@@ -74,6 +74,8 @@ data class Layer(
     val animIn: LayerAnim? = null,
     val animOut: LayerAnim? = null,
     val animMs: Long? = null,
+    /** Adjustment layer: the grade it puts on everything under it (strength = opacity). */
+    val adjGrade: ProGrade? = null,
 ) {
     /** The name shown for this layer: your own name, else its text / kind. */
     val displayName: String get() = name?.takeIf { it.isNotBlank() }
@@ -172,7 +174,7 @@ object LayerRenderer {
     fun render(context: Context, l: Layer, frameW: Int, frameH: Int, chars: Int = Int.MAX_VALUE): Bitmap? {
         val px = max(8f, l.size * frameH)
         return when (l.kind) {
-            LayerKind.VIDEO -> null
+            LayerKind.VIDEO, LayerKind.ADJUST -> null
             LayerKind.LOGO, LayerKind.IMAGE -> {
                 val uri = l.imageUri ?: return null
                 val src = synchronized(logoCache) {

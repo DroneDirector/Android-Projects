@@ -417,12 +417,12 @@ fun savePhotoAs(context: Context, bmp: Bitmap, format: Int, quality: Int, exifFr
             }
         }
         val resolver = context.contentResolver
-        val target = resolver.insert(com.dronedirector.acluxpro.camera.Storage.imagesUri(com.dronedirector.acluxpro.camera.Storage.load(context)), values) ?: return null
+        val target = com.dronedirector.acluxpro.camera.Storage.insert(context, com.dronedirector.acluxpro.camera.Storage.load(context, com.dronedirector.acluxpro.camera.StorageArea.PHOTO), values, com.dronedirector.acluxpro.camera.Storage.Kind.IMAGE) ?: return null
         return try {
             resolver.openOutputStream(target)?.use { os -> tmp.inputStream().use { it.copyTo(os) } }
-            if (Build.VERSION.SDK_INT >= 29) resolver.update(target, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+            com.dronedirector.acluxpro.camera.Storage.publish(context, target)
             target
-        } catch (_: Throwable) { resolver.delete(target, null, null); null }
+        } catch (_: Throwable) { com.dronedirector.acluxpro.camera.Storage.discard(context, target); null }
     } finally { tmp.delete() }
 }
 

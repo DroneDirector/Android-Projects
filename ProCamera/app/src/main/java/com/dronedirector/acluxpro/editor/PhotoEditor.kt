@@ -1219,7 +1219,7 @@ fun HslMixer(bands: List<HslBand>, onChange: (List<HslBand>) -> Unit) {
 }
 
 /** Saves an edited picture as a new file in DCIM/AcluxPro. */
-fun savePicture(context: Context, bmp: Bitmap, png: Boolean, quality: Int): Uri? {
+fun savePicture(context: Context, bmp: Bitmap, png: Boolean, quality: Int, area: com.dronedirector.acluxpro.camera.StorageArea = com.dronedirector.acluxpro.camera.StorageArea.PHOTO): Uri? {
     val name = "EDIT_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + if (png) ".png" else ".jpg"
     // A folder chosen in the editor settings wins; otherwise the default app location.
     SaveFolder.write(context, false, name, if (png) "image/png" else "image/jpeg") {
@@ -1234,15 +1234,15 @@ fun savePicture(context: Context, bmp: Bitmap, png: Boolean, quality: Int): Uri?
         }
     }
     val resolver = context.contentResolver
-    val target = resolver.insert(Storage.imagesUri(Storage.load(context)), values) ?: return null
+    val target = Storage.insert(context, Storage.load(context, area), values, Storage.Kind.IMAGE) ?: return null
     return try {
         resolver.openOutputStream(target)?.use {
             bmp.compress(if (png) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG, quality, it)
         }
-        if (Build.VERSION.SDK_INT >= 29) resolver.update(target, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+        Storage.publish(context, target)
         target
     } catch (_: Throwable) {
-        resolver.delete(target, null, null)
+        Storage.discard(context, target)
         null
     }
 }

@@ -43,7 +43,7 @@ object PreRoll {
                     put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
             }
-            uri = resolver.insert(Storage.videosUri(volume), values) ?: return null
+            uri = Storage.insert(context, volume, values, Storage.Kind.VIDEO) ?: return null
             resolver.openFileDescriptor(uri, "rw")?.use { pfd ->
                 val muxer = MediaMuxer(pfd.fileDescriptor, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
                 muxer.setOrientationHint(rotation)
@@ -72,10 +72,10 @@ object PreRoll {
                 muxer.stop()
                 muxer.release()
             }
-            if (Build.VERSION.SDK_INT >= 29) resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+            Storage.publish(context, uri)
             return uri
         } catch (_: Throwable) {
-            uri?.let { try { resolver.delete(it, null, null) } catch (_: Throwable) {} }
+            uri?.let { Storage.discard(context, it) }
             return null
         } finally {
             ex.release()

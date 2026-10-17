@@ -64,7 +64,7 @@ class LapseRecorder(
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
         }
-        uri = context.contentResolver.insert(Storage.videosUri(volume), values)
+        uri = Storage.insert(context, volume, values, Storage.Kind.VIDEO)
             ?: throw IllegalStateException("Couldn't create the video file")
         pfd = context.contentResolver.openFileDescriptor(uri, "rw")
             ?: throw IllegalStateException("Couldn't open the video file")
@@ -163,11 +163,11 @@ class LapseRecorder(
         val resolver = context.contentResolver
         val result = if (ok) {
             if (Build.VERSION.SDK_INT >= 29) {
-                resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+                Storage.publish(context, uri)
             }
             uri
         } else {
-            try { resolver.delete(uri, null, null) } catch (_: Throwable) {}
+            try { Storage.discard(context, uri) } catch (_: Throwable) {}
             null
         }
         val cb = onDone
@@ -200,7 +200,7 @@ object SlowMotionRemux {
                     put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
             }
-            uri = resolver.insert(Storage.videosUri(volume), values) ?: return null
+            uri = Storage.insert(context, volume, values, Storage.Kind.VIDEO) ?: return null
             resolver.openFileDescriptor(uri, "rw")?.use { pfd ->
                 val muxer = MediaMuxer(pfd.fileDescriptor, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
                 muxer.setOrientationHint(rotation)
@@ -225,11 +225,11 @@ object SlowMotionRemux {
                 muxer.release()
             }
             if (Build.VERSION.SDK_INT >= 29) {
-                resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+                Storage.publish(context, uri)
             }
             return uri
         } catch (_: Throwable) {
-            uri?.let { try { resolver.delete(it, null, null) } catch (_: Throwable) {} }
+            uri?.let { try { Storage.discard(context, it) } catch (_: Throwable) {} }
             return null
         } finally {
             extractor.release()

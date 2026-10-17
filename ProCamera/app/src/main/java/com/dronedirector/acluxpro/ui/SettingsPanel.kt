@@ -74,16 +74,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             }
 
             Section("SAVE PHOTOS & VIDEOS TO")
-            s.storageOptions.forEach { opt ->
-                ChoiceRadio(
-                    title = opt.label,
-                    subtitle = if (opt.removable) "Removable card · DCIM/AcluxPro" else "This device · DCIM/AcluxPro",
-                    selected = s.storageVolume == opt.volume,
-                ) { c.setStorage(opt.volume) }
-            }
-            if (s.storageOptions.none { it.removable }) {
-                Text("No SD card detected. Insert one and it will appear here.", style = Pro.Label.copy(fontSize = 11.sp, letterSpacing = 0.sp))
-            }
+            StorageChooser(com.dronedirector.acluxpro.camera.StorageArea.CAPTURE) { c.setStorage(it) }
 
             Section("COMPOSITION")
             ToggleRow("Histogram", "Pro modes: live brightness graph with clipping warnings", s.showHistogram) { c.toggleHistogram() }

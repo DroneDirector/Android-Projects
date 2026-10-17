@@ -30,7 +30,54 @@ object MediaLibrary {
     fun query(context: Context): List<MediaItem> {
         val images = queryCollection(context, video = false)
         val videos = queryCollection(context, video = true)
-        return (images + videos).sortedByDescending { it.dateTaken }
+        val picked = Storage.trees(context).flatMap { queryFolder(context, it) }
+        return (images + videos + picked).distinctBy { it.uri }.sortedByDescending { it.dateTaken }
+    }
+
+    /** Photos and videos in a folder picked on a USB drive / SD card (Settings → save location). */
+    private fun queryFolder(context: Context, tree: Uri): List<MediaItem> {
+        val out = mutableListOf<MediaItem>()
+        try {
+            val parent = android.provider.DocumentsContract.getTreeDocumentId(tree)
+            val children = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(tree, parent)
+            context.contentResolver.query(
+                children,
+                arrayOf(
+                    android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                    android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                    android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE,
+                    android.provider.DocumentsContract.Document.COLUMN_SIZE,
+                    android.provider.DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+                ),
+                null, null, null,
+            )?.use { c ->
+                while (c.moveToNext()) {
+                    val mime = c.getString(2) ?: continue
+                    val name = c.getString(1) ?: ""
+                    val video = mime.startsWith("video/")
+                    val image = mime.startsWith("image/") || name.endsWith(".dng", true)
+                    if (!video && !image) continue
+                    val uri = android.provider.DocumentsContract.buildDocumentUriUsingTree(tree, c.getString(0))
+                    var w = 0; var h = 0; var dur = 0L
+                    if (video) try {
+                        val m = android.media.MediaMetadataRetriever()
+                        try {
+                            m.setDataSource(context, uri)
+                            w = m.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+                            h = m.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+                            dur = m.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+                        } finally { m.release() }
+                    } catch (_: Throwable) {}
+                    out += MediaItem(
+                        uri = uri, isVideo = video, name = name,
+                        dateTaken = if (c.isNull(4)) 0L else c.getLong(4),
+                        size = if (c.isNull(3)) 0L else c.getLong(3),
+                        width = w, height = h, durationMs = dur, mime = mime,
+                    )
+                }
+            }
+        } catch (_: Throwable) {}
+        return out
     }
 
     private fun queryCollection(context: Context, video: Boolean): List<MediaItem> {

@@ -49,6 +49,7 @@ import androidx.camera.video.FallbackStrategy
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.HighSpeedVideoSessionConfig
 import androidx.camera.video.Quality
+import androidx.camera.video.FileDescriptorOutputOptions
 import androidx.camera.video.MediaStoreOutputOptions
 import androidx.camera.video.QualitySelector
 import androidx.camera.video.Recorder
@@ -122,6 +123,9 @@ class ProCameraController(private val context: Context) {
     private var recording: Recording? = null
     private var captureJob: kotlinx.coroutines.Job? = null
     private val ioExecutor = Executors.newSingleThreadExecutor()
+    /** Recording straight into a picked folder: its file and open descriptor. */
+    private var recordDoc: Uri? = null
+    private var recordPfd: android.os.ParcelFileDescriptor? = null
     private val filterProcessor = FilterProcessor()
     private var filterWarned = false
 
@@ -1644,10 +1648,11 @@ class ProCameraController(private val context: Context) {
 
     fun refreshStorage() {
         val options = Storage.options(context)
-        var volume = Storage.load(context)
-        if (options.none { it.volume == volume }) {
-            if (volume != Storage.INTERNAL) toast("SD card not found, saving to internal storage")
-            volume = Storage.INTERNAL
+        val volume = Storage.load(context)
+        if (volume != Storage.INTERNAL && !Storage.available(context, volume)) {
+            // Keep the choice (the drive may come back); saving falls back to internal storage meanwhile.
+            toast(if (Storage.isTree(volume)) "Save folder not found (drive unplugged?) — saving to internal storage for now"
+            else "SD card / drive not found — saving to internal storage for now")
         }
         set { it.copy(storageOptions = options, storageVolume = volume) }
     }
@@ -1686,15 +1691,15 @@ class ProCameraController(private val context: Context) {
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
         }
-        val uri = try { resolver.insert(Storage.imagesUri(volume), values) } catch (_: Throwable) { null } ?: return null
+        val uri = Storage.insert(context, volume, values, Storage.Kind.IMAGE) ?: return null
         return try {
             resolver.openOutputStream(uri)?.use { bmp.compress(Bitmap.CompressFormat.JPEG, 94, it) }
             if (Build.VERSION.SDK_INT >= 29) {
-                resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+                Storage.publish(context, uri)
             }
             uri
         } catch (_: Throwable) {
-            resolver.delete(uri, null, null)
+            Storage.discard(context, uri)
             null
         }
     }
@@ -1955,7 +1960,16 @@ class ProCameraController(private val context: Context) {
 
     private fun stamp(): String = "PRO_" + SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(Date())
 
+    /** Photos for a picked folder are first written to a temp file, then copied there. */
+    private val treePending = java.util.concurrent.ConcurrentHashMap<String, Triple<String, String, String>>()
+
     private fun photoOptions(fileName: String, mime: String): ImageCapture.OutputFileOptions {
+        val place = Storage.resolve(context, st.storageVolume)
+        if (Storage.isTree(place)) {
+            val tmp = java.io.File(context.cacheDir, "cap_" + fileName)
+            treePending[tmp.path] = Triple(place, fileName, mime)
+            return ImageCapture.OutputFileOptions.Builder(tmp).build()
+        }
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
             put(MediaStore.MediaColumns.MIME_TYPE, mime)
@@ -1963,9 +1977,35 @@ class ProCameraController(private val context: Context) {
         }
         return ImageCapture.OutputFileOptions.Builder(
             context.contentResolver,
-            Storage.imagesUri(st.storageVolume),
+            Storage.imagesUri(place),
             values,
         ).build()
+    }
+
+    /**
+     * A photo CameraX wrote to a temp file goes into the picked folder: the file is created now,
+     * the copy runs first on the (single) save thread, so the look / copyright / face blur steps
+     * queued after it see the finished photo.
+     */
+    private fun moveToFolder(fileUri: Uri, showWhenDone: Boolean): Uri? {
+        val tmp = java.io.File(fileUri.path ?: return null)
+        val (place, name, mime) = treePending.remove(tmp.path) ?: return null
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(MediaStore.MediaColumns.MIME_TYPE, mime)
+            if (Build.VERSION.SDK_INT >= 29) { put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro"); put(MediaStore.MediaColumns.IS_PENDING, 1) }
+        }
+        val target = Storage.insert(context, place, values, Storage.Kind.IMAGE) ?: run { tmp.delete(); toast("Couldn't save the photo"); return null }
+        ioExecutor.execute {
+            try {
+                context.contentResolver.openOutputStream(target, "w")?.use { o -> tmp.inputStream().use { it.copyTo(o, 1 shl 16) } }
+                Storage.publish(context, target)
+                if (showWhenDone) set { it.copy(lastMedia = target) }
+            } catch (_: Throwable) {
+                toast("Couldn't write the photo to the drive")
+            } finally { tmp.delete() }
+        }
+        return target
     }
 
     private suspend fun takePhoto(): Boolean {
@@ -1985,7 +2025,9 @@ class ProCameraController(private val context: Context) {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     count++
                     ok = true
-                    val uri = output.savedUri
+                    val saved = output.savedUri
+                    val toFolder = saved?.scheme == "file"
+                    val uri = if (toFolder) saved?.let { moveToFolder(it, showWhenDone = expected == 1 || output.imageFormat != ImageFormat.RAW_SENSOR) } else saved
                     val isJpeg = output.imageFormat != ImageFormat.RAW_SENSOR && format != ImageCapture.OUTPUT_FORMAT_RAW
                     if (uri != null && isJpeg && filter != Filter.NONE) {
                         ioExecutor.execute { Filter.applyToSavedJpeg(context, uri, filter) }
@@ -2006,7 +2048,7 @@ class ProCameraController(private val context: Context) {
                     if (uri != null && isJpeg && aiMp > 0) {
                         ioExecutor.execute { Upscaler.enqueue(context, uri, aiMp) }
                     }
-                    if (uri != null && (expected == 1 || isJpeg)) {
+                    if (uri != null && !toFolder && (expected == 1 || isJpeg)) {
                         set { it.copy(lastMedia = uri) }
                     }
                     if (count >= expected && cont.isActive) cont.resume(true)
@@ -2069,10 +2111,20 @@ class ProCameraController(private val context: Context) {
             vc.output.prepareRecording(context, FileOutputOptions.Builder(file).build())
         } else {
             slowMoFile = null
-            val output = MediaStoreOutputOptions.Builder(context.contentResolver, Storage.videosUri(st.storageVolume))
-                .setContentValues(values)
-                .build()
-            vc.output.prepareRecording(context, output)
+            val place = Storage.resolve(context, st.storageVolume)
+            val doc = if (Storage.isTree(place)) Storage.createInTree(context, place, "video/mp4", values.getAsString(MediaStore.MediaColumns.DISPLAY_NAME)) else null
+            val pfd = doc?.let { try { context.contentResolver.openFileDescriptor(it, "rw") } catch (_: Throwable) { null } }
+            if (doc != null && pfd != null) {
+                // Straight onto the drive (no copy afterwards, no internal space needed).
+                recordDoc = doc; recordPfd = pfd
+                vc.output.prepareRecording(context, FileDescriptorOutputOptions.Builder(pfd).build())
+            } else {
+                if (doc != null) { Storage.discard(context, doc); toast("Couldn't write to the save folder — recording to internal storage") }
+                val output = MediaStoreOutputOptions.Builder(context.contentResolver, Storage.videosUri(if (Storage.isTree(place)) Storage.INTERNAL else place))
+                    .setContentValues(values)
+                    .build()
+                vc.output.prepareRecording(context, output)
+            }
         }
         val micGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
@@ -2148,7 +2200,12 @@ class ProCameraController(private val context: Context) {
                     videoCapture?.setTargetRotation(rotation)
                     return
                 }
-                val uri = event.outputResults.outputUri
+                val doc = recordDoc
+                recordDoc = null
+                recordPfd?.let { try { it.close() } catch (_: Throwable) {} }
+                recordPfd = null
+                val uri = if (doc != null && !(event.hasError() && event.error == VideoRecordEvent.Finalize.ERROR_NO_VALID_DATA)) doc
+                else { doc?.let { Storage.discard(context, it) }; event.outputResults.outputUri }
                 set {
                     it.copy(
                         recording = false,

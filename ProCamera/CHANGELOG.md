@@ -4,6 +4,9 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- New Panels menu in Capture and the Video editor (icon next to the settings gear): hide the parts you don't need, like the Workspace menu in DaVinci Resolve / Premiere Pro. Presets: Capture — Full, Minimal, Video; Video editor — Full, Cut, Color, Audio. Choices are remembered.
+- Video editor: hidden panels give their space to the player and timeline; shown again, everything returns to its saved size.
+- Triple-tap the panels icon to reset the layout to the original (all panels shown, positions and divider sizes back to default). Also available as RESET LAYOUT in the menu.
 
 ## 1.0.159 — 2026-10-16
 - Video editor: the RGB histogram is now a pull-out drawer on the right edge of the player — drag the tab out / back in, or tap it; hidden in full screen.

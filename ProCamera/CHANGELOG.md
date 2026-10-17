@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.171 — 2026-10-17
 - Video editor: import your own transition sounds — Transitions → Audio transitions → MY SOUNDS → + IMPORT SOUND (MP3, WAV, M4A, AAC, OGG, FLAC). Choose whether each sound starts on, centres on or ends on the cut; ▶ to listen, ✕ to remove.
 - Video editor: sound effects on cuts — Transitions → Audio transitions → SOUND EFFECTS: cinematic impact, cinematic boom, trailer hit, sub drop, whoosh, fast swoosh, swirl, riser, reverse cymbal and glitch. Impacts land on the cut; risers build up to it. Volume per cut, ▶ to listen, in the preview and the export; APPLY TO ALL CUTS includes the effect.
 

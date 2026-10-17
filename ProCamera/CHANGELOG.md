@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture: the long-press exposure lock now works the same on tablets (fixed hold time, not affected by pinch zoom); also works in clean feed.
 
 ## 1.0.188 — 2026-10-17
 - Capture: long press the viewfinder to lock the exposure, with an EV slider under the lock; long press again or tap the small ✕ to unlock.

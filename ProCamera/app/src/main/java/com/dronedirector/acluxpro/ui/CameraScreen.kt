@@ -46,6 +46,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.composed
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -309,15 +310,15 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                         Box(
                             Modifier
                                 .fillMaxSize()
+                                // Long press: lock the exposure here; long press again to unlock.
+                                .holdToLock { o ->
+                                    if (controller.state.value.aeLockPoint != null) controller.unlockExposure()
+                                    else controller.lockExposureAt(o.x, o.y)
+                                }
                                 .pointerInput(Unit) {
                                     detectTapGestures(
                                         onTap = { o -> controller.tapToFocus(o.x, o.y) },
                                         onDoubleTap = { controller.setActiveParam(null) },
-                                        // Long press: lock the exposure here; long press again to unlock.
-                                        onLongPress = { o ->
-                                            if (controller.state.value.aeLockPoint != null) controller.unlockExposure()
-                                            else controller.lockExposureAt(o.x, o.y)
-                                        },
                                     )
                                 }
                                 .pointerInput(Unit) {
@@ -460,6 +461,10 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                     Box(
                         Modifier
                             .fillMaxSize()
+                            .holdToLock { o ->
+                                if (controller.state.value.aeLockPoint != null) controller.unlockExposure()
+                                else controller.lockExposureAt(o.x + cutL, o.y + cutT)
+                            }
                             .pointerInput(Unit) {
                                 detectTapGestures(
                                     onTap = { o -> controller.tapToFocus(o.x + cutL, o.y + cutT) },
@@ -649,6 +654,41 @@ private fun AeLockOverlay(s: CameraUiState, c: ProCameraController) {
                         activeTickColor = Color.Transparent, inactiveTickColor = Color.Transparent,
                     ),
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Long press that works the same on every device: a fixed 450 ms hold (not the system's
+ * touch-and-hold delay, which tablets often set longer) with a generous wobble allowance,
+ * watched before the pinch-zoom handler can claim the touch. A tap is not triggered afterwards.
+ */
+private fun Modifier.holdToLock(onHold: (androidx.compose.ui.geometry.Offset) -> Unit): Modifier = composed {
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val hold by androidx.compose.runtime.rememberUpdatedState(onHold)
+    pointerInput(Unit) {
+        val slop = 24.dp.toPx()
+        androidx.compose.foundation.gestures.awaitEachGesture {
+            val down = androidx.compose.foundation.gestures.awaitFirstDown(requireUnconsumed = false, pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+            val ended = withTimeoutOrNull(450L) {
+                while (true) {
+                    val ev = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                    if (ev.changes.count { it.pressed } > 1) return@withTimeoutOrNull true   // pinch: not a hold
+                    val ch = ev.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull true
+                    if (!ch.pressed) return@withTimeoutOrNull true
+                    if ((ch.position - down.position).getDistance() > slop) return@withTimeoutOrNull true
+                }
+                @Suppress("UNREACHABLE_CODE") true
+            }
+            if (ended == null) {
+                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                hold(down.position)
+                // Swallow the rest of this touch so it doesn't also count as a tap.
+                do {
+                    val ev = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                    ev.changes.forEach { it.consume() }
+                } while (ev.changes.any { it.pressed })
             }
         }
     }

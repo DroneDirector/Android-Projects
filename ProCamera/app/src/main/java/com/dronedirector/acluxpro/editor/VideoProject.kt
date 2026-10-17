@@ -118,6 +118,8 @@ data class DeliverSettings(
     val rangeEnd: Long? = null,
     /** Bring the finished sound to this loudness (LUFS), e.g. −14; null = leave as mixed. */
     val loudness: Float? = null,
+    /** Keep HDR (HLG / HDR10) clips as HDR in the export (HEVC 10-bit) instead of converting to SDR. */
+    val keepHdr: Boolean = false,
 )
 
 /** One-tap delivery settings for common destinations. */
@@ -414,7 +416,7 @@ class TimelineExport(
                     }
                 })
             }
-            .setHdrMode(Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL)
+            .setHdrMode(if (settings.keepHdr && !audioOnly) Composition.HDR_MODE_KEEP_HDR else Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL)
             .build()
 
         val encoderSettings = if (settings.bitrateMbps > 0)
@@ -422,7 +424,7 @@ class TimelineExport(
         else VideoEncoderSettings.DEFAULT
 
         transformer = Transformer.Builder(context)
-            .setVideoMimeType(if (settings.hevc) MimeTypes.VIDEO_H265 else MimeTypes.VIDEO_H264)
+            .setVideoMimeType(if (settings.hevc || settings.keepHdr) MimeTypes.VIDEO_H265 else MimeTypes.VIDEO_H264)
             .setAudioMimeType(MimeTypes.AUDIO_AAC)
             .setEncoderFactory(
                 DefaultEncoderFactory.Builder(context)

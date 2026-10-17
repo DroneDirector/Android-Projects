@@ -2814,6 +2814,9 @@ private fun DeliverPage(
     Chips(fps.map { if (it == 0) "Source" else "$it fps" }, fps.indexOf(s.fps).coerceAtLeast(0)) { onChange(s.copy(fps = fps[it])) }
     SectionTitle("CODEC")
     Chips(listOf("H.264", "HEVC (H.265)"), if (s.hevc) 1 else 0) { onChange(s.copy(hevc = it == 1)) }
+    SectionTitle("DYNAMIC RANGE")
+    Chips(listOf("SDR (plays everywhere)", "Keep HDR (HLG / HDR10)"), if (s.keepHdr) 1 else 0) { onChange(s.copy(keepHdr = it == 1)) }
+    Text(if (s.keepHdr) "HDR clips stay HDR in a 10-bit HEVC file — brighter highlights on HDR screens (YouTube, Instagram, newer phones). Works best with light grading; if the export fails on this phone, switch back to SDR." else "HDR clips are converted to standard range so they look right on every screen.", color = Pro.Dim, fontSize = 11.sp)
     SectionTitle("BITRATE")
     val rates = listOf(0, 20, 50, 80, 120, 200)
     Chips(rates.map { if (it == 0) "Auto" else "$it Mbps" }, rates.indexOf(s.bitrateMbps).coerceAtLeast(0)) { onChange(s.copy(bitrateMbps = rates[it])) }

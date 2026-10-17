@@ -193,6 +193,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 
 ### Deliver
 - **Audio only** export (.m4a, AAC) to Music/AcluxPro.
+- **Keep HDR** (HLG / HDR10, 10-bit HEVC) or convert to SDR.
 - Resolution up to **4K UHD**, frame rate, **H.264 / HEVC**, bitrate up to very high, audio on/off.
 - Project formats: Original, 16:9, 9:16, 1:1, 4:5, 4:3 and more; fill or fit.
 - **Export presets** (YouTube 4K / 1080p, Instagram Reel / 4:5, TikTok, Square, small file).

@@ -2087,7 +2087,7 @@ class ProCameraController(private val context: Context) {
         val format = ic.outputFormat
         val filter = st.filter
         val aiMp = if (UpscaleSettings.enabled && !st.isVideo) st.photoSize?.aiMp ?: 0 else 0
-        val portrait = st.mode == CaptureMode.PORTRAIT
+        val portrait = st.mode.isPortrait
         val name = stamp()
         playSound(MediaActionSound.SHUTTER_CLICK)
         set { it.copy(shutterFlash = it.shutterFlash + 1) }

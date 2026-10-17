@@ -16,7 +16,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 ## Capture
 ### Modes
 - **Photo**, **Pro** (photo), **Video**, **Pro Video** and **Live** streaming.
-- Smart modes: **Portrait** (live background blur in the viewfinder for people, pets, flowers, rocks, branches…; slider f/1.4 – f/16, or AUTO), **Panorama** (gyroscope-guided ~180°, cylindrical stitching), **Time-lapse**, **Hyperlapse**, **Slow-mo**, **Super slow-mo**, **Burst**.
+- Smart modes: **Portrait** (background blur for people, pets, flowers, rocks, branches…; slider f/1.4 – f/16, or AUTO), **AI Portrait** (the same, plus the blur shown live in the viewfinder), **Panorama** (gyroscope-guided ~180°, cylindrical stitching), **Time-lapse**, **Hyperlapse**, **Slow-mo**, **Super slow-mo**, **Burst**.
 
 ### Photo
 - Photo **size per camera** (megapixel choice), aspect **4:3 / 16:9 / 1:1**.

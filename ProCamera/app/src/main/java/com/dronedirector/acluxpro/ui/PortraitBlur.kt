@@ -66,7 +66,8 @@ import kotlin.math.roundToInt
  */
 @Composable
 fun PortraitPanel(s: CameraUiState, modifier: Modifier = Modifier) {
-    if (s.mode != CaptureMode.PORTRAIT) return
+    if (!s.mode.isPortrait) return
+    val live = s.mode == CaptureMode.AI_PORTRAIT
     val ctx = LocalContext.current
     val auto = CaptureExtras.portraitAuto
     Column(
@@ -85,10 +86,10 @@ fun PortraitPanel(s: CameraUiState, modifier: Modifier = Modifier) {
             Text("BACKGROUND BLUR", style = Pro.Label.copy(fontSize = 10.sp, color = Pro.Amber))
             Spacer(Modifier.width(8.dp))
             Text(
-                if (auto) (if (PortraitLive.found != 0) "AUTO ${Portrait.label(PortraitLive.autoF)}" else "AUTO") else Portrait.label(CaptureExtras.portraitF),
+                if (auto) (if (live && PortraitLive.found != 0) "AUTO ${Portrait.label(PortraitLive.autoF)}" else "AUTO") else Portrait.label(CaptureExtras.portraitF),
                 style = Pro.Value.copy(fontSize = 12.sp, color = Color.White),
             )
-            if (PortraitLive.found == 0) {
+            if (live && PortraitLive.found == 0) {
                 Spacer(Modifier.width(6.dp))
                 Text("no subject", style = Pro.Label.copy(fontSize = 9.sp, letterSpacing = 0.sp))
             }

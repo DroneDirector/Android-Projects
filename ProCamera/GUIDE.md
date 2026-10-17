@@ -111,6 +111,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Edit → AUTO-REFRAME turns the project into 9:16, 1:1 or 4:5 and makes every clip follow its subject.
 - Edit → AI slow-mo (Cloud AI) adds 3 new frames between every pair and plays the clip at ¼ speed — smooth slow motion from normal footage (clips up to 20 s).
 - Keyframes: select a layer → KEYFRAMES → ◆ ADD KEYFRAME AT PLAYHEAD, move the playhead, then drag / resize / fade the layer — it glides between keyframes (diamonds on the timeline).
+- Motion tracking: select a layer, put its centre on the object at the playhead, then KEYFRAMES → ⌖ TRACK MOTION FROM PLAYHEAD — the layer (text, sticker, blur…) follows the object; tap again to stop. Works best on sharp, high-contrast spots.
 - Audio → VOLUME KEYFRAMES rides a clip's volume over time (e.g. dip it under a voiceover).
 - Edit → SPEED RAMP gives smooth speed curves (Montage, Hero, Bullet, Flash in / out…); the clip's length follows the curve.
 - Edit → Freeze adds a 2 s still of the frame under the playhead; Reverse plays the clip backwards (silent, up to 60 s).

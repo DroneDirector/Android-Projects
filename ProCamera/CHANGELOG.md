@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: motion tracking (Layers → KEYFRAMES → TRACK MOTION) — a layer follows a moving object; the path becomes position keyframes you can still adjust.
 - Video editor: adjustment layers (Layers → Adjustment) — one grade (exposure, contrast, colour, look…) over every clip in its time range, with strength; live in the preview and in the export.
 
 ## 1.0.214 — 2026-10-17

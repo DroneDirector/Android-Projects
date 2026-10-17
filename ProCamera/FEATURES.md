@@ -61,6 +61,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 
 ### Settings
 - Save to phone storage or SD card; **app colour** (accent) picker; layout and control options.
+- **Panels menu** (icon next to the gear): show / hide the exposure read-out, histogram, audio meter, level, Pro controls bar and tips; presets **Full / Minimal / Video**; **triple-tap** the icon to restore the original layout.
 
 ---
 
@@ -164,6 +165,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **LOAD / SAVE projects** next to Export; **Save & leave** when exiting; saved projects on the start page.
 - **Copy / Paste settings** between clips (or from a photo), optionally onto every clip.
 - **Remember watermark**; **resizable panels**; **playback info** read-out for troubleshooting.
+- **Panels menu** (icon next to the gear): show / hide the tools panel, transport bar, histogram, timecode and audio waveforms — the player and timeline grow into freed space and return to their saved sizes; presets **Full / Cut / Color / Audio**; **triple-tap** the icon to restore the original layout.
 
 ---
 

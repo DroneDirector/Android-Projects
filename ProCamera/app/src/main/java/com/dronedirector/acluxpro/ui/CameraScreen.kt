@@ -68,6 +68,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.currentStateAsState
 import com.dronedirector.acluxpro.camera.AspectMode
+import com.dronedirector.acluxpro.camera.CameraUiState
 import com.dronedirector.acluxpro.camera.CaptureMode
 import com.dronedirector.acluxpro.camera.ProCameraController
 import kotlinx.coroutines.delay
@@ -336,7 +337,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                         ) {
                         // Draggable read-outs: drag them anywhere; positions are remembered.
                         if (s.isPro) {
-                            DraggableOverlay("hud", Alignment.TopStart, s.layoutVersion) {
+                            if (panelOn("cap.hud")) DraggableOverlay("hud", Alignment.TopStart, s.layoutVersion) {
                                 ExposureHud(s, isoShown, shutterShown)
                             }
                             if (s.showHistogram) {
@@ -354,7 +355,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                                 FocusMagnifier(previewView, s.focusPoint, Modifier.align(Alignment.Center))
                             }
                         }
-                        if (s.mode.isNormalVideo && s.audio) {
+                        if (s.mode.isNormalVideo && s.audio && panelOn("cap.audio")) {
                             DraggableOverlay("audio", if (s.isPro) Alignment.CenterEnd else Alignment.TopStart, s.layoutVersion) {
                                 AudioGraph(
                                     audio,
@@ -373,9 +374,10 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                             IntervalBadge(s)
                         }
                         if (s.proFalseColor) FalseColorLegend(Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = if (s.isPro) 100.dp else 64.dp))
-                        SmartModeHint(s, Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp))
+                        val hints = panelOn("cap.hints")
+                        if (hints) SmartModeHint(s, Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp))
                         ProcessingBadge(s, Modifier.align(Alignment.Center))
-                        if (s.sceneActive) {
+                        if (s.sceneActive && hints) {
                             Text(
                                 s.scene.label,
                                 style = Pro.Value.copy(color = Pro.Amber),
@@ -396,7 +398,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                     } else if (liveMode) {
                         LiveBar(liveState, controller.live, Modifier.align(Alignment.BottomCenter))
                     } else if (s.isPro) {
-                        ProPanel(s, controller, isoShown, shutterShown, panelPos)
+                        if (panelOn("cap.controls")) ProPanel(s, controller, isoShown, shutterShown, panelPos)
                     } else if (!s.panoActive && !s.stitching) {
                         SimpleBar(s, controller, panelPos)
                     }
@@ -407,6 +409,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                 } else if (landscape) {
                     QuickBar(
                         s, controller, vertical = true, onSettings = { showSettings = true },
+                        panelsButton = { CapturePanelsButton(s, controller) },
                         modifier = Modifier.align(Alignment.CenterStart).width(sideBar).fillMaxHeight(),
                     )
                     CaptureControls(
@@ -416,6 +419,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                 } else {
                     QuickBar(
                         s, controller, vertical = false, onSettings = { showSettings = true },
+                        panelsButton = { CapturePanelsButton(s, controller) },
                         modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().height(topBar),
                     )
                     CaptureControls(
@@ -540,3 +544,34 @@ private fun UpscaleBadge(modifier: Modifier) {
     }
 }
 
+
+/** Panels menu for the Capture screen (icon next to the settings gear). */
+@Composable
+private fun CapturePanelsButton(s: CameraUiState, controller: ProCameraController) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val panels = listOf(
+        PanelDef("cap.hud", "Exposure read-out", "ISO, shutter, aperture and focus values (Pro modes)"),
+        PanelDef("cap.histogram", "Histogram / scope", "Live brightness graph, waveform, parade or vectorscope (Pro modes)",
+            get = { s.showHistogram }, put = { controller.toggleHistogram() }),
+        PanelDef("cap.audio", "Audio meter", "Sound level graph while filming"),
+        PanelDef("cap.level", "Level", "Horizon line that turns green when straight",
+            get = { s.showLevel }, put = { controller.toggleLevel() }),
+        PanelDef("cap.controls", "Pro controls bar", "ISO, shutter, focus, WB, EV and zoom chips (Pro modes)"),
+        PanelDef("cap.hints", "Tips & scene badge", "Hints for smart modes and the active scene label"),
+    )
+    val all = panels.map { it.key }.toSet()
+    PanelsButton(
+        prefix = "cap",
+        panels = panels,
+        presets = listOf(
+            PanelPreset("Full", all),
+            PanelPreset("Minimal", setOf("cap.controls")),
+            PanelPreset("Video", setOf("cap.hud", "cap.histogram", "cap.audio", "cap.controls")),
+        ),
+        onReset = {
+            OverlayLayout.reset(ctx)
+            controller.bumpLayoutVersion()
+            controller.toast("Layout reset to original")
+        },
+    )
+}

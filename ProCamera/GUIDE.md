@@ -26,6 +26,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Standard is faster; High keeps more real detail. Choose whether to keep the original. STOP on the AI badge cancels.
 
 **Capture tips**
+- Panels icon (next to the settings gear): hide or show the exposure read-out, histogram, audio meter, level, Pro controls bar and tips. Presets: Full, Minimal, Video. Triple-tap the icon to put everything back as it was.
 - Volume keys work as shutter / record.
 - Focus magnifier: in PRO / PRO VIDEO open F (focus) and turn the slider — a ×4 zoomed view appears (tap the screen first to choose where).
 - Rack focus: in the focus control tap SET A and SET B at two distances, pick 1s / 2s / 4s, then → A / → B glides the focus smoothly while you film.
@@ -124,6 +125,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Heavy clips (HDR, 10-bit, 4K) get a light preview copy for smooth playback; exports use the originals.
 - If playback stalls, turn on "Show playback info" in settings and share a screenshot.
 - Hold a divider to resize the player, timeline or controls; double-tap to reset.
+- Panels icon (next to the settings gear): hide or show the tools panel, transport bar, histogram, timecode and audio waveforms — the player and timeline grow into the space and shrink back when a panel returns. Presets: Full, Cut, Color, Audio. Triple-tap the icon to reset the whole layout (panels and divider sizes).
 - SAVE / LOAD projects; "Save & leave" when exiting.
 
 **General**

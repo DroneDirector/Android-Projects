@@ -238,6 +238,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val strips = remember { mutableStateMapOf<String, Filmstrip>() }
     var scopeHist by remember { mutableStateOf<Array<FloatArray>?>(null) }
     var scopeOpen by remember { mutableStateOf(scopeDrawerOpen(context)) }
+    // Panels menu (layout icon next to the settings gear): which parts of the editor are shown.
+    var paneVersion by remember { mutableStateOf(0) }
+    val showInspector = com.dronedirector.acluxpro.ui.panelOn("ve.inspector")
+    val showTransport = com.dronedirector.acluxpro.ui.panelOn("ve.transport")
+    val showScope = com.dronedirector.acluxpro.ui.panelOn("ve.scope")
+    val showTimecode = com.dronedirector.acluxpro.ui.panelOn("ve.timecode")
+    val showWaves = com.dronedirector.acluxpro.ui.panelOn("ve.waves")
+    LaunchedEffect(showScope) { if (!showScope) scopeOpen = false }
     val layers = remember { mutableStateListOf<Layer>().apply { initial?.layers?.let { addAll(it) } } }
     var selectedLayer by remember { mutableStateOf<String?>(null) }
     // Remembered watermark: added to every new project; kept up to date while the option is on.
@@ -1350,8 +1358,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).background(Color.Black.copy(alpha = 0.6f)).padding(4.dp),
                     )
                     // RGB histogram: a pull-out drawer on the right edge (never in full screen).
-                    if (!fullscreen) ScopeDrawer(scopeHist, Modifier.align(Alignment.CenterEnd)) { scopeOpen = it }
-                    Text(
+                    if (!fullscreen && showScope) ScopeDrawer(scopeHist, Modifier.align(Alignment.CenterEnd)) { scopeOpen = it }
+                    if (showTimecode) Text(
                         "${tc(globalMs)} / ${tc(totalMs)}",
                         style = Pro.Value.copy(fontSize = 12.sp),
                         modifier = Modifier.align(Alignment.TopStart).padding(8.dp).clip(RoundedCornerShape(6.dp)).background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 8.dp, vertical = 3.dp),
@@ -1435,7 +1443,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         else { val i = extraAudio.indexOfFirst { it.id == t.id }; if (i >= 0) extraAudio[i] = t }
                     },
                     onLocked = { message = "Locked — tap the lock at the left of the timeline to unlock" },
-                    waves = waves,
+                    waves = if (showWaves) waves else emptyMap(),
                     markers = markers, snapping = snapping,
                     onToggleMarker = {
                         val near = markers.firstOrNull { kotlin.math.abs(it - globalMs) < 250 }
@@ -1715,51 +1723,69 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         Text("Video editor", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                         Text("${clips.size} CLIPS · ${tc(totalMs)}", style = Pro.Label)
                     }
+                    VideoPanelsButton(
+                        onPage = { page = it },
+                        onReset = {
+                            listOf("ve_timeline_land", "ve_timeline_port", "ve_inspector_w", "ve_viewer_port").forEach { PaneSizes.set(context, it, -1f) }
+                            paneVersion++
+                            message = "Layout reset to original"
+                        },
+                    )
                     TopIcon(Icons.Filled.Settings, "Settings") { showSettings = true }
                     BarButton("LOAD", enabled = !exporting) { showLoad = true }
                     BarButton("SAVE", enabled = !exporting) { if (projectId == null) askName = true else saveProject(projectName) }
                     Text(
                         "EXPORT", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp),
-                        modifier = Modifier.padding(horizontal = 6.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !exporting) { page = Page.DELIVER }.padding(horizontal = 14.dp, vertical = 7.dp),
+                        modifier = Modifier.padding(horizontal = 6.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !exporting) { page = Page.DELIVER; com.dronedirector.acluxpro.ui.Panels.set(context, "ve.inspector", true) }.padding(horizontal = 14.dp, vertical = 7.dp),
                     )
                 }
                 // Resizable panels: hold a divider, then drag. Double-tap a divider to reset it.
-                val tlPane = rememberPane(if (wide) "ve_timeline_land" else "ve_timeline_port")
+                // Hidden panels give their space to the rest; shown again, everything returns to its saved size.
+                val tlPane = rememberPane(if (wide) "ve_timeline_land" else "ve_timeline_port", paneVersion)
                 val timelineBox = @Composable {
                     if (tlPane.dp < 0f) timeline()
                     else Box(Modifier.fillMaxWidth().height(tlPane.dp.dp).verticalScroll(rememberScrollState())) { timeline() }
                 }
                 if (wide) {
-                    val insp = rememberPane("ve_inspector_w")
+                    val insp = rememberPane("ve_inspector_w", paneVersion)
                     val maxW = boxW
                     Row(Modifier.fillMaxWidth().weight(1f)) {
                         Column(Modifier.weight(1f).fillMaxHeight()) {
                             viewer(Modifier.fillMaxWidth().weight(1f))
-                            transport()
+                            if (showTransport) transport()
                         }
-                        ResizeHandle(false,
-                            onDrag = { d -> insp.dp = ((if (insp.dp < 0f) 390f else insp.dp) - d).coerceIn(240f, maxW - 260f) },
-                            onEnd = { insp.save() }, onReset = { insp.reset() })
-                        inspector(Modifier.width((if (insp.dp < 0f) 390f else insp.dp).dp).fillMaxHeight())
+                        if (showInspector) {
+                            ResizeHandle(false,
+                                onDrag = { d -> insp.dp = ((if (insp.dp < 0f) 390f else insp.dp) - d).coerceIn(240f, maxW - 260f) },
+                                onEnd = { insp.save() }, onReset = { insp.reset() })
+                            inspector(Modifier.width((if (insp.dp < 0f) 390f else insp.dp).dp).fillMaxHeight())
+                        }
                     }
                     ResizeHandle(true,
                         onDrag = { d -> tlPane.dp = ((if (tlPane.dp < 0f) 150f else tlPane.dp) - d).coerceIn(70f, boxH * 0.6f) },
                         onEnd = { tlPane.save() }, onReset = { tlPane.reset() })
                     timelineBox()
                 } else {
-                    val viewerPane = rememberPane("ve_viewer_port")
+                    val viewerPane = rememberPane("ve_viewer_port", paneVersion)
                     val autoViewer = boxW * 9f / 16f
                     val maxH = boxH
-                    viewer(Modifier.fillMaxWidth().height((if (viewerPane.dp < 0f) autoViewer else viewerPane.dp).dp))
-                    ResizeHandle(true,
-                        onDrag = { d -> viewerPane.dp = ((if (viewerPane.dp < 0f) autoViewer else viewerPane.dp) + d).coerceIn(110f, maxH - 300f) },
-                        onEnd = { viewerPane.save() }, onReset = { viewerPane.reset() })
-                    transport()
+                    if (showInspector) {
+                        viewer(Modifier.fillMaxWidth().height((if (viewerPane.dp < 0f) autoViewer else viewerPane.dp).dp))
+                        ResizeHandle(true,
+                            onDrag = { d -> viewerPane.dp = ((if (viewerPane.dp < 0f) autoViewer else viewerPane.dp) + d).coerceIn(110f, maxH - 300f) },
+                            onEnd = { viewerPane.save() }, onReset = { viewerPane.reset() })
+                    } else {
+                        // No tools panel: the viewer grows into the free space.
+                        viewer(Modifier.fillMaxWidth().weight(1f))
+                    }
+                    if (showTransport) transport()
                     timelineBox()
-                    ResizeHandle(true,
-                        onDrag = { d -> tlPane.dp = ((if (tlPane.dp < 0f) 150f else tlPane.dp) + d).coerceIn(70f, maxH * 0.5f) },
-                        onEnd = { tlPane.save() }, onReset = { tlPane.reset() })
-                    inspector(Modifier.fillMaxWidth().weight(1f))
+                    if (showInspector) {
+                        ResizeHandle(true,
+                            onDrag = { d -> tlPane.dp = ((if (tlPane.dp < 0f) 150f else tlPane.dp) + d).coerceIn(70f, maxH * 0.5f) },
+                            onEnd = { tlPane.save() }, onReset = { tlPane.reset() })
+                        inspector(Modifier.fillMaxWidth().weight(1f))
+                    }
                 }
             }
 
@@ -2738,4 +2764,28 @@ fun captionPieces(text: String, max: Int): List<String> {
     }
     if (cur.isNotEmpty()) lines += cur.toString()
     return lines.chunked(2).map { it.joinToString("\n") }.ifEmpty { listOf(text) }
+}
+
+/** Panels menu for the video editor: viewer and timeline always stay; the rest can be hidden. */
+@Composable
+private fun VideoPanelsButton(onPage: (Page) -> Unit, onReset: () -> Unit) {
+    val panels = listOf(
+        com.dronedirector.acluxpro.ui.PanelDef("ve.inspector", "Tools panel", "Media, Edit, Color, Layers, Audio and Deliver pages"),
+        com.dronedirector.acluxpro.ui.PanelDef("ve.transport", "Transport bar", "Play, split, undo / redo, timeline zoom"),
+        com.dronedirector.acluxpro.ui.PanelDef("ve.scope", "Histogram", "RGB histogram drawer on the right of the viewer"),
+        com.dronedirector.acluxpro.ui.PanelDef("ve.timecode", "Timecode", "Time read-out on the viewer"),
+        com.dronedirector.acluxpro.ui.PanelDef("ve.waves", "Audio waveforms", "Sound waves drawn on the timeline clips"),
+    )
+    val all = panels.map { it.key }.toSet()
+    com.dronedirector.acluxpro.ui.PanelsButton(
+        prefix = "ve",
+        panels = panels,
+        presets = listOf(
+            com.dronedirector.acluxpro.ui.PanelPreset("Full", all),
+            com.dronedirector.acluxpro.ui.PanelPreset("Cut", setOf("ve.transport", "ve.timecode")),
+            com.dronedirector.acluxpro.ui.PanelPreset("Color", setOf("ve.inspector", "ve.transport", "ve.scope", "ve.timecode")) { onPage(Page.COLOR) },
+            com.dronedirector.acluxpro.ui.PanelPreset("Audio", setOf("ve.inspector", "ve.transport", "ve.timecode", "ve.waves")) { onPage(Page.AUDIO) },
+        ),
+        onReset = onReset,
+    )
 }

@@ -237,8 +237,8 @@ private fun SettingsGear(onSettings: () -> Unit) {
 }
 
 @Composable
-fun QuickBar(s: CameraUiState, c: ProCameraController, vertical: Boolean, onSettings: () -> Unit, modifier: Modifier = Modifier) {
-    // The settings gear stays pinned; the other items scroll if they don't fit.
+fun QuickBar(s: CameraUiState, c: ProCameraController, vertical: Boolean, onSettings: () -> Unit, modifier: Modifier = Modifier, panelsButton: @Composable () -> Unit = {}) {
+    // The panels icon and settings gear stay pinned; the other items scroll if they don't fit.
     if (vertical) {
         Column(modifier.padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Column(
@@ -246,6 +246,7 @@ fun QuickBar(s: CameraUiState, c: ProCameraController, vertical: Boolean, onSett
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
             ) { QuickItems(s, c, onSettings) }
+            panelsButton()
             SettingsGear(onSettings)
         }
     } else {
@@ -255,6 +256,7 @@ fun QuickBar(s: CameraUiState, c: ProCameraController, vertical: Boolean, onSett
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterHorizontally),
             ) { QuickItems(s, c, onSettings) }
+            panelsButton()
             SettingsGear(onSettings)
         }
     }

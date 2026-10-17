@@ -44,9 +44,9 @@ class PaneSize(private val context: Context, private val key: String) {
 }
 
 @Composable
-fun rememberPane(key: String): PaneSize {
+fun rememberPane(key: String, version: Int = 0): PaneSize {
     val ctx = androidx.compose.ui.platform.LocalContext.current
-    return remember(key) { PaneSize(ctx, key) }
+    return remember(key, version) { PaneSize(ctx, key) }
 }
 
 /**

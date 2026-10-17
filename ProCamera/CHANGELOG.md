@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.214 — 2026-10-17
 - Video editor: keep HDR (HLG / HDR10) in the export — Deliver → DYNAMIC RANGE (10-bit HEVC).
 - Photo editor: sky replacement (Effects → SKY REPLACEMENT) — AI finds the sky; choose Clear blue, Golden hour, Sunset, Dramatic, Night or your own picture; strength and light matching.
 - Photo editor: clone stamp (Heal → Clone stamp) — tap the source, then tap where to paint exact copies with the same offset.

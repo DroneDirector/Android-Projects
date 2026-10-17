@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.237 — 2026-10-17
 - Capture: the portrait mode with the live viewfinder blur is now called AI PORTRAIT. A new PORTRAIT mode does everything the same (any subject, slider, AUTO, blur added right after the shot) without the live preview.
 
 ## 1.0.235 — 2026-10-17

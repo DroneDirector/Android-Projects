@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.191 — 2026-10-17
 - Capture: the long-press exposure lock now works the same on tablets (fixed hold time, not affected by pinch zoom); also works in clean feed.
 
 ## 1.0.188 — 2026-10-17

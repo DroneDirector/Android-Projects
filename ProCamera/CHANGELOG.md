@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.231 — 2026-10-17
 - Capture: PORTRAIT blur panel now sits above the filter / zoom bar instead of overlapping it.
 - Capture: PORTRAIT blur dial — a 180° wheel you turn left / right, f/1.4 to f/16 in third stops (tap a number to jump to it). Minimise it (AUTO) and the blur is picked for you from how much of the frame the subject fills.
 

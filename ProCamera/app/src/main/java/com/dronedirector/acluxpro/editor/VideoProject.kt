@@ -48,6 +48,8 @@ data class Clip(
     val audio: AudioFx = AudioFx(),
     /** Transition into the next clip. */
     val transition: Transition = Transition(),
+    /** Colour masks: parts of the picture with their own grade (Color → Masks). */
+    val masks: List<PhotoMask>? = null,
     val reframe: Reframe = Reframe(),
     val stab: Stabilize = Stabilize(),
     val grade: ProGrade = ProGrade(),
@@ -94,6 +96,7 @@ fun clipEffects(c: Clip): List<Effect> = buildList {
     // player's GL context and must never be shared between the two preview players or the export.
     if (!c.grade.isIdentity) add(SingleColorLut.createFromCube(LutCache.cube(c.grade)))
     if (c.detail.needsVideoPass) add(DetailEffect(c.detail))
+    c.activeMasks().takeIf { it.isNotEmpty() }?.let { add(MaskGradeEffect(it)) }
 }
 
 data class DeliverSettings(

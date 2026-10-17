@@ -91,7 +91,7 @@ private fun fit(boxW: Float, boxH: Float, imgW: Int, imgH: Int, pad: Float): Fit
 
 /** On-photo handles for the selected mask: drag gradient ends, move / size the ellipse, or paint. */
 @Composable
-fun MaskEditOverlay(mask: PhotoMask, imgW: Int, imgH: Int, ui: LocalToolsState, image: Bitmap? = null, onChange: (PhotoMask) -> Unit) {
+fun MaskEditOverlay(mask: PhotoMask, imgW: Int, imgH: Int, ui: LocalToolsState, image: Bitmap? = null, pad: androidx.compose.ui.unit.Dp = 6.dp, onChange: (PhotoMask) -> Unit) {
     val cur by rememberUpdatedState(mask)
     val change by rememberUpdatedState(onChange)
     val live = remember { mutableStateListOf<Float>() }
@@ -113,7 +113,7 @@ fun MaskEditOverlay(mask: PhotoMask, imgW: Int, imgH: Int, ui: LocalToolsState, 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val density = androidx.compose.ui.platform.LocalDensity.current
         val bw = with(density) { maxWidth.toPx() }; val bh = with(density) { maxHeight.toPx() }
-        val r = fit(bw, bh, imgW, imgH, with(density) { 6.dp.toPx() })
+        val r = fit(bw, bh, imgW, imgH, with(density) { pad.toPx() })
         fun toImg(o: Offset) = ((o.x - r.left) / r.w) to ((o.y - r.top) / r.h)
         fun toScreen(x: Float, y: Float) = Offset(r.left + x * r.w, r.top + y * r.h)
         tint?.let {
@@ -257,12 +257,14 @@ fun HealOverlay(spots: List<Spot>, imgW: Int, imgH: Int, size: Float, onTap: (Fl
 
 /** The Masks panel: add, pick, show / hide, delete masks; edit the selected mask's settings. */
 @Composable
-fun MasksPanel(masks: List<PhotoMask>, ui: LocalToolsState, onMasks: (List<PhotoMask>) -> Unit, onAi: ((MaskType) -> Unit)? = null) {
+fun MasksPanel(masks: List<PhotoMask>, ui: LocalToolsState, onMasks: (List<PhotoMask>) -> Unit, onAi: ((MaskType) -> Unit)? = null, video: Boolean = false) {
     SectionTitle("ADD A MASK")
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
+    val full = video && masks.size >= MAX_VIDEO_MASKS
+    if (full) Text("This clip has the most masks it can have ($MAX_VIDEO_MASKS). Delete one to add another.", color = Pro.Dim, fontSize = 11.sp)
+    if (!full) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
         SmallAction(Icons.Filled.Gradient, "Linear") { val m = PhotoMask(type = MaskType.LINEAR); onMasks(masks + m); ui.selected = m.id }
         SmallAction(Icons.Filled.RadioButtonUnchecked, "Radial") { val m = PhotoMask(type = MaskType.RADIAL); onMasks(masks + m); ui.selected = m.id }
-        SmallAction(Icons.Filled.Brush, "Brush") { val m = PhotoMask(type = MaskType.BRUSH); onMasks(masks + m); ui.selected = m.id }
+        if (!video) SmallAction(Icons.Filled.Brush, "Brush") { val m = PhotoMask(type = MaskType.BRUSH); onMasks(masks + m); ui.selected = m.id }
         SmallAction(Icons.Filled.Palette, "Colour range") { val m = PhotoMask(type = MaskType.COLOR_RANGE); onMasks(masks + m); ui.selected = m.id }
         SmallAction(Icons.Filled.Contrast, "Brightness range") { val m = PhotoMask(type = MaskType.LUMA_RANGE); onMasks(masks + m); ui.selected = m.id }
         if (onAi != null) {
@@ -270,10 +272,11 @@ fun MasksPanel(masks: List<PhotoMask>, ui: LocalToolsState, onMasks: (List<Photo
             SmallAction(Icons.Filled.Visibility, "Sky (AI)") { onAi(MaskType.SKY) }
         }
     }
-    if (masks.isEmpty()) {
+    if (masks.isEmpty() && !video) {
         Text("Masks change only part of the photo: a linear gradient (e.g. darken a sky), a radial (spotlight a face), a brush you paint with, or a colour / brightness range (e.g. only the blues, only the highlights).", color = Pro.Dim, fontSize = 11.sp)
         return
     }
+    if (masks.isEmpty()) return
     SectionTitle("MASKS")
     masks.forEachIndexed { i, m ->
         val sel = m.id == ui.selected

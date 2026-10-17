@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.221 — 2026-10-17
 - External storage for capture, the video editor and the photo editor: each has its own SAVE LOCATION (Settings) — internal storage, an SD card / USB drive Android lists, or a folder you pick on any USB stick, SSD or SD card. Videos record straight onto the drive; the gallery shows files from picked folders; if the drive is unplugged, AcluxPro saves to internal storage and tells you. The editors can follow capture ("Same as capture").
 
 ## 1.0.219 — 2026-10-17

@@ -283,15 +283,27 @@ class FilterProcessor : SurfaceProcessor {
         if (fn > 0) GLES20.glUniform4fv(GLES20.glGetUniformLocation(program, "uFaces"), fn, faces, 0)
         val useLut = lut && lutTex != 0 && lutStrip != null
         GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uLutOn"), if (useLut) 1 else 0)
-        if (useLut) {
-            GLES20.glActiveTexture(GLES20.GL_TEXTURE1)
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, lutTex)
-            GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uLut"), 1)
-        }
+        // The LUT sampler always gets its own texture unit (some GPUs refuse to draw — black — if two
+        // sampler types point at the same unit, even when one isn't used).
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE1)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, if (useLut) lutTex else dummyTex())
+        GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uLut"), 1)
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
         GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uTex"), 0)
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+    }
+
+    private var dummy = 0
+    private fun dummyTex(): Int {
+        if (dummy != 0) return dummy
+        val t = IntArray(1); GLES20.glGenTextures(1, t, 0); dummy = t[0]
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, dummy)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST)
+        val px = ByteBuffer.allocateDirect(4).order(ByteOrder.nativeOrder()).put(byteArrayOf(0, 0, 0, -1)); px.position(0)
+        GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, 1, 1, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, px)
+        return dummy
     }
 
     private fun ensureGl() {
@@ -319,11 +331,26 @@ class FilterProcessor : SurfaceProcessor {
         program = buildProgram()
     }
 
+    /** Builds the shader; if this GPU rejects the face-blur part, builds it without (never a black picture). */
     private fun buildProgram(): Int {
+        val p = buildProgram(faces = true)
+        if (p != 0) return p
+        android.util.Log.w("AcluxPro", "Camera shader with face blur failed; using the plain shader")
+        facesSupported = false
+        return buildProgram(faces = false)
+    }
+
+    /** False if this GPU couldn't build the face-blur shader. */
+    @Volatile var facesSupported = true
+        private set
+
+    private fun buildProgram(faces: Boolean): Int {
         fun compile(type: Int, src: String): Int {
             val s = GLES20.glCreateShader(type)
             GLES20.glShaderSource(s, src)
             GLES20.glCompileShader(s)
+            val ok = IntArray(1); GLES20.glGetShaderiv(s, GLES20.GL_COMPILE_STATUS, ok, 0)
+            if (ok[0] == 0) android.util.Log.w("AcluxPro", "Shader: " + GLES20.glGetShaderInfoLog(s))
             return s
         }
         val vs = compile(
@@ -400,19 +427,17 @@ class FilterProcessor : SurfaceProcessor {
                 if (uCurve == 3) return vec3(dlogm(lin.r), dlogm(lin.g), dlogm(lin.b));
                 return c;
             }
+            // Pixelates [tc] if it lies inside face [f] (about 12 blocks across the face).
+            vec2 faceAt(vec2 tc, vec4 f) {
+                vec2 h = max(f.zw, vec2(0.001));
+                vec2 d = (vTex - f.xy) / h;
+                if (dot(d, d) >= 1.0) return tc;
+                vec2 cell = max(h / 6.0, vec2(0.002));
+                return (floor(vTex / cell) + 0.5) * cell;
+            }
             void main() {
                 vec2 tc = vTex;
-                for (int i = 0; i < 8; i++) {
-                    if (i >= uFaceN) break;
-                    vec4 f = uFaces[i];
-                    vec2 d = (vTex - f.xy) / max(f.zw, vec2(0.001));
-                    if (dot(d, d) < 1.0) {
-                        // Pixelate the face: about 12 blocks across.
-                        vec2 cell = max(f.zw / 6.0, vec2(0.002));
-                        tc = (floor(vTex / cell) + 0.5) * cell;
-                        break;
-                    }
-                }
+                FACES
                 vec4 c = texture2D(uTex, tc);
                 vec3 rgb = clamp(uColor * c.rgb + uOffset, 0.0, 1.0);
                 if (uLook == 1) {
@@ -426,16 +451,25 @@ class FilterProcessor : SurfaceProcessor {
                 if (uLutOn == 1) rgb = lut3(rgb);
                 gl_FragColor = vec4(rgb, 1.0);
             }
-            """.trimIndent(),
+            """.trimIndent().replace("FACES", if (faces) FACE_CODE else ""),
         )
         val p = GLES20.glCreateProgram()
         GLES20.glAttachShader(p, vs)
         GLES20.glAttachShader(p, fs)
         GLES20.glLinkProgram(p)
+        val linked = IntArray(1); GLES20.glGetProgramiv(p, GLES20.GL_LINK_STATUS, linked, 0)
+        GLES20.glDeleteShader(vs); GLES20.glDeleteShader(fs)
+        if (linked[0] == 0) {
+            android.util.Log.w("AcluxPro", "Program: " + GLES20.glGetProgramInfoLog(p))
+            GLES20.glDeleteProgram(p)
+            return 0
+        }
         return p
     }
 
     companion object {
+        /** Up to 8 faces, each with a constant array index (works on every GLES 2 GPU). */
+        private val FACE_CODE = (0 until 8).joinToString("\n") { "if (uFaceN > $it) tc = faceAt(tc, uFaces[$it]);" }
         private const val EGL_RECORDABLE_ANDROID = 0x3142
 
         private fun floatBuffer(vararg v: Float): FloatBuffer =

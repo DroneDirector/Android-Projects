@@ -507,7 +507,7 @@ fun PanoramaOverlay(s: CameraUiState, modifier: Modifier = Modifier) {
                         Box(Modifier.fillMaxWidth(s.panoProgress.coerceIn(0.02f, 1f)).height(6.dp).background(Pro.Amber))
                     }
                     Spacer(Modifier.height(4.dp))
-                    Text("${s.panoFrames} / ${com.dronedirector.acluxpro.camera.Panorama.MAX_FRAMES} frames · tap to finish", style = Pro.Label.copy(fontSize = 10.sp, letterSpacing = 0.sp))
+                    Text("${s.panoFrames} frames · about ${com.dronedirector.acluxpro.camera.Panorama.TARGET_DEG.toInt()}° · tap to finish early", style = Pro.Label.copy(fontSize = 10.sp, letterSpacing = 0.sp))
                 }
                 else -> {
                     Text("PANORAMA", style = Pro.Value.copy(color = Pro.Amber))

@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.210 — 2026-10-17
 - Photo and video editors: point curves — RGB, red, green and blue; tap to add points, drag to move, double-tap to remove (Curve / Curves tab).
 - Video editor: animated GIF export (Deliver → ANIMATED GIF) — 320 / 480 / 640 px, 10–15 fps, up to 20 s, with the grade and text / logo layers.
 - Video editor: marker notes — the Media page lists every marker; tap the time to jump, type a note; notes are saved in the project and exported in the FCPXML.

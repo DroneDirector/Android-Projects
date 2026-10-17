@@ -144,7 +144,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Effects → BACKGROUND (AI): FIND SUBJECT, then blur the background (portrait look), remove it (transparent PNG) or fill it with a colour.",
             "Heal → AI ERASE: paint over a person, sign or power line and tap ERASE (Bria Eraser with Cloud AI; on the phone for smaller things).",
             "Masks: add a Linear gradient, Radial or Brush mask, then use ADJUST INSIDE THE MASK. Drag the handles on the photo (or paint with the brush); red shows where the mask applies.",
-            "Heal: tap dust, blemishes or small objects on the photo — a matching patch from nearby covers each one. UNDO LAST removes the latest.",
+            "Heal: tap dust, blemishes or small objects on the photo — a matching patch from nearby covers each one. Clone stamp: tap the source, then tap where to paint. Drag a solid circle to move a spot, drag its dashed circle to change where it copies from, hold a spot to delete it. UNDO LAST removes the latest.",
             "Lens: Distortion straightens bulging lines from wide lenses; Vignetting brightens dark corners; Colour fringes removes purple / green outlines.",
             "Crop & perspective → PERSPECTIVE: Vertical straightens buildings that lean in at the top.",
             "Export: JPEG, PNG, WebP or HEIC; sizes for Instagram / web / 4K; AI 2× / 4× upscale; keep or remove camera info and location; BATCH EXPORT applies your edit to up to 50 photos.",

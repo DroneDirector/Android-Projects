@@ -230,24 +230,88 @@ fun MaskEditOverlay(mask: PhotoMask, imgW: Int, imgH: Int, ui: LocalToolsState, 
 
 /** Heal: tap a blemish to remove it; circles show healed spots. */
 @Composable
-fun HealOverlay(spots: List<Spot>, imgW: Int, imgH: Int, size: Float, onTap: (Float, Float) -> Unit) {
+fun HealOverlay(
+    spots: List<Spot>, imgW: Int, imgH: Int, size: Float,
+    onMove: (Int, Spot) -> Unit = { _, _ -> }, onDelete: (Int) -> Unit = {},
+    onTap: (Float, Float) -> Unit,
+) {
     val tap by rememberUpdatedState(onTap)
+    val move by rememberUpdatedState(onMove)
+    val del by rememberUpdatedState(onDelete)
+    val current by rememberUpdatedState(spots)
+    // While dragging: which spot, which part (true = the spot, false = its source) and where it is now.
+    var drag by remember { mutableStateOf<Triple<Int, Boolean, Spot>?>(null) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val density = androidx.compose.ui.platform.LocalDensity.current
         val bw = with(density) { maxWidth.toPx() }; val bh = with(density) { maxHeight.toPx() }
         val r = fit(bw, bh, imgW, imgH, with(density) { 6.dp.toPx() })
+        val grab = with(density) { 14.dp.toPx() }
         Canvas(Modifier.fillMaxSize().pointerInput(r) {
-            detectTapGestures { o ->
-                val x = (o.x - r.left) / r.w; val y = (o.y - r.top) / r.h
-                if (x in 0f..1f && y in 0f..1f) tap(x, y)
+            androidx.compose.foundation.gestures.awaitEachGesture {
+                val down = androidx.compose.foundation.gestures.awaitFirstDown(requireUnconsumed = false)
+                val p0 = down.position
+                // Hit test: the spot itself first (topmost = last added), then its source circle.
+                var hit: Pair<Int, Boolean>? = null
+                for (i in current.indices.reversed()) {
+                    val sp = current[i]
+                    val c = Offset(r.left + sp.x * r.w, r.top + sp.y * r.h)
+                    val rad = sp.r * r.w + grab
+                    if ((p0 - c).getDistance() <= rad) { hit = i to true; break }
+                }
+                if (hit == null) for (i in current.indices.reversed()) {
+                    val sp = current[i]
+                    val c = Offset(r.left + (sp.x + sp.dx) * r.w, r.top + sp.y * r.h + sp.dy * r.w)
+                    if ((p0 - c).getDistance() <= sp.r * r.w + grab) { hit = i to false; break }
+                }
+                val slop = viewConfiguration.touchSlop
+                val t0 = down.uptimeMillis
+                var moved = false
+                var longPressed = false
+                while (true) {
+                    val ev = awaitPointerEvent()
+                    val ch = ev.changes.firstOrNull { it.id == down.id } ?: break
+                    if (!ch.pressed) break
+                    val d = ch.position - p0
+                    if (!moved && d.getDistance() > slop) moved = true
+                    if (!moved && !longPressed && hit != null && ch.uptimeMillis - t0 > 550) {
+                        longPressed = true
+                        del(hit.first)
+                        drag = null
+                    }
+                    if (moved && hit != null && !longPressed) {
+                        ch.consume()
+                        val (i, body) = hit
+                        val sp = current.getOrNull(i) ?: break
+                        val ddx = d.x / r.w; val ddy = d.y / r.w
+                        drag = Triple(i, body, if (body) {
+                            // Move the spot; its source stays where it was.
+                            val nx = (sp.x + ddx).coerceIn(0f, 1f); val ny = (sp.y + d.y / r.h).coerceIn(0f, 1f)
+                            sp.copy(x = nx, y = ny, dx = sp.dx - (nx - sp.x), dy = sp.dy - (ny - sp.y) * r.h / r.w)
+                        } else sp.copy(dx = sp.dx + ddx, dy = sp.dy + ddy))
+                    }
+                }
+                val dr = drag
+                drag = null
+                when {
+                    longPressed -> {}
+                    moved && dr != null -> move(dr.first, dr.third)
+                    !moved && hit == null -> {
+                        val x = (p0.x - r.left) / r.w; val y = (p0.y - r.top) / r.h
+                        if (x in 0f..1f && y in 0f..1f) tap(x, y)
+                    }
+                }
             }
         }) {
-            for (s in spots) {
+            current.forEachIndexed { i, s0 ->
+                val dragging = drag?.first == i
+                val s = if (dragging) drag!!.third else s0
                 val c = Offset(r.left + s.x * r.w, r.top + s.y * r.h)
-                drawCircle(Color.White, s.r * r.w, c, style = Stroke(2f))
+                val col = if (dragging) Pro.Amber else Color.White
+                drawCircle(Color.Black.copy(alpha = 0.35f), s.r * r.w, c, style = Stroke(4f))
+                drawCircle(col, s.r * r.w, c, style = Stroke(2f))
                 val src = Offset(c.x + s.dx * r.w, c.y + s.dy * r.w)
-                drawCircle(Color.White.copy(alpha = 0.5f), s.r * r.w, src, style = Stroke(1.5f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f))))
-                drawLine(Color.White.copy(alpha = 0.4f), c, src, 1.5f)
+                drawCircle(col.copy(alpha = 0.6f), s.r * r.w, src, style = Stroke(1.5f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f))))
+                drawLine(col.copy(alpha = 0.4f), c, src, 1.5f)
             }
             // Brush size preview in the corner.
             drawCircle(Pro.Amber, size * r.w, Offset(r.left + size * r.w + 12f, r.top + size * r.w + 12f), style = Stroke(3f))

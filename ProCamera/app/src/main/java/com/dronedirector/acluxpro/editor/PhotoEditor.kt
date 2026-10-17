@@ -615,9 +615,20 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     }
 
     /** Heal: tap a spot; the patch source is picked automatically. */
+    var cloneMode by remember { mutableStateOf(false) }
+    var cloneSrc by remember { mutableStateOf<Pair<Float, Float>?>(null) }
+    var cloneOff by remember { mutableStateOf<Pair<Float, Float>?>(null) }
     fun addSpot(x: Float, y: Float) {
         val b = base ?: return
         val r = tools.healSize
+        // Clone stamp: first tap picks the source, then each tap paints a copy from the same offset.
+        if (cloneMode) {
+            val src = cloneSrc
+            if (src == null) { cloneSrc = x to y; cloneOff = null; message = "Source set — now tap where to paint"; return }
+            val off = cloneOff ?: ((src.first - x) to ((src.second - y) * b.height / b.width)).also { cloneOff = it }
+            edit = edit.copy(spots = edit.spots + Spot(x, y, r, off.first, off.second, clone = true))
+            return
+        }
         scope.launch {
             val (dx, dy) = withContext(Dispatchers.Default) { PhotoLocal.findSource(b, x, y, r) }
             edit = edit.copy(spots = edit.spots + Spot(x, y, r, dx, dy))
@@ -781,7 +792,12 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                         when (panel) {
                             PhotoPanel.MASKS -> MasksPanel(edit.masks, tools, { edit = edit.copy(masks = it) }, onAi = aiMaskAction)
                             PhotoPanel.HEAL -> {
-                                SectionTitle("HEAL / REMOVE SPOTS") { edit = edit.copy(spots = emptyList()) }
+                                SectionTitle("HEAL / CLONE") { edit = edit.copy(spots = emptyList()) }
+                                Chips(listOf("Heal", "Clone stamp"), if (cloneMode) 1 else 0) { cloneMode = it == 1; cloneSrc = null; cloneOff = null }
+                                if (cloneMode) {
+                                    Text(if (cloneSrc == null) "Tap the spot to copy FROM." else "Tap where to paint the copy; more taps keep the same offset.", color = Pro.Amber, fontSize = 11.sp)
+                                    Text("NEW SOURCE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable { cloneSrc = null; cloneOff = null }.padding(8.dp))
+                                }
                                 Text("Tap dust, blemishes or small objects on the photo. A matching patch from nearby is blended over each one (the whole photo is shown while you heal).", color = Pro.Dim, fontSize = 11.sp)
                                 EdSlider("Size", tools.healSize, 0.005f..0.12f, 0.025f, ::pct) { tools.healSize = it }
                                 Text("${edit.spots.size} spot(s) healed", style = Pro.Label)

@@ -50,7 +50,7 @@ data class PhotoMask(
 )
 
 /** A healed spot: centre and radius (share of the width) and where the patch is taken from (offset, same units). */
-data class Spot(val x: Float, val y: Float, val r: Float, val dx: Float, val dy: Float)
+data class Spot(val x: Float, val y: Float, val r: Float, val dx: Float, val dy: Float, val clone: Boolean = false)
 
 /** What to do with everything except the subject (needs an AI subject selection). */
 data class PhotoBackground(val mode: Int = 0, val blur: Float = 0.5f, val color: Int = 0xFFFFFFFF.toInt(), val maskFile: String? = null) {
@@ -215,12 +215,15 @@ object PhotoLocal {
                 dr += ((c1 shr 16) and 0xFF) - ((c2 shr 16) and 0xFF); dg += ((c1 shr 8) and 0xFF) - ((c2 shr 8) and 0xFF); db += (c1 and 0xFF) - (c2 and 0xFF); n++
             }
             if (n > 0) { dr /= n; dg /= n; db /= n }
+            // Clone stamp: an exact copy (no colour matching), with a firmer edge.
+            if (s.clone) { dr = 0f; dg = 0f; db = 0f }
+            val edge = if (s.clone) 0.75f else 0.55f
             val x0 = max(0, (cx - R).toInt()); val x1 = min(w - 1, (cx + R).toInt())
             val y0 = max(0, (cy - R).toInt()); val y1 = min(h - 1, (cy + R).toInt())
             for (y in y0..y1) for (x in x0..x1) {
                 val d = sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) / R
                 if (d >= 1f) continue
-                val t = 1f - ((d - 0.55f) / 0.45f).coerceIn(0f, 1f).let { it * it * (3 - 2 * it) }
+                val t = 1f - ((d - edge) / (1f - edge)).coerceIn(0f, 1f).let { it * it * (3 - 2 * it) }
                 val sxp = (x + ox).toInt(); val syp = (y + oy).toInt()
                 if (sxp !in 0 until w || syp !in 0 until h) continue
                 val c = px[syp * w + sxp]; val o = px[y * w + x]

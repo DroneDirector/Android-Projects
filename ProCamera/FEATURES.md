@@ -93,7 +93,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Perspective** correction (vertical / horizontal keystone).
 - **Lens corrections**: distortion, vignetting, colour fringes.
 - **Masks**: linear gradient, radial and brush, each with its own light and colour settings.
-- **Heal / spot removal**: tap to remove dust, blemishes and small objects.
+- **Heal / spot removal**: tap to remove dust, blemishes and small objects; **clone stamp** for exact copies from a source you pick.
 - **AI masks**: subject and sky selected automatically.
 - **Colour-range and brightness-range masks**: tap the photo to pick a colour or brightness (e.g. only the blues, only the highlights), with range and softness.
 - **Background (AI)**: portrait blur, transparent background or colour fill behind the subject.

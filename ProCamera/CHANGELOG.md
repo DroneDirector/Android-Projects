@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.219 — 2026-10-17
 - Capture: fixed privacy face blur turning the viewfinder / recording black on some devices; if a device's graphics chip can't run the face-blur shader, the picture now stays normal instead.
 
 ## 1.0.217 — 2026-10-17

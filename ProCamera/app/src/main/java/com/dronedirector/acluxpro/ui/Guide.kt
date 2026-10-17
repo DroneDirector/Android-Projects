@@ -154,6 +154,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "COPY SETTINGS / PASTE SETTINGS moves a look to another photo — or to a video clip.",
             "SAVE keeps the edit as a project; LOAD opens it again later.",
             "Hold the divider between the photo and the controls, then drag to resize. Double-tap to reset.",
+            "History panel: tap any step to go back to it; + SAVE SNAPSHOT keeps a version you can return to while the photo is open.",
             "Masks → Colour range / Brightness range: tap the photo to pick a colour or brightness; only those parts are changed (e.g. only the blue sky, only the highlights). Range and Softness fine-tune it.",
             "Panels icon (next to the settings gear): hide or show the tools panel, copy / paste bar, histogram and before / after buttons — the photo grows into the space and shrinks back when a panel returns. Presets: Full, View, Edit, Color. Triple-tap the icon to reset the whole layout.",
             "Undo / redo are in the top bar; the histogram toggles with the chart icon.",

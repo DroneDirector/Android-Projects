@@ -66,6 +66,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Exporting cleans the full-size photo (on the phone, or in the cloud if Cloud AI is on). STOP on the AI badge cancels.
 
 **Photo editor tips**
+- History panel: tap any step to go back to it; + SAVE SNAPSHOT keeps a version you can return to while the photo is open.
 - Masks → Colour range / Brightness range: tap the photo to pick a colour or brightness; only those parts are changed (e.g. only the blue sky, only the highlights). Range and Softness fine-tune it.
 - Panels icon (next to the settings gear): hide or show the tools panel, copy / paste bar, histogram and before / after buttons — the photo grows into the space and shrinks back when a panel returns. Presets: Full, View, Edit, Color. Triple-tap the icon to reset the whole layout.
 - Hold your finger on the photo to see the original.

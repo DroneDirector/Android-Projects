@@ -135,6 +135,8 @@ data class CameraUiState(
     val whiteBalance: WhiteBalance = WhiteBalance.AUTO,
     val ev: Int = 0,
     val aeLock: Boolean = false,
+    /** Where a long press locked the exposure (viewfinder pixels); shows the lock with its EV slider. */
+    val aeLockPoint: Pair<Float, Float>? = null,
     val awbLock: Boolean = false,
     val zoom: Float = 1f,
     val minZoom: Float = 1f,

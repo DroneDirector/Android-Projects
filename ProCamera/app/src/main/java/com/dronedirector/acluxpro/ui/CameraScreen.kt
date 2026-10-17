@@ -23,6 +23,9 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
@@ -310,6 +313,11 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                                     detectTapGestures(
                                         onTap = { o -> controller.tapToFocus(o.x, o.y) },
                                         onDoubleTap = { controller.setActiveParam(null) },
+                                        // Long press: lock the exposure here; long press again to unlock.
+                                        onLongPress = { o ->
+                                            if (controller.state.value.aeLockPoint != null) controller.unlockExposure()
+                                            else controller.lockExposureAt(o.x, o.y)
+                                        },
                                     )
                                 }
                                 .pointerInput(Unit) {
@@ -319,6 +327,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                                 }
                         )
                         FocusReticle(s.focusPoint, s.focusId, locked = s.aeLock || s.manualFocusActive)
+                        if (!clean) AeLockOverlay(s, controller)
                         PanoramaOverlay(s)
                         ShutterFlash(s.shutterFlash)
                         Countdown(s.countdown)
@@ -591,4 +600,56 @@ private fun CapturePanelsButton(s: CameraUiState, controller: ProCameraControlle
             controller.toast("Layout reset to original")
         },
     )
+}
+
+/** Exposure lock from a long press: lock icon with a tiny X, and an EV slider under it. */
+@Composable
+private fun AeLockOverlay(s: CameraUiState, c: ProCameraController) {
+    val pt = s.aeLockPoint ?: return
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val density = LocalDensity.current
+        val wPx = with(density) { maxWidth.toPx() }; val hPx = with(density) { maxHeight.toPx() }
+        val boxW = with(density) { 190.dp.toPx() }; val boxH = with(density) { 96.dp.toPx() }
+        val left = (pt.first - boxW / 2f).coerceIn(0f, (wPx - boxW).coerceAtLeast(0f))
+        val top = (pt.second - with(density) { 40.dp.toPx() }).coerceIn(0f, (hPx - boxH).coerceAtLeast(0f))
+        Column(
+            Modifier.offset { androidx.compose.ui.unit.IntOffset(left.toInt(), top.toInt()) }.width(190.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box {
+                Row(
+                    Modifier.clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 10.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    androidx.compose.material3.Icon(
+                        androidx.compose.material.icons.Icons.Filled.Lock, contentDescription = "Exposure locked",
+                        tint = if (s.aeLock) Pro.Amber else Color.White, modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        if (s.aeLock) "  AE LOCK  %+.1f".format(s.ev * s.evStep) else "  LOCKING…",
+                        style = Pro.Value.copy(fontSize = 12.sp, color = if (s.aeLock) Pro.Amber else Color.White),
+                    )
+                }
+                // Very small X: unlock.
+                Box(
+                    Modifier.align(Alignment.TopEnd).offset(x = 8.dp, y = (-8).dp).size(18.dp).clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.75f)).clickable { c.unlockExposure() },
+                    contentAlignment = Alignment.Center,
+                ) { Text("✕", color = Color.White, fontSize = 9.sp) }
+            }
+            if (s.evMax > s.evMin) {
+                androidx.compose.material3.Slider(
+                    value = s.ev.toFloat(),
+                    onValueChange = { c.setEv(kotlin.math.round(it).toInt()) },
+                    valueRange = s.evMin.toFloat()..s.evMax.toFloat(),
+                    steps = (s.evMax - s.evMin - 1).coerceAtLeast(0),
+                    modifier = Modifier.width(180.dp).height(30.dp),
+                    colors = androidx.compose.material3.SliderDefaults.colors(
+                        thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = Color.White.copy(alpha = 0.3f),
+                        activeTickColor = Color.Transparent, inactiveTickColor = Color.Transparent,
+                    ),
+                )
+            }
+        }
+    }
 }

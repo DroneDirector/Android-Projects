@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture: red tally border while recording, touch lock (padlock; hold to unlock) and warnings for low storage, low battery and heat — each can be hidden in the Panels menu.
 - Capture: custom set-ups C1 / C2 / C3 in the quick bar — hold to save the current settings, tap to recall (can be hidden in the Panels menu).
 
 ## 1.0.191 — 2026-10-17

@@ -66,6 +66,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - Stream to **YouTube, TikTok, Twitch, Facebook** or any **RTMP / RTMPS / SRT** server; **H.264 or H.265**.
 
 ### Gallery
+- **Culling**: 1–5 stars, pick / reject, rating filters and delete-all-rejects.
 - Full-screen in-app gallery for photos and videos; **Favourites**; separate **RAW** tab with badges.
 - **Colour grading** for photos and videos straight from the gallery.
 

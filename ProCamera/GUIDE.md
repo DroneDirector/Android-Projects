@@ -26,6 +26,10 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Standard is faster; High keeps more real detail. Choose whether to keep the original. STOP on the AI badge cancels.
 
 **Capture tips**
+- Settings → AUDIO → Voice noise reduction (Light / Strong) cleans hiss, hum and background noise from recorded sound.
+- Settings → PRIVACY & TITLE → Face blur pixelates faces in the viewfinder, videos and photos. The BLUR switch in the quick bar turns it on / off.
+- Settings → PRIVACY & TITLE → Title on videos: type a title, pick lower third / centre / top and how long it shows; it is added when each clip is saved (TITLE switch in the quick bar).
+- Settings → PHOTO → Auto-enhance saves an extra, improved copy of each photo next to the original.
 - Panels icon (next to the settings gear): hide or show the exposure read-out, histogram, audio meter, level, Pro controls bar and tips. Presets: Full, Minimal, Video. Triple-tap the icon to put everything back as it was.
 - Volume keys work as shutter / record.
 - Focus magnifier: in PRO / PRO VIDEO open F (focus) and turn the slider — a ×4 zoomed view appears (tap the screen first to choose where).

@@ -4,6 +4,11 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture: voice noise reduction (Light / Strong) for recorded sound.
+- Capture: privacy face blur — faces pixelated live in the viewfinder, in videos and in photos (on-device detection); quick BLUR switch.
+- Capture: title on videos — lower third, centre or top, timed, with a fade / slide in; quick TITLE switch and a viewfinder preview.
+- Capture: auto-enhance — an extra, improved copy of each photo.
+- Panels menu (Capture): hide the BLUR and TITLE switches and the title preview.
 
 ## 1.0.180 — 2026-10-17
 - Photo editor: colour-range and brightness-range masks — tap the photo to pick a colour or brightness; range and softness sliders.

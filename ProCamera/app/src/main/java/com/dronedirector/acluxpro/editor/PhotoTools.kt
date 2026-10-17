@@ -11,6 +11,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -247,8 +249,8 @@ fun HealOverlay(
         val r = fit(bw, bh, imgW, imgH, with(density) { 6.dp.toPx() })
         val grab = with(density) { 14.dp.toPx() }
         Canvas(Modifier.fillMaxSize().pointerInput(r) {
-            androidx.compose.foundation.gestures.awaitEachGesture {
-                val down = androidx.compose.foundation.gestures.awaitFirstDown(requireUnconsumed = false)
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
                 val p0 = down.position
                 // Hit test: the spot itself first (topmost = last added), then its source circle.
                 var hit: Pair<Int, Boolean>? = null

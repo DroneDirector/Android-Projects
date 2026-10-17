@@ -29,6 +29,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Settings → SLATE & SHOT LOG: set scene, shot, take and notes; they show on the viewfinder, go into photos, and every clip and photo is logged. Export the log as a .csv for Excel / Sheets; the take number goes up after each recording.
 - Settings → COPYRIGHT: your name and copyright notice are written into every photo you take and every photo you export (Artist / Copyright in the photo's details).
 - While recording: a red tally border shows you're rolling, and the padlock on the left locks the screen against accidental touches (hold it to unlock). Warnings appear for low storage, low battery and heat.
+- Settings → SAVE PHOTOS & VIDEOS TO: internal storage, an SD card / USB drive, or CHOOSE A FOLDER on any USB stick, SSD or card reader. Videos record straight onto the drive; if it's unplugged, AcluxPro saves to internal storage and tells you.
 - C1 / C2 / C3 in the quick bar: hold one to save all your current settings (mode, lens, ISO, shutter, white balance, resolution, frame rate, profile, filter…), tap it to bring them back.
 - Long press the viewfinder to lock the exposure there; drag the slider under the lock to brighten or darken while it stays locked. Long press again, or tap the small ✕, to unlock.
 - Settings → AUDIO → Voice noise reduction (Light / Strong) cleans hiss, hum and background noise from recorded sound.
@@ -91,7 +92,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 **General**
 - "Remember watermark" adds your watermark to every new photo.
-- SAVE LOCATION chooses where exported photos go.
+- SAVE LOCATION chooses where exported photos go: same as capture, internal storage, an SD card / USB drive, or a folder you pick on a USB stick / SSD / SD card.
 - APP COLOUR changes the highlight colour.
 - "Always start in Photo editor" opens the app straight into this editor.
 
@@ -149,6 +150,6 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 **General**
 - "Remember watermark" adds your watermark to every new project.
-- SAVE LOCATION chooses where exported videos go.
+- SAVE LOCATION chooses where exported videos go: same as capture, internal storage, an SD card / USB drive, or a folder you pick on a USB stick / SSD / SD card.
 - APP COLOUR changes the highlight colour.
 - "Always start in Video editor" opens the app straight into this editor.

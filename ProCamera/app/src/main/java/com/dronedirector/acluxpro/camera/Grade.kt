@@ -263,7 +263,7 @@ object GradeIO {
         "${prefix}_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + "_graded.$ext"
 
     /** Grades a photo at full resolution and saves it as a new picture next to the original. */
-    fun savePhoto(context: Context, uri: Uri, grade: Grade): Uri? {
+    fun savePhoto(context: Context, uri: Uri, grade: Grade, area: StorageArea = StorageArea.CAPTURE): Uri? {
         val src = decode(context, uri, 0) ?: return null
         val out = GradeLut(grade).apply(src)
         src.recycle()
@@ -276,22 +276,22 @@ object GradeIO {
             }
         }
         val resolver = context.contentResolver
-        val target = resolver.insert(Storage.imagesUri(Storage.load(context)), values) ?: return null
+        val target = Storage.insert(context, Storage.load(context, area), values, Storage.Kind.IMAGE) ?: return null
         return try {
             resolver.openOutputStream(target)?.use { out.compress(Bitmap.CompressFormat.JPEG, 95, it) }
             out.recycle()
             if (Build.VERSION.SDK_INT >= 29) {
-                resolver.update(target, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+                Storage.publish(context, target)
             }
             target
         } catch (_: Throwable) {
-            resolver.delete(target, null, null)
+            Storage.discard(context, target)
             null
         }
     }
 
     /** Copies a finished file into the gallery as a new video. */
-    fun publishVideo(context: Context, file: java.io.File): Uri? {
+    fun publishVideo(context: Context, file: java.io.File, area: StorageArea = StorageArea.CAPTURE): Uri? {
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, gradedName("PRO", "mp4"))
             put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
@@ -301,15 +301,15 @@ object GradeIO {
             }
         }
         val resolver = context.contentResolver
-        val target = resolver.insert(Storage.videosUri(Storage.load(context)), values) ?: return null
+        val target = Storage.insert(context, Storage.load(context, area), values, Storage.Kind.VIDEO) ?: return null
         return try {
             resolver.openOutputStream(target)?.use { o -> file.inputStream().use { it.copyTo(o, 1 shl 16) } }
             if (Build.VERSION.SDK_INT >= 29) {
-                resolver.update(target, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+                Storage.publish(context, target)
             }
             target
         } catch (_: Throwable) {
-            resolver.delete(target, null, null)
+            Storage.discard(context, target)
             null
         }
     }

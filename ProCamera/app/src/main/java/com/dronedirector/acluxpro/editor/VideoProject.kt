@@ -454,7 +454,7 @@ class TimelineExport(
                         } else {
                             val name = "EDIT_$stamp.mp4"
                             SaveFolder.write(context, true, name, "video/mp4") { os -> out.inputStream().use { it.copyTo(os) } }
-                                ?: GradeIO.publishVideo(context, out)
+                                ?: GradeIO.publishVideo(context, out, com.dronedirector.acluxpro.camera.StorageArea.VIDEO)
                         }
                         out.delete()
                         handler.post { onDone(uri, if (uri == null) (if (audioOnly) "Couldn't save the audio" else "Couldn't save the video") else null) }
@@ -525,12 +525,12 @@ fun publishAudio(context: Context, file: File, name: String): Uri? {
             put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Music/AcluxPro")
             put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
         }
-        val target = resolver.insert(android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values) ?: return null
+        val target = com.dronedirector.acluxpro.camera.Storage.insert(context, com.dronedirector.acluxpro.camera.Storage.load(context, com.dronedirector.acluxpro.camera.StorageArea.VIDEO), values, com.dronedirector.acluxpro.camera.Storage.Kind.AUDIO) ?: return null
         return try {
             resolver.openOutputStream(target)?.use { o -> file.inputStream().use { it.copyTo(o, 1 shl 16) } }
-            resolver.update(target, android.content.ContentValues().apply { put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+            com.dronedirector.acluxpro.camera.Storage.publish(context, target)
             target
-        } catch (_: Throwable) { resolver.delete(target, null, null); null }
+        } catch (_: Throwable) { com.dronedirector.acluxpro.camera.Storage.discard(context, target); null }
     }
     return try {
         @Suppress("DEPRECATION")

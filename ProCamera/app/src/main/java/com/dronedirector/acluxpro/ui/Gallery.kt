@@ -177,7 +177,8 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
         scope.launch {
             val needsSystem: IntentSenderRequest? = withContext(Dispatchers.IO) {
                 try {
-                    context.contentResolver.delete(item.uri, null, null)
+                    if (item.uri.authority != MediaStore.AUTHORITY) com.dronedirector.acluxpro.camera.Storage.discard(context, item.uri)
+                    else context.contentResolver.delete(item.uri, null, null)
                     com.dronedirector.acluxpro.camera.Favorites.remove(context, item.uri)
                     null
                 } catch (e: SecurityException) {
@@ -299,7 +300,8 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
                             val locked = mutableListOf<Uri>()
                             withContext(Dispatchers.IO) {
                                 for (r in rejects) try {
-                                    context.contentResolver.delete(r.uri, null, null)
+                                    if (r.uri.authority != MediaStore.AUTHORITY) com.dronedirector.acluxpro.camera.Storage.discard(context, r.uri)
+                                    else context.contentResolver.delete(r.uri, null, null)
                                     com.dronedirector.acluxpro.camera.Ratings.set(context, r.uri, com.dronedirector.acluxpro.camera.Ratings.Mark())
                                 } catch (_: SecurityException) { locked += r.uri }
                             }

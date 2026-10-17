@@ -246,11 +246,11 @@ object Upscaler {
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
         }
-        val target2 = cr.insert(Storage.imagesUri(Storage.load(context)), values) ?: run { tmp.delete(); return "AI upscale: couldn't save" }
+        val target2 = Storage.insert(context, Storage.load(context), values, Storage.Kind.IMAGE) ?: run { tmp.delete(); return "AI upscale: couldn't save" }
         cr.openOutputStream(target2)?.use { os -> tmp.inputStream().use { it.copyTo(os) } }
-        if (Build.VERSION.SDK_INT >= 29) cr.update(target2, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+        Storage.publish(context, target2)
         tmp.delete()
-        if (!keep) try { cr.delete(uri, null, null) } catch (_: Throwable) {}
+        if (!keep) Storage.discard(context, uri)
         return when {
             cloudOk -> "Cloud AI upscaled to ${mp} MP (${tw}×${th})"
             cloudNote != null -> "Cloud AI unavailable ($cloudNote) — upscaled on the phone"

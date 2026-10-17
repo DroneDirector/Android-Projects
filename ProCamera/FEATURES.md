@@ -74,7 +74,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 
 ### Settings
 - **Copyright**: your name and copyright written into every photo (camera and photo editor exports).
-- Save to phone storage or SD card; **app colour** (accent) picker; layout and control options.
+- **External storage**: save to phone storage, an SD card / USB drive, or a folder you pick on any USB stick, SSD or SD card (videos record straight onto the drive; falls back to internal storage if it is unplugged); **app colour** (accent) picker; layout and control options.
 - **Panels menu** (icon next to the gear): show / hide the exposure read-out, histogram, audio meter, level, Pro controls bar and tips; presets **Full / Minimal / Video**; **triple-tap** the icon to restore the original layout.
 
 ---
@@ -121,6 +121,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 ## Video editor
 ### Media & timeline
 - Add clips from the gallery or files (MP4, MKV, MOV, WebM, SD card / USB).
+- Export to internal storage, an SD card / USB drive or a picked folder on any external drive (own SAVE LOCATION, or the same as capture).
 - **Media pool** with codec, HDR / 10-bit badges; delete from the pool with confirmation.
 - **Multi-track timeline** starting at the left edge: filmstrips, layer rows and audio rows; drag the playhead or tap the ruler; two-finger pinch zoom and scroll; follows the playhead while playing.
 - Under the player: **mute, zoom out, show whole timeline, zoom in, split, undo, redo**, previous / play / next, full screen.

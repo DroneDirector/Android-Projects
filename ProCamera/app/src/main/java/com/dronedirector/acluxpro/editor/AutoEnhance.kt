@@ -57,7 +57,7 @@ object AutoEnhance {
         if (src == null) null else {
             val g = gradeFor(src)
             val out = ImageOps.render(src, g, Detail(), Geometry(), if (g.isIdentity) null else g.tables())
-            savePicture(context, out, png = false, quality = 95)
+            savePicture(context, out, png = false, quality = 95, area = com.dronedirector.acluxpro.camera.StorageArea.CAPTURE)
         }
     } catch (_: Throwable) { null }
 }

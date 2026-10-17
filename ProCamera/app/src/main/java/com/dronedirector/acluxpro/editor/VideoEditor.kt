@@ -1319,7 +1319,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             onDone = { uri, err ->
                 exporting = false; export = null
                 message = if (uri != null) {
-                    val folder = SaveFolder.get(context, true)?.let { SaveFolder.label(it) } ?: if (deliver.audioOnly) "Music/AcluxPro" else "DCIM/AcluxPro"
+                    val place = com.dronedirector.acluxpro.camera.Storage.load(context, com.dronedirector.acluxpro.camera.StorageArea.VIDEO)
+                    val folder = SaveFolder.get(context, true)?.let { SaveFolder.label(it) }
+                        ?: ((if (place == com.dronedirector.acluxpro.camera.Storage.INTERNAL) "" else com.dronedirector.acluxpro.camera.Storage.label(context, place) + " · ") + if (deliver.audioOnly) "Music/AcluxPro" else "DCIM/AcluxPro")
                     (if (deliver.audioOnly) "Audio exported to " else "Exported to ") + folder
                 } else err ?: "Export failed"
             },
@@ -1373,7 +1375,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     val f = GradeIO.videoFrame(context, c.uri, src * 1000, 4096) ?: return@withContext null
                     var out = ImageOps.render(f, c.grade, c.detail.copy(aiDenoise = 0f), Geometry(), if (c.grade.isIdentity) null else c.grade.tables())
                     for (l in shownLayers) out = stampLayer(context, out, l)
-                    savePicture(context, out, png = false, quality = 95)
+                    savePicture(context, out, png = false, quality = 95, area = com.dronedirector.acluxpro.camera.StorageArea.VIDEO)
                 } catch (_: Throwable) { null }
             }
             message = if (uri != null) "Frame saved as a photo" else "Couldn't save the frame"

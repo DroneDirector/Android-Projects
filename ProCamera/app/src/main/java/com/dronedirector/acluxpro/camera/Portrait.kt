@@ -10,6 +10,8 @@ import com.google.android.gms.tasks.Tasks
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.segmentation.Segmentation
 import com.google.mlkit.vision.segmentation.selfie.SelfieSegmenterOptions
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
 import java.nio.ByteOrder
 import kotlin.math.max
 import kotlin.math.min
@@ -33,13 +35,13 @@ object Portrait {
     fun indexOf(f: Float): Int = F_STOPS.indices.minByOrNull { kotlin.math.abs(F_STOPS[it] - f) } ?: 3
 
     /** 1 at f/1.4, a bit under ¾ per stop after that (matches the old five-step scale). */
-    private fun strength(f: Float): Float {
+    internal fun strength(f: Float): Float {
         val stops = 2f * (kotlin.math.ln(f / 1.4f) / kotlin.math.ln(2f))
         return Math.pow(0.72, stops.toDouble()).toFloat().coerceIn(0.06f, 1f)
     }
 
     /** Auto: close-ups get a gentler blur (hair edges stay clean), small / distant subjects a stronger one so it still reads. */
-    private fun autoF(mask: FloatArray): Float {
+    internal fun autoF(mask: FloatArray): Float {
         val cover = mask.count { it > 0.5f }.toFloat() / mask.size
         return when {
             cover >= 0.45f -> 2.8f
@@ -67,9 +69,51 @@ object Portrait {
         if (cover < 0.02f) null else out
     } catch (_: Throwable) { null }
 
-    /** Any subject: the editor's AI subject selection (cloud when chosen, else on the phone). */
-    private fun subjectMask(context: Context, small: Bitmap): FloatArray? = try {
-        val useCloud = CloudAi.usePhotos(context)
+    private val subjectSegmenter by lazy {
+        SubjectSegmentation.getClient(SubjectSegmenterOptions.Builder().enableForegroundConfidenceMask().build())
+    }
+
+    /**
+     * Whatever stands out in the frame — pets, flowers, rocks, branches, objects (ML Kit subject
+     * segmentation, on the phone; its model comes with Google Play services). Mask at [small]'s size.
+     * Call off the main thread.
+     */
+    internal fun anySubjectMask(small: Bitmap): FloatArray? = try {
+        // The model wants at least ~512 px; upscale small frames for it.
+        val side = max(small.width, small.height)
+        val inp = if (side >= 512) small else Bitmap.createScaledBitmap(small, (small.width * 512f / side).roundToInt(), (small.height * 512f / side).roundToInt(), true)
+        val r = Tasks.await(subjectSegmenter.process(InputImage.fromBitmap(inp, 0)))
+        val fb = r.foregroundConfidenceMask
+        if (fb == null) null else {
+            fb.rewind()
+            val iw = inp.width; val ih = inp.height
+            val raw = FloatArray(iw * ih) { if (fb.hasRemaining()) fb.get() else 0f }
+            if (inp !== small) inp.recycle()
+            val out = if (iw == small.width && ih == small.height) raw else resample(raw, iw, ih, small.width, small.height)
+            if (out.count { it > 0.5f } < out.size * 0.02f) null else out
+        }
+    } catch (_: Throwable) { null }
+
+    /** Person mask for the live viewfinder (stream mode: fast, steadier between frames). */
+    private val liveSegmenter by lazy {
+        Segmentation.getClient(SelfieSegmenterOptions.Builder().setDetectorMode(SelfieSegmenterOptions.STREAM_MODE).build())
+    }
+    internal fun livePersonMask(small: Bitmap): FloatArray? = try {
+        val m = Tasks.await(liveSegmenter.process(InputImage.fromBitmap(small, 0)))
+        val buf = m.buffer.order(ByteOrder.nativeOrder()); buf.rewind()
+        val raw = FloatArray(m.width * m.height) { buf.float }
+        val out = if (m.width == small.width && m.height == small.height) raw else resample(raw, m.width, m.height, small.width, small.height)
+        if (out.count { it > 0.5f }.toFloat() / out.size < 0.02f) null else out
+    } catch (_: Throwable) { null }
+
+    /** Any subject: cloud cut-out when Cloud AI is on, then ML Kit (pets, flowers, rocks…), then the editor's subject AI. */
+    private fun subjectMask(context: Context, small: Bitmap): FloatArray? =
+        (if (CloudAi.usePhotos(context)) editorSubjectMask(context, small) else null)
+            ?: anySubjectMask(small) ?: editorSubjectMask(context, small)
+
+    /** The editor's AI subject selection (cloud when chosen, else DeepLab on the phone). */
+    internal fun editorSubjectMask(context: Context, small: Bitmap, allowCloud: Boolean = true): FloatArray? = try {
+        val useCloud = allowCloud && CloudAi.usePhotos(context)
         val mb = com.dronedirector.acluxpro.editor.AiSegment.subject(context, small, useCloud)
         mb?.let { b ->
             val s = if (b.width == small.width && b.height == small.height) b else Bitmap.createScaledBitmap(b, small.width, small.height, true)
@@ -79,7 +123,7 @@ object Portrait {
         }
     } catch (_: Throwable) { null }
 
-    private fun resample(src: FloatArray, sw: Int, sh: Int, dw: Int, dh: Int): FloatArray = FloatArray(dw * dh) { i ->
+    internal fun resample(src: FloatArray, sw: Int, sh: Int, dw: Int, dh: Int): FloatArray = FloatArray(dw * dh) { i ->
         val x = (i % dw) * (sw - 1f) / max(1, dw - 1); val y = (i / dw) * (sh - 1f) / max(1, dh - 1)
         val x0 = x.toInt().coerceAtMost(sw - 2).coerceAtLeast(0); val y0 = y.toInt().coerceAtMost(sh - 2).coerceAtLeast(0)
         val fx = x - x0; val fy = y - y0
@@ -89,7 +133,7 @@ object Portrait {
     }
 
     /** Box blur of a float plane, [passes] times (≈ gaussian). */
-    private fun blurPlane(p: FloatArray, w: Int, h: Int, r: Int, passes: Int = 3) {
+    internal fun blurPlane(p: FloatArray, w: Int, h: Int, r: Int, passes: Int = 3) {
         if (r < 1) return
         val tmp = FloatArray(max(w, h))
         repeat(passes) {

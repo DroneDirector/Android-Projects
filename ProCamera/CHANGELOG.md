@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.168 — 2026-10-17
 - Video editor: the Transitions page now has two sub-menus — VIDEO TRANSITIONS (the existing 34) and AUDIO TRANSITIONS.
 - New audio transitions: match video, hard cut, constant gain, constant power, exponential fade, dip to silence, quick out / slow in and slow out / quick in. They work in the preview and the export, over a video transition or on a plain cut (fade out / in around the cut, 0.1–3 s), with APPLY TO ALL CUTS.
 

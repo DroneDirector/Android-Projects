@@ -114,6 +114,7 @@ import com.dronedirector.acluxpro.camera.GradeIO
 import com.dronedirector.acluxpro.ui.Pro
 import com.dronedirector.acluxpro.ui.hintedScroll
 import kotlinx.coroutines.Dispatchers
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.material.icons.filled.SlowMotionVideo
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.FastRewind
@@ -1251,6 +1252,31 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         seekGlobal(ms)
     }
 
+    fun runExportNow(list0: List<Clip>, loudGain: Float) {
+        // Export range: cut the edit down to the chosen part first.
+        val ra = deliver.rangeStart; val rb = deliver.rangeEnd
+        val cut = if (ra != null && rb != null && rb > ra) cutRange(list0, layers.toList(), music, extraAudio.toList(), ra, rb)
+        else RangeCut(list0, layers.toList(), music, extraAudio.toList())
+        if (cut.clips.isEmpty()) { exporting = false; message = "Nothing to export in that range"; return }
+        val g = loudGain
+        val list = if (g == 1f) cut.clips else cut.clips.map { it.copy(volume = it.volume * g) }
+        val cutMusic = cut.music?.let { if (g == 1f) it else it.copy(volume = it.volume * g) }
+        val cutExtra = if (g == 1f) cut.extra else cut.extra.map { it.copy(volume = it.volume * g) }
+        val e = TimelineExport(
+            context, if (videoMuted) list.map { it.copy(muted = true) } else list, deliver, cut.layers, cutMusic, cutExtra,
+            onProgress = { progress = if (deliver.loudness != null && (deliver.audio || deliver.audioOnly)) 20 + it * 4 / 5 else it },
+            onDone = { uri, err ->
+                exporting = false; export = null
+                message = if (uri != null) {
+                    val folder = SaveFolder.get(context, true)?.let { SaveFolder.label(it) } ?: if (deliver.audioOnly) "Music/AcluxPro" else "DCIM/AcluxPro"
+                    (if (deliver.audioOnly) "Audio exported to " else "Exported to ") + folder
+                } else err ?: "Export failed"
+            },
+        )
+        export = e
+        try { e.start() } catch (t: Throwable) { exporting = false; export = null; message = "Export failed: ${t.message}" }
+    }
+
     /** Loudness: render the sound once, measure it, then export with every track turned up / down to the target. */
     fun runExport(list0: List<Clip>) {
         val target = deliver.loudness
@@ -1281,31 +1307,6 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         )
         export = probe
         try { probe.start() } catch (t: Throwable) { runExportNow(list0, 1f) }
-    }
-
-    fun runExportNow(list0: List<Clip>, loudGain: Float) {
-        // Export range: cut the edit down to the chosen part first.
-        val ra = deliver.rangeStart; val rb = deliver.rangeEnd
-        val cut = if (ra != null && rb != null && rb > ra) cutRange(list0, layers.toList(), music, extraAudio.toList(), ra, rb)
-        else RangeCut(list0, layers.toList(), music, extraAudio.toList())
-        if (cut.clips.isEmpty()) { exporting = false; message = "Nothing to export in that range"; return }
-        val g = loudGain
-        val list = if (g == 1f) cut.clips else cut.clips.map { it.copy(volume = it.volume * g) }
-        val cutMusic = cut.music?.let { if (g == 1f) it else it.copy(volume = it.volume * g) }
-        val cutExtra = if (g == 1f) cut.extra else cut.extra.map { it.copy(volume = it.volume * g) }
-        val e = TimelineExport(
-            context, if (videoMuted) list.map { it.copy(muted = true) } else list, deliver, cut.layers, cutMusic, cutExtra,
-            onProgress = { progress = if (deliver.loudness != null && (deliver.audio || deliver.audioOnly)) 20 + it * 4 / 5 else it },
-            onDone = { uri, err ->
-                exporting = false; export = null
-                message = if (uri != null) {
-                    val folder = SaveFolder.get(context, true)?.let { SaveFolder.label(it) } ?: if (deliver.audioOnly) "Music/AcluxPro" else "DCIM/AcluxPro"
-                    (if (deliver.audioOnly) "Audio exported to " else "Exported to ") + folder
-                } else err ?: "Export failed"
-            },
-        )
-        export = e
-        try { e.start() } catch (t: Throwable) { exporting = false; export = null; message = "Export failed: ${t.message}" }
     }
 
     /** Saves the frame under the playhead (graded, with its text / logo layers) as a photo. */
@@ -2496,7 +2497,7 @@ private fun LayerPreview(
                 val img = remember(b0) { b0.asImageBitmap() }
                 val mode = (l.blend ?: LayerBlend.NORMAL).compose
                 androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                    androidx.compose.ui.graphics.drawscope.clipRect(right = size.width * fx.reveal.coerceIn(0f, 1f)) {
+                    clipRect(right = size.width * fx.reveal.coerceIn(0f, 1f)) {
                         drawImage(img, dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()), alpha = (l.opacity * fx.alpha).coerceIn(0f, 1f), blendMode = mode)
                     }
                 }

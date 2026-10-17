@@ -313,7 +313,14 @@ private fun AudioTransitionsPanel(
     }
 
     Text("BUILT-IN", style = Pro.Label.copy(color = Color.White, fontSize = 10.sp), modifier = Modifier.padding(top = 10.dp, bottom = 2.dp))
-    (listOf<TransitionSfx?>(null) + TransitionSfx.entries).forEach { fx ->
+    val rows = mutableListOf<Any?>(null)
+    SfxGroup.entries.forEach { g -> rows += g; rows += TransitionSfx.entries.filter { it.group == g } }
+    rows.forEach { row ->
+        if (row is SfxGroup) {
+            Text(row.label.uppercase(), style = Pro.Label.copy(fontSize = 9.sp), modifier = Modifier.padding(top = 8.dp, bottom = 2.dp))
+            return@forEach
+        }
+        val fx = row as TransitionSfx?
         val sel = if (fx == null) fxSel == null && userSel == null else fx == fxSel
         Row(
             Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(8.dp))

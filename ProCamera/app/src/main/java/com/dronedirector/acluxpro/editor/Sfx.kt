@@ -18,17 +18,36 @@ import kotlin.math.tanh
  * [hitMs] is the moment in the sound that lands on the cut: 0 for impacts (they start on the cut),
  * the full length for risers (they build up to the cut).
  */
-enum class TransitionSfx(val label: String, val detail: String, val lengthMs: Int, val hitMs: Int) {
-    IMPACT("Cinematic impact", "Deep thump with a sharp crack and a rumbling tail", 2500, 0),
-    BOOM("Cinematic boom", "Huge low boom that rolls out", 3500, 0),
-    TRAILER_HIT("Trailer hit", "Boom with a metallic ring, like a movie trailer", 3000, 0),
-    SUB_DROP("Sub drop", "Low tone that falls away under the cut", 1800, 0),
-    WHOOSH("Whoosh", "Air rushing past, left to right", 1000, 500),
-    SWOOSH("Fast swoosh", "Short, quick swish", 450, 220),
-    SWIRL("Swirl", "Spinning, circling air that lands on the cut", 1500, 1000),
-    RISER("Riser", "Tension that builds up into the cut", 2500, 2500),
-    REVERSE("Reverse cymbal", "Swelling shimmer that sucks into the cut", 2000, 2000),
-    GLITCH("Glitch", "Digital stutters and crackles", 700, 80),
+enum class SfxGroup(val label: String) { HITS("Hits & impacts"), WHOOSH("Whooshes & air"), BUILD("Builds & risers"), OTHER("Stylized & sci-fi") }
+
+enum class TransitionSfx(val label: String, val detail: String, val lengthMs: Int, val hitMs: Int, val group: SfxGroup) {
+    IMPACT("Cinematic impact", "Deep thump with a sharp crack and a rumbling tail", 2500, 0, SfxGroup.HITS),
+    BOOM("Cinematic boom", "Huge low boom that rolls out", 3500, 0, SfxGroup.HITS),
+    TRAILER_HIT("Trailer hit", "Boom with a metallic ring, like a movie trailer", 3000, 0, SfxGroup.HITS),
+    BRAAM("Braam", "Huge brassy horn blast, blockbuster-trailer style", 3000, 0, SfxGroup.HITS),
+    DRUM_HIT("Drum hit", "Big cinematic drum with room sound", 1800, 0, SfxGroup.HITS),
+    PUNCH("Punch", "Quick swish that ends in a hard hit", 650, 400, SfxGroup.HITS),
+    THUNDER("Thunder", "Crack of thunder rolling away", 4000, 0, SfxGroup.HITS),
+    HEARTBEAT("Heartbeat", "Two low thumps — lub-dub", 1200, 0, SfxGroup.HITS),
+    SUB_DROP("Sub drop", "Low tone that falls away under the cut", 1800, 0, SfxGroup.HITS),
+
+    WHOOSH("Whoosh", "Air rushing past, left to right", 1000, 500, SfxGroup.WHOOSH),
+    SWOOSH("Fast swoosh", "Short, quick swish", 450, 220, SfxGroup.WHOOSH),
+    DEEP_WHOOSH("Deep whoosh", "Heavy, low pass-by", 1400, 700, SfxGroup.WHOOSH),
+    SWIRL("Swirl", "Spinning, circling air that lands on the cut", 1500, 1000, SfxGroup.WHOOSH),
+    WIND_GUST("Wind gust", "A gust of wind that swells and fades", 2200, 1100, SfxGroup.WHOOSH),
+
+    RISER("Riser", "Tension that builds up into the cut", 2500, 2500, SfxGroup.BUILD),
+    REVERSE("Reverse cymbal", "Swelling shimmer that sucks into the cut", 2000, 2000, SfxGroup.BUILD),
+    TICK_RISER("Clock tick build", "Ticking that speeds up into the cut", 3000, 3000, SfxGroup.BUILD),
+    TAPE_STOP("Tape stop", "Music slowing to a halt into the cut", 1500, 1500, SfxGroup.BUILD),
+
+    GLITCH("Glitch", "Digital stutters and crackles", 700, 80, SfxGroup.OTHER),
+    SCRATCH("Record scratch", "Quick DJ scratch back and forth", 600, 300, SfxGroup.OTHER),
+    LASER("Laser zap", "Sci-fi zap", 500, 0, SfxGroup.OTHER),
+    SHIMMER("Magic shimmer", "Sparkling bell tones", 2000, 150, SfxGroup.OTHER),
+    SHUTTER("Camera shutter", "Mechanical shutter click", 400, 0, SfxGroup.OTHER),
+    STATIC("TV static", "Burst of analogue noise", 900, 450, SfxGroup.OTHER),
 }
 
 /** Makes the sound effects on the phone (no downloaded audio, no licences) and caches them as WAV files. */
@@ -168,6 +187,197 @@ object SfxSynth {
                 gl.step(nl.next(), 6500f, 3f); gr.step(nr.next(), 6500f, 3f)
                 l[i] = (fl.high * 0.7f + gl.band * 0.6f) * env * end
                 r[i] = (fr.high * 0.7f + gr.band * 0.6f) * env * end
+            }
+            TransitionSfx.BRAAM -> {
+                val notes = floatArrayOf(55f, 82.4f, 110f, 164.8f)
+                val phL = DoubleArray(notes.size * 8); val phR = DoubleArray(notes.size * 8)
+                for (i in 0 until n) {
+                    val t = i.toFloat() / SR
+                    var a = 0f; var b = 0f
+                    for (k in notes.indices) for (h in 1..8) {
+                        val idx = k * 8 + h - 1
+                        phL[idx] += 2 * PI * notes[k] * h * 0.998 / SR
+                        phR[idx] += 2 * PI * notes[k] * h * 1.002 / SR
+                        a += sin(phL[idx]).toFloat() / h; b += sin(phR[idx]).toFloat() / h
+                    }
+                    val env = (t / 0.06f).coerceAtMost(1f) * exp(-t * 0.9f)
+                    val fc = 400f + 2100f * exp(-t * 1.5f)
+                    fl.step(a * 0.25f, fc); fr.step(b * 0.25f, fc)
+                    l[i] = tanh(2f * fl.low) * env; r[i] = tanh(2f * fr.low) * env
+                }
+            }
+            TransitionSfx.DRUM_HIT -> for (i in 0 until n) {
+                val t = i.toFloat() / SR
+                ph += 2 * PI * (48f + 40f * exp(-t * 18f)) / SR
+                val att = (t / 0.003f).coerceAtMost(1f)
+                val body = tanh(1.8f * sin(ph).toFloat()) * exp(-t * 5f) * att
+                val a = nl.next(); val b = nr.next()
+                fl.step(a, 900f); fr.step(b, 900f); gl.step(a, 600f); gr.step(b, 600f)
+                val skin = exp(-t * 18f) * 0.7f; val room = exp(-t * 3f) * 0.35f
+                l[i] = body + fl.low * skin + gl.low * room
+                r[i] = body + fr.low * skin + gr.low * room
+            }
+            TransitionSfx.PUNCH -> {
+                val hit = s.hitMs / 1000f
+                for (i in 0 until n) {
+                    val t = i.toFloat() / SR
+                    val a = nl.next(); val b = nr.next()
+                    if (t < hit) {
+                        val p = t / hit
+                        val fc = 800f + 2700f * p
+                        fl.step(a, fc, 1.4f); fr.step(b, fc, 1.4f)
+                        l[i] = fl.band * p * p * 1.8f; r[i] = fr.band * p * p * 1.8f
+                    } else {
+                        val d = t - hit
+                        ph += 2 * PI * (50f + 70f * exp(-d * 25f)) / SR
+                        val thump = tanh(2f * sin(ph).toFloat()) * exp(-d * 14f) * (d / 0.002f).coerceAtMost(1f)
+                        gl.step(a, 2000f); gr.step(b, 2000f)
+                        val burst = exp(-d * 40f)
+                        l[i] = thump + gl.low * burst; r[i] = thump + gr.low * burst
+                    }
+                }
+            }
+            TransitionSfx.THUNDER -> for (i in 0 until n) {
+                val t = i.toFloat() / SR
+                val a = nl.next(); val b = nr.next()
+                fl.step(a, 1500f); fr.step(b, 1500f)
+                val fc = 120f + 80f * sin(2 * PI * 0.7 * t).toFloat()
+                gl.step(a, fc); gr.step(b, fc)
+                val crack = exp(-t * 12f) * 0.9f
+                val roll = (t / 0.15f).coerceAtMost(1f) * exp(-t * 0.8f) * (1f + 0.5f * sin(2 * PI * 1.3 * t).toFloat()) * 2.4f
+                l[i] = fl.high * crack + gl.low * roll
+                r[i] = fr.high * crack + gr.low * roll
+            }
+            TransitionSfx.HEARTBEAT -> {
+                var phB = 0.0
+                for (i in 0 until n) {
+                    val t = i.toFloat() / SR
+                    ph += 2 * PI * 55 / SR; phB += 2 * PI * 50 / SR
+                    val d2 = t - 0.28f
+                    val one = sin(ph).toFloat() * exp(-t * 14f) * (t / 0.004f).coerceAtMost(1f)
+                    val two = if (d2 >= 0f) sin(phB).toFloat() * exp(-d2 * 14f) * (d2 / 0.004f).coerceAtMost(1f) * 0.8f else 0f
+                    val v = tanh(1.5f * (one + two))
+                    l[i] = v; r[i] = v
+                }
+            }
+            TransitionSfx.DEEP_WHOOSH -> for (i in 0 until n) {
+                val t = i.toFloat() / SR
+                val p = t / len
+                val env = sin(PI.toFloat() * p).let { it * it }
+                val fc = 80f + 820f * p
+                fl.step(nl.next(), fc, 1.0f); fr.step(nr.next(), fc * 1.05f, 1.0f)
+                ph += 2 * PI * (40f + 30f * p) / SR
+                val sub = sin(ph).toFloat() * env * 0.35f
+                val pan = p * (PI.toFloat() / 2)
+                l[i] = fl.band * env * cos(pan) * 2.8f + sub
+                r[i] = fr.band * env * sin(pan) * 2.8f + sub
+            }
+            TransitionSfx.WIND_GUST -> for (i in 0 until n) {
+                val t = i.toFloat() / SR
+                val p = t / len
+                val env = sin(PI.toFloat() * p).let { it * it } * (0.8f + 0.2f * sin(2 * PI * 2.3 * t).toFloat())
+                val fc = 300f + 500f * env + 120f * sin(2 * PI * 0.9 * t).toFloat()
+                fl.step(nl.next(), fc, 0.9f); fr.step(nr.next(), fc * 1.1f, 0.9f)
+                l[i] = fl.band * env * 2.2f; r[i] = fr.band * env * 2.2f
+            }
+            TransitionSfx.TICK_RISER -> {
+                val ticks = mutableListOf<Float>()
+                var tt = 0f; var dt = 0.35f
+                while (tt < len - 0.01f) { ticks += tt; tt += dt; dt = maxOf(0.06f, dt * 0.9f) }
+                var next = 0
+                var last = -1f; var lastIdx = 0
+                for (i in 0 until n) {
+                    val t = i.toFloat() / SR
+                    while (next < ticks.size && ticks[next] <= t) { last = ticks[next]; lastIdx = next; next++ }
+                    val a = nl.next()
+                    fl.step(a, 3000f)
+                    var v = 0f
+                    if (last >= 0f) {
+                        val d = t - last
+                        v = fl.high * exp(-d * 300f) * 0.8f + sin(2 * PI * (if (lastIdx % 2 == 0) 1800 else 1500) * d).toFloat() * exp(-d * 200f) * 0.5f
+                    }
+                    val grow = 0.4f + 0.6f * (t / len)
+                    l[i] = v * grow * (if (lastIdx % 2 == 0) 1f else 0.7f)
+                    r[i] = v * grow * (if (lastIdx % 2 == 0) 0.7f else 1f)
+                }
+            }
+            TransitionSfx.TAPE_STOP -> {
+                val notes = floatArrayOf(220f, 277.2f, 330f, 440f)
+                val phs = DoubleArray(notes.size * 3)
+                for (i in 0 until n) {
+                    val t = i.toFloat() / SR
+                    val p = t / len
+                    val rate = (1f - p).toDouble().pow(1.2).toFloat()
+                    var v = 0f
+                    for (k in notes.indices) for (h in 1..3) {
+                        val idx = k * 3 + h - 1
+                        phs[idx] += 2 * PI * notes[k] * h * rate / SR
+                        v += sin(phs[idx]).toFloat() / (h * 2f)
+                    }
+                    fl.step(v, 300f + 3000f * rate)
+                    val end = ((len - t) / 0.015f).coerceIn(0f, 1f)
+                    val out = fl.low * (1f - p * 0.3f) * end
+                    l[i] = out; r[i] = out
+                }
+            }
+            TransitionSfx.SCRATCH -> for (i in 0 until n) {
+                val t = i.toFloat() / SR
+                val sw = sin(2 * PI * 6 * t).toFloat()
+                val fc = 1200f + 1000f * sw
+                fl.step(nl.next(), fc, 3f)
+                ph += 2 * PI * (300f + 250f * sw) / SR
+                val gate = abs(cos(2 * PI * 6 * t).toFloat())
+                val v = (fl.band * 1.5f + sin(ph).toFloat() * 0.3f) * gate * exp(-t * 1.5f)
+                l[i] = v; r[i] = v * 0.9f
+            }
+            TransitionSfx.LASER -> for (i in 0 until n) {
+                val t = i.toFloat() / SR
+                ph += 2 * PI * (150f + 3000f * exp(-t * 9f)) / SR
+                val v = tanh(4f * sin(ph).toFloat()) * exp(-t * 6f) * (t / 0.002f).coerceAtMost(1f)
+                l[i] = v; r[i] = v
+            }
+            TransitionSfx.SHIMMER -> {
+                val rnd = java.util.Random(777)
+                val scale = floatArrayOf(1046.5f, 1174.7f, 1318.5f, 1568f, 1760f, 2093f, 2349.3f, 2637f, 3136f)
+                val times = FloatArray(18) { rnd.nextFloat() * 0.6f }
+                val freqs = FloatArray(18) { scale[rnd.nextInt(scale.size)] }
+                val pans = FloatArray(18) { rnd.nextFloat() }
+                for (i in 0 until n) {
+                    val t = i.toFloat() / SR
+                    var a = 0f; var b = 0f
+                    for (k in 0 until 18) {
+                        val d = t - times[k]
+                        if (d < 0f) continue
+                        val env = exp(-d * 4f) * (d / 0.002f).coerceAtMost(1f)
+                        val v = (sin(2 * PI * freqs[k] * d).toFloat() + 0.4f * sin(2 * PI * freqs[k] * 2.76 * d).toFloat()) * env
+                        a += v * (1f - pans[k]); b += v * pans[k]
+                    }
+                    l[i] = a; r[i] = b
+                }
+            }
+            TransitionSfx.SHUTTER -> for (i in 0 until n) {
+                val t = i.toFloat() / SR
+                val a = nl.next()
+                fl.step(a, 2500f)
+                var v = 0f
+                for (c0 in floatArrayOf(0f, 0.09f)) {
+                    val d = t - c0
+                    if (d >= 0f) v += fl.high * exp(-d * 120f) + sin(2 * PI * 2200 * d).toFloat() * exp(-d * 60f) * 0.3f
+                }
+                l[i] = v; r[i] = v
+            }
+            TransitionSfx.STATIC -> {
+                val rnd = java.util.Random(31)
+                var drop = 1f
+                for (i in 0 until n) {
+                    val t = i.toFloat() / SR
+                    if (i % 900 == 0) drop = if (rnd.nextFloat() < 0.15f) 0.15f else 1f
+                    fl.step(nl.next(), 4500f); fr.step(nr.next(), 4500f)
+                    val env = (t / 0.03f).coerceAtMost(1f) * ((len - t) / 0.1f).coerceIn(0f, 1f)
+                    val hum = sin(2 * PI * 50 * t).toFloat() * 0.15f
+                    l[i] = (fl.low * 0.9f * drop + hum) * env
+                    r[i] = (fr.low * 0.9f * drop + hum) * env
+                }
             }
             TransitionSfx.GLITCH -> {
                 val rnd = java.util.Random(4242)

@@ -34,6 +34,13 @@ object CaptureExtras {
     /** Written into every photo (EXIF Artist / Copyright). */
     /** Title-safe (80 %) and action-safe (90 %) frames in the viewfinder. */
     var safeAreas by mutableStateOf(false)
+    /** Slate & shot log. */
+    var slateOn by mutableStateOf(false)
+    var slateScene by mutableStateOf("1")
+    var slateShot by mutableStateOf("")
+    var slateTake by mutableStateOf(1)
+    var slateNotes by mutableStateOf("")
+    var slateAutoTake by mutableStateOf(true)
     var creator by mutableStateOf("")
     var copyright by mutableStateOf("")
     /** Seconds kept from before you press record (0 = off). */
@@ -66,6 +73,12 @@ object CaptureExtras {
         titleSec = p.getInt("x_title_sec", 5)
         creator = p.getString("x_creator", "") ?: ""
         safeAreas = p.getBoolean("x_safe", false)
+        slateOn = p.getBoolean("x_slate", false)
+        slateScene = p.getString("x_slate_scene", "1") ?: "1"
+        slateShot = p.getString("x_slate_shot", "") ?: ""
+        slateTake = p.getInt("x_slate_take", 1)
+        slateNotes = p.getString("x_slate_notes", "") ?: ""
+        slateAutoTake = p.getBoolean("x_slate_auto", true)
         copyright = p.getString("x_copyright", "") ?: ""
         preRecordSec = p.getInt("x_prerec", 0)
         micBluetooth = p.getBoolean("x_mic_bt", false)
@@ -89,6 +102,12 @@ object CaptureExtras {
             .putInt("x_title_sec", titleSec)
             .putString("x_creator", creator)
             .putBoolean("x_safe", safeAreas)
+            .putBoolean("x_slate", slateOn)
+            .putString("x_slate_scene", slateScene)
+            .putString("x_slate_shot", slateShot)
+            .putInt("x_slate_take", slateTake)
+            .putString("x_slate_notes", slateNotes)
+            .putBoolean("x_slate_auto", slateAutoTake)
             .putString("x_copyright", copyright)
             .putInt("x_prerec", preRecordSec)
             .putBoolean("x_mic_bt", micBluetooth)

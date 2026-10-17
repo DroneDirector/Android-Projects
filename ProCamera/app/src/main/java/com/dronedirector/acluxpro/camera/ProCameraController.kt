@@ -779,6 +779,7 @@ class ProCameraController(private val context: Context) {
                         if (uri != null && withAudio && (gainDb != 0 || wind || nr > 0)) withContext(Dispatchers.IO) { AudioGain.apply(context, uri, gainDb, limiter, wind, nr) }
                         if (uri != null && CaptureExtras.titleOn && CaptureExtras.titleText.isNotBlank()) burnTitle(uri)
                         set { it.copy(processing = false, lastMedia = uri ?: it.lastMedia) }
+                        if (uri != null) withContext(Dispatchers.IO) { Slate.log(context, uri, st, true) }
                         if (uri == null) toast("Couldn't save the recording")
                         delay(300)
                         startPreBuffer()
@@ -1991,6 +1992,8 @@ class ProCameraController(private val context: Context) {
                     }
                     // Your name / copyright in the photo's details.
                     if (uri != null && isJpeg) ioExecutor.execute { Copyright.stampUri(context, uri) }
+                    // Slate: scene / shot / take in the photo, and a line in the shot log.
+                    if (uri != null && isJpeg && CaptureExtras.slateOn) { val snap = st; ioExecutor.execute { Slate.stampPhoto(context, uri); Slate.log(context, uri, snap, false) } }
                     // Privacy: blur faces in the saved photo.
                     if (uri != null && isJpeg && CaptureExtras.faceBlur) {
                         ioExecutor.execute { if (!FaceBlur.applyToSavedJpeg(context, uri)) toast("Couldn't blur the faces in this photo") }
@@ -2157,6 +2160,8 @@ class ProCameraController(private val context: Context) {
                 if (event.hasError()) {
                     toast(if (uri != Uri.EMPTY) "Video saved (with warning ${event.error})" else "Recording failed (error ${event.error})")
                 }
+                // Shot log (and the next take number).
+                if (uri != Uri.EMPTY && CaptureExtras.slateOn) { val snap = st; ioExecutor.execute { Slate.log(context, uri, snap, true) } }
                 // Manual input gain: re-encode the sound of the finished clip.
                 val gainDb = st.audioGainDb
                 val wind = CaptureExtras.windFilter

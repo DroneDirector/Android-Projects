@@ -402,6 +402,13 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                                     .padding(horizontal = 10.dp, vertical = 4.dp),
                             )
                         }
+                        // Slate badge: scene / shot / take.
+                        if (xt.slateOn && panelOn("cap.slate")) {
+                            Text(
+                                com.dronedirector.acluxpro.camera.Slate.label(), style = Pro.Value.copy(fontSize = 11.sp, color = Color.White),
+                                modifier = Modifier.align(Alignment.TopCenter).padding(top = 38.dp).clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 8.dp, vertical = 2.dp),
+                            )
+                        }
                         val hints = panelOn("cap.hints")
                         if (hints) SmartModeHint(s, Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp))
                         ProcessingBadge(s, Modifier.align(Alignment.Center))
@@ -594,6 +601,7 @@ private fun CapturePanelsButton(s: CameraUiState, controller: ProCameraControlle
         PanelDef("cap.hints", "Tips & scene badge", "Hints for smart modes and the active scene label"),
         PanelDef("cap.tally", "Tally border", "Red frame around the screen while recording"),
         PanelDef("cap.warnings", "Warnings", "Low storage, low battery and heat warnings"),
+        PanelDef("cap.slate", "Slate badge", "Scene / shot / take on the viewfinder (when the slate is on)"),
         PanelDef("cap.presets", "Custom set-ups C1–C3", "Tap to recall, hold to save the current settings"),
         PanelDef("cap.qblur", "Face blur switch", "BLUR on / off in the quick bar"),
         PanelDef("cap.qtitle", "Title switch", "TITLE on / off in the quick bar (video)"),

@@ -222,6 +222,18 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
     if (s.mode != CaptureMode.PANORAMA) {
         QuickItem("GRID", s.grid.label, active = s.grid != GridMode.OFF) { c.setGrid(GridMode.entries.next(s.grid)) }
     }
+    // Quick switches for privacy blur and the video title (can be hidden in the Panels menu).
+    val x = com.dronedirector.acluxpro.camera.CaptureExtras
+    val qctx = androidx.compose.ui.platform.LocalContext.current
+    if (panelOn("cap.qblur") && !mode.isSlowMo) {
+        QuickItem("BLUR", if (x.faceBlur) "ON" else "OFF", active = x.faceBlur, enabled = !s.recording) { c.setFaceBlur(!x.faceBlur) }
+    }
+    if (s.isVideo && panelOn("cap.qtitle")) {
+        QuickItem("TITLE", if (x.titleOn) "ON" else "OFF", active = x.titleOn, enabled = !s.recording) {
+            x.titleOn = !x.titleOn; x.save(qctx)
+            if (x.titleOn && x.titleText.isBlank()) c.toast("Type your title in Settings → PRIVACY & TITLE")
+        }
+    }
 }
 
 @Composable

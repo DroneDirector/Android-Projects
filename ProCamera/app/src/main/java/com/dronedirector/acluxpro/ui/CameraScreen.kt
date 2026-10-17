@@ -374,6 +374,20 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                             IntervalBadge(s)
                         }
                         if (s.proFalseColor) FalseColorLegend(Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = if (s.isPro) 100.dp else 64.dp))
+                        // Title preview (video): where the title will be burned in.
+                        val xt = com.dronedirector.acluxpro.camera.CaptureExtras
+                        if (s.isVideo && xt.titleOn && xt.titleText.isNotBlank() && panelOn("cap.titlepreview")) {
+                            Text(
+                                xt.titleText, color = Color.White.copy(alpha = 0.85f), fontSize = 16.sp, maxLines = 2,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier
+                                    .align(when (xt.titlePos) { 1 -> Alignment.Center; 2 -> Alignment.TopCenter; else -> Alignment.BottomCenter })
+                                    .padding(top = if (xt.titlePos == 2) 56.dp else 0.dp, bottom = if (xt.titlePos == 0) 120.dp else 0.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color.Black.copy(alpha = if (xt.titlePos == 0) 0.45f else 0.2f))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                            )
+                        }
                         val hints = panelOn("cap.hints")
                         if (hints) SmartModeHint(s, Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp))
                         ProcessingBadge(s, Modifier.align(Alignment.Center))
@@ -558,6 +572,9 @@ private fun CapturePanelsButton(s: CameraUiState, controller: ProCameraControlle
             get = { s.showLevel }, put = { controller.toggleLevel() }),
         PanelDef("cap.controls", "Pro controls bar", "ISO, shutter, focus, WB, EV and zoom chips (Pro modes)"),
         PanelDef("cap.hints", "Tips & scene badge", "Hints for smart modes and the active scene label"),
+        PanelDef("cap.qblur", "Face blur switch", "BLUR on / off in the quick bar"),
+        PanelDef("cap.qtitle", "Title switch", "TITLE on / off in the quick bar (video)"),
+        PanelDef("cap.titlepreview", "Title preview", "Shows where your video title will appear"),
     )
     val all = panels.map { it.key }.toSet()
     PanelsButton(
@@ -566,7 +583,7 @@ private fun CapturePanelsButton(s: CameraUiState, controller: ProCameraControlle
         presets = listOf(
             PanelPreset("Full", all),
             PanelPreset("Minimal", setOf("cap.controls")),
-            PanelPreset("Video", setOf("cap.hud", "cap.histogram", "cap.audio", "cap.controls")),
+            PanelPreset("Video", setOf("cap.hud", "cap.histogram", "cap.audio", "cap.controls", "cap.qtitle", "cap.titlepreview")),
         ),
         onReset = {
             OverlayLayout.reset(ctx)

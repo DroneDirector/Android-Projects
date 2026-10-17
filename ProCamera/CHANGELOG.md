@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.174 — 2026-10-17
 - Video editor: 14 more transition sounds (24 in all), now grouped — Hits & impacts (braam, drum hit, punch, thunder, heartbeat), Whooshes & air (deep whoosh, wind gust), Builds & risers (clock tick build, tape stop), Stylized & sci-fi (record scratch, laser zap, magic shimmer, camera shutter, TV static).
 
 ## 1.0.171 — 2026-10-17

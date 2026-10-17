@@ -117,12 +117,19 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Preview copies** (optimized media) for heavy HDR / 10-bit / 4K clips, made in the background; choose Auto / Always / Off, H.264 or HEVC, 720p or 1080p.
 - Grade preview drawn on screen (Android 13+) for smooth, instant playback; exports use the full pipeline.
 
-### Transitions (34)
+### Transitions
+Two sub-menus on the Transitions page: **Video transitions** and **Audio transitions**.
+
+**Video transitions (34)**
 - **Basic**: cross dissolve, dip to black, dip to white, flash, blur dissolve.
 - **Wipes & shapes**: wipe left / right / up / down, diagonal, iris, clock, blinds, barn door, mosaic.
 - **Motion**: push left / right / up / down, whip pan left / right, zoom in, zoom out, spin.
 - **Stylized**: light leak, ink bleed, sparkle dissolve, glitch, pixelate, chromatic, ripple, light speed, swirl.
-- Animated previews with your own clips, adjustable duration, apply to all cuts; audio crossfades.
+- Animated previews with your own clips, adjustable duration, apply to all cuts.
+
+**Audio transitions (8)**
+- Match video (default), hard cut, constant gain, constant power, exponential fade, dip to silence, quick out / slow in, slow out / quick in — each with a small volume-curve picture.
+- Work over the video transition, or on a plain cut as a fade out / in around the cut (adjustable 0.1–3 s); in the preview and the export; apply to all cuts.
 
 ### Color
 - Log input transforms: **D-Log, D-Log M, S-Log3, V-Log, LogC3, HLG, Flat**.

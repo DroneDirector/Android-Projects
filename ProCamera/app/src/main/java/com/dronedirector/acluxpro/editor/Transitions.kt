@@ -56,8 +56,95 @@ enum class TransitionType(val id: Float, val label: String, val group: Transitio
     SWIRL(45f, "Swirl", TransitionGroup.FANCY, TransitionKind.UNIFORM),
 }
 
-/** Transition from a clip into the next one. */
-data class Transition(val type: TransitionType = TransitionType.NONE, val durationMs: Long = 800L)
+/**
+ * Transition from a clip into the next one: the picture ([type]) and the sound ([audio]).
+ * [audio] / [audioMs] are nullable so projects saved before audio transitions still load.
+ */
+data class Transition(
+    val type: TransitionType = TransitionType.NONE,
+    val durationMs: Long = 800L,
+    val audio: AudioTransitionType? = null,
+    val audioMs: Long? = null,
+) {
+    val audioType: AudioTransitionType get() = audio ?: AudioTransitionType.AUTO
+    val audioLen: Long get() = audioMs ?: 600L
+}
+
+/** How the sound changes from one clip to the next. */
+enum class AudioTransitionType(val label: String, val detail: String) {
+    AUTO("Match video", "Smooth crossfade over the video transition; nothing on a plain cut."),
+    CUT("Hard cut", "Sound switches in the middle of the transition, no fade."),
+    CONSTANT_GAIN("Constant gain", "Straight-line crossfade. Can dip slightly in the middle."),
+    CONSTANT_POWER("Constant power", "Equal-power crossfade — no dip in loudness. Best all-rounder."),
+    EXPONENTIAL("Exponential fade", "Outgoing sound drops away quickly, incoming swells in late. Natural for music."),
+    DIP("Dip to silence", "Outgoing fades out, a short silence, then the next clip fades in."),
+    QUICK_OUT("Quick out, slow in", "Old sound disappears fast; new sound eases in."),
+    QUICK_IN("Slow out, quick in", "Old sound lingers and fades; new sound arrives fast."),
+}
+
+enum class FadeCurve { LINEAR, POWER, EXP }
+
+private fun curveIn(c: FadeCurve, p: Float): Float = when (c) {
+    FadeCurve.LINEAR -> p
+    FadeCurve.POWER -> kotlin.math.sin(p * (Math.PI / 2).toFloat())
+    FadeCurve.EXP -> p * p
+}
+
+/** Fade at the end of the outgoing clip: starts [fromEndMs] before its end, takes [lenMs], then silence. */
+data class FadeOut(val fromEndMs: Long, val lenMs: Long, val curve: FadeCurve) {
+    fun gain(remainingMs: Long): Float {
+        val elapsed = fromEndMs - remainingMs
+        if (elapsed <= 0) return 1f
+        val r = elapsed.toFloat() / lenMs.coerceAtLeast(1)
+        return if (r >= 1f) 0f else curveIn(curve, 1f - r)
+    }
+    fun scaled(k: Float) = copy(fromEndMs = (fromEndMs * k).toLong(), lenMs = (lenMs * k).toLong().coerceAtLeast(1))
+}
+
+/** Fade at the start of the incoming clip: silent for [delayMs], then rises over [lenMs]. */
+data class FadeIn(val delayMs: Long, val lenMs: Long, val curve: FadeCurve) {
+    fun gain(tMs: Long): Float {
+        if (tMs < delayMs) return 0f
+        val p = (tMs - delayMs).toFloat() / lenMs.coerceAtLeast(1)
+        return if (p >= 1f) 1f else curveIn(curve, p)
+    }
+    fun scaled(k: Float) = copy(delayMs = (delayMs * k).toLong(), lenMs = (lenMs * k).toLong().coerceAtLeast(1))
+}
+
+/** Sound shaping for one cut, used by both the preview and the export. */
+object AudioXfade {
+    /**
+     * Fade-out for the clip before the cut and fade-in for the clip after it.
+     * With a video transition the sound works inside the overlap ([overlapMs]); on a plain cut
+     * (no overlap) the clips can't play together, so the sound fades out and back in around the cut,
+     * over [audioMs] in total.
+     */
+    fun shapes(t: AudioTransitionType, overlapMs: Long, audioMs: Long): Pair<FadeOut?, FadeIn?> {
+        val w = when {
+            overlapMs > 0 -> overlapMs
+            t == AudioTransitionType.AUTO || t == AudioTransitionType.CUT -> return null to null
+            else -> (audioMs / 2).coerceAtLeast(20)
+        }
+        val q = (w / 4).coerceAtLeast(1)
+        val h = (w / 2).coerceAtLeast(1)
+        return when (t) {
+            AudioTransitionType.AUTO, AudioTransitionType.CONSTANT_GAIN -> FadeOut(w, w, FadeCurve.LINEAR) to FadeIn(0, w, FadeCurve.LINEAR)
+            AudioTransitionType.CONSTANT_POWER -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.EXPONENTIAL -> FadeOut(w, w, FadeCurve.EXP) to FadeIn(0, w, FadeCurve.EXP)
+            AudioTransitionType.CUT -> FadeOut(h, 1, FadeCurve.LINEAR) to FadeIn(h, 1, FadeCurve.LINEAR)
+            AudioTransitionType.DIP -> FadeOut(w, h, FadeCurve.POWER) to FadeIn(h, h, FadeCurve.POWER)
+            AudioTransitionType.QUICK_OUT -> FadeOut(w, q, FadeCurve.LINEAR) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.QUICK_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, q, FadeCurve.LINEAR)
+        }
+    }
+
+    /** The sound shaping for the cut after clip [i] (null pair when there is no next clip). */
+    fun forCut(clips: List<Clip>, i: Int): Pair<FadeOut?, FadeIn?> {
+        val a = clips.getOrNull(i) ?: return null to null
+        if (i + 1 > clips.lastIndex) return null to null
+        return shapes(a.transition.audioType, overlapMs(clips, i), a.transition.audioLen)
+    }
+}
 
 /** Overlap (ms) between clip [i] and clip [i + 1]. */
 fun overlapMs(clips: List<Clip>, i: Int): Long {

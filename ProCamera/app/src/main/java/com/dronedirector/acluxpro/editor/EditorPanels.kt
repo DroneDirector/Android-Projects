@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Switch
@@ -26,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,16 +48,23 @@ import com.dronedirector.acluxpro.ui.Pro
 fun TransitionsPanel(
     clips: List<Clip>, index: Int, thumbs: Map<String, Bitmap>,
     onChange: (Transition) -> Unit, onApplyAll: (Transition) -> Unit, onPreview: () -> Unit,
+    onApplyAllAudio: (AudioTransitionType, Long) -> Unit = { _, _ -> },
 ) {
     val a = clips.getOrNull(index)
     val b = clips.getOrNull(index + 1)
+    var tab by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableIntStateOf(0) }
     SectionTitle("TRANSITIONS")
+    Chips(listOf("Video transitions", "Audio transitions"), tab) { tab = it }
     if (a == null || b == null) {
         Text("Select a clip that has another clip after it — the transition goes on the cut between them.", color = Pro.Dim, fontSize = 12.sp)
         return
     }
     val t = a.transition
     Text("Clip ${index + 1} → clip ${index + 2}", color = Color.White, fontSize = 14.sp)
+    if (tab == 1) {
+        AudioTransitionsPanel(t, onChange, onApplyAllAudio, onPreview)
+        return
+    }
     Row(Modifier.padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf("PREVIEW" to onPreview, "APPLY TO ALL CUTS" to { onApplyAll(t) }).forEach { (label, f) ->
             Text(label, style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(onClick = f).padding(8.dp))
@@ -189,5 +199,69 @@ fun ReframePanel(
             "ANALYSE NOW", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp),
             modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(onClick = onAnalyze).padding(8.dp),
         )
+    }
+}
+
+/** Audio transitions for one cut: how the sound goes from the clip before to the clip after. */
+@Composable
+private fun AudioTransitionsPanel(
+    t: Transition,
+    onChange: (Transition) -> Unit,
+    onApplyAll: (AudioTransitionType, Long) -> Unit,
+    onPreview: () -> Unit,
+) {
+    val cur = t.audioType
+    Row(Modifier.padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf("PREVIEW" to onPreview, "APPLY TO ALL CUTS" to { onApplyAll(cur, t.audioLen) }).forEach { (label, f) ->
+            Text(label, style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(onClick = f).padding(8.dp))
+        }
+    }
+    val plainCut = t.type == TransitionType.NONE
+    if (plainCut) {
+        Text("This cut has no video transition, so the clips can't play together — the sound fades out and back in around the cut.", color = Pro.Dim, fontSize = 11.sp)
+        if (cur != AudioTransitionType.AUTO && cur != AudioTransitionType.CUT) {
+            EdSlider("Duration", t.audioLen / 1000f, 0.1f..3f, 0.6f, { "%.1f s".format(it) }) { onChange(t.copy(audioMs = (it * 1000).toLong())) }
+        }
+    } else {
+        Text("The sound changes over the video transition (%.1f s).".format(t.durationMs / 1000f), color = Pro.Dim, fontSize = 11.sp)
+    }
+    SectionTitle("AUDIO TRANSITIONS")
+    AudioTransitionType.entries.forEach { type ->
+        val sel = type == cur
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(8.dp))
+                .border(if (sel) 2.dp else 1.dp, if (sel) Pro.Amber else Pro.Line, RoundedCornerShape(8.dp))
+                .clickable { onChange(t.copy(audio = type)) }
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            FadeGraph(type, Modifier.padding(end = 10.dp).androidxSize(64, 34))
+            Column(Modifier.weight(1f)) {
+                Text(type.label, color = if (sel) Pro.Amber else Color.White, fontSize = 13.sp)
+                Text(type.detail, color = Pro.Dim, fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+private fun Modifier.androidxSize(w: Int, h: Int) = this.then(Modifier.width(w.dp).height(h.dp))
+
+/** Small picture of the two volume curves: outgoing (amber) and incoming (white). */
+@Composable
+private fun FadeGraph(type: AudioTransitionType, modifier: Modifier) {
+    val (fo, fi) = AudioXfade.shapes(type, 1000, 1000)
+    androidx.compose.foundation.Canvas(modifier.clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.35f))) {
+        val n = 40
+        fun path(g: (Long) -> Float): androidx.compose.ui.graphics.Path = androidx.compose.ui.graphics.Path().apply {
+            for (k in 0..n) {
+                val ms = k * 1000L / n
+                val x = size.width * k / n
+                val y = size.height * (1f - g(ms) * 0.85f) - size.height * 0.05f
+                if (k == 0) moveTo(x, y) else lineTo(x, y)
+            }
+        }
+        val stroke = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+        drawPath(path { ms -> fo?.gain(1000 - ms) ?: (1f - ms / 1000f) }, Pro.Amber, style = stroke)
+        drawPath(path { ms -> fi?.gain(ms) ?: (ms / 1000f) }, Color.White, style = stroke)
     }
 }

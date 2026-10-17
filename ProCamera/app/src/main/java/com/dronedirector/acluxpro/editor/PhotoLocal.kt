@@ -15,7 +15,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /** Kinds of local-adjustment masks. */
-enum class MaskType(val label: String) { LINEAR("Linear gradient"), RADIAL("Radial"), BRUSH("Brush"), SUBJECT("Subject (AI)"), SKY("Sky (AI)") }
+enum class MaskType(val label: String) { LINEAR("Linear gradient"), RADIAL("Radial"), BRUSH("Brush"), SUBJECT("Subject (AI)"), SKY("Sky (AI)"), COLOR_RANGE("Colour range"), LUMA_RANGE("Brightness range") }
 
 /** One brush stroke: points (x, y pairs, 0..1 of the picture), size (share of the width), add or erase. */
 data class BrushStroke(val points: List<Float>, val size: Float, val erase: Boolean = false, val soft: Float = 0.5f)
@@ -40,6 +40,13 @@ data class PhotoMask(
     val grade: ProGrade = ProGrade(),
     val amount: Float = 1f,
     val visible: Boolean = true,
+    // Colour range: hue (degrees) ± half of hueWidth; brightness range: lumLow..lumHigh (0..1).
+    val hue: Float = 210f,
+    val hueWidth: Float = 40f,
+    val lumLow: Float = 0.7f,
+    val lumHigh: Float = 1f,
+    /** Softness of the range edges, 0..1. */
+    val rangeSoft: Float = 0.4f,
 )
 
 /** A healed spot: centre and radius (share of the width) and where the patch is taken from (offset, same units). */
@@ -229,7 +236,7 @@ object PhotoLocal {
     // ------------------------------------------------------------------ masks
 
     /** Mask strength 0..1 for every pixel of a w×h picture. */
-    fun weights(m: PhotoMask, w: Int, h: Int, aiMask: Bitmap? = null): FloatArray {
+    fun weights(m: PhotoMask, w: Int, h: Int, aiMask: Bitmap? = null, px: IntArray? = null): FloatArray {
         val out = FloatArray(w * h)
         when (m.type) {
             MaskType.LINEAR -> {
@@ -282,10 +289,38 @@ object PhotoLocal {
                 mb.recycle()
             }
             MaskType.SUBJECT, MaskType.SKY -> if (aiMask != null) fillFrom(aiMask, out, w, h)
+            MaskType.COLOR_RANGE, MaskType.LUMA_RANGE -> if (px != null && px.size >= w * h) rangeWeights(m, px, out)
         }
         if (m.invert) for (i in out.indices) out[i] = 1f - out[i]
         if (m.amount != 1f) for (i in out.indices) out[i] *= m.amount
         return out
+    }
+
+    private fun smooth(e0: Float, e1: Float, x: Float): Float {
+        if (e1 <= e0) return if (x >= e1) 1f else 0f
+        val t = ((x - e0) / (e1 - e0)).coerceIn(0f, 1f)
+        return t * t * (3 - 2 * t)
+    }
+
+    /** Colour-range / brightness-range selection from the pixels themselves. */
+    private fun rangeWeights(m: PhotoMask, px: IntArray, out: FloatArray) {
+        val hsv = FloatArray(3)
+        for (i in out.indices) {
+            val c = px[i]
+            val r = (c shr 16) and 0xFF; val g = (c shr 8) and 0xFF; val b = c and 0xFF
+            if (m.type == MaskType.COLOR_RANGE) {
+                android.graphics.Color.RGBToHSV(r, g, b, hsv)
+                var d = abs(hsv[0] - m.hue); if (d > 180f) d = 360f - d
+                val inner = m.hueWidth / 2f
+                val soft = 4f + m.rangeSoft * 60f
+                // Grey pixels have no real colour, so they stay out.
+                out[i] = (1f - smooth(inner, inner + soft, d)) * smooth(0.04f, 0.18f, hsv[1]) * smooth(0.03f, 0.12f, hsv[2])
+            } else {
+                val l = (0.2126f * r + 0.7152f * g + 0.0722f * b) / 255f
+                val soft = 0.01f + m.rangeSoft * 0.3f
+                out[i] = smooth(m.lumLow - soft, m.lumLow, l) * (1f - smooth(m.lumHigh, m.lumHigh + soft, l))
+            }
+        }
     }
 
     /** Reads a mask picture's brightness (resized to w×h) into [out]. */
@@ -359,9 +394,11 @@ object PhotoLocal {
 
     /** Applies every visible mask's own grade where the mask is. */
     fun applyMasks(px: IntArray, w: Int, h: Int, masks: List<PhotoMask>, aiMasks: Map<String, Bitmap>) {
+        // Range masks look at the picture before any mask changed it.
+        val orig = if (masks.any { it.type == MaskType.COLOR_RANGE || it.type == MaskType.LUMA_RANGE }) px.copyOf() else null
         for (m in masks) {
             if (!m.visible || m.grade.isIdentity) continue
-            val wt = weights(m, w, h, m.maskFile?.let { aiMasks[it] })
+            val wt = weights(m, w, h, m.maskFile?.let { aiMasks[it] }, orig)
             val t = m.grade.tables()
             val one = IntArray(1)
             for (i in px.indices) {

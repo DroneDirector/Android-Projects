@@ -24,8 +24,9 @@ object CaptureExtras {
     var noiseReduce by mutableStateOf(0)
     /** Blur faces live in the viewfinder and in recordings / photos. */
     var faceBlur by mutableStateOf(false)
-    /** Portrait mode: background blur strength (index into Portrait.APERTURES) and whether to keep the unblurred photo too. */
-    var portraitAperture by mutableStateOf(1)
+    /** Portrait mode: background blur as an f-number (f/1.4–f/16), auto (dial minimised) and whether to keep the unblurred photo too. */
+    var portraitF by mutableStateOf(2f)
+    var portraitAuto by mutableStateOf(false)
     var portraitKeepOriginal by mutableStateOf(false)
     /** Auto-enhance photos right after they're taken (saved as an extra copy). */
     var autoEnhance by mutableStateOf(false)
@@ -69,7 +70,9 @@ object CaptureExtras {
         windFilter = p.getBoolean("x_wind", false)
         noiseReduce = p.getInt("x_nr", 0)
         faceBlur = p.getBoolean("x_face_blur", false)
-        portraitAperture = p.getInt("x_portrait_f", 1)
+        portraitF = if (p.contains("x_portrait_fnum")) p.getFloat("x_portrait_fnum", 2f)
+            else listOf(1.4f, 2f, 2.8f, 4f, 5.6f).getOrElse(p.getInt("x_portrait_f", 1)) { 2f } // older five-button setting
+        portraitAuto = p.getBoolean("x_portrait_auto", false)
         portraitKeepOriginal = p.getBoolean("x_portrait_keep", false)
         autoEnhance = p.getBoolean("x_auto_enh", false)
         titleText = p.getString("x_title", "") ?: ""
@@ -100,7 +103,8 @@ object CaptureExtras {
             .putBoolean("x_wind", windFilter)
             .putInt("x_nr", noiseReduce)
             .putBoolean("x_face_blur", faceBlur)
-            .putInt("x_portrait_f", portraitAperture)
+            .putFloat("x_portrait_fnum", portraitF)
+            .putBoolean("x_portrait_auto", portraitAuto)
             .putBoolean("x_portrait_keep", portraitKeepOriginal)
             .putBoolean("x_auto_enh", autoEnhance)
             .putString("x_title", titleText)

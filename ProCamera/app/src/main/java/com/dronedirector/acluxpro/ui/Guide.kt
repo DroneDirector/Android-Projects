@@ -142,6 +142,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Photo editor tips", Icons.Filled.Photo, null, listOf(
             "Hold your finger on the photo to see the original.",
+            "Leave the editor with your phone's back gesture or back button (the top bar has no back arrow, so EXPORT always fits).",
             "Masks → Subject (AI) / Sky (AI) select the subject or the sky for you (on the phone, or more precisely with Cloud AI).",
             "Effects → BACKGROUND (AI): FIND SUBJECT, then blur the background (portrait look), remove it (transparent PNG) or fill it with a colour.",
             "Heal → AI ERASE: paint over a person, sign or power line and tap ERASE (Bria Eraser with Cloud AI; on the phone for smaller things).",

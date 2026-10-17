@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -334,7 +335,7 @@ fun CurveEditor(
                 )
             }
             .pointerInput(channel, "drag") {
-                androidx.compose.foundation.gestures.detectDragGestures(
+                detectDragGestures(
                     onDragStart = { o ->
                         val x = o.x / size.width; val y = 1f - o.y / size.height
                         val l = latest

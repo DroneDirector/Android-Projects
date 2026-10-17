@@ -758,7 +758,11 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                         }
                         val em = eraseMask
                         if (panel == PhotoPanel.HEAL && em != null) MaskEditOverlay(em, shownNow.width, shownNow.height, tools) { m -> eraseMask = m }
-                        else if (panel == PhotoPanel.HEAL) HealOverlay(edit.spots, shownNow.width, shownNow.height, tools.healSize) { x, y -> addSpot(x, y) }
+                        else if (panel == PhotoPanel.HEAL) HealOverlay(
+                            edit.spots, shownNow.width, shownNow.height, tools.healSize,
+                            onMove = { i, sp -> if (i in edit.spots.indices) edit = edit.copy(spots = edit.spots.toMutableList().also { it[i] = sp }) },
+                            onDelete = { i -> if (i in edit.spots.indices) { edit = edit.copy(spots = edit.spots.filterIndexed { k, _ -> k != i }); message = "Spot removed" } },
+                        ) { x, y -> addSpot(x, y) }
                     }
                     // RGB histogram: the same pull-out drawer as in the video editor, on the right edge.
                     if (showScope && !comparing) ScopeDrawer(hist, Modifier.align(Alignment.CenterEnd), frame = preview ?: base)
@@ -829,7 +833,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                                     Text(if (cloneSrc == null) "Tap the spot to copy FROM." else "Tap where to paint the copy; more taps keep the same offset.", color = Pro.Amber, fontSize = 11.sp)
                                     Text("NEW SOURCE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable { cloneSrc = null; cloneOff = null }.padding(8.dp))
                                 }
-                                Text("Tap dust, blemishes or small objects on the photo. A matching patch from nearby is blended over each one (the whole photo is shown while you heal).", color = Pro.Dim, fontSize = 11.sp)
+                                Text("Tap dust, blemishes or small objects on the photo. A matching patch from nearby is blended over each one (the whole photo is shown while you heal). Drag a solid circle to move a spot, drag its dashed circle to choose where it copies from, hold a spot to delete it.", color = Pro.Dim, fontSize = 11.sp)
                                 EdSlider("Size", tools.healSize, 0.005f..0.12f, 0.025f, ::pct) { tools.healSize = it }
                                 Text("${edit.spots.size} spot(s) healed", style = Pro.Label)
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

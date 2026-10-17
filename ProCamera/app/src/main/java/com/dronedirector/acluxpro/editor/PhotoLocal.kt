@@ -225,71 +225,143 @@ object PhotoLocal {
 
     // ------------------------------------------------------------------ healing
 
-    /** Picks where to copy a patch from for a spot at (x, y) radius r (all 0..1 of the width). */
+    /**
+     * Picks where to copy a patch from for a spot at (x, y) radius r (all 0..1 of the width):
+     * a nearby area whose surroundings look like the spot's surroundings and which is itself calm
+     * (no edges or objects that would be copied in). Only reads the area around the spot.
+     */
     fun findSource(src: Bitmap, x: Float, y: Float, r: Float): Pair<Float, Float> {
         val w = src.width; val h = src.height
-        val px = IntArray(w * h); src.getPixels(px, 0, w, 0, 0, w, h)
-        val R = r * w
-        val cx = x * w; val cy = y * h
+        val R = (r * w).coerceAtLeast(2f)
+        val reach = (R * 5.6f).toInt()
+        val cxF = x * w; val cyF = y * h
+        val rx0 = max(0, (cxF - reach).toInt()); val ry0 = max(0, (cyF - reach).toInt())
+        val rx1 = min(w, (cxF + reach).toInt() + 1); val ry1 = min(h, (cyF + reach).toInt() + 1)
+        val rw = rx1 - rx0; val rh = ry1 - ry0
+        if (rw < 4 || rh < 4) return (2.4f * r) to 0f
+        val px = IntArray(rw * rh); src.getPixels(px, 0, rw, rx0, ry0, rw, rh)
+        val cx = cxF - rx0; val cy = cyF - ry0
+        fun lum(xx: Float, yy: Float): Float {
+            val ix = xx.toInt().coerceIn(0, rw - 1); val iy = yy.toInt().coerceIn(0, rh - 1)
+            val c = px[iy * rw + ix]
+            return ((c shr 16) and 0xFF) * 0.3f + ((c shr 8) and 0xFF) * 0.59f + (c and 0xFF) * 0.11f
+        }
+        fun rgbDiff(ax: Float, ay: Float, bx: Float, by: Float): Float {
+            val c1 = px[ay.toInt().coerceIn(0, rh - 1) * rw + ax.toInt().coerceIn(0, rw - 1)]
+            val c2 = px[by.toInt().coerceIn(0, rh - 1) * rw + bx.toInt().coerceIn(0, rw - 1)]
+            val dr = ((c1 shr 16) and 0xFF) - ((c2 shr 16) and 0xFF)
+            val dg = ((c1 shr 8) and 0xFF) - ((c2 shr 8) and 0xFF)
+            val db = (c1 and 0xFF) - (c2 and 0xFF)
+            return (dr * dr + dg * dg + db * db).toFloat()
+        }
+        // How busy (edgy) the inside of a disk is.
+        fun busy(ox: Float, oy: Float): Float {
+            var sum = 0f; var n = 0
+            for (k in 0 until 40) {
+                val a = k * 2.399963f   // golden-angle spiral through the disk
+                val rr = sqrt((k + 0.5f) / 40f) * R * 0.95f
+                val sx = ox + cos(a) * rr; val sy = oy + sin(a) * rr
+                val g = abs(lum(sx + 1.5f, sy) - lum(sx - 1.5f, sy)) + abs(lum(sx, sy + 1.5f) - lum(sx, sy - 1.5f))
+                sum += g; n++
+            }
+            return sum / n
+        }
+        val ringBusy = run {
+            var sum = 0f; var n = 0
+            for (k in 0 until 32) { val a = k * Math.PI.toFloat() / 16; val sx = cx + cos(a) * R * 1.3f; val sy = cy + sin(a) * R * 1.3f
+                sum += abs(lum(sx + 1.5f, sy) - lum(sx - 1.5f, sy)) + abs(lum(sx, sy + 1.5f) - lum(sx, sy - 1.5f)); n++ }
+            sum / n
+        }
         var best = Float.MAX_VALUE; var bdx = 2.4f * r; var bdy = 0f
-        for (dist in listOf(2.2f, 3.0f)) for (k in 0 until 16) {
-            val a = k * Math.PI / 8
-            val ox = (cos(a) * R * dist).toFloat(); val oy = (sin(a) * R * dist).toFloat()
-            if (cx + ox - R < 0 || cx + ox + R >= w || cy + oy - R < 0 || cy + oy + R >= h) continue
-            // Compare the ring just outside the spot with the ring around the candidate.
+        for (dist in floatArrayOf(1.7f, 2.2f, 2.9f, 3.8f, 4.6f)) for (k in 0 until 24) {
+            val a = k * Math.PI.toFloat() / 12
+            val ox = cos(a) * R * dist; val oy = sin(a) * R * dist
+            val qx = cx + ox; val qy = cy + oy
+            if (qx - R * 1.45f < 0 || qx + R * 1.45f >= rw || qy - R * 1.45f < 0 || qy + R * 1.45f >= rh) continue
+            if (cxF + ox - R < 0 || cxF + ox + R >= w || cyF + oy - R < 0 || cyF + oy + R >= h) continue
+            // The ring just outside the spot vs the ring around the candidate.
             var err = 0f; var cnt = 0
-            for (j in 0 until 24) {
-                val b = j * Math.PI / 12
-                for (rr in listOf(1.15f, 1.4f)) {
-                    val sx = cx + (cos(b) * R * rr).toFloat(); val sy = cy + (sin(b) * R * rr).toFloat()
-                    if (sx < 0 || sy < 0 || sx >= w || sy >= h || sx + ox < 0 || sy + oy < 0 || sx + ox >= w || sy + oy >= h) continue
-                    val c1 = px[sy.toInt() * w + sx.toInt()]; val c2 = px[(sy + oy).toInt() * w + (sx + ox).toInt()]
-                    err += abs(((c1 shr 16) and 0xFF) - ((c2 shr 16) and 0xFF)) + abs(((c1 shr 8) and 0xFF) - ((c2 shr 8) and 0xFF)) + abs((c1 and 0xFF) - (c2 and 0xFF))
-                    cnt++
+            for (j in 0 until 32) {
+                val b = j * Math.PI.toFloat() / 16
+                for (rr in floatArrayOf(1.1f, 1.4f)) {
+                    val sx = cx + cos(b) * R * rr; val sy = cy + sin(b) * R * rr
+                    err += rgbDiff(sx, sy, sx + ox, sy + oy); cnt++
                 }
             }
-            if (cnt > 0 && err / cnt < best) { best = err / cnt; bdx = ox / w; bdy = oy / w }
+            val ring = err / cnt
+            // Prefer calm patches, about as textured as the spot's surroundings; slight preference for near ones.
+            val texture = busy(qx, qy)
+            val score = ring + 18f * max(0f, texture - ringBusy * 1.2f).let { it * it } + dist * 6f
+            if (score < best) { best = score; bdx = ox / w; bdy = oy / w }
         }
         return bdx to bdy
     }
 
-    /** Copies a feathered, colour-matched patch over every spot. */
+    /**
+     * Heal: copies the patch and corrects its colour smoothly from the edge inward (the difference
+     * around the edge is spread across the spot, like a membrane), so it melts into its surroundings.
+     * Clone stamp: an exact copy with a soft edge.
+     */
     fun heal(src: Bitmap, spots: List<Spot>): Bitmap {
         if (spots.isEmpty()) return src
         val w = src.width; val h = src.height
         val px = IntArray(w * h); src.getPixels(px, 0, w, 0, 0, w, h)
+        val N = 64
+        val cr = FloatArray(N); val cg = FloatArray(N); val cb = FloatArray(N)
         for (s in spots) {
-            val R = s.r * w
+            val R = (s.r * w).coerceAtLeast(1.5f)
             val cx = s.x * w; val cy = s.y * h
             val ox = s.dx * w; val oy = s.dy * w
-            // Average colour difference on the border, so the patch blends in.
-            var dr = 0f; var dg = 0f; var db = 0f; var n = 0
-            for (j in 0 until 32) {
-                val b = j * Math.PI / 16
-                val sx = (cx + cos(b) * R * 1.1).toInt(); val sy = (cy + sin(b) * R * 1.1).toInt()
-                val tx = (sx + ox).toInt(); val ty = (sy + oy).toInt()
-                if (sx !in 0 until w || sy !in 0 until h || tx !in 0 until w || ty !in 0 until h) continue
-                val c1 = px[sy * w + sx]; val c2 = px[ty * w + tx]
-                dr += ((c1 shr 16) and 0xFF) - ((c2 shr 16) and 0xFF); dg += ((c1 shr 8) and 0xFF) - ((c2 shr 8) and 0xFF); db += (c1 and 0xFF) - (c2 and 0xFF); n++
+            fun at(x: Int, y: Int) = px[y.coerceIn(0, h - 1) * w + x.coerceIn(0, w - 1)]
+            // Colour difference (target − source) around the edge, each a small 3×3 average.
+            var ar = 0f; var ag = 0f; var ab = 0f
+            if (!s.clone) {
+                for (k in 0 until N) {
+                    val b = k * 2 * Math.PI / N
+                    val sx = (cx + cos(b) * R * 1.04).toInt(); val sy = (cy + sin(b) * R * 1.04).toInt()
+                    var r = 0f; var g = 0f; var bl = 0f
+                    for (j in -1..1) for (i in -1..1) {
+                        val c1 = at(sx + i, sy + j); val c2 = at((sx + i + ox).toInt(), (sy + j + oy).toInt())
+                        r += ((c1 shr 16) and 0xFF) - ((c2 shr 16) and 0xFF)
+                        g += ((c1 shr 8) and 0xFF) - ((c2 shr 8) and 0xFF)
+                        bl += (c1 and 0xFF) - (c2 and 0xFF)
+                    }
+                    cr[k] = r / 9f; cg[k] = g / 9f; cb[k] = bl / 9f
+                    ar += cr[k]; ag += cg[k]; ab += cb[k]
+                }
+                ar /= N; ag /= N; ab /= N
             }
-            if (n > 0) { dr /= n; dg /= n; db /= n }
-            // Clone stamp: an exact copy (no colour matching), with a firmer edge.
-            if (s.clone) { dr = 0f; dg = 0f; db = 0f }
-            val edge = if (s.clone) 0.75f else 0.55f
+            val edge = if (s.clone) 0.7f else 0.82f
             val x0 = max(0, (cx - R).toInt()); val x1 = min(w - 1, (cx + R).toInt())
             val y0 = max(0, (cy - R).toInt()); val y1 = min(h - 1, (cy + R).toInt())
+            val out = IntArray((x1 - x0 + 1) * (y1 - y0 + 1))
+            val ow = x1 - x0 + 1
             for (y in y0..y1) for (x in x0..x1) {
-                val d = sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) / R
+                val o = px[y * w + x]
+                out[(y - y0) * ow + (x - x0)] = o
+                val ddx = x - cx; val ddy = y - cy
+                val d = sqrt(ddx * ddx + ddy * ddy) / R
                 if (d >= 1f) continue
-                val t = 1f - ((d - edge) / (1f - edge)).coerceIn(0f, 1f).let { it * it * (3 - 2 * it) }
                 val sxp = (x + ox).toInt(); val syp = (y + oy).toInt()
                 if (sxp !in 0 until w || syp !in 0 until h) continue
-                val c = px[syp * w + sxp]; val o = px[y * w + x]
-                val r = ((((c shr 16) and 0xFF) + dr) * t + ((o shr 16) and 0xFF) * (1 - t)).toInt().coerceIn(0, 255)
-                val g = ((((c shr 8) and 0xFF) + dg) * t + ((o shr 8) and 0xFF) * (1 - t)).toInt().coerceIn(0, 255)
-                val bl = (((c and 0xFF) + db) * t + (o and 0xFF) * (1 - t)).toInt().coerceIn(0, 255)
-                px[y * w + x] = (0xFF shl 24) or (r shl 16) or (g shl 8) or bl
+                val t = 1f - ((d - edge) / (1f - edge)).coerceIn(0f, 1f).let { it * it * (3 - 2 * it) }
+                var kr = 0f; var kg = 0f; var kb = 0f
+                if (!s.clone) {
+                    // Edge correction in this direction, fading to the average towards the centre.
+                    val ang = (kotlin.math.atan2(ddy, ddx) / (2 * Math.PI).toFloat() * N + N) % N
+                    val k0 = ang.toInt() % N; val k1 = (k0 + 1) % N; val f = ang - ang.toInt()
+                    val er = cr[k0] + (cr[k1] - cr[k0]) * f; val eg = cg[k0] + (cg[k1] - cg[k0]) * f; val eb = cb[k0] + (cb[k1] - cb[k0]) * f
+                    val m = d * d * (3 - 2 * d)
+                    kr = ar + (er - ar) * m; kg = ag + (eg - ag) * m; kb = ab + (eb - ab) * m
+                }
+                val c = px[syp * w + sxp]
+                val r = ((((c shr 16) and 0xFF) + kr) * t + ((o shr 16) and 0xFF) * (1 - t)).toInt().coerceIn(0, 255)
+                val g = ((((c shr 8) and 0xFF) + kg) * t + ((o shr 8) and 0xFF) * (1 - t)).toInt().coerceIn(0, 255)
+                val bl = (((c and 0xFF) + kb) * t + (o and 0xFF) * (1 - t)).toInt().coerceIn(0, 255)
+                out[(y - y0) * ow + (x - x0)] = (0xFF shl 24) or (r shl 16) or (g shl 8) or bl
             }
+            // Write back after the whole spot is done (so the spot never copies from itself mid-way).
+            for (y in y0..y1) System.arraycopy(out, (y - y0) * ow, px, y * w + x0, ow)
         }
         return Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
     }

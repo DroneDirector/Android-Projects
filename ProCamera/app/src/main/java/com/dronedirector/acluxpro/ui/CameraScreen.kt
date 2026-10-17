@@ -47,6 +47,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.composed
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -669,8 +671,8 @@ private fun Modifier.holdToLock(onHold: (androidx.compose.ui.geometry.Offset) ->
     val hold by androidx.compose.runtime.rememberUpdatedState(onHold)
     pointerInput(Unit) {
         val slop = 24.dp.toPx()
-        androidx.compose.foundation.gestures.awaitEachGesture {
-            val down = androidx.compose.foundation.gestures.awaitFirstDown(requireUnconsumed = false, pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial)
             val ended = withTimeoutOrNull(450L) {
                 while (true) {
                     val ev = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)

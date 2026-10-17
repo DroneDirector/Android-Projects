@@ -338,3 +338,24 @@ object Favorites {
         }
     }
 }
+
+/** Star ratings (0–5) and pick / reject flags for culling a shoot in the gallery. */
+object Ratings {
+    data class Mark(val stars: Int = 0, val flag: Int = 0)   // flag: 1 pick, -1 reject
+    private const val PREFS = "procam_ratings"
+
+    fun all(context: Context): Map<String, Mark> {
+        val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        return p.all.mapNotNull { (k, v) ->
+            val s = v as? String ?: return@mapNotNull null
+            val parts = s.split(',')
+            k to Mark(parts.getOrNull(0)?.toIntOrNull() ?: 0, parts.getOrNull(1)?.toIntOrNull() ?: 0)
+        }.toMap()
+    }
+
+    fun set(context: Context, uri: Uri, m: Mark) {
+        val e = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+        if (m.stars == 0 && m.flag == 0) e.remove(uri.toString()) else e.putString(uri.toString(), "${m.stars},${m.flag}")
+        e.apply()
+    }
+}

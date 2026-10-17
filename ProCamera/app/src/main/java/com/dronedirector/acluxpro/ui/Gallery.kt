@@ -133,6 +133,14 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
     var confirmItem by remember { mutableStateOf<MediaItem?>(null) }
     var favorites by remember { mutableStateOf(com.dronedirector.acluxpro.camera.Favorites.all(context)) }
     var grading by remember { mutableStateOf<MediaItem?>(null) }
+    // Culling: star ratings, pick / reject flags and a filter.
+    var marks by remember { mutableStateOf(com.dronedirector.acluxpro.camera.Ratings.all(context)) }
+    var rateFilter by remember { mutableIntStateOf(0) }
+    var confirmRejects by remember { mutableStateOf(false) }
+    fun mark(item: MediaItem, m: com.dronedirector.acluxpro.camera.Ratings.Mark) {
+        com.dronedirector.acluxpro.camera.Ratings.set(context, item.uri, m)
+        marks = com.dronedirector.acluxpro.camera.Ratings.all(context)
+    }
 
     fun reload() { reloadKey++ }
 
@@ -199,6 +207,17 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
         GalleryTab.VIDEOS -> all.filter { it.isVideo }
         GalleryTab.RAW -> all.filter { it.isRaw }
         GalleryTab.FAVORITES -> all.filter { it.uri.toString() in favorites }
+    }.filter { item ->
+        val m = marks[item.uri.toString()]
+        when (rateFilter) {
+            1 -> (m?.stars ?: 0) >= 1
+            2 -> (m?.stars ?: 0) >= 3
+            3 -> (m?.stars ?: 0) >= 5
+            4 -> m?.flag == 1
+            5 -> m?.flag == -1
+            6 -> m?.flag != -1
+            else -> true
+        }
     }
 
     BackHandler { if (viewing != null) viewing = null else onClose() }
@@ -213,12 +232,30 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
             GalleryHeader(count = all.size, onBack = onClose)
             TabRow(tab, all, favorites) { tab = it }
+            // Rating filter for culling.
+            Row(
+                Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
+            ) {
+                listOf("Any", "★ 1+", "★ 3+", "★ 5", "✓ Picks", "✕ Rejects", "Hide rejects").forEachIndexed { i, label ->
+                    val sel = rateFilter == i
+                    Text(
+                        label, color = if (sel) Color.Black else Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(if (sel) Pro.Amber else Color.White.copy(alpha = 0.06f))
+                            .clickable { rateFilter = i }.padding(horizontal = 10.dp, vertical = 5.dp),
+                    )
+                }
+                if (rateFilter == 5 && shown.isNotEmpty()) Text(
+                    "DELETE ${shown.size} REJECTS", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp),
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { confirmRejects = true }.padding(8.dp),
+                )
+            }
             when {
                 items == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = Pro.Amber)
                 }
                 shown.isEmpty() -> EmptyGallery(tab)
-                else -> MediaGrid(shown, favorites) { viewing = it }
+                else -> MediaGrid(shown, favorites, marks) { viewing = it }
             }
         }
 
@@ -235,6 +272,8 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
                     favorites = com.dronedirector.acluxpro.camera.Favorites.all(context)
                 },
                 onGrade = { grading = it },
+                marks = marks,
+                onMark = { item, m -> mark(item, m) },
             )
         }
 
@@ -243,6 +282,36 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
                 item = g,
                 onClose = { grading = null },
                 onSaved = { reload(); onChanged() },
+            )
+        }
+
+        if (confirmRejects) {
+            val rejects = shown.toList()
+            AlertDialog(
+                onDismissRequest = { confirmRejects = false },
+                containerColor = Pro.PanelSolid,
+                title = { Text("Delete ${rejects.size} rejects?", color = Color.White) },
+                text = { Text("Every photo and video marked as rejected will be permanently removed from your device.", color = Pro.Dim) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmRejects = false
+                        scope.launch {
+                            val locked = mutableListOf<Uri>()
+                            withContext(Dispatchers.IO) {
+                                for (r in rejects) try {
+                                    context.contentResolver.delete(r.uri, null, null)
+                                    com.dronedirector.acluxpro.camera.Ratings.set(context, r.uri, com.dronedirector.acluxpro.camera.Ratings.Mark())
+                                } catch (_: SecurityException) { locked += r.uri }
+                            }
+                            // Files the app didn't make need the system's OK (one dialog for all).
+                            if (locked.isNotEmpty() && Build.VERSION.SDK_INT >= 30) {
+                                deleteLauncher.launch(IntentSenderRequest.Builder(MediaStore.createDeleteRequest(context.contentResolver, locked).intentSender).build())
+                            } else { onChanged(); reload() }
+                            marks = com.dronedirector.acluxpro.camera.Ratings.all(context)
+                        }
+                    }) { Text("Delete", color = Pro.Red, fontWeight = FontWeight.Bold) }
+                },
+                dismissButton = { TextButton(onClick = { confirmRejects = false }) { Text("Cancel", color = Color.White) } },
             )
         }
 
@@ -347,7 +416,7 @@ private fun EmptyGallery(tab: GalleryTab) {
 }
 
 @Composable
-private fun MediaGrid(items: List<MediaItem>, favorites: Set<String>, onOpen: (Int) -> Unit) {
+private fun MediaGrid(items: List<MediaItem>, favorites: Set<String>, marks: Map<String, com.dronedirector.acluxpro.camera.Ratings.Mark>, onOpen: (Int) -> Unit) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(112.dp),
         modifier = Modifier.fillMaxSize(),
@@ -364,13 +433,13 @@ private fun MediaGrid(items: List<MediaItem>, favorites: Set<String>, onOpen: (I
                     Text(day, style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(start = 4.dp, top = 10.dp, bottom = 2.dp))
                 }
             }
-            item(key = item.uri.toString()) { GridCell(item, item.uri.toString() in favorites) { onOpen(index) } }
+            item(key = item.uri.toString()) { GridCell(item, item.uri.toString() in favorites, marks[item.uri.toString()]) { onOpen(index) } }
         }
     }
 }
 
 @Composable
-private fun GridCell(item: MediaItem, favorite: Boolean, onClick: () -> Unit) {
+private fun GridCell(item: MediaItem, favorite: Boolean, mark: com.dronedirector.acluxpro.camera.Ratings.Mark? = null, onClick: () -> Unit) {
     val context = LocalContext.current
     val thumb by produceThumb(context, item.uri, 320)
     Box(
@@ -400,6 +469,15 @@ private fun GridCell(item: MediaItem, favorite: Boolean, onClick: () -> Unit) {
                 modifier = Modifier.align(Alignment.TopEnd).padding(5.dp).size(16.dp),
             )
         }
+        // Culling marks: rejected = dimmed, pick = green tick, stars along the bottom.
+        if (mark?.flag == -1) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)), contentAlignment = Alignment.Center) {
+            Text("✕", color = Pro.Red, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        }
+        if (mark?.flag == 1) Text("✓", color = Color(0xFF34C759), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopStart).padding(5.dp))
+        if ((mark?.stars ?: 0) > 0) Text(
+            "★".repeat(mark!!.stars), color = Pro.Amber, fontSize = 10.sp,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp).clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 3.dp),
+        )
         if (item.isVideo) {
             Box(
                 Modifier.fillMaxSize().background(
@@ -443,6 +521,8 @@ private fun MediaViewer(
     favorites: Set<String>,
     onFavorite: (MediaItem) -> Unit,
     onGrade: (MediaItem) -> Unit,
+    marks: Map<String, com.dronedirector.acluxpro.camera.Ratings.Mark> = emptyMap(),
+    onMark: (MediaItem, com.dronedirector.acluxpro.camera.Ratings.Mark) -> Unit = { _, _ -> },
 ) {
     val context = LocalContext.current
     val pager = rememberPagerState(initialPage = start) { items.size }
@@ -488,11 +568,26 @@ private fun MediaViewer(
         }
 
         AnimatedVisibility(chrome && current != null, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.BottomCenter)) {
+            Column(
+                Modifier.fillMaxWidth().background(Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.8f))).padding(top = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+            // Rating: tap a star (tap it again to clear), ✓ pick, ✕ reject.
+            if (current != null) {
+                val m = marks[current.uri.toString()] ?: com.dronedirector.acluxpro.camera.Ratings.Mark()
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("✕", color = if (m.flag == -1) Pro.Red else Color.White.copy(alpha = 0.6f), fontSize = 20.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clip(CircleShape).clickable { onMark(current, m.copy(flag = if (m.flag == -1) 0 else -1)) }.padding(horizontal = 12.dp, vertical = 6.dp))
+                    for (n in 1..5) Text(if (n <= m.stars) "★" else "☆", color = if (n <= m.stars) Pro.Amber else Color.White.copy(alpha = 0.6f), fontSize = 24.sp,
+                        modifier = Modifier.clip(CircleShape).clickable { onMark(current, m.copy(stars = if (m.stars == n) 0 else n)) }.padding(horizontal = 4.dp, vertical = 4.dp))
+                    Text("✓", color = if (m.flag == 1) Color(0xFF34C759) else Color.White.copy(alpha = 0.6f), fontSize = 20.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clip(CircleShape).clickable { onMark(current, m.copy(flag = if (m.flag == 1) 0 else 1)) }.padding(horizontal = 12.dp, vertical = 6.dp))
+                }
+            }
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .background(Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.8f)))
-                    .padding(top = 28.dp, bottom = 20.dp),
+                    .padding(top = 6.dp, bottom = 20.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 current ?: return@Row
@@ -505,6 +600,7 @@ private fun MediaViewer(
                 ViewerAction(Icons.Filled.Share, "Share") { share(context, current) }
                 ViewerAction(Icons.AutoMirrored.Filled.OpenInNew, "Open") { openWith(context, current) }
                 ViewerAction(Icons.Filled.Delete, "Delete", tint = Pro.Red) { onDelete(current) }
+            }
             }
         }
     }

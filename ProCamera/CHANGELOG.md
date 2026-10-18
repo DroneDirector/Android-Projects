@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.245 — 2026-10-18
 - New app ID: com.dronedirector.veyrocutpro (matches the VeyroCut Pro name, ready for the Play Store). Phones see this as a new app: uninstall the old AcluxPro / VeyroCut Pro first. Settings and presets start fresh; your photos and videos are untouched and still show in the gallery.
 
 ## 1.0.243 — 2026-10-18

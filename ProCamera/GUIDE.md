@@ -112,6 +112,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 ## Video editor guide
 **AI noise reduction**
+- Start page → SKIP — OPEN THE EDITOR goes straight into the editor with an empty timeline, without choosing a video first; add clips later from the Media page. It only happens when you tap it.
 - Color → Detail → AI NOISE REDUCTION → move Strength above Off.
 - Applied when exporting; the preview shows the normal noise reduction.
 - On the phone it can take several minutes up to about an hour (tap ⓘ next to it); Cloud AI does it in minutes. STOP on the AI badge cancels.

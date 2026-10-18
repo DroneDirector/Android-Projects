@@ -122,6 +122,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 
 ## Video editor
 ### Media & timeline
+- **Skip to the editor** from the start page: open an empty timeline without picking a video first (manual, every time).
 - Add clips from the gallery or files (MP4, MKV, MOV, WebM, SD card / USB).
 - Export to internal storage, an SD card / USB drive or a picked folder on any external drive (own SAVE LOCATION, or the same as capture).
 - **Media pool** with codec, HDR / 10-bit badges; delete from the pool with confirmation.

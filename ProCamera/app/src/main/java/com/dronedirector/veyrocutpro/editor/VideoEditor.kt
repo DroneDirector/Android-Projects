@@ -174,6 +174,7 @@ fun VideoEditorScreen(onExit: () -> Unit) {
                 onGallery = pickGallery,
                 onFiles = pickFiles,
                 onRecent = { addUris(listOf(it)) },
+                onSkip = { started = true },
                 onOpenProject = { id ->
                     loading = true
                     scope.launch {

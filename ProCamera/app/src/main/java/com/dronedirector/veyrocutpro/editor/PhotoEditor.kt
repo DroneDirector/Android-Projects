@@ -198,6 +198,8 @@ fun MediaChooser(
     onRecent: (Uri) -> Unit,
     onOpenProject: (String) -> Unit = {},
     onMerge: ((MergeKind) -> Unit)? = null,
+    /** Shown only when set: go straight into the editor without choosing anything first. */
+    onSkip: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     var settings by remember { mutableStateOf(false) }
@@ -217,6 +219,24 @@ fun MediaChooser(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             BigButton(Icons.Filled.PhotoLibrary, if (videos) "Gallery videos" else "Gallery photos", Modifier.weight(1f), onGallery)
             BigButton(Icons.Filled.FolderOpen, "Browse files", Modifier.weight(1f), onFiles)
+        }
+        if (onSkip != null) {
+            Row(
+                Modifier
+                    .padding(top = 10.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(1.dp, Pro.Amber.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                    .clickable(onClick = onSkip)
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Skip — open the editor", color = Pro.Amber, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Start with an empty timeline and add clips later from the Media page.", color = Pro.Dim, fontSize = 11.sp)
+                }
+                Text("→", color = Pro.Amber, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 8.dp))
+            }
         }
         if (onMerge != null) {
             Text("MERGE PHOTOS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp, bottom = 4.dp))

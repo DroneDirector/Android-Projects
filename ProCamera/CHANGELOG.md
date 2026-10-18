@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: new SKIP — OPEN THE EDITOR button on the start page goes straight into the editor with an empty timeline, without choosing a video first. It's a button you tap each time, never automatic.
 
 ## 1.0.245 — 2026-10-18
 - New app ID: com.dronedirector.veyrocutpro (matches the VeyroCut Pro name, ready for the Play Store). Phones see this as a new app: uninstall the old AcluxPro / VeyroCut Pro first. Settings and presets start fresh; your photos and videos are untouched and still show in the gallery.

@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.247 — 2026-10-18
 - Video editor: new SKIP — OPEN THE EDITOR button on the start page goes straight into the editor with an empty timeline, without choosing a video first. It's a button you tap each time, never automatic.
 
 ## 1.0.245 — 2026-10-18

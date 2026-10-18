@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.243 — 2026-10-18
 - The app is now called **VeyroCut Pro** (formerly AcluxPro). New photos and videos save to DCIM/VeyroCutPro (sounds to Music/VeyroCutPro); the gallery still shows everything in the old DCIM/AcluxPro folder. It installs over the previous version as before.
 - Capture: autofocus by default in every mode. Tap still focuses where you tap. Press and hold the viewfinder for 2 seconds (a ring fills) to switch to manual focus: a narrow vertical focus slider appears on the right edge of the feed, with ∞ at the top, a live distance tag and the focus magnifier while you drag. A small ✕ above it returns to autofocus.
 - Capture: the exposure lock is now a short hold and release (about ½ second, it ticks); keep holding to 2 seconds for manual focus instead.

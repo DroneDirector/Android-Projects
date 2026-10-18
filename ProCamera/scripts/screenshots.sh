@@ -5,7 +5,7 @@ set -u
 
 APK="$1"
 OUT="$2"
-PKG=com.dronedirector.acluxpro
+PKG=com.dronedirector.veyrocutpro
 ACT="$PKG/.MainActivity"
 mkdir -p "$OUT"
 

@@ -1,7 +1,7 @@
 # VeyroCut Pro — Features
 
 VeyroCut Pro is a pro camera, photo editor and video editor for Android phones and tablets (Android 8.0+).
-App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https://github.com/DroneDirector/Android-Projects/releases); see the [changelog](CHANGELOG.md) for what changed in each version. Open-source parts and licences: [third-party notices](THIRD_PARTY_NOTICES.md).
+App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](https://github.com/DroneDirector/Android-Projects/releases); see the [changelog](CHANGELOG.md) for what changed in each version. Open-source parts and licences: [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ---
 

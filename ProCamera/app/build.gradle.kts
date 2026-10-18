@@ -8,7 +8,7 @@ plugins {
 val ciVersionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
 
 android {
-    namespace = "com.dronedirector.acluxpro"
+    namespace = "com.dronedirector.veyrocutpro"
     compileSdk = 36
 
     lint {
@@ -18,7 +18,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.dronedirector.acluxpro"
+        applicationId = "com.dronedirector.veyrocutpro"
         minSdk = 26
         targetSdk = 35
         versionCode = ciVersionCode

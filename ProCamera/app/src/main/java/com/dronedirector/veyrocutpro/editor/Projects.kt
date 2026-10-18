@@ -104,6 +104,39 @@ object ProjectStore {
         return out
     }
 
+    // ---- auto-save (crash recovery): one hidden file, never shown in the project list
+
+    private fun autosaveFile(context: Context) = File(dir(context, true), "_autosave.json.tmp")
+
+    fun writeAutosave(context: Context, json: String) {
+        try {
+            val f = autosaveFile(context)
+            val tmp = File(f.parentFile, f.name + ".new")
+            tmp.writeText(json)
+            tmp.renameTo(f)
+        } catch (_: Throwable) {}
+    }
+
+    /** The edit that was open when the app last closed without leaving the editor, or null. */
+    fun loadAutosave(context: Context): VideoProjectData? {
+        val f = autosaveFile(context)
+        if (!f.exists()) return null
+        return try { fixVideo(gson.fromJson(f.readText(), VideoProjectData::class.java)) } catch (_: Throwable) { null }
+    }
+
+    fun autosaveTime(context: Context): Long = autosaveFile(context).let { if (it.exists()) it.lastModified() else 0L }
+
+    fun clearAutosave(context: Context) { try { autosaveFile(context).delete() } catch (_: Throwable) {} }
+
+    private fun fixVideo(p: VideoProjectData): VideoProjectData {
+        Defaults.fix(p, VideoProjectData())
+        p.clips.forEach { Defaults.fix(it, Clip(uri = Uri.EMPTY, name = "", durationMs = 1, width = 1, height = 1)) }
+        p.layers.forEach { Defaults.fix(it, Layer()) }
+        p.music?.let { Defaults.fix(it, MusicTrack(Uri.EMPTY, "", 1)) }
+        p.extraAudio.forEach { Defaults.fix(it, MusicTrack(Uri.EMPTY, "", 1)) }
+        return p
+    }
+
     fun loadVideo(context: Context, id: String): VideoProjectData? = try {
         val p = gson.fromJson(File(dir(context, true), "$id.json").readText(), VideoProjectData::class.java)
         Defaults.fix(p, VideoProjectData())

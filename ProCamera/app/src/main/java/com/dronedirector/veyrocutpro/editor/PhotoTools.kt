@@ -473,6 +473,15 @@ fun savePhotoAs(context: Context, bmp: Bitmap, format: Int, quality: Int, exifFr
         } catch (_: Throwable) {}
         // Your name and copyright (Settings → COPYRIGHT) in every export.
         if (f == 0 || f == 2 || f == 1) com.dronedirector.veyrocutpro.camera.Copyright.stampFile(context, tmp)
+        // IPTC title / caption / keywords (Export → CAPTION & KEYWORDS), as XMP inside the picture.
+        if (f == 0 || f == 2) PhotoMeta.embedXmp()?.let { xmp ->
+            try {
+                val ex = androidx.exifinterface.media.ExifInterface(tmp.path)
+                ex.setAttribute(androidx.exifinterface.media.ExifInterface.TAG_XMP, xmp)
+                if (PhotoMeta.caption.isNotBlank()) ex.setAttribute(androidx.exifinterface.media.ExifInterface.TAG_IMAGE_DESCRIPTION, PhotoMeta.caption)
+                ex.saveAttributes()
+            } catch (_: Throwable) {}
+        }
         SaveFolder.write(context, false, name, mime) { os -> tmp.inputStream().use { it.copyTo(os) } }?.let { return it }
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, name)

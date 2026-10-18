@@ -204,6 +204,8 @@ fun MediaChooser(
     onMerge: ((MergeKind) -> Unit)? = null,
     /** Shown only when set: go straight into the editor without choosing anything first. */
     onSkip: (() -> Unit)? = null,
+    /** Optional card under the subtitle (e.g. recover an unsaved edit). */
+    banner: (@Composable () -> Unit)? = null,
 ) {
     val context = LocalContext.current
     var settings by remember { mutableStateOf(false) }
@@ -220,6 +222,7 @@ fun MediaChooser(
             TopIcon(Icons.Filled.Settings, "Settings") { settings = true }
         }
         Text(subtitle, color = Pro.Dim, fontSize = 13.sp, modifier = Modifier.padding(vertical = 10.dp))
+        banner?.invoke()
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             BigButton(Icons.Filled.PhotoLibrary, if (videos) "Gallery videos" else "Gallery photos", Modifier.weight(1f), onGallery)
             BigButton(Icons.Filled.FolderOpen, "Browse files", Modifier.weight(1f), onFiles)
@@ -573,7 +576,13 @@ private fun PhotoWorkspace(
                     e.watermark?.let { out = stampLayer(context, out, it) }
                     // A removed background needs a format with transparency.
                     val fmt = if (e.bg.active && e.bg.mode == 2 && format != 1 && format != 2) 1 else format
-                    savePhotoAs(context, out, fmt, (quality * 100).toInt(), if (keepExif) uri else null, stripGps)
+                    savePhotoAs(context, out, fmt, (quality * 100).toInt(), if (keepExif) uri else null, stripGps).also { saved ->
+                        // Lightroom / Camera Raw sidecar for the original, with the closest matching settings.
+                        if (saved != null && PhotoMeta.sidecar && uri != Uri.EMPTY) {
+                            val where = PhotoMeta.writeSidecar(context, uri, PhotoMeta.sidecarXmp(e.grade, e.detail, e.geometry, raw))
+                            if (where == null) scope.launch { message = "Photo saved, but the .xmp sidecar couldn't be written" }
+                        }
+                    }
                 } catch (_: OutOfMemoryError) {
                     null
                 } catch (t: Throwable) {
@@ -1288,6 +1297,40 @@ private fun PhotoPanelContent(
             SectionTitle("SIZE (LONG EDGE)")
             Chips(listOf("Full (≤4800)", "4096", "2560", "1920", "Instagram 1080", "Web 2048", "4K 3840"), exportState.sizeIdx) { onExportState(exportState.format, exportState.quality, it) }
             Text("Exports a new picture to DCIM/VeyroCutPro; the original stays untouched.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 8.dp))
+            run {
+                val ctx = LocalContext.current
+                LaunchedEffect(Unit) { PhotoMeta.load(ctx) }
+                SectionTitle("CAPTION & KEYWORDS (IPTC)")
+                val tf = @Composable { label: String, value: String, single: Boolean, onChange: (String) -> Unit ->
+                    androidx.compose.material3.OutlinedTextField(
+                        value = value, onValueChange = { onChange(it.take(if (single) 200 else 2000)); PhotoMeta.save(ctx) },
+                        label = { Text(label) }, singleLine = single,
+                        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                            focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,
+                        ),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    )
+                }
+                tf("Title / headline", PhotoMeta.title, true) { PhotoMeta.title = it }
+                tf("Caption", PhotoMeta.caption, false) { PhotoMeta.caption = it }
+                tf("Keywords (comma-separated)", PhotoMeta.keywords, true) { PhotoMeta.keywords = it }
+                Text("Written into every exported JPEG / WebP with your name and copyright — read by Lightroom, Photo Mechanic, Bridge and stock / news agencies. Kept for the next photos until you change it.", color = Pro.Dim, fontSize = 11.sp)
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(10.dp)).background(Ed.Raised)
+                        .clickable { PhotoMeta.sidecar = !PhotoMeta.sidecar; PhotoMeta.save(ctx) }.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Also save a Lightroom .xmp sidecar", color = Color.White, fontSize = 14.sp)
+                        Text("Your edit (light, colour, HSL, detail, straighten) as Adobe Camera Raw settings, named after the original, in Documents/VeyroCutPro/XMP. Put it next to the original to continue in Lightroom.", color = Pro.Dim, fontSize = 11.sp)
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = PhotoMeta.sidecar, onCheckedChange = { PhotoMeta.sidecar = it; PhotoMeta.save(ctx) },
+                        colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber),
+                    )
+                }
+            }
             Text(
                 if (busy) "EXPORTING…" else "EXPORT PHOTO",
                 style = Pro.Value.copy(color = Color.Black, fontSize = 14.sp),

@@ -65,6 +65,8 @@ data class Clip(
     val rampName: String? = null,
     /** Volume keyframes: (source ms from the clip start, gain 0..2). */
     val volKeys: List<VolKey>? = null,
+    /** Nested (compound) clip: the clips it was made from, so it can be opened up again. */
+    val nested: List<Clip>? = null,
 ) {
     val lengthMs: Long get() = (if (ramp != null) rampedLength() else ((endMs - startMs) / speed).toLong()).coerceAtLeast(1)
 }

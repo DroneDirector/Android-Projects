@@ -175,6 +175,32 @@ fun VideoEditorScreen(onExit: () -> Unit) {
                 onFiles = pickFiles,
                 onRecent = { addUris(listOf(it)) },
                 onSkip = { started = true },
+                banner = {
+                    var recoverAt by remember { mutableStateOf(ProjectStore.autosaveTime(context)) }
+                    if (recoverAt > 0L) Column(
+                        Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(12.dp))
+                            .background(Pro.Amber.copy(alpha = 0.12f)).border(1.dp, Pro.Amber.copy(alpha = 0.6f), RoundedCornerShape(12.dp)).padding(12.dp),
+                    ) {
+                        Text("Unsaved edit found", color = Pro.Amber, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "The editor closed without leaving normally (" + java.text.SimpleDateFormat("d MMM HH:mm", java.util.Locale.getDefault()).format(java.util.Date(recoverAt)) + "). Pick up where you left off?",
+                            color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(vertical = 4.dp),
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text("RECOVER", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(50)).background(Pro.Amber).clickable {
+                                val p = ProjectStore.loadAutosave(context)
+                                if (p == null) { recoverAt = 0L; ProjectStore.clearAutosave(context) }
+                                else {
+                                    val fixed = p.copy(id = p.id.ifBlank { java.util.UUID.randomUUID().toString() }, name = p.name.ifBlank { "Recovered edit" })
+                                    clips.clear(); clips.addAll(fixed.clips); project = fixed; started = true
+                                }
+                            }.padding(horizontal = 16.dp, vertical = 8.dp))
+                            Text("DISCARD", color = Pro.Dim, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(50)).clickable {
+                                ProjectStore.clearAutosave(context); recoverAt = 0L
+                            }.padding(horizontal = 16.dp, vertical = 8.dp))
+                        }
+                    }
+                },
                 onOpenProject = { id ->
                     loading = true
                     scope.launch {
@@ -193,7 +219,7 @@ fun VideoEditorScreen(onExit: () -> Unit) {
     } else {
         androidx.compose.runtime.key(project?.id) {
             Workspace(
-                clips, project, onAddGallery = pickGallery, onAddFiles = pickFiles, onExit = onExit,
+                clips, project, onAddGallery = pickGallery, onAddFiles = pickFiles, onExit = { ProjectStore.clearAutosave(context); onExit() },
                 onLoad = { id ->
                     val p = ProjectStore.loadVideo(context, id)
                     if (p == null || p.clips.isEmpty()) android.widget.Toast.makeText(context, "Couldn't open that project", android.widget.Toast.LENGTH_SHORT).show()
@@ -315,6 +341,64 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     val layerScope = rememberCoroutineScope()
+    var showMulticam by remember { mutableStateOf(false) }
+    if (showMulticam) MulticamDialog(
+        pool = clips.distinctBy { it.uri.toString() },
+        onDone = { cut ->
+            showMulticam = false
+            if (cut.isNotEmpty()) { clips.addAll(cut); message = "Multicam edit added: ${cut.size} shots at the end of the timeline" }
+        },
+        onDismiss = { showMulticam = false },
+    )
+    /** Lines an audio track up with the selected clip by matching their sound (external recorder, second camera…). */
+    fun syncAudioTo(t: MusicTrack) {
+        val c = clips.getOrNull(selected) ?: run { message = "Select the clip to sync to on the timeline"; return }
+        message = "Matching the sound…"
+        layerScope.launch {
+            val pa = withContext(Dispatchers.IO) { Waveforms.load(context, c.uri) }
+            val pb = withContext(Dispatchers.IO) { Waveforms.load(context, t.uri) }
+            if (pa == null || pb == null) { message = "Couldn't read the sound of the clip or the track"; return@launch }
+            val m = withContext(Dispatchers.Default) { AudioSync.match(pa, pb) }
+            if (m == null || m.confidence < 0.15f) {
+                message = "No clear match — both need to have recorded the same sound (a clap at the start helps)"
+                return@launch
+            }
+            val base = clipStarts(clips).getOrNull(selected) ?: 0L
+            val a0 = c.startMs + m.lagMs
+            val nt = if (a0 >= 0) t.copy(startMs = base, offsetMs = a0) else t.copy(startMs = base - a0, offsetMs = 0L)
+            if (music?.id == t.id) music = nt
+            else { val i = extraAudio.indexOfFirst { it.id == t.id }; if (i >= 0) extraAudio[i] = nt }
+            message = "Synced to clip ${selected + 1} (match ${(m.confidence * 100).toInt()}%). Turn the clip's own volume down in Audio to hear only the track."
+        }
+    }
+    // Drone flight data (DJI .SRT) → timed overlay text on the selected clip.
+    var telemetryShow by remember { mutableStateOf(TelemetryShow()) }
+    val pickSrt = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) layerScope.launch {
+            val text = withContext(Dispatchers.IO) {
+                try { context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } } catch (_: Throwable) { null }
+            }
+            val samples = text?.let { withContext(Dispatchers.Default) { Telemetry.parse(it) } }.orEmpty()
+            if (samples.isEmpty()) { message = "No flight data found in that file — pick the .SRT saved next to the drone video"; return@launch }
+            val c = clips.getOrNull(current) ?: run { message = "Select the drone clip on the timeline first"; return@launch }
+            val base = clipStarts(clips).getOrNull(current) ?: 0L
+            val segs = Telemetry.segments(samples, telemetryShow, c.startMs, c.endMs)
+            if (segs.isEmpty()) { message = "The flight data has none of the chosen values"; return@launch }
+            layers.removeAll { it.name == "Telemetry" && it.startMs >= base && it.startMs < base + c.lengthMs }
+            var n = 0
+            for ((a, b, txt) in segs) {
+                val s0 = base + c.tlOffsetOf(a)
+                val s1 = base + c.tlOffsetOf(b)
+                if (s1 - s0 < 100) continue
+                layers.add(Layer(
+                    kind = LayerKind.TEXT, text = txt, size = 0.032f, x = 0.5f, y = 0.93f,
+                    box = true, shadow = true, font = LayerFont.MONO, startMs = s0, endMs = s1, name = "Telemetry",
+                ))
+                n++
+            }
+            message = "Flight data added to clip ${current + 1} ($n overlays) — tap one on the timeline to restyle it"
+        }
+    }
     val pickLayerVideo = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) layerScope.launch {
             val c = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }
@@ -878,6 +962,83 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
 
     fun update(i: Int, f: (Clip) -> Clip) { if (i in clips.indices) clips[i] = f(clips[i]) }
 
+    // ---- Pro trim tools (the main track is magnetic, so a normal trim is a ripple trim).
+    /** Roll / slip / slide on clip [i] by [d] ms of source time. */
+    fun trimTool(mode: Int, i: Int, d: Long) {
+        if (videoLocked) { message = "The video track is locked"; return }
+        val c = clips.getOrNull(i) ?: return
+        val min = 100L
+        when (mode) {
+            // SLIP: same place and length, different part of the clip.
+            0 -> {
+                val dd = d.coerceIn(-c.startMs, c.durationMs - c.endMs)
+                if (dd == 0L) { message = "Nothing more of the clip to slip to"; return }
+                clips[i] = c.copy(startMs = c.startMs + dd, endMs = c.endMs + dd)
+            }
+            // ROLL: move the cut between this clip and the next; total length stays the same.
+            1 -> {
+                val n = clips.getOrNull(i + 1) ?: run { message = "Roll moves the cut after this clip — select a clip that has one after it"; return }
+                val dd = d.coerceIn(maxOf(-(c.endMs - c.startMs - min), -n.startMs), minOf(c.durationMs - c.endMs, n.endMs - n.startMs - min))
+                if (dd == 0L) return
+                clips[i] = c.copy(endMs = c.endMs + dd)
+                clips[i + 1] = n.copy(startMs = n.startMs + dd)
+            }
+            // SLIDE: the clip itself stays the same and moves along; its neighbours give and take.
+            2 -> {
+                val p = clips.getOrNull(i - 1); val n = clips.getOrNull(i + 1)
+                if (p == null || n == null) { message = "Slide needs a clip before and after this one"; return }
+                val dd = d.coerceIn(maxOf(-(p.endMs - p.startMs - min), -n.startMs), minOf(p.durationMs - p.endMs, n.endMs - n.startMs - min))
+                if (dd == 0L) return
+                clips[i - 1] = p.copy(endMs = p.endMs + dd)
+                clips[i + 1] = n.copy(startMs = n.startMs + dd)
+            }
+        }
+    }
+
+    // ---- Nested (compound) clips: several clips rendered into one, which can be opened up again.
+    var nesting by remember { mutableStateOf(false) }
+    fun nestClips(from: Int, count: Int) {
+        if (videoLocked) { message = "The video track is locked"; return }
+        if (nesting || exporting) return
+        val to = (from + count).coerceAtMost(clips.size)
+        if (to - from < 2) { message = "Choose at least 2 clips to nest"; return }
+        val group = clips.subList(from, to).toList()
+        val dir = java.io.File(context.filesDir, "nested").apply { mkdirs() }
+        val file = java.io.File(dir, "nest_${System.currentTimeMillis()}.mp4")
+        nesting = true; progress = 0
+        message = "Nesting ${group.size} clips…"
+        val e = TimelineExport(
+            context, group, deliver.copy(audioOnly = false, rangeStart = null, rangeEnd = null, loudness = null, bitrateMbps = maxOf(deliver.bitrateMbps, 40)),
+            onProgress = { progress = it },
+            onDone = { uri, err ->
+                if (uri == null) { nesting = false; message = err ?: "Couldn't nest the clips"; return@TimelineExport }
+                layerScope.launch {
+                    val nc = withContext(Dispatchers.IO) { ClipLoader.load(context, Uri.fromFile(file)) }
+                    nesting = false
+                    if (nc == null) { message = "Couldn't open the nested clip"; return@launch }
+                    // Replace the group (if the timeline didn't change meanwhile).
+                    val idx = clips.indexOfFirst { it.id == group.first().id }
+                    if (idx < 0 || clips.subList(idx, (idx + group.size).coerceAtMost(clips.size)).map { it.id } != group.map { it.id }) {
+                        message = "The timeline changed while nesting — try again"; return@launch
+                    }
+                    repeat(group.size) { clips.removeAt(idx) }
+                    clips.add(idx, nc.copy(name = "Nested · ${group.size} clips", nested = group, transition = group.last().transition))
+                    selected = idx
+                    message = "${group.size} clips nested into one — UN-NEST opens them up again"
+                }
+            },
+            toFile = file,
+        )
+        try { e.start() } catch (t: Throwable) { nesting = false; message = "Couldn't nest: ${t.message}" }
+    }
+    fun unNest(i: Int) {
+        val c = clips.getOrNull(i) ?: return
+        val inner = c.nested ?: return
+        clips.removeAt(i)
+        clips.addAll(i, inner)
+        message = "Opened up into ${inner.size} clips"
+    }
+
     /** Saves the whole edit (clips, grades, layers, music, delivery settings) as a project. */
     fun saveProject(name: String) {
         val p = VideoProjectData(
@@ -890,6 +1051,26 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val saved = try { ProjectStore.saveVideo(context, p, clips.firstOrNull()?.let { thumbs[it.id] }) } catch (_: Throwable) { null }
         if (saved != null) { projectId = saved.id; projectName = saved.name; message = "Project \"${saved.name}\" saved" }
         else message = "Couldn't save the project"
+    }
+    // Auto-save: every 20 s a hidden recovery copy of the edit, in case the app is closed or crashes.
+    LaunchedEffect(Unit) {
+        var last = ""
+        while (true) {
+            delay(20_000)
+            if (clips.isEmpty() && layers.isEmpty() && music == null) continue
+            val p = VideoProjectData(
+                id = projectId ?: "", name = projectName,
+                clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
+                extraAudio = extraAudio.toList(), audioPool = audioPool.toList(),
+                videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
+                markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
+            )
+            val json = withContext(Dispatchers.Default) { try { ProjectStore.gson.toJson(p) } catch (_: Throwable) { "" } }
+            if (json.isNotEmpty() && json != last) {
+                last = json
+                withContext(Dispatchers.IO) { ProjectStore.writeAutosave(context, json) }
+            }
+        }
     }
     if (askName) ProjectNameDialog(
         ProjectStore.defaultName(true),
@@ -1701,6 +1882,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 audioPool = audioPool,
                                 audioUses = { a -> (if (music?.uri == a.uri) 1 else 0) + extraAudio.count { it.uri == a.uri } },
                                 onAddAudio = { pickAudio.launch(arrayOf("audio/*")) },
+                                onMulticam = { showMulticam = true },
                                 onLibraryAdd = { sec, t ->
                                     layerScope.launch {
                                         val uri = withContext(Dispatchers.IO) { SoundLibrary.file(context, sec, t) }
@@ -1801,6 +1983,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     val to = selected + dir
                                     if (to in clips.indices) { val c = clips.removeAt(selected); clips.add(to, c); selected = to }
                                 },
+                                onTrimTool = { mode, d -> trimTool(mode, selected, d) },
+                                frameMs = 1000L / (if (deliver.fps > 0) deliver.fps else 30),
+                                onNest = { n -> nestClips(selected, n) },
+                                onUnNest = { unNest(selected) },
+                                nesting = nesting, nestProgress = progress,
                                 )
                                 val sk = Stabilizer.keyOf(sc)
                                 ReframePanel(
@@ -1848,6 +2035,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 },
                                 onSeek = { seekGlobal(it) },
                                 onCaptions = { lang, clipsOnly, style -> makeCaptions(lang, clipsOnly, style) },
+                                telemetryShow = telemetryShow,
+                                onTelemetryShow = { telemetryShow = it },
+                                onTelemetry = { pickSrt.launch(arrayOf("*/*")) },
                                 onTrack = { trackLayer(it) }, trackingId = trackingId,
                                 onDelete = { id ->
                                     if (layers.any { it.id == id && it.locked }) message = "This layer is locked — tap its lock to delete it"
@@ -1872,6 +2062,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 recording = voiceRec != null, recordMs = voiceMs,
                                 onVoice = { if (voiceRec == null) startVoice() else stopVoice() },
                                 onBeats = { t -> addBeatMarkers(t) },
+                                onSync = { t -> syncAudioTo(t) },
                             )
                             Page.DELIVER -> DeliverPage(deliver, clips, exporting, { deliver = it }, ::startExport, playheadMs = globalMs, onSaveFrame = { saveStill() }, markers = markers.toList(), projectName = projectName, layers = layers.toList(), markerNotes = markerNotes.toMap())
                         }
@@ -2040,6 +2231,7 @@ private fun MediaPage(
     onPlaceAudio: (PoolAudio) -> Unit, onRemoveAudio: (PoolAudio) -> Unit,
     proxyState: (Clip) -> String?, onProxyToggle: (Clip) -> Unit, onRemove: (Clip) -> Unit,
     onLibraryAdd: (LibSection, LibTrack) -> Unit = { _, _ -> },
+    onMulticam: () -> Unit = {},
 ) {
     var confirm by remember { mutableStateOf<Clip?>(null) }
     confirm?.let { c ->
@@ -2066,6 +2258,9 @@ private fun MediaPage(
         BigButton(Icons.Filled.FolderOpen, "Files (MKV…)", Modifier.weight(1f), onAddFiles)
     }
     BigButton(Icons.Filled.MusicNote, "Audio (MP3, WAV, AAC…)", Modifier.fillMaxWidth().padding(top = 8.dp), onAddAudio)
+    if (clips.distinctBy { it.uri.toString() }.size >= 2) {
+        BigButton(Icons.Filled.Movie, "Multicam (2–4 angles)", Modifier.fillMaxWidth().padding(top = 8.dp), onMulticam)
+    }
     SoundLibraries(onLibraryAdd)
     Text(
         "Clips are added to the end of the timeline. Heavy clips (HDR, 10-bit, 4K) get a light preview copy so grades and effects play smoothly; exports always use the original files.",
@@ -2148,8 +2343,60 @@ private fun EditPage(
     onFreeze: () -> Unit = {}, onReverse: () -> Unit = {}, onDetach: () -> Unit = {},
     onSlowMo: () -> Unit = {}, onReframe: (Float?) -> Unit = {},
     onRemoveSilence: (all: Boolean, db: Float, minMs: Long) -> Unit = { _, _, _ -> },
+    onTrimTool: (Int, Long) -> Unit = { _, _ -> }, frameMs: Long = 33L,
+    onNest: (Int) -> Unit = {}, onUnNest: () -> Unit = {}, nesting: Boolean = false, nestProgress: Int = 0,
 ) {
     SectionTitle("CLIP ${index + 1} OF $count · ${c.name}".uppercase())
+    // Pro trim: slip / roll / slide in frames.
+    run {
+        var mode by remember { mutableStateOf(0) }
+        SectionTitle("TRIM TOOLS")
+        Chips(listOf("Slip", "Roll", "Slide"), mode) { mode = it }
+        Text(
+            when (mode) {
+                0 -> "SLIP: keeps the clip's place and length, shows an earlier or later part of it."
+                1 -> "ROLL: moves the cut between this clip and the next — one gets longer, the other shorter."
+                else -> "SLIDE: moves this clip along the timeline; the clips before and after give and take."
+            } + " Normal trims ripple: the clips after move up.",
+            color = Pro.Dim, fontSize = 11.sp,
+        )
+        Row(Modifier.padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            listOf(-10 to "◀◀ 10f", -1 to "◀ 1f", 1 to "1f ▶", 10 to "10f ▶▶").forEach { (n, label) ->
+                Text(
+                    label, style = Pro.Label.copy(color = Color.White, fontSize = 11.sp),
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onTrimTool(mode, n * frameMs) }.padding(horizontal = 12.dp, vertical = 10.dp),
+                )
+            }
+        }
+    }
+    // Nested (compound) clips.
+    run {
+        SectionTitle("NEST (COMPOUND CLIP)")
+        if (c.nested != null) {
+            Text(
+                "UN-NEST · OPEN UP INTO ${c.nested.size} CLIPS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onUnNest() }.padding(10.dp),
+            )
+        } else if (nesting) {
+            Text("Nesting… $nestProgress%", color = Pro.Amber, fontSize = 12.sp, modifier = Modifier.padding(vertical = 6.dp))
+        } else {
+            val left = count - index
+            if (left >= 2) Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
+                (2..minOf(left, 6)).forEach { n ->
+                    Text(
+                        "NEST $n", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onNest(n) }.padding(10.dp),
+                    )
+                }
+                if (left > 6) Text(
+                    "NEST ALL $left", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onNest(left) }.padding(10.dp),
+                )
+            }
+            else Text("Select a clip with at least one clip after it to nest.", color = Pro.Dim, fontSize = 11.sp)
+        }
+        Text("Joins this clip and the next ones into a single clip (cuts and transitions baked in), so you can grade, speed up or reframe them as one. UN-NEST brings the original clips back.", color = Pro.Dim, fontSize = 11.sp)
+    }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
         SmallAction(Icons.Filled.ContentCut, "Split", onSplit)
         SmallAction(Icons.Filled.PauseCircle, "Freeze", onFreeze)
@@ -2353,6 +2600,7 @@ private fun AudioPage(
     onChange: ((Clip) -> Clip) -> Unit, onPickMusic: () -> Unit, onMusic: (MusicTrack?) -> Unit,
     extra: List<MusicTrack> = emptyList(), onExtra: (String, MusicTrack?) -> Unit = { _, _ -> },
     posInClip: Long = 0L, recording: Boolean = false, recordMs: Long = 0L, onVoice: () -> Unit = {}, onBeats: (MusicTrack) -> Unit = {},
+    onSync: (MusicTrack) -> Unit = {},
 ) {
     LevelMeter(playing)
     SectionTitle("VOICEOVER")
@@ -2378,6 +2626,11 @@ private fun AudioPage(
             modifier = Modifier.padding(top = 8.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onBeats(music) }.padding(10.dp),
         )
         Text("Finds the beat of the music track and drops a marker on every beat — with SNAP on, layers and cuts lock to them.", color = Pro.Dim, fontSize = 11.sp)
+        Text(
+            "⇆ SYNC TO THE SELECTED CLIP (BY SOUND)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+            modifier = Modifier.padding(top = 8.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onSync(music) }.padding(10.dp),
+        )
+        Text("For sound from an external recorder or wireless mic: select the clip filmed at the same time, then sync — the track is shifted until its sound matches the clip's own sound (SYNC on any audio track does the same).", color = Pro.Dim, fontSize = 11.sp)
     }
     if (extra.isNotEmpty()) {
         SectionTitle("MORE AUDIO TRACKS")
@@ -2389,6 +2642,7 @@ private fun AudioPage(
                         Text(t.name, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text("at ${tc(t.startMs)}", style = Pro.Label)
                     }
+                    Text("SYNC", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable { onSync(t) }.padding(6.dp))
                     Text("BEATS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable { onBeats(t) }.padding(6.dp))
                     Text("REMOVE", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { onExtra(t.id, null) }.padding(6.dp))
                 }
@@ -2624,6 +2878,7 @@ private fun LayersPage(
     onSeek: (Long) -> Unit = {},
     onCaptions: (String?, Boolean, Int) -> Unit = { _, _, _ -> },
     onTrack: (String) -> Unit = {}, trackingId: String? = null,
+    telemetryShow: TelemetryShow = TelemetryShow(), onTelemetryShow: (TelemetryShow) -> Unit = {}, onTelemetry: () -> Unit = {},
 ) {
     var stickers by remember { mutableStateOf(false) }
     // AI captions: speech to text (Whisper) turned into caption layers.
@@ -2640,6 +2895,20 @@ private fun LayersPage(
         modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onCaptions(langs[capLang].second, capClipsOnly, capStyle) }.padding(10.dp),
     )
     Text("Writes timed caption layers from the speech in your edit (Whisper, via your fal.ai account in Cloud AI settings). Edit or delete any caption like a normal text layer.", color = Pro.Dim, fontSize = 11.sp)
+    SectionTitle("DRONE TELEMETRY")
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
+        val t = telemetryShow
+        PillChip("Altitude", t.alt) { onTelemetryShow(t.copy(alt = !t.alt)) }
+        PillChip("Speed", t.speed) { onTelemetryShow(t.copy(speed = !t.speed)) }
+        PillChip("GPS", t.gps) { onTelemetryShow(t.copy(gps = !t.gps)) }
+        PillChip("Camera", t.camera) { onTelemetryShow(t.copy(camera = !t.camera)) }
+        PillChip(if (t.metric) "m · km/h" else "ft · mph", true) { onTelemetryShow(t.copy(metric = !t.metric)) }
+    }
+    Text(
+        "LOAD FLIGHT DATA (.SRT) FOR THIS CLIP", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onTelemetry() }.padding(10.dp),
+    )
+    Text("DJI drones save a .SRT file next to each video (turn on Video Subtitles / Video Caption in the DJI Fly app). Select the drone clip, then load its .SRT: altitude, speed, GPS and camera settings appear as a live read-out, matched to the clip's trim and speed.", color = Pro.Dim, fontSize = 11.sp)
     val end = (playheadMs + 3000).coerceAtMost(totalMs.coerceAtLeast(1))
     SectionTitle("ADD LAYER")
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true)) {

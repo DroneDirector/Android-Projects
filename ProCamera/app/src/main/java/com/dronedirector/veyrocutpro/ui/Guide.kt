@@ -146,6 +146,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "RAW (DNG) photos", Icons.Filled.Photo, null, listOf(
+            "Export → CAPTION & KEYWORDS: a title, caption and keywords written into every exported JPEG / WebP (IPTC, with your name and copyright) for Lightroom, agencies and clients. Turn on the Lightroom .xmp sidecar to also save your edit as Camera Raw settings in Documents/VeyroCutPro/XMP — put it next to the original to keep editing in Lightroom.",
             "Start page → SKIP — OPEN THE EDITOR (under Gallery photos / Browse files) opens the editor straight away without choosing a photo; add one from inside with Gallery or Browse files. It only happens when you tap it.",
             "Open a DNG (from VeyroCut Pro's Pro mode or any phone / camera that saves DNG) and the RAW badge appears: the editor develops the sensor data itself.",
             "Light → RAW PROFILE picks the base look: Standard, Flat (most room for grading), Vivid, Portrait, Landscape or Mono.",
@@ -194,6 +195,12 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Video editor tips", Icons.Filled.Movie, null, listOf(
+            "Media → MULTICAM (with 2 or more clips in the pool): pick 2–4 angles filmed at the same time — the first is the main angle for sound and timing — then SYNC BY SOUND & START. Tap an angle to start on it, press PLAY and tap angles while it plays to cut between them. DONE adds the edit to the end of the timeline.",
+            "Audio → SYNC (on any audio track) or ⇆ SYNC TO THE SELECTED CLIP (music track): lines sound from an external recorder or wireless mic up with the selected clip by matching the sound. A clap at the start of the take makes it bulletproof.",
+            "Layers → DRONE TELEMETRY: select the drone clip, choose what to show (altitude, speed, GPS, camera) and LOAD FLIGHT DATA (.SRT) — pick the .SRT your DJI drone saved next to the video. The read-out follows the clip's trim and speed.",
+            "Edit → TRIM TOOLS: SLIP shows another part of the clip in the same slot, ROLL moves the cut to the next clip, SLIDE moves the clip between its neighbours — by 1 or 10 frames per tap. Normal trims ripple the rest of the timeline.",
+            "Edit → NEST: joins the selected clip and the next ones into one clip, to grade, speed up or reframe them together. UN-NEST opens it up again.",
+            "Auto-save: the editor keeps a recovery copy of your edit every 20 seconds. If the app closes unexpectedly, the start page offers RECOVER.",
             "Media → SOUND LIBRARIES: tap Soundtracks to browse the built-in music, ▶ to listen, + ADD to put a track on the timeline at the playhead. It plays in the preview and is mixed into your export, like any other music.",
             "Start page → SKIP — OPEN THE EDITOR goes straight into the editor with an empty timeline, without choosing a video first; add clips later from the Media page. It only happens when you tap it.",
             "The timeline starts at the left edge: drag one finger (or tap the ruler) to move the playhead; two fingers pinch to zoom and slide to scroll. The scissors under the player split at the playhead.",

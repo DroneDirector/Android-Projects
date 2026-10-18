@@ -4,6 +4,12 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: MULTICAM — sync 2–4 angles by sound and cut between them live while they play.
+- Video editor: SYNC by sound for audio tracks — external recorder / wireless mic sound lines up with the clip automatically.
+- Video editor: DRONE TELEMETRY — DJI .SRT flight data (altitude, speed, GPS, camera) as an overlay that follows the clip.
+- Video editor: TRIM TOOLS (slip, roll, slide by frames) and NEST / UN-NEST for compound clips.
+- Video editor: auto-save every 20 seconds and RECOVER on the start page after an unexpected close.
+- Photo editor: IPTC title, caption and keywords in exports, and an optional Lightroom .xmp sidecar with the edit.
 
 ## 1.0.252 — 2026-10-18
 - Video editor: new SOUND LIBRARIES on the Media page — 26 built-in cinematic soundtracks you can listen to and add to the timeline at the playhead; they play in the preview and are mixed into the export. A Nature sounds section is ready for more.

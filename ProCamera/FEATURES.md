@@ -122,6 +122,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **LOAD / SAVE projects** next to Export.
 - Export **JPEG or PNG**, quality and size choice; choose the **save folder** (default DCIM/VeyroCutPro).
 - Also **WebP** and **HEIC**; Instagram / web / 4K sizes; **AI upscale** 2× / 4× in the export; keep or remove **camera info and location**.
+- **IPTC title, caption & keywords** in every export, and an optional **Lightroom / Camera Raw .xmp sidecar** with the edit.
 - **Batch export**: apply the current edit to up to 50 photos at once.
 - **Resizable panels** (hold the divider, then drag; double-tap to reset).
 - **Panels menu** (icon next to the gear): show / hide the tools panel, copy / paste bar, histogram and before / after buttons — the photo fills freed space and returns to its saved size; presets **Full / View / Edit / Color**; **triple-tap** the icon to restore the original layout. The histogram button (bar-chart icon) choice is now remembered.
@@ -148,6 +149,14 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - Gapless clip-to-clip playback; **full-screen player** with auto-hiding controls.
 - **Preview copies** (optimized media) for heavy HDR / 10-bit / 4K clips, made in the background; choose Auto / Always / Off, H.264 or HEVC, 720p or 1080p.
 - Grade preview drawn on screen (Android 13+) for smooth, instant playback; exports use the full pipeline.
+
+### Pro editing
+- **Multicam**: 2–4 angles synced by sound, live switching between them while playing; the cut lands on the timeline as normal clips.
+- **Sync by sound**: external recorder / wireless mic audio lined up with a clip automatically (waveform cross-correlation).
+- **Trim tools**: slip, roll and slide by 1 or 10 frames; normal trims ripple (magnetic main track).
+- **Nested (compound) clips**: join several clips into one and open them up again.
+- **Drone telemetry**: DJI .SRT flight data (altitude, speed, GPS, camera settings) as a live read-out matched to trim and speed.
+- **Auto-save & crash recovery** every 20 seconds.
 
 ### Transitions
 Two sub-menus on the Transitions page: **Video transitions** and **Audio transitions**.

@@ -4,6 +4,12 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Simple / Pro layout switch (Capture settings and both editors' settings).
+- Backup & restore: one file with all settings, presets, LUTs, watermarks, sounds and projects.
+- Quick tour of the camera gestures on first start; replay it from Settings.
+- Gallery: delete now moves to a Trash tab (Android 11+), restorable for 30 days.
+- App icon shortcuts (Video, Pro photo, Photo editor, Video editor) and a Quick Settings camera tile.
+- Share or "Edit with" from other apps opens photos in the photo editor and videos in the video editor.
 
 ## 1.0.254 — 2026-10-18
 - Video editor: MULTICAM — sync 2–4 angles by sound and cut between them live while they play.

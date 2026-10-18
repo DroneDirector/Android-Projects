@@ -710,7 +710,7 @@ private fun ModeGroupToggle(s: CameraUiState, c: ProCameraController, vertical: 
 
 @Composable
 private fun ModeSwitch(s: CameraUiState, c: ProCameraController, vertical: Boolean, modifier: Modifier = Modifier) {
-    val modes = if (s.mode.isSmart) CaptureMode.SMART else CaptureMode.REGULAR
+    val modes = if (s.mode.isSmart) com.dronedirector.veyrocutpro.camera.SimpleMode.smart() else com.dronedirector.veyrocutpro.camera.SimpleMode.regular()
     val enabled = !s.recording && !s.panoActive && !s.stitching && !s.processing
     val items = @Composable {
         modes.forEach { m ->

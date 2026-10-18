@@ -13,6 +13,12 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Open-source licences** and the **privacy policy** in every settings gear ([PRIVACY.md](PRIVACY.md)).
 - Separate **guides** for Capture, the Photo editor and the Video editor (Cloud AI key setup, AI features, tips), opened from each settings gear — also in [GUIDE.md](GUIDE.md).
 
+- **Simple / Pro layout**: everyday modes and tools only, or everything (Capture settings and both editors' settings).
+- **Backup & restore**: one .vcbackup file with all settings, presets, LUTs, watermarks, sounds and projects.
+- **Quick tour** of the camera gestures on first start (replay from Settings).
+- **App shortcuts** (long-press the icon: Video, Pro photo, Photo editor, Video editor) and a **Quick Settings camera tile**.
+- **Open from other apps**: Share / Edit with VeyroCut Pro opens the photo or video editor directly.
+
 ## Capture
 ### Modes
 - **Photo**, **Pro** (photo), **Video**, **Pro Video** and **Live** streaming.
@@ -76,6 +82,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - Stream to **YouTube, TikTok, Twitch, Facebook** or any **RTMP / RTMPS / SRT** server; **H.264 or H.265**.
 
 ### Gallery
+- **Trash** (Android 11+): deleted items are kept 30 days and can be restored; empty trash.
 - **Culling**: 1–5 stars, pick / reject, rating filters and delete-all-rejects.
 - Full-screen in-app gallery for photos and videos; **Favourites**; separate **RAW** tab with badges.
 - **Colour grading** for photos and videos straight from the gallery.

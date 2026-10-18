@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the app icon: jump straight to a camera mode or an editor. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="video"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/sc_video"
+        android:shortcutLongLabel="@string/sc_video_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.dronedirector.veyrocutpro"
+            android:targetClass="com.dronedirector.veyrocutpro.MainActivity">
+            <extra android:name="mode" android:value="VIDEO" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="pro"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/sc_pro"
+        android:shortcutLongLabel="@string/sc_pro_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.dronedirector.veyrocutpro"
+            android:targetClass="com.dronedirector.veyrocutpro.MainActivity">
+            <extra android:name="mode" android:value="PRO_PHOTO" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="photo_editor"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/sc_photo_editor"
+        android:shortcutLongLabel="@string/sc_photo_editor">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.dronedirector.veyrocutpro"
+            android:targetClass="com.dronedirector.veyrocutpro.MainActivity">
+            <extra android:name="screen" android:value="photo" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="video_editor"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/sc_video_editor"
+        android:shortcutLongLabel="@string/sc_video_editor">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.dronedirector.veyrocutpro"
+            android:targetClass="com.dronedirector.veyrocutpro.MainActivity">
+            <extra android:name="screen" android:value="video" />
+        </intent>
+    </shortcut>
+</shortcuts>

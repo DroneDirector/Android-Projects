@@ -115,7 +115,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Date
 
-private enum class GalleryTab(val label: String) { ALL("All"), PHOTOS("Photos"), VIDEOS("Videos"), RAW("RAW"), FAVORITES("♥") }
+private enum class GalleryTab(val label: String) { ALL("All"), PHOTOS("Photos"), VIDEOS("Videos"), RAW("RAW"), FAVORITES("♥"), TRASH("Trash") }
+
+/** Android 11+ has a system trash: deleted items are kept 30 days and can be restored. */
+private val hasTrash: Boolean get() = Build.VERSION.SDK_INT >= 30
 
 /**
  * In-app gallery of everything VeyroCut Pro saved: a grid with All / Photos / Videos tabs and a
@@ -159,8 +162,12 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
         if (missing) permLauncher.launch(readPermissions)
     }
 
+    var trash by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
+    var trashPick by remember { mutableStateOf<MediaItem?>(null) }
+    var confirmEmpty by remember { mutableStateOf(false) }
     LaunchedEffect(reloadKey) {
         items = withContext(Dispatchers.IO) { MediaLibrary.query(context) }
+        trash = withContext(Dispatchers.IO) { MediaLibrary.queryTrash(context) }
     }
 
     val deleteLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { r ->
@@ -174,6 +181,18 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
     }
 
     fun delete(item: MediaItem) {
+        // Android 11+: to the trash (30 days, can be restored) instead of gone for good.
+        if (Build.VERSION.SDK_INT >= 30 && item.uri.authority == MediaStore.AUTHORITY) {
+            scope.launch {
+                val ok = withContext(Dispatchers.IO) { MediaLibrary.setTrashed(context, listOf(item.uri), true) }
+                if (ok) { onChanged(); reload() }
+                else {
+                    pendingDelete = null
+                    if (Build.VERSION.SDK_INT >= 30) deleteLauncher.launch(IntentSenderRequest.Builder(MediaStore.createTrashRequest(context.contentResolver, listOf(item.uri), true).intentSender).build())
+                }
+            }
+            return
+        }
         scope.launch {
             val needsSystem: IntentSenderRequest? = withContext(Dispatchers.IO) {
                 try {
@@ -208,6 +227,7 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
         GalleryTab.VIDEOS -> all.filter { it.isVideo }
         GalleryTab.RAW -> all.filter { it.isRaw }
         GalleryTab.FAVORITES -> all.filter { it.uri.toString() in favorites }
+        GalleryTab.TRASH -> trash
     }.filter { item ->
         val m = marks[item.uri.toString()]
         when (rateFilter) {
@@ -232,7 +252,14 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
     ) {
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
             GalleryHeader(count = all.size, onBack = onClose)
-            TabRow(tab, all, favorites) { tab = it }
+            TabRow(tab, all, favorites, trash.size) { tab = it }
+            if (tab == GalleryTab.TRASH) Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Deleted items stay here for 30 days, then Android removes them. Tap one to restore it.", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                if (trash.isNotEmpty()) Text(
+                    "EMPTY TRASH", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp),
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { confirmEmpty = true }.padding(8.dp),
+                )
+            }
             // Rating filter for culling.
             Row(
                 Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(horizontal = 12.dp),
@@ -256,7 +283,7 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
                     CircularProgressIndicator(color = Pro.Amber)
                 }
                 shown.isEmpty() -> EmptyGallery(tab)
-                else -> MediaGrid(shown, favorites, marks) { viewing = it }
+                else -> MediaGrid(shown, favorites, marks) { if (tab == GalleryTab.TRASH) trashPick = shown.getOrNull(it) else viewing = it }
             }
         }
 
@@ -317,13 +344,51 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
             )
         }
 
+        trashPick?.let { t ->
+            AlertDialog(
+                onDismissRequest = { trashPick = null },
+                containerColor = Pro.PanelSolid,
+                title = { Text(t.name, color = Color.White) },
+                text = { Text("Restore it to the gallery, or delete it for good now?", color = Pro.Dim) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        trashPick = null
+                        scope.launch {
+                            val ok = withContext(Dispatchers.IO) { MediaLibrary.setTrashed(context, listOf(t.uri), false) }
+                            if (ok) { onChanged(); reload() }
+                            else if (Build.VERSION.SDK_INT >= 30) deleteLauncher.launch(IntentSenderRequest.Builder(MediaStore.createTrashRequest(context.contentResolver, listOf(t.uri), false).intentSender).build())
+                        }
+                    }) { Text("Restore", color = Pro.Amber, fontWeight = FontWeight.Bold) }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        trashPick = null
+                        if (Build.VERSION.SDK_INT >= 30) deleteLauncher.launch(IntentSenderRequest.Builder(MediaStore.createDeleteRequest(context.contentResolver, listOf(t.uri)).intentSender).build())
+                    }) { Text("Delete forever", color = Pro.Red) }
+                },
+            )
+        }
+        if (confirmEmpty) AlertDialog(
+            onDismissRequest = { confirmEmpty = false },
+            containerColor = Pro.PanelSolid,
+            title = { Text("Empty the trash?", color = Color.White) },
+            text = { Text("${trash.size} items will be permanently removed from your device.", color = Pro.Dim) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmEmpty = false
+                    if (trash.isNotEmpty() && Build.VERSION.SDK_INT >= 30) deleteLauncher.launch(IntentSenderRequest.Builder(MediaStore.createDeleteRequest(context.contentResolver, trash.map { it.uri }).intentSender).build())
+                }) { Text("Delete all", color = Pro.Red, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = { TextButton(onClick = { confirmEmpty = false }) { Text("Cancel", color = Color.White) } },
+        )
+
         val confirm = confirmItem
         if (confirm != null) {
             AlertDialog(
                 onDismissRequest = { confirmItem = null },
                 containerColor = Pro.PanelSolid,
                 title = { Text(if (confirm.isVideo) "Delete video?" else "Delete photo?", color = Color.White) },
-                text = { Text("${confirm.name} will be permanently removed from your device.", color = Pro.Dim) },
+                text = { Text(if (hasTrash && confirm.uri.authority == MediaStore.AUTHORITY) "${confirm.name} moves to the Trash, where you can restore it for 30 days." else "${confirm.name} will be permanently removed from your device.", color = Pro.Dim) },
                 confirmButton = {
                     TextButton(onClick = {
                         confirmItem = null
@@ -358,13 +423,14 @@ private fun GalleryHeader(count: Int, onBack: () -> Unit) {
 }
 
 @Composable
-private fun TabRow(tab: GalleryTab, all: List<MediaItem>, favorites: Set<String>, onTab: (GalleryTab) -> Unit) {
+private fun TabRow(tab: GalleryTab, all: List<MediaItem>, favorites: Set<String>, trashCount: Int, onTab: (GalleryTab) -> Unit) {
     Row(
         Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(horizontal = 12.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        GalleryTab.entries.forEach { t ->
+        GalleryTab.entries.filter { it != GalleryTab.TRASH || hasTrash }.forEach { t ->
             val n = when (t) {
+                GalleryTab.TRASH -> trashCount
                 GalleryTab.ALL -> all.size
                 GalleryTab.PHOTOS -> all.count { !it.isVideo && !it.isRaw }
                 GalleryTab.VIDEOS -> all.count { it.isVideo }
@@ -403,6 +469,7 @@ private fun EmptyGallery(tab: GalleryTab) {
                     GalleryTab.VIDEOS -> "No videos yet"
                     GalleryTab.RAW -> "No RAW photos yet"
                     GalleryTab.FAVORITES -> "No favourites yet"
+                    GalleryTab.TRASH -> "The trash is empty"
                 },
                 color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
             )

@@ -134,7 +134,7 @@ private enum class Page(val label: String) { MEDIA("Media"), EDIT("Edit"), TRANS
 private enum class ColorTab(val label: String) { INPUT("Input"), LUTS("LUTs"), WHEELS("Wheels"), PRIMARIES("Primaries"), CURVES("Curves"), HSL("HSL"), MASKS("Masks"), DETAIL("Detail"), EFFECTS("Effects"), LOOKS("Looks") }
 
 @Composable
-fun VideoEditorScreen(onExit: () -> Unit) {
+fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val clips = remember { mutableStateListOf<Clip>() }
@@ -158,6 +158,8 @@ fun VideoEditorScreen(onExit: () -> Unit) {
         }
     }
 
+    // Videos shared from another app go straight onto the timeline.
+    LaunchedEffect(Unit) { if (initialUris.isNotEmpty()) addUris(initialUris) }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(30)) { addUris(it) }
     val browse = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { addUris(it) }
     val pickGallery = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) }
@@ -1835,7 +1837,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
 
             val inspector = @Composable { mod: Modifier ->
                 Column(mod.background(Ed.Panel)) {
-                    Chips(Page.entries.map { it.label }, page.ordinal) { page = Page.entries[it] }
+                    val pages = if (com.dronedirector.veyrocutpro.camera.SimpleMode.on)
+                        listOf(Page.MEDIA, Page.EDIT, Page.TRANSITIONS, Page.COLOR, Page.LAYERS, Page.AUDIO, Page.DELIVER)
+                    else Page.entries.toList()
+                    Chips(pages.map { it.label }, pages.indexOf(page)) { page = pages[it] }
                     if (clips.isNotEmpty() && (page == Page.EDIT || page == Page.COLOR || page == Page.AUDIO)) CopyPasteBar(
                         video = true,
                         onCopy = {
@@ -2471,7 +2476,9 @@ private fun ColorPage(
     val g = c.grade
     fun grade(f: (ProGrade) -> ProGrade) = onChange { it.copy(grade = f(it.grade)) }
     fun detail(f: (Detail) -> Detail) = onChange { it.copy(detail = f(it.detail)) }
-    Chips(ColorTab.entries.map { it.label }, tab.ordinal) { onTab(ColorTab.entries[it]) }
+    val tabs = if (com.dronedirector.veyrocutpro.camera.SimpleMode.on) listOf(ColorTab.INPUT, ColorTab.LOOKS, ColorTab.LUTS, ColorTab.PRIMARIES)
+        else ColorTab.entries.toList()
+    Chips(tabs.map { it.label }, tabs.indexOf(tab)) { onTab(tabs[it]) }
     Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("COPY GRADE TO ALL CLIPS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(onClick = onCopyToAll).padding(8.dp))
         Text("RESET CLIP", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { onChange { it.copy(grade = ProGrade(), detail = Detail()) } }.padding(8.dp))

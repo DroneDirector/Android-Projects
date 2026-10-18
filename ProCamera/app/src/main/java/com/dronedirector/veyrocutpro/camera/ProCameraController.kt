@@ -1121,7 +1121,14 @@ class ProCameraController(private val context: Context) {
     /** Switch between the REGULAR and SMART mode groups, returning to the last mode used there. */
     fun showModeGroup(smart: Boolean) {
         if (st.mode.isSmart == smart) return
-        setMode(if (smart) lastSmartMode else lastRegularMode)
+        val want = if (smart) lastSmartMode else lastRegularMode
+        setMode(if (SimpleMode.allowed(want)) want else if (smart) SimpleMode.smart().first() else SimpleMode.regular().first())
+    }
+
+    /** Simple / Pro layout switch; leaves a Pro-only mode for Photo when going Simple. */
+    fun setSimple(on: Boolean) {
+        SimpleMode.set(context, on)
+        if (on && !SimpleMode.allowed(st.mode) && !st.recording) setMode(if (st.isVideo) CaptureMode.VIDEO else CaptureMode.PHOTO)
     }
 
     /** Custom set-ups C1 / C2 / C3: hold to save the current settings, tap to bring them back. */

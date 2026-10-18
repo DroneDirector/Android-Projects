@@ -137,9 +137,16 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             }
 
             CloudAiSettings(GuideVariant.CAPTURE)
+            ToggleRow(
+                "Simple layout",
+                "Only the everyday modes and controls (Photo, Video, Portrait, Pano, Long exposure, Time-lapse, Slow-mo). Turn off for every Pro tool.",
+                com.dronedirector.veyrocutpro.camera.SimpleMode.on,
+            ) { c.setSimple(!com.dronedirector.veyrocutpro.camera.SimpleMode.on) }
             GuideButton(GuideVariant.CAPTURE)
             LicensesButton()
             PrivacyButton()
+            BackupSection()
+            TourButton()
 
             Section("VIDEO")
             ToggleRow("Record audio", "Uses the microphone; levels show in the audio graph", s.audio) { c.toggleAudio() }

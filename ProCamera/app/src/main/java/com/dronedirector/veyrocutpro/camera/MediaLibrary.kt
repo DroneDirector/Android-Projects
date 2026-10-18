@@ -29,6 +29,23 @@ object MediaLibrary {
     /** Where earlier versions (AcluxPro) saved — still shown in the gallery. */
     private const val LEGACY_FOLDER = "DCIM/AcluxPro"
 
+    /** Items in the trash (Android 11+): kept 30 days by the system, then deleted. */
+    fun queryTrash(context: Context): List<MediaItem> {
+        if (Build.VERSION.SDK_INT < 30) return emptyList()
+        return (queryCollection(context, false, true) + queryCollection(context, true, true)).sortedByDescending { it.dateTaken }
+    }
+
+    /** Moves to / out of the trash. Returns false if Android needs to ask the user first. */
+    fun setTrashed(context: Context, uris: List<Uri>, trashed: Boolean): Boolean {
+        if (Build.VERSION.SDK_INT < 30) return false
+        var all = true
+        for (u in uris) try {
+            val v = android.content.ContentValues().apply { put(MediaStore.MediaColumns.IS_TRASHED, if (trashed) 1 else 0) }
+            context.contentResolver.update(u, v, null, null)
+        } catch (_: SecurityException) { all = false }
+        return all
+    }
+
     fun query(context: Context): List<MediaItem> {
         val images = queryCollection(context, video = false)
         val videos = queryCollection(context, video = true)
@@ -82,7 +99,7 @@ object MediaLibrary {
         return out
     }
 
-    private fun queryCollection(context: Context, video: Boolean): List<MediaItem> {
+    private fun queryCollection(context: Context, video: Boolean, trashed: Boolean = false): List<MediaItem> {
         val collection: Uri = when {
             Build.VERSION.SDK_INT >= 29 && video -> MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
             Build.VERSION.SDK_INT >= 29 -> MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
@@ -112,10 +129,19 @@ object MediaLibrary {
         }
         val out = mutableListOf<MediaItem>()
         try {
-            context.contentResolver.query(
+            val cursor = if (trashed && Build.VERSION.SDK_INT >= 30) {
+                val q = android.os.Bundle().apply {
+                    putString(android.content.ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
+                    putStringArray(android.content.ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, args)
+                    putString(android.content.ContentResolver.QUERY_ARG_SQL_SORT_ORDER, "${MediaStore.MediaColumns.DATE_ADDED} DESC")
+                    putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_ONLY)
+                }
+                context.contentResolver.query(collection, projection, q, null)
+            } else context.contentResolver.query(
                 collection, projection, selection, args,
                 "${MediaStore.MediaColumns.DATE_ADDED} DESC",
-            )?.use { c ->
+            )
+            cursor?.use { c ->
                 val idCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
                 val nameCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
                 val addedCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED)

@@ -527,6 +527,11 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                 }
 
                 if (showSettings) SettingsPanel(s, controller) { showSettings = false }
+                run {
+                    val tctx = androidx.compose.ui.platform.LocalContext.current
+                    LaunchedEffect(Unit) { Tour.maybeStart(tctx) }
+                    if (Tour.visible && !showSettings) TourOverlay()
+                }
             }
         }
     }

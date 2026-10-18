@@ -61,6 +61,27 @@ private val TEST_KEYS = setOf(
 class MainActivity : ComponentActivity() {
 
     private lateinit var controller: ProCameraController
+    private var sharedPhoto: android.net.Uri? = null
+    private var sharedVideos: List<android.net.Uri> = emptyList()
+
+    /** Files handed over by another app, with whether each is a video. */
+    private fun sharedMedia(i: Intent?): List<Pair<android.net.Uri, Boolean>> {
+        if (i == null) return emptyList()
+        val uris: List<android.net.Uri> = when (i.action) {
+            Intent.ACTION_SEND -> listOfNotNull(
+                if (Build.VERSION.SDK_INT >= 33) i.getParcelableExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)
+                else @Suppress("DEPRECATION") i.getParcelableExtra(Intent.EXTRA_STREAM),
+            )
+            Intent.ACTION_SEND_MULTIPLE -> (if (Build.VERSION.SDK_INT >= 33) i.getParcelableArrayListExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)
+                else @Suppress("DEPRECATION") i.getParcelableArrayListExtra(Intent.EXTRA_STREAM)).orEmpty()
+            Intent.ACTION_EDIT -> listOfNotNull(i.data)
+            else -> emptyList()
+        }
+        return uris.map { u ->
+            val mime = try { contentResolver.getType(u) } catch (_: Throwable) { null } ?: i.type ?: ""
+            u to mime.startsWith("video/")
+        }
+    }
     private val screen = androidx.compose.runtime.mutableStateOf(com.dronedirector.veyrocutpro.ui.AppScreen.HOME)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,6 +89,7 @@ class MainActivity : ComponentActivity() {
         com.dronedirector.veyrocutpro.editor.LutLibrary.init(this)
         com.dronedirector.veyrocutpro.editor.UserPresets.init(this)
         com.dronedirector.veyrocutpro.camera.CaptureExtras.load(this)
+        com.dronedirector.veyrocutpro.camera.SimpleMode.load(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (Build.VERSION.SDK_INT >= 28) {
@@ -90,7 +112,14 @@ class MainActivity : ComponentActivity() {
         val direct = intent?.action == android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA ||
             intent?.action == android.provider.MediaStore.INTENT_ACTION_VIDEO_CAMERA ||
             (intent?.extras?.keySet()?.any { it in TEST_KEYS } == true)
-        screen.value = when (intent?.getStringExtra("screen")) {
+        // Shared from another app ("Share" / "Edit with"): open the matching editor with the files.
+        val shared = sharedMedia(intent)
+        sharedPhoto = shared.firstOrNull { !it.second }?.first
+        sharedVideos = shared.filter { it.second }.map { it.first }
+        screen.value = if (sharedVideos.isNotEmpty()) com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR
+        else if (sharedPhoto != null) com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR
+        else when (intent?.getStringExtra("screen")) {
+            "capture" -> com.dronedirector.veyrocutpro.ui.AppScreen.CAPTURE
             "editor" -> com.dronedirector.veyrocutpro.ui.AppScreen.EDITOR
             "photo" -> com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR
             "video" -> com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR
@@ -118,9 +147,11 @@ class MainActivity : ComponentActivity() {
                         )
                         com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR -> com.dronedirector.veyrocutpro.editor.PhotoEditorScreen(
                             onExit = { screen.value = com.dronedirector.veyrocutpro.ui.AppScreen.EDITOR },
+                            initial = sharedPhoto.also { sharedPhoto = null },
                         )
                         com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR -> com.dronedirector.veyrocutpro.editor.VideoEditorScreen(
                             onExit = { screen.value = com.dronedirector.veyrocutpro.ui.AppScreen.EDITOR },
+                            initialUris = sharedVideos.also { sharedVideos = emptyList() },
                         )
                     }
                 }

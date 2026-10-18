@@ -121,9 +121,9 @@ private enum class PhotoPanel(val label: String) {
 }
 
 @Composable
-fun PhotoEditorScreen(onExit: () -> Unit) {
+fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
     val context = LocalContext.current
-    var source by remember { mutableStateOf<Uri?>(null) }
+    var source by remember { mutableStateOf(initial) }
     var project by remember { mutableStateOf<PhotoProjectData?>(null) }
 
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> if (uri != null) source = uri }
@@ -1121,7 +1121,10 @@ fun TopIcon(icon: ImageVector, label: String, enabled: Boolean = true, tint: Col
 
 @Composable
 private fun PanelTabs(selected: PhotoPanel, onSelect: (PhotoPanel) -> Unit) {
-    Chips(PhotoPanel.entries.map { it.label }, selected.ordinal) { onSelect(PhotoPanel.entries[it]) }
+    val shown = if (com.dronedirector.veyrocutpro.camera.SimpleMode.on)
+        listOf(PhotoPanel.PRESETS, PhotoPanel.LIGHT, PhotoPanel.COLOR, PhotoPanel.HEAL, PhotoPanel.CROP, PhotoPanel.TEXT, PhotoPanel.EXPORT)
+    else PhotoPanel.entries.toList()
+    Chips(shown.map { it.label }, shown.indexOf(selected)) { onSelect(shown[it]) }
 }
 
 private data class ExportState(val format: Int, val quality: Float, val sizeIdx: Int)

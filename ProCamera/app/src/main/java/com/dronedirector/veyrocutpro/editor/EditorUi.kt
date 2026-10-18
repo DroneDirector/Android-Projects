@@ -207,7 +207,20 @@ fun EditorSettingsDialog(
         title = { Text("$editorName settings", color = Color.White) },
         text = {
             Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
-                Text("STARTUP", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp))
+                Text("LAYOUT", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp))
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Simple layout", color = Color.White, fontSize = 15.sp)
+                        Text("Shows the main tools only (fewer panels and colour tabs). Turn off for every Pro tool. Same switch in Capture settings.", color = Pro.Dim, fontSize = 12.sp)
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = com.dronedirector.veyrocutpro.camera.SimpleMode.on,
+                        onCheckedChange = { com.dronedirector.veyrocutpro.camera.SimpleMode.set(ctx, it) },
+                        colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
+                    )
+                }
+                com.dronedirector.veyrocutpro.ui.BackupSection()
+                Text("STARTUP", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 10.dp))
                 Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Always start in $editorName", color = Color.White, fontSize = 15.sp)

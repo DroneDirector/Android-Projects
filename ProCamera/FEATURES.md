@@ -32,10 +32,17 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **4K, 1080p, 720p, 480p**; high-bitrate option.
 - Codec choice **H.264 or H.265 (HEVC)** — also for time-lapse / hyperlapse; **10-bit HLG**.
 - Picture profiles: **Standard, Flat, D-Log, D-Log M**.
-- **Stabilization** (off by default).
+- **Stabilization choice**: Off, **In-app (crop)** — the camera's own stabilization — or **Gyroflow**: the gyroscope and accelerometer are recorded into a .gcsv log per clip (optical / electronic stabilization off) for gimbal-smooth results in Gyroflow on a computer.
+- **Motion blur (electronic ND)**: blends ×2 / ×4 / ×8 frames for cinematic motion blur in bright light, in preview and recording.
 - **Pre-record**: keeps 3, 5 or 10 seconds from before you press record.
 - **Cinema clip naming** (camera / reel / clip) or date & time.
 - **Clean feed** (hide the on-screen controls for an HDMI / screen mirror).
+
+### Long exposure
+- **LONG EXP** smart mode: **Light trails** (lighten stacking), **Silky water** (averaging) and **Night sky** (averaging + brightening, less noise); 2–30 s, live build-up preview, finish early with the shutter.
+
+### Remote monitor
+- **Remote monitor & control** from any browser on the same Wi-Fi or hotspot (PIN-protected address): live picture, shutter / record, zoom, Photo / Video / Pro Video, autofocus, AE lock, recording time and exposure read-out.
 
 ### Pro controls
 - **Slate & shot log**: scene / shot / take and notes, viewfinder badge, photo description, CSV shot log with camera settings, automatic take numbers.

@@ -152,8 +152,22 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 }
                 Text("Keeps the last few seconds before you press record, so you never miss the moment. The camera keeps a temporary recording running while you wait (uses a little more battery).", color = Pro.Dim, fontSize = 12.sp)
             }
-            if (s.stabilizationSupported) {
-                ToggleRow("Stabilization", "Electronic / optical video stabilization", s.stabilization) { c.toggleStabilization() }
+            if (s.stabilizationSupported || c.gyroAvailable) {
+                val modes = buildList { add(0); if (s.stabilizationSupported) add(1); if (c.gyroAvailable) add(2) }
+                ChoiceRow("Stabilization", modes, c.stabilizationMode, { listOf("OFF", "IN-APP (CROP)", "GYROFLOW")[it] }) { c.setStabilizationMode(it) }
+                Text(
+                    when (c.stabilizationMode) {
+                        1 -> "In-app: the camera steadies the picture while you film. Quick and ready to use; crops the edges a little."
+                        2 -> "Gyroflow: the phone's motion sensors are recorded into a .gcsv file with the same name as each video (Documents/VeyroCutPro/Gyroflow, or next to the clip in a picked folder). Open both in Gyroflow (free, gyroflow.xyz) on a computer for gimbal-smooth results. The camera's own stabilization is off so the picture stays raw."
+                        else -> "Choose In-app for steady video straight away, or Gyroflow for the smoothest result after filming."
+                    },
+                    color = Pro.Dim, fontSize = 12.sp,
+                )
+            }
+            run {
+                val x = com.dronedirector.veyrocutpro.camera.CaptureExtras
+                ChoiceRow("Motion blur (electronic ND)", listOf(0, 2, 4, 8), x.ndBlur, { if (it == 0) "OFF" else "×$it" }) { c.setNdBlur(it) }
+                Text("Blends each frame with the ones before it, like a slower shutter or an ND filter: smooth, cinematic movement even in bright sun. Use a fast shutter (or 180° in Pro Video) and keep the camera fairly steady. Not with HDR (HLG).", color = Pro.Dim, fontSize = 12.sp)
             }
             ChoiceRow(
                 "Codec (8-bit)",
@@ -166,6 +180,20 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                     (if (s.hlgSupported) "HDR (HLG 10-bit) in Pro Video always records HEVC." else "This camera doesn't offer 10-bit HDR."),
                 color = Pro.Dim, fontSize = 12.sp,
             )
+
+            Section("REMOTE MONITOR")
+            ToggleRow(
+                "Remote monitor & control",
+                "Watch the live picture and work the camera from a second phone, tablet or computer on the same Wi-Fi — in any browser, no app needed",
+                c.remoteAddress != null,
+            ) { c.setRemote(c.remoteAddress == null) }
+            c.remoteAddress?.let { addr ->
+                Text("Open this address on the other device:", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                androidx.compose.foundation.text.selection.SelectionContainer {
+                    Text(addr, color = Pro.Amber, fontSize = 18.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.padding(vertical = 6.dp))
+                }
+                Text("The 4-digit number at the end is the PIN — only devices with the full address can connect. No Wi-Fi? Turn on this phone's hotspot and join it from the other device. Turn this off when you're done.", color = Pro.Dim, fontSize = 12.sp)
+            }
 
             Section("MONITORING & LENS")
             run {

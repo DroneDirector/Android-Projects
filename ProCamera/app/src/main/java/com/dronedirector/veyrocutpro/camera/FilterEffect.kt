@@ -51,7 +51,25 @@ class FilterProcessor : SurfaceProcessor {
     private var config: EGLConfig? = null
     private var pbuffer: EGLSurface = EGL14.EGL_NO_SURFACE
     private var program = 0
+    /** Same colour pipeline, reading a normal 2D texture (the blended frames for electronic ND). */
+    private var program2D = 0
+    private var copyProg = 0
+    private var blendProg = 0
     private var texId = 0
+
+    /**
+     * Electronic ND / motion blur for video: each output frame is a running blend of the last few
+     * camera frames, like a longer shutter. 0 = off; 2, 4, 8 ≈ how many frames are blended.
+     */
+    @Volatile var ndFrames = 0
+        set(v) { if (field != v) ndPrimed = false; field = v }
+    private var ndW = 0
+    private var ndH = 0
+    private var ndFbo = 0
+    private val ndTex = IntArray(3)   // 0 = this frame, 1 / 2 = accumulation ping-pong
+    private var ndCur = 1
+    @Volatile private var ndPrimed = false
+    private var ndFailed = false
     private var surfaceTexture: SurfaceTexture? = null
     private var inputSurface: Surface? = null
     private val outputs = LinkedHashMap<SurfaceOutput, EGLSurface>()
@@ -186,15 +204,17 @@ class FilterProcessor : SurfaceProcessor {
         }
         st.getTransformMatrix(texMatrix)
         val timestamp = st.timestamp
+        val nd = ndFrames > 1 && accumulateNd()
 
         val dead = ArrayList<SurfaceOutput>()
         for ((output, egl) in outputs) {
             if (!EGL14.eglMakeCurrent(display, egl, egl, context)) { dead += output; continue }
             val size = output.size
             GLES20.glViewport(0, 0, size.width, size.height)
-            output.updateTransformMatrix(outMatrix, texMatrix)
+            // The blended frame is already upright in camera space, so only the output's own transform applies.
+            output.updateTransformMatrix(outMatrix, if (nd) identity else texMatrix)
             val toVideo = (output.targets and CameraEffect.VIDEO_CAPTURE) != 0
-            draw(outMatrix, if (assist && !toVideo) 0 else curve, lut = if (toVideo) lutVideo else lutPreview)
+            draw(outMatrix, if (assist && !toVideo) 0 else curve, lut = if (toVideo) lutVideo else lutPreview, srcTex2D = if (nd) ndTex[ndCur] else 0)
             EGLExt.eglPresentationTimeANDROID(display, egl, timestamp)
             if (!EGL14.eglSwapBuffers(display, egl)) dead += output
         }
@@ -250,8 +270,9 @@ class FilterProcessor : SurfaceProcessor {
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
     }
 
-    private fun draw(matrix: FloatArray, curveId: Int, zoom: Float = 1f, lut: Boolean = false) {
+    private fun draw(matrix: FloatArray, curveId: Int, zoom: Float = 1f, lut: Boolean = false, srcTex2D: Int = 0) {
         uploadLut()
+        val program = if (srcTex2D != 0 && program2D != 0) program2D else this.program
         GLES20.glUseProgram(program)
         val aPos = GLES20.glGetAttribLocation(program, "aPos")
         val aTex = GLES20.glGetAttribLocation(program, "aTex")
@@ -289,9 +310,114 @@ class FilterProcessor : SurfaceProcessor {
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, if (useLut) lutTex else dummyTex())
         GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uLut"), 1)
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
-        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
+        if (srcTex2D != 0 && program == program2D) GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, srcTex2D)
+        else GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
         GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uTex"), 0)
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+    }
+
+    // ------------------------------------------------------------- electronic ND
+
+    /** Sets up (or resizes) the frame / accumulation textures. False if this GPU can't. */
+    private fun ensureNd(w: Int, h: Int): Boolean {
+        if (ndFailed) return false
+        if (copyProg == 0) copyProg = buildSimple(COPY_FS, external = true)
+        if (blendProg == 0) blendProg = buildSimple(BLEND_FS, external = false)
+        if (program2D == 0) program2D = buildProgram(faces = false, external = false)
+        if (copyProg == 0 || blendProg == 0 || program2D == 0) { ndFailed = true; return false }
+        if (ndFbo != 0 && w == ndW && h == ndH) return true
+        if (ndFbo != 0) { GLES20.glDeleteFramebuffers(1, intArrayOf(ndFbo), 0); GLES20.glDeleteTextures(3, ndTex, 0) }
+        val f = IntArray(1); GLES20.glGenFramebuffers(1, f, 0); ndFbo = f[0]
+        GLES20.glGenTextures(3, ndTex, 0)
+        for (t in ndTex) {
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, t)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+            GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, w, h, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null)
+        }
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, ndFbo)
+        GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, ndTex[0], 0)
+        val ok = GLES20.glCheckFramebufferStatus(GLES20.GL_FRAMEBUFFER) == GLES20.GL_FRAMEBUFFER_COMPLETE
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
+        if (!ok) { ndFailed = true; return false }
+        ndW = w; ndH = h; ndPrimed = false
+        return true
+    }
+
+    /** Copies this camera frame upright into a texture and blends it into the running average. */
+    private fun accumulateNd(): Boolean {
+        val size = inputSize ?: return false
+        // Work at up to 1920 px on the long side: smooth enough, and light on the GPU.
+        val scale = (1920f / maxOf(size.width, size.height)).coerceAtMost(1f)
+        val w = (size.width * scale).toInt().coerceAtLeast(16)
+        val h = (size.height * scale).toInt().coerceAtLeast(16)
+        EGL14.eglMakeCurrent(display, pbuffer, pbuffer, context)
+        if (!ensureNd(w, h)) return false
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, ndFbo)
+        GLES20.glViewport(0, 0, w, h)
+        // 1. This frame → ndTex[0].
+        GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, ndTex[0], 0)
+        drawSimple(copyProg, texMatrix, ext = texId, a = 0, b = 0, k = 0f)
+        // 2. mix(previous blend, this frame, k) → the other accumulation texture.
+        val src = ndCur
+        val dst = if (ndCur == 1) 2 else 1
+        val k = if (!ndPrimed) 1f else 2f / (ndFrames + 1f)
+        GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, ndTex[dst], 0)
+        drawSimple(blendProg, identity, ext = 0, a = ndTex[src], b = ndTex[0], k = k)
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
+        ndCur = dst
+        ndPrimed = true
+        return true
+    }
+
+    private fun drawSimple(prog: Int, matrix: FloatArray, ext: Int, a: Int, b: Int, k: Float) {
+        GLES20.glUseProgram(prog)
+        val aPos = GLES20.glGetAttribLocation(prog, "aPos")
+        val aTex = GLES20.glGetAttribLocation(prog, "aTex")
+        quad.position(0)
+        GLES20.glVertexAttribPointer(aPos, 2, GLES20.GL_FLOAT, false, 16, quad)
+        GLES20.glEnableVertexAttribArray(aPos)
+        quad.position(2)
+        GLES20.glVertexAttribPointer(aTex, 2, GLES20.GL_FLOAT, false, 16, quad)
+        GLES20.glEnableVertexAttribArray(aTex)
+        GLES20.glUniformMatrix4fv(GLES20.glGetUniformLocation(prog, "uTexMatrix"), 1, false, matrix, 0)
+        GLES20.glUniform1f(GLES20.glGetUniformLocation(prog, "uZoom"), 1f)
+        if (ext != 0) {
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+            GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, ext)
+            GLES20.glUniform1i(GLES20.glGetUniformLocation(prog, "uTex"), 0)
+        } else {
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, a)
+            GLES20.glUniform1i(GLES20.glGetUniformLocation(prog, "uA"), 0)
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE2)
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, b)
+            GLES20.glUniform1i(GLES20.glGetUniformLocation(prog, "uB"), 2)
+            GLES20.glUniform1f(GLES20.glGetUniformLocation(prog, "uK"), k)
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        }
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+    }
+
+    private fun buildSimple(fsSrc: String, external: Boolean): Int {
+        fun compile(type: Int, src: String): Int {
+            val sh = GLES20.glCreateShader(type)
+            GLES20.glShaderSource(sh, src); GLES20.glCompileShader(sh)
+            val ok = IntArray(1); GLES20.glGetShaderiv(sh, GLES20.GL_COMPILE_STATUS, ok, 0)
+            if (ok[0] == 0) { android.util.Log.w("VeyroCutPro", "ND shader: " + GLES20.glGetShaderInfoLog(sh)); GLES20.glDeleteShader(sh); return 0 }
+            return sh
+        }
+        val vs = compile(GLES20.GL_VERTEX_SHADER, VS_SRC)
+        val fs = compile(GLES20.GL_FRAGMENT_SHADER, fsSrc)
+        if (vs == 0 || fs == 0) return 0
+        val p = GLES20.glCreateProgram()
+        GLES20.glAttachShader(p, vs); GLES20.glAttachShader(p, fs); GLES20.glLinkProgram(p)
+        GLES20.glDeleteShader(vs); GLES20.glDeleteShader(fs)
+        val linked = IntArray(1); GLES20.glGetProgramiv(p, GLES20.GL_LINK_STATUS, linked, 0)
+        if (linked[0] == 0) { GLES20.glDeleteProgram(p); return 0 }
+        return p
     }
 
     private var dummy = 0
@@ -344,7 +470,7 @@ class FilterProcessor : SurfaceProcessor {
     @Volatile var facesSupported = true
         private set
 
-    private fun buildProgram(faces: Boolean): Int {
+    private fun buildProgram(faces: Boolean, external: Boolean = true): Int {
         fun compile(type: Int, src: String): Int {
             val s = GLES20.glCreateShader(type)
             GLES20.glShaderSource(s, src)
@@ -368,8 +494,7 @@ class FilterProcessor : SurfaceProcessor {
             }
             """.trimIndent(),
         )
-        val fs = compile(
-            GLES20.GL_FRAGMENT_SHADER,
+        val fsSrc0 =
             """
             #extension GL_OES_EGL_image_external : require
             #ifdef GL_FRAGMENT_PRECISION_HIGH
@@ -451,8 +576,11 @@ class FilterProcessor : SurfaceProcessor {
                 if (uLutOn == 1) rgb = lut3(rgb);
                 gl_FragColor = vec4(rgb, 1.0);
             }
-            """.trimIndent().replace("FACES", if (faces) FACE_CODE else ""),
-        )
+            """.trimIndent().replace("FACES", if (faces) FACE_CODE else "")
+        val fsSrc = if (external) fsSrc0 else fsSrc0
+            .replace("#extension GL_OES_EGL_image_external : require\n", "")
+            .replace("uniform samplerExternalOES uTex;", "uniform sampler2D uTex;")
+        val fs = compile(GLES20.GL_FRAGMENT_SHADER, fsSrc)
         val p = GLES20.glCreateProgram()
         GLES20.glAttachShader(p, vs)
         GLES20.glAttachShader(p, fs)
@@ -471,6 +599,36 @@ class FilterProcessor : SurfaceProcessor {
         /** Up to 8 faces, each with a constant array index (works on every GLES 2 GPU). */
         private val FACE_CODE = (0 until 8).joinToString("\n") { "if (uFaceN > $it) tc = faceAt(tc, uFaces[$it]);" }
         private const val EGL_RECORDABLE_ANDROID = 0x3142
+
+        private val VS_SRC = """
+            attribute vec4 aPos;
+            attribute vec4 aTex;
+            uniform mat4 uTexMatrix;
+            uniform float uZoom;
+            varying vec2 vTex;
+            void main() {
+                gl_Position = aPos;
+                vec2 t = (aTex.xy - 0.5) * uZoom + 0.5;
+                vTex = (uTexMatrix * vec4(t, 0.0, 1.0)).xy;
+            }
+        """.trimIndent()
+
+        private val COPY_FS = """
+            #extension GL_OES_EGL_image_external : require
+            precision mediump float;
+            varying vec2 vTex;
+            uniform samplerExternalOES uTex;
+            void main() { gl_FragColor = vec4(texture2D(uTex, vTex).rgb, 1.0); }
+        """.trimIndent()
+
+        private val BLEND_FS = """
+            precision mediump float;
+            varying vec2 vTex;
+            uniform sampler2D uA;
+            uniform sampler2D uB;
+            uniform float uK;
+            void main() { gl_FragColor = vec4(mix(texture2D(uA, vTex).rgb, texture2D(uB, vTex).rgb, uK), 1.0); }
+        """.trimIndent()
 
         private fun floatBuffer(vararg v: Float): FloatBuffer =
             ByteBuffer.allocateDirect(v.size * 4).order(ByteOrder.nativeOrder()).asFloatBuffer().apply {

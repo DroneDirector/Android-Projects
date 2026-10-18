@@ -51,6 +51,13 @@ object CaptureExtras {
     var preRecordSec by mutableStateOf(0)
     /** Use a Bluetooth headset microphone when one is connected. */
     var micBluetooth by mutableStateOf(false)
+    /** Record gyro + accelerometer data (.gcsv) for Gyroflow; the camera's own stabilization is off then. */
+    var gyroflow by mutableStateOf(false)
+    /** Electronic ND / motion blur for video: 0 off, else about how many frames are blended (2, 4, 8). */
+    var ndBlur by mutableStateOf(0)
+    /** Long exposure (smart mode): 0 light trails, 1 silky water, 2 night sky; and its length in seconds. */
+    var longKind by mutableStateOf(0)
+    var longSec by mutableStateOf(4)
     /** Magnified view while focusing manually. */
     var focusMagnifier by mutableStateOf(true)
     /** Rack focus points (diopters) — not kept between sessions. */
@@ -91,6 +98,10 @@ object CaptureExtras {
         preRecordSec = p.getInt("x_prerec", 0)
         micBluetooth = p.getBoolean("x_mic_bt", false)
         focusMagnifier = p.getBoolean("x_focus_mag", true)
+        gyroflow = p.getBoolean("x_gyroflow", false)
+        ndBlur = p.getInt("x_nd_blur", 0)
+        longKind = p.getInt("x_long_kind", 0)
+        longSec = p.getInt("x_long_sec", 4)
         scope = p.getInt("x_scope", 0)
     }
 
@@ -123,6 +134,10 @@ object CaptureExtras {
             .putInt("x_prerec", preRecordSec)
             .putBoolean("x_mic_bt", micBluetooth)
             .putBoolean("x_focus_mag", focusMagnifier)
+            .putBoolean("x_gyroflow", gyroflow)
+            .putInt("x_nd_blur", ndBlur)
+            .putInt("x_long_kind", longKind)
+            .putInt("x_long_sec", longSec)
             .putInt("x_scope", scope)
             .apply()
     }

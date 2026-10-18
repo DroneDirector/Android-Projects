@@ -207,6 +207,12 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
         }
         QuickItem("RES", s.videoRes.label, enabled = !s.recording) { c.setVideoRes(s.videoResolutions.next(s.videoRes)) }
         QuickItem("FPS", "${s.fps}", active = s.fps != 30, enabled = !s.recording) { c.setFps(s.fpsOptions.next(s.fps)) }
+        run {
+            val nd = com.dronedirector.veyrocutpro.camera.CaptureExtras.ndBlur
+            QuickItem("ND BLUR", if (nd == 0) "OFF" else "×$nd", active = nd > 0, enabled = !s.recording) {
+                c.setNdBlur(listOf(0, 2, 4, 8).next(nd))
+            }
+        }
         QuickItem("TIMER", if (s.timerSec == 0) "OFF" else "${s.timerSec}s", active = s.timerSec > 0, enabled = !s.recording) {
             c.setTimer(listOf(0, 3, 5, 10).next(s.timerSec))
         }
@@ -218,8 +224,12 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
                 }
             }
         }
-        if (s.stabilizationSupported) {
-            QuickItem("STAB", if (s.stabilization) "ON" else "OFF", active = s.stabilization, enabled = !s.recording) { c.toggleStabilization() }
+        if (s.stabilizationSupported || c.gyroAvailable) {
+            val sm = c.stabilizationMode
+            QuickItem("STAB", listOf("OFF", "CROP", "GYRO")[sm], active = sm != 0, enabled = !s.recording) {
+                val modes = buildList { add(0); if (s.stabilizationSupported) add(1); if (c.gyroAvailable) add(2) }
+                c.setStabilizationMode(modes[(modes.indexOf(sm) + 1) % modes.size])
+            }
         }
         if (mode == CaptureMode.PRO_VIDEO) {
             val profiles = buildList {
@@ -959,6 +969,21 @@ private fun intervalLabel(ms: Int): String = if (ms < 1000) "${ms / 1000f}s" els
 private fun SmartModeItems(s: CameraUiState, c: ProCameraController) {
     val busy = s.recording || s.processing
     when (s.mode) {
+        CaptureMode.LONG_EXPOSURE -> {
+            val x = com.dronedirector.veyrocutpro.camera.CaptureExtras
+            val kinds = com.dronedirector.veyrocutpro.camera.LongKind.entries
+            val running = s.longProgress >= 0f
+            QuickItem("LOOK", kinds[x.longKind.coerceIn(0, kinds.size - 1)].short, active = true, enabled = !running) {
+                c.setLongKind((x.longKind + 1) % kinds.size)
+            }
+            QuickItem("TIME", "${x.longSec}s", active = true, enabled = !running) {
+                c.setLongSec(listOf(2, 4, 8, 15, 30).next(x.longSec))
+            }
+            QuickItem("AE LOCK", if (s.aeLock) "ON" else "OFF", active = s.aeLock) { c.toggleAeLock() }
+            QuickItem("TIMER", if (s.timerSec == 0) "OFF" else "${s.timerSec}s", active = s.timerSec > 0, enabled = !running) {
+                c.setTimer(listOf(0, 3, 5, 10).next(s.timerSec))
+            }
+        }
         CaptureMode.TIMELAPSE -> {
             QuickItem("INTERVAL", intervalLabel(s.lapseIntervalMs), active = true, enabled = !busy) {
                 c.setLapseInterval(listOf(500, 1000, 2000, 5000, 10000, 30000).next(s.lapseIntervalMs))

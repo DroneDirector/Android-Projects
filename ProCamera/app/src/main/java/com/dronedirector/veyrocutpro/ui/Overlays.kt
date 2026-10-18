@@ -297,8 +297,12 @@ fun RecordingBadge(s: CameraUiState, modifier: Modifier = Modifier) {
 /** One-line explanation of what the current smart mode will produce, shown before recording. */
 @Composable
 fun SmartModeHint(s: CameraUiState, modifier: Modifier = Modifier) {
-    if (s.recording || s.panoActive || s.stitching) return
+    if (s.recording || s.panoActive || s.stitching || s.longProgress >= 0f) return
     val text = when (s.mode) {
+        CaptureMode.LONG_EXPOSURE -> {
+            val k = com.dronedirector.veyrocutpro.camera.LongKind.entries[com.dronedirector.veyrocutpro.camera.CaptureExtras.longKind.coerceIn(0, 2)]
+            "${k.label} · ${com.dronedirector.veyrocutpro.camera.CaptureExtras.longSec} s · ${k.hint}"
+        }
         CaptureMode.TIMELAPSE -> {
             val perMin = 60_000f / s.lapseIntervalMs / 30f
             "1 frame every %s · 1 min → %.1f s of video".format(

@@ -10,6 +10,7 @@ enum class CaptureMode(val label: String, val isVideo: Boolean, val isPro: Boole
     PORTRAIT("PORTRAIT", false, false),
     AI_PORTRAIT("AI PORTRAIT", false, false),
     PANORAMA("PANO", false, false),
+    LONG_EXPOSURE("LONG EXP", false, false),
     TIMELAPSE("TIME-LAPSE", true, false),
     HYPERLAPSE("HYPERLAPSE", true, false),
     SLOW_MO("SLOW-MO", true, false),
@@ -32,7 +33,7 @@ enum class CaptureMode(val label: String, val isVideo: Boolean, val isPro: Boole
 
     companion object {
         /** Mode groups, in the order they appear in the mode switch. */
-        val SMART = listOf(PORTRAIT, AI_PORTRAIT, PANORAMA, HYPERLAPSE, TIMELAPSE, SLOW_MO, SUPER_SLOW_MO, BURST)
+        val SMART = listOf(PORTRAIT, AI_PORTRAIT, PANORAMA, LONG_EXPOSURE, HYPERLAPSE, TIMELAPSE, SLOW_MO, SUPER_SLOW_MO, BURST)
         val REGULAR = listOf(PHOTO, PRO_PHOTO, VIDEO, PRO_VIDEO, LIVE)
     }
 }
@@ -254,6 +255,8 @@ data class CameraUiState(
     val audioLevel: Float = 0f,
     val countdown: Int = 0,
     val capturing: Boolean = false,
+    /** Long exposure running: 0–1 progress, or -1 when not running. */
+    val longProgress: Float = -1f,
     val shutterFlash: Int = 0,
     val lastMedia: Uri? = null,
     val message: String? = null,

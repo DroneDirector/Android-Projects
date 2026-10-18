@@ -4,6 +4,10 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture: stabilization is now a choice — OFF, IN-APP (CROP) or GYROFLOW. Gyroflow records the phone's motion sensors into a .gcsv file for each video (Documents/VeyroCutPro/Gyroflow, or next to the clip in a picked folder) for gimbal-smooth stabilization in Gyroflow on a computer; the camera's own stabilization is switched off for it.
+- Capture: new LONG EXP smart mode — Light trails, Silky water and Night sky, 2 to 30 seconds, with the picture building up live on screen.
+- Capture: motion blur (electronic ND) for video — ×2 / ×4 / ×8 frame blending for smooth, cinematic movement in bright light (quick bar ND BLUR or Settings).
+- Capture: remote monitor & control — open the address shown in Settings in any browser on a second device on the same Wi-Fi to see the live picture and take photos, record, zoom and switch modes.
 
 ## 1.0.249 — 2026-10-18
 - Photo editor: the same SKIP — OPEN THE EDITOR button under Browse files. The editor opens with no photo and shows Gallery / Browse files buttons to add one. Only when you tap it, never automatic.

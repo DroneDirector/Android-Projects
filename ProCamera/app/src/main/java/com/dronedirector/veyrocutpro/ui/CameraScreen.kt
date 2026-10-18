@@ -343,6 +343,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                         )
                         FocusReticle(s.focusPoint, s.focusId, locked = s.aeLock || s.manualFocusActive)
                         HoldRing(holdAt, (HOLD_MF_MS - HOLD_LOCK_MS).toInt())
+                        LongExposureOverlay(s, controller)
                         if (!clean) AeLockOverlay(s, controller)
                         PanoramaOverlay(s)
                         ShutterFlash(s.shutterFlash)

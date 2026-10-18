@@ -33,6 +33,8 @@ import androidx.camera.core.CameraInfo
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.DynamicRange
 import androidx.camera.core.FocusMeteringAction
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -113,6 +115,9 @@ class ProCameraController(private val context: Context) {
     private val mainExecutor: Executor = ContextCompat.getMainExecutor(context)
     private val analysisExecutor = Executors.newSingleThreadExecutor()
     private val sound = MediaActionSound()
+    private val gyroLog = GyroLogger(context)
+    /** The phone has a gyroscope, so Gyroflow logging is possible. */
+    val gyroAvailable: Boolean get() = gyroLog.available
 
     private var provider: ProcessCameraProvider? = null
     private var extensions: ExtensionsManager? = null
@@ -308,6 +313,7 @@ class ProCameraController(private val context: Context) {
     }
 
     fun release() {
+        setRemote(false)
         try { audioManager.unregisterAudioDeviceCallback(deviceCallback) } catch (_: Throwable) {}
         deviceCallbackRegistered = false
         live.close()
@@ -640,6 +646,7 @@ class ProCameraController(private val context: Context) {
         val wantEffect = needsEffect(s) && !useScene
         filterProcessor.setFilter(s.filter)
         filterProcessor.setCurve(logCurve(s), s.logAssist)
+        filterProcessor.ndFrames = if (s.mode.isNormalVideo) CaptureExtras.ndBlur else 0
         val effect: CameraEffect? = if (wantEffect) {
             val targets = if (s.mode.isNormalVideo) CameraEffect.PREVIEW or CameraEffect.VIDEO_CAPTURE else CameraEffect.PREVIEW
             FilterEffect(targets, filterProcessor) { t -> mainExecutor.execute { toast("Filter error: ${t.message}") } }
@@ -1026,6 +1033,12 @@ class ProCameraController(private val context: Context) {
         if (s.manualFocusActive && s.minFocusDiopters > 0f) {
             b.setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF)
             b.setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, s.focusDiopters)
+        }
+
+        // Gyroflow wants the raw, unstabilized picture: optical and electronic stabilization off.
+        if (CaptureExtras.gyroflow && s.mode.isNormalVideo) {
+            b.setCaptureRequestOption(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_OFF)
+            b.setCaptureRequestOption(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE, CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_OFF)
         }
 
         if (s.isPro && s.whiteBalance != WhiteBalance.AUTO) {
@@ -1446,8 +1459,29 @@ class ProCameraController(private val context: Context) {
 
     fun toggleStabilization() {
         if (st.recording) return
-        set { it.copy(stabilization = !it.stabilization) }
+        val on = !st.stabilization
+        if (on && CaptureExtras.gyroflow) { CaptureExtras.gyroflow = false; CaptureExtras.save(context) }
+        set { it.copy(stabilization = on) }
         bind()
+    }
+
+    /**
+     * Video stabilization choice: 0 off, 1 in-app (the camera's own, crops a little),
+     * 2 Gyroflow (records motion data, picture left unstabilized for Gyroflow on a computer).
+     */
+    fun setStabilizationMode(mode: Int) {
+        if (st.recording) return
+        val gyro = mode == 2 && gyroLog.available
+        val inApp = mode == 1 && st.stabilizationSupported
+        CaptureExtras.gyroflow = gyro; CaptureExtras.save(context)
+        if (st.stabilization != inApp) { set { it.copy(stabilization = inApp) }; bind() } else set { it }
+        if (gyro) toast("Gyroflow: motion data is saved with every video")
+    }
+
+    val stabilizationMode: Int get() = when {
+        CaptureExtras.gyroflow -> 2
+        st.stabilization -> 1
+        else -> 0
     }
 
     fun toggleBitrate() {
@@ -1532,6 +1566,10 @@ class ProCameraController(private val context: Context) {
         }
         if (s.mode == CaptureMode.PANORAMA) {
             if (s.panoActive) finishPanorama() else startPanorama()
+            return
+        }
+        if (s.mode == CaptureMode.LONG_EXPOSURE) {
+            if (longJob?.isActive == true) longStop = true else startLongExposure()
             return
         }
         if (s.intervalRunning) {
@@ -1646,7 +1684,19 @@ class ProCameraController(private val context: Context) {
         if (s.mode.isLapse) return true
         if (s.mode.isSlowMo) return false
         if (s.mode == CaptureMode.PRO_VIDEO && s.profile == VideoProfile.HLG && s.hlgSupported) return false
-        return s.filter != Filter.NONE || logCurve(s) != 0 || filterProcessor.hasLut || CaptureExtras.faceBlur
+        return s.filter != Filter.NONE || logCurve(s) != 0 || filterProcessor.hasLut || CaptureExtras.faceBlur ||
+            (s.mode.isNormalVideo && CaptureExtras.ndBlur > 1)
+    }
+
+    /** Electronic ND / motion blur for video (0 = off, else frames blended). */
+    fun setNdBlur(frames: Int) {
+        if (st.recording) { toast("Change motion blur between recordings"); return }
+        val before = needsEffect(st)
+        CaptureExtras.ndBlur = frames
+        CaptureExtras.save(context)
+        filterProcessor.ndFrames = if (st.mode.isNormalVideo) frames else 0
+        if (needsEffect(st) != before) bind()
+        if (frames > 1) toast("Motion blur ×$frames — best with a fast shutter in bright light")
     }
 
     /** Title overlay (Settings → TITLE): burned into the finished clip. */
@@ -1731,6 +1781,151 @@ class ProCameraController(private val context: Context) {
                 set { it.copy(lastMedia = uri) }
                 toast("Snapshot saved")
             } else toast("Couldn't save snapshot")
+        }
+    }
+
+    // ---------------------------------------------------------------- remote monitor
+
+    @Volatile private var remoteJpeg: ByteArray? = null
+    private var remoteJob: kotlinx.coroutines.Job? = null
+    /** Address to open on the other device while the remote monitor is on, else null. */
+    var remoteAddress by androidx.compose.runtime.mutableStateOf<String?>(null); private set
+    private val remote = RemoteMonitor(
+        context,
+        frame = { remoteJpeg },
+        status = { remoteStatus() },
+        command = { cmd -> scope.launch { remoteCommand(cmd) } },
+    )
+
+    fun setRemote(on: Boolean) {
+        if (!on) {
+            remote.stop(); remoteJob?.cancel(); remoteJob = null; remoteJpeg = null; remoteAddress = null
+            return
+        }
+        if (!remote.start()) { toast("Couldn't start the remote monitor"); return }
+        val addr = remote.address()
+        if (addr == null) { remote.stop(); toast("Connect to Wi-Fi (or turn on the hotspot) first"); return }
+        remoteAddress = addr
+        remoteJob?.cancel()
+        remoteJob = scope.launch {
+            while (true) {
+                if (remote.viewerCount > 0 || remoteJpeg == null) {
+                    val b = grabViewfinder(960)
+                    if (b != null) remoteJpeg = withContext(Dispatchers.Default) { RemoteMonitor.jpeg(b).also { b.recycle() } }
+                }
+                delay(if (remote.viewerCount > 0) 110 else 1000)
+            }
+        }
+    }
+
+    private fun remoteStatus(): String {
+        val s = st
+        val t = s.recordSeconds
+        val exp = listOfNotNull(
+            (if (s.manualIso) s.iso else s.liveIso)?.let { "ISO $it" },
+            (if (s.manualShutter) s.shutterNs else s.liveShutterNs)?.let { Stops.shutterLabel(it) },
+        ).joinToString(" · ")
+        fun q(v: String) = "\"" + v.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+        return "{\"mode\":${q(s.mode.label)},\"video\":${s.isVideo},\"recording\":${s.recording}," +
+            "\"time\":${q("%d:%02d".format(t / 60, t % 60))},\"zoom\":${q(Stops.zoomLabel(s.zoom))},\"exposure\":${q(exp)}}"
+    }
+
+    private fun remoteCommand(cmd: String) {
+        when (cmd) {
+            "shutter" -> shutter()
+            "zoom_in" -> setZoom(st.zoom * 1.25f)
+            "zoom_out" -> setZoom(st.zoom / 1.25f)
+            "mode_photo" -> setMode(CaptureMode.PHOTO)
+            "mode_video" -> setMode(CaptureMode.VIDEO)
+            "mode_pro_video" -> setMode(CaptureMode.PRO_VIDEO)
+            "af" -> setFocusAuto()
+            "ae_lock" -> toggleAeLock()
+        }
+    }
+
+    // ---------------------------------------------------------------- long exposure
+
+    private var longJob: kotlinx.coroutines.Job? = null
+    @Volatile private var longStop = false
+    private val _longPreview = MutableStateFlow<Bitmap?>(null)
+    /** The long exposure building up, shown over the viewfinder while it runs. */
+    val longPreview: StateFlow<Bitmap?> = _longPreview.asStateFlow()
+
+    fun setLongKind(k: Int) { CaptureExtras.longKind = k.coerceIn(0, LongKind.entries.size - 1); CaptureExtras.save(context) }
+    fun setLongSec(sec: Int) { CaptureExtras.longSec = sec; CaptureExtras.save(context) }
+
+    /** A copy of what the viewfinder shows, up to [longSide] px. Main thread. */
+    private fun grabViewfinder(longSide: Int): Bitmap? {
+        val view = previewView ?: return null
+        val tv = view.findTextureView()
+        if (tv != null && tv.isAvailable && tv.width > 0 && tv.height > 0) {
+            val scale = longSide.toFloat() / maxOf(tv.width, tv.height)
+            val bw = (tv.width * scale).toInt().coerceAtLeast(16)
+            val bh = (tv.height * scale).toInt().coerceAtLeast(16)
+            val raw = try { tv.getBitmap(bw, bh) } catch (_: Throwable) { null } ?: return null
+            return try {
+                val m = tv.getTransform(null)
+                val out = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888)
+                android.graphics.Canvas(out).apply {
+                    scale(scale, scale); concat(m); scale(1f / scale, 1f / scale)
+                    drawBitmap(raw, 0f, 0f, android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+                }
+                raw.recycle()
+                out
+            } catch (_: Throwable) { raw }
+        }
+        return try { view.bitmap } catch (_: Throwable) { null }
+    }
+
+    private fun startLongExposure() {
+        val s = st
+        if (s.capturing || !s.ready) return
+        val kind = LongKind.entries[CaptureExtras.longKind.coerceIn(0, LongKind.entries.size - 1)]
+        val totalMs = CaptureExtras.longSec * 1000L
+        longStop = false
+        longJob = scope.launch {
+            if (s.timerSec > 0) {
+                for (i in s.timerSec downTo 1) { set { it.copy(countdown = i) }; delay(1000) }
+                set { it.copy(countdown = 0) }
+            }
+            val first = grabViewfinder(2048)
+            if (first == null) { toast("Couldn't read the camera picture"); return@launch }
+            val stacker = LongStacker(first.width, first.height, kind)
+            set { it.copy(capturing = true, longProgress = 0f) }
+            playSound(MediaActionSound.SHUTTER_CLICK)
+            val t0 = android.os.SystemClock.elapsedRealtime()
+            var lastPreview = 0L
+            var frame: Bitmap? = first
+            try {
+                while (!longStop) {
+                    val el = android.os.SystemClock.elapsedRealtime() - t0
+                    if (el >= totalMs) break
+                    val f = frame ?: grabViewfinder(2048)
+                    frame = null
+                    if (f != null) {
+                        withContext(Dispatchers.Default) { stacker.add(f) }
+                        f.recycle()
+                    }
+                    if (el - lastPreview > 600) {
+                        lastPreview = el
+                        _longPreview.value = withContext(Dispatchers.Default) { stacker.result(3) }
+                    }
+                    set { it.copy(longProgress = (el.toFloat() / totalMs).coerceIn(0f, 1f)) }
+                    delay(10)
+                }
+                set { it.copy(longProgress = 1f) }
+                val volume = st.storageVolume
+                val uri = withContext(Dispatchers.Default) {
+                    val out = stacker.result() ?: return@withContext null
+                    saveBitmap(out, stamp() + "_long_" + kind.short.lowercase(Locale.US) + ".jpg", volume).also { out.recycle() }
+                }
+                playSound(MediaActionSound.SHUTTER_CLICK)
+                set { it.copy(lastMedia = uri ?: it.lastMedia) }
+                toast(if (uri != null) "${kind.label} saved (${stacker.frames} frames)" else "Couldn't save the long exposure")
+            } finally {
+                _longPreview.value = null
+                set { it.copy(capturing = false, longProgress = -1f) }
+            }
         }
     }
 
@@ -2196,6 +2391,7 @@ class ProCameraController(private val context: Context) {
             preJob?.cancel()
             recording = pb
             recordingHasAudio = preHasAudio
+            if (CaptureExtras.gyroflow && st.mode.isNormalVideo) gyroLog.start()
             if (!monitorWhileRecording) audioMeter.stopMonitoring()
             playSound(MediaActionSound.START_VIDEO_RECORDING)
             set { it.copy(recording = true, paused = false, recordSeconds = CaptureExtras.preRecordSec.toLong()) }
@@ -2239,9 +2435,11 @@ class ProCameraController(private val context: Context) {
         if (recordingHasAudio) { btMic(CaptureExtras.micBluetooth); pending = pending.withAudioEnabled() }
         if (s0.mode.isNormalVideo && st.audio && !micGranted) toast("Recording without sound (microphone not allowed)")
         playSound(MediaActionSound.START_VIDEO_RECORDING)
+        if (CaptureExtras.gyroflow && s0.mode.isNormalVideo && slowMoFile == null) gyroLog.start()
         try {
             recording = pending.start(mainExecutor) { event -> onRecordEvent(event) }
         } catch (t: Throwable) {
+            gyroLog.cancel()
             toast("Couldn't start recording: ${t.message}")
         }
     }
@@ -2263,7 +2461,10 @@ class ProCameraController(private val context: Context) {
 
     private fun onRecordEvent(event: VideoRecordEvent) {
         when (event) {
-            is VideoRecordEvent.Start -> set { it.copy(recording = true, paused = false, recordSeconds = 0) }
+            is VideoRecordEvent.Start -> {
+                if (gyroLog.running) gyroLog.markStart()
+                set { it.copy(recording = true, paused = false, recordSeconds = 0) }
+            }
             is VideoRecordEvent.Pause -> set { it.copy(paused = true) }
             is VideoRecordEvent.Resume -> set { it.copy(paused = false) }
             is VideoRecordEvent.Status -> {
@@ -2323,6 +2524,21 @@ class ProCameraController(private val context: Context) {
                 }
                 if (event.hasError()) {
                     toast(if (uri != Uri.EMPTY) "Video saved (with warning ${event.error})" else "Recording failed (error ${event.error})")
+                }
+                // Gyroflow: save the motion log with the clip's name.
+                if (gyroLog.running) {
+                    if (uri == Uri.EMPTY) gyroLog.cancel() else {
+                        val place = Storage.resolve(context, st.storageVolume)
+                        val tree = if (doc != null && Storage.isTree(place)) place else null
+                        ioExecutor.execute {
+                            val name = try {
+                                context.contentResolver.query(uri, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME), null, null, null)
+                                    ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+                            } catch (_: Throwable) { null } ?: "${stamp()}.mp4"
+                            val where = gyroLog.stopAndSave(uri, name, tree)
+                            scope.launch { toast(if (where != null) "Gyroflow data saved ($where)" else "Couldn't save the Gyroflow data") }
+                        }
+                    }
                 }
                 // Shot log (and the next take number).
                 if (uri != Uri.EMPTY && CaptureExtras.slateOn) { val snap = st; ioExecutor.execute { Slate.log(context, uri, snap, true) } }

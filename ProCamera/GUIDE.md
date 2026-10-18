@@ -117,6 +117,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 ## Video editor guide
 **AI noise reduction**
+- Media → SOUND LIBRARIES: tap Soundtracks to browse the built-in music, ▶ to listen, + ADD to put a track on the timeline at the playhead. It plays in the preview and is mixed into your export, like any other music.
 - Start page → SKIP — OPEN THE EDITOR goes straight into the editor with an empty timeline, without choosing a video first; add clips later from the Media page. It only happens when you tap it.
 - Color → Detail → AI NOISE REDUCTION → move Strength above Off.
 - Applied when exporting; the preview shows the normal noise reduction.

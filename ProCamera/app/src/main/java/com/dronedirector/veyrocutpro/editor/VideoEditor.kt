@@ -1701,6 +1701,23 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 audioPool = audioPool,
                                 audioUses = { a -> (if (music?.uri == a.uri) 1 else 0) + extraAudio.count { it.uri == a.uri } },
                                 onAddAudio = { pickAudio.launch(arrayOf("audio/*")) },
+                                onLibraryAdd = { sec, t ->
+                                    layerScope.launch {
+                                        val uri = withContext(Dispatchers.IO) { SoundLibrary.file(context, sec, t) }
+                                        if (uri == null) { message = "Couldn't add ${t.title}"; return@launch }
+                                        val a = audioPool.firstOrNull { it.uri == uri } ?: PoolAudio(uri, t.title, t.durationMs).also { audioPool.add(it) }
+                                        val total = timelineLength(clips)
+                                        val head = ((clipStarts(clips).getOrNull(current) ?: 0L) + (clips.getOrNull(current)?.let { it.tlOffsetOf(it.startMs + posMs) } ?: posMs)).coerceIn(0, total)
+                                        if (music == null) {
+                                            music = MusicTrack(a.uri, a.name, a.durationMs, startMs = head)
+                                            musicPlayer.setMediaItem(MediaItem.fromUri(a.uri)); musicPlayer.prepare()
+                                            message = "${a.name} added as the music track"
+                                        } else {
+                                            extraAudio.add(MusicTrack(a.uri, a.name, a.durationMs, volume = 1f, fadeInMs = 0, fadeOutMs = 300, startMs = head))
+                                            message = "${a.name} added to the timeline at ${tc(head)}"
+                                        }
+                                    }
+                                },
                                 onPlaceAudio = { a ->
                                     val total = timelineLength(clips)
                                     val head = ((clipStarts(clips).getOrNull(current) ?: 0L) + (clips.getOrNull(current)?.let { it.tlOffsetOf(it.startMs + posMs) } ?: posMs)).coerceIn(0, total)
@@ -2022,6 +2039,7 @@ private fun MediaPage(
     audioPool: List<PoolAudio>, audioUses: (PoolAudio) -> Int, onAddAudio: () -> Unit,
     onPlaceAudio: (PoolAudio) -> Unit, onRemoveAudio: (PoolAudio) -> Unit,
     proxyState: (Clip) -> String?, onProxyToggle: (Clip) -> Unit, onRemove: (Clip) -> Unit,
+    onLibraryAdd: (LibSection, LibTrack) -> Unit = { _, _ -> },
 ) {
     var confirm by remember { mutableStateOf<Clip?>(null) }
     confirm?.let { c ->
@@ -2048,6 +2066,7 @@ private fun MediaPage(
         BigButton(Icons.Filled.FolderOpen, "Files (MKV…)", Modifier.weight(1f), onAddFiles)
     }
     BigButton(Icons.Filled.MusicNote, "Audio (MP3, WAV, AAC…)", Modifier.fillMaxWidth().padding(top = 8.dp), onAddAudio)
+    SoundLibraries(onLibraryAdd)
     Text(
         "Clips are added to the end of the timeline. Heavy clips (HDR, 10-bit, 4K) get a light preview copy so grades and effects play smoothly; exports always use the original files.",
         color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 6.dp),
@@ -3151,4 +3170,58 @@ private fun VideoPanelsButton(onPage: (Page) -> Unit, onReset: () -> Unit) {
         ),
         onReset = onReset,
     )
+}
+
+
+/** Built-in music and sounds, by section; listen first, then add at the playhead. */
+@Composable
+private fun SoundLibraries(onAdd: (LibSection, LibTrack) -> Unit) {
+    val context = LocalContext.current
+    var open by remember { mutableStateOf<String?>(null) }
+    var playing by remember { mutableStateOf(SoundLibrary.playingId) }
+    DisposableEffect(Unit) { onDispose { SoundLibrary.stopPreview() } }
+    SectionTitle("SOUND LIBRARIES")
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
+        SoundLibrary.sections.forEach { sec ->
+            PillChip("${sec.title} · ${sec.tracks.size}", open == sec.folder) {
+                open = if (open == sec.folder) null else sec.folder
+            }
+        }
+    }
+    val sec = SoundLibrary.sections.firstOrNull { it.folder == open } ?: run {
+        Text("Music and sounds you can use in your videos. Tap a section to browse.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 4.dp))
+        return
+    }
+    Text(sec.subtitle, color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp, bottom = 2.dp))
+    if (sec.tracks.isEmpty()) {
+        Text("Coming soon.", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(vertical = 6.dp))
+        return
+    }
+    sec.tracks.forEach { t ->
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val on = playing == t.id
+            Box(
+                Modifier.size(36.dp).clip(CircleShape).background(if (on) Pro.Amber else Color.White.copy(alpha = 0.08f))
+                    .clickable { SoundLibrary.togglePreview(context, sec, t) { playing = it } },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(if (on) "■" else "▶", color = if (on) Color.Black else Pro.Amber, fontSize = 13.sp)
+            }
+            Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                Text(t.title, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(tc(t.durationMs) + if (on) " · playing" else "", style = Pro.Label)
+            }
+            Text(
+                "+ ADD", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable {
+                    SoundLibrary.stopPreview(); playing = null
+                    onAdd(sec, t)
+                }.padding(horizontal = 10.dp, vertical = 8.dp),
+            )
+        }
+    }
+    Text("+ ADD puts the track on the timeline at the playhead (the first one becomes the music track). It plays in the preview and is mixed into your export.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
 }

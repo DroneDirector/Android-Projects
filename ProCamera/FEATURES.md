@@ -198,6 +198,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Rename layers** (e.g. name your watermarks) — names show in the layer list and on the timeline.
 
 ### Audio
+- **Sound libraries** (Media page): built-in **Soundtracks** — 26 original cinematic tracks owned by the developer and cleared for use in your videos — with listen-before-adding preview; **Nature sounds** section ready for more. Tracks behave like imported music (timeline, waveform, fades, ducking, export).
 - **Music track** with start point, volume, fades and **ducking** under clips.
 - **Voiceover** recording onto its own audio track.
 - **Volume keyframes** per clip.

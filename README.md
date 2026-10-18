@@ -1,6 +1,6 @@
 # Android Projects
 
-## VeyroCut Pro — professional camera for Android phones and tablets
+## VeyroCut Pro — professional camera, photo and video editor for Android phones and tablets
 
 **Download:** open the [latest release](../../releases/latest) and tap the `.apk` file, then open it to install.
 The first time, Android asks you to allow installing apps from your browser; allow it once.

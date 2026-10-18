@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.252 — 2026-10-18
 - Video editor: new SOUND LIBRARIES on the Media page — 26 built-in cinematic soundtracks you can listen to and add to the timeline at the playhead; they play in the preview and are mixed into the export. A Nature sounds section is ready for more.
 - Capture: stabilization is now a choice — OFF, IN-APP (CROP) or GYROFLOW. Gyroflow records the phone's motion sensors into a .gcsv file for each video (Documents/VeyroCutPro/Gyroflow, or next to the clip in a picked folder) for gimbal-smooth stabilization in Gyroflow on a computer; the camera's own stabilization is switched off for it.
 - Capture: new LONG EXP smart mode — Light trails, Silky water and Night sky, 2 to 30 seconds, with the picture building up live on screen.

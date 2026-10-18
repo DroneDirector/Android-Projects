@@ -82,6 +82,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 
 ## Photo editor
 - Open from the gallery, files or recent VeyroCut Pro photos; **saved projects** row on the start page.
+- **Skip to the editor** from the start page: open the editor without picking a photo first, then add one from inside (manual, every time).
 - Panels: **Presets, Light, Curve, Color, HSL Mixer, Grading, Detail, Effects, Crop & format, Watermark, Export**.
 - **RAW (DNG) develop**: the editor reads the sensor data itself (uncompressed and lossless-compressed DNGs, lens-shading maps, the camera's colour matrix) — exposure ±5 stops, highlights, shadows, whites, blacks and white balance work on the full-range data with a soft highlight roll-off; **RAW profiles** (Standard, Flat, Vivid, Portrait, Landscape, Mono) and **white balance presets** (As shot, Auto, Daylight, Cloudy, Shade, Tungsten, Fluorescent); full-quality demosaic on export; RAW files in a batch export are developed too.
 - **Light**: exposure, contrast, highlights, shadows, whites, blacks.

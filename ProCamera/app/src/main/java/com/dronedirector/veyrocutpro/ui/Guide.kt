@@ -142,6 +142,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "RAW (DNG) photos", Icons.Filled.Photo, null, listOf(
+            "Start page → SKIP — OPEN THE EDITOR (under Gallery photos / Browse files) opens the editor straight away without choosing a photo; add one from inside with Gallery or Browse files. It only happens when you tap it.",
             "Open a DNG (from VeyroCut Pro's Pro mode or any phone / camera that saves DNG) and the RAW badge appears: the editor develops the sensor data itself.",
             "Light → RAW PROFILE picks the base look: Standard, Flat (most room for grading), Vivid, Portrait, Landscape or Mono.",
             "Exposure (±5 stops), Highlights, Shadows, Whites and Blacks work on the full-range data — pull Highlights down to bring back bright skies, lift Shadows without the blotches you'd get from a JPEG.",

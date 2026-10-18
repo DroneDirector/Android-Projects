@@ -169,6 +169,7 @@ fun PhotoEditorScreen(onExit: () -> Unit) {
             onGallery = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onFiles = { browse.launch(arrayOf("image/*")) },
             onRecent = { project = null; source = it },
+            onSkip = { project = null; source = Uri.EMPTY },
             onOpenProject = { id ->
                 val p = ProjectStore.loadPhoto(context, id)
                 if (p != null && p.uri != Uri.EMPTY) { project = p; source = p.uri }
@@ -177,7 +178,10 @@ fun PhotoEditorScreen(onExit: () -> Unit) {
         )
     } else {
         androidx.compose.runtime.key(src, project?.id) {
-            PhotoWorkspace(src, project, onClose = { source = null; project = null }, onLoad = { id ->
+            PhotoWorkspace(src, project, onClose = { source = null; project = null },
+                onAddGallery = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                onAddFiles = { browse.launch(arrayOf("image/*")) },
+                onLoad = { id ->
                 val p = ProjectStore.loadPhoto(context, id)
                 if (p != null && p.uri != Uri.EMPTY) { project = p; source = p.uri }
                 else android.widget.Toast.makeText(context, "Couldn't open that project", android.widget.Toast.LENGTH_SHORT).show()
@@ -233,7 +237,7 @@ fun MediaChooser(
             ) {
                 Column(Modifier.weight(1f)) {
                     Text("Skip — open the editor", color = Pro.Amber, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Start with an empty timeline and add clips later from the Media page.", color = Pro.Dim, fontSize = 11.sp)
+                    Text(if (videos) "Start with an empty timeline and add clips later from the Media page." else "Open the editor now and add a photo from inside it.", color = Pro.Dim, fontSize = 11.sp)
                 }
                 Text("→", color = Pro.Amber, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 8.dp))
             }
@@ -293,7 +297,11 @@ fun BigButton(icon: ImageVector, label: String, modifier: Modifier = Modifier, o
 }
 
 @Composable
-private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> Unit, onLoad: (String) -> Unit) {
+private fun PhotoWorkspace(
+    uri: Uri, initial: PhotoProjectData?, onClose: () -> Unit, onLoad: (String) -> Unit,
+    /** Opened with SKIP (no photo yet, uri = Uri.EMPTY): pick one from the gallery / files. */
+    onAddGallery: () -> Unit = {}, onAddFiles: () -> Unit = {},
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var base by remember { mutableStateOf<Bitmap?>(null) }
@@ -380,6 +388,7 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
     var rawMeta by remember { mutableStateOf<RawDng.Meta?>(null) }
     var rawLin by remember { mutableStateOf<RawDng.Linear?>(null) }
     LaunchedEffect(uri, edit.baseFile) {
+        if (uri == Uri.EMPTY && edit.baseFile == null) return@LaunchedEffect   // empty editor (SKIP)
         val src = sourceUri(edit)
         var note: String? = null
         val r = if (edit.baseFile != null) null else withContext(Dispatchers.IO) {
@@ -807,6 +816,18 @@ private fun PhotoWorkspace(uri: Uri, initial: PhotoProjectData?, onClose: () -> 
                     val before = beforeImg
                     when {
                         failed -> Text("This file can't be opened.", color = Pro.Dim)
+                        uri == Uri.EMPTY && edit.baseFile == null -> Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.padding(16.dp),
+                        ) {
+                            Text("No photo yet", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Add a photo to start editing.", color = Pro.Dim, fontSize = 12.sp)
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text("Gallery", color = Color.Black, fontWeight = FontWeight.SemiBold, modifier = Modifier.clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(onClick = onAddGallery).padding(horizontal = 18.dp, vertical = 10.dp))
+                                Text("Browse files", color = Pro.Amber, fontWeight = FontWeight.SemiBold, modifier = Modifier.clip(RoundedCornerShape(50)).border(1.dp, Pro.Amber, RoundedCornerShape(50)).clickable(onClick = onAddFiles).padding(horizontal = 18.dp, vertical = 10.dp))
+                            }
+                        }
                         split && before != null && shown != null -> {
                             Image(before.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(6.dp))
                             Image(

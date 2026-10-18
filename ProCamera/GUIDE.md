@@ -66,6 +66,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 ## Photo editor guide
 **AI noise reduction**
+- Start page → SKIP — OPEN THE EDITOR (under Gallery photos / Browse files) opens the editor straight away without choosing a photo; add one from inside with Gallery or Browse files. It only happens when you tap it.
 - Detail → AI NOISE REDUCTION → move Strength above Off.
 - The preview is cleaned once by the AI; then the slider works instantly.
 - Exporting cleans the full-size photo (on the phone, or in the cloud if Cloud AI is on). STOP on the AI badge cancels.

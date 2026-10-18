@@ -1321,7 +1321,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 message = if (uri != null) {
                     val place = com.dronedirector.acluxpro.camera.Storage.load(context, com.dronedirector.acluxpro.camera.StorageArea.VIDEO)
                     val folder = SaveFolder.get(context, true)?.let { SaveFolder.label(it) }
-                        ?: ((if (place == com.dronedirector.acluxpro.camera.Storage.INTERNAL) "" else com.dronedirector.acluxpro.camera.Storage.label(context, place) + " · ") + if (deliver.audioOnly) "Music/AcluxPro" else "DCIM/AcluxPro")
+                        ?: ((if (place == com.dronedirector.acluxpro.camera.Storage.INTERNAL) "" else com.dronedirector.acluxpro.camera.Storage.label(context, place) + " · ") + if (deliver.audioOnly) "Music/VeyroCutPro" else "DCIM/VeyroCutPro")
                     (if (deliver.audioOnly) "Audio exported to " else "Exported to ") + folder
                 } else err ?: "Export failed"
             },
@@ -2626,7 +2626,7 @@ private fun LayersPage(
         SmallAction(Icons.Filled.TextFields, "Text") { onAdd(Layer(kind = LayerKind.TEXT, startMs = playheadMs, endMs = end)) }
         SmallAction(Icons.Filled.EmojiEmotions, "Sticker") { stickers = !stickers }
         SmallAction(Icons.Filled.WaterDrop, "Watermark") {
-            onAdd(Layer(kind = LayerKind.WATERMARK, text = "© AcluxPro", size = 0.04f, x = 0.84f, y = 0.92f, opacity = 0.65f, shadow = true, wholeVideo = true, font = LayerFont.LIGHT))
+            onAdd(Layer(kind = LayerKind.WATERMARK, text = "© VeyroCut Pro", size = 0.04f, x = 0.84f, y = 0.92f, opacity = 0.65f, shadow = true, wholeVideo = true, font = LayerFont.LIGHT))
         }
         SmallAction(Icons.Filled.Movie, "Video", onAddVideo)
         SmallAction(Icons.Filled.Photo, "Image", onAddImage)
@@ -2842,7 +2842,7 @@ private fun DeliverPage(
     // Send the edit to a desktop editor (DaVinci Resolve, Premiere Pro, Final Cut Pro).
     val ictx = LocalContext.current
     val fpsX = if (s.fps > 0) s.fps else 30
-    val title = projectName?.takeIf { it.isNotBlank() } ?: "AcluxPro edit"
+    val title = projectName?.takeIf { it.isNotBlank() } ?: "VeyroCut Pro edit"
     var xNote by remember { mutableStateOf<String?>(null) }
     fun writeTo(uri: android.net.Uri?, text: String) {
         if (uri == null) return
@@ -2909,7 +2909,7 @@ private fun DeliverPage(
     Chips(listOf("Video with audio", "Video, no audio", "Audio only (.m4a)"), if (s.audioOnly) 2 else if (s.audio) 0 else 1) {
         onChange(s.copy(audio = it != 1, audioOnly = it == 2))
     }
-    if (s.audioOnly) Text("Saves just the sound of the timeline — clips, music and audio tracks — as an AAC .m4a file in Music/AcluxPro (or your chosen save folder). Muted tracks are left out.", color = Pro.Dim, fontSize = 11.sp)
+    if (s.audioOnly) Text("Saves just the sound of the timeline — clips, music and audio tracks — as an AAC .m4a file in Music/VeyroCutPro (or your chosen save folder). Muted tracks are left out.", color = Pro.Dim, fontSize = 11.sp)
     if (s.audio || s.audioOnly) {
         SectionTitle("LOUDNESS")
         val opts = listOf<Float?>(null) + Loudness.TARGETS

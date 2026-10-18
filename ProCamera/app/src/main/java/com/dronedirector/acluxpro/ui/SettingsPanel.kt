@@ -290,7 +290,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                     ToggleRow("Next take automatically", "The take number goes up after each recording", x.slateAutoTake) { x.slateAutoTake = !x.slateAutoTake; x.save(ctx) }
                     androidx.compose.material3.OutlinedTextField(value = x.slateNotes, onValueChange = { v -> x.slateNotes = v.take(200); x.save(ctx) }, label = { Text("Notes (e.g. good take, focus soft)") }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        androidx.compose.material3.TextButton(onClick = { exportLog.launch("AcluxPro_shot_log.csv") }) { Text("Export shot log (.csv) · $logCount", color = Pro.Amber) }
+                        androidx.compose.material3.TextButton(onClick = { exportLog.launch("VeyroCutPro_shot_log.csv") }) { Text("Export shot log (.csv) · $logCount", color = Pro.Amber) }
                         androidx.compose.material3.TextButton(onClick = { com.dronedirector.acluxpro.camera.Slate.clear(ctx); logCount = 0 }) { Text("Clear log", color = Pro.Red) }
                     }
                     Text("The log opens in Excel, Google Sheets or Numbers: date, file, scene, shot, take, notes and camera settings for each clip and photo.", color = Pro.Dim, fontSize = 12.sp)
@@ -385,7 +385,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             InfoRow("HLG 10-bit", if (s.hlgSupported) "Yes" else "No")
             InfoRow("Scenes", s.scenes.joinToString(" · ") { it.label })
             Spacer(Modifier.padding(4.dp))
-            Text("Photos and videos save to DCIM/AcluxPro.", style = Pro.Label.copy(fontSize = 11.sp, letterSpacing = 0.sp))
+            Text("Photos and videos save to DCIM/VeyroCutPro.", style = Pro.Label.copy(fontSize = 11.sp, letterSpacing = 0.sp))
         }
     }
 }

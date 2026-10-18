@@ -1,6 +1,6 @@
-# AcluxPro — Features
+# VeyroCut Pro — Features
 
-AcluxPro is a pro camera, photo editor and video editor for Android phones and tablets (Android 8.0+).
+VeyroCut Pro is a pro camera, photo editor and video editor for Android phones and tablets (Android 8.0+).
 App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https://github.com/DroneDirector/Android-Projects/releases); see the [changelog](CHANGELOG.md) for what changed in each version. Open-source parts and licences: [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ---
@@ -42,7 +42,8 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Safe areas**: action-safe 90 % and title-safe 80 % frames.
 - **Tally border**, **touch lock** while recording, and **storage / battery / heat warnings**.
 - **Custom set-ups C1 / C2 / C3**: hold to save all current settings, tap to recall.
-- **Long-press exposure lock** with an EV slider under the lock; long press again or tap ✕ to unlock.
+- **Autofocus with hold-for-manual-focus** in every mode (photo, pro, video, pro video and the smart modes): tap to focus, hold 2 s for manual focus with a slim vertical focus slider on the right edge of the feed (∞ to closest, live distance tag, focus magnifier while dragging), ✕ returns to autofocus.
+- **Hold-and-release exposure lock** (about ½ s) with an EV slider under the lock; do it again or tap ✕ to unlock.
 - **Shutter angle** read-out for video with a one-tap **180°** button.
 - **Monitoring LUT**: your own .cube LUT on the viewfinder (optionally recorded into videos).
 - **Focus magnifier** (×4) while focusing manually; **rack focus** between two stored points (1 / 2 / 4 s).
@@ -80,7 +81,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 ---
 
 ## Photo editor
-- Open from the gallery, files or recent AcluxPro photos; **saved projects** row on the start page.
+- Open from the gallery, files or recent VeyroCut Pro photos; **saved projects** row on the start page.
 - Panels: **Presets, Light, Curve, Color, HSL Mixer, Grading, Detail, Effects, Crop & format, Watermark, Export**.
 - **RAW (DNG) develop**: the editor reads the sensor data itself (uncompressed and lossless-compressed DNGs, lens-shading maps, the camera's colour matrix) — exposure ±5 stops, highlights, shadows, whites, blacks and white balance work on the full-range data with a soft highlight roll-off; **RAW profiles** (Standard, Flat, Vivid, Portrait, Landscape, Mono) and **white balance presets** (As shot, Auto, Daylight, Cloudy, Shade, Tungsten, Fluorescent); full-quality demosaic on export; RAW files in a batch export are developed too.
 - **Light**: exposure, contrast, highlights, shadows, whites, blacks.
@@ -111,7 +112,7 @@ App ID `com.dronedirector.acluxpro`. Downloads are on the [Releases page](https:
 - **Real-time preview** while dragging sliders.
 - **Copy / Paste settings** (choose what to paste) — also between photos and video clips.
 - **LOAD / SAVE projects** next to Export.
-- Export **JPEG or PNG**, quality and size choice; choose the **save folder** (default DCIM/AcluxPro).
+- Export **JPEG or PNG**, quality and size choice; choose the **save folder** (default DCIM/VeyroCutPro).
 - Also **WebP** and **HEIC**; Instagram / web / 4K sizes; **AI upscale** 2× / 4× in the export; keep or remove **camera info and location**.
 - **Batch export**: apply the current edit to up to 50 photos at once.
 - **Resizable panels** (hold the divider, then drag; double-tap to reset).
@@ -196,7 +197,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **3-band EQ**, low cut, voice enhance, **compressor, noise gate, limiter**; presets (Voice, Interview, Wind cut, Warm, Bright, Bass boost, Radio, Loud & punchy); live **level meter**.
 
 ### Deliver
-- **Audio only** export (.m4a, AAC) to Music/AcluxPro.
+- **Audio only** export (.m4a, AAC) to Music/VeyroCutPro.
 - **Keep HDR** (HLG / HDR10, 10-bit HEVC) or convert to SDR.
 - Resolution up to **4K UHD**, frame rate, **H.264 / HEVC**, bitrate up to very high, audio on/off.
 - Project formats: Original, 16:9, 9:16, 1:1, 4:5, 4:3 and more; fill or fit.
@@ -204,7 +205,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Export a range** (in / out) and **save a frame as a photo**.
 - **Estimated file size** shown live as you change the settings.
 - **Loudness normalisation**: −14 / −16 / −23 LUFS (measured per BS.1770, then the whole mix is set to the target, with a limiter).
-- Choose the **save folder** (default DCIM/AcluxPro).
+- Choose the **save folder** (default DCIM/VeyroCutPro).
 - **Animated GIF** export (320–640 px, 10–15 fps, up to 20 s) with grade and layers.
 - **Subtitles (.srt)** from the AI captions.
 - **Send to desktop editor**: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) for DaVinci Resolve, Premiere Pro, Avid and Final Cut Pro.

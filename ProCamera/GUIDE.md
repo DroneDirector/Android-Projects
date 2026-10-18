@@ -1,4 +1,4 @@
-# AcluxPro — Guides
+# VeyroCut Pro — Guides
 
 The same guides are in the app: open the **settings gear** in Capture, the Photo editor or the Video editor and tap the **guide** button (or **How to add a key** under Cloud AI). Each guide shows only what applies to that part of the app.
 See also the [feature list](FEATURES.md) and the [changelog](CHANGELOG.md).
@@ -8,9 +8,9 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 1. Open [fal.ai](https://fal.ai/dashboard/keys) and sign up or log in.
 2. Add credit to your fal.ai account ([Billing](https://fal.ai/dashboard/billing)). You pay fal.ai per use.
-3. Go to **Dashboard → API Keys → Add key**, name it (e.g. "AcluxPro") and create it.
+3. Go to **Dashboard → API Keys → Add key**, name it (e.g. "VeyroCut Pro") and create it.
 4. Copy the key — it's shown only once.
-5. In AcluxPro: settings gear → **CLOUD AI** → **Add your fal.ai key**.
+5. In VeyroCut Pro: settings gear → **CLOUD AI** → **Add your fal.ai key**.
 6. Paste the key and tap **SAVE KEY**. It's stored encrypted on the phone and only sent to fal.ai.
 7. Turn on **Photos in the cloud** (Capture: Topaz upscale · Photo editor: Topaz Denoise, pick Normal / Strong / Extreme / Max) or **Video in the cloud** (Video editor: Topaz Nyx — Nyx Fast is quickest and cheapest, about $0.10 per 10 s of 1080p).
 8. Keep **Wi-Fi only** on to avoid mobile data.
@@ -28,12 +28,13 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 **Capture tips**
 - Settings → SLATE & SHOT LOG: set scene, shot, take and notes; they show on the viewfinder, go into photos, and every clip and photo is logged. Export the log as a .csv for Excel / Sheets; the take number goes up after each recording.
 - Settings → COPYRIGHT: your name and copyright notice are written into every photo you take and every photo you export (Artist / Copyright in the photo's details).
-- SMART → PORTRAIT and AI PORTRAIT: the subject stays sharp and the background is blurred — people, pets, flowers, rocks, branches and other things that stand out. PORTRAIT adds the blur a second after the shot; AI PORTRAIT also shows it live in the viewfinder while you frame (people update fastest; other subjects a few times a second, so the edge can lag a little when you move — "no subject" means nothing is found yet). In both, slide the BACKGROUND BLUR slider above the zoom bar (left f/1.4 = most blur, right f/16 = least) or tap a spot on it; tap AUTO to minimise it and let AcluxPro pick the blur. The saved photo always gets the full-quality blur a second after the shot.
+- SMART → PORTRAIT and AI PORTRAIT: the subject stays sharp and the background is blurred — people, pets, flowers, rocks, branches and other things that stand out. PORTRAIT adds the blur a second after the shot; AI PORTRAIT also shows it live in the viewfinder while you frame (people update fastest; other subjects a few times a second, so the edge can lag a little when you move — "no subject" means nothing is found yet). In both, slide the BACKGROUND BLUR slider above the zoom bar (left f/1.4 = most blur, right f/16 = least) or tap a spot on it; tap AUTO to minimise it and let VeyroCut Pro pick the blur. The saved photo always gets the full-quality blur a second after the shot.
 - SMART → PANO: tap the shutter and turn slowly in one direction, keeping the yellow line on the horizon — it finishes by itself at about 180°, or tap to finish early.
 - While recording: a red tally border shows you're rolling, and the padlock on the left locks the screen against accidental touches (hold it to unlock). Warnings appear for low storage, low battery and heat.
-- Settings → SAVE PHOTOS & VIDEOS TO: internal storage, an SD card / USB drive, or CHOOSE A FOLDER on any USB stick, SSD or card reader. Videos record straight onto the drive; if it's unplugged, AcluxPro saves to internal storage and tells you.
+- Settings → SAVE PHOTOS & VIDEOS TO: internal storage, an SD card / USB drive, or CHOOSE A FOLDER on any USB stick, SSD or card reader. Videos record straight onto the drive; if it's unplugged, VeyroCut Pro saves to internal storage and tells you.
 - C1 / C2 / C3 in the quick bar: hold one to save all your current settings (mode, lens, ISO, shutter, white balance, resolution, frame rate, profile, filter…), tap it to bring them back.
-- Long press the viewfinder to lock the exposure there; drag the slider under the lock to brighten or darken while it stays locked. Long press again, or tap the small ✕, to unlock.
+- Autofocus is on by default in every mode. Tap the viewfinder to focus there. Press and hold for 2 seconds (watch the ring fill) to switch to manual focus: a slim slider appears on the right edge of the picture — drag up for far (∞), down for close; the tag beside it shows the distance. Tap the small ✕ above the slider to go back to autofocus.
+- Hold the viewfinder about half a second until it ticks, then let go before the ring closes: the exposure locks there; drag the slider under the lock to brighten or darken while it stays locked. Do the same again, or tap the small ✕, to unlock.
 - Settings → AUDIO → Voice noise reduction (Light / Strong) cleans hiss, hum and background noise from recorded sound.
 - Settings → PRIVACY & TITLE → Face blur pixelates faces in the viewfinder, videos and photos. The BLUR switch in the quick bar turns it on / off.
 - Settings → PRIVACY & TITLE → Title on videos: type a title, pick lower third / centre / top and how long it shows; it is added when each clip is saved (TITLE switch in the quick bar).
@@ -70,7 +71,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Exporting cleans the full-size photo (on the phone, or in the cloud if Cloud AI is on). STOP on the AI badge cancels.
 
 **RAW (DNG) photos**
-- Open a DNG (from AcluxPro's Pro mode or any phone / camera that saves DNG) and the RAW badge appears: the editor develops the sensor data itself.
+- Open a DNG (from VeyroCut Pro's Pro mode or any phone / camera that saves DNG) and the RAW badge appears: the editor develops the sensor data itself.
 - Light → RAW PROFILE picks the base look: Standard, Flat (most room for grading), Vivid, Portrait, Landscape or Mono.
 - Exposure (±5 stops), Highlights, Shadows, Whites and Blacks work on the full-range data — pull Highlights down to bring back bright skies, lift Shadows without the blotches you'd get from a JPEG.
 - Color → WHITE BALANCE: As shot, Auto, Daylight, Cloudy, Shade, Tungsten or Fluorescent, then fine-tune with Temperature and Tint.

@@ -436,7 +436,7 @@ val PHOTO_FORMATS = listOf("JPEG", "PNG", "WebP", "HEIC")
 
 /**
  * Saves an exported photo as JPEG, PNG, WebP or HEIC, optionally with the original's camera
- * details (and location unless [stripGps]), into the chosen folder or DCIM/AcluxPro.
+ * details (and location unless [stripGps]), into the chosen folder or DCIM/VeyroCutPro.
  */
 fun savePhotoAs(context: Context, bmp: Bitmap, format: Int, quality: Int, exifFrom: Uri?, stripGps: Boolean): Uri? {
     val f = if (format == 3 && Build.VERSION.SDK_INT < 28) 0 else format
@@ -467,7 +467,7 @@ fun savePhotoAs(context: Context, bmp: Bitmap, format: Int, quality: Int, exifFr
                 val dst = androidx.exifinterface.media.ExifInterface(tmp.path)
                 for (t in EXIF_KEEP) src.getAttribute(t)?.let { dst.setAttribute(t, it) }
                 if (!stripGps) for (t in EXIF_GPS) src.getAttribute(t)?.let { dst.setAttribute(t, it) }
-                dst.setAttribute(androidx.exifinterface.media.ExifInterface.TAG_SOFTWARE, "AcluxPro")
+                dst.setAttribute(androidx.exifinterface.media.ExifInterface.TAG_SOFTWARE, "VeyroCut Pro")
                 dst.saveAttributes()
             }
         } catch (_: Throwable) {}
@@ -478,7 +478,7 @@ fun savePhotoAs(context: Context, bmp: Bitmap, format: Int, quality: Int, exifFr
             put(MediaStore.MediaColumns.DISPLAY_NAME, name)
             put(MediaStore.MediaColumns.MIME_TYPE, mime)
             if (Build.VERSION.SDK_INT >= 29) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro")
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
         }

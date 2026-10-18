@@ -4,7 +4,7 @@ package com.dronedirector.acluxpro.editor
  * Timeline exchange with desktop editors (Deliver → SEND TO DESKTOP EDITOR):
  *  - CMX 3600 EDL: cuts, dissolves and speed changes; opens in DaVinci Resolve, Premiere Pro, Avid.
  *  - FCPXML 1.9: cuts and markers; opens in DaVinci Resolve and Final Cut Pro (Premiere via a converter).
- * Only the edit travels: grades, effects and layers stay in AcluxPro. Media is matched by file name,
+ * Only the edit travels: grades, effects and layers stay in VeyroCut Pro. Media is matched by file name,
  * so on the computer you point the editor at the folder with the original clips.
  */
 object Interchange {
@@ -42,7 +42,7 @@ object Interchange {
             }
             if (c.speed != 1f) sb.append("M2   %-8s %05.1f                %s\n".format(r, c.speed * fps, tc(srcIn, fps)))
             sb.append("* FROM CLIP NAME: ").append(c.name).append('\n')
-            if (c.ramp != null) sb.append("* SPEED RAMP IN ACLUXPRO (NOT TRANSFERRED)\n")
+            if (c.ramp != null) sb.append("* SPEED RAMP IN VEYROCUT PRO (NOT TRANSFERRED)\n")
             sb.append('\n')
             event++
         }
@@ -61,10 +61,10 @@ object Interchange {
         for ((name, v) in assets) {
             val (id, c) = v
             sb.append("    <asset id=\"$id\" name=\"${esc(name)}\" start=\"0s\" duration=\"${t(frames(c.durationMs, fps), fps)}\" hasVideo=\"1\" hasAudio=\"1\" format=\"r1\">\n")
-            sb.append("      <media-rep kind=\"original-media\" src=\"file:///AcluxPro/${esc(name)}\"/>\n    </asset>\n")
+            sb.append("      <media-rep kind=\"original-media\" src=\"file:///VeyroCutPro/${esc(name)}\"/>\n    </asset>\n")
         }
         val total = frames(clips.sumOf { it.lengthMs }, fps)
-        sb.append("  </resources>\n  <library>\n    <event name=\"AcluxPro\">\n      <project name=\"${esc(title)}\">\n")
+        sb.append("  </resources>\n  <library>\n    <event name=\"VeyroCut Pro\">\n      <project name=\"${esc(title)}\">\n")
         sb.append("        <sequence format=\"r1\" duration=\"${t(total, fps)}\" tcStart=\"0s\" tcFormat=\"NDF\">\n          <spine>\n")
         var off = 0L
         var ms = 0L

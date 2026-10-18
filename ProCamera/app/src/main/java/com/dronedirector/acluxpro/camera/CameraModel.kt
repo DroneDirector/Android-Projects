@@ -267,7 +267,8 @@ data class CameraUiState(
     val isPro: Boolean get() = mode.isPro
     /** Manual controls only take effect in the pro modes. */
     val manualExposure: Boolean get() = isPro && (manualIso || manualShutter)
-    val manualFocusActive: Boolean get() = isPro && manualFocus
+    /** Manual focus works in every mode (hold the viewfinder for 2 s, or the F control in Pro modes). */
+    val manualFocusActive: Boolean get() = manualFocus && mode != CaptureMode.LIVE
     val proHistogram: Boolean get() = isPro && showHistogram
     val proZebras: Boolean get() = isPro && zebras
     val proPeaking: Boolean get() = isPro && peaking

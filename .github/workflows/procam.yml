@@ -1,4 +1,4 @@
-name: Build AcluxPro APK
+name: Build VeyroCut Pro APK
 
 # Every push to ProCamera/ builds the APK and takes emulator screenshots
 # (pushed to the 'screenshots' branch). Nothing is published until the
@@ -66,7 +66,7 @@ jobs:
           chmod +x gradlew
           set -o pipefail
           ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
-          cp app/build/outputs/apk/release/app-release.apk "AcluxPro-1.0.${{ github.run_number }}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "VeyroCutPro-1.0.${{ github.run_number }}.apk"
 
       - name: Report compile errors
         if: failure()
@@ -80,7 +80,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: apk
-          path: ProCamera/AcluxPro-*.apk
+          path: ProCamera/VeyroCutPro-*.apk
 
   screenshots:
     needs: build
@@ -149,13 +149,13 @@ jobs:
           [ -s notes.txt ] || echo "- Maintenance and stability improvements." > notes.txt
           REPO="https://github.com/${{ github.repository }}/blob/main/ProCamera"
           {
-            echo "## What's new in AcluxPro $VER"
+            echo "## What's new in VeyroCut Pro $VER"
             echo
             cat notes.txt
             echo
             echo "📖 [Full feature list]($REPO/FEATURES.md) · 📝 [Changelog]($REPO/CHANGELOG.md)"
             echo
-            echo "**Install:** tap AcluxPro-$VER.apk below to download, then open it to install."
+            echo "**Install:** tap VeyroCutPro-$VER.apk below to download, then open it to install."
           } > release-notes.md
           cat release-notes.md
 
@@ -165,9 +165,9 @@ jobs:
         run: |
           APK=$(ls apk/*.apk | head -1)
           NAME=$(basename "$APK" .apk)
-          gh release create "acluxpro-1.0.${{ github.run_number }}" "$APK" \
+          gh release create "veyrocutpro-1.0.${{ github.run_number }}" "$APK" \
             -R "${{ github.repository }}" \
-            --title "${NAME/AcluxPro-/AcluxPro }" \
+            --title "${NAME/VeyroCutPro-/VeyroCut Pro }" \
             --notes-file release-notes.md \
             --latest
 
@@ -186,5 +186,5 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add ProCamera/CHANGELOG.md
-          git commit -m "Changelog: AcluxPro 1.0.${{ github.run_number }} [skip ci]" || exit 0
+          git commit -m "Changelog: VeyroCut Pro 1.0.${{ github.run_number }} [skip ci]" || exit 0
           git pull --rebase -q origin main && git push -q origin HEAD:main

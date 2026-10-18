@@ -186,7 +186,7 @@ fun PhotoEditorScreen(onExit: () -> Unit) {
     }
 }
 
-/** Start page of an editor: pick from gallery, browse files, or recent AcluxPro media. */
+/** Start page of an editor: pick from gallery, browse files, or recent VeyroCut Pro media. */
 @Composable
 fun MediaChooser(
     title: String,
@@ -233,7 +233,7 @@ fun MediaChooser(
             Text("Browse files also opens MKV, MOV, WebM and clips from SD cards or USB drives.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
         }
         SavedProjects(videos, onOpenProject)
-        Text("RECENT ACLUXPRO ${if (videos) "VIDEOS" else "PHOTOS"}", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 18.dp, bottom = 6.dp))
+        Text("RECENT VEYROCUT PRO ${if (videos) "VIDEOS" else "PHOTOS"}", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 18.dp, bottom = 6.dp))
         if (recent.isEmpty()) {
             Text("Nothing yet.", color = Pro.Dim, fontSize = 13.sp)
         } else {
@@ -1203,7 +1203,7 @@ private fun PhotoPanelContent(
             Chips(listOf("None", "Text", "Logo image"), when { wm == null -> 0; wm.kind == LayerKind.LOGO -> 2; else -> 1 }) { i ->
                 when (i) {
                     0 -> set(e.copy(watermark = null))
-                    1 -> set(e.copy(watermark = Layer(kind = LayerKind.WATERMARK, text = "© AcluxPro", size = 0.035f, x = 0.84f, y = 0.93f, opacity = 0.7f, font = LayerFont.LIGHT, wholeVideo = true)))
+                    1 -> set(e.copy(watermark = Layer(kind = LayerKind.WATERMARK, text = "© VeyroCut Pro", size = 0.035f, x = 0.84f, y = 0.93f, opacity = 0.7f, font = LayerFont.LIGHT, wholeVideo = true)))
                     2 -> onPickLogo()
                 }
             }
@@ -1246,7 +1246,7 @@ private fun PhotoPanelContent(
             if (exportState.format != 1) EdSlider("Quality", exportState.quality, 0.6f..1f, 0.95f, ::pct) { onExportState(exportState.format, it, exportState.sizeIdx) }
             SectionTitle("SIZE (LONG EDGE)")
             Chips(listOf("Full (≤4800)", "4096", "2560", "1920", "Instagram 1080", "Web 2048", "4K 3840"), exportState.sizeIdx) { onExportState(exportState.format, exportState.quality, it) }
-            Text("Exports a new picture to DCIM/AcluxPro; the original stays untouched.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 8.dp))
+            Text("Exports a new picture to DCIM/VeyroCutPro; the original stays untouched.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 8.dp))
             Text(
                 if (busy) "EXPORTING…" else "EXPORT PHOTO",
                 style = Pro.Value.copy(color = Color.Black, fontSize = 14.sp),
@@ -1292,7 +1292,7 @@ fun HslMixer(bands: List<HslBand>, onChange: (List<HslBand>) -> Unit) {
     EdSlider("Luminance", b.lum) { upd(b.copy(lum = it)) }
 }
 
-/** Saves an edited picture as a new file in DCIM/AcluxPro. */
+/** Saves an edited picture as a new file in DCIM/VeyroCutPro. */
 fun savePicture(context: Context, bmp: Bitmap, png: Boolean, quality: Int, area: com.dronedirector.acluxpro.camera.StorageArea = com.dronedirector.acluxpro.camera.StorageArea.PHOTO): Uri? {
     val name = "EDIT_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + if (png) ".png" else ".jpg"
     // A folder chosen in the editor settings wins; otherwise the default app location.
@@ -1303,7 +1303,7 @@ fun savePicture(context: Context, bmp: Bitmap, png: Boolean, quality: Int, area:
         put(MediaStore.MediaColumns.DISPLAY_NAME, name)
         put(MediaStore.MediaColumns.MIME_TYPE, if (png) "image/png" else "image/jpeg")
         if (Build.VERSION.SDK_INT >= 29) {
-            put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro")
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
     }

@@ -27,7 +27,7 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AcluxPro">
+        android:theme="@style/Theme.VeyroCutPro">
 
         <!-- Portrait mode: download ML Kit's subject segmentation model (pets, flowers, rocks…) with the app. -->
         <meta-data

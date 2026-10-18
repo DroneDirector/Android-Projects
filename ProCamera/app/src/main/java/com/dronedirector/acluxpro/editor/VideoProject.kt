@@ -111,7 +111,7 @@ data class DeliverSettings(
     val aspect: Float = 0f,
     /** true = fill the frame (crop), false = fit inside (bars). */
     val fill: Boolean = true,
-    /** Save only the sound (AAC in an .m4a file, to Music/AcluxPro). */
+    /** Save only the sound (AAC in an .m4a file, to Music/VeyroCutPro). */
     val audioOnly: Boolean = false,
     /** Export only this part of the timeline (ms); null = the whole edit. */
     val rangeStart: Long? = null,
@@ -181,7 +181,7 @@ fun outputSize(clips: List<Clip>, s: DeliverSettings): Pair<Int, Int> {
     return (w / 2 * 2).coerceAtLeast(2) to (h / 2 * 2).coerceAtLeast(2)
 }
 
-/** Renders the timeline to a new video in DCIM/AcluxPro with Media3 Transformer. Start on the main thread. */
+/** Renders the timeline to a new video in DCIM/VeyroCutPro with Media3 Transformer. Start on the main thread. */
 @UnstableApi
 class TimelineExport(
     private val context: Context,
@@ -515,14 +515,14 @@ class TimelineExport(
     }
 }
 
-/** Saves an exported sound file to Music/AcluxPro. */
+/** Saves an exported sound file to Music/VeyroCutPro. */
 fun publishAudio(context: Context, file: File, name: String): Uri? {
     val resolver = context.contentResolver
     if (android.os.Build.VERSION.SDK_INT >= 29) {
         val values = android.content.ContentValues().apply {
             put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name)
             put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "audio/mp4")
-            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Music/AcluxPro")
+            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Music/VeyroCutPro")
             put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val target = com.dronedirector.acluxpro.camera.Storage.insert(context, com.dronedirector.acluxpro.camera.Storage.load(context, com.dronedirector.acluxpro.camera.StorageArea.VIDEO), values, com.dronedirector.acluxpro.camera.Storage.Kind.AUDIO) ?: return null
@@ -534,7 +534,7 @@ fun publishAudio(context: Context, file: File, name: String): Uri? {
     }
     return try {
         @Suppress("DEPRECATION")
-        val dir = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC), "AcluxPro").apply { mkdirs() }
+        val dir = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC), "VeyroCutPro").apply { mkdirs() }
         val dest = File(dir, name)
         file.inputStream().use { i -> dest.outputStream().use { i.copyTo(it) } }
         android.media.MediaScannerConnection.scanFile(context, arrayOf(dest.path), arrayOf("audio/mp4"), null)

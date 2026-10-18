@@ -1219,7 +1219,26 @@ class ProCameraController(private val context: Context) {
         }
     }
 
+    /**
+     * Press and hold the viewfinder for 2 s: switch to manual focus, starting at the distance the
+     * autofocus had found so nothing jumps. The focus slider on the right edge then takes over.
+     */
+    fun holdManualFocus(x: Float, y: Float) {
+        val s = st
+        if (s.mode == CaptureMode.LIVE) return
+        if (s.sceneActive) { toast("Manual focus isn't available in this scene mode"); return }
+        if (s.minFocusDiopters <= 0f) { toast("This lens has fixed focus"); return }
+        rackJob?.cancel()
+        val start = (if (s.manualFocus) s.focusDiopters else (s.liveFocusDiopters ?: s.focusDiopters))
+            .coerceIn(0f, s.minFocusDiopters)
+        try { camera?.cameraControl?.cancelFocusAndMetering() } catch (_: Throwable) {}
+        set { it.copy(manualFocus = true, focusDiopters = start, focusPoint = x to y, focusId = it.focusId + 1) }
+        applyControls()
+        if (!s.manualFocus) toast("Manual focus · slide on the right edge · ✕ for auto")
+    }
+
     fun setFocusAuto() {
+        rackJob?.cancel()
         set { it.copy(manualFocus = false) }
         applyControls()
         camera?.cameraControl?.cancelFocusAndMetering()
@@ -1250,7 +1269,10 @@ class ProCameraController(private val context: Context) {
         if (cam != null && view != null) try {
             val point = view.meteringPointFactory.createPoint(x, y)
             cam.cameraControl.startFocusAndMetering(
-                FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AE or FocusMeteringAction.FLAG_AF).disableAutoCancel().build()
+                FocusMeteringAction.Builder(
+                    point,
+                    if (s.manualFocusActive) FocusMeteringAction.FLAG_AE else FocusMeteringAction.FLAG_AE or FocusMeteringAction.FLAG_AF,
+                ).disableAutoCancel().build()
             )
         } catch (_: Throwable) {}
         // Let the exposure settle on the new spot, then hold it.
@@ -1718,7 +1740,7 @@ class ProCameraController(private val context: Context) {
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
             put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
             if (Build.VERSION.SDK_INT >= 29) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro")
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
         }
@@ -2047,7 +2069,7 @@ class ProCameraController(private val context: Context) {
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
             put(MediaStore.MediaColumns.MIME_TYPE, mime)
-            if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
+            if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro")
         }
         return ImageCapture.OutputFileOptions.Builder(
             context.contentResolver,
@@ -2067,7 +2089,7 @@ class ProCameraController(private val context: Context) {
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, name)
             put(MediaStore.MediaColumns.MIME_TYPE, mime)
-            if (Build.VERSION.SDK_INT >= 29) { put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro"); put(MediaStore.MediaColumns.IS_PENDING, 1) }
+            if (Build.VERSION.SDK_INT >= 29) { put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro"); put(MediaStore.MediaColumns.IS_PENDING, 1) }
         }
         val target = Storage.insert(context, place, values, Storage.Kind.IMAGE) ?: run { tmp.delete(); toast("Couldn't save the photo"); return null }
         ioExecutor.execute {
@@ -2183,7 +2205,7 @@ class ProCameraController(private val context: Context) {
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, "${clipName()}.mp4")
             put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
-            if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
+            if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro")
         }
         if (!monitorWhileRecording) audioMeter.stopMonitoring()
         monitorSilencedWarned = false

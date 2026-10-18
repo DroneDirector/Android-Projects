@@ -260,7 +260,7 @@ object Portrait {
                     ExifInterface.TAG_GPS_LONGITUDE, ExifInterface.TAG_GPS_LONGITUDE_REF, ExifInterface.TAG_ARTIST, ExifInterface.TAG_COPYRIGHT,
                 )) exif.getAttribute(tag)?.let { o.setAttribute(tag, it) }
                 o.setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL.toString())
-                o.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, "AcluxPro portrait ${label(usedF)}${if (fNumber <= 0f) " (auto)" else ""}")
+                o.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, "VeyroCut Pro portrait ${label(usedF)}${if (fNumber <= 0f) " (auto)" else ""}")
                 o.saveAttributes()
             } catch (_: Throwable) {}
             return if (keepOriginal) {
@@ -268,7 +268,7 @@ object Portrait {
                     put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "PRO_" + System.currentTimeMillis() + "_portrait.jpg")
                     put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
                     if (android.os.Build.VERSION.SDK_INT >= 29) {
-                        put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
+                        put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro")
                         put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
                     }
                 }

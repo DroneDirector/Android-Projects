@@ -11,7 +11,7 @@ import kotlin.math.pow
 /** How the source was recorded; log footage is converted to normal-looking Rec.709 first. */
 enum class InputColor(val label: String, val detail: String) {
     REC709("Rec.709", "Normal video / photos"),
-    FLAT("Flat", "AcluxPro flat profile"),
+    FLAT("Flat", "VeyroCut Pro flat profile"),
     DLOG("D-Log", "DJI D-Log"),
     DLOG_M("D-Log M", "DJI D-Log M (approximate)"),
     SLOG3("S-Log3", "Sony S-Log3"),

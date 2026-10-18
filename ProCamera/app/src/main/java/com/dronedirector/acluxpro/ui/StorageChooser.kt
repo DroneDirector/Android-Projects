@@ -69,7 +69,7 @@ fun StorageChooser(area: StorageArea, onChange: (String) -> Unit = {}) {
         "Same as capture", Storage.label(ctx, Storage.choice(ctx, StorageArea.CAPTURE)), choice == Storage.SAME,
     ) { set(Storage.SAME) }
     options.forEach { o ->
-        Radio(o.label, if (o.removable) "SD card / USB drive · DCIM/AcluxPro" else "This device · DCIM/AcluxPro", choice == o.volume) { set(o.volume) }
+        Radio(o.label, if (o.removable) "SD card / USB drive · DCIM/VeyroCutPro" else "This device · DCIM/VeyroCutPro", choice == o.volume) { set(o.volume) }
     }
     if (Storage.isTree(choice)) Radio(
         Storage.label(ctx, choice),
@@ -86,7 +86,7 @@ fun StorageChooser(area: StorageArea, onChange: (String) -> Unit = {}) {
     )
     Text(
         "Plug in a USB stick, SSD or card reader (USB-C or an adapter), then pick or create a folder on it. " +
-            "Videos record straight onto the drive. If it's unplugged, AcluxPro saves to internal storage and tells you.",
+            "Videos record straight onto the drive. If it's unplugged, VeyroCut Pro saves to internal storage and tells you.",
         color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp),
     )
 }

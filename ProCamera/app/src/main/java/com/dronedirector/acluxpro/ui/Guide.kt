@@ -73,7 +73,7 @@ private fun cloudSection(v: GuideVariant): GuideSection {
         listOf(
             "Open fal.ai (tap \"Open fal.ai keys\" below) and sign up or log in.",
             "Add credit to your fal.ai account (Billing). You pay fal.ai per use.",
-            "Go to Dashboard → API Keys → Add key, name it (e.g. \"AcluxPro\") and create it.",
+            "Go to Dashboard → API Keys → Add key, name it (e.g. \"VeyroCut Pro\") and create it.",
             "Copy the key — it's shown only once.",
             "Back here, in this settings menu → CLOUD AI → \"Add your fal.ai key\".",
             "Paste the key and tap SAVE KEY. It's stored encrypted on this phone and only sent to fal.ai.",
@@ -99,12 +99,13 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Use the volume keys as a shutter / record button.",
             "Settings → SLATE & SHOT LOG: set scene, shot, take and notes; they show on the viewfinder, go into photos, and every clip and photo is logged. Export the log as a .csv for Excel / Sheets; the take number goes up after each recording.",
             "Settings → COPYRIGHT: your name and copyright notice are written into every photo you take and every photo you export (Artist / Copyright in the photo's details).",
-            "SMART → PORTRAIT and AI PORTRAIT: the subject stays sharp and the background is blurred — people, pets, flowers, rocks, branches and other things that stand out. PORTRAIT adds the blur a second after the shot; AI PORTRAIT also shows it live in the viewfinder while you frame (people update fastest; other subjects a few times a second, so the edge can lag a little when you move — \"no subject\" means nothing is found yet). In both, slide the BACKGROUND BLUR slider above the zoom bar (left f/1.4 = most blur, right f/16 = least) or tap a spot on it; tap AUTO to minimise it and let AcluxPro pick the blur. The saved photo always gets the full-quality blur a second after the shot.",
+            "SMART → PORTRAIT and AI PORTRAIT: the subject stays sharp and the background is blurred — people, pets, flowers, rocks, branches and other things that stand out. PORTRAIT adds the blur a second after the shot; AI PORTRAIT also shows it live in the viewfinder while you frame (people update fastest; other subjects a few times a second, so the edge can lag a little when you move — \"no subject\" means nothing is found yet). In both, slide the BACKGROUND BLUR slider above the zoom bar (left f/1.4 = most blur, right f/16 = least) or tap a spot on it; tap AUTO to minimise it and let VeyroCut Pro pick the blur. The saved photo always gets the full-quality blur a second after the shot.",
             "SMART → PANO: tap the shutter and turn slowly in one direction, keeping the yellow line on the horizon — it finishes by itself at about 180°, or tap to finish early.",
             "While recording: a red tally border shows you're rolling, and the padlock on the left locks the screen against accidental touches (hold it to unlock). Warnings appear for low storage, low battery and heat.",
-            "Settings → SAVE PHOTOS & VIDEOS TO: internal storage, an SD card / USB drive, or CHOOSE A FOLDER on any USB stick, SSD or card reader. Videos record straight onto the drive; if it's unplugged, AcluxPro saves to internal storage and tells you.",
+            "Settings → SAVE PHOTOS & VIDEOS TO: internal storage, an SD card / USB drive, or CHOOSE A FOLDER on any USB stick, SSD or card reader. Videos record straight onto the drive; if it's unplugged, VeyroCut Pro saves to internal storage and tells you.",
             "C1 / C2 / C3 in the quick bar: hold one to save all your current settings (mode, lens, ISO, shutter, white balance, resolution, frame rate, profile, filter…), tap it to bring them back.",
-            "Long press the viewfinder to lock the exposure there; drag the slider under the lock to brighten or darken while it stays locked. Long press again, or tap the small ✕, to unlock.",
+            "Autofocus is on by default in every mode. Tap the viewfinder to focus there. Press and hold for 2 seconds (watch the ring fill) to switch to manual focus: a slim slider appears on the right edge of the picture — drag up for far (∞), down for close; the tag beside it shows the distance. Tap the small ✕ above the slider to go back to autofocus.",
+            "Hold the viewfinder about half a second until it ticks, then let go before the ring closes: the exposure locks there; drag the slider under the lock to brighten or darken while it stays locked. Do the same again, or tap the small ✕, to unlock.",
             "Settings → AUDIO → Voice noise reduction (Light / Strong) cleans hiss, hum and background noise from recorded sound.",
             "Settings → PRIVACY & TITLE → Face blur pixelates faces in the viewfinder, videos and photos. The BLUR switch in the quick bar turns it on / off.",
             "Settings → PRIVACY & TITLE → Title on videos: type a title, pick lower third / centre / top and how long it shows; it is added when each clip is saved (TITLE switch in the quick bar).",
@@ -141,7 +142,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "RAW (DNG) photos", Icons.Filled.Photo, null, listOf(
-            "Open a DNG (from AcluxPro's Pro mode or any phone / camera that saves DNG) and the RAW badge appears: the editor develops the sensor data itself.",
+            "Open a DNG (from VeyroCut Pro's Pro mode or any phone / camera that saves DNG) and the RAW badge appears: the editor develops the sensor data itself.",
             "Light → RAW PROFILE picks the base look: Standard, Flat (most room for grading), Vivid, Portrait, Landscape or Mono.",
             "Exposure (±5 stops), Highlights, Shadows, Whites and Blacks work on the full-range data — pull Highlights down to bring back bright skies, lift Shadows without the blotches you'd get from a JPEG.",
             "Color → WHITE BALANCE: As shot, Auto, Daylight, Cloudy, Shade, Tungsten or Fluorescent, then fine-tune with Temperature and Tint.",
@@ -251,7 +252,7 @@ fun GuideDialog(variant: GuideVariant, open: GuideTopic? = null, onDismiss: () -
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(variant.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
-                        Text("GET MORE OUT OF ACLUXPRO", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp, letterSpacing = 2.sp))
+                        Text("GET MORE OUT OF VEYROCUT PRO", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp, letterSpacing = 2.sp))
                     }
                     Box(Modifier.size(44.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.08f)).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
                         Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.White)

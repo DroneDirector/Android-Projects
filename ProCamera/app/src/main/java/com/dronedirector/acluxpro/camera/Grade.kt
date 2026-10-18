@@ -271,7 +271,7 @@ object GradeIO {
             put(MediaStore.MediaColumns.DISPLAY_NAME, gradedName("PRO", "jpg"))
             put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
             if (Build.VERSION.SDK_INT >= 29) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro")
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
         }
@@ -296,7 +296,7 @@ object GradeIO {
             put(MediaStore.MediaColumns.DISPLAY_NAME, gradedName("PRO", "mp4"))
             put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
             if (Build.VERSION.SDK_INT >= 29) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro")
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
         }

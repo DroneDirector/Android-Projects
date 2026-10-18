@@ -6,7 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 
-/** One photo or video saved by AcluxPro. */
+/** One photo or video saved by VeyroCut Pro. */
 data class MediaItem(
     val uri: Uri,
     val isVideo: Boolean,
@@ -22,10 +22,12 @@ data class MediaItem(
     val isRaw: Boolean get() = !isVideo && (mime.contains("dng", ignoreCase = true) || mime.contains("raw", ignoreCase = true) || name.endsWith(".dng", ignoreCase = true))
 }
 
-/** Reads the photos and videos AcluxPro saved (DCIM/AcluxPro on internal storage and SD cards). */
+/** Reads the photos and videos VeyroCut Pro saved (DCIM/VeyroCutPro on internal storage and SD cards). */
 @Suppress("DEPRECATION")
 object MediaLibrary {
-    private const val FOLDER = "DCIM/AcluxPro"
+    private const val FOLDER = "DCIM/VeyroCutPro"
+    /** Where earlier versions (AcluxPro) saved — still shown in the gallery. */
+    private const val LEGACY_FOLDER = "DCIM/AcluxPro"
 
     fun query(context: Context): List<MediaItem> {
         val images = queryCollection(context, video = false)
@@ -102,9 +104,11 @@ object MediaLibrary {
             }
         }.toTypedArray()
         val (selection, args) = if (Build.VERSION.SDK_INT >= 29) {
-            "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?" to arrayOf("$FOLDER%")
+            "(${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? OR ${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?)" to
+                arrayOf("$FOLDER%", "$LEGACY_FOLDER%")
         } else {
-            "${MediaStore.MediaColumns.DATA} LIKE ?" to arrayOf("%/$FOLDER/%")
+            "(${MediaStore.MediaColumns.DATA} LIKE ? OR ${MediaStore.MediaColumns.DATA} LIKE ?)" to
+                arrayOf("%/$FOLDER/%", "%/$LEGACY_FOLDER/%")
         }
         val out = mutableListOf<MediaItem>()
         try {

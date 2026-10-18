@@ -1,8 +1,8 @@
-# AcluxPro — Privacy Policy
+# VeyroCut Pro — Privacy Policy
 
 *Last updated: 16 October 2026*
 
-AcluxPro ("the app") is a camera, photo editor and video editor for Android, published by
+VeyroCut Pro ("the app") is a camera, photo editor and video editor for Android, published by
 DroneDirector. This policy explains what the app does with your information. In short: **your
 photos, videos and sound stay on your phone, unless you choose to send them somewhere** (Cloud AI
 or live streaming). We have no servers, no user accounts, no ads and no analytics.
@@ -13,7 +13,7 @@ or live streaming). We have no servers, no user accounts, no ads and no analytic
 
 | Permission | Why | Where the data goes |
 |---|---|---|
-| **Camera** | Taking photos and recording video | Saved on your phone (DCIM/AcluxPro or the folder / SD card you choose) |
+| **Camera** | Taking photos and recording video | Saved on your phone (DCIM/VeyroCutPro or the folder / SD card you choose) |
 | **Microphone** | Sound for videos, the audio meter, headphone monitoring and voiceovers in the video editor | Saved on your phone with your recordings |
 | **Photos and videos (storage)** | Showing your gallery and opening media in the editors | Stays on your phone |
 | **Internet** | Only for the optional Cloud AI and live streaming features below | See sections 2 and 3 |

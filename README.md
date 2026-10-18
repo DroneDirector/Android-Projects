@@ -1,6 +1,6 @@
 # Android Projects
 
-## AcluxPro — professional camera for Android phones and tablets
+## VeyroCut Pro — professional camera for Android phones and tablets
 
 **Download:** open the [latest release](../../releases/latest) and tap the `.apk` file, then open it to install.
 The first time, Android asks you to allow installing apps from your browser; allow it once.
@@ -12,7 +12,7 @@ and the new APK appears on the Releases page a few minutes later. New builds ins
 
 **Manual pro controls**
 - Manual ISO and shutter speed in standard stops, with ISO-priority and shutter-priority behaviour
-- Manual focus with distance readout (∞ to macro), tap-to-focus/meter, AE lock
+- Autofocus in every mode; hold the viewfinder 2 s for manual focus with a slim slider on the right edge (∞ to macro, ✕ back to AF); tap-to-focus/meter, AE lock
 - White balance presets (3200K–7500K, twilight) and AWB lock
 - Exposure compensation, live ISO / shutter / aperture / focus readouts
 - Live histogram with highlight and shadow clipping warnings
@@ -34,7 +34,7 @@ and the new APK appears on the Releases page a few minutes later. New builds ins
 - HDR, Night, Bokeh and Auto scene modes where the phone maker provides them
 - Volume keys as shutter
 
-Layouts adapt to phones and tablets in portrait and landscape. Files save to `DCIM/AcluxPro`.
+Layouts adapt to phones and tablets in portrait and landscape. Files save to `DCIM/VeyroCutPro`.
 
 ### Building on a computer
 

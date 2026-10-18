@@ -315,15 +315,20 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                             if (s.showLevel && s.mode != CaptureMode.PANORAMA) LevelIndicator()
                         }
 
-                        // Gestures: tap to focus/meter, pinch to zoom.
+                        // Gestures: tap to focus/meter, pinch to zoom, short hold = exposure lock,
+                        // 2-second hold = manual focus (all modes).
+                        var holdAt by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
                         Box(
                             Modifier
                                 .fillMaxSize()
-                                // Long press: lock the exposure here; long press again to unlock.
-                                .holdToLock { o ->
-                                    if (controller.state.value.aeLockPoint != null) controller.unlockExposure()
-                                    else controller.lockExposureAt(o.x, o.y)
-                                }
+                                .holdGestures(
+                                    onLock = { o ->
+                                        if (controller.state.value.aeLockPoint != null) controller.unlockExposure()
+                                        else controller.lockExposureAt(o.x, o.y)
+                                    },
+                                    onManualFocus = { o -> controller.holdManualFocus(o.x, o.y) },
+                                    onHolding = { holdAt = it },
+                                )
                                 .pointerInput(Unit) {
                                     detectTapGestures(
                                         onTap = { o -> controller.tapToFocus(o.x, o.y) },
@@ -337,6 +342,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                                 }
                         )
                         FocusReticle(s.focusPoint, s.focusId, locked = s.aeLock || s.manualFocusActive)
+                        HoldRing(holdAt, (HOLD_MF_MS - HOLD_LOCK_MS).toInt())
                         if (!clean) AeLockOverlay(s, controller)
                         PanoramaOverlay(s)
                         ShutterFlash(s.shutterFlash)
@@ -374,8 +380,17 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                                 FocusMagnifier(previewView, s.focusPoint, Modifier.align(Alignment.Center))
                             }
                         }
+                        // Manual focus rail on the right edge of the feed, with ✕ back to autofocus.
+                        var railDragging by remember { mutableStateOf(false) }
+                        if (s.manualFocusActive && !s.sceneActive && s.minFocusDiopters > 0f) {
+                            FocusRail(s, controller, onDragging = { railDragging = it }, modifier = Modifier.fillMaxSize())
+                            val proMagnifier = s.isPro && s.activeParam == com.dronedirector.acluxpro.camera.ProParam.FOCUS
+                            if (railDragging && !proMagnifier && com.dronedirector.acluxpro.camera.CaptureExtras.focusMagnifier) {
+                                FocusMagnifier(previewView, s.focusPoint, Modifier.align(Alignment.Center))
+                            }
+                        } else railDragging = false
                         if (s.mode.isNormalVideo && s.audio && panelOn("cap.audio")) {
-                            DraggableOverlay("audio", if (s.isPro) Alignment.CenterEnd else Alignment.TopStart, s.layoutVersion) {
+                            DraggableOverlay("audio", if (s.isPro) Alignment.BottomEnd else Alignment.TopStart, s.layoutVersion) {
                                 AudioGraph(
                                     audio,
                                     width = if (s.isPro) 150.dp else 120.dp,
@@ -476,13 +491,18 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
 
                 if (clean) {
                     androidx.activity.compose.BackHandler { controller.setCleanFeed(false) }
+                    var cleanHoldAt by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .holdToLock { o ->
-                                if (controller.state.value.aeLockPoint != null) controller.unlockExposure()
-                                else controller.lockExposureAt(o.x + cutL, o.y + cutT)
-                            }
+                            .holdGestures(
+                                onLock = { o ->
+                                    if (controller.state.value.aeLockPoint != null) controller.unlockExposure()
+                                    else controller.lockExposureAt(o.x + cutL, o.y + cutT)
+                                },
+                                onManualFocus = { o -> controller.holdManualFocus(o.x + cutL, o.y + cutT) },
+                                onHolding = { cleanHoldAt = it },
+                            )
                             .pointerInput(Unit) {
                                 detectTapGestures(
                                     onTap = { o -> controller.tapToFocus(o.x + cutL, o.y + cutT) },
@@ -490,6 +510,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                                 )
                             }
                     )
+                    HoldRing(cleanHoldAt, (HOLD_MF_MS - HOLD_LOCK_MS).toInt())
                     var hint by remember { mutableStateOf(true) }
                     LaunchedEffect(Unit) { delay(2500); hint = false }
                     AnimatedVisibility(hint, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.Center)) {
@@ -681,36 +702,74 @@ private fun AeLockOverlay(s: CameraUiState, c: ProCameraController) {
     }
 }
 
+/** Hold this long and let go: exposure lock. */
+private const val HOLD_LOCK_MS = 450L
+/** Hold this long: manual focus. */
+private const val HOLD_MF_MS = 2000L
+
+private enum class HoldEnd { RELEASED, BROKEN }
+
+/** Waits up to [ms] while the finger stays still; null = still holding when time ran out. */
+private suspend fun androidx.compose.ui.input.pointer.AwaitPointerEventScope.watchHold(
+    down: androidx.compose.ui.input.pointer.PointerInputChange,
+    slop: Float,
+    ms: Long,
+    consume: Boolean,
+): HoldEnd? = withTimeoutOrNull(ms) {
+    while (true) {
+        val ev = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+        if (consume) ev.changes.forEach { it.consume() }
+        if (ev.changes.count { it.pressed } > 1) return@withTimeoutOrNull HoldEnd.BROKEN   // pinch: not a hold
+        val ch = ev.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull HoldEnd.BROKEN
+        if (!ch.pressed) return@withTimeoutOrNull HoldEnd.RELEASED
+        if ((ch.position - down.position).getDistance() > slop) return@withTimeoutOrNull HoldEnd.BROKEN
+    }
+    @Suppress("UNREACHABLE_CODE") HoldEnd.BROKEN
+}
+
 /**
- * Long press that works the same on every device: a fixed 450 ms hold (not the system's
- * touch-and-hold delay, which tablets often set longer) with a generous wobble allowance,
- * watched before the pinch-zoom handler can claim the touch. A tap is not triggered afterwards.
+ * Press-and-hold on the viewfinder, in two stages:
+ *  - after 0.45 s a tick and a ring appear; let go before the ring closes → [onLock] (exposure lock).
+ *  - keep holding to 2 s → [onManualFocus].
+ * A quick tap is left alone so the normal tap-to-focus still works.
  */
-private fun Modifier.holdToLock(onHold: (androidx.compose.ui.geometry.Offset) -> Unit): Modifier = composed {
+private fun Modifier.holdGestures(
+    onLock: (androidx.compose.ui.geometry.Offset) -> Unit,
+    onManualFocus: (androidx.compose.ui.geometry.Offset) -> Unit,
+    onHolding: (androidx.compose.ui.geometry.Offset?) -> Unit,
+): Modifier = composed {
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-    val hold by androidx.compose.runtime.rememberUpdatedState(onHold)
+    val lock by androidx.compose.runtime.rememberUpdatedState(onLock)
+    val mf by androidx.compose.runtime.rememberUpdatedState(onManualFocus)
+    val holding by androidx.compose.runtime.rememberUpdatedState(onHolding)
     pointerInput(Unit) {
         val slop = 24.dp.toPx()
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial)
-            val ended = withTimeoutOrNull(450L) {
-                while (true) {
-                    val ev = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
-                    if (ev.changes.count { it.pressed } > 1) return@withTimeoutOrNull true   // pinch: not a hold
-                    val ch = ev.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull true
-                    if (!ch.pressed) return@withTimeoutOrNull true
-                    if ((ch.position - down.position).getDistance() > slop) return@withTimeoutOrNull true
-                }
-                @Suppress("UNREACHABLE_CODE") true
+            if (watchHold(down, slop, HOLD_LOCK_MS, consume = false) != null) return@awaitEachGesture   // tap, drag or pinch
+            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+            holding(down.position)
+            val end = try {
+                watchHold(down, slop, HOLD_MF_MS - HOLD_LOCK_MS, consume = true)
+            } finally {
+                holding(null)
             }
-            if (ended == null) {
-                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                hold(down.position)
-                // Swallow the rest of this touch so it doesn't also count as a tap.
-                do {
-                    val ev = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
-                    ev.changes.forEach { it.consume() }
-                } while (ev.changes.any { it.pressed })
+            when (end) {
+                HoldEnd.RELEASED -> {
+                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    lock(down.position)
+                }
+                HoldEnd.BROKEN, null -> {
+                    if (end == null) {
+                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        mf(down.position)
+                    }
+                    // Swallow the rest of this touch so it doesn't also count as a tap.
+                    do {
+                        val ev = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                        ev.changes.forEach { it.consume() }
+                    } while (ev.changes.any { it.pressed })
+                }
             }
         }
     }

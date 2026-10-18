@@ -234,7 +234,7 @@ object Upscaler {
             val srcExif = cr.openInputStream(uri)?.use { ExifInterface(it) }
             val dst = ExifInterface(tmp.path)
             if (srcExif != null) for (tag in EXIF_TAGS) srcExif.getAttribute(tag)?.let { dst.setAttribute(tag, it) }
-            dst.setAttribute(ExifInterface.TAG_SOFTWARE, "AcluxPro AI upscale ${mp} MP")
+            dst.setAttribute(ExifInterface.TAG_SOFTWARE, "VeyroCut Pro AI upscale ${mp} MP")
             dst.saveAttributes()
         } catch (_: Throwable) {}
 
@@ -242,7 +242,7 @@ object Upscaler {
             put(MediaStore.MediaColumns.DISPLAY_NAME, "${baseName}_AI${mp}MP.jpg")
             put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
             if (Build.VERSION.SDK_INT >= 29) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AcluxPro")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro")
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
         }

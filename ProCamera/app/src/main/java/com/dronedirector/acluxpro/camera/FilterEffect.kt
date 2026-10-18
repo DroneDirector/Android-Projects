@@ -335,7 +335,7 @@ class FilterProcessor : SurfaceProcessor {
     private fun buildProgram(): Int {
         val p = buildProgram(faces = true)
         if (p != 0) return p
-        android.util.Log.w("AcluxPro", "Camera shader with face blur failed; using the plain shader")
+        android.util.Log.w("VeyroCutPro", "Camera shader with face blur failed; using the plain shader")
         facesSupported = false
         return buildProgram(faces = false)
     }
@@ -350,7 +350,7 @@ class FilterProcessor : SurfaceProcessor {
             GLES20.glShaderSource(s, src)
             GLES20.glCompileShader(s)
             val ok = IntArray(1); GLES20.glGetShaderiv(s, GLES20.GL_COMPILE_STATUS, ok, 0)
-            if (ok[0] == 0) android.util.Log.w("AcluxPro", "Shader: " + GLES20.glGetShaderInfoLog(s))
+            if (ok[0] == 0) android.util.Log.w("VeyroCutPro", "Shader: " + GLES20.glGetShaderInfoLog(s))
             return s
         }
         val vs = compile(
@@ -460,7 +460,7 @@ class FilterProcessor : SurfaceProcessor {
         val linked = IntArray(1); GLES20.glGetProgramiv(p, GLES20.GL_LINK_STATUS, linked, 0)
         GLES20.glDeleteShader(vs); GLES20.glDeleteShader(fs)
         if (linked[0] == 0) {
-            android.util.Log.w("AcluxPro", "Program: " + GLES20.glGetProgramInfoLog(p))
+            android.util.Log.w("VeyroCutPro", "Program: " + GLES20.glGetProgramInfoLog(p))
             GLES20.glDeleteProgram(p)
             return 0
         }

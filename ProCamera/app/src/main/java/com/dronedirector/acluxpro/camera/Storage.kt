@@ -23,8 +23,8 @@ enum class StorageArea(val key: String, val label: String) {
 }
 
 /**
- * Where AcluxPro saves. A place is either a media volume name (internal storage, an SD card or a USB
- * drive that Android lists — saved in DCIM/AcluxPro there) or "tree:<uri>" — a folder the user picked
+ * Where VeyroCut Pro saves. A place is either a media volume name (internal storage, an SD card or a USB
+ * drive that Android lists — saved in DCIM/VeyroCutPro there) or "tree:<uri>" — a folder the user picked
  * on any drive (USB stick, SSD, SD card) through the system folder picker. If the place is gone
  * (drive unplugged), saving falls back to internal storage with a short notice.
  */
@@ -165,7 +165,7 @@ object Storage {
     fun insert(context: Context, place: String, values: ContentValues, kind: Kind): Uri? {
         val p = resolve(context, place)
         if (isTree(p)) {
-            val name = values.getAsString(MediaStore.MediaColumns.DISPLAY_NAME) ?: "AcluxPro_${System.currentTimeMillis()}"
+            val name = values.getAsString(MediaStore.MediaColumns.DISPLAY_NAME) ?: "VeyroCutPro_${System.currentTimeMillis()}"
             val mime = values.getAsString(MediaStore.MediaColumns.MIME_TYPE) ?: "application/octet-stream"
             createInTree(context, p, mime, name)?.let { return it }
             warn(context, "Couldn't write to the save folder — saving to internal storage")

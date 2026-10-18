@@ -59,7 +59,7 @@ fun LicensesDialog(onDismiss: () -> Unit) {
             Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState())) {
                 val s = show
                 if (s == null) {
-                    Text("AcluxPro is built with these open-source parts. Thank you to their authors.", color = Pro.Dim, fontSize = 12.sp)
+                    Text("VeyroCut Pro is built with these open-source parts. Thank you to their authors.", color = Pro.Dim, fontSize = 12.sp)
                     NOTICES.forEach { n ->
                         Column(Modifier.padding(top = 10.dp)) {
                             Text(n.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -74,7 +74,7 @@ fun LicensesDialog(onDismiss: () -> Unit) {
                                 .clickable { show = label + "\u0000" + file }.padding(10.dp),
                         )
                     }
-                    Text("Brand names mentioned in the app (e.g. DJI D-Log, Sony S-Log3, Panasonic V-Log, ARRI LogC3, Topaz Labs, fal.ai) belong to their owners and are used only to describe compatibility. AcluxPro is not affiliated with them.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 12.dp))
+                    Text("Brand names mentioned in the app (e.g. DJI D-Log, Sony S-Log3, Panasonic V-Log, ARRI LogC3, Topaz Labs, fal.ai) belong to their owners and are used only to describe compatibility. VeyroCut Pro is not affiliated with them.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 12.dp))
                 } else {
                     val file = s.substringAfter('\u0000')
                     val text = asset(context, file)

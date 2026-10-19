@@ -280,12 +280,47 @@ fun MediaChooser(
                     }
                     Box(Modifier.aspectRatio(1f).clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { onRecent(item.uri) }) {
                         thumb?.let { Image(it, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
-                        if (item.isRaw) Text("RAW", style = Pro.Label.copy(color = Color.Black, fontSize = 8.sp), modifier = Modifier.align(Alignment.BottomStart).padding(4.dp).background(Pro.Amber).padding(horizontal = 4.dp))
+                        FormatTag(item, Modifier.align(Alignment.BottomStart).padding(4.dp))
                     }
                 }
             }
         }
     }
+}
+
+/** File type for the browse thumbnails: "DNG RAW", "JPEG", "PNG", "HEIC" / "MP4", "MOV", "MKV"… */
+internal fun formatLabel(name: String, mime: String, raw: Boolean): String {
+    val ext = name.substringAfterLast('.', "").lowercase()
+    val t = ext.ifEmpty { mime.substringAfter('/', "").lowercase() }
+    return when {
+        t == "dng" || (raw && t.isEmpty()) -> "DNG RAW"
+        raw -> "${t.uppercase()} RAW"
+        t == "jpg" || t == "jpeg" -> "JPEG"
+        t == "heif" -> "HEIF"
+        t == "x-adobe-dng" -> "DNG RAW"
+        t == "quicktime" -> "MOV"
+        t == "x-matroska" -> "MKV"
+        t == "3gpp" -> "3GP"
+        t == "x-msvideo" -> "AVI"
+        t == "mp2ts" || t == "mts" || t == "m2ts" -> "MTS"
+        t.isEmpty() -> if (mime.startsWith("video")) "VIDEO" else "IMAGE"
+        else -> t.uppercase().take(5)
+    }
+}
+
+/** Small, readable file-type tag on a browse thumbnail (not shown inside the editor). */
+@Composable
+private fun FormatTag(item: com.dronedirector.veyrocutpro.camera.MediaItem, modifier: Modifier = Modifier) {
+    val label = formatLabel(item.name, item.mime, item.isRaw && !item.isVideo)
+    val raw = item.isRaw && !item.isVideo
+    Text(
+        label,
+        color = if (raw) Color.Black else Color.White,
+        fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp, maxLines = 1,
+        modifier = modifier.clip(RoundedCornerShape(4.dp))
+            .background(if (raw) Pro.Amber else Color.Black.copy(alpha = 0.72f))
+            .padding(horizontal = 5.dp, vertical = 1.dp),
+    )
 }
 
 @Composable

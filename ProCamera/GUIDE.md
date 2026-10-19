@@ -79,6 +79,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 **AI noise reduction**
 - Export → CAPTION & KEYWORDS: a title, caption and keywords written into every exported JPEG / WebP (IPTC, with your name and copyright) for Lightroom, agencies and clients. Turn on the Lightroom .xmp sidecar to also save your edit as Camera Raw settings in Documents/VeyroCutPro/XMP — put it next to the original to keep editing in Lightroom.
 - Start page → SKIP — OPEN THE EDITOR (under Gallery photos / Browse files) opens the editor straight away without choosing a photo; add one from inside with Gallery or Browse files. It only happens when you tap it.
+- Start page → each photo thumbnail has a small file-type tag (DNG RAW, JPEG, PNG, HEIC…) so you can see what you're opening. The tag is only on the start page, not in the editor.
 - Detail → AI NOISE REDUCTION → move Strength above Off.
 - The preview is cleaned once by the AI; then the slider works instantly.
 - Exporting cleans the full-size photo (on the phone, or in the cloud if Cloud AI is on). STOP on the AI badge cancels.
@@ -138,6 +139,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Auto-save: the editor keeps a recovery copy of your edit every 20 seconds. If the app closes unexpectedly, the start page offers RECOVER.
 - Media → SOUND LIBRARIES: tap Soundtracks to browse the built-in music, ▶ to listen, + ADD to put a track on the timeline at the playhead. It plays in the preview and is mixed into your export, like any other music.
 - Start page → SKIP — OPEN THE EDITOR goes straight into the editor with an empty timeline, without choosing a video first; add clips later from the Media page. It only happens when you tap it.
+- Start page → each video thumbnail has a small file-type tag (MP4, MOV, MKV, WEBM…) so you can see what you're opening. The tag is only on the start page, not in the editor.
 - Color → Detail → AI NOISE REDUCTION → move Strength above Off.
 - Applied when exporting; the preview shows the normal noise reduction.
 - On the phone it can take several minutes up to about an hour (tap ⓘ next to it); Cloud AI does it in minutes. STOP on the AI badge cancels.

@@ -76,6 +76,10 @@ data class Clip(
     val undecodable: Boolean? = null,
     /** Film emulation, lens correction and deflicker (Color → FILM & LENS); null = none. */
     val film: FilmLook? = null,
+    /** Background removal behind people; null = off. */
+    val bg: BgRemoval? = null,
+    /** Colour label (ARGB) shown on the timeline; null = none. */
+    val label: Int? = null,
 ) {
     val is422: Boolean get() = (chroma ?: 1) >= 2
 
@@ -120,6 +124,7 @@ object ClipLoader {
 fun clipEffects(c: Clip): List<Effect> = buildList {
     // A fresh LUT effect every time: an effect instance holds a GPU texture that belongs to one
     // player's GL context and must never be shared between the two preview players or the export.
+    c.bg?.let { add(BgRemoveEffect(it.mode, it.color)) }
     if (!c.grade.isIdentity) add(SingleColorLut.createFromCube(LutCache.cube(c.grade)))
     if (c.detail.needsVideoPass) add(DetailEffect(c.detail))
     c.activeMasks().takeIf { it.isNotEmpty() }?.let { add(MaskGradeEffect(it)) }
@@ -322,7 +327,7 @@ class TimelineExport(
         val pictureLayers = if (audioOnly) emptyList() else layers.filter { it.visible && it.kind != LayerKind.VIDEO }
         val overlays = pictureLayers.filter { (it.blend ?: LayerBlend.NORMAL) == LayerBlend.NORMAL }.mapNotNull { l ->
             LayerRenderer.render(context, l, outW, outH)?.let {
-                LayerOverlay(it, l, partial = { n -> LayerRenderer.render(context, l, outW, outH, n) }) as androidx.media3.effect.TextureOverlay
+                LayerOverlay(it, l, partial = { n -> LayerRenderer.render(context, l, outW, outH, n) }, highlighted = { n -> LayerRenderer.render(context, l, outW, outH, hi = n) }) as androidx.media3.effect.TextureOverlay
             }
         }
         if (overlays.isNotEmpty()) global += androidx.media3.effect.OverlayEffect(overlays)
@@ -352,6 +357,7 @@ class TimelineExport(
                 .setRemoveAudio(true)
                 .setEffects(Effects(emptyList(), buildList {
                     add(Presentation.createForWidthAndHeight(pw, ph, if (l.cellAspect != null) Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP else Presentation.LAYOUT_SCALE_TO_FIT))
+                    if (l.bgRemove == true) add(BgRemoveEffect(0))
                     l.chroma?.let { add(ChromaKeyEffect(it, l.chromaTol ?: 0.4f, l.chromaSoft ?: 0.3f)) }
                     // Picture-in-picture frame: rounded corners, border, drop shadow.
                     if (l.hasPipStyle) add(PipStyleEffect(

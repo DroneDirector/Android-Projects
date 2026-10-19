@@ -581,6 +581,8 @@ fun TimelineView(
                         }
                     }
                     val sel = i == selectedClip
+                    // Colour label: a stripe along the top of the clip.
+                    c.label?.let { lc -> drawRect(Color(lc), Offset(max(x0, 0f), top), Size((min(x1, size.width) - max(x0, 0f)).coerceAtLeast(0f), 5.dp.toPx())) }
                     drawRoundRect(if (sel) accent else Color.White.copy(alpha = 0.35f), Offset(x0, top), Size(rectW, clipRow), CornerRadius(6f), style = Stroke(if (sel) 4f else 1.5f))
                     // Label
                     if (rectW > 50f) {

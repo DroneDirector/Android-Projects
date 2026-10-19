@@ -34,6 +34,9 @@ data class VideoProjectData(
     val markerNotes: Map<String, String>? = null,
     /** Media in the Proxy section, by stable media ID ([MediaId]). */
     val proxyMedia: List<String>? = null,
+    /** Media pool bins: file (uri text) → bin name, and the bins in order. */
+    val bins: Map<String, String>? = null,
+    val binNames: List<String>? = null,
 )
 
 data class PhotoProjectData(

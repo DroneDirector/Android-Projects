@@ -297,6 +297,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val markerNotes = remember { mutableStateMapOf<Long, String>().apply { initial?.markerNotes?.forEach { (k, v) -> k.toLongOrNull()?.let { put(it, v) } } } }
     // Media in the Proxy section (by stable media ID) — only these ever play from a proxy.
     val proxyMedia = remember { mutableStateListOf<String>().apply { initial?.proxyMedia?.let { addAll(it.distinct()) } } }
+    // Media pool bins (file → bin) and colour-labelled organisation.
+    val bins = remember { mutableStateMapOf<String, String>().apply { initial?.bins?.let { putAll(it) } } }
+    val binNames = remember { mutableStateListOf<String>().apply { initial?.binNames?.let { addAll(it.distinct()) } } }
+    // Settings → PROJECT ARCHIVE: 1 = save a .zip, 2 = open one (handled once the pickers exist).
+    var archiveAction by remember { mutableStateOf(0) }
+    var archiveBusy by remember { mutableStateOf<Int?>(null) }
     var snapping by remember { mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_snap", true)) }
     val thumbs = remember { mutableStateMapOf<String, Bitmap>() }
     val strips = remember { mutableStateMapOf<String, Filmstrip>() }
@@ -590,6 +596,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
             Text("PROXY MEDIA", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
             Text("Proxies are set up in the Proxy tab next to Media: add the clips you want, switch proxies on or off and pick the quality there. Exports always use your original files.", color = Pro.Dim, fontSize = 12.sp)
+            Text("PROJECT ARCHIVE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
+            Text("One .zip with this edit and every file it uses — to move it to another phone or keep it safe. OPEN ARCHIVE brings one back as a new project.", color = Pro.Dim, fontSize = 12.sp)
+            if (archiveBusy != null) Text("Working… $archiveBusy%", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.padding(vertical = 6.dp))
+            else Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+                Text("SAVE ARCHIVE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { archiveAction = 1; showSettings = false }.padding(8.dp))
+                Text("OPEN ARCHIVE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { archiveAction = 2; showSettings = false }.padding(8.dp))
+            }
             Text("VERSION HISTORY", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
             val pid = projectId
             val vers = remember(pid, showSettings) { if (pid != null) ProTools.versions(context, pid) else emptyList() }
@@ -624,7 +637,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val transitionOn = remember { booleanArrayOf(false) }
     val gpuGrade = remember { GradePreview.supported }
     val filmOn = remember { booleanArrayOf(false, false) }
-    val filmShown = remember { arrayOfNulls<FilmLook>(2) }
+    val filmShown = remember { arrayOfNulls<Any>(2) }
     var errorRetries by remember { mutableStateOf(0) }
     fun motionFor(c: Clip): Motion? = if (c.stab.enabled) motions[Stabilizer.keyOf(c)] else null
     fun analyze(c: Clip) {
@@ -651,9 +664,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             // Android 13+: the grade is drawn on the view; the player only decodes plain video.
             texViews[pi]?.let { if (effectsOk) GradePreview.apply(it, adjOf(c)) else GradePreview.clear(it) }
             // Film / lens / deflicker need the frame itself: they run in the player (only when used).
-            val ff = if (effectsOk) filmEffects(c) else emptyList()
+            val ff = if (effectsOk) liveEffects(c) else emptyList()
             if (ff.isNotEmpty() || filmOn[pi]) {
-                try { p.setVideoEffects(ff); filmOn[pi] = ff.isNotEmpty(); filmShown[pi] = c.film?.takeIf { !it.isZero } } catch (_: Throwable) { filmOn[pi] = false }
+                try { p.setVideoEffects(ff); filmOn[pi] = ff.isNotEmpty(); filmShown[pi] = liveKey(c) } catch (_: Throwable) { filmOn[pi] = false }
             }
         } else {
             try { p.setVideoEffects(if (effectsOk) clipEffects(adjOf(c)) else emptyList()) } catch (_: Throwable) { effectsOk = false }
@@ -835,18 +848,18 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     // Live grade while dragging: the newest value is applied every ~80 ms (not only after letting go),
     // the colour table is built off the main thread, and a paused frame is redrawn.
     val gradeReq = remember { kotlinx.coroutines.channels.Channel<Clip>(kotlinx.coroutines.channels.Channel.CONFLATED) }
-    LaunchedEffect(cur?.grade, cur?.detail, cur?.masks, cur?.film, effectsOk) { cur?.let { gradeReq.trySend(it) } }
+    LaunchedEffect(cur?.grade, cur?.detail, cur?.masks, cur?.film, cur?.bg, effectsOk) { cur?.let { gradeReq.trySend(it) } }
     LaunchedEffect(Unit) {
         for (c in gradeReq) {
             if (gpuGrade) {
                 if (effectsOk && c.id == loadedId) {
                     texViews[deck.active]?.let { GradePreview.apply(it, adjOf(c)) }
                     val a = deck.active
-                    val want = c.film?.takeIf { !it.isZero }
+                    val want = liveKey(c)
                     if (want != filmShown[a] && (want != null || filmOn[a])) {
                         filmShown[a] = want
                         try {
-                            deck.cur.setVideoEffects(filmEffects(c)); filmOn[a] = want != null
+                            deck.cur.setVideoEffects(liveEffects(c)); filmOn[a] = want != null
                             if (!deck.cur.playWhenReady && deck.cur.playbackState == Player.STATE_READY) deck.cur.seekTo(deck.cur.currentPosition)
                         } catch (_: Throwable) { filmOn[a] = false }
                         delay(80)
@@ -1239,6 +1252,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
             markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
             proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
+            bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
         )
         val saved = try { ProjectStore.saveVideo(context, p, clips.firstOrNull()?.let { thumbs[it.id] }) } catch (_: Throwable) { null }
         if (saved != null) { projectId = saved.id; projectName = saved.name; message = "Project \"${saved.name}\" saved" }
@@ -1259,6 +1273,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
                 markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
             proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
+            bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
             )
             val json = withContext(Dispatchers.Default) { try { ProjectStore.gson.toJson(p) } catch (_: Throwable) { "" } }
             if (json.isNotEmpty() && json != last) {
@@ -1651,6 +1666,56 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             tStatus = null; tJob = null
         }
     }
+    /** Word-by-word caption layers from the transcript (style: 0 highlight, 1 box, 2 one word, 3 two lines). */
+    var pendingWordCaps by remember { mutableStateOf<Int?>(null) }
+    fun makeWordCaptions(style: Int) {
+        if (tWords.isEmpty()) {
+            pendingWordCaps = style
+            transcribeAll()
+            return
+        }
+        val starts = clipStarts(clips)
+        // Every kept word on the timeline, in order.
+        val tl = ArrayList<Triple<Long, Long, String>>()
+        for ((ci, c) in clips.withIndex()) for (w in tWords.filter { it.clipId == c.id && !it.deleted }.sortedBy { it.startMs }) {
+            if (w.startMs < c.startMs || w.startMs >= c.endMs || w.text.isBlank()) continue
+            val a = starts[ci] + c.tlOffsetOf(w.startMs); val b = starts[ci] + c.tlOffsetOf(w.endMs.coerceAtMost(c.endMs))
+            tl += Triple(a, b.coerceAtLeast(a + 80), w.text.trim().replace(' ', '\u00A0'))
+        }
+        if (tl.isEmpty()) { message = "No speech found to caption"; return }
+        val maxWords = when (style) { 2 -> 1; 3 -> 8; else -> 4 }
+        val maxChars = when (style) { 2 -> 40; 3 -> 44; else -> 24 }
+        val groups = ArrayList<List<Triple<Long, Long, String>>>()
+        var cur = ArrayList<Triple<Long, Long, String>>()
+        for (w in tl) {
+            val chars = cur.sumOf { it.third.length + 1 } + w.third.length
+            val gap = cur.lastOrNull()?.let { w.first - it.second } ?: 0L
+            if (cur.isNotEmpty() && (cur.size >= maxWords || chars > maxChars || gap > 700 || cur.last().third.endsWith(".") || cur.last().third.endsWith("?") || cur.last().third.endsWith("!"))) { groups += cur; cur = ArrayList() }
+            cur += w
+        }
+        if (cur.isNotEmpty()) groups += cur
+        val total = timelineLength(clips)
+        layers.removeAll { it.name == "Word caption" }
+        groups.forEachIndexed { gi, g ->
+            val next = groups.getOrNull(gi + 1)?.first()?.first ?: total
+            val s0 = g.first().first.coerceIn(0, total)
+            val s1 = (g.last().second + 300).coerceAtMost(next).coerceAtMost(total).coerceAtLeast(s0 + 150)
+            var text = g.joinToString(" ") { it.third }
+            if (style == 3 && g.size > 3) { val half = (g.size + 1) / 2; text = g.take(half).joinToString(" ") { it.third } + "\n" + g.drop(half).joinToString(" ") { it.third } }
+            layers.add(Layer(
+                kind = LayerKind.TEXT, text = if (style == 2) text.uppercase() else text,
+                size = if (style == 2) 0.085f else 0.055f, x = 0.5f, y = if (style == 2) 0.62f else 0.78f,
+                font = LayerFont.CONDENSED, shadow = true, startMs = s0, endMs = s1, name = "Word caption",
+                words = g.map { it.first }, hiColor = 0xFFFFD60A.toInt(), hiBox = style == 1,
+                animIn = if (style == 2) LayerAnim.POP else null, animMs = if (style == 2) 120L else null,
+            ))
+        }
+        message = "${groups.size} word-by-word captions added — edit any of them like a text layer (run again to replace them)"
+    }
+    LaunchedEffect(tJob) {
+        val st = pendingWordCaps
+        if (tJob == null && st != null) { pendingWordCaps = null; if (tWords.isNotEmpty()) makeWordCaptions(st) }
+    }
     fun applyTextCuts() {
         if (videoLocked) { message = "The video track is locked — tap its lock on the timeline to unlock"; return }
         if (tWords.none { it.deleted }) { message = "Tap the words you want to cut first"; return }
@@ -1757,6 +1822,132 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
         }
     }
+    // ---- Three-point editing (source viewer), relink, project archive
+    var sourceClip by remember { mutableStateOf<Clip?>(null) }
+    fun threePoint(src: Clip, mode: Int) {
+        if (videoLocked) { message = "The video track is locked — tap its lock on the timeline to unlock"; return }
+        val nc = src.copy(id = java.util.UUID.randomUUID().toString(), transition = Transition(), volKeys = null, ramp = null, rampName = null, reframe = Reframe(), nested = null, speed = 1f)
+        if (clips.isEmpty() || mode == 2) {
+            clips.add(nc); selected = clips.lastIndex
+            if (clips.size == 1) { current = 0; load(0, 0, false) }
+            message = "Appended to the end of the timeline (${tc(nc.lengthMs)})"; return
+        }
+        val (i, off) = clipAt(clips, globalMs)
+        val c = clips[i]
+        val at = when {
+            off <= 60 -> i
+            off >= c.lengthMs - 60 -> i + 1
+            else -> {
+                val cut = c.srcAtOffset(off)
+                clips[i] = c.copy(endMs = cut, transition = Transition())
+                clips.add(i + 1, c.copy(id = java.util.UUID.randomUUID().toString(), startMs = cut, volKeys = null))
+                i + 1
+            }
+        }
+        clips.add(at, nc)
+        if (mode == 1) {
+            // Overwrite: take the new clip's length out of what follows, so the edit keeps its length.
+            var remain = nc.lengthMs
+            val k = at + 1
+            while (remain > 30 && k < clips.size) {
+                val d = clips[k]
+                if (d.lengthMs <= remain + 30) { remain -= d.lengthMs; clips.removeAt(k) }
+                else { clips[k] = d.copy(startMs = d.srcAtOffset(remain), volKeys = null); remain = 0 }
+            }
+        }
+        selected = at; current = at; load(at, 0, false)
+        message = (if (mode == 1) "Overwritten" else "Inserted") + " at the playhead (${tc(nc.lengthMs)}) — undo takes it back"
+    }
+    val pickSource = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) layerScope.launch {
+            try { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
+            val c = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }
+            if (c == null) message = "Couldn't open that video" else sourceClip = c
+        }
+    }
+    sourceClip?.let { sc0 ->
+        SourceViewerDialog(sc0, tc(globalMs), onDismiss = { sourceClip = null }) { cl, mode -> sourceClip = null; threePoint(cl, mode) }
+    }
+    // Media that can't be opened any more (moved, deleted, access lost): RELINK in the media pool.
+    val missing = remember { mutableStateListOf<String>() }
+    LaunchedEffect(clips.map { it.uri.toString() }.distinct()) {
+        val bad = withContext(Dispatchers.IO) { clips.map { it.uri }.distinctBy { it.toString() }.filter { !ProjectArchive.readable(context, it) }.map { it.toString() } }
+        missing.clear(); missing.addAll(bad)
+    }
+    var relinkFrom by remember { mutableStateOf<String?>(null) }
+    val relink = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val from = relinkFrom; relinkFrom = null
+        if (uri == null || from == null) return@rememberLauncherForActivityResult
+        layerScope.launch {
+            try { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
+            val nc = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) } ?: run { message = "Couldn't open that file"; return@launch }
+            var n = 0
+            for (i in clips.indices) if (clips[i].uri.toString() == from) {
+                val o = clips[i]
+                val end = o.endMs.coerceAtMost(nc.durationMs)
+                clips[i] = o.copy(uri = uri, name = nc.name, durationMs = nc.durationMs, width = nc.width, height = nc.height, mime = nc.mime, startMs = o.startMs.coerceAtMost((end - 100).coerceAtLeast(0)), endMs = end)
+                n++
+            }
+            for (i in layers.indices) if (layers[i].videoUri?.toString() == from) layers[i] = layers[i].copy(videoUri = uri, videoDurationMs = nc.durationMs)
+            bins.remove(from)?.let { bins[uri.toString()] = it }
+            missing.remove(from)
+            if (clips.isNotEmpty()) load(current.coerceIn(0, clips.lastIndex), 0, false)
+            message = "Relinked $n clip(s) to ${nc.name}"
+        }
+    }
+    fun applyProject(p: VideoProjectData) {
+        clips.clear(); clips.addAll(p.clips)
+        layers.clear(); layers.addAll(p.layers)
+        music = p.music
+        extraAudio.clear(); extraAudio.addAll(p.extraAudio)
+        audioPool.clear(); audioPool.addAll(p.audioPool)
+        markers.clear(); markers.addAll(p.markers)
+        markerNotes.clear(); p.markerNotes?.forEach { (k, v) -> k.toLongOrNull()?.let { markerNotes[it] = v } }
+        bins.clear(); p.bins?.let { bins.putAll(it) }
+        binNames.clear(); p.binNames?.let { binNames.addAll(it) }
+        deliver = p.deliver
+        if (clips.isNotEmpty()) { selected = 0; current = 0; load(0, 0, false) }
+    }
+    val saveArchive = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val p = VideoProjectData(
+            id = projectId ?: java.util.UUID.randomUUID().toString(), name = projectName.ifBlank { "Project" },
+            clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
+            extraAudio = extraAudio.toList(), audioPool = audioPool.toList(),
+            videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
+            markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
+            bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
+        )
+        archiveBusy = 0
+        layerScope.launch {
+            val err = withContext(Dispatchers.IO) {
+                try { context.contentResolver.openOutputStream(uri)?.use { o -> ProjectArchive.write(context, p, o, { archiveBusy = it }, { false }) } ?: "Couldn't create the file" }
+                catch (t: Throwable) { "Couldn't save the archive: ${t.message}" }
+            }
+            archiveBusy = null
+            message = err ?: "Project archive saved (${clips.size} clips and all their files)"
+        }
+    }
+    val openArchive = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        archiveBusy = 0
+        layerScope.launch {
+            val (p, err) = withContext(Dispatchers.IO) { ProjectArchive.read(context, uri) { archiveBusy = it } }
+            archiveBusy = null
+            if (p == null) { message = err ?: "Couldn't open the archive"; return@launch }
+            val saved = withContext(Dispatchers.IO) { try { ProjectStore.saveVideo(context, p, null) } catch (_: Throwable) { null } }
+            applyProject(saved ?: p)
+            projectId = saved?.id; projectName = (saved ?: p).name
+            message = "Opened \"${(saved ?: p).name}\" from the archive"
+        }
+    }
+    LaunchedEffect(archiveAction) {
+        when (archiveAction) {
+            1 -> try { saveArchive.launch("${projectName.ifBlank { "VeyroCut project" }}.zip") } catch (_: Throwable) { message = "Couldn't open the file picker" }
+            2 -> try { openArchive.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) } catch (_: Throwable) { message = "Couldn't open the file picker" }
+        }
+        archiveAction = 0
+    }
     fun autoEditToBeat(every: Int) {
         if (videoLocked) { message = "The video track is locked"; return }
         val m = music ?: run { message = "Add a music track first (Media → Sound libraries or Audio)"; return }
@@ -1815,6 +2006,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
                 markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
                 proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
+                bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
             )
             withContext(Dispatchers.IO) { ProTools.saveVersion(context, p) }
         }
@@ -2428,6 +2620,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 audioUses = { a -> (if (music?.uri == a.uri) 1 else 0) + extraAudio.count { it.uri == a.uri } },
                                 onAddAudio = { pickAudio.launch(arrayOf("audio/*")) },
                                 onMulticam = { showMulticam = true },
+                                bins = bins.toMap(), binNames = binNames.toList(),
+                                onNewBin = { b -> if (b !in binNames) binNames.add(b) },
+                                onSetBin = { c, b -> if (b == null) bins.remove(c.uri.toString()) else bins[c.uri.toString()] = b },
+                                onSource = { sourceClip = it },
+                                onPickSource = { pickSource.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
+                                missing = missing.toList(),
+                                onRelink = { c -> relinkFrom = c.uri.toString(); try { relink.launch(arrayOf("video/*")) } catch (_: Throwable) { relinkFrom = null } },
                                 onLibraryAdd = { sec, t ->
                                     layerScope.launch {
                                         val uri = withContext(Dispatchers.IO) { SoundLibrary.file(context, sec, t) }
@@ -2508,6 +2707,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onDownload = { downloadModel() }, onCancelDownload = { tDlCancel = true },
                                 lang = tLang, onLang = { tLang = it }, status = tStatus,
                                 onTranscribe = { transcribeAll() }, onStop = { Transcriber.stop(); tJob?.cancel(); tJob = null; tStatus = null },
+                                onWordCaptions = { makeWordCaptions(it) },
                                 onToggle = { w -> val i = tWords.indexOf(w); if (i >= 0) tWords[i] = w.copy(deleted = !w.deleted) },
                                 onSeekWord = { w ->
                                     val ci = clips.indexOfFirst { it.id == w.clipId }
@@ -2982,8 +3182,40 @@ private fun MediaPage(
     proxyState: (Clip) -> String?, onProxyToggle: (Clip) -> Unit, onRemove: (Clip) -> Unit,
     onLibraryAdd: (LibSection, LibTrack) -> Unit = { _, _ -> },
     onMulticam: () -> Unit = {},
+    bins: Map<String, String> = emptyMap(), binNames: List<String> = emptyList(),
+    onNewBin: (String) -> Unit = {}, onSetBin: (Clip, String?) -> Unit = { _, _ -> },
+    onSource: (Clip) -> Unit = {}, onPickSource: () -> Unit = {},
+    missing: List<String> = emptyList(), onRelink: (Clip) -> Unit = {},
 ) {
     var confirm by remember { mutableStateOf<Clip?>(null) }
+    var binFilter by remember { mutableStateOf<String?>(null) }
+    var newBin by remember { mutableStateOf(false) }
+    var binFor by remember { mutableStateOf<Clip?>(null) }
+    if (newBin) {
+        var name by remember { mutableStateOf("") }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { newBin = false }, containerColor = Pro.PanelSolid,
+            title = { Text("New bin", color = Color.White) },
+            text = { androidx.compose.material3.OutlinedTextField(name, { name = it.take(24) }, singleLine = true, placeholder = { Text("e.g. Interviews, B-roll, Drone") }) },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { if (name.isNotBlank()) onNewBin(name.trim()); newBin = false }) { Text("Add", color = Pro.Amber) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { newBin = false }) { Text("Cancel", color = Pro.Dim) } },
+        )
+    }
+    binFor?.let { c ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { binFor = null }, containerColor = Pro.PanelSolid,
+            title = { Text("Move to bin", color = Color.White) },
+            text = {
+                Column {
+                    (listOf<String?>(null) + binNames).forEach { b ->
+                        Text(b ?: "No bin", color = if (bins[c.uri.toString()] == b) Pro.Amber else Color.White, fontSize = 15.sp,
+                            modifier = Modifier.fillMaxWidth().clickable { onSetBin(c, b); binFor = null }.padding(vertical = 10.dp))
+                    }
+                }
+            },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { binFor = null; newBin = true }) { Text("+ New bin", color = Pro.Amber) } },
+        )
+    }
     confirm?.let { c ->
         val uses = clips.count { it.uri == c.uri }
         androidx.compose.material3.AlertDialog(
@@ -3011,13 +3243,22 @@ private fun MediaPage(
     if (clips.distinctBy { it.uri.toString() }.size >= 2) {
         BigButton(Icons.Filled.Movie, "Multicam (2–4 angles)", Modifier.fillMaxWidth().padding(top = 8.dp), onMulticam)
     }
+    BigButton(Icons.Filled.Movie, "Source viewer (mark in / out, insert)", Modifier.fillMaxWidth().padding(top = 8.dp), onPickSource)
     SoundLibraries(onLibraryAdd)
+    SectionTitle("BINS")
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+        PillChip("All", binFilter == null) { binFilter = null }
+        binNames.forEach { b -> PillChip("$b (${clips.distinctBy { it.uri.toString() }.count { bins[it.uri.toString()] == b }})", binFilter == b) { binFilter = b } }
+        PillChip("+ Bin", false) { newBin = true }
+    }
     Text(
         "Clips are added to the end of the timeline. For smooth editing of heavy clips (HDR, 10-bit, 4K), add them to the Proxy tab — exports always use the original files.",
         color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 6.dp),
     )
     clips.distinctBy { it.uri.toString() }.forEachIndexed { i, c ->
-        Column(Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).padding(10.dp)) {
+        if (binFilter != null && bins[c.uri.toString()] != binFilter) return@forEachIndexed
+        val lbl = clips.firstOrNull { it.uri == c.uri && it.label != null }?.label
+        Column(Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).then(if (lbl != null) Modifier.border(2.dp, Color(lbl), RoundedCornerShape(8.dp)) else Modifier).padding(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("${i + 1}", style = Pro.Value.copy(color = Pro.Amber), modifier = Modifier.width(26.dp))
                 Column(Modifier.weight(1f)) {
@@ -3043,6 +3284,15 @@ private fun MediaPage(
                 Box(Modifier.size(36.dp).clip(CircleShape).clickable { confirm = c }, contentAlignment = Alignment.Center) {
                     Icon(Icons.Filled.Delete, contentDescription = "Delete from media pool", tint = Pro.Red, modifier = Modifier.size(20.dp))
                 }
+            }
+            if (c.uri.toString() in missing) Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("MISSING — the file was moved, deleted or can't be opened", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.weight(1f))
+                Text("RELINK", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { onRelink(c) }.padding(6.dp))
+            }
+            Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("BIN: ${bins[c.uri.toString()] ?: "—"}", style = Pro.Label.copy(fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { binFor = c }.padding(6.dp))
+                Spacer(Modifier.weight(1f))
+                Text("SOURCE ›", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { onSource(c.copy(startMs = 0, endMs = c.durationMs)) }.padding(6.dp))
             }
             Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 val st = proxyState(c)
@@ -3103,6 +3353,14 @@ private fun EditPage(
     onNest: (Int) -> Unit = {}, onUnNest: () -> Unit = {}, nesting: Boolean = false, nestProgress: Int = 0,
 ) {
     SectionTitle("CLIP ${index + 1} OF $count · ${c.name}".uppercase())
+    // Colour label (shown on the timeline and in the media pool).
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+        Text("Label", style = Pro.Label)
+        Box(Modifier.size(26.dp).clip(CircleShape).background(Ed.Raised).border(2.dp, if (c.label == null) Pro.Amber else Color.DarkGray, CircleShape).clickable { onChange { it.copy(label = null) } }, contentAlignment = Alignment.Center) { Text("✕", color = Color.White, fontSize = 11.sp) }
+        CLIP_LABELS.forEach { col ->
+            Box(Modifier.size(26.dp).clip(CircleShape).background(Color(col)).border(2.dp, if (c.label == col) Pro.Amber else Color.DarkGray, CircleShape).clickable { onChange { it.copy(label = col) } })
+        }
+    }
     // Pro trim: slip / roll / slide in frames.
     run {
         var mode by remember { mutableStateOf(0) }
@@ -3334,6 +3592,17 @@ private fun ColorPage(
                 },
                 confirmButton = { androidx.compose.material3.TextButton(onClick = { aiInfo = false }) { Text("OK", color = Pro.Amber) } },
             )
+            SectionTitle("BACKGROUND (PEOPLE)") { onChange { it.copy(bg = null) } }
+            val bgModes = listOf("Off", "Blur", "Colour", "Transparent")
+            Chips(bgModes, c.bg?.let { it.mode.let { m -> if (m == 0) 3 else m } } ?: 0) { i ->
+                onChange { cl -> cl.copy(bg = when (i) { 0 -> null; 3 -> BgRemoval(0, cl.bg?.color ?: 0xFF00B140.toInt()); else -> BgRemoval(i, cl.bg?.color ?: 0xFF00B140.toInt()) }) }
+            }
+            if (c.bg?.mode == 2) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+                listOf(0xFF00B140, 0xFF0047BB, 0xFF000000, 0xFFFFFFFF, 0xFF2A4C8C, 0xFFFFB300, 0xFF8E44AD).map { it.toInt() }.forEach { col ->
+                    Box(Modifier.size(28.dp).clip(CircleShape).background(Color(col)).border(2.dp, if (c.bg?.color == col) Pro.Amber else Color.DarkGray, CircleShape).clickable { onChange { cl -> cl.copy(bg = cl.bg?.copy(color = col)) } })
+                }
+            }
+            Text("AI finds the people in every frame (on the phone) and blurs, recolours or removes what's behind them. Transparent shows the video layers placed below the main video. Works best with one or two people in clear view.", color = Pro.Dim, fontSize = 11.sp)
             SectionTitle("FINISHING")
             EdSlider("Vignette", c.detail.vignette) { v -> detail { it.copy(vignette = v) } }
             EdSlider("Film grain", c.detail.grain, 0f..1f, format = ::pct) { v -> detail { it.copy(grain = v) } }
@@ -3607,10 +3876,14 @@ private fun LayerPreview(
             // In / out animation (not while you're editing this layer with the video paused).
             val fx = if ((base.id == selectedId && !playing) || !base.activeAt(timeMs)) AnimFx() else LayerAnims.at(base, timeMs)
             val chars = LayerAnims.charCount(base, fx.chars)
-            val bmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, startMs = 0, endMs = 0, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null), wPx, hPx, chars) {
-                value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, chars) }
+            val hiWord = if (base.words != null) base.wordAt(timeMs) else -1
+            val bmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, startMs = 0, endMs = 0, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null), wPx, hPx, chars, hiWord) {
+                value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, chars, hiWord) }
             }
-            val b0 = bmp ?: return@forEach
+            // Keep the last picture while a new one (next word / letter) is drawn, so it never blinks.
+            val lastBmp = remember(base.id) { arrayOfNulls<Bitmap>(1) }
+            val b0 = bmp ?: lastBmp[0] ?: return@forEach
+            lastBmp[0] = b0
             // Keyframed size: scale the picture rendered at the layer's own size.
             val k = (if (base.size > 0f) l.size / base.size else 1f) * fx.scale
             val bw = (b0.width * k).toInt().coerceAtLeast(1); val bh = (b0.height * k).toInt().coerceAtLeast(1)
@@ -3641,6 +3914,9 @@ private fun LayerPreview(
         }
     }
 }
+
+/** Colour labels for clips (like DaVinci Resolve / Premiere). */
+val CLIP_LABELS = listOf(0xFFFF3B30, 0xFFFF9500, 0xFFFFD60A, 0xFF34C759, 0xFF00C7BE, 0xFF0A84FF, 0xFFBF5AF2, 0xFFFF7EB6).map { it.toInt() }
 
 private val TEXT_COLORS = listOf(0xFFFFFFFF, 0xFF000000, 0xFFFFB300, 0xFFFF3B30, 0xFF34C759, 0xFF0A84FF, 0xFFFF7EB6, 0xFFB79CFF).map { it.toInt() }
 
@@ -3687,6 +3963,30 @@ private fun LayersPage(
     )
     Text("DJI drones save a .SRT file next to each video (turn on Video Subtitles / Video Caption in the DJI Fly app). Select the drone clip, then load its .SRT: altitude, speed, GPS and camera settings appear as a live read-out, matched to the clip's trim and speed.", color = Pro.Dim, fontSize = 11.sp)
     val end = (playheadMs + 3000).coerceAtMost(totalMs.coerceAtLeast(1))
+    SectionTitle("TITLE TEMPLATES")
+    Text("Animated titles at the playhead — tap to add, then change the words like any text layer.", color = Pro.Dim, fontSize = 11.sp)
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+        val t0 = playheadMs
+        val t1 = (playheadMs + 4000).coerceAtMost(totalMs.coerceAtLeast(playheadMs + 1000))
+        fun tl(text: String, size: Float, x: Float, y: Float, font: LayerFont, aIn: LayerAnim, aOut: LayerAnim, ms: Long = 450, box: Boolean = false, color: Int = 0xFFFFFFFF.toInt(), name: String) =
+            Layer(kind = LayerKind.TEXT, text = text, size = size, x = x, y = y, font = font, animIn = aIn, animOut = aOut, animMs = ms, box = box, color = color, shadow = true, startMs = t0, endMs = t1, name = name)
+        PillChip("Lower third", false) {
+            onAdd(tl("Your Name", 0.05f, 0.26f, 0.8f, LayerFont.SANS, LayerAnim.SLIDE_RIGHT, LayerAnim.SLIDE_LEFT, box = true, name = "Lower third · name"))
+            onAdd(tl("Title / role", 0.032f, 0.26f, 0.87f, LayerFont.LIGHT, LayerAnim.SLIDE_RIGHT, LayerAnim.SLIDE_LEFT, ms = 650, color = 0xFFFFB300.toInt(), name = "Lower third · role"))
+        }
+        PillChip("Big title", false) { onAdd(tl("BIG TITLE", 0.13f, 0.5f, 0.5f, LayerFont.CONDENSED, LayerAnim.POP, LayerAnim.ZOOM, name = "Big title")) }
+        PillChip("Cinematic", false) { onAdd(tl("THE JOURNEY", 0.07f, 0.5f, 0.5f, LayerFont.SERIF, LayerAnim.FADE, LayerAnim.FADE, ms = 1000, name = "Cinematic title")) }
+        PillChip("Location", false) { onAdd(tl("📍 Place, Country", 0.042f, 0.5f, 0.86f, LayerFont.MONO, LayerAnim.TYPEWRITER, LayerAnim.FADE, ms = 1200, name = "Location")) }
+        PillChip("Chapter", false) {
+            onAdd(tl("CHAPTER ONE", 0.035f, 0.5f, 0.42f, LayerFont.LIGHT, LayerAnim.REVEAL, LayerAnim.FADE, ms = 700, color = 0xFFFFB300.toInt(), name = "Chapter · number"))
+            onAdd(tl("The Beginning", 0.08f, 0.5f, 0.52f, LayerFont.SERIF, LayerAnim.SLIDE_UP, LayerAnim.FADE, ms = 800, name = "Chapter · title"))
+        }
+        PillChip("Subscribe", false) { onAdd(tl("SUBSCRIBE 🔔", 0.05f, 0.5f, 0.82f, LayerFont.SANS, LayerAnim.BOUNCE, LayerAnim.ZOOM, ms = 600, box = true, color = 0xFFFF3B30.toInt(), name = "Subscribe")) }
+        PillChip("End card", false) {
+            onAdd(tl("Thanks for watching", 0.07f, 0.5f, 0.45f, LayerFont.SERIF, LayerAnim.FADE, LayerAnim.FADE, ms = 900, name = "End card"))
+            onAdd(tl("@yourchannel", 0.035f, 0.5f, 0.56f, LayerFont.LIGHT, LayerAnim.SLIDE_UP, LayerAnim.FADE, ms = 1000, color = 0xFFFFB300.toInt(), name = "End card · handle"))
+        }
+    }
     SectionTitle("SPLIT SCREEN")
     Text("Arranges your video layers (above the main video) into a layout — each fills its cell, cropped to fit. Add the video layers first with + VIDEO.", color = Pro.Dim, fontSize = 11.sp)
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
@@ -3844,6 +4144,9 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
             }
         }
         Chips(listOf("Drop shadow off", "Drop shadow on"), if (l.dropShadow == true) 1 else 0) { onUpdate(l.copy(dropShadow = it == 1)) }
+        SectionTitle("REMOVE BACKGROUND (PEOPLE)")
+        Chips(listOf("Off", "On"), if (l.bgRemove == true) 1 else 0) { onUpdate(l.copy(bgRemove = (it == 1).takeIf { v -> v })) }
+        Text("AI cuts the people out of this video layer (on the phone), so only they appear over your main video.", color = Pro.Dim, fontSize = 11.sp)
         Text("Frame shape crops the video to fill it (e.g. 1:1 or 9:16 picture-in-picture). Corners, border and shadow show in the preview and the export.", color = Pro.Dim, fontSize = 11.sp)
     }
     // With keyframes, the controls show (and edit) the layer as it is at the playhead.
@@ -4205,13 +4508,18 @@ private fun VideoLayerView(l: Layer, timeMs: Long, play: Boolean) {
         }
     }
     DisposableEffect(p) { onDispose { p.release() } }
+    val bgSet = remember(p) { booleanArrayOf(false) }
     val target = l.videoStartMs + (timeMs - (if (l.wholeVideo) 0L else l.startMs)).coerceAtLeast(0)
     LaunchedEffect(play) { if (play) p.play() else p.pause() }
     LaunchedEffect(target / 300, play) {
         if (!play || kotlin.math.abs(p.currentPosition - target) > 400) p.seekTo(target.coerceAtMost((l.videoDurationMs - 50).coerceAtLeast(0)))
     }
+    // Background removal runs in this player (the cut-out shows through the see-through view).
+    LaunchedEffect(l.bgRemove) {
+        try { if (l.bgRemove == true) p.setVideoEffects(listOf(BgRemoveEffect(0))) else if (bgSet[0]) p.setVideoEffects(emptyList()) ; bgSet[0] = l.bgRemove == true } catch (_: Throwable) {}
+    }
     AndroidView(
-        factory = { ctx -> android.view.TextureView(ctx).also { p.setVideoTextureView(it) } },
+        factory = { ctx -> android.view.TextureView(ctx).also { it.isOpaque = false; p.setVideoTextureView(it) } },
         update = { tv -> ChromaPreview.apply(tv, l) },
         modifier = Modifier.fillMaxSize().graphicsLayer { alpha = l.opacity },
     )
@@ -4399,6 +4707,7 @@ private fun TextEditPage(
     onTranscribe: () -> Unit, onStop: () -> Unit,
     onToggle: (TWord) -> Unit, onSeekWord: (TWord) -> Unit,
     onFillers: () -> Unit, onRestore: () -> Unit, onApply: () -> Unit,
+    onWordCaptions: (Int) -> Unit = {},
 ) {
     SectionTitle("TEXT-BASED EDITING")
     Text(
@@ -4460,6 +4769,13 @@ private fun TextEditPage(
         style = Pro.Value.copy(color = if (deleted > 0) Color.Black else Pro.Dim, fontSize = 13.sp),
         modifier = Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(if (deleted > 0) Pro.Amber else Ed.Raised).clickable(enabled = deleted > 0) { onApply() }.padding(12.dp),
     )
+    SectionTitle("WORD-BY-WORD CAPTIONS")
+    Text("Animated captions from the transcript: each word lights up as it's spoken (like Reels / TikTok / Shorts). Made on the phone; cut words are left out.", color = Pro.Dim, fontSize = 11.sp)
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+        listOf("Highlight", "Box", "One word", "Two lines").forEachIndexed { k, n -> PillChip(n, false) { onWordCaptions(k) } }
+    }
+    if (words.isEmpty()) Text("Transcribe the edit first (above) — or tap a style and it's transcribed for you.", color = Pro.Dim, fontSize = 11.sp)
+
 }
 
 /** Edit page extras: scene detection and working on several clips at once. */

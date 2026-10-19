@@ -85,7 +85,15 @@ data class Layer(
     val border: Float? = null,
     val borderColor: Int? = null,
     val dropShadow: Boolean? = null,
+    /** Word-by-word captions: when each word is spoken (timeline ms, one per word of [text]), its highlight colour and whether it gets a box. */
+    val words: List<Long>? = null,
+    val hiColor: Int? = null,
+    val hiBox: Boolean? = null,
+    /** Video layers / clips: remove the background behind people (AI, on the phone). */
+    val bgRemove: Boolean? = null,
 ) {
+    /** The word being spoken at [ms] (−1 before the first). */
+    fun wordAt(ms: Long): Int = words?.let { w -> w.indexOfLast { it <= ms } } ?: -1
     /** The video layer's frame shape on screen. */
     val frameAspect: Float get() = cellAspect?.takeIf { it > 0f } ?: mediaAspect
     val hasPipStyle: Boolean get() = (corner ?: 0f) > 0f || (border ?: 0f) > 0f || dropShadow == true
@@ -199,7 +207,7 @@ object LayerRenderer {
     private val logoCache = HashMap<String, Bitmap>()
 
     /** Draws a layer at the size it should have on a [frameW]×[frameH] frame. */
-    fun render(context: Context, l: Layer, frameW: Int, frameH: Int, chars: Int = Int.MAX_VALUE): Bitmap? {
+    fun render(context: Context, l: Layer, frameW: Int, frameH: Int, chars: Int = Int.MAX_VALUE, hi: Int = -1): Bitmap? {
         val px = max(8f, l.size * frameH)
         return when (l.kind) {
             LayerKind.VIDEO, LayerKind.ADJUST -> null
@@ -214,12 +222,12 @@ object LayerRenderer {
                 val key = l.chroma
                 if (key != null) chromaKeyBitmap(scaled, key, l.chromaTol ?: 0.4f, l.chromaSoft ?: 0.3f) else scaled
             }
-            else -> renderText(l, px, frameW, chars)
+            else -> renderText(l, px, frameW, chars, hi)
         }
     }
 
     /** [chars]: how many characters to draw (typewriter); the size and layout always follow the full text. */
-    private fun renderText(l: Layer, px: Float, frameW: Int, chars: Int = Int.MAX_VALUE): Bitmap {
+    private fun renderText(l: Layer, px: Float, frameW: Int, chars: Int = Int.MAX_VALUE, hi: Int = -1): Bitmap {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textSize = px
             color = l.color
@@ -245,6 +253,31 @@ object LayerRenderer {
             left -= line.length
             if (part.isNotEmpty()) c.drawText(part, (w - lw) / 2f, pad - fm.ascent + i * lineH, paint)
         }
+        // Word-by-word captions: the word being spoken in the highlight colour (or on a box).
+        if (hi >= 0 && l.words != null) {
+            var k = 0
+            lines.forEachIndexed { i, line ->
+                val lw = paint.measureText(line)
+                var pos = 0
+                for (word in line.split(' ')) {
+                    if (word.isNotEmpty()) {
+                        if (k == hi) {
+                            val x = (w - lw) / 2f + paint.measureText(line, 0, pos)
+                            val ww = paint.measureText(word)
+                            val base = pad - fm.ascent + i * lineH
+                            val col = l.hiColor ?: 0xFFFFD60A.toInt()
+                            if (l.hiBox == true) {
+                                val pp = px * 0.12f
+                                c.drawRoundRect(RectF(x - pp, base + fm.ascent * 0.92f - pp * 0.4f, x + ww + pp, base + fm.descent * 0.9f + pp * 0.4f), px * 0.18f, px * 0.18f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = col })
+                                c.drawText(word, x, base, Paint(paint).apply { color = 0xFF000000.toInt(); clearShadowLayer() })
+                            } else c.drawText(word, x, base, Paint(paint).apply { color = col })
+                        }
+                        k++
+                    }
+                    pos += word.length + 1
+                }
+            }
+        }
         return bmp
     }
 }
@@ -266,6 +299,8 @@ class LayerOverlay(
     private val l: Layer,
     /** Draws the layer with only the first n characters (typewriter animation). */
     private val partial: ((Int) -> Bitmap?)? = null,
+    /** Draws the layer with word n highlighted (word-by-word captions). */
+    private val highlighted: ((Int) -> Bitmap?)? = null,
 ) : BitmapOverlay() {
     private val blank = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
     private val startUs = l.startMs * 1000
@@ -281,6 +316,10 @@ class LayerOverlay(
 
     override fun getBitmap(presentationTimeUs: Long): Bitmap {
         if (!(whole || presentationTimeUs in startUs..endUs)) return blank
+        if (l.words != null && highlighted != null) {
+            val n = l.wordAt(presentationTimeUs / 1000)
+            if (n >= 0) return frames.getOrPut(100_000 + n) { highlighted.invoke(n) ?: bitmap }
+        }
         if (!animated) return bitmap
         val fx = LayerAnims.at(l, presentationTimeUs / 1000)
         if (fx.chars < 1f && partial != null) {

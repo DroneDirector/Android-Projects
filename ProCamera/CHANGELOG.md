@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.271 — 2026-10-19
 - Video editor: new Proxy tab next to Media — add only the clips you want, switch Proxy on or off, choose 360p / 540p / 720p / 1080p; proxies are made in the background with progress and cancel, stay in sync with the originals (same timing, frame rate, orientation and sound), fall back to the original if missing or broken, and exports always use the original files. Replaces the old automatic preview copies.
 
 ## 1.0.268 — 2026-10-19

@@ -132,7 +132,7 @@ private fun MulticamSwitcher(angles: List<Clip>, off: LongArray, onDone: (List<C
     val players = remember {
         angles.mapIndexed { i, c ->
             ExoPlayer.Builder(context).build().apply {
-                setMediaItem(MediaItem.fromUri(ProxyMaker.existing(context, c, proxy) ?: c.uri))
+                setMediaItem(MediaItem.fromUri((if (proxy.enabled) ProxyMaker.existing(context, c, proxy.quality, proxy.hevc) else null) ?: c.uri))
                 volume = if (i == 0) 1f else 0f
                 prepare()
             }

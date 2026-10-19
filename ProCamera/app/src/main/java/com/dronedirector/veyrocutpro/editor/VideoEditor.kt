@@ -130,7 +130,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class Page(val label: String) { MEDIA("Media"), EDIT("Edit"), TRANSITIONS("Transitions"), COLOR("Color"), LAYERS("Layers"), AUDIO("Audio"), DELIVER("Deliver") }
+private enum class Page(val label: String) { MEDIA("Media"), PROXY("Proxy"), EDIT("Edit"), TRANSITIONS("Transitions"), COLOR("Color"), LAYERS("Layers"), AUDIO("Audio"), DELIVER("Deliver") }
 private enum class ColorTab(val label: String) { INPUT("Input"), LUTS("LUTs"), WHEELS("Wheels"), PRIMARIES("Primaries"), CURVES("Curves"), HSL("HSL"), MASKS("Masks"), DETAIL("Detail"), EFFECTS("Effects"), LOOKS("Looks") }
 
 @Composable
@@ -271,6 +271,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     // Timeline markers and snapping.
     val markers = remember { mutableStateListOf<Long>().apply { initial?.markers?.let { addAll(it) } } }
     val markerNotes = remember { mutableStateMapOf<Long, String>().apply { initial?.markerNotes?.forEach { (k, v) -> k.toLongOrNull()?.let { put(it, v) } } } }
+    // Media in the Proxy section (by stable media ID) — only these ever play from a proxy.
+    val proxyMedia = remember { mutableStateListOf<String>().apply { initial?.proxyMedia?.let { addAll(it.distinct()) } } }
     var snapping by remember { mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_snap", true)) }
     val thumbs = remember { mutableStateMapOf<String, Bitmap>() }
     val strips = remember { mutableStateMapOf<String, Filmstrip>() }
@@ -433,13 +435,17 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     var effectsOk by remember { mutableStateOf(true) }
-    // Preview proxies (optimized media), keyed by source file.
+    // Proxy media, keyed by stable media ID (MediaId.of(clip)): only media in the Proxy section.
     var proxySettings by remember { mutableStateOf(ProxySettings.load(context)) }
-    val proxies = remember { mutableStateMapOf<String, Uri>() }
-    val proxyOff = remember { mutableStateListOf<String>() }          // files the user wants played as originals
+    val proxies = remember { mutableStateMapOf<String, Uri>() }       // ready proxy (current quality, or an older one while updating)
+    val proxyStale = remember { mutableStateListOf<String>() }        // using an older quality while the new one is made
+    val proxyBad = remember { mutableStateListOf<String>() }          // failed to play this session → the original is used
+    val proxyFail = remember { mutableStateMapOf<String, String>() }  // generation failed (why)
+    val proxyCancelled = remember { mutableStateListOf<String>() }
     val proxyQueue = remember { mutableStateListOf<String>() }
     val proxyProgress = remember { mutableStateMapOf<String, Int>() }
     var proxyCancel by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var proxyRun by remember { mutableStateOf(0) }                   // bumps to restart the worker
     val renderedFor = remember { mutableStateListOf<String?>(null, null) }
     var playSince by remember { mutableStateOf(0L) }
     var stallPos by remember { mutableStateOf(-1L) }
@@ -447,14 +453,46 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     var stallTries by remember { mutableStateOf(0) }
     var showInfo by remember { mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("ve_info", false)) }
     var infoText by remember { mutableStateOf("") }
-    fun sourceFor(c: Clip): Uri {
-        val k = c.uri.toString()
-        return if (k !in proxyOff) proxies[k] ?: c.uri else c.uri
+    /** The proxy this clip plays from right now, or null (= the original). */
+    fun proxyFor(c: Clip): Uri? {
+        if (!proxySettings.enabled || c.nested != null) return null
+        val id = MediaId.of(c)
+        if (id !in proxyMedia || id in proxyBad) return null
+        return proxies[id]
     }
-    fun requestProxy(c: Clip) {
-        val k = c.uri.toString()
-        proxyOff.remove(k)
-        if (proxies[k] == null && k !in proxyQueue) proxyQueue.add(k)
+    fun sourceFor(c: Clip): Uri = proxyFor(c) ?: c.uri
+    fun addToProxy(c: Clip) {
+        val id = MediaId.of(c)
+        proxyCancelled.remove(id); proxyFail.remove(id); proxyBad.remove(id)
+        if (id !in proxyMedia) proxyMedia.add(id) else if (proxies[id] == null || id in proxyStale) { if (id !in proxyQueue) proxyQueue.add(id) }
+    }
+    fun cancelProxy(id: String) {
+        val running = proxyQueue.firstOrNull() == id && proxyProgress[id] != null
+        if (running) { proxyCancel?.invoke(); proxyCancel = null }
+        proxyProgress.remove(id)
+        if (proxyQueue.remove(id) && id !in proxyCancelled) proxyCancelled.add(id)
+        if (running) proxyRun++
+    }
+    fun removeFromProxy(id: String) {
+        cancelProxy(id)
+        proxyMedia.remove(id); proxies.remove(id); proxyStale.remove(id); proxyCancelled.remove(id); proxyFail.remove(id); proxyBad.remove(id)
+    }
+    /** Short status of a media file in the Proxy section. */
+    fun proxyStatus(c: Clip): String {
+        val id = MediaId.of(c)
+        val q = proxySettings.quality.label
+        val have = proxies[id]?.let { ProxyMaker.qualityOf(it)?.label } ?: ""
+        return when {
+            id !in proxyMedia -> "NOT IN PROXY"
+            proxyProgress[id] != null -> (if (proxies[id] != null) "UPDATING TO $q " else "GENERATING $q ") + "${proxyProgress[id]}%"
+            id in proxyQueue -> if (proxies[id] != null) "QUEUED · UPDATE TO $q (USING $have)" else "QUEUED"
+            id in proxyBad -> "COULDN'T PLAY — USING ORIGINAL"
+            proxyFail[id] != null -> "FAILED — USING ORIGINAL"
+            proxies[id] != null && id in proxyStale -> "READY $have · NOT UPDATED TO $q"
+            proxies[id] != null -> "READY $q"
+            id in proxyCancelled -> "CANCELLED — USING ORIGINAL"
+            else -> "WAITING"
+        }
     }
     if (showSettings) EditorSettingsDialog(
         "Video editor", com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR,
@@ -469,21 +507,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("ve_info", it).apply()
                 }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
             }
-            Text("PLAYBACK / PREVIEW COPIES", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
-            Text("Light copies used only for smooth playback with grades and effects. Exports always use your original files.", color = Pro.Dim, fontSize = 12.sp)
-            Chips(ProxyMode.entries.map { it.label }, proxySettings.mode.ordinal) { proxySettings = proxySettings.copy(mode = ProxyMode.entries[it]); ProxySettings.save(context, proxySettings) }
-            Text("Preview codec", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-            Chips(listOf("H.264 (most compatible)", "HEVC (smaller)"), if (proxySettings.hevc) 1 else 0) { proxySettings = proxySettings.copy(hevc = it == 1); ProxySettings.save(context, proxySettings) }
-            Text("Preview resolution", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-            Chips(listOf("720p (fastest)", "1080p (sharper)"), if (proxySettings.height >= 1080) 1 else 0) { proxySettings = proxySettings.copy(height = if (it == 1) 1080 else 720); ProxySettings.save(context, proxySettings) }
-            var size by remember { mutableStateOf(ProxyMaker.sizeOnDisk(context)) }
-            Text(
-                "DELETE PREVIEW COPIES (${size / 1_000_000} MB)", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp),
-                modifier = Modifier.padding(top = 10.dp).clip(RoundedCornerShape(6.dp)).clickable {
-                    proxyCancel?.invoke(); proxyQueue.clear(); proxyProgress.clear(); proxies.clear()
-                    ProxyMaker.clearAll(context); size = 0
-                }.padding(6.dp),
-            )
+            Text("PROXY MEDIA", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
+            Text("Proxies are set up in the Proxy tab next to Media: add the clips you want, switch proxies on or off and pick the quality there. Exports always use your original files.", color = Pro.Dim, fontSize = 12.sp)
         },
     ) { showSettings = false }
     var loadedId by remember { mutableStateOf<String?>(null) }
@@ -602,6 +627,15 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                     if (idx != deck.active) { preloadedId = null; return }
                     val pos = p.currentPosition
+                    // A proxy that fails to decode: fall back to the original at the same point.
+                    clips.getOrNull(current)?.let { c ->
+                        val pu = proxyFor(c)
+                        if (pu != null && p.currentMediaItem?.localConfiguration?.uri == pu) {
+                            proxyBad.add(MediaId.of(c))
+                            message = "The proxy for ${c.name} couldn't be played — using the original"
+                            return
+                        }
+                    }
                     if (gpuGrade) {
                         // No effects pipeline in the player: just retry a couple of times.
                         if (errorRetries < 2) { errorRetries++; load(current, pos, p.playWhenReady) }
@@ -636,34 +670,62 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val idx = clips.indexOfFirst { it.id == loadedId }.takeIf { it >= 0 } ?: current.coerceIn(0, clips.lastIndex)
         load(idx, if (clips[idx].id == loadedId) deck.cur.currentPosition else 0L, deck.cur.playWhenReady && deck.cur.isPlaying)
     }
-    // Decide which files need a preview proxy; reuse ones already made.
-    LaunchedEffect(clips.map { it.uri.toString() }.distinct(), proxySettings) {
-        for (c in clips.toList()) {
-            val k = c.uri.toString()
-            if (proxies[k] != null) continue
-            val existing = ProxyMaker.existing(context, c, proxySettings)
-            if (existing != null) { proxies[k] = existing; continue }
-            if (proxySettings.needsProxy(c) && k !in proxyOff && k !in proxyQueue) proxyQueue.add(k)
+    LaunchedEffect(clips.mapNotNull { it.decoder }.toSet()) { liveDecoders.addAll(clips.mapNotNull { it.decoder }) }
+    // Proxy section: find ready proxies, use an older quality while a new one is made, queue the rest.
+    LaunchedEffect(proxyMedia.toList(), clips.map { MediaId.of(it) }.distinct(), proxySettings.quality, proxySettings.hevc) {
+        val ids = proxyMedia.toSet()
+        val onTimeline = clips.map { MediaId.of(it) }.toSet()
+        // Stop work for media no longer in the section (or no longer in the project).
+        for (id in proxyQueue.toList()) if (id !in ids || id !in onTimeline) {
+            if (proxyQueue.firstOrNull() == id && proxyProgress[id] != null) { proxyCancel?.invoke(); proxyCancel = null; proxyRun++ }
+            proxyProgress.remove(id); proxyQueue.remove(id)
+        }
+        for (id in ids) {
+            val c = clips.firstOrNull { MediaId.of(it) == id && it.nested == null } ?: continue
+            val ready = withContext(Dispatchers.IO) { ProxyMaker.existing(context, c, proxySettings.quality, proxySettings.hevc) }
+            if (ready != null) {
+                proxies[id] = ready; proxyStale.remove(id)
+                if (proxyQueue.firstOrNull() == id && proxyProgress[id] != null) { proxyCancel?.invoke(); proxyCancel = null; proxyRun++ }
+                proxyProgress.remove(id); proxyQueue.remove(id); continue
+            }
+            val old = withContext(Dispatchers.IO) { ProxyMaker.anyExisting(context, c, proxySettings.hevc) }
+            if (old != null) { proxies[id] = old.second; if (id !in proxyStale) proxyStale.add(id) } else proxies.remove(id)
+            if (id !in proxyCancelled && proxyFail[id] == null && id !in proxyQueue) proxyQueue.add(id)
         }
     }
-    // Make proxies one at a time.
+    // Make proxies one at a time, in the background — playback and the timeline keep working
+    // (the original plays until the proxy is ready). A quality change restarts the job.
     val nextProxy = proxyQueue.firstOrNull()
-    LaunchedEffect(nextProxy) {
-        val k = nextProxy ?: return@LaunchedEffect
-        val c = clips.firstOrNull { it.uri.toString() == k }
-        if (c == null) { proxyQueue.remove(k); return@LaunchedEffect }
-        proxyProgress[k] = 0
-        proxyCancel = ProxyMaker.make(
-            context, c, proxySettings,
-            onProgress = { proxyProgress[k] = it },
+    LaunchedEffect(nextProxy, proxySettings.quality, proxySettings.hevc, proxyRun) {
+        if (proxyCancel != null) { proxyCancel?.invoke(); proxyCancel = null; proxyProgress.clear() }
+        val id = nextProxy ?: return@LaunchedEffect
+        val c = clips.firstOrNull { MediaId.of(it) == id && it.nested == null }
+        if (c == null) { proxyQueue.remove(id); return@LaunchedEffect }
+        val q = proxySettings.quality; val hv = proxySettings.hevc
+        // Already there (e.g. made at this quality earlier)?
+        val have = withContext(Dispatchers.IO) { ProxyMaker.existing(context, c, q, hv) }
+        if (have != null) { proxies[id] = have; proxyStale.remove(id); proxyQueue.remove(id); return@LaunchedEffect }
+        proxyProgress[id] = 0
+        var cancel: (() -> Unit)? = null
+        cancel = ProxyMaker.make(
+            context, c, q, hv,
+            onProgress = { if (proxyCancel === cancel) proxyProgress[id] = it },
             onDone = { uri, err ->
-                proxyProgress.remove(k)
-                proxyQueue.remove(k)
-                proxyCancel = null
-                if (uri != null) { proxies[k] = uri; message = "Preview copy ready — smooth playback for ${c.name}" }
-                else message = err ?: "Couldn't make a preview copy"
+                if (proxyCancel === cancel || cancel == null) {
+                    proxyProgress.remove(id)
+                    proxyQueue.remove(id)
+                    proxyCancel = null
+                    if (uri != null) {
+                        proxies[id] = uri; proxyStale.remove(id); proxyBad.remove(id); proxyFail.remove(id)
+                        message = "Proxy ${q.label} ready — ${c.name}"
+                    } else {
+                        proxyFail[id] = err ?: "Couldn't make the proxy"
+                        message = (err ?: "Couldn't make the proxy") + " — ${c.name} plays from the original"
+                    }
+                }
             },
         )
+        proxyCancel = cancel
     }
 
     // Live grade on the clip being shown.
@@ -707,7 +769,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     (if (p.playWhenReady) "▶" else "‖") + " " + (p.currentPosition / 100) / 10f + "s" + (p.playerError?.let { " ERR ${it.errorCodeName}" } ?: "")
                 infoText = "clip ${current + 1}/${clips.size} · player ${deck.active + 1}\n" +
                     "A: ${st(players[0])}  B: ${st(players[1])}\n" +
-                    "src ${if (c0 != null && proxies[c0.uri.toString()] != null && c0.uri.toString() !in proxyOff) "proxy" else "original"} · fx ${if (effectsOk) "on" else "off"} · frame ${if (renderedFor[deck.active] == c0?.id) "ok" else "none"} · stalls $stallTries"
+                    "src ${if (c0 != null && proxyFor(c0) != null) "proxy " + (proxyFor(c0)?.let { ProxyMaker.qualityOf(it)?.label } ?: "") else "original"} · fx ${if (effectsOk) "on" else "off"} · frame ${if (renderedFor[deck.active] == c0?.id) "ok" else "none"} · stalls $stallTries"
             }
             val nowPlaying = deck.cur.isPlaying
             if (nowPlaying && !playing) playSince = System.currentTimeMillis()
@@ -724,9 +786,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         1 -> load(current, p, true)
                         2 -> { if (effectsOk && !gpuGrade) { effectsOk = false; message = "Live effects paused in the preview to keep playback smooth (the export keeps them)" }; load(current, p, true) }
                         else -> {
-                            if (proxySettings.mode != ProxyMode.OFF && proxies[c0.uri.toString()] == null) {
-                                requestProxy(c0); message = "This clip is heavy for live playback — making a smooth preview copy…"
-                            } else message = "Playback stalled — tap play to retry"
+                            if (proxyFor(c0) != null) {
+                                proxyBad.add(MediaId.of(c0)); message = "The proxy stalled — playing the original"
+                            } else if (MediaId.of(c0) !in proxyMedia) message = "This clip is heavy for live playback — add it in the Proxy tab for smooth editing"
+                            else message = "Playback stalled — tap play to retry"
                             deck.cur.pause()
                         }
                     }
@@ -737,9 +800,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val c = clips.getOrNull(current)
             if (c != null && nowPlaying && renderedFor[deck.active] != c.id && System.currentTimeMillis() - playSince > 2500) {
                 playSince = System.currentTimeMillis() + 60_000
-                if (proxySettings.mode != ProxyMode.OFF && proxies[c.uri.toString()] == null) {
-                    requestProxy(c)
-                    message = "This clip is too heavy to preview live — making a smooth preview copy…"
+                if (proxyFor(c) != null) {
+                    // The proxy gives no picture: never show a blank frame — use the original.
+                    proxyBad.add(MediaId.of(c))
+                    message = "The proxy for ${c.name} shows no picture — playing the original"
                 } else if (effectsOk) {
                     effectsOk = false
                     message = "Live effects turned off for the preview; the export still uses them"
@@ -906,7 +970,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     LaunchedEffect(clips.map { it.id to it.startMs }) {
         for (c in clips.toList()) {
             if (thumbs[c.id] == null) {
-                val b = withContext(Dispatchers.IO) { GradeIO.videoFrame(context, c.uri, c.startMs * 1000 + 500_000, 240) }
+                val src = proxyFor(c) ?: c.uri
+                val b = withContext(Dispatchers.IO) { GradeIO.videoFrame(context, src, c.startMs * 1000 + 500_000, 240) ?: if (src != c.uri) GradeIO.videoFrame(context, c.uri, c.startMs * 1000 + 500_000, 240) else null }
                 if (b != null) thumbs[c.id] = b
             }
         }
@@ -921,7 +986,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 val out = mutableListOf<Bitmap>()
                 try {
                     val mmr = android.media.MediaMetadataRetriever()
-                    mmr.setDataSource(context, c.uri)
+                    // A ready proxy is much lighter to read than the original (same timestamps).
+                    val ps = proxyFor(c)
+                    try { mmr.setDataSource(context, ps ?: c.uri) } catch (t: Throwable) { if (ps != null) mmr.setDataSource(context, c.uri) else throw t }
                     val h = 96
                     val w = if (c.height > 0) (h * c.width / c.height).coerceIn(48, 200) else 160
                     for (i in 0 until n) {
@@ -1052,6 +1119,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             extraAudio = extraAudio.toList(), audioPool = audioPool.toList(),
             videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
             markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
+            proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
         )
         val saved = try { ProjectStore.saveVideo(context, p, clips.firstOrNull()?.let { thumbs[it.id] }) } catch (_: Throwable) { null }
         if (saved != null) { projectId = saved.id; projectName = saved.name; message = "Project \"${saved.name}\" saved" }
@@ -1069,6 +1137,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 extraAudio = extraAudio.toList(), audioPool = audioPool.toList(),
                 videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
                 markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
+            proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
             )
             val json = withContext(Dispatchers.Default) { try { ProjectStore.gson.toJson(p) } catch (_: Throwable) { "" } }
             if (json.isNotEmpty() && json != last) {
@@ -1694,10 +1763,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         contentAlignment = Alignment.Center,
                     ) { Icon(Icons.Filled.Fullscreen, contentDescription = "Full screen", tint = Color.White) }
                     clips.getOrNull(current)?.let { cc ->
-                        val k = cc.uri.toString()
+                        val pu = proxyFor(cc)
                         val badge = when {
-                            proxyProgress[k] != null -> "MAKING PREVIEW ${proxyProgress[k]}%"
-                            proxies[k] != null && k !in proxyOff -> "PROXY"
+                            pu != null -> "PROXY " + (ProxyMaker.qualityOf(pu)?.label ?: "")
+                            proxySettings.enabled && MediaId.of(cc) in proxyMedia -> "ORIGINAL"
                             else -> null
                         }
                         if (badge != null) Text(
@@ -1706,14 +1775,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         )
                     }
                     clips.getOrNull(current)?.let { cc ->
-                        val pp = proxyProgress[cc.uri.toString()]
-                        if (pp != null && proxies[cc.uri.toString()] == null) Column(
-                            Modifier.align(Alignment.Center).clip(RoundedCornerShape(12.dp)).background(Color.Black.copy(alpha = 0.7f)).padding(horizontal = 18.dp, vertical = 12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
+                        // Small, non-blocking progress chip: the original keeps playing meanwhile.
+                        val pp = proxyProgress[MediaId.of(cc)]
+                        if (pp != null) Row(
+                            Modifier.align(Alignment.TopStart).padding(8.dp).clip(RoundedCornerShape(10.dp)).background(Color.Black.copy(alpha = 0.6f)).padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            CircularProgressIndicator(progress = { pp / 100f }, color = Pro.Amber, modifier = Modifier.size(34.dp))
-                            Text("Making smooth preview copy · $pp%", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
-                            Text("Playback switches to it automatically", color = Pro.Dim, fontSize = 11.sp)
+                            CircularProgressIndicator(progress = { pp / 100f }, color = Pro.Amber, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                            Text("Proxy ${proxySettings.quality.label} · $pp%", color = Color.White, fontSize = 11.sp, modifier = Modifier.padding(start = 6.dp))
                         }
                     }
                     if (showInfo) Text(
@@ -1841,7 +1910,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val inspector = @Composable { mod: Modifier ->
                 Column(mod.background(Ed.Panel)) {
                     val pages = if (com.dronedirector.veyrocutpro.camera.SimpleMode.on)
-                        listOf(Page.MEDIA, Page.EDIT, Page.TRANSITIONS, Page.COLOR, Page.LAYERS, Page.AUDIO, Page.DELIVER)
+                        listOf(Page.MEDIA, Page.PROXY, Page.EDIT, Page.TRANSITIONS, Page.COLOR, Page.LAYERS, Page.AUDIO, Page.DELIVER)
                     else Page.entries.toList()
                     Chips(pages.map { it.label }, pages.indexOf(page)) { page = pages[it] }
                     if (clips.isNotEmpty() && (page == Page.EDIT || page == Page.COLOR || page == Page.AUDIO)) CopyPasteBar(
@@ -1925,28 +1994,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     extraAudio.removeAll { it.uri == a.uri }
                                     if (music?.uri == a.uri) { music = null; musicPlayer.stop() }
                                 },
-                                proxyState = { c ->
-                                    val k = c.uri.toString()
-                                    when {
-                                        proxyProgress[k] != null -> "MAKING PREVIEW ${proxyProgress[k]}%"
-                                        k in proxyQueue -> "PREVIEW QUEUED"
-                                        proxies[k] != null && k !in proxyOff -> "PREVIEW COPY ✓"
-                                        proxies[k] != null -> "PLAYING ORIGINAL"
-                                        else -> null
-                                    }
-                                },
-                                onProxyToggle = { c ->
-                                    val k = c.uri.toString()
-                                    when {
-                                        proxies[k] == null -> requestProxy(c)
-                                        k in proxyOff -> proxyOff.remove(k)
-                                        else -> proxyOff.add(k)
-                                    }
-                                },
+                                proxyState = { c -> if (MediaId.of(c) in proxyMedia) proxyStatus(c) else null },
+                                onProxyToggle = { c -> if (MediaId.of(c) in proxyMedia) page = Page.PROXY else { addToProxy(c); message = "${c.name} added to Proxy" } },
                                 onRemove = { c ->
                                     val k = c.uri.toString()
-                                    if (proxyQueue.firstOrNull() == k) { proxyCancel?.invoke(); proxyCancel = null; proxyProgress.remove(k) }
-                                    proxyQueue.remove(k); proxyOff.remove(k)
+                                    removeFromProxy(MediaId.of(c))
                                     clips.removeAll { it.uri.toString() == k }
                                     selected = selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
                                     current = current.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
@@ -1954,6 +2006,33 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 },
                             )
                             }
+                            Page.PROXY -> ProxyPage(
+                                media = clips.filter { it.nested == null }.distinctBy { MediaId.of(it) },
+                                inProxy = proxyMedia.toList(),
+                                settings = proxySettings,
+                                status = { proxyStatus(it) },
+                                progress = { proxyProgress[MediaId.of(it)] },
+                                busy = proxyQueue.isNotEmpty(),
+                                onSettings = { ns ->
+                                    val qChanged = ns.quality != proxySettings.quality || ns.hevc != proxySettings.hevc
+                                    proxySettings = ns; ProxySettings.save(context, ns)
+                                    if (qChanged) { proxyCancelled.clear(); proxyFail.clear() }
+                                    message = if (!ns.enabled) "Proxy off — the editor plays your original files" else if (qChanged) "Proxy quality ${ns.quality.label} — updating proxies in the background" else "Proxy on — media in the Proxy section plays from its proxy"
+                                },
+                                onAdd = { addToProxy(it) },
+                                onAddAll = { clips.filter { it.nested == null }.forEach { addToProxy(it) }; message = "All media added to Proxy" },
+                                onRemove = { removeFromProxy(MediaId.of(it)) },
+                                onCancel = { cancelProxy(MediaId.of(it)) },
+                                onCancelAll = { proxyQueue.toList().forEach { cancelProxy(it) }; message = "Proxy generation cancelled — those clips play from the originals" },
+                                onRetry = { c -> val id = MediaId.of(c); proxyFail.remove(id); proxyBad.remove(id); proxyCancelled.remove(id); if (id !in proxyQueue) proxyQueue.add(id) },
+                                onClearFiles = {
+                                    proxyQueue.toList().forEach { cancelProxy(it) }
+                                    proxies.clear(); proxyStale.clear(); proxyCancelled.clear()
+                                    val freed = ProxyMaker.clearAll(context)
+                                    message = "Proxy files deleted (${freed / 1_000_000} MB) — tap GENERATE to make them again"
+                                    proxyMedia.forEach { if (it !in proxyCancelled) proxyCancelled.add(it) }
+                                },
+                            )
                             Page.TRANSITIONS -> TransitionsPanel(
                                 clips, selected, thumbs,
                                 onChange = { t -> update(selected, { it.copy(transition = t) }) },
@@ -2232,6 +2311,125 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 }
 
+/** The Proxy section: which media plays from a light proxy, on / off, quality and progress. */
+@OptIn(UnstableApi::class)
+@Composable
+private fun ProxyPage(
+    media: List<Clip>, inProxy: List<String>, settings: ProxySettings,
+    status: (Clip) -> String, progress: (Clip) -> Int?, busy: Boolean,
+    onSettings: (ProxySettings) -> Unit, onAdd: (Clip) -> Unit, onAddAll: () -> Unit, onRemove: (Clip) -> Unit,
+    onCancel: (Clip) -> Unit, onCancelAll: () -> Unit, onRetry: (Clip) -> Unit, onClearFiles: () -> Unit,
+) {
+    val context = LocalContext.current
+    SectionTitle("PROXY")
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Ed.Raised).padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(if (settings.enabled) "Proxy ON" else "Proxy OFF", color = Color.White, fontSize = 15.sp)
+            Text(
+                if (settings.enabled) "Media below plays from its light proxy" else "The editor plays the original, full-quality files",
+                color = Pro.Dim, fontSize = 12.sp,
+            )
+        }
+        androidx.compose.material3.Switch(
+            settings.enabled, { onSettings(settings.copy(enabled = it)) },
+            colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
+        )
+    }
+    Text("Proxy quality", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp))
+    Chips(ProxyQuality.entries.map { it.label }, settings.quality.ordinal) { onSettings(settings.copy(quality = ProxyQuality.entries[it])) }
+    Text(
+        when (settings.quality) {
+            ProxyQuality.P360 -> "Fastest and smallest — best for long or many 4K clips on older phones."
+            ProxyQuality.P540 -> "Very light, still easy to judge framing."
+            ProxyQuality.P720 -> "Balanced (recommended)."
+            ProxyQuality.P1080 -> "Sharpest preview; heavier to make and play."
+        } + " Changing quality remakes the proxies in the background; the old ones are used until then.",
+        color = Pro.Dim, fontSize = 11.sp,
+    )
+    Text("Proxy codec", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+    Chips(listOf("H.264 (most compatible)", "HEVC (smaller)"), if (settings.hevc) 1 else 0) { onSettings(settings.copy(hevc = it == 1)) }
+    Text(
+        "Only media added here plays from a proxy. Proxies keep the original's timing, frame rate, orientation and sound, so edits never move when you switch. The final export always uses the original files.",
+        color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 8.dp),
+    )
+    val added = media.filter { MediaId.of(it) in inProxy }
+    val notAdded = media.filter { MediaId.of(it) !in inProxy }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (notAdded.isNotEmpty()) Text(
+            "ADD ALL MEDIA", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp),
+            modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { onAddAll() }.padding(8.dp),
+        )
+        if (busy) Text(
+            "CANCEL ALL", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp),
+            modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { onCancelAll() }.padding(8.dp),
+        )
+    }
+    if (media.isEmpty()) Text("Add clips in the Media page first.", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(vertical = 8.dp))
+    if (added.isNotEmpty()) SectionTitle("IN PROXY (${added.size})")
+    added.forEach { c ->
+        val st = status(c)
+        val pp = progress(c)
+        Column(Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).padding(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(c.name, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("${c.width}×${c.height} · ${tc(c.durationMs)}", style = Pro.Label)
+                }
+                Text(
+                    "REMOVE", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp),
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { onRemove(c) }.padding(6.dp),
+                )
+            }
+            if (pp != null) androidx.compose.material3.LinearProgressIndicator(
+                progress = { pp / 100f }, color = Pro.Amber, trackColor = Color.White.copy(alpha = 0.12f),
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
+            )
+            Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (!settings.enabled && st.startsWith("READY")) "$st · PROXY OFF" else st,
+                    style = Pro.Label.copy(color = if (st.startsWith("READY")) Pro.Green else if (st.contains("FAILED") || st.contains("COULDN'T")) Pro.Red else Pro.Dim, fontSize = 10.sp),
+                    modifier = Modifier.weight(1f),
+                )
+                val action = when {
+                    st.startsWith("GENERATING") || st.startsWith("UPDATING") || st.startsWith("QUEUED") -> "CANCEL"
+                    st.contains("FAILED") || st.contains("COULDN'T") -> "RETRY"
+                    st.startsWith("CANCELLED") || st.contains("NOT UPDATED") -> "GENERATE"
+                    else -> null
+                }
+                if (action != null) Text(
+                    action, style = Pro.Label.copy(color = if (action == "CANCEL") Pro.Red else Pro.Amber, fontSize = 10.sp),
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { if (action == "CANCEL") onCancel(c) else onRetry(c) }.padding(6.dp),
+                )
+            }
+        }
+    }
+    if (notAdded.isNotEmpty()) SectionTitle("NOT IN PROXY — PLAYS ORIGINAL")
+    notAdded.forEach { c ->
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(c.name, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${c.width}×${c.height} · ${tc(c.durationMs)}" + if (c.hdr) " · HDR" else if (c.tenBit) " · 10-bit" else "", style = Pro.Label)
+            }
+            Text(
+                "ADD", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp),
+                modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { onAdd(c) }.padding(6.dp),
+            )
+        }
+    }
+    var size by remember { mutableStateOf(ProxyMaker.sizeOnDisk(context)) }
+    LaunchedEffect(busy, added.size) { size = ProxyMaker.sizeOnDisk(context) }
+    Text(
+        "DELETE PROXY FILES (${size / 1_000_000} MB)", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp),
+        modifier = Modifier.padding(top = 10.dp).clip(RoundedCornerShape(6.dp)).clickable { onClearFiles(); size = ProxyMaker.sizeOnDisk(context) }.padding(6.dp),
+    )
+}
+
 @Composable
 private fun MediaPage(
     clips: List<Clip>, onAddGallery: () -> Unit, onAddFiles: () -> Unit,
@@ -2271,7 +2469,7 @@ private fun MediaPage(
     }
     SoundLibraries(onLibraryAdd)
     Text(
-        "Clips are added to the end of the timeline. Heavy clips (HDR, 10-bit, 4K) get a light preview copy so grades and effects play smoothly; exports always use the original files.",
+        "Clips are added to the end of the timeline. For smooth editing of heavy clips (HDR, 10-bit, 4K), add them to the Proxy tab — exports always use the original files.",
         color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 6.dp),
     )
     clips.distinctBy { it.uri.toString() }.forEachIndexed { i, c ->
@@ -2294,7 +2492,7 @@ private fun MediaPage(
                         "This phone has no decoder for ${if (c.chroma == 3) "4:4:4" else "4:2:2"} ${c.mime.removePrefix("video/").uppercase()} — it can't be shown or exported here. Convert it to 4:2:0 (e.g. ProRes / DNxHR → H.265 4:2:0 10-bit) on a computer, or shoot 4:2:0 for phone editing.",
                         color = Pro.Red, fontSize = 11.sp,
                     ) else if (c.decoder != null && c.is422) Text(
-                        "4:2:2 is read with ${if (c.decoder.startsWith("c2.android") || c.decoder.startsWith("OMX.google")) "Android's software decoder (slower)" else "the phone's hardware decoder"}; editing uses a smooth preview copy and the export is made from the original (saved as 4:2:0, which phones encode).",
+                        "4:2:2 is read with ${if (c.decoder.startsWith("c2.android") || c.decoder.startsWith("OMX.google")) "Android's software decoder (slower)" else "the phone's hardware decoder"}; add it to the Proxy tab for smooth editing; the export is made from the original (saved as 4:2:0, which phones encode).",
                         color = Pro.Dim, fontSize = 11.sp,
                     )
                 }
@@ -2304,15 +2502,9 @@ private fun MediaPage(
             }
             Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 val st = proxyState(c)
-                Text(st ?: "PLAYING ORIGINAL", style = Pro.Label.copy(color = if (st?.startsWith("PREVIEW COPY") == true) Pro.Green else Pro.Dim, fontSize = 10.sp), modifier = Modifier.weight(1f))
-                val action = when {
-                    st == null -> "MAKE PREVIEW COPY"
-                    st.startsWith("PREVIEW COPY") -> "PLAY ORIGINAL"
-                    st == "PLAYING ORIGINAL" -> "USE PREVIEW COPY"
-                    else -> null
-                }
-                if (action != null) Text(
-                    action, style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp),
+                Text(if (st == null) "ORIGINAL" else "PROXY · $st", style = Pro.Label.copy(color = if (st?.startsWith("READY") == true) Pro.Green else Pro.Dim, fontSize = 10.sp), modifier = Modifier.weight(1f))
+                Text(
+                    if (st == null) "ADD TO PROXY" else "PROXY ›", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp),
                     modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { onProxyToggle(c) }.padding(6.dp),
                 )
             }
@@ -3380,6 +3572,9 @@ private fun TransportIcon(icon: androidx.compose.ui.graphics.vector.ImageVector,
 }
 
 /** ExoPlayer whose audio runs through [fx] (EQ, dynamics, channels) before output. */
+/** Decoders that read the project's 4:2:2 originals (filled in as clips are added). */
+private val liveDecoders = java.util.concurrent.CopyOnWriteArraySet<String>()
+
 @OptIn(UnstableApi::class)
 private fun fxPlayer(context: android.content.Context, fx: AudioFxProcessor): ExoPlayer {
     val rf = object : androidx.media3.exoplayer.DefaultRenderersFactory(context) {
@@ -3389,6 +3584,8 @@ private fun fxPlayer(context: android.content.Context, fx: AudioFxProcessor): Ex
                 .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                 .build()
     }
+    // Originals that need a special decoder (4:2:2) play with it when they aren't on a proxy.
+    rf.setMediaCodecSelector(Chroma.selector(liveDecoders)).setEnableDecoderFallback(true)
     return ExoPlayer.Builder(context, rf).build()
 }
 

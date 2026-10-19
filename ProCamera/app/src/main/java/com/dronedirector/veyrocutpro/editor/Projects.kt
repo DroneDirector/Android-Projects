@@ -32,6 +32,8 @@ data class VideoProjectData(
     val markers: List<Long> = emptyList(),
     /** Notes on markers, keyed by the marker's time (ms) as text. */
     val markerNotes: Map<String, String>? = null,
+    /** Media in the Proxy section, by stable media ID ([MediaId]). */
+    val proxyMedia: List<String>? = null,
 )
 
 data class PhotoProjectData(

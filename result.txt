@@ -1,0 +1,61 @@
+whisper_init_from_file_with_params_no_state: loading model from 'base.bin'
+whisper_init_with_params_no_state: use gpu    = 0
+whisper_init_with_params_no_state: flash attn = 0
+whisper_init_with_params_no_state: gpu_device = 0
+whisper_init_with_params_no_state: dtw        = 0
+register_backend: registered backend CPU (1 devices)
+register_device: registered device CPU (AMD EPYC 9V45 96-Core Processor)
+whisper_init_with_params_no_state: devices    = 1
+whisper_init_with_params_no_state: backends   = 1
+whisper_model_load: loading model
+whisper_model_load: n_vocab       = 51865
+whisper_model_load: n_audio_ctx   = 1500
+whisper_model_load: n_audio_state = 512
+whisper_model_load: n_audio_head  = 8
+whisper_model_load: n_audio_layer = 6
+whisper_model_load: n_text_ctx    = 448
+whisper_model_load: n_text_state  = 512
+whisper_model_load: n_text_head   = 8
+whisper_model_load: n_text_layer  = 6
+whisper_model_load: n_mels        = 80
+whisper_model_load: ftype         = 9
+whisper_model_load: qntvr         = 1
+whisper_model_load: type          = 2 (base)
+whisper_model_load: adding 1608 extra tokens
+whisper_model_load: n_langs       = 99
+whisper_model_load:          CPU total size =    59.12 MB
+whisper_model_load: model size    =   59.12 MB
+whisper_backend_init_gpu: no GPU found
+whisper_init_state: kv self size  =    6.29 MB
+whisper_init_state: kv cross size =   18.87 MB
+whisper_init_state: kv pad  size  =    3.15 MB
+whisper_init_state: compute buffer (conv)   =   16.26 MB
+whisper_init_state: compute buffer (encode) =   85.86 MB
+whisper_init_state: compute buffer (cross)  =    4.65 MB
+whisper_init_state: compute buffer (decode) =   96.35 MB
+whisper_full_with_state: auto-detected language: en (p = 0.959266)
+0	50	
+50	660	 Hello
+660	1060	 and
+1060	2250	 welcome!
+2250	2490	 Um,
+2490	2850	 today
+2850	2990	 we
+2990	3210	 are
+3210	3700	 testing
+3700	3900	 the
+3900	4270	 video
+4270	4990	 editor.
+4990	5220	 This
+5220	5350	 is
+5350	5410	 a
+5410	5800	 short
+5800	6120	 test
+6120	6320	 on
+6320	6780	 text
+6780	7170	 Mace
+7170	7780	 editing.
+
+real	0m2.302s
+user	0m8.830s
+sys	0m0.043s

@@ -33,18 +33,42 @@ jobs:
           adb install -r -g "$(ls apk/*.apk | head -1)" || echo "install failed"
           adb shell settings put secure immersive_mode_confirmations confirmed
           adb shell settings put global hide_error_dialogs 1
+          adb shell settings put global anr_show_background 0
+          for L in com.google.android.apps.nexuslauncher com.android.launcher3; do adb shell pm disable-user --user 0 "$L" >/dev/null 2>&1 || true; done
           adb shell mkdir -p /sdcard/DCIM/VeyroCutPro
           adb push test_clip.mp4 /sdcard/DCIM/VeyroCutPro/VID_TEST.mp4
           adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/DCIM/VeyroCutPro/VID_TEST.mp4 || true
           adb shell content call --uri content://media/external/file --method scan_volume --arg external_primary >/dev/null 2>&1 || true
           sleep 5
           adb logcat -c
-          for s in video photo video; do
-            adb shell am force-stop com.dronedirector.veyrocutpro
-            adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen $s
-            sleep 15
-            adb exec-out screencap -p > out/screen-$s-$(date +%s).png
-          done
+          tapText() {  # tap the centre of the first on-screen element whose text contains $1
+            adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
+            adb shell cat /sdcard/ui.xml > ui.xml
+            local xy
+            xy=$(python3 - "$1" <<'PY'
+          import re,sys
+          t=open('ui.xml',encoding='utf-8',errors='ignore').read()
+          for m in re.finditer(r'<node [^>]*>', t):
+              n=m.group(0)
+              tx=re.search(r'text="([^"]*)"',n); b=re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"',n)
+              if tx and b and sys.argv[1].lower() in tx.group(1).lower():
+                  x1,y1,x2,y2=map(int,b.groups()); print((x1+x2)//2,(y1+y2)//2); break
+          PY
+          )
+            echo "tap '$1' at: $xy"
+            [ -n "$xy" ] && adb shell input tap $xy
+          }
+          shot() { adb exec-out screencap -p > "out/$1.png"; }
+          start_video() { adb shell am force-stop com.dronedirector.veyrocutpro; adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen video; sleep 12; }
+          start_video; shot 01-video-start
+          tapText "Skip"; sleep 15; shot 02-skip-workspace
+          start_video
+          tapText "MP4"; sleep 30; shot 03-clip-workspace
+          sleep 25; shot 04-clip-after-autosave
+          start_video; shot 05-recover-banner
+          tapText "RECOVER"; sleep 25; shot 06-after-recover
+          adb shell am force-stop com.dronedirector.veyrocutpro
+          adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen photo; sleep 10; shot 07-photo
           adb logcat -d -b crash > out/crash.txt || true
           adb logcat -d > out/logcat-full.txt || true
           grep -n -A40 "FATAL EXCEPTION" out/logcat-full.txt > out/fatal.txt || echo "no fatal exception" > out/fatal.txt

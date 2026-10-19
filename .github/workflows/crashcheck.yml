@@ -9,6 +9,7 @@ on:
         default: ""
 permissions:
   contents: write
+  actions: read
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -19,7 +20,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir apk
-          if [ -n "${{ inputs.tag }}" ]; then gh release download "${{ inputs.tag }}" -R "${{ github.repository }}" -p '*.apk' -D apk
+          if [ -n "${{ inputs.run }}" ]; then gh run download "${{ inputs.run }}" -R "${{ github.repository }}" -n apk -D apk
+          elif [ -n "${{ inputs.tag }}" ]; then gh release download "${{ inputs.tag }}" -R "${{ github.repository }}" -p '*.apk' -D apk
           else gh release download -R "${{ github.repository }}" -p '*.apk' -D apk; fi
           ls -la apk
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null

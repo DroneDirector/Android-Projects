@@ -95,6 +95,9 @@ fun TimelineWheel(state: ScrollState, modifier: Modifier = Modifier, onActive: (
             }
     ) {
         val w = size.width; val h = size.height
+        // Too small to draw (e.g. while the layout settles): skip the frame — a zero-length
+        // gradient would make Android throw.
+        if (w < 4f || h < 8f || !w.isFinite() || !h.isFinite()) return@Canvas
         val r = CornerRadius(w / 2, w / 2)
         val e = energy.value
         val dim = if (canScroll) 1f else 0.4f
@@ -111,8 +114,8 @@ fun TimelineWheel(state: ScrollState, modifier: Modifier = Modifier, onActive: (
         }
         // Thumb position and size.
         val vp = state.viewportSize.toFloat().coerceAtLeast(1f)
-        val vis = if (canScroll) (h * vp / (vp + state.maxValue)).coerceIn(h * 0.22f, h) else h
-        val t = if (canScroll) state.value.toFloat() / state.maxValue else 0f
+        val vis = (if (canScroll) (h * vp / (vp + state.maxValue)).coerceIn(h * 0.22f, h) else h).let { if (it.isFinite() && it >= 4f) it else h }
+        val t = (if (canScroll) state.value.toFloat() / state.maxValue else 0f).let { if (it.isFinite()) it.coerceIn(0f, 1f) else 0f }
         val top = (h - vis) * t
         // "Upscale" pixels: blocks that refine from coarse to fine as the energy fades.
         if (e > 0.01f) {
@@ -164,6 +167,7 @@ fun TimelineUpscaleOverlay(energy: Float, scroll: Int, modifier: Modifier = Modi
     LaunchedEffect(scroll) { prev.floatValue = scroll.toFloat() }
     Canvas(modifier.fillMaxSize()) {
         val w = size.width; val h = size.height
+        if (w < 4f || h < 4f || !w.isFinite() || !h.isFinite()) return@Canvas
         val cell = 3.dp.toPx() + 10.dp.toPx() * energy
         val a = 0.10f * energy
         var x = 0f

@@ -1,0 +1,26 @@
+name: Morph cut check (host)
+# Started by hand: builds the app's morph cut engine on the runner and tests it on real video.
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  morph:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build and run
+        run: |
+          pip install -q opencv-python-headless numpy
+          M=ProCamera/app/src/main/cpp/morph
+          g++ -O3 -march=native -fopenmp -shared -fPIC -I$M .github/scripts/morph_capi.cpp $M/morph.cpp -o libmorph.so
+          mkdir -p out
+          curl -fsSL -o megamind.avi https://raw.githubusercontent.com/opencv/opencv/4.x/samples/data/Megamind.avi
+          curl -fsSL -o vtest.avi https://raw.githubusercontent.com/opencv/opencv/4.x/samples/data/vtest.avi
+          ( time python3 .github/scripts/morph_test.py megamind.avi:40,120,200:12 vtest.avi:100,400:10 ) 2>&1 | tee out/log.txt
+      - name: Save result
+        if: always()
+        run: |
+          cd out && git init -q -b morphtest && git add -A
+          git -c user.name="github-actions" -c user.email="actions@github.com" commit -qm "Morph check"
+          git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" morphtest

@@ -1,0 +1,27 @@
+name: Magic Mask model (MobileSAM export)
+# Started by hand: exports MobileSAM (Apache 2.0) to ONNX, checks it, and stores the models on the "models" branch.
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Export and check
+        run: |
+          pip install -q torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install -q timm==0.9.16 onnx==1.16.2 onnxruntime==1.19.2 scikit-image opencv-python-headless numpy==1.26.4
+          git clone -q --depth 1 https://github.com/ChaoningZhang/MobileSAM
+          python .github/scripts/sam_export.py 2>&1 | tee out.log
+          mkdir -p out && mv out.log out/
+      - name: Save results and models
+        if: always()
+        run: |
+          cp MobileSAM/LICENSE models/MobileSAM-LICENSE.txt || true
+          ( cd out && git init -q -b samtest && git add -A && git -c user.name="github-actions" -c user.email="actions@github.com" commit -qm "SAM check" && git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" samtest )
+          ( cd models && git init -q -b models && git add -A && git -c user.name="github-actions" -c user.email="actions@github.com" commit -qm "Magic Mask models (MobileSAM, Apache 2.0)" && git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" models )

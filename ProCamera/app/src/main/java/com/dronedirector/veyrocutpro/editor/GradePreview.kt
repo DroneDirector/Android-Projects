@@ -51,6 +51,9 @@ object GradePreview {
         return RuntimeShader(AGSL_PLAIN)
     }
 
+    /** Before / after split position (0 = off, else 0..1 across the frame). */
+    @Volatile var split: Float = 0f
+
     fun apply(view: View, c: Clip?, timeSec: Float = 0f) {
         if (!supported) return
         val masks0 = c?.activeMasks() ?: emptyList()
@@ -59,7 +62,7 @@ object GradePreview {
         val st = states.getOrPut(view) { ViewState(newShader()) }
         val sh = st.shader as RuntimeShader
         val masks = if (masksOk) masks0 else emptyList()
-        val key = Triple(c.grade, c.detail, Triple(view.width, view.height, masks))
+        val key = Triple(c.grade, c.detail, Triple(view.width, view.height, masks to split))
         if (st.key == key && !animated(c)) return
         st.key = key
         sh.setFloatUniform("uSize", view.width.toFloat(), view.height.toFloat())
@@ -81,6 +84,7 @@ object GradePreview {
         sh.setFloatUniform("uTime", timeSec % 10f)
         sh.setFloatUniform("uFx", d.fx.ordinal.toFloat())
         sh.setFloatUniform("uFxAmt", d.fxAmount)
+        sh.setFloatUniform("uSplit", split)
         // Masks: each with its own grade, blended in where the mask is.
         if (masksOk) sh.setFloatUniform("uMCount", masks.size.toFloat())
         if (masksOk) for (k in 0 until MAX_VIDEO_MASKS) {
@@ -156,6 +160,7 @@ object GradePreview {
         uniform float uTime;
         uniform float uFx;
         uniform float uFxAmt;
+        uniform float uSplit;
 """
     private const val MASK_DECL = """
         uniform shader mlut0;
@@ -218,6 +223,12 @@ object GradePreview {
             if (uGrain > 0.0) rgb += (rnd(fc) - 0.5) * uGrain * 0.22;
             rgb = clamp(rgb, 0.0, 1.0);
             float a = float(orig.a);
+            // Before / after: the original on the left of the divider.
+            if (uSplit > 0.0) {
+                float sx = uSplit * uSize.x;
+                if (fc.x < sx) rgb = px(fc);
+                if (abs(fc.x - sx) < 1.5) rgb = float3(1.0, 0.75, 0.2);
+            }
             return half4(half3(rgb * a), half(a));
         }
     """

@@ -93,7 +93,9 @@ object ProjectStore {
     fun saveVideo(context: Context, p: VideoProjectData, thumb: Bitmap?): VideoProjectData {
         val out = p.copy(savedAt = System.currentTimeMillis())
         keepAccess(context, out.clips.map { it.uri } + out.layers.flatMap { listOf(it.imageUri, it.videoUri) } + listOf(out.music?.uri) + out.extraAudio.map { it.uri } + out.audioPool.map { it.uri })
-        File(dir(context, true), "${out.id}.json").writeText(gson.toJson(out))
+        val json = gson.toJson(out)
+        File(dir(context, true), "${out.id}.json").writeText(json)
+        ProTools.saveVersion(context, out, json)
         saveThumb(context, true, out.id, thumb)
         return out
     }
@@ -169,6 +171,9 @@ object ProjectStore {
         p.extraAudio.forEach { Defaults.fix(it, MusicTrack(Uri.EMPTY, "", 1)) }
         return p
     }
+
+    /** A video project from its JSON (missing newer settings filled with defaults). */
+    fun parseVideo(json: String): VideoProjectData? = try { fixVideo(gson.fromJson(json, VideoProjectData::class.java)) } catch (_: Throwable) { null }
 
     fun loadVideo(context: Context, id: String): VideoProjectData? = try {
         val p = gson.fromJson(File(dir(context, true), "$id.json").readText(), VideoProjectData::class.java)

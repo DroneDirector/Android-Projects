@@ -132,6 +132,7 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.runtime.derivedStateOf
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -571,6 +572,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             else -> "WAITING"
         }
     }
+    var pendingRestore by remember { mutableStateOf<java.io.File?>(null) }
     if (showSettings) EditorSettingsDialog(
         "Video editor", com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR,
         extra = {
@@ -586,6 +588,17 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
             Text("PROXY MEDIA", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
             Text("Proxies are set up in the Proxy tab next to Media: add the clips you want, switch proxies on or off and pick the quality there. Exports always use your original files.", color = Pro.Dim, fontSize = 12.sp)
+            Text("VERSION HISTORY", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
+            val pid = projectId
+            val vers = remember(pid, showSettings) { if (pid != null) ProTools.versions(context, pid) else emptyList() }
+            if (pid == null) Text("Save the project once; every save (and every 10 minutes of editing) then keeps a version you can go back to.", color = Pro.Dim, fontSize = 12.sp)
+            else if (vers.isEmpty()) Text("No earlier versions yet — they're kept every time you save and every 10 minutes while you edit.", color = Pro.Dim, fontSize = 12.sp)
+            else vers.take(30).forEach { (t, f) ->
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                    Text(java.text.SimpleDateFormat("EEE d MMM · HH:mm", java.util.Locale.getDefault()).format(java.util.Date(t)), color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                    Text("RESTORE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { pendingRestore = f; showSettings = false }.padding(6.dp))
+                }
+            }
         },
     ) { showSettings = false }
     var loadedId by remember { mutableStateOf<String?>(null) }
@@ -805,6 +818,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         proxyCancel = cancel
     }
 
+    // Before / after split view on the player (Color page).
+    var abSplit by remember { mutableStateOf(0f) }
+    LaunchedEffect(abSplit, page) { GradePreview.split = if (page == Page.COLOR) abSplit else 0f }
     // Live grade on the clip being shown.
     val cur = clips.getOrNull(current)
     // Live grade while dragging: the newest value is applied every ~80 ms (not only after letting go),
@@ -1615,6 +1631,95 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         message = "Cut %.1f s from the edit".format(cutMs / 1000f) + (if (skipped > 0) " · $skipped clip(s) with a speed ramp skipped" else "") + " — undo brings it back"
     }
 
+    // ---- Pro tools: scene detection, auto-edit to the beat, fit music, multi-select, versions.
+    var sceneJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var sceneProgress by remember { mutableStateOf(-1) }
+    val multi = remember { mutableStateListOf<String>() }      // clip ids picked in SELECT CLIPS
+    fun detectScenes() {
+        if (videoLocked) { message = "The video track is locked"; return }
+        val c = clips.getOrNull(selected) ?: return
+        if (sceneJob != null) return
+        sceneProgress = 0
+        var stop = false
+        sceneJob = layerScope.launch {
+            val src = proxyFor(c) ?: c.uri
+            val cuts = withContext(Dispatchers.Default) {
+                try { ProTools.detectScenes(context, c, src, onProgress = { sceneProgress = it }, stop = { stop || !isActive }) } catch (_: Throwable) { emptyList() }
+            }
+            sceneProgress = -1; sceneJob = null
+            if (!isActive) return@launch
+            if (cuts.isEmpty()) { message = "No scene changes found in this clip"; return@launch }
+            val i = clips.indexOfFirst { it.id == c.id }
+            if (i < 0) return@launch
+            val parts = ProTools.splitAt(clips[i], cuts)
+            clips.removeAt(i); clips.addAll(i, parts)
+            load(current.coerceIn(0, clips.lastIndex), 0, false)
+            message = "Split into ${parts.size} shots at the scene changes — undo brings the clip back"
+        }
+    }
+    fun autoEditToBeat(every: Int) {
+        if (videoLocked) { message = "The video track is locked"; return }
+        val m = music ?: run { message = "Add a music track first (Media → Sound libraries or Audio)"; return }
+        if (clips.isEmpty()) return
+        layerScope.launch {
+            val peaks = waves[m.uri.toString()] ?: withContext(Dispatchers.IO) { Waveforms.load(context, m.uri) }
+            if (peaks == null) { message = "Couldn't read the music"; return@launch }
+            val beats = ProTools.beatsOnTimeline(m, peaks)
+            val musicLen = if (m.lengthMs > 0) m.lengthMs else m.durationMs - m.offsetMs
+            val sources = clips.distinctBy { it.id }.toList()
+            val out = withContext(Dispatchers.Default) { ProTools.autoEdit(sources, beats, every, m.startMs + musicLen) }
+            if (out.isEmpty()) { message = "Couldn't find the beat — try another song"; return@launch }
+            clips.clear(); clips.addAll(out)
+            selected = 0; current = 0
+            load(0, 0, false)
+            message = "Auto-edit: ${out.size} cuts on the beat — undo brings your clips back"
+        }
+    }
+    fun fitMusicToVideo() {
+        val m = music ?: run { message = "Add a music track first"; return }
+        if (m.locked) { message = "The music track is locked"; return }
+        layerScope.launch {
+            val peaks = waves[m.uri.toString()] ?: withContext(Dispatchers.IO) { Waveforms.load(context, m.uri) }
+            if (peaks == null) { message = "Couldn't read the music"; return@launch }
+            val target = timelineLength(clips) - m.startMs
+            val parts = withContext(Dispatchers.Default) { ProTools.fitMusic(m, peaks, target) }
+            if (parts == null) { message = "The music already fits the video"; return@launch }
+            music = parts.first()
+            extraAudio.addAll(parts.drop(1))
+            musicPlayer.setMediaItem(MediaItem.fromUri(m.uri)); musicPlayer.prepare()
+            message = "Music fitted: it now ends with the video, cut on the beat (${parts.size} pieces) — undo restores it"
+        }
+    }
+    fun restoreVersion(f: java.io.File) {
+        val p = ProTools.loadVersion(f) ?: run { message = "Couldn't open that version"; return }
+        clips.clear(); clips.addAll(p.clips)
+        layers.clear(); layers.addAll(p.layers)
+        music = p.music
+        extraAudio.clear(); extraAudio.addAll(p.extraAudio)
+        markers.clear(); markers.addAll(p.markers)
+        deliver = p.deliver
+        if (clips.isNotEmpty()) { selected = 0; current = 0; load(0, 0, false) }
+        message = "Version from " + java.text.SimpleDateFormat("d MMM HH:mm", java.util.Locale.getDefault()).format(java.util.Date(f.name.removeSuffix(".json").toLongOrNull() ?: 0L)) + " restored — SAVE to keep it"
+    }
+    LaunchedEffect(pendingRestore) { pendingRestore?.let { f -> pendingRestore = null; restoreVersion(f) } }
+    // Every 10 minutes of editing, keep a version of a saved project (Settings → Version history).
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(10 * 60_000L)
+            val pid = projectId ?: continue
+            if (clips.isEmpty()) continue
+            val p = VideoProjectData(
+                id = pid, name = projectName, savedAt = System.currentTimeMillis(),
+                clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
+                extraAudio = extraAudio.toList(), audioPool = audioPool.toList(),
+                videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
+                markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
+                proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
+            )
+            withContext(Dispatchers.IO) { ProTools.saveVersion(context, p) }
+        }
+    }
+
     fun removeSilences(all: Boolean, db: Float, minMs: Long) {
         if (videoLocked) { message = "The video track is locked — tap its lock on the timeline to unlock"; return }
         if (clips.isEmpty()) return
@@ -1924,6 +2029,23 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 },
                                 onSelect = { selectedLayer = it; page = Page.LAYERS },
                             )
+                            // Before / after split (Color page, Android 13+): drag the divider across the picture.
+                            if (page == Page.COLOR && gpuGrade && clips.isNotEmpty()) {
+                                if (abSplit > 0f) Box(
+                                    Modifier.fillMaxSize().pointerInput(Unit) {
+                                        detectDragGestures { ch, _ -> ch.consume(); abSplit = (ch.position.x / size.width).coerceIn(0.02f, 0.98f) }
+                                    },
+                                ) {
+                                    Text("BEFORE", style = Pro.Label.copy(color = Color.White, fontSize = 9.sp), modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 4.dp))
+                                    Text("AFTER", style = Pro.Label.copy(color = Color.White, fontSize = 9.sp), modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 4.dp))
+                                }
+                                Text(
+                                    if (abSplit > 0f) "SPLIT ✕" else "BEFORE | AFTER",
+                                    style = Pro.Label.copy(color = Color.Black, fontSize = 9.sp),
+                                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 40.dp, end = 8.dp).clip(RoundedCornerShape(50)).background(Pro.Amber)
+                                        .clickable { abSplit = if (abSplit > 0f) 0f else 0.5f }.padding(horizontal = 8.dp, vertical = 4.dp),
+                                )
+                            }
                             // Colour mask handles on the player (Color → Masks).
                             val mc = clips.getOrNull(current)
                             val selMask = mc?.masks?.firstOrNull { it.id == maskTools.selected }
@@ -2024,6 +2146,52 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     }
                 }
             }
+            // Keyboard shortcuts (Bluetooth / USB keyboard).
+            DisposableEffect(Unit) {
+                KeyBus.handler = handler@{ e ->
+                    if (e.action != android.view.KeyEvent.ACTION_DOWN) return@handler false
+                    val ctrl = e.isCtrlPressed || e.isMetaPressed
+                    val frame = 1000L / (if (deliver.fps > 0) deliver.fps else 30)
+                    val total = timelineLength(clips)
+                    fun go(ms: Long) { if (clips.isNotEmpty()) seekGlobal(ms.coerceIn(0, (total - 1).coerceAtLeast(0))) }
+                    when (e.keyCode) {
+                        android.view.KeyEvent.KEYCODE_SPACE, android.view.KeyEvent.KEYCODE_K -> { if (clips.isNotEmpty()) togglePlay(); true }
+                        android.view.KeyEvent.KEYCODE_J -> { go(globalMs - (if (e.isShiftPressed) 1000L else 5000L)); true }
+                        android.view.KeyEvent.KEYCODE_L -> { go(globalMs + (if (e.isShiftPressed) 1000L else 5000L)); true }
+                        android.view.KeyEvent.KEYCODE_DPAD_LEFT -> { go(globalMs - (if (e.isShiftPressed) frame * 10 else frame)); true }
+                        android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> { go(globalMs + (if (e.isShiftPressed) frame * 10 else frame)); true }
+                        android.view.KeyEvent.KEYCODE_DPAD_UP -> { val st = clipStarts(clips); go(st.lastOrNull { it < globalMs - 50 } ?: 0L); true }
+                        android.view.KeyEvent.KEYCODE_DPAD_DOWN -> { val st = clipStarts(clips); go(st.firstOrNull { it > globalMs + 50 } ?: total); true }
+                        android.view.KeyEvent.KEYCODE_MOVE_HOME -> { go(0); true }
+                        android.view.KeyEvent.KEYCODE_MOVE_END -> { go(total); true }
+                        android.view.KeyEvent.KEYCODE_Z -> if (ctrl) { if (e.isShiftPressed) redo() else undo(); true } else false
+                        android.view.KeyEvent.KEYCODE_Y -> if (ctrl) { redo(); true } else false
+                        android.view.KeyEvent.KEYCODE_S -> if (ctrl) { if (projectId == null) askName = true else saveProject(projectName); true } else { splitAtPlayhead(); true }
+                        android.view.KeyEvent.KEYCODE_B -> { splitAtPlayhead(); true }
+                        android.view.KeyEvent.KEYCODE_M -> {
+                            val near = markers.firstOrNull { kotlin.math.abs(it - globalMs) < 250 }
+                            if (near != null) { markers.remove(near); markerNotes.remove(near) } else { markers.add(globalMs); markers.sort() }
+                            true
+                        }
+                        android.view.KeyEvent.KEYCODE_I -> { deliver = deliver.copy(rangeStart = globalMs, rangeEnd = deliver.rangeEnd?.takeIf { it > globalMs }); message = "Export range in at ${tc(globalMs)}"; true }
+                        android.view.KeyEvent.KEYCODE_O -> { deliver = deliver.copy(rangeEnd = globalMs, rangeStart = deliver.rangeStart?.takeIf { it < globalMs } ?: 0L); message = "Export range out at ${tc(globalMs)}"; true }
+                        android.view.KeyEvent.KEYCODE_FORWARD_DEL, android.view.KeyEvent.KEYCODE_DEL -> {
+                            if (videoLocked || clips.isEmpty()) false else {
+                                clips.removeAt(selected.coerceIn(0, clips.lastIndex))
+                                selected = selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
+                                current = current.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
+                                if (clips.isNotEmpty()) load(current, 0, false)
+                                message = "Clip deleted (ripple) — Ctrl+Z to undo"
+                                true
+                            }
+                        }
+                        android.view.KeyEvent.KEYCODE_F -> { fullscreen = !fullscreen; true }
+                        else -> false
+                    }
+                }
+                onDispose { KeyBus.handler = null }
+            }
+
             fun prevClip() { if (deck.cur.currentPosition > 1500 || current == 0) deck.cur.seekTo(0) else load(current - 1, 0, deck.cur.isPlaying) }
             fun nextClip() { if (current < clips.lastIndex) load(current + 1, 0, deck.cur.isPlaying) }
 
@@ -2295,6 +2463,25 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onUnNest = { unNest(selected) },
                                 nesting = nesting, nestProgress = progress,
                                 )
+                                ProEditTools(
+                                    clips = clips.toList(), selectedIdx = selected, sceneProgress = sceneProgress,
+                                    onDetectScenes = { detectScenes() }, onStopScenes = { sceneJob?.cancel(); sceneJob = null; sceneProgress = -1 },
+                                    picked = multi.toList(),
+                                    onPick = { id -> if (id in multi) multi.remove(id) else multi.add(id) },
+                                    onPickAll = { if (multi.size == clips.size) multi.clear() else { multi.clear(); multi.addAll(clips.map { it.id }) } },
+                                    onBatch = { action ->
+                                        if (videoLocked) { message = "The video track is locked"; return@ProEditTools }
+                                        val ids = multi.toSet()
+                                        when (action) {
+                                            "delete" -> { clips.removeAll { it.id in ids }; multi.clear(); selected = selected.coerceIn(0, (clips.size - 1).coerceAtLeast(0)); current = current.coerceIn(0, (clips.size - 1).coerceAtLeast(0)); if (clips.isNotEmpty()) load(current, 0, false) }
+                                            "mute" -> for (i in clips.indices) if (clips[i].id in ids) clips[i] = clips[i].copy(muted = !clips[i].muted)
+                                            "grade" -> clips.getOrNull(selected)?.let { src -> for (i in clips.indices) if (clips[i].id in ids) clips[i] = clips[i].copy(grade = src.grade, detail = src.detail) }
+                                            "duplicate" -> { val add = clips.filter { it.id in ids }.map { it.copy(id = java.util.UUID.randomUUID().toString()) }; clips.addAll(add) }
+                                            else -> action.removePrefix("speed:").toFloatOrNull()?.let { sp -> for (i in clips.indices) if (clips[i].id in ids) clips[i] = clips[i].copy(speed = sp, ramp = null, rampName = null) }
+                                        }
+                                        message = "Done for ${ids.size} clip(s)"
+                                    },
+                                )
                                 val sk = Stabilizer.keyOf(sc)
                                 ReframePanel(
                                     sc, cropEditEnd, cropMode, stabProgress[sk], motions[sk] != null,
@@ -2359,7 +2546,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     if (i >= 0 && to in layers.indices) { val l = layers.removeAt(i); layers.add(to, l) }
                                 },
                             )
-                            Page.AUDIO -> AudioPage(
+                            Page.AUDIO -> Column {
+                                AudioPage(
                                 sc, deliver, music, playing,
                                 onChange = { f -> update(selected, f) },
                                 onPickMusic = { pickMusic.launch(arrayOf("audio/*")) },
@@ -2375,6 +2563,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onBeats = { t -> addBeatMarkers(t) },
                                 onSync = { t -> syncAudioTo(t) },
                             )
+                                MusicTools(hasMusic = music != null, onFit = { fitMusicToVideo() }, onAutoEdit = { autoEditToBeat(it) })
+                            }
                             Page.DELIVER -> DeliverPage(
                                 deliver, clips, exporting, { deliver = it }, ::startExport, playheadMs = globalMs, onSaveFrame = { saveStill() },
                                 markers = markers.toList(), projectName = projectName, layers = layers.toList(), markerNotes = markerNotes.toMap(),
@@ -3783,6 +3973,17 @@ private fun DeliverPage(
         color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp),
     )
     // Render queue: several exports of the same edit, one after another.
+    SectionTitle("YOUTUBE CHAPTERS")
+    Text("Your markers (with their notes as titles) as a chapter list for the YouTube description — starts at 0:00, chapters at least 10 s apart.", color = Pro.Dim, fontSize = 11.sp)
+    Text(
+        "COPY YOUTUBE CHAPTERS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 6.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable {
+            val text = ProTools.chapters(markers, markerNotes, timelineLength(clips))
+            val cm = ictx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("YouTube chapters", text))
+            xNote = if (text.lines().size < 3) "Copied — YouTube shows chapters when there are at least 3; add more markers (◆ MARKER on the timeline)." else "Chapters copied — paste them into the YouTube description:\n$text"
+        }.padding(10.dp),
+    )
     SectionTitle("RENDER QUEUE")
     Text("Set up an export above and tap + ADD TO QUEUE; change the settings and add again (e.g. YouTube 4K, a 9:16 Reel and an audio file). START QUEUE renders them one after another.", color = Pro.Dim, fontSize = 11.sp)
     Text(
@@ -4104,4 +4305,69 @@ private fun TextEditPage(
         style = Pro.Value.copy(color = if (deleted > 0) Color.Black else Pro.Dim, fontSize = 13.sp),
         modifier = Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(if (deleted > 0) Pro.Amber else Ed.Raised).clickable(enabled = deleted > 0) { onApply() }.padding(12.dp),
     )
+}
+
+/** Edit page extras: scene detection and working on several clips at once. */
+@Composable
+private fun ProEditTools(
+    clips: List<Clip>, selectedIdx: Int, sceneProgress: Int,
+    onDetectScenes: () -> Unit, onStopScenes: () -> Unit,
+    picked: List<String>, onPick: (String) -> Unit, onPickAll: () -> Unit, onBatch: (String) -> Unit,
+) {
+    SectionTitle("SCENE DETECTION")
+    Text("Finds every camera cut inside the selected clip (e.g. a long recording or a finished film) and splits it into separate shots.", color = Pro.Dim, fontSize = 11.sp)
+    if (sceneProgress >= 0) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+        androidx.compose.material3.LinearProgressIndicator(progress = { sceneProgress / 100f }, color = Pro.Amber, modifier = Modifier.weight(1f).height(4.dp))
+        Text("$sceneProgress%", style = Pro.Label, modifier = Modifier.padding(horizontal = 8.dp))
+        Text("STOP", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { onStopScenes() }.padding(6.dp))
+    } else Text(
+        "DETECT SCENES & SPLIT CLIP ${selectedIdx + 1}", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable(enabled = clips.isNotEmpty()) { onDetectScenes() }.padding(10.dp),
+    )
+    SectionTitle("SELECT CLIPS")
+    Text("Tick several clips, then delete, mute, change speed, duplicate or copy the selected clip's grade to all of them in one go.", color = Pro.Dim, fontSize = 11.sp)
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
+        PillChip(if (picked.size == clips.size && clips.isNotEmpty()) "None" else "All", false) { onPickAll() }
+        if (picked.isNotEmpty()) {
+            PillChip("Delete (${picked.size})", false) { onBatch("delete") }
+            PillChip("Mute / unmute", false) { onBatch("mute") }
+            PillChip("0.5×", false) { onBatch("speed:0.5") }
+            PillChip("1×", false) { onBatch("speed:1") }
+            PillChip("2×", false) { onBatch("speed:2") }
+            PillChip("Duplicate", false) { onBatch("duplicate") }
+            PillChip("Copy grade of clip ${selectedIdx + 1}", false) { onBatch("grade") }
+        }
+    }
+    clips.forEachIndexed { i, c ->
+        val on = c.id in picked
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 1.dp).clip(RoundedCornerShape(6.dp)).background(if (on) Pro.Amber.copy(alpha = 0.16f) else Ed.Raised)
+                .clickable { onPick(c.id) }.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(if (on) "☑" else "☐", color = if (on) Pro.Amber else Pro.Dim, fontSize = 16.sp, modifier = Modifier.width(26.dp))
+            Text("${i + 1} · ${c.name}", color = Color.White, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Text(tc(c.lengthMs) + if (c.speed != 1f) " · ${c.speed}×" else "", style = Pro.Label.copy(fontSize = 10.sp))
+        }
+    }
+}
+
+/** Audio page extras: fit the music to the video and cut the clips on the beat. */
+@Composable
+private fun MusicTools(hasMusic: Boolean, onFit: () -> Unit, onAutoEdit: (Int) -> Unit) {
+    SectionTitle("MUSIC TOOLS")
+    if (!hasMusic) { Text("Add a music track to fit it to the video or cut your clips on its beat.", color = Pro.Dim, fontSize = 11.sp); return }
+    Text(
+        "FIT MUSIC TO VIDEO", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onFit() }.padding(10.dp),
+    )
+    Text("Shortens or lengthens the song so it ends exactly with your video, on its real ending — a middle part is cut out or repeated on the beat.", color = Pro.Dim, fontSize = 11.sp)
+    var every by remember { mutableStateOf(1) }
+    Text("Auto-edit to the beat", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+    Chips(listOf("Every beat", "Every 2", "Every 4", "Every 8"), listOf(1, 2, 4, 8).indexOf(every)) { every = listOf(1, 2, 4, 8)[it] }
+    Text(
+        "AUTO-EDIT MY CLIPS TO THE MUSIC", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onAutoEdit(every) }.padding(10.dp),
+    )
+    Text("Rebuilds the timeline from your clips with a cut on the beat, taking the next part of each clip in turn, until the music ends. Undo brings your edit back.", color = Pro.Dim, fontSize = 11.sp)
 }

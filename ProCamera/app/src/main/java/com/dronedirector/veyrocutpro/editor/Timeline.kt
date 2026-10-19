@@ -94,6 +94,13 @@ class TimelineZoom {
     fun fit() { pxPerSec = minPx().coerceIn(0.5f, 600f); scrollMs = 0L }
     /** Time at the left edge of the timeline view (the edit starts at the left). */
     var scrollMs by mutableStateOf(0L)
+    /** Length of the edit and how much of it the view shows (ms), for the horizontal scroll wheel. */
+    var totalMs by mutableStateOf(1L)
+    var viewMs by mutableStateOf(1L)
+    /** How far the view can scroll (ms). */
+    val maxScrollMs: Long get() = (totalMs - viewMs).coerceAtLeast(0L)
+    /** Moves the view by [dMs], kept inside the edit. */
+    fun scrollBy(dMs: Long) { scrollMs = (scrollMs + dMs).coerceIn(0L, maxScrollMs) }
 }
 
 @Composable
@@ -154,6 +161,10 @@ fun TimelineView(
     val minPx = { viewportW * 0.9f / (totalNow / 1000f) }
 
     zoom.minPx = minPx
+    androidx.compose.runtime.SideEffect {
+        zoom.totalMs = totalMs
+        zoom.viewMs = ((viewportW - leftPad) / pxPerSec * 1000f).toLong().coerceAtLeast(1)
+    }
     fun fit() = zoom.fit()
     LaunchedEffect(viewportW, totalMs) { if (!fittedOnce && viewportW > 10f) { fit(); fittedOnce = true } }
     // Keep the playhead in view while playing / after zooming (the view scrolls by itself).

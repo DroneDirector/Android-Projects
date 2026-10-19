@@ -175,6 +175,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **YouTube chapters** from timeline markers, copied ready for the description.
 - **Rolling credits**: Credits layer and a Roll animation for any text layer.
 - **Keyboard shortcuts** (Bluetooth / USB): J / K / L, Space, frame steps, cut to cut, split, ripple delete, markers, in / out, undo / redo, save.
+- **Timeline scroll wheels**: a vertical wheel (tracks up / down) and a horizontal wheel along the bottom (through the edit), each in its own window, with the AI-upscale effect.
 - **Shot match**: one tap sets a clip's exposure, white balance, contrast and saturation to match another clip as graded.
 - **Film emulation**: 35mm / 16mm / Super 8 looks, halation, bloom, grain (amount and size), gate weave.
 - **Lens correction**: barrel / pincushion distortion, colour fringing and vignette fix, with action cam, drone and ultra-wide presets.

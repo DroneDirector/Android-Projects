@@ -12,6 +12,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -162,7 +165,7 @@ fun TimelineWheel(state: ScrollState, modifier: Modifier = Modifier, onActive: (
  * and a glowing scan line that follows the scroll direction — like an image being upscaled.
  */
 @Composable
-fun TimelineUpscaleOverlay(energy: Float, scroll: Int, modifier: Modifier = Modifier) {
+fun TimelineUpscaleOverlay(energy: Float, scroll: Int, modifier: Modifier = Modifier, horizontal: Boolean = false) {
     if (energy < 0.02f) return
     val prev = remember { mutableFloatStateOf(scroll.toFloat()) }
     val dir = if (scroll >= prev.floatValue) 1f else -1f
@@ -176,11 +179,126 @@ fun TimelineUpscaleOverlay(energy: Float, scroll: Int, modifier: Modifier = Modi
         while (x < w) { drawLine(Cyan.copy(alpha = a), Offset(x, 0f), Offset(x, h), 1f); x += cell }
         var y = 0f
         while (y < h) { drawLine(Violet.copy(alpha = a), Offset(0f, y), Offset(w, y), 1f); y += cell }
+        if (horizontal) {
+            // Scan band sweeping sideways, with the scroll direction.
+            val sx = if (dir > 0) w * (1f - energy) else w * energy
+            drawRect(
+                Brush.horizontalGradient(listOf(Color.Transparent, Cyan.copy(alpha = 0.22f * energy), Color.White.copy(alpha = 0.35f * energy), Violet.copy(alpha = 0.22f * energy), Color.Transparent), startX = sx - 26f, endX = sx + 26f),
+                Offset(sx - 26f, 0f), Size(52f, h),
+            )
+            return@Canvas
+        }
         // Scan band, travelling with the scroll direction.
         val sy = if (dir > 0) h * (1f - energy) else h * energy
         drawRect(
             Brush.verticalGradient(listOf(Color.Transparent, Cyan.copy(alpha = 0.22f * energy), Color.White.copy(alpha = 0.35f * energy), Violet.copy(alpha = 0.22f * energy), Color.Transparent), startY = sy - 26f, endY = sy + 26f),
             Offset(0f, sy - 26f), Size(w, 52f),
         )
+    }
+}
+
+/**
+ * The horizontal twin of [TimelineWheel], along the bottom of the timeline: drag it like a wheel to
+ * move through the edit left and right, or tap to jump. Same glass, ridges, pixel "upscale",
+ * scan line and glowing rim, turned on its side.
+ */
+@Composable
+fun TimelineHWheel(zoom: TimelineZoom, modifier: Modifier = Modifier, onActive: (Float) -> Unit = {}) {
+    val haptic = LocalHapticFeedback.current
+    var dragging by remember { mutableStateOf(false) }
+    var lastTick by remember { mutableFloatStateOf(0f) }
+    val energy = remember { Animatable(0f) }
+    val value = zoom.scrollMs.toFloat()
+    LaunchedEffect(dragging, zoom.scrollMs) {
+        if (dragging) energy.snapTo(1f)
+        else { if (energy.value > 0f) energy.animateTo(0f, tween(900, easing = FastOutSlowInEasing)) }
+    }
+    // Moving the view any other way (pinch, playhead following) lights it up briefly too.
+    val prevScroll = remember { mutableFloatStateOf(value) }
+    LaunchedEffect(zoom.scrollMs) {
+        if (!dragging && kotlin.math.abs(value - prevScroll.floatValue) > 1f) { energy.snapTo(0.6f); energy.animateTo(0f, tween(900, easing = FastOutSlowInEasing)) }
+        prevScroll.floatValue = value
+    }
+    LaunchedEffect(energy.value) { onActive(energy.value) }
+    val glow = rememberInfiniteTransition(label = "hwheel")
+    val phase by glow.animateFloat(0f, 1f, infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart), label = "hph")
+    val maxMs = zoom.maxScrollMs.toFloat()
+    val canScroll = maxMs > 0f
+
+    Canvas(
+        modifier
+            .height(16.dp).widthIn(min = 76.dp)
+            .pointerInput(zoom) {
+                detectHorizontalDragGestures(
+                    onDragStart = { dragging = true },
+                    onDragEnd = { dragging = false },
+                    onDragCancel = { dragging = false },
+                ) { change, dx ->
+                    change.consume()
+                    // Like a wheel: the full wheel = the whole edit.
+                    val msPerPx = zoom.totalMs.toFloat() / size.width
+                    zoom.scrollBy((dx * msPerPx).toLong())
+                    val ridge = 6.dp.toPx() * msPerPx
+                    if (kotlin.math.abs(zoom.scrollMs - lastTick) > ridge) { lastTick = zoom.scrollMs.toFloat(); haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
+                }
+            }
+            .pointerInput(zoom) {
+                detectTapGestures { o ->
+                    val f = (o.x / size.width).coerceIn(0f, 1f)
+                    zoom.scrollMs = (f * zoom.maxScrollMs).toLong()
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }
+            }
+    ) {
+        val w = size.width; val h = size.height
+        if (w < 8f || h < 4f || !w.isFinite() || !h.isFinite()) return@Canvas
+        val r = CornerRadius(h / 2, h / 2)
+        val e = energy.value
+        val dim = if (canScroll) 1f else 0.4f
+        drawRoundRect(Color(0xCC0D1016), size = size, cornerRadius = r)
+        // Rolling ridges.
+        val sp = 5.dp.toPx()
+        val off = (value * 0.02f) % sp
+        var x = -off
+        while (x < w) {
+            val edge = 1f - abs(x / w - 0.5f) * 2f
+            drawLine(Color.White.copy(alpha = (0.06f + 0.10f * edge) * dim), Offset(x, h * 0.3f), Offset(x, h * 0.7f), 1.dp.toPx())
+            x += sp
+        }
+        // Thumb: the part of the edit in view.
+        val total = zoom.totalMs.toFloat().coerceAtLeast(1f)
+        val vis = (if (canScroll) (w * zoom.viewMs / total).coerceIn(w * 0.12f, w) else w).let { if (it.isFinite() && it >= 4f) it else w }
+        val t = (if (canScroll) value / maxMs else 0f).let { if (it.isFinite()) it.coerceIn(0f, 1f) else 0f }
+        val left = (w - vis) * t
+        if (e > 0.01f) {
+            val cell = (2.dp.toPx() + 7.dp.toPx() * e)
+            val step = floor(phase * 12f).toInt()
+            var cx = 0f; var i = 0
+            while (cx < w) {
+                var cy = 0f; var j = 0
+                while (cy < h) {
+                    val v = hash(i, j, step)
+                    val near = 1f - (abs(cx + cell / 2 - (left + vis / 2)) / w).coerceIn(0f, 1f)
+                    val a = e * near * near * (0.15f + 0.45f * v)
+                    if (a > 0.02f) drawRect(if (v > 0.5f) Cyan.copy(alpha = a) else Violet.copy(alpha = a), Offset(cx, cy), Size(cell - 1f, cell - 1f))
+                    cy += cell; j++
+                }
+                cx += cell; i++
+            }
+        }
+        drawRoundRect(
+            Brush.horizontalGradient(listOf(Cyan.copy(alpha = 0.85f * dim), Violet.copy(alpha = 0.85f * dim), Pro.Amber.copy(alpha = 0.9f * dim)), startX = left, endX = left + vis),
+            topLeft = Offset(left + 1f, h * 0.18f), size = Size(vis - 2f, h * 0.64f), cornerRadius = CornerRadius(h * 0.32f, h * 0.32f),
+        )
+        val scanX = left + vis * ((phase * 1.4f) % 1f)
+        val sa = (0.25f + 0.75f * e) * dim
+        drawRect(Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = sa), Color.Transparent), startX = scanX - 6f, endX = scanX + 6f), Offset(scanX - 6f, 0f), Size(12f, h))
+        if (e > 0.05f) for (k in 0 until 4) {
+            val sx = left + vis * hash(k, 7, floor(phase * 30f).toInt())
+            val sy = h * hash(k, 11, floor(phase * 30f).toInt())
+            drawCircle(Color.White.copy(alpha = e * 0.9f), radius = 1.dp.toPx() * (0.6f + 0.6f * sin(phase * 40f + k).coerceAtLeast(0f)), center = Offset(sx, sy))
+        }
+        val rim = Brush.sweepGradient(listOf(Cyan, Violet, Pro.Amber, Cyan), center = Offset(w * phase, h / 2))
+        drawRoundRect(rim, size = size, cornerRadius = r, style = Stroke(width = (1f + 1.2f * e).dp.toPx()), alpha = (0.45f + 0.55f * e) * dim)
     }
 }

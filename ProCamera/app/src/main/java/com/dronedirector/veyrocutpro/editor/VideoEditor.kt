@@ -3051,13 +3051,25 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 val tlPane = rememberPane(if (wide) "ve_timeline_land" else "ve_timeline_port", paneVersion)
                 val tlScroll = rememberScrollState()
                 var tlEnergy by remember { mutableStateOf(0f) }
+                var tlHEnergy by remember { mutableStateOf(0f) }
                 val timelineBox = @Composable {
-                    // Tracks scroll up and down; the small wheel in the lower-right corner moves them.
+                    // Tracks scroll up and down with the wheel on the right, left and right with the wheel along the bottom.
                     Box(Modifier.fillMaxWidth()) {
                         val sized = if (tlPane.dp < 0f) Modifier.fillMaxWidth().heightIn(max = (boxH * 0.42f).dp) else Modifier.fillMaxWidth().height(tlPane.dp.dp)
-                        // The tracks stop short of the right edge: the wheel has its own window there.
-                        Box(sized.padding(end = 26.dp).verticalScroll(tlScroll)) { timeline() }
-                        TimelineUpscaleOverlay(tlEnergy, tlScroll.value, Modifier.matchParentSize().padding(end = 26.dp))
+                        // The tracks stop short of the right and bottom edges: each wheel has its own window there.
+                        Box(sized.padding(end = 26.dp, bottom = 26.dp).verticalScroll(tlScroll)) { timeline() }
+                        TimelineUpscaleOverlay(tlEnergy, tlScroll.value, Modifier.matchParentSize().padding(end = 26.dp, bottom = 26.dp))
+                        TimelineUpscaleOverlay(tlHEnergy, zoom.scrollMs.toInt(), Modifier.matchParentSize().padding(end = 26.dp, bottom = 26.dp), horizontal = true)
+                        // Horizontal wheel window: along the bottom, from the left edge to the vertical wheel's window.
+                        Box(Modifier.matchParentSize()) {
+                            Box(
+                                Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(end = 26.dp).height(26.dp)
+                                    .background(Ed.Panel)
+                                    .border(1.dp, Color.White.copy(alpha = 0.08f)),
+                            ) {
+                                TimelineHWheel(zoom, Modifier.align(Alignment.Center).fillMaxWidth().padding(start = 6.dp, end = 6.dp)) { tlHEnergy = it }
+                            }
+                        }
                         // Scroll wheel window: its own panel on the right, as tall as the visible timeline,
                         // so it grows as tracks are added and never covers a track.
                         Box(Modifier.matchParentSize()) {

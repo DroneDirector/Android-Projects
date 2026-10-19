@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor timeline: a **horizontal scroll wheel** along the bottom, matching the vertical one — drag it like a wheel to move through the edit left and right, or tap to jump. It has its own window from the left edge to the vertical wheel's window, so it never covers a track.
 
 ## 1.0.318 — 2026-10-19
 - Video editor: **Morph cut** (Transitions → Basic) now works like Premiere Pro's Morph Cut and DaVinci Resolve's Smooth Cut — VeyroCut Pro's own optical-flow engine analyses the jump cut and draws brand-new in-between frames, so a head glides to its new position instead of jumping or cross-fading. Shown in the preview; drawn at full size (with each clip's grade and effects) in the export.

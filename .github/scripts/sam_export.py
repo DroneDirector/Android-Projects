@@ -27,7 +27,8 @@ class Dec(torch.nn.Module):
         sp = s.o._embed_points(coords, labels)
         de = s.o._embed_masks(mask_in, has_mask)
         masks, scores = s.o.model.mask_decoder.predict_masks(image_embeddings=emb, image_pe=s.o.model.prompt_encoder.get_dense_pe(), sparse_prompt_embeddings=sp, dense_prompt_embeddings=de)
-        masks, scores = s.o.select_masks(masks, scores, coords.shape[1])
+        # All four masks: [0] = the single-object answer (best with several points or a box),
+        # [1..3] = small / medium / large answers for one point (whole, part, sub-part).
         return masks, scores
 
 x = torch.zeros(1, 3, 1024, 1024)
@@ -58,7 +59,10 @@ for encf in ['sam_encoder.onnx', 'sam_encoder_int8.onnx']:
         labels = np.array([[p[2] for p in pts]], np.float32)
         if all(p[2] in (1, 0) for p in pts):  # points only: add the padding point SAM expects
             coords = np.concatenate([coords, np.zeros((1, 1, 2), np.float32)], 1); labels = np.concatenate([labels, -np.ones((1, 1), np.float32)], 1)
-        m, s = dec.run(None, {'embeddings': e, 'coords': coords, 'labels': labels, 'mask_input': np.zeros((1, 1, 256, 256), np.float32), 'has_mask': np.zeros(1, np.float32)})
+        m4, s4 = dec.run(None, {'embeddings': e, 'coords': coords, 'labels': labels, 'mask_input': np.zeros((1, 1, 256, 256), np.float32), 'has_mask': np.zeros(1, np.float32)})
+        # SAM's own choice: the single answer for several prompts, else the best of the three.
+        pick = 0 if coords.shape[1] > 2 or labels[0, 0] == 2 else 1 + int(np.argmax(s4[0, 1:]))
+        m = m4[:, pick:pick + 1]; s = s4[:, pick:pick + 1]
         h, w = img.shape[:2]
         low = cv2.resize(m[0, 0], (1024, 1024))[:int(round(h * k)), :int(round(w * k))]
         mask = cv2.resize(low, (w, h)) > 0

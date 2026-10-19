@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.281 — 2026-10-19
 - Fixed: the video editor closed the app as soon as it opened (1.0.278). The new timeline scroll wheel could be drawn at zero height for a moment, which Android doesn't allow; it now skips that frame.
 - Video editor: RECOVER (unsaved edit) no longer crashes the app — the edit is checked first, and clips or sounds that can no longer be read (moved, deleted or access lost) are left out with a note. Auto-saved edits now keep access to their media after a restart.
 - New: if the app ever closes unexpectedly, the next start shows a short crash report you can share or copy (it holds no photos or videos), so problems can be fixed quickly.

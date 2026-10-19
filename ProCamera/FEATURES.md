@@ -179,10 +179,10 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Film emulation**: 35mm / 16mm / Super 8 looks, halation, bloom, grain (amount and size), gate weave.
 - **Lens correction**: barrel / pincushion distortion, colour fringing and vignette fix, with action cam, drone and ultra-wide presets.
 - **Deflicker** for timelapses, hyperlapses and flickering lights (scene cuts left alone).
-- **Background removal (people)**: blur, recolour or remove the background (AI on the phone, ML Kit); cut people out of video layers.
+- **Background removal & Magic Mask**: people found automatically (ML Kit), or Magic Mask — tap / box any object and it is tracked through the clip (MobileSAM, Apache 2.0, via ONNX Runtime, MIT; own optical-flow tracking with close-up re-fitting, occlusion and scene-cut handling); blur, recolour, remove or invert; edges refined against the full picture; live preview matches the export; cut-outs for video layers.
 - **Generators**: black, colour, gradient, noise and colour-bars clips, and a film countdown leader (3–10).
 - **Split-screen templates** (2 side by side, 2 stacked, 3 columns, 2 × 2) and **picture in picture**; video layers get a frame shape (crop to fill), rounded corners, border and drop shadow.
-- **Smooth cut** transition for jump cuts in interviews.
+- **Morph cut** (like Premiere's Morph Cut / DaVinci's Smooth Cut): own optical-flow engine draws new in-between frames for jump cuts — the frames are rendered through each clip's own grade and effects at full size.
 - **Word-by-word captions** from the on-phone transcript: Highlight, Box, One word or Two lines.
 - **Animated title templates**: lower third, big title, cinematic, location, chapter, subscribe, end card.
 - **Source viewer & three-point editing**: mark in / out, then INSERT, OVERWRITE or APPEND at the playhead.

@@ -113,14 +113,13 @@ private fun TransitionTile(type: TransitionType, selected: Boolean, a: Bitmap?, 
 
 @Composable
 private fun TileSide(bmp: Bitmap?, fallback: Color, incoming: Boolean, type: TransitionType, p: Float) {
-    val shader = remember { if (android.os.Build.VERSION.SDK_INT >= 33) android.graphics.RuntimeShader(TransitionMath.AGSL) else null }
+    val shader = remember(type) { TransitionMath.shaderFor(type) }
     val mod = Modifier.fillMaxSize().graphicsLayer {
         val (tx, ty) = TransitionMath.move(type, p, incoming)
         translationX = tx * size.width; translationY = ty * size.height
         if (type == TransitionType.NONE) { alpha = if (incoming) p else 1f; return@graphicsLayer }
         if (shader != null && android.os.Build.VERSION.SDK_INT >= 33 && size.width > 0f) {
             shader.setFloatUniform("uSize", size.width, size.height)
-            shader.setFloatUniform("uType", type.id)
             shader.setFloatUniform("uP", p)
             shader.setFloatUniform("uSide", if (incoming) 1f else 0f)
             shader.setFloatUniform("uMode", if (incoming && type.kind != TransitionKind.MOVE) 1f else 0f)

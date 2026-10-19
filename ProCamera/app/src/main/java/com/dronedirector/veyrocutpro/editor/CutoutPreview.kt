@@ -80,7 +80,7 @@ object CutoutPreview {
             requestPeople(v, st)
             st.mask ?: return null
         }
-        val sh = RuntimeShader(AGSL)
+        val sh = try { RuntimeShader(AGSL) } catch (_: Throwable) { return null }
         sh.setInputShader("mask", BitmapShader(mask, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply { filterMode = BitmapShader.FILTER_MODE_LINEAR })
         sh.setFloatUniform("uSize", v.width.toFloat(), v.height.toFloat())
         sh.setFloatUniform("uMaskSize", mask.width.toFloat(), mask.height.toFloat())

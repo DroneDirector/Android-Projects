@@ -669,7 +669,19 @@ object TransitionMath {
         }
     """
 
-    const val AGSL = """
+    /**
+     * The preview shader for one transition. The type is built in as a constant, so the shader compiler
+     * drops every other transition's code (one shader with all of them is too large for Android).
+     */
+    fun agsl(t: TransitionType): String = AGSL.replace("uniform float uType;", "const float uType = ${t.id};")
+
+    /** A compiled preview shader for [t], or null if this phone can't build it (the preview then fades). */
+    fun shaderFor(t: TransitionType): android.graphics.RuntimeShader? =
+        if (android.os.Build.VERSION.SDK_INT < 33) null else try { android.graphics.RuntimeShader(agsl(t)) } catch (e: Throwable) {
+            android.util.Log.w("TransitionPreview", "Shader for ${t.name} unavailable: ${e.message}"); null
+        }
+
+    private const val AGSL = """
         uniform shader content;
         uniform float2 uSize;
         uniform float uType;
@@ -775,18 +787,20 @@ private class TransitionProgram(private val w: TransitionWindows, useHdr: Boolea
 
 /** Live preview: applies a transition to a player's view (API 33+ shader, simple fade before that). */
 object TransitionPreview {
-    private val shaders = HashMap<android.view.View, Any>()
+    private val shaders = HashMap<android.view.View, Pair<TransitionType, Any?>>()
 
     fun apply(view: android.view.View, t: TransitionType, p: Float, incoming: Boolean) {
         val (tx, ty) = TransitionMath.move(t, p, incoming)
         view.translationX = tx * view.width
         view.translationY = ty * view.height
         view.translationZ = if (incoming) 2f else 0f
-        if (android.os.Build.VERSION.SDK_INT >= 33 && view.width > 0 && view.height > 0) {
+        val sh = if (android.os.Build.VERSION.SDK_INT >= 33) {
+            val cur = shaders[view]
+            (if (cur != null && cur.first == t) cur.second else TransitionMath.shaderFor(t).also { shaders[view] = t to it }) as android.graphics.RuntimeShader?
+        } else null
+        if (sh != null && view.width > 0 && view.height > 0) {
             view.alpha = 1f
-            val sh = shaders.getOrPut(view) { android.graphics.RuntimeShader(TransitionMath.AGSL) } as android.graphics.RuntimeShader
             sh.setFloatUniform("uSize", view.width.toFloat(), view.height.toFloat())
-            sh.setFloatUniform("uType", t.id)
             sh.setFloatUniform("uP", p)
             sh.setFloatUniform("uSide", if (incoming) 1f else 0f)
             sh.setFloatUniform("uMode", if (incoming && t.kind != TransitionKind.MOVE) 1f else 0f)

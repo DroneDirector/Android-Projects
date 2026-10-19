@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.305 — 2026-10-19
 - Video editor: **Scene detection** (Edit → SCENE DETECTION) — finds every camera cut in a long clip or a finished film and splits it into separate shots.
 - Video editor: **Select clips** (Edit → SELECT CLIPS) — tick several clips and delete, mute, change speed, duplicate or copy a grade to all of them at once.
 - Video editor: **Music tools** (Audio page) — FIT MUSIC TO VIDEO makes the song end exactly with your video on its real ending; AUTO-EDIT MY CLIPS TO THE MUSIC cuts your clips on every 1st, 2nd, 4th or 8th beat.

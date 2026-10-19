@@ -86,5 +86,6 @@ def run(path, start, n, click, out):
         tiles.append(cv2.resize(f, (480, round(480 * h / w))))
     cv2.imwrite(out, cv2.cvtColor(np.vstack([np.hstack(tiles[:3]), np.hstack(tiles[3:])]), cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 85])
 
-run('megamind.avi', 0, 90, (430, 200), 'out/magic_megamind.jpg')
-run('vtest.avi', 100, 90, (390, 260), 'out/magic_vtest.jpg')
+run('megamind.avi', 40, 90, (290, 230), 'out/magic_megamind.jpg')
+run('vtest.avi', 100, 90, (360, 224), 'out/magic_vtest.jpg')
+run('megamind.avi', 120, 60, (500, 200), 'out/magic_megamind2.jpg')

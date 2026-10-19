@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.273 — 2026-10-19
 - Photo and video editors: start-page thumbnails show a small, readable file-type tag (DNG RAW, JPEG, PNG, HEIC / MP4, MOV, MKV…) while you browse; the editors themselves stay clean.
 
 ## 1.0.271 — 2026-10-19

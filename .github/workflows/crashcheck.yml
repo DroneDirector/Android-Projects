@@ -71,6 +71,8 @@ jobs:
           start_video
           tapText "MP4"; sleep 30; shot 03-clip-workspace
           sleep 25; shot 04-clip-after-autosave
+          tapText "+ VIDEO"; sleep 3; shot 04b-video-layer-dialog
+          adb shell input keyevent KEYCODE_BACK; sleep 2
           start_video; shot 05-recover-banner
           tapText "RECOVER"; sleep 25; shot 06-after-recover
           adb shell am force-stop com.dronedirector.veyrocutpro

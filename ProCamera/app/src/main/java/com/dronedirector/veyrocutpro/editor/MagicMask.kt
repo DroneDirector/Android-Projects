@@ -472,11 +472,24 @@ object MagicTracker {
     }
 
     /** Fits the outline on a close-up of [frame] round [r]. */
-    private fun fit(context: Context, frame: Bitmap, r: FloatArray, pts: List<MaskPoint>, hint: FloatArray?): St? {
+    private fun fit(context: Context, frame: Bitmap, r: FloatArray, pts: List<MaskPoint>, hint: FloatArray?, carried: FloatArray? = null, gw: Int = 0, gh: Int = 0, bad: BooleanArray? = null): St? {
         val crop = cropOf(frame, r)
         val e = Sam.encode(context, crop) ?: return null
         val a = Sam.decode(e, pts, hint) ?: return null
-        val logits = a.mask(0)
+        // Of SAM's four answers, the one that best matches the carried outline wins (a face stays a face, not the whole head).
+        var logits = a.mask(0)
+        if (carried != null) {
+            var best = -1f
+            val tw = 96; val th = max(8, (96f * crop.height / crop.width).roundToInt())
+            for (i in 0 until 4) {
+                val g = toGrid(MaskEntry(r, tw, th, Sam.toMask(a.mask(i), e, tw, th)), gw, gh)
+                var inter = 0; var uni = 0
+                // Newly uncovered pixels don't count (parts coming back into view may join).
+                for (k in g.indices) { if (bad != null && bad[k]) continue; val p = g[k] > 0.5f; val c = carried[k] > 0.5f; if (p && c) inter++; if (p || c) uni++ }
+                val sc = (if (uni > 0) inter.toFloat() / uni else 0f) + 0.05f * a.scores[i] + (if (i == 0) 0.03f else 0f)
+                if (sc > best) { best = sc; logits = a.mask(i) }
+            }
+        }
         val k = min(1f, MAXMASK.toFloat() / max(crop.width, crop.height))
         val mw = (crop.width * k).roundToInt().coerceAtLeast(8); val mh = (crop.height * k).roundToInt().coerceAtLeast(8)
         val m = Sam.toMask(logits, e, mw, mh)
@@ -554,7 +567,7 @@ object MagicTracker {
         val r = rectFor(carried, gw, gh, W, H) ?: return null
         val pts = promptsFrom(carried, gw, gh, r)
         val hint = hintFor(prev, r, W, H, ::back, bad, gw, gh)
-        val st = fit(context, frame, r, pts, hint) ?: return null
+        val st = fit(context, frame, r, pts, hint, carried, gw, gh, bad) ?: return null
         // Disagreement check against the carried outline.
         val fg = toGrid(st.entry, gw, gh)
         var inter = 0; var uni = 0

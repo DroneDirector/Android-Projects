@@ -88,12 +88,26 @@ def clean(mask):
     keep = cv2.dilate(keep, np.ones((5, 5), np.uint8))
     return (mask.astype(np.float32) * keep).astype(np.uint8)
 
-def fit(frame, rect, pts_crop, hint):
-    """SAM on the crop: returns (logits square, crop mask uint8, encoder geometry)."""
+def fit(frame, rect, pts_crop, hint, carried=None, bad=None):
+    """SAM on the crop: returns (logits square, crop mask uint8, encoder geometry). Of SAM's four answers,
+    the one that best matches the carried outline wins (keeps "the face" a face, not the whole head)."""
     c = crop(frame, rect)
     e = encode(c)
     m4, s4 = decode(e, pts_crop, hint)
     logits = m4[0]
+    if carried is not None:
+        ch_, cw_ = c.shape[:2]
+        gh, gw = carried.shape
+        H, W = frame.shape[:2]
+        best = -1
+        for i in range(4):
+            g = entry_to_grid(dict(rect=rect, mask=(logits_to(e, m4[i], 96, max(8, round(96 * ch_ / cw_))) * 255).astype(np.uint8)), gw, gh) > 0.5
+            cg = carried > 0.5
+            ok = ~bad if bad is not None else np.ones_like(cg)
+            # Newly uncovered pixels don't count (parts coming back into view may join).
+            iou = (g & cg & ok).sum() / max(1, ((g | cg) & ok).sum())
+            sc = iou + 0.05 * float(s4[i]) + (0.03 if i == 0 else 0)
+            if sc > best: best = sc; logits = m4[i]
     ch, cw = c.shape[:2]; k = min(1, MAXMASK / max(cw, ch)); mw, mh = max(8, round(cw * k)), max(8, round(ch * k))
     prob = logits_to(e, logits, mw, mh)
     return logits, clean((prob * 255).astype(np.uint8)), e
@@ -181,7 +195,7 @@ def advance(prev, prev_frame, frame):
     rect = rect_for(carried, W, H)
     pc = prompts_from(carried, rect, W, H)
     hint = hint_for(prev, rect, W, H, back, bad)
-    logits, mask, ge = fit(frame, rect, pc, hint)
+    logits, mask, ge = fit(frame, rect, pc, hint, carried, bad)
     ent = dict(rect=rect, logits=logits, mask=mask, geom=ge)
     fg = entry_to_grid(ent, gw, gh) > 0.5; cg = carried > 0.5
     if os.environ.get('VERBOSE'): print('  carried', cg.sum(), 'fitted', fg.sum())

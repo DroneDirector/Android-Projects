@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.286 — 2026-10-19
 - Video editor: add as many video layers as you like, each above or below the main video. Tap + VIDEO on the timeline (or Layers → Video), choose ABOVE or BELOW, then pick the clip. Above layers sit on top (picture-in-picture, or full frame); below layers sit behind your clips and show where the main video doesn't cover the frame. Change it any time under the layer's PLACEMENT; rows are marked ↑ / ↓ on the timeline, and the preview and export stack them the same way.
 
 ## 1.0.284 — 2026-10-19

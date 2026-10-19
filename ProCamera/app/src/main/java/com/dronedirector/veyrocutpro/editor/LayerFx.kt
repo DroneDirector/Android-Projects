@@ -284,12 +284,12 @@ private class BlendProgram(private val bitmap: Bitmap, private val l: Layer, pri
 
 /** Export: a clip's keyframed opacity (fades to black, or shows the layers under the main video). */
 @UnstableApi
-class ClipOpacityEffect(private val c: Clip) : GlEffect {
-    override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram = OpacityProgram(c, useHdr)
+class ClipOpacityEffect(private val c: Clip, private val offsetMs: Long = 0L) : GlEffect {
+    override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram = OpacityProgram(c, offsetMs, useHdr)
 }
 
 @UnstableApi
-private class OpacityProgram(private val c: Clip, useHdr: Boolean) : BaseGlShaderProgram(useHdr, 1) {
+private class OpacityProgram(private val c: Clip, private val offsetMs: Long, useHdr: Boolean) : BaseGlShaderProgram(useHdr, 1) {
     private val program = try { GlProgram(VERT, FRAG) } catch (e: GlUtil.GlException) { throw VideoFrameProcessingException(e) }
     private var t0 = Long.MIN_VALUE
 
@@ -299,7 +299,7 @@ private class OpacityProgram(private val c: Clip, useHdr: Boolean) : BaseGlShade
 
     override fun drawFrame(inputTexId: Int, presentationTimeUs: Long) {
         if (t0 == Long.MIN_VALUE) t0 = presentationTimeUs
-        val src = c.srcAtOffset((presentationTimeUs - t0) / 1000)
+        val src = c.srcAtOffset(offsetMs + (presentationTimeUs - t0) / 1000)
         val k = c.reframe.opacityAt(src - c.startMs).coerceIn(0f, 1f)
         try {
             program.use()

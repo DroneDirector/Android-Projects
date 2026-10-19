@@ -241,7 +241,43 @@ class TimelineExport(
     private val rawFile = File(context.cacheDir, "mix_${System.currentTimeMillis()}.pcm")
     private val tap = if (fmt != AudioExportFormat.M4A) PcmTap(rawFile) else null
 
+    /** Analysed morph cuts (cut index → data), freed when the export ends. */
+    private var morphs: Map<Int, MorphData> = emptyMap()
+    private var morphPrep: MorphPrep? = null
+    private fun freeMorphs() { val m = morphs; morphs = emptyMap(); handler.postDelayed({ m.values.forEach { it.release() } }, 1500) }
+
+    /** A clip's own picture effects (everything before its transition), for a clip starting [offsetMs] into it. */
+    private fun clipChain(c: Clip, offsetMs: Long, outW: Int, outH: Int, layout: Int, sized: Boolean): List<Effect> = buildList {
+        if (c.detail.aiDenoise > 0f) add(AiDenoiseEffect(context, c.detail.aiDenoise))
+        val motion = if (c.stab.enabled) Stabilizer.cached(context, c) else null
+        if (!c.reframe.isIdentity || motion != null) add(ReframeEffect(c, motion, offsetMs))
+        if (c.reframe.hasOpacity) add(ClipOpacityEffect(c, offsetMs))
+        // Anamorphic: stretch the squeezed picture back to its real width.
+        c.desqueeze?.takeIf { it > 1f }?.let { add(androidx.media3.effect.ScaleAndRotateTransformation.Builder().setScale(it, 1f).build()) }
+        addAll(clipEffects(c))
+        // When compositing, every clip is sized to the project frame first.
+        if (sized) add(Presentation.createForWidthAndHeight(outW, outH, layout))
+    }
+
     fun start() {
+        // Morph cuts: analyse them first (their frames go through each clip's own effects), then export.
+        if (!audioOnly && !settings.keepHdr && morphCuts(clips).isNotEmpty() && MorphNative.available) {
+            val (outW, outH) = outputSize(clips, settings)
+            val layout = if (settings.fill) Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP else Presentation.LAYOUT_SCALE_TO_FIT
+            val decoders = clips.mapNotNull { it.decoder }.distinct()
+            morphPrep = MorphPrep(
+                context, clips,
+                effectsFor = { c, off -> clipChain(c, off, outW, outH, layout, true) },
+                decoderFactory = if (decoders.isEmpty()) null else { b -> b.setAssetLoaderFactory(Chroma.assetLoaders(context, decoders)) },
+                onStatus = { onProgress(0) },
+                onDone = { m -> morphPrep = null; if (finished) { m.values.forEach { it.release() }; return@MorphPrep }; morphs = m; startMain() },
+            ).also { it.start() }
+            return
+        }
+        startMain()
+    }
+
+    private fun startMain() {
         val (outW, outH) = outputSize(clips, settings)
         val allVideoLayers = if (audioOnly) emptyList() else layers.filter { it.visible && it.kind == LayerKind.VIDEO && it.videoUri != null }
         // Video layers above the main video (drawn first = on top) and below it (after the timeline).
@@ -273,15 +309,7 @@ class TimelineExport(
             }
             val video = mutableListOf<Effect>()
             if (!audioOnly) {
-            if (c.detail.aiDenoise > 0f) video += AiDenoiseEffect(context, c.detail.aiDenoise)
-            val motion = if (c.stab.enabled) Stabilizer.cached(context, c) else null
-            if (!c.reframe.isIdentity || motion != null) video += ReframeEffect(c, motion)
-            if (c.reframe.hasOpacity) video += ClipOpacityEffect(c)
-            // Anamorphic: stretch the squeezed picture back to its real width.
-            c.desqueeze?.takeIf { it > 1f }?.let { video += androidx.media3.effect.ScaleAndRotateTransformation.Builder().setScale(it, 1f).build() }
-            video += clipEffects(c)
-            // When compositing, every clip is sized to the project frame first.
-            if (compositing) video += Presentation.createForWidthAndHeight(outW, outH, layout)
+            video += clipChain(c, 0L, outW, outH, layout, compositing)
             if (ab) {
                 // A/B roll: even clips on the top track, odd clips underneath.
                 val top = i % 2 == 0
@@ -289,6 +317,10 @@ class TimelineExport(
                 val inMode = if (top && prevT.kind == TransitionKind.MASK) 1 else 0
                 val outMode = if (top && c.transition.type.kind == TransitionKind.MASK) 2 else 0
                 video += TransitionEffect(TransitionWindows(c.lengthMs, prevT, inMs, inMode, c.transition.type, outMs, outMode))
+                // Morph cuts: the in-between frames drawn new from the analysed motion.
+                val mIn = if (i > 0) morphs[i - 1] else null
+                val mOut = morphs[i]
+                if (mIn != null || mOut != null) video += MorphEffect(c.lengthMs, mIn, inMs, mOut, outMs)
             }
             }
             val b = EditedMediaItem.Builder(media)
@@ -505,6 +537,7 @@ class TimelineExport(
             .addListener(object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                     finished = true
+                    freeMorphs()
                     if (toFile != null) {
                         val ok = out.renameTo(toFile) || try { out.copyTo(toFile, overwrite = true); out.delete(); true } catch (_: Throwable) { false }
                         handler.post { onDone(if (ok) Uri.fromFile(toFile) else null, if (ok) null else "Couldn't prepare the sound") }
@@ -539,6 +572,7 @@ class TimelineExport(
 
                 override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
                     finished = true
+                    freeMorphs()
                     out.delete()
                     tap?.close(); rawFile.delete()
                     onDone(null, "Export failed: ${exportException.errorCodeName}")
@@ -585,8 +619,10 @@ class TimelineExport(
     }
 
     fun cancel() {
+        morphPrep?.let { it.cancel(); morphPrep = null; finished = true; return }
         if (finished || !::transformer.isInitialized) return
         finished = true
+        freeMorphs()
         transformer.cancel()
         out.delete()
         tap?.close(); rawFile.delete()

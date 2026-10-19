@@ -40,3 +40,10 @@ endif ()
 target_link_options(veyrocut_whisper PRIVATE -Wl,--gc-sections)
 find_library(LOG_LIB log)
 target_link_libraries(veyrocut_whisper ${LOG_LIB} android m)
+
+# Morph cut (own code): optical flow + in-between frames, multi-threaded with OpenMP.
+add_library(veyrocut_morph SHARED morph/morph.cpp morph/morph_jni.cpp)
+target_compile_options(veyrocut_morph PRIVATE -O3 -fopenmp -ffunction-sections -fdata-sections -fvisibility=hidden)
+target_link_options(veyrocut_morph PRIVATE -fopenmp -static-openmp -Wl,--gc-sections)
+find_library(JNIGRAPHICS_LIB jnigraphics)
+target_link_libraries(veyrocut_morph ${JNIGRAPHICS_LIB} ${LOG_LIB} m)

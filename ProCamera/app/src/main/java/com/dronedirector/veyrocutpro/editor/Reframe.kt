@@ -141,12 +141,12 @@ object ClipXform {
 
 /** Export effect: crop / zoom / stabilise frame by frame. */
 @UnstableApi
-class ReframeEffect(private val c: Clip, private val motion: Motion?) : MatrixTransformation {
+class ReframeEffect(private val c: Clip, private val motion: Motion?, private val offsetMs: Long = 0L) : MatrixTransformation {
     private var t0 = Long.MIN_VALUE
     private val aspect = c.width.toFloat() / c.height.coerceAtLeast(1)
     override fun getMatrix(presentationTimeUs: Long): android.graphics.Matrix {
         if (t0 == Long.MIN_VALUE) t0 = presentationTimeUs
-        val src = c.srcAtOffset((presentationTimeUs - t0) / 1000)
+        val src = c.srcAtOffset(offsetMs + (presentationTimeUs - t0) / 1000)
         return ClipXform.ndcMatrix(ClipXform.at(c, src, motion), aspect)
     }
 }

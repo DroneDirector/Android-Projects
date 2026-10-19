@@ -111,9 +111,10 @@ static void patchSearch(const Pyr& A, const Pyr& B, Flow& F, int P, int S, int i
     const int NX = (int)xs.size(), NY = (int)ys.size();
     const int PP = P * P;
     std::vector<float> pu((size_t)NX * NY), pv((size_t)NX * NY);
-    std::vector<float> tmpl(C * PP), tgx(C * PP), tgy(C * PP), warped(C * PP);
-    float m0[C];
-    for (int j = 0; j < NY; j++)
+#pragma omp parallel for schedule(dynamic, 2)
+    for (int j = 0; j < NY; j++) {
+        std::vector<float> tmpl(C * PP), tgx(C * PP), tgy(C * PP), warped(C * PP);
+        float m0[C];
         for (int i = 0; i < NX; i++) {
             const int px = xs[i], py = ys[j];
             float u = 0, v = 0;
@@ -151,8 +152,30 @@ static void patchSearch(const Pyr& A, const Pyr& B, Flow& F, int P, int S, int i
                     for (int q = 0; q < PP; q++) { float r = (warped[c * PP + q] - m1[c]) - (tmpl[c * PP + q] - m0[c]); cs += r * r; }
                 return cs;
             };
+            // Also try the motion of the neighbourhood (thin objects can be lost on coarse levels):
+            // the start that fits best wins (like PatchMatch propagation).
+            float bestC = cost(u, v);
+            auto tryCand = [&](float cu, float cv) {
+                if (!(std::isfinite(cu) && std::isfinite(cv))) return;
+                if (std::fabs(cu - u) < 0.25f && std::fabs(cv - v) < 0.25f) return;
+                float cc = cost(cu, cv);
+                if (cc < bestC) { bestC = cc; u = cu; v = cv; }
+            };
+            {
+                const float cu0 = u, cv0 = v;
+                (void)cu0; (void)cv0;
+                const int cx = px + P / 2, cy = py + P / 2;
+                const int offs[8][2] = {{-P, 0}, {P, 0}, {0, -P}, {0, P}, {-2 * P, 0}, {2 * P, 0}, {0, -2 * P}, {0, 2 * P}};
+                for (auto& o : offs) {
+                    int qx = cx + o[0], qy = cy + o[1];
+                    if (qx < 0 || qy < 0 || qx >= W || qy >= H) continue;
+                    size_t q = (size_t)qy * W + qx;
+                    tryCand(F.u[q], F.v[q]);
+                }
+                if (i > 0) tryCand(pu[(size_t)j * NX + i - 1], pv[(size_t)j * NX + i - 1]);
+            }
             const float u0 = u, v0 = v;
-            const float c0 = cost(u0, v0);
+            const float c0 = bestC;
             double det = hxx * hyy - hxy * hxy;
             if (det > 1e-6 && det > 1e-3 * (hxx + hyy) * (hxx + hyy)) {
                 const double ixx = hyy / det, ixy = -hxy / det, iyy = hxx / det;
@@ -174,6 +197,7 @@ static void patchSearch(const Pyr& A, const Pyr& B, Flow& F, int P, int S, int i
             }
             pu[(size_t)j * NX + i] = u; pv[(size_t)j * NX + i] = v;
         }
+    }
     // Densify: each pixel blends the patches covering it, weighted by how well each one fits there.
     std::vector<float> su((size_t)W * H, 0.f), sv((size_t)W * H, 0.f), sw((size_t)W * H, 0.f);
     for (int j = 0; j < NY; j++)
@@ -216,6 +240,7 @@ static void refine(const Pyr& A, const Pyr& B, Flow& F, int outer, int inner, fl
     for (int o = 0; o < outer; o++) {
         std::fill(du.begin(), du.end(), 0.f); std::fill(dv.begin(), dv.end(), 0.f);
         // Linearise the data terms around the current flow (warped second image).
+#pragma omp parallel for schedule(static)
         for (int y = 0; y < H; y++)
             for (int x = 0; x < W; x++) {
                 size_t k = (size_t)y * W + x;
@@ -234,6 +259,7 @@ static void refine(const Pyr& A, const Pyr& B, Flow& F, int outer, int inner, fl
                 Iyz[k] = out ? 0.f : B.gy[0].bilinear(X, Y) - A.gy[0].d[k];
             }
         for (int it = 0; it < inner; it++) {
+#pragma omp parallel for schedule(static)
             for (int y = 0; y < H; y++)
                 for (int x = 0; x < W; x++) {
                     size_t k = (size_t)y * W + x;
@@ -260,9 +286,11 @@ static void refine(const Pyr& A, const Pyr& B, Flow& F, int outer, int inner, fl
                     psS[k] = edge[k] * alpha / std::sqrt(ux * ux + uy * uy + vx * vx + vy * vy + eps2);
                 }
             const float omega = 1.6f;
-            for (int sweep = 0; sweep < 3; sweep++)
+            // Red-black ordering, so each half-sweep can run on all cores.
+            for (int sweep = 0; sweep < 6; sweep++)
+#pragma omp parallel for schedule(static)
                 for (int y = 0; y < H; y++)
-                    for (int x = 0; x < W; x++) {
+                    for (int x = (y + sweep) & 1; x < W; x += 2) {
                         size_t k = (size_t)y * W + x;
                         float sw = 0, su = 0, sv = 0;
                         auto nb = [&](size_t n, float wgt) {
@@ -304,9 +332,10 @@ static void weightedMedian(Flow& F, const Pyr& I, int r) {
     const int W = F.w, H = F.h;
     Flow o = F;
     const int n = (2 * r + 1) * (2 * r + 1);
-    std::vector<std::pair<float, float>> au(n), av(n);
     const float sc = 1.f / (2.f * 8.f * 8.f), sd = 1.f / (2.f * (r * 0.7f) * (r * 0.7f));
-    for (int y = 0; y < H; y++)
+#pragma omp parallel for schedule(static)
+    for (int y = 0; y < H; y++) {
+        std::vector<std::pair<float, float>> au(n), av(n);
         for (int x = 0; x < W; x++) {
             int m = 0; float tw = 0;
             for (int j = -r; j <= r; j++)
@@ -328,6 +357,7 @@ static void weightedMedian(Flow& F, const Pyr& I, int r) {
             size_t k = (size_t)y * W + x;
             o.u[k] = med(au); o.v[k] = med(av);
         }
+    }
     F = o;
 }
 

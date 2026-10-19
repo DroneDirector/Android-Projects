@@ -23,8 +23,8 @@ enum class TransitionType(val id: Float, val label: String, val group: Transitio
     DIP_WHITE(3f, "Dip to white", TransitionGroup.BASIC, TransitionKind.UNIFORM),
     FLASH(4f, "Flash", TransitionGroup.BASIC, TransitionKind.UNIFORM),
     BLUR(5f, "Blur dissolve", TransitionGroup.BASIC, TransitionKind.UNIFORM),
-    /** For jump cuts (interviews): an eased dissolve with a tiny matched push-in and soft blur at the seam. */
-    SMOOTH_CUT(7f, "Smooth cut", TransitionGroup.BASIC, TransitionKind.UNIFORM),
+    /** For jump cuts (interviews), like Premiere Pro's Morph Cut / DaVinci's Smooth Cut: in-between frames drawn new from optical flow (MorphCut.kt); a soft dissolve until analysed. */
+    SMOOTH_CUT(7f, "Morph cut", TransitionGroup.BASIC, TransitionKind.UNIFORM),
 
     WIPE_LEFT(10f, "Wipe left", TransitionGroup.WIPES, TransitionKind.MASK),
     WIPE_RIGHT(11f, "Wipe right", TransitionGroup.WIPES, TransitionKind.MASK),

@@ -958,6 +958,25 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             if (m != null) motions[k] = m else analyze(c)
         }
     }
+    // Morph cuts: in-between frames drawn ahead of time for the preview (the export draws its own at full size).
+    val morphCache = remember { mutableStateMapOf<String, MorphPreviewFrames>() }
+    var morphFrame by remember { mutableStateOf<Bitmap?>(null) }
+    var morphBusy by remember { mutableStateOf(false) }
+    val morphKeys = clips.indices.filter { it + 1 < clips.size && clips[it].transition.type == TransitionType.SMOOTH_CUT && overlapMs(clips, it) > 0 }
+        .map { Triple(it, clips[it] to clips[it + 1], overlapMs(clips, it)) }
+    LaunchedEffect(morphKeys.map { (_, p, ov) -> MorphPreview.keyOf(p.first, p.second, ov) }) {
+        delay(600)
+        val want = morphKeys.associateBy { (_, p, ov) -> MorphPreview.keyOf(p.first, p.second, ov) }
+        morphCache.keys.filter { it !in want }.forEach { morphCache.remove(it) }
+        for ((k, v) in want) {
+            if (morphCache.containsKey(k)) continue
+            val (_, p, ov) = v
+            morphBusy = true
+            val f = withContext(Dispatchers.Default) { try { MorphPreview.build(context, p.first, p.second, ov, motionFor(p.first), motionFor(p.second)) } catch (_: Throwable) { null } }
+            if (f != null) morphCache[k] = f
+        }
+        morphBusy = false
+    }
     // Every frame: crop/zoom/stabilise the picture and play transitions between clips.
     LaunchedEffect(Unit) {
         var was = false
@@ -1035,6 +1054,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 }
                 frameViews[a]?.let { TransitionPreview.apply(it, c.transition.type, p, false) }
                 frameViews[1 - a]?.let { TransitionPreview.apply(it, c.transition.type, p, true) }
+                // Morph cut: show the analysed in-between frame on top.
+                morphFrame = if (c.transition.type == TransitionType.SMOOTH_CUT) morphCache[MorphPreview.keyOf(c, n, ov)]?.frames?.let { fr -> fr[((p * (fr.size - 1)) + 0.5f).toInt().coerceIn(0, fr.lastIndex)] } else null
                 // Audio transition over the overlap.
                 val (fo, fi) = AudioXfade.forCut(clips, i)
                 deck.cur.volume = (vol(c) * (fo?.gain(((1f - p) * ov).toLong()) ?: (1f - p))).coerceIn(0f, 1f)
@@ -1042,6 +1063,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 was = true
             } else if (was) {
                 was = false
+                morphFrame = null
                 transitionOn[0] = false
                 frameViews[a]?.let { TransitionPreview.reset(it, true) }
                 frameViews[1 - a]?.let { TransitionPreview.reset(it, false) }
@@ -2303,6 +2325,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 },
                                 modifier = Modifier.fillMaxSize(),
                             )
+                            morphFrame?.let { mf ->
+                                val img = remember(mf) { mf.asImageBitmap() }
+                                androidx.compose.foundation.Image(
+                                    img, contentDescription = null, modifier = Modifier.fillMaxSize(),
+                                    contentScale = if (deliver.fill) androidx.compose.ui.layout.ContentScale.Crop else androidx.compose.ui.layout.ContentScale.Fit,
+                                )
+                            }
+                            if (morphBusy) Text("Analysing morph cut…", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 6.dp, vertical = 2.dp))
                             // A selected below-layer shows as a see-through ghost on top while you place it.
                             val ghost = if (page == Page.LAYERS && !playing) layers.firstOrNull { it.id == selectedLayer && it.isBelow } else null
                             LayerPreview(

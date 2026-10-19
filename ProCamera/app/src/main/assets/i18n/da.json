@@ -1772,5 +1772,13 @@
 "Deliver → Audio only saves just the sound of your edit. AUDIO FORMAT: AAC .m4a, WAV (16-bit, 24-bit or 32-bit float), AIFF 24-bit, FLAC (lossless, about half the size of WAV) or Opus .ogg (Android 10+). WAV, AIFF and FLAC are made from the finished mix itself, so they're lossless.": "Levér → Kun lyd gemmer kun lyden fra din redigering. LYDFORMAT: AAC .m4a, WAV (16-bit, 24-bit eller 32-bit float), AIFF 24-bit, FLAC (tabsfri, cirka halvt så stor som WAV) eller Opus .ogg (Android 10+). WAV, AIFF og FLAC laves direkte fra det færdige mix, så de er tabsfri.",
 "The small glowing wheel in the timeline's lower-right corner scrolls the tracks up and down: drag it like a scroll wheel, or tap it to jump.": "Det lille lysende hjul i tidslinjens nederste højre hjørne ruller sporene op og ned: træk i det som et scrollhjul, eller tryk for at springe.",
 "Audio only": "Kun lyd",
-"AUDIO FORMAT": "LYDFORMAT"
+"AUDIO FORMAT": "LYDFORMAT",
+"VeyroCut Pro closed unexpectedly": "VeyroCut Pro lukkede uventet",
+"SHARE REPORT": "DEL RAPPORT",
+"COPY": "KOPIÉR",
+"DISMISS": "LUK",
+"Share crash report": "Del nedbrudsrapport",
+"The last attempt to recover it closed the app. You can try again, or discard it.": "Sidste forsøg på at gendanne den lukkede appen. Du kan prøve igen eller kassere den.",
+"The unsaved edit couldn't be recovered — its media is no longer available": "Den ikke-gemte redigering kunne ikke gendannes — dens medier findes ikke længere",
+"Recovered — {n} missing file(s) were left out": "Gendannet — {n} manglende fil(er) blev udeladt"
 }

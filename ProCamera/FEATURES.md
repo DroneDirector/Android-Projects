@@ -169,7 +169,8 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Trim tools**: slip, roll and slide by 1 or 10 frames; normal trims ripple (magnetic main track).
 - **Nested (compound) clips**: join several clips into one and open them up again.
 - **Drone telemetry**: DJI .SRT flight data (altitude, speed, GPS, camera settings) as a live read-out matched to trim and speed.
-- **Auto-save & crash recovery** every 20 seconds.
+- **Auto-save & crash recovery** every 20 seconds; auto-saved edits keep access to their media, and RECOVER checks the edit first and leaves out files that can no longer be read.
+- **Crash reports**: after an unexpected close, the next start shows a short report (no photos or videos) to share or copy.
 
 ### Transitions
 Two sub-menus on the Transitions page: **Video transitions** and **Audio transitions**.

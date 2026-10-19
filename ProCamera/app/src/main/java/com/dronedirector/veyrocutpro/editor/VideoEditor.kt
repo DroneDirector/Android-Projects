@@ -188,17 +188,33 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
                             .background(Pro.Amber.copy(alpha = 0.12f)).border(1.dp, Pro.Amber.copy(alpha = 0.6f), RoundedCornerShape(12.dp)).padding(12.dp),
                     ) {
                         Text("Unsaved edit found", color = Pro.Amber, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        if (com.dronedirector.veyrocutpro.ui.CrashReport.recoveryCrashed(context)) Text(
+                            "The last attempt to recover it closed the app. You can try again, or discard it.",
+                            color = Pro.Red, fontSize = 12.sp,
+                        )
                         Text(
                             "The editor closed without leaving normally (" + java.text.SimpleDateFormat("d MMM HH:mm", java.util.Locale.getDefault()).format(java.util.Date(recoverAt)) + "). Pick up where you left off?",
                             color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(vertical = 4.dp),
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text("RECOVER", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(50)).background(Pro.Amber).clickable {
-                                val p = ProjectStore.loadAutosave(context)
-                                if (p == null) { recoverAt = 0L; ProjectStore.clearAutosave(context) }
-                                else {
-                                    val fixed = p.copy(id = p.id.ifBlank { java.util.UUID.randomUUID().toString() }, name = p.name.ifBlank { "Recovered edit" })
-                                    clips.clear(); clips.addAll(fixed.clips); project = fixed; started = true
+                                loading = true
+                                scope.launch {
+                                    // Load and check the edit off the main thread; media that can't be read is left out.
+                                    val res = withContext(Dispatchers.IO) {
+                                        try { ProjectStore.loadAutosave(context)?.let { ProjectStore.sanitizeRecovered(context, it) } } catch (_: Throwable) { null }
+                                    }
+                                    loading = false
+                                    val p = res?.first
+                                    if (p == null || (p.clips.isEmpty() && p.layers.isEmpty() && p.music == null && p.extraAudio.isEmpty())) {
+                                        recoverAt = 0L; ProjectStore.clearAutosave(context)
+                                        android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("The unsaved edit couldn't be recovered — its media is no longer available"), android.widget.Toast.LENGTH_LONG).show()
+                                    } else {
+                                        if (res.second > 0) android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Recovered — {n} missing file(s) were left out").replace("{n}", res.second.toString()), android.widget.Toast.LENGTH_LONG).show()
+                                        val fixed = p.copy(id = p.id.ifBlank { java.util.UUID.randomUUID().toString() }, name = p.name.ifBlank { "Recovered edit" })
+                                        com.dronedirector.veyrocutpro.ui.CrashReport.startRecovering(context)
+                                        clips.clear(); clips.addAll(fixed.clips); project = fixed; started = true
+                                    }
                                 }
                             }.padding(horizontal = 16.dp, vertical = 8.dp))
                             Text("DISCARD", color = Pro.Dim, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, modifier = Modifier.clip(RoundedCornerShape(50)).clickable {
@@ -1126,6 +1142,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         if (saved != null) { projectId = saved.id; projectName = saved.name; message = "Project \"${saved.name}\" saved" }
         else message = "Couldn't save the project"
     }
+    // A recovered edit that has run for a while is fine: forget the recovery marker.
+    LaunchedEffect(Unit) { delay(15_000); com.dronedirector.veyrocutpro.ui.CrashReport.doneRecovering(context) }
     // Auto-save: every 20 s a hidden recovery copy of the edit, in case the app is closed or crashes.
     LaunchedEffect(Unit) {
         var last = ""
@@ -1143,7 +1161,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val json = withContext(Dispatchers.Default) { try { ProjectStore.gson.toJson(p) } catch (_: Throwable) { "" } }
             if (json.isNotEmpty() && json != last) {
                 last = json
-                withContext(Dispatchers.IO) { ProjectStore.writeAutosave(context, json) }
+                withContext(Dispatchers.IO) { ProjectStore.writeAutosave(context, json); try { ProjectStore.keepAutosaveAccess(context, p) } catch (_: Throwable) {} }
             }
         }
     }

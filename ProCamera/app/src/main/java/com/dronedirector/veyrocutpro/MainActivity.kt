@@ -86,6 +86,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.dronedirector.veyrocutpro.ui.CrashReport.install(this)
         com.dronedirector.veyrocutpro.editor.LutLibrary.init(this)
         com.dronedirector.veyrocutpro.editor.UserPresets.init(this)
         com.dronedirector.veyrocutpro.camera.CaptureExtras.load(this)
@@ -128,6 +129,7 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             ProCamTheme {
+                com.dronedirector.veyrocutpro.ui.CrashReportDialog()
                 val current = screen.value
                 androidx.compose.animation.Crossfade(current, label = "screen") { s ->
                     when (s) {

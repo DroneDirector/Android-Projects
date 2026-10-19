@@ -130,9 +130,40 @@ object ProjectStore {
 
     fun clearAutosave(context: Context) { try { autosaveFile(context).delete() } catch (_: Throwable) {} }
 
+    /** Keeps read access to the media of an auto-saved edit, so it can still be opened after a restart. */
+    fun keepAutosaveAccess(context: Context, p: VideoProjectData) =
+        keepAccess(context, p.clips.map { it.uri } + p.layers.flatMap { listOf(it.imageUri, it.videoUri) } + listOf(p.music?.uri) + p.extraAudio.map { it.uri } + p.audioPool.map { it.uri })
+
+    /**
+     * Makes a recovered edit safe to open: media that can no longer be read (deleted, moved, or
+     * access lost) is left out instead of being loaded. Returns the cleaned edit and how much was left out.
+     */
+    fun sanitizeRecovered(context: Context, p: VideoProjectData): Pair<VideoProjectData, Int> {
+        val ok = HashMap<String, Boolean>()
+        fun readable(u: Uri?): Boolean {
+            if (u == null || u == Uri.EMPTY || u.toString().isBlank()) return false
+            return ok.getOrPut(u.toString()) {
+                try {
+                    if (u.scheme == "file") File(u.path ?: "").canRead()
+                    else context.contentResolver.openFileDescriptor(u, "r")?.use { true } ?: false
+                } catch (_: Throwable) { false }
+            }
+        }
+        val clips = p.clips.filter { c -> readable(c.uri) && (c.nested?.all { readable(it.uri) } ?: true) && c.durationMs > 0 && c.width > 0 && c.height > 0 }
+        val layers = p.layers.filter { l -> (l.imageUri == null || readable(l.imageUri)) && (l.videoUri == null || readable(l.videoUri)) }
+        val music = p.music?.takeIf { readable(it.uri) }
+        val extra = p.extraAudio.filter { readable(it.uri) }
+        val pool = p.audioPool.filter { readable(it.uri) }
+        val dropped = (p.clips.size - clips.size) + (p.layers.size - layers.size) + (if (p.music != null && music == null) 1 else 0) +
+            (p.extraAudio.size - extra.size) + (p.audioPool.size - pool.size)
+        return p.copy(clips = clips, layers = layers, music = music, extraAudio = extra, audioPool = pool) to dropped
+    }
+
     private fun fixVideo(p: VideoProjectData): VideoProjectData {
         Defaults.fix(p, VideoProjectData())
         p.clips.forEach { Defaults.fix(it, Clip(uri = Uri.EMPTY, name = "", durationMs = 1, width = 1, height = 1)) }
+        // Clips inside nested (compound) clips.
+        p.clips.forEach { c -> c.nested?.forEach { Defaults.fix(it, Clip(uri = Uri.EMPTY, name = "", durationMs = 1, width = 1, height = 1)) } }
         p.layers.forEach { Defaults.fix(it, Layer()) }
         p.music?.let { Defaults.fix(it, MusicTrack(Uri.EMPTY, "", 1)) }
         p.extraAudio.forEach { Defaults.fix(it, MusicTrack(Uri.EMPTY, "", 1)) }

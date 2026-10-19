@@ -423,6 +423,21 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             message = "Flight data added to clip ${current + 1} ($n overlays) — tap one on the timeline to restyle it"
         }
     }
+    // Render queue (Deliver → RENDER QUEUE): settings to export one after another.
+    val exportQueue = remember { mutableStateListOf<DeliverSettings>() }
+    var queueAt by remember { mutableStateOf(-1) }          // next job to start; -1 = not running
+    var queueBase by remember { mutableStateOf<DeliverSettings?>(null) }
+    // Android 13+: ask once to show the export progress notification.
+    val askNotify = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    LaunchedEffect(Unit) {
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED &&
+            !context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("asked_notify", false)
+        ) {
+            context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("asked_notify", true).apply()
+            try { askNotify.launch(android.Manifest.permission.POST_NOTIFICATIONS) } catch (_: Throwable) {}
+        }
+    }
     // New video layer: you choose first whether it goes above or below the main video.
     var askVideoLayer by remember { mutableStateOf(false) }
     var videoLayerBelow by remember { mutableStateOf(false) }
@@ -1727,6 +1742,35 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
 
+    // Render queue: start the next export whenever the previous one has finished.
+    LaunchedEffect(exporting, queueAt) {
+        if (queueAt < 0 || exporting) return@LaunchedEffect
+        if (queueAt >= exportQueue.size) {
+            val n = exportQueue.size
+            queueAt = -1
+            queueBase?.let { deliver = it }
+            message = "Render queue finished — $n exports"
+            return@LaunchedEffect
+        }
+        deliver = exportQueue[queueAt]
+        queueAt += 1
+        startExport()
+    }
+    // Background export: keep running (with a progress notification) when you leave the app.
+    var wasExporting by remember { mutableStateOf(false) }
+    LaunchedEffect(exporting) {
+        if (exporting) {
+            val what = (if (queueAt > 0) "Exporting $queueAt of ${exportQueue.size}" else if (deliver.audioOnly) "Exporting audio" else "Exporting video") +
+                (projectName.takeIf { it.isNotBlank() }?.let { " · $it" } ?: "")
+            com.dronedirector.veyrocutpro.ExportService.start(context, what)
+            wasExporting = true
+        } else if (wasExporting) {
+            wasExporting = false
+            com.dronedirector.veyrocutpro.ExportService.finish(context, if (queueAt in 1 until exportQueue.size) null else message)
+        }
+    }
+    LaunchedEffect(progress, exporting) { if (exporting) com.dronedirector.veyrocutpro.ExportService.progress(context, progress) }
+
     Box(Modifier.fillMaxSize().background(Ed.Bg)) {
         com.dronedirector.veyrocutpro.ui.AiBadgeHost(
             exporting && !cloudExport && clips.any { it.detail.aiDenoise > 0f }, "AI NOISE REDUCTION · EXPORT", 1, progress,
@@ -2232,7 +2276,15 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onBeats = { t -> addBeatMarkers(t) },
                                 onSync = { t -> syncAudioTo(t) },
                             )
-                            Page.DELIVER -> DeliverPage(deliver, clips, exporting, { deliver = it }, ::startExport, playheadMs = globalMs, onSaveFrame = { saveStill() }, markers = markers.toList(), projectName = projectName, layers = layers.toList(), markerNotes = markerNotes.toMap())
+                            Page.DELIVER -> DeliverPage(
+                                deliver, clips, exporting, { deliver = it }, ::startExport, playheadMs = globalMs, onSaveFrame = { saveStill() },
+                                markers = markers.toList(), projectName = projectName, layers = layers.toList(), markerNotes = markerNotes.toMap(),
+                                queue = exportQueue.toList(), queueAt = queueAt,
+                                onQueueAdd = { exportQueue.add(deliver); message = "Added to the queue (${exportQueue.size})" },
+                                onQueueRemove = { i -> if (i in exportQueue.indices) exportQueue.removeAt(i) },
+                                onQueueStart = { if (!exporting) { queueBase = deliver; queueAt = 0 } },
+                                onQueueStop = { queueAt = -1; export?.cancel(); export = null; exporting = false; deliver = queueBase ?: deliver; message = "Queue stopped" },
+                            )
                         }
                         if (clips.isEmpty() && page != Page.MEDIA && page != Page.DELIVER) Text("Add a clip in the Media page.", color = Pro.Dim, modifier = Modifier.padding(12.dp))
                     }
@@ -3451,6 +3503,8 @@ private fun DeliverPage(
     playheadMs: Long = 0L, onSaveFrame: () -> Unit = {},
     markers: List<Long> = emptyList(), projectName: String? = null, layers: List<Layer> = emptyList(),
     markerNotes: Map<Long, String> = emptyMap(),
+    queue: List<DeliverSettings> = emptyList(), queueAt: Int = -1,
+    onQueueAdd: () -> Unit = {}, onQueueRemove: (Int) -> Unit = {}, onQueueStart: () -> Unit = {}, onQueueStop: () -> Unit = {},
 ) {
     // Send the edit to a desktop editor (DaVinci Resolve, Premiere Pro, Final Cut Pro).
     val ictx = LocalContext.current
@@ -3623,6 +3677,43 @@ private fun DeliverPage(
         style = Pro.Value.copy(color = Color.Black, fontSize = 14.sp),
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (exporting || clips.isEmpty()) Pro.Amber.copy(alpha = 0.4f) else Pro.Amber)
             .clickable(enabled = !exporting && clips.isNotEmpty(), onClick = onExport).padding(14.dp),
+    )
+    Text(
+        "Exports keep running if you switch apps or lock the screen — a notification shows the progress and tells you when it's done.",
+        color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp),
+    )
+    // Render queue: several exports of the same edit, one after another.
+    SectionTitle("RENDER QUEUE")
+    Text("Set up an export above and tap + ADD TO QUEUE; change the settings and add again (e.g. YouTube 4K, a 9:16 Reel and an audio file). START QUEUE renders them one after another.", color = Pro.Dim, fontSize = 11.sp)
+    Text(
+        "+ ADD TO QUEUE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 6.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable(enabled = queueAt < 0) { onQueueAdd() }.padding(10.dp),
+    )
+    queue.forEachIndexed { i, q ->
+        val (qw, qh) = outputSize(clips, q)
+        val label = if (q.audioOnly) "Audio only · ${q.audioFmt.label}"
+            else "${qw}×${qh} · ${if (q.fps > 0) "${q.fps} fps" else "source fps"} · ${if (q.hevc || q.keepHdr) "HEVC" else "H.264"}${if (q.keepHdr) " HDR" else ""}"
+        val state = when {
+            queueAt < 0 -> ""
+            i < queueAt - 1 -> "✓"
+            i == queueAt - 1 && exporting -> "…"
+            else -> ""
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("${i + 1}", style = Pro.Value.copy(color = Pro.Amber), modifier = Modifier.width(22.dp))
+            Text(label, color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            if (state.isNotEmpty()) Text(state, color = if (state == "✓") Pro.Green else Pro.Amber, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 6.dp))
+            if (queueAt < 0) Text("✕", color = Pro.Red, fontSize = 14.sp, modifier = Modifier.clickable { onQueueRemove(i) }.padding(6.dp))
+        }
+    }
+    if (queue.isNotEmpty()) Text(
+        if (queueAt >= 0) "STOP QUEUE" else "START QUEUE (${queue.size})",
+        style = Pro.Value.copy(color = if (queueAt >= 0) Color.White else Color.Black, fontSize = 13.sp),
+        modifier = Modifier.padding(top = 6.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (queueAt >= 0) Pro.Red else Pro.Amber)
+            .clickable(enabled = clips.isNotEmpty() && (queueAt >= 0 || !exporting)) { if (queueAt >= 0) onQueueStop() else onQueueStart() }.padding(12.dp),
     )
 }
 

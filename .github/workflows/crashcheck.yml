@@ -124,7 +124,19 @@ jobs:
           tapText "Transitions"; sleep 3; scrollTo "Morph cut"; tapText "Morph cut"; sleep 20; shot 08b-morph-cut
           adb shell input keyevent KEYCODE_MOVE_HOME; sleep 1; adb shell input keyevent KEYCODE_L; sleep 1; adb shell input keyevent KEYCODE_J; adb shell input keyevent KEYCODE_SPACE; sleep 6; shot 08c-morph-playing; adb shell input keyevent KEYCODE_SPACE
           # Magic Mask: Color → Detail → BACKGROUND → Blur → Magic Mask, tap the middle of the picture, track.
-          tapText "Color"; sleep 3; scrollTo "Detail"; tapText "Detail"; sleep 2; scrollTo "BACKGROUND"; tapText "Blur"; sleep 2; shot 09a-background
+          tapText "Color"; sleep 3
+          # The colour tabs scroll sideways: swipe the row that holds "Input" until "Detail" shows.
+          ROWY=$(adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml | python3 -c "
+          import re,sys
+          t=sys.stdin.read()
+          for m in re.finditer(r'<node [^>]*>', t):
+              n=m.group(0)
+              if 'text=\"Input\"' in n:
+                  b=re.search(r'bounds=\"\[(\d+),(\d+)\]\[(\d+),(\d+)\]\"',n); print((int(b.group(2))+int(b.group(4)))//2); break
+          ")
+          echo "colour tabs row at $ROWY"
+          for k in 1 2 3; do seeText '"Detail"' && break; [ -n "$ROWY" ] && adb shell input swipe 1000 $ROWY 150 $ROWY 300; sleep 1; done
+          tapText "Detail"; sleep 2; scrollTo "BACKGROUND"; tapText "Blur"; sleep 2; shot 09a-background
           scrollTo "Magic Mask"; tapText "Magic Mask"; for i in $(seq 1 30); do sleep 4; seeText "Tap the object" && break; seeText "couldn" && break; done; shot 09b-magic-dialog
           tapBetween "MAGIC MASK" "Tap the object"; sleep 12; shot 09c-magic-picked
           tapText "TRACK THROUGH"; for i in $(seq 1 60); do sleep 6; seeText "Tracked through" && break; seeText "couldn" && break; done; shot 09d-magic-tracked

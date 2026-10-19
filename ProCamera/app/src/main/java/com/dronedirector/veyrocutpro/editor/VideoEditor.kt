@@ -4033,7 +4033,7 @@ private fun SoundLibraries(onAdd: (LibSection, LibTrack) -> Unit) {
 
 
 /** Text-based editing: the edit as text; tap words to cut them, then APPLY CUTS. */
-@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
+@kotlin.OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 private fun TextEditPage(
     words: List<TWord>, clips: List<Clip>, currentClipId: String?, playSrcMs: Long,

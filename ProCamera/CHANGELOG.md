@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor: tested with a real Mavic 3 Pro DNG — the drone's vignetting correction (stored per colour after the lens profile) is now applied, so corners are no longer dark; the drone name now comes from the photo itself (e.g. "Mavic 3 Pro" instead of "Mavic 3").
 
 ## 1.0.266 — 2026-10-19
 - Photo editor: full DJI drone RAW support — DNGs from DJI drones open with the drone's own lens calibration applied (distortion fixed, switchable), RAW INFO shows the drone model and the flight data stored in the photo (height, altitude, GPS, gimbal angles, heading, speed), and MERGE PHOTOS (HDR / panorama) now develops DNG brackets from the RAW data instead of their small preview.

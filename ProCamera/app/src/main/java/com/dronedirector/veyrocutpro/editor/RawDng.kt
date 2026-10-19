@@ -162,6 +162,8 @@ object RawDng {
         internal val dewarp: DoubleArray? = null,
         /** DJI drones: flight / gimbal metadata from the XMP. */
         val drone: Map<String, String> = emptyMap(),
+        /** GainMaps from OpcodeList3 (after demosaic, per colour) — DJI drones use this for lens shading. */
+        internal val gains3: List<GainMap> = emptyList(),
     ) {
         /** Grey-world white balance from the preview, filled in by [preview]. */
         @Volatile internal var autoMul: FloatArray? = null
@@ -170,7 +172,7 @@ object RawDng {
         /** The file has its own camera profile (tone curve / colour tables). */
         val hasCameraProfile: Boolean get() = hueSat != null || look != null || toneCurve != null
         /** The file carries lens corrections (distortion, colour fringing, vignetting). */
-        val hasLensOps: Boolean get() = warp != null || vignette != null || dewarp != null
+        val hasLensOps: Boolean get() = warp != null || vignette != null || dewarp != null || gains3.isNotEmpty()
         val isDji: Boolean get() = drone.isNotEmpty()
     }
 
@@ -288,6 +290,7 @@ object RawDng {
         val ops2 = parseOps(rawIfd.raw(51009) ?: ifd0.raw(51009))
         val gains = parseGainMaps(rawIfd.raw(51009) ?: ifd0.raw(51009))
         val (warp, vig) = parseOps3(rawIfd.raw(51022) ?: ifd0.raw(51022))
+        val gains3 = parseGainMaps(rawIfd.raw(51022) ?: ifd0.raw(51022))
 
         // Colour: both calibration illuminants, interpolated later by the picture's white.
         fun m9(t: Int) = tag(t)?.takeIf { it.size >= 9 }?.copyOf(9)
@@ -329,7 +332,7 @@ object RawDng {
         val extras = listOfNotNull(
             if (gains.isNotEmpty()) "lens shading" else null,
             if (warp != null) (if (warp.coef.size >= 3) "distortion + colour fringing" else "distortion") else null,
-            if (vig != null) "vignetting" else null,
+            if (vig != null || gains3.isNotEmpty()) "vignetting" else null,
             if (ops1.any { it.id == 4 || it.id == 5 }) "bad-pixel fix" else null,
         )
         // DJI drones: their own metadata block (drone-dji) in the XMP.
@@ -342,7 +345,8 @@ object RawDng {
         var dewarp: DoubleArray? = null
         if (drone.isNotEmpty()) {
             val model = ifd0.text(272) ?: ""
-            info.add(0, "Drone" to (djiName(model)?.let { "$it ($model)" } ?: "DJI $model"))
+            val name = productName(drone["ProductName"]) ?: djiName(model)
+            info.add(0, "Drone" to (name?.let { if (model.isNotBlank()) "$it ($model)" else it } ?: "DJI $model"))
             fun d(k: String) = drone[k]?.trim()?.removePrefix("+")?.toDoubleOrNull()
             d("RelativeAltitude")?.let { info += "Height (take-off)" to "%.1f m".format(it) }
             d("AbsoluteAltitude")?.let { info += "Altitude (sea level)" to "%.1f m".format(it) }
@@ -377,8 +381,15 @@ object RawDng {
             baselineOffset = tag(51109)?.firstOrNull()?.toFloat() ?: 0f,
             profileName = ifd0.text(50936),
             ops1 = ops1, ops2 = ops2.filter { it.id != 9 }, warp = warp, vignette = vig, info = info,
-            dewarp = dewarp, drone = drone,
+            dewarp = dewarp, drone = drone, gains3 = gains3,
         )
+    }
+
+    /** The drone's own product name from the XMP ("DJIMavic3Pro" → "Mavic 3 Pro"). */
+    private fun productName(p: String?): String? {
+        val t = p?.trim()?.removePrefix("DJI")?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        if (t.contains(' ')) return t
+        return t.replace(Regex("(?<=[a-z])(?=[A-Z0-9])|(?<=[0-9])(?=[A-Z])"), " ").replace("Air 2 S", "Air 2S").replace("Air 3 S", "Air 3S")
     }
 
     /** DJI camera model codes → drone names (the DNG only carries the camera code). */
@@ -1027,7 +1038,7 @@ object RawDng {
      * Linear camera RGB (no white balance), upright, at most [maxSide] on the long side — for the
      * live preview. [vig] is the file's vignetting correction per pixel (or null).
      */
-    class Linear(val w: Int, val h: Int, val rgb: FloatArray, internal val vig: FloatArray? = null)
+    class Linear(val w: Int, val h: Int, val rgb: FloatArray, internal val vig: FloatArray? = null, internal val g3: FloatArray? = null)
 
     /** Vignetting gain from FixVignetteRadial at (x, y) of a w×h stored image. */
     private fun vigGain(v: DoubleArray, x: Float, y: Float, w: Int, h: Int): Float {
@@ -1039,12 +1050,46 @@ object RawDng {
         return (1 + r2 * (v[0] + r2 * (v[1] + r2 * (v[2] + r2 * (v[3] + r2 * v[4]))))).toFloat().coerceIn(0.5f, 8f)
     }
 
+    /**
+     * OpcodeList3 GainMaps at (x, y) of the cropped picture: multiplies [rgb] in place, per colour.
+     * Map areas are in active-area coordinates; [GainMap.plane] 0..2 = R, G, B after demosaic.
+     */
+    private fun gain3(m: Meta, x: Float, y: Float, rgb: FloatArray) {
+        val ax = x + m.cropLeft - m.activeLeft; val ay = y + m.cropTop - m.activeTop
+        for (g in m.gains3) {
+            if (ay < g.top || ay >= g.bottom || ax < g.left || ax >= g.right) continue
+            val vr = (ay - g.top) / (g.bottom - g.top).coerceAtLeast(1)
+            val hr = (ax - g.left) / (g.right - g.left).coerceAtLeast(1)
+            val fy = (((vr - g.orV) / (if (g.spV > 0) g.spV else 1.0))).coerceIn(0.0, (g.pv - 1).toDouble())
+            val fx = (((hr - g.orH) / (if (g.spH > 0) g.spH else 1.0))).coerceIn(0.0, (g.ph - 1).toDouble())
+            val y0 = fy.toInt().coerceAtMost(max(g.pv - 2, 0)); val x0 = fx.toInt().coerceAtMost(max(g.ph - 2, 0))
+            val y1 = min(y0 + 1, g.pv - 1); val x1 = min(x0 + 1, g.ph - 1)
+            val wy = (fy - y0).toFloat(); val wx = (fx - x0).toFloat()
+            for (c in g.plane until min(g.plane + g.planes, 3)) {
+                val mp = min(c - g.plane, g.mapPlanes - 1)
+                val gg = g.gains; val st = g.mapPlanes
+                val v = (gg[(y0 * g.ph + x0) * st + mp] * (1 - wx) + gg[(y0 * g.ph + x1) * st + mp] * wx) * (1 - wy) +
+                    (gg[(y1 * g.ph + x0) * st + mp] * (1 - wx) + gg[(y1 * g.ph + x1) * st + mp] * wx) * wy
+                rgb[c] *= v
+            }
+        }
+    }
+
     /** Decodes and makes the preview-size linear picture (half-size superpixels, then averaged down). */
     fun preview(context: Context, m: Meta, maxSide: Int): Linear {
         val s = decode(context, m)
         val half = superpixel(s)
         var down = boxDown(half, maxSide)
         m.vignette?.let { v -> down = Linear(down.w, down.h, down.rgb, FloatArray(down.w * down.h) { i -> vigGain(v, (i % down.w + 0.5f) / down.w * s.w, (i / down.w + 0.5f) / down.h * s.h, s.w, s.h) }) }
+        if (m.gains3.isNotEmpty()) {
+            val g3 = FloatArray(down.w * down.h * 3); val t = FloatArray(3)
+            for (i in 0 until down.w * down.h) {
+                t[0] = 1f; t[1] = 1f; t[2] = 1f
+                gain3(m, (i % down.w + 0.5f) / down.w * s.w, (i / down.w + 0.5f) / down.h * s.h, t)
+                g3[i * 3] = t[0]; g3[i * 3 + 1] = t[1]; g3[i * 3 + 2] = t[2]
+            }
+            down = Linear(down.w, down.h, down.rgb, down.vig, g3)
+        }
         // Grey-world auto white balance (ignoring near-black and clipped pixels).
         var sr = 0.0; var sg = 0.0; var sb = 0.0
         val px = down.rgb
@@ -1139,14 +1184,16 @@ object RawDng {
         val w = if (swap) sh else sw; val h = if (swap) sw else sh
         val out = FloatArray(w * h * 3)
         val vg = src.vig?.let { FloatArray(w * h) }
+        val g3 = src.g3?.let { FloatArray(w * h * 3) }
         for (y in 0 until h) for (x in 0 until w) {
             // Map output (x, y) back to the stored picture.
             val (sx, sy) = orientXy(o, x, y, sw, sh)
             val si = (sy * sw + sx) * 3; val di = (y * w + x) * 3
             out[di] = src.rgb[si]; out[di + 1] = src.rgb[si + 1]; out[di + 2] = src.rgb[si + 2]
             if (vg != null) vg[y * w + x] = src.vig!![sy * sw + sx]
+            if (g3 != null) { g3[di] = src.g3!![si]; g3[di + 1] = src.g3[si + 1]; g3[di + 2] = src.g3[si + 2] }
         }
-        return Linear(w, h, out, vg)
+        return Linear(w, h, out, vg, g3)
     }
 
     /** Where the stored image's relative point (cx, cy) lands after orientation [o]. */
@@ -1319,7 +1366,9 @@ object RawDng {
         var out = IntArray(n)
         val f = src.rgb
         val vg = if (dev.lensOff) null else src.vig
-        for (i in 0 until n) out[i] = p.px(f[i * 3], f[i * 3 + 1], f[i * 3 + 2], vg?.get(i) ?: 1f)
+        val g3 = if (dev.lensOff) null else src.g3
+        for (i in 0 until n) out[i] = if (g3 == null) p.px(f[i * 3], f[i * 3 + 1], f[i * 3 + 2], vg?.get(i) ?: 1f)
+            else p.px(f[i * 3] * g3[i * 3], f[i * 3 + 1] * g3[i * 3 + 1], f[i * 3 + 2] * g3[i * 3 + 2], vg?.get(i) ?: 1f)
         val wp = m.warp
         if (wp != null && !dev.lensOff) try {
             val (cx, cy) = orientCentre(m.orientation, wp.cx, wp.cy)
@@ -1342,14 +1391,20 @@ object RawDng {
         if (dev.wb == 1 && m.autoMul == null) { preview(context, m, 512) } // fills autoMul
         val p = Pipe(m, dev, exposure, highlights, shadows, whites, blacks, temp, tint)
         val vig = if (dev.lensOff) null else m.vignette
+        val lens3 = !dev.lensOff && m.gains3.isNotEmpty()
         val full = max(s.w, s.h)
         var bmp: Bitmap = if (s.cfa == null || maxSide * 1.0f <= full / 2f) {
             val half = superpixel(s)
             val out = IntArray(half.w * half.h)
+            val t3 = FloatArray(3)
             val sx = s.w.toFloat() / half.w; val sy = s.h.toFloat() / half.h
             for (i in out.indices) {
                 val g = vig?.let { vigGain(it, (i % half.w + 0.5f) * sx, (i / half.w + 0.5f) * sy, s.w, s.h) } ?: 1f
-                out[i] = p.px(half.rgb[i * 3], half.rgb[i * 3 + 1], half.rgb[i * 3 + 2], g)
+                if (lens3) {
+                    t3[0] = half.rgb[i * 3]; t3[1] = half.rgb[i * 3 + 1]; t3[2] = half.rgb[i * 3 + 2]
+                    gain3(m, (i % half.w + 0.5f) * sx, (i / half.w + 0.5f) * sy, t3)
+                    out[i] = p.px(t3[0], t3[1], t3[2], g)
+                } else out[i] = p.px(half.rgb[i * 3], half.rgb[i * 3 + 1], half.rgb[i * 3 + 2], g)
             }
             Bitmap.createBitmap(out, half.w, half.h, Bitmap.Config.ARGB_8888)
         } else {
@@ -1360,6 +1415,7 @@ object RawDng {
             for (y in 0 until h) {
                 for (x in 0 until w) {
                     if (s.bayer) mhc(s, x, y, rgb) else generic(s, x, y, rgb)
+                    if (lens3) gain3(m, x + 0.5f, y + 0.5f, rgb)
                     row[x] = p.px(rgb[0], rgb[1], rgb[2], vig?.let { vigGain(it, x.toFloat(), y.toFloat(), w, h) } ?: 1f)
                 }
                 b.setPixels(row, 0, w, 0, y, w, 1)

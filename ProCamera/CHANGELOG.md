@@ -4,6 +4,10 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: **Text-based editing** (new Text page) — transcribe the edit on your phone (on-device whisper.cpp; the speech model downloads once), tap words to cut them, REMOVE FILLERS for um / uh / øh, then APPLY CUTS. Undo brings everything back.
+- Video editor: **Clip keyframes** (Edit → Keyframes) — animate zoom, position, rotation and opacity over time with Smooth / Linear / Hold easing; diamonds on the timeline; preview and export.
+- Video editor: **Voice isolation (AI)** in Audio → Voice noise reduction — keeps speech and removes wind, traffic, hum, crowds and background music (RNNoise, on the phone).
+- Video editor: **Background export** with a progress notification — exports keep going when you switch apps or lock the screen — and a **Render queue** to export several versions in one go.
 
 ## 1.0.292 — 2026-10-19
 - The timeline scroll wheel now sits in its own narrow window on the right edge of the timeline (same place, full height, same effect, still scrolls the tracks up and down), so it never covers a track — the tracks end just before it.

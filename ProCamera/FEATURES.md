@@ -164,6 +164,8 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - Grade preview drawn on screen (Android 13+) for smooth, instant playback; exports use the full pipeline.
 
 ### Pro editing
+- **Text-based editing**: the edit as text, transcribed on the phone (whisper.cpp, MIT; Whisper model downloaded once — Fast 57 MB / Accurate 181 MB; 99 languages incl. Danish and Faroese). Tap words to cut them, REMOVE FILLERS (um / uh / øh), APPLY CUTS splits the clips without leaving dead air; undo restores; hold a word to jump there.
+- **Clip keyframes**: zoom, position, rotation and opacity over time, Smooth / Linear / Hold easing, diamonds on the timeline, edit on the player at the playhead; preview and export.
 - **Multicam**: 2–4 angles synced by sound, live switching between them while playing; the cut lands on the timeline as normal clips.
 - **Sync by sound**: external recorder / wireless mic audio lined up with a clip automatically (waveform cross-correlation).
 - **Trim tools**: slip, roll and slide by 1 or 10 frames; normal trims ripple (magnetic main track).
@@ -229,10 +231,12 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Voiceover** recording onto its own audio track.
 - **Volume keyframes** per clip.
 - Per clip: volume, pan, channels (stereo / mono / left / right / swap), fades.
-- **Voice noise reduction** per clip (Light / Strong, on export).
+- **Voice noise reduction** per clip (Light / Strong / **Voice isolation (AI)** — RNNoise, BSD-3, on the phone; on export).
 - **3-band EQ**, low cut, voice enhance, **compressor, noise gate, limiter**; presets (Voice, Interview, Wind cut, Warm, Bright, Bass boost, Radio, Loud & punchy); live **level meter**.
 
 ### Deliver
+- **Background export**: keeps running in other apps or with the screen off (foreground service, progress notification, "finished" notification).
+- **Render queue**: several export settings of the same edit rendered one after another (✓ per finished job, stop any time).
 - **Audio only** export to Music/VeyroCutPro as AAC .m4a, WAV (16 / 24-bit, 32-bit float), AIFF 24-bit, FLAC (lossless) or Opus .ogg — all licence-free formats; WAV / AIFF / FLAC are written by the app's own encoder from the finished mix (lossless).
 - **Track switches & trim handles**: per-row mute, eye (hide a layer from the feed and the export) and lock; bracket-style trim handles on both ends of every V1 clip, layer and audio bar — hold and drag to lengthen or shorten within the video, with a live length read-out.
 - **Timeline scroll wheel**: a slim glowing wheel in its own window on the timeline's right edge (as tall as the timeline, growing with the tracks, never covering a track) scrolls the tracks up and down (drag or tap), with an "upscale" effect — pixel blocks resolving and a scan line following the scroll.

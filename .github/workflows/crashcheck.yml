@@ -71,11 +71,12 @@ jobs:
             [ -n "$xy" ] && adb shell input tap $xy
           }
           shot() { adb exec-out screencap -p > "out/$1.png"; }
-          start_video() { adb shell am force-stop com.dronedirector.veyrocutpro; adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen video; sleep 12; }
+          dismiss() { for k in 1 2 3; do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; if adb shell cat /sdcard/ui.xml | grep -q "isn't responding"; then tapText "Wait"; sleep 3; else break; fi; done; }
+          start_video() { adb shell am force-stop com.dronedirector.veyrocutpro; adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen video; sleep 12; dismiss; }
           start_video; shot 01-video-start
           tapText "Skip"; sleep 15; shot 02-skip-workspace
           start_video
-          tapText "MP4"; sleep 30; shot 03-clip-workspace
+          tapText "MP4"; sleep 30; dismiss; shot 03-clip-workspace
           sleep 25; shot 04-clip-after-autosave
           tapText "+ VIDEO"; sleep 3; shot 04b-video-layer-dialog
           tapText "ABOVE the main video"; sleep 6; shot 04c-picker

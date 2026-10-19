@@ -40,6 +40,9 @@ private val NOTICES = listOf(
     Notice("Google ML Kit — face detection, selfie and subject segmentation", "Google LLC", "ML Kit Terms of Service", "https://developers.google.com/ml-kit/terms"),
     Notice("NAFNet model, SIDD width-32 weights (AI noise reduction), LiteRT conversion by litert-community", "megvii-research", "MIT License", "https://github.com/megvii-research/NAFNet"),
     Notice("SIDD dataset (used to train the noise-reduction model)", "Abdelhamed, Lin, Brown", "MIT License", "https://www.eecs.yorku.ca/~kamel/sidd/"),
+    Notice("RNNoise (AI voice isolation)", "Xiph.Org Foundation, Mozilla, Jean-Marc Valin", "BSD 3-Clause License", "https://github.com/xiph/rnnoise"),
+    Notice("whisper.cpp and ggml (on-device speech to text)", "Georgi Gerganov and the ggml authors", "MIT License", "https://github.com/ggml-org/whisper.cpp"),
+    Notice("Whisper speech model weights (downloaded on first use)", "OpenAI", "MIT License", "https://github.com/openai/whisper"),
 )
 
 /** Reads a bundled licence text (fetched at build time), or null if it isn't in this build. */
@@ -67,7 +70,7 @@ fun LicensesDialog(onDismiss: () -> Unit) {
                             Text(n.url, color = Pro.Amber, fontSize = 11.sp)
                         }
                     }
-                    for ((label, file) in listOf("Apache License 2.0" to "apache-2.0.txt", "MIT License (NAFNet)" to "nafnet-mit.txt")) {
+                    for ((label, file) in listOf("Apache License 2.0" to "apache-2.0.txt", "MIT License (NAFNet)" to "nafnet-mit.txt", "BSD 3-Clause (RNNoise)" to "rnnoise-bsd.txt", "MIT License (whisper.cpp)" to "whispercpp-mit.txt")) {
                         Text(
                             "READ THE $label".uppercase(), style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
                             modifier = Modifier.padding(top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.06f))

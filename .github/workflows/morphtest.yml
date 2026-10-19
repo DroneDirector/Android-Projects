@@ -1,4 +1,4 @@
-name: Morph cut check (host)
+name: Morph cut + Magic Mask check (host)
 # Started by hand: builds the app's morph cut engine on the runner and tests it on real video.
 on: workflow_dispatch
 permissions:
@@ -18,6 +18,9 @@ jobs:
           curl -fsSL -o megamind.avi https://raw.githubusercontent.com/opencv/opencv/4.x/samples/data/Megamind.avi
           curl -fsSL -o vtest.avi https://raw.githubusercontent.com/opencv/opencv/4.x/samples/data/vtest.avi
           ( time python3 .github/scripts/morph_test.py megamind.avi:40,120,200:12 vtest.avi:100,400:10 ) 2>&1 | tee out/log.txt
+          pip install -q onnxruntime==1.19.2
+          git fetch -q --depth 1 origin models && mkdir -p models && for f in sam_encoder.onnx sam_decoder.onnx; do git show FETCH_HEAD:$f > models/$f; done
+          ( time python3 .github/scripts/magic_test.py ) 2>&1 | tee out/magic_log.txt
       - name: Save result
         if: always()
         run: |

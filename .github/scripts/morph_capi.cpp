@@ -23,3 +23,4 @@ extern "C" void morph_flows(const uint8_t* a, const uint8_t* b, int w, int h, fl
     render(a, b, w, h, mt, oa, ob, t, out);
     for (size_t i = 0; i < (size_t)w * h; i++) { occOut[i*4] = oa.d[i]; occOut[i*4+1] = ob.d[i]; occOut[i*4+2] = mt.u[i]; occOut[i*4+3] = mt.v[i]; }
 }
+extern "C" void flow_only(const uint8_t* a, const uint8_t* b, int w, int h, float* out) { flow_rgba(a, b, w, h, out); }

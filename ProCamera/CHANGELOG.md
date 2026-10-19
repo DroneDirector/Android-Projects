@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor timeline: the trim handles on clips, layers and audio are now about three times wider and much easier to grab (bigger touch zone, still a third of the bar at most on short items).
+- The timeline scroll wheel is now as tall as the timeline and grows as you add tracks, with the same upscale effect.
 
 ## 1.0.288 — 2026-10-19
 - Video editor timeline: video clips on V1 now have trim handles too — hold the start or end of a clip and drag to shorten or lengthen it (up to the full length of its video file; the clips after it move along). Video layers can't be stretched past the end of their own clip.

@@ -14,6 +14,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -71,7 +73,7 @@ fun TimelineWheel(state: ScrollState, modifier: Modifier = Modifier, onActive: (
 
     Canvas(
         modifier
-            .size(16.dp, 76.dp)
+            .width(16.dp).heightIn(min = 76.dp)
             .pointerInput(state) {
                 detectVerticalDragGestures(
                     onDragStart = { dragging = true },

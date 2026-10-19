@@ -251,7 +251,10 @@ fun TimelineView(
                             val viewMs = ((size.width - leftPad) / pxPerSec * 1000f).toLong()
                             zoom.scrollMs = zoom.scrollMs.coerceIn(0, (curTotal - viewMs / 2).coerceAtLeast(0))
                         }
-                        val edgePx = 18.dp.toPx()
+                        // Trim grips: wide touch zones (about 3–4× the old ones); on short bars a third of the bar each.
+                        val edgePx = 34.dp.toPx()
+                        val outPx = 14.dp.toPx()
+                        fun edgeFor(xa: Float, xb: Float) = min(edgePx, ((xb - xa) / 3f).coerceAtLeast(10.dp.toPx()))
                         var hitId: String? = null; var hitAudio = false; var hitEdge = 0   // -1 start, 0 body, 1 end
                         var hitStart = 0L; var hitEnd = 0L; var hitOffset = 0L; var hitRow = -1
                         var hitClip = -1; var clipEdge = 0
@@ -260,11 +263,13 @@ fun TimelineView(
                             // V1: the start / end edge of a clip.
                             if (y in curClipTop..(curClipTop + clipRow)) {
                                 val st = clipStarts(curClips)
-                                var best = edgePx + 1f
+                                var best = Float.MAX_VALUE
                                 curClips.forEachIndexed { i, cl ->
                                     val xa = xOfMs(st[i]); val xb = xOfMs(st[i] + cl.lengthMs)
-                                    if (x >= xa - 4f && x - xa < best && x - xa <= edgePx) { best = x - xa; hitClip = i; clipEdge = -1 }
-                                    if (x <= xb + 4f && xb - x < best && xb - x <= edgePx) { best = xb - x; hitClip = i; clipEdge = 1 }
+                                    val ep = edgeFor(xa, xb)
+                                    val dl = x - xa; val dr = xb - x
+                                    if (dl >= -outPx && dl <= ep && abs(dl) < best) { best = abs(dl); hitClip = i; clipEdge = -1 }
+                                    if (dr >= -outPx && dr <= ep && abs(dr) < best) { best = abs(dr); hitClip = i; clipEdge = 1 }
                                 }
                             }
                             curLayers.forEachIndexed { r, l ->
@@ -272,9 +277,10 @@ fun TimelineView(
                                 if (y in top..(top + layerRow)) {
                                     val a = if (l.wholeVideo) 0L else l.startMs; val b = if (l.wholeVideo) curTotal else l.endMs
                                     val xa = xOfMs(a); val xb = xOfMs(b)
-                                    if (x in (xa - edgePx)..(xb + edgePx)) {
+                                    val ep = edgeFor(xa, xb)
+                                    if (x in (xa - outPx)..(xb + outPx)) {
                                         hitId = l.id; hitStart = a; hitEnd = b; hitRow = r
-                                        hitEdge = if (x < xa + edgePx) -1 else if (x > xb - edgePx) 1 else 0
+                                        hitEdge = if (x < xa + ep) -1 else if (x > xb - ep) 1 else 0
                                     }
                                 }
                             }
@@ -283,9 +289,10 @@ fun TimelineView(
                                 if (y in top..(top + musicRow)) {
                                     val a = m.startMs; val b = m.startMs + m.playLength(curTotal)
                                     val xa = xOfMs(a); val xb = xOfMs(b)
-                                    if (x in (xa - edgePx)..(xb + edgePx)) {
+                                    val ep = edgeFor(xa, xb)
+                                    if (x in (xa - outPx)..(xb + outPx)) {
                                         hitId = m.id; hitAudio = true; hitStart = a; hitEnd = b; hitOffset = m.offsetMs
-                                        hitEdge = if (x < xa + edgePx) -1 else if (x > xb - edgePx) 1 else 0
+                                        hitEdge = if (x < xa + ep) -1 else if (x > xb - ep) 1 else 0
                                     }
                                 }
                                 top += musicRow + gap
@@ -742,7 +749,7 @@ private fun peakAt(peaks: FloatArray, ms: Long, spanMs: Long): Float {
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.trimHandles(x0: Float, x1: Float, top: Float, h: Float, active: Boolean, accent: Color) {
     val wBar = x1 - x0
     if (wBar < 14f) return
-    val gw = min(7.dp.toPx(), wBar / 3f)
+    val gw = min(22.dp.toPx(), wBar / 3f)
     val tab = if (active) accent else Color.White.copy(alpha = 0.32f)
     val line = if (active) Color.Black.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.45f)
     for (left in listOf(true, false)) {

@@ -2322,7 +2322,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         val sized = if (tlPane.dp < 0f) Modifier.fillMaxWidth().heightIn(max = (boxH * 0.42f).dp) else Modifier.fillMaxWidth().height(tlPane.dp.dp)
                         Box(sized.verticalScroll(tlScroll)) { timeline() }
                         TimelineUpscaleOverlay(tlEnergy, tlScroll.value, Modifier.matchParentSize())
-                        TimelineWheel(tlScroll, Modifier.align(Alignment.BottomEnd).padding(end = 4.dp, bottom = 4.dp)) { tlEnergy = it }
+                        // The wheel is as tall as the visible timeline, so it grows as tracks are added.
+                        Box(Modifier.matchParentSize()) {
+                            TimelineWheel(tlScroll, Modifier.align(Alignment.CenterEnd).fillMaxHeight().padding(end = 4.dp, top = 32.dp, bottom = 4.dp)) { tlEnergy = it }
+                        }
                     }
                 }
                 if (wide) {

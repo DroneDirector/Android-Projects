@@ -1,0 +1,9 @@
+<resources>
+    <string name="sc_video">Video</string>
+    <string name="sc_video_long">Optag video</string>
+    <string name="sc_pro">Pro-foto</string>
+    <string name="sc_pro_long">Pro-fototilstand</string>
+    <string name="sc_photo_editor">Fotoredigering</string>
+    <string name="sc_video_editor">Videoredigering</string>
+    <string name="tile_label">VeyroCut-kamera</string>
+</resources>

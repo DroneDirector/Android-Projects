@@ -1,0 +1,9 @@
+<resources>
+    <string name="sc_video">Video</string>
+    <string name="sc_video_long">Tak video upp</string>
+    <string name="sc_pro">Pro-mynd</string>
+    <string name="sc_pro_long">Pro-myndastøða</string>
+    <string name="sc_photo_editor">Myndarættari</string>
+    <string name="sc_video_editor">Videorættari</string>
+    <string name="tile_label">VeyroCut-myndatól</string>
+</resources>

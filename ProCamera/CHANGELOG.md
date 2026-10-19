@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- The app now speaks Danish and Faroese: Settings → LANGUAGE · SPROG · MÁL (Phone language, English, Dansk, Føroyskt). It follows the phone's language by default; app-icon shortcuts are translated too.
 
 ## 1.0.259 — 2026-10-19
 - Capture: face blur now works all the time in Video and Pro Video — faces are found in the camera picture itself when the phone can't run a separate analysis stream (4K, high frame rates).

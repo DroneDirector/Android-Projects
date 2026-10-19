@@ -113,6 +113,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Shortcuts: long-press the VeyroCut Pro icon for Video, Pro photo, Photo editor and Video editor. Add the VeyroCut camera tile to Quick Settings to open the camera from the notification shade.",
             "From other apps: Share a photo or video to VeyroCut Pro (or choose Edit with) and it opens straight in the right editor.",
             "Settings → SHOW THE QUICK TOUR AGAIN replays the gesture tour.",
+            "Settings → LANGUAGE · SPROG · MÁL: Phone language, English, Dansk or Føroyskt. The whole app switches at once (also in both editors' settings).",
             "C1 / C2 / C3 in the quick bar: hold one to save all your current settings (mode, lens, ISO, shutter, white balance, resolution, frame rate, profile, filter…), tap it to bring them back.",
             "Autofocus is on by default in every mode. Tap the viewfinder to focus there. Press and hold for 2 seconds (watch the ring fill) to switch to manual focus: a slim slider appears on the right edge of the picture — drag up for far (∞), down for close; the tag beside it shows the distance. Tap the small ✕ above the slider to go back to autofocus.",
             "Hold the viewfinder about half a second until it ticks, then let go before the ring closes: the exposure locks there; drag the slider under the lock to brighten or darken while it stays locked. Do the same again, or tap the small ✕, to unlock.",

@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.309 — 2026-10-19
 - Video editor: **Shot match** (Color → Film & lens) — one tap makes a clip's brightness and colour match another clip.
 - Video editor: **Film emulation** — 35mm, 16mm, Super 8 and more, or your own halation, bloom, grain and gate weave.
 - Video editor: **Lens correction** — straightens wide-angle bending (action cam, drone and ultra-wide presets), removes colour fringes, brightens dark corners.

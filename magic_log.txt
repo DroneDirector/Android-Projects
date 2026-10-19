@@ -1,0 +1,9 @@
+/home/runner/work/Android-Projects/Android-Projects/.github/scripts/magic_ref.py:33: RuntimeWarning: overflow encountered in exp
+  return 1 / (1 + np.exp(-v * 1.5))
+megamind.avi@40: 90 frames in 70.6s; area first 0.263 min 0.000 max 0.337 last 0.000; lost at 58
+vtest.avi@100: 90 frames in 107.9s; area first 0.003 min 0.002 max 0.005 last 0.003; lost at None
+megamind.avi@120: 60 frames in 41.5s; area first 0.083 min 0.000 max 0.090 last 0.000; lost at 34
+
+real	3m40.829s
+user	14m20.910s
+sys	0m3.728s

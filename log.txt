@@ -1,0 +1,11 @@
+megamind.avi: 270 frames (528, 720, 3)
+  cut 40->52: morph PSNR 29.43 dB (min 27.64) | cross-dissolve 26.60 dB
+  cut 120->132: morph PSNR 28.84 dB (min 25.99) | cross-dissolve 26.93 dB
+  cut 200->212: morph PSNR 41.83 dB (min 40.27) | cross-dissolve 35.33 dB
+vtest.avi: 795 frames (576, 768, 3)
+  cut 100->110: morph PSNR 27.22 dB (min 25.55) | cross-dissolve 26.20 dB
+  cut 400->410: morph PSNR 29.07 dB (min 26.70) | cross-dissolve 29.66 dB
+
+real	2m13.368s
+user	7m32.315s
+sys	0m3.826s

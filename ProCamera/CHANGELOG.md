@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.321 — 2026-10-19
 - Settings (⚙) → **Scroll wheel effects**: switch the timeline's scroll wheels between the animated glow look and plain colours with no animation.
 - Video editor timeline: a **horizontal scroll wheel** along the bottom, matching the vertical one — drag it like a wheel to move through the edit left and right, or tap to jump. It has its own window from the left edge to the vertical wheel's window, so it never covers a track.
 

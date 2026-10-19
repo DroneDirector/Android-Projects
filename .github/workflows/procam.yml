@@ -68,6 +68,18 @@ jobs:
           ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
           cp app/build/outputs/apk/release/app-release.apk "VeyroCutPro-1.0.${{ github.run_number }}.apk"
 
+      - name: Save native debug symbols (for the Play Console)
+        run: |
+          # The app ships stripped native libraries; the full ones go to a separate zip, so native crash
+          # reports in the Play Console can be read (Play Console → App bundle explorer → Downloads → upload).
+          OUT="$PWD/VeyroCutPro-1.0.${{ github.run_number }}-native-debug-symbols.zip"
+          SYM=app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip
+          if [ -f "$SYM" ]; then cp "$SYM" "$OUT"; else
+            L=$(find app/build/intermediates/merged_native_libs/release -type d -name lib | head -1)
+            [ -n "$L" ] && (cd "$L" && zip -qr "$OUT" .)
+          fi
+          ls -l "$OUT" || echo "no native symbols found"
+
       - name: Report compile errors
         if: failure()
         run: |
@@ -81,6 +93,12 @@ jobs:
         with:
           name: apk
           path: ProCamera/VeyroCutPro-*.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: symbols
+          path: ProCamera/VeyroCutPro-*-native-debug-symbols.zip
+          if-no-files-found: ignore
 
   screenshots:
     needs: build
@@ -141,6 +159,12 @@ jobs:
           name: apk
           path: apk
 
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: symbols
+          path: symbols
+
       - name: Write release notes from the changelog
         run: |
           VER="1.0.${{ github.run_number }}"
@@ -156,6 +180,8 @@ jobs:
             echo "📖 [Full feature list]($REPO/FEATURES.md) · 📝 [Changelog]($REPO/CHANGELOG.md)"
             echo
             echo "**Install:** tap VeyroCutPro-$VER.apk below to download, then open it to install."
+            echo
+            echo "_VeyroCutPro-$VER-native-debug-symbols.zip is for developers only (upload it to the Play Console with this version so native crash reports are readable)._"
           } > release-notes.md
           cat release-notes.md
 
@@ -165,7 +191,8 @@ jobs:
         run: |
           APK=$(ls apk/*.apk | head -1)
           NAME=$(basename "$APK" .apk)
-          gh release create "veyrocutpro-1.0.${{ github.run_number }}" "$APK" \
+          SYM=$(ls symbols/*.zip 2>/dev/null | head -1)
+          gh release create "veyrocutpro-1.0.${{ github.run_number }}" "$APK" $SYM \
             -R "${{ github.repository }}" \
             --title "${NAME/VeyroCutPro-/VeyroCut Pro }" \
             --notes-file release-notes.md \

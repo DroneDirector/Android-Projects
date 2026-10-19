@@ -49,6 +49,8 @@ android {
         release {
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("procam")
+            // Full native debug symbols in a separate zip (not in the APK) for Play Console crash reports.
+            ndk { debugSymbolLevel = "FULL" }
         }
         debug {
             signingConfig = signingConfigs.getByName("procam")

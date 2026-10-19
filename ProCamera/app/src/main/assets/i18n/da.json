@@ -1768,5 +1768,9 @@
 "Ember drift": "Gløder",
 "Glitch 2 · Datamosh": "Glitch 2 · Datamosh",
 "Glitch 3 · VHS rewind": "Glitch 3 · VHS-spol",
-"Glitch 4 · Pixel sort": "Glitch 4 · Pixelsortering"
+"Glitch 4 · Pixel sort": "Glitch 4 · Pixelsortering",
+"Deliver → Audio only saves just the sound of your edit. AUDIO FORMAT: AAC .m4a, WAV (16-bit, 24-bit or 32-bit float), AIFF 24-bit, FLAC (lossless, about half the size of WAV) or Opus .ogg (Android 10+). WAV, AIFF and FLAC are made from the finished mix itself, so they're lossless.": "Levér → Kun lyd gemmer kun lyden fra din redigering. LYDFORMAT: AAC .m4a, WAV (16-bit, 24-bit eller 32-bit float), AIFF 24-bit, FLAC (tabsfri, cirka halvt så stor som WAV) eller Opus .ogg (Android 10+). WAV, AIFF og FLAC laves direkte fra det færdige mix, så de er tabsfri.",
+"The small glowing wheel in the timeline's lower-right corner scrolls the tracks up and down: drag it like a scroll wheel, or tap it to jump.": "Det lille lysende hjul i tidslinjens nederste højre hjørne ruller sporene op og ned: træk i det som et scrollhjul, eller tryk for at springe.",
+"Audio only": "Kun lyd",
+"AUDIO FORMAT": "LYDFORMAT"
 }

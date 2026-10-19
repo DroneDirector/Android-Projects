@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor → Deliver → Audio only: choose the format — AAC .m4a, WAV 16-bit, WAV 24-bit, WAV 32-bit float, AIFF 24-bit, FLAC (lossless) or Opus .ogg (Android 10+). WAV, AIFF and FLAC are written from the finished mix itself, so nothing is lost. MP3 isn't offered: Android has no MP3 encoder and the usual one needs licence terms that don't suit a paid app.
+- Video editor: a small glowing scroll wheel in the timeline's lower-right corner moves the tracks up and down (drag like a wheel, or tap to jump), with an AI-upscale-style effect while it moves. The timeline now scrolls when it has more tracks than fit.
 
 ## 1.0.275 — 2026-10-19
 - Video editor: 16 new transitions — a new Cinematic group (film burn, anamorphic flare, lens warp, letterbox close, aperture, smoke, shatter, kaleidoscope, cube turn, card flip, sun rays, neon edges, ember drift) and three new glitch styles (datamosh, VHS rewind, pixel sort). All are original effects written for VeyroCut Pro, so there's nothing to license; they show in the preview and the export.

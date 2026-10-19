@@ -144,7 +144,11 @@ data class DeliverSettings(
     val loudness: Float? = null,
     /** Keep HDR (HLG / HDR10) clips as HDR in the export (HEVC 10-bit) instead of converting to SDR. */
     val keepHdr: Boolean = false,
-)
+    /** Audio-only file format (null = AAC .m4a). */
+    val audioFormat: AudioExportFormat? = null,
+) {
+    val audioFmt: AudioExportFormat get() = audioFormat?.takeIf { it.available } ?: AudioExportFormat.M4A
+}
 
 /** One-tap delivery settings for common destinations. */
 data class ExportPreset(val label: String, val shortSide: Int, val fps: Int, val hevc: Boolean, val mbps: Int, val aspect: Float)
@@ -224,6 +228,10 @@ class TimelineExport(
     private val handler = Handler(Looper.getMainLooper())
     private var finished = false
     private lateinit var transformer: Transformer
+    /** Lossless / other audio formats: the finished mix is captured here and written afterwards. */
+    private val fmt = if (settings.audioOnly && toFile == null) settings.audioFmt else AudioExportFormat.M4A
+    private val rawFile = File(context.cacheDir, "mix_${System.currentTimeMillis()}.pcm")
+    private val tap = if (fmt != AudioExportFormat.M4A) PcmTap(rawFile) else null
 
     fun start() {
         val (outW, outH) = outputSize(clips, settings)
@@ -422,8 +430,14 @@ class TimelineExport(
             sequences += seq.build()
         }
 
+        val mixFx: List<AudioProcessor> = when {
+            tap == null -> emptyList()
+            // Opus runs at 48 kHz.
+            fmt == AudioExportFormat.OPUS -> listOf(androidx.media3.common.audio.SonicAudioProcessor().apply { setOutputSampleRateHz(48_000) }, tap)
+            else -> listOf(tap)
+        }
         val composition = Composition.Builder(sequences)
-            .setEffects(Effects(emptyList(), global))
+            .setEffects(Effects(mixFx, global))
             .apply {
                 if (compositing) setVideoCompositorSettings(object : androidx.media3.common.VideoCompositorSettings {
                     override fun getOutputSize(inputSizes: List<androidx.media3.common.util.Size>) = androidx.media3.common.util.Size(outW, outH)
@@ -472,23 +486,35 @@ class TimelineExport(
                     }
                     Thread {
                         val stamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
+                        var err: String? = null
                         val uri = if (audioOnly) {
-                            val name = "AUDIO_$stamp.m4a"
-                            SaveFolder.write(context, true, name, "audio/mp4") { os -> out.inputStream().use { it.copyTo(os) } }
-                                ?: publishAudio(context, out, name)
+                            var file = out
+                            if (tap != null) {
+                                tap.close()
+                                val f = File(context.cacheDir, "audio_${System.currentTimeMillis()}.${fmt.ext}")
+                                err = AudioFiles.write(rawFile, tap, fmt, f)
+                                rawFile.delete()
+                                file = f
+                            }
+                            val name = "AUDIO_$stamp.${fmt.ext}"
+                            val u = if (err != null) null else SaveFolder.write(context, true, name, fmt.mime) { os -> file.inputStream().use { it.copyTo(os) } }
+                                ?: publishAudio(context, file, name, fmt.mime)
+                            if (file !== out) file.delete()
+                            u
                         } else {
                             val name = "EDIT_$stamp.mp4"
                             SaveFolder.write(context, true, name, "video/mp4") { os -> out.inputStream().use { it.copyTo(os) } }
                                 ?: GradeIO.publishVideo(context, out, com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO)
                         }
                         out.delete()
-                        handler.post { onDone(uri, if (uri == null) (if (audioOnly) "Couldn't save the audio" else "Couldn't save the video") else null) }
+                        handler.post { onDone(uri, if (uri == null) (err ?: if (audioOnly) "Couldn't save the audio" else "Couldn't save the video") else null) }
                     }.start()
                 }
 
                 override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
                     finished = true
                     out.delete()
+                    tap?.close(); rawFile.delete()
                     onDone(null, "Export failed: ${exportException.errorCodeName}")
                 }
             })
@@ -537,16 +563,17 @@ class TimelineExport(
         finished = true
         transformer.cancel()
         out.delete()
+        tap?.close(); rawFile.delete()
     }
 }
 
 /** Saves an exported sound file to Music/VeyroCutPro. */
-fun publishAudio(context: Context, file: File, name: String): Uri? {
+fun publishAudio(context: Context, file: File, name: String, mime: String = "audio/mp4"): Uri? {
     val resolver = context.contentResolver
     if (android.os.Build.VERSION.SDK_INT >= 29) {
         val values = android.content.ContentValues().apply {
             put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name)
-            put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "audio/mp4")
+            put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime)
             put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Music/VeyroCutPro")
             put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
         }
@@ -562,7 +589,7 @@ fun publishAudio(context: Context, file: File, name: String): Uri? {
         val dir = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC), "VeyroCutPro").apply { mkdirs() }
         val dest = File(dir, name)
         file.inputStream().use { i -> dest.outputStream().use { i.copyTo(it) } }
-        android.media.MediaScannerConnection.scanFile(context, arrayOf(dest.path), arrayOf("audio/mp4"), null)
+        android.media.MediaScannerConnection.scanFile(context, arrayOf(dest.path), arrayOf(mime), null)
         Uri.fromFile(dest)
     } catch (_: Throwable) { null }
 }

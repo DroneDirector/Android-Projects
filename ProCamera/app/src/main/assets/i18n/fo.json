@@ -1824,5 +1824,9 @@
 "Ember drift": "Glóð",
 "Glitch 2 · Datamosh": "Glitch 2 · Datamosh",
 "Glitch 3 · VHS rewind": "Glitch 3 · VHS-spóling",
-"Glitch 4 · Pixel sort": "Glitch 4 · Pixlaraðan"
+"Glitch 4 · Pixel sort": "Glitch 4 · Pixlaraðan",
+"Deliver → Audio only saves just the sound of your edit. AUDIO FORMAT: AAC .m4a, WAV (16-bit, 24-bit or 32-bit float), AIFF 24-bit, FLAC (lossless, about half the size of WAV) or Opus .ogg (Android 10+). WAV, AIFF and FLAC are made from the finished mix itself, so they're lossless.": "Lat úr → Bert ljóð goymir bert ljóðið úr tínum rætting. LJÓÐSNIÐ: AAC .m4a, WAV (16-bit, 24-bit ella 32-bit float), AIFF 24-bit, FLAC (tapsfrítt, umleið hálvt so stórt sum WAV) ella Opus .ogg (Android 10+). WAV, AIFF og FLAC verða gjørd beinleiðis úr lidna miksinum, so tey eru tapsfrí.",
+"The small glowing wheel in the timeline's lower-right corner scrolls the tracks up and down: drag it like a scroll wheel, or tap it to jump.": "Lítla lýsandi hjólið í niðara høgra horni á tíðarlinjuni rullar sporini upp og niður: drag tað sum eitt rullihjól, ella trýst fyri at loypa.",
+"Audio only": "Bert ljóð",
+"AUDIO FORMAT": "LJÓÐSNIÐ"
 }

@@ -231,7 +231,8 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **3-band EQ**, low cut, voice enhance, **compressor, noise gate, limiter**; presets (Voice, Interview, Wind cut, Warm, Bright, Bass boost, Radio, Loud & punchy); live **level meter**.
 
 ### Deliver
-- **Audio only** export (.m4a, AAC) to Music/VeyroCutPro.
+- **Audio only** export to Music/VeyroCutPro as AAC .m4a, WAV (16 / 24-bit, 32-bit float), AIFF 24-bit, FLAC (lossless) or Opus .ogg — all licence-free formats; WAV / AIFF / FLAC are written by the app's own encoder from the finished mix (lossless).
+- **Timeline scroll wheel**: a slim glowing wheel in the timeline's lower-right corner scrolls the tracks up and down (drag or tap), with an "upscale" effect — pixel blocks resolving and a scan line following the scroll.
 - **Keep HDR** (HLG / HDR10, 10-bit HEVC) or convert to SDR.
 - Resolution up to **4K UHD**, frame rate, **H.264 / HEVC**, bitrate up to very high, audio on/off.
 - Project formats: Original, 16:9, 9:16, 1:1, 4:5, 4:3 and more; fill or fit.

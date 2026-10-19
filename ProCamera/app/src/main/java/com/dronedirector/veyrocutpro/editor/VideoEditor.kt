@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -2242,9 +2243,16 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 // Resizable panels: hold a divider, then drag. Double-tap a divider to reset it.
                 // Hidden panels give their space to the rest; shown again, everything returns to its saved size.
                 val tlPane = rememberPane(if (wide) "ve_timeline_land" else "ve_timeline_port", paneVersion)
+                val tlScroll = rememberScrollState()
+                var tlEnergy by remember { mutableStateOf(0f) }
                 val timelineBox = @Composable {
-                    if (tlPane.dp < 0f) timeline()
-                    else Box(Modifier.fillMaxWidth().height(tlPane.dp.dp).verticalScroll(rememberScrollState())) { timeline() }
+                    // Tracks scroll up and down; the small wheel in the lower-right corner moves them.
+                    Box(Modifier.fillMaxWidth()) {
+                        val sized = if (tlPane.dp < 0f) Modifier.fillMaxWidth().heightIn(max = (boxH * 0.42f).dp) else Modifier.fillMaxWidth().height(tlPane.dp.dp)
+                        Box(sized.verticalScroll(tlScroll)) { timeline() }
+                        TimelineUpscaleOverlay(tlEnergy, tlScroll.value, Modifier.matchParentSize())
+                        TimelineWheel(tlScroll, Modifier.align(Alignment.BottomEnd).padding(end = 4.dp, bottom = 4.dp)) { tlEnergy = it }
+                    }
                 }
                 if (wide) {
                     val insp = rememberPane("ve_inspector_w", paneVersion)
@@ -3409,10 +3417,26 @@ private fun DeliverPage(
     val rates = listOf(0, 20, 50, 80, 120, 200)
     Chips(rates.map { if (it == 0) "Auto" else "$it Mbps" }, rates.indexOf(s.bitrateMbps).coerceAtLeast(0)) { onChange(s.copy(bitrateMbps = rates[it])) }
     SectionTitle("AUDIO")
-    Chips(listOf("Video with audio", "Video, no audio", "Audio only (.m4a)"), if (s.audioOnly) 2 else if (s.audio) 0 else 1) {
+    Chips(listOf("Video with audio", "Video, no audio", "Audio only"), if (s.audioOnly) 2 else if (s.audio) 0 else 1) {
         onChange(s.copy(audio = it != 1, audioOnly = it == 2))
     }
-    if (s.audioOnly) Text("Saves just the sound of the timeline — clips, music and audio tracks — as an AAC .m4a file in Music/VeyroCutPro (or your chosen save folder). Muted tracks are left out.", color = Pro.Dim, fontSize = 11.sp)
+    if (s.audioOnly) {
+        SectionTitle("AUDIO FORMAT")
+        val fmts = AudioExportFormat.entries.filter { it.available }
+        Chips(fmts.map { it.label }, fmts.indexOf(s.audioFmt).coerceAtLeast(0)) { onChange(s.copy(audioFormat = fmts[it])) }
+        Text(
+            when (s.audioFmt) {
+                AudioExportFormat.M4A -> "AAC 128 kbps — small, plays everywhere."
+                AudioExportFormat.WAV16 -> "Uncompressed CD quality (dithered) — opens in every audio and video program."
+                AudioExportFormat.WAV24 -> "Uncompressed studio quality — best for further mixing or mastering."
+                AudioExportFormat.WAV32F -> "Uncompressed 32-bit float — the mix exactly as rendered, with no clipping in the file."
+                AudioExportFormat.AIFF -> "Uncompressed 24-bit — the usual format on Mac (Logic, GarageBand, Final Cut)."
+                AudioExportFormat.FLAC -> "Lossless and about half the size of WAV — sounds identical."
+                AudioExportFormat.OPUS -> "Opus 160 kbps — very small for its quality, great for web and voice."
+            } + " Saves just the sound of the timeline — clips, music and audio tracks — to Music/VeyroCutPro (or your chosen save folder). Muted tracks are left out.",
+            color = Pro.Dim, fontSize = 11.sp,
+        )
+    }
     if (s.audio || s.audioOnly) {
         SectionTitle("LOUDNESS")
         val opts = listOf<Float?>(null) + Loudness.TARGETS
@@ -3425,7 +3449,7 @@ private fun DeliverPage(
     val outFps = if (s.fps > 0) s.fps else 30
     val autoMbps = ow.toDouble() * oh * outFps * 0.14 / 1_000_000
     val videoMbps = if (s.audioOnly) 0.0 else if (s.bitrateMbps > 0) s.bitrateMbps.toDouble() else autoMbps
-    val audioMbps = if (s.audio || s.audioOnly) 0.13 else 0.0
+    val audioMbps = if (s.audioOnly) s.audioFmt.bytesPerSecond() * 8 / 1_000_000 else if (s.audio) 0.13 else 0.0
     val bytes = (videoMbps + audioMbps) * 1_000_000 / 8 * (total / 1000.0) * 1.01
     SectionTitle("SEND TO DESKTOP EDITOR")
     Text("Continue the edit on a computer: the cuts (and dissolves / speed in the EDL) open in DaVinci Resolve, Premiere Pro, Avid or Final Cut Pro. Grades, effects and layers stay here. Copy the original clips to the computer too.", color = Pro.Dim, fontSize = 11.sp)
@@ -3480,7 +3504,7 @@ private fun DeliverPage(
         Text("≈ ${fileSizeText(bytes)}", style = Pro.Value.copy(color = Pro.Amber, fontSize = 22.sp), modifier = Modifier.weight(1f))
         Column(horizontalAlignment = Alignment.End) {
             if (s.audioOnly) {
-                Text("Audio only · AAC 128 kbps", style = Pro.Label)
+                Text("Audio only · ${s.audioFmt.label}", style = Pro.Label)
                 Text(tc(total), style = Pro.Label)
             } else {
                 Text("${ow}×${oh} · ${if (s.fps > 0) "${s.fps} fps" else "source fps"}", style = Pro.Label)

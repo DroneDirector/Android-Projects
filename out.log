@@ -1,0 +1,160 @@
+/home/runner/work/Android-Projects/Android-Projects/MobileSAM/mobile_sam/modeling/tiny_vit_sam.py:656: UserWarning: Overwriting tiny_vit_5m_224 in registry with mobile_sam.modeling.tiny_vit_sam.tiny_vit_5m_224. This is because the name being registered conflicts with an existing name. Please check if this is not expected.
+  return register_model(fn_wrapper)
+/home/runner/work/Android-Projects/Android-Projects/MobileSAM/mobile_sam/modeling/tiny_vit_sam.py:656: UserWarning: Overwriting tiny_vit_11m_224 in registry with mobile_sam.modeling.tiny_vit_sam.tiny_vit_11m_224. This is because the name being registered conflicts with an existing name. Please check if this is not expected.
+  return register_model(fn_wrapper)
+/home/runner/work/Android-Projects/Android-Projects/MobileSAM/mobile_sam/modeling/tiny_vit_sam.py:656: UserWarning: Overwriting tiny_vit_21m_224 in registry with mobile_sam.modeling.tiny_vit_sam.tiny_vit_21m_224. This is because the name being registered conflicts with an existing name. Please check if this is not expected.
+  return register_model(fn_wrapper)
+/home/runner/work/Android-Projects/Android-Projects/MobileSAM/mobile_sam/modeling/tiny_vit_sam.py:656: UserWarning: Overwriting tiny_vit_21m_384 in registry with mobile_sam.modeling.tiny_vit_sam.tiny_vit_21m_384. This is because the name being registered conflicts with an existing name. Please check if this is not expected.
+  return register_model(fn_wrapper)
+/home/runner/work/Android-Projects/Android-Projects/MobileSAM/mobile_sam/modeling/tiny_vit_sam.py:656: UserWarning: Overwriting tiny_vit_21m_512 in registry with mobile_sam.modeling.tiny_vit_sam.tiny_vit_21m_512. This is because the name being registered conflicts with an existing name. Please check if this is not expected.
+  return register_model(fn_wrapper)
+/home/runner/work/Android-Projects/Android-Projects/MobileSAM/mobile_sam/build_sam.py:91: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  state_dict = torch.load(f)
+/home/runner/work/Android-Projects/Android-Projects/MobileSAM/mobile_sam/modeling/tiny_vit_sam.py:338: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+  assert L == H * W, "input feature has wrong size"
+/home/runner/work/Android-Projects/Android-Projects/MobileSAM/mobile_sam/modeling/tiny_vit_sam.py:136: TracerWarning: Using len to get tensor shape might cause the trace to be incorrect. Recommended usage would be tensor.shape[0]. Passing a tensor of different shape might lead to errors or silently give incorrect results.
+  B = len(x)
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/torch/onnx/_internal/jit_utils.py:314: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
+  _C._jit_pass_onnx_node_shape_type_inference(node, params_dict, opset_version)
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/torch/onnx/utils.py:739: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
+  _C._jit_pass_onnx_graph_shape_type_inference(
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/torch/onnx/utils.py:1244: UserWarning: Constant folding - Only steps=1 can be constant folded for opset >= 10 onnx::Slice op. Constant folding not applied. (Triggered internally at ../torch/csrc/jit/passes/onnx/constant_fold.cpp:179.)
+  _C._jit_pass_onnx_graph_shape_type_inference(
+/home/runner/work/Android-Projects/Android-Projects/MobileSAM/mobile_sam/modeling/transformer.py:232: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+  attn = attn / math.sqrt(c_per_head)
+WARNING:root:Please consider to run pre-processing before quantization. Refer to example: https://github.com/microsoft/onnxruntime-inference-examples/blob/main/quantization/image_classification/cpu/ReadMe.md 
+WARNING:root:Inference failed or unsupported type to quantize for tensor '/e/layers.1/blocks.0/Slice_output_0', type is tensor_type {
+  elem_type: 7
+  shape {
+    dim {
+      dim_value: 4
+    }
+    dim {
+      dim_value: 2
+    }
+  }
+}
+.
+WARNING:root:Inference failed or unsupported type to quantize for tensor '/e/layers.1/blocks.1/Slice_output_0', type is tensor_type {
+  elem_type: 7
+  shape {
+    dim {
+      dim_value: 4
+    }
+    dim {
+      dim_value: 2
+    }
+  }
+}
+.
+WARNING:root:Inference failed or unsupported type to quantize for tensor '/e/layers.2/blocks.0/Slice_output_0', type is tensor_type {
+  elem_type: 7
+  shape {
+    dim {
+      dim_value: 4
+    }
+    dim {
+      dim_value: 2
+    }
+  }
+}
+.
+WARNING:root:Inference failed or unsupported type to quantize for tensor '/e/layers.2/blocks.1/Slice_output_0', type is tensor_type {
+  elem_type: 7
+  shape {
+    dim {
+      dim_value: 4
+    }
+    dim {
+      dim_value: 2
+    }
+  }
+}
+.
+WARNING:root:Inference failed or unsupported type to quantize for tensor '/e/layers.2/blocks.2/Slice_output_0', type is tensor_type {
+  elem_type: 7
+  shape {
+    dim {
+      dim_value: 4
+    }
+    dim {
+      dim_value: 2
+    }
+  }
+}
+.
+WARNING:root:Inference failed or unsupported type to quantize for tensor '/e/layers.2/blocks.3/Slice_output_0', type is tensor_type {
+  elem_type: 7
+  shape {
+    dim {
+      dim_value: 4
+    }
+    dim {
+      dim_value: 2
+    }
+  }
+}
+.
+WARNING:root:Inference failed or unsupported type to quantize for tensor '/e/layers.2/blocks.4/Slice_output_0', type is tensor_type {
+  elem_type: 7
+  shape {
+    dim {
+      dim_value: 4
+    }
+    dim {
+      dim_value: 2
+    }
+  }
+}
+.
+WARNING:root:Inference failed or unsupported type to quantize for tensor '/e/layers.2/blocks.5/Slice_output_0', type is tensor_type {
+  elem_type: 7
+  shape {
+    dim {
+      dim_value: 4
+    }
+    dim {
+      dim_value: 2
+    }
+  }
+}
+.
+WARNING:root:Inference failed or unsupported type to quantize for tensor '/e/layers.3/blocks.0/Slice_output_0', type is tensor_type {
+  elem_type: 7
+  shape {
+    dim {
+      dim_value: 4
+    }
+    dim {
+      dim_value: 2
+    }
+  }
+}
+.
+WARNING:root:Inference failed or unsupported type to quantize for tensor '/e/layers.3/blocks.1/Slice_output_0', type is tensor_type {
+  elem_type: 7
+  shape {
+    dim {
+      dim_value: 4
+    }
+    dim {
+      dim_value: 2
+    }
+  }
+}
+.
+sam_decoder.onnx 16106 KB
+sam_encoder.onnx 27320 KB
+sam_encoder_int8.onnx 10775 KB
+sam_encoder.onnx astronaut score 0.9861441254615784 area 0.033611297607421875
+sam_encoder.onnx astronaut_box score 0.8580023050308228 area 0.19611358642578125
+sam_encoder.onnx coffee score 0.9360610246658325 area 0.0515875
+sam_encoder.onnx chelsea score 0.9697269201278687 area 0.02517368810051737
+sam_encoder_int8.onnx astronaut score 0.977881669998169 area 0.06767654418945312
+sam_encoder_int8.onnx astronaut_box score 0.9096249341964722 area 0.15886306762695312
+sam_encoder_int8.onnx coffee score 0.8585662841796875 area 0.143725
+sam_encoder_int8.onnx chelsea score 0.9687138795852661 area 0.027900960827790096
+IoU fp32 vs int8 astronaut 0.4812831241283124
+IoU fp32 vs int8 astronaut_box 0.7586415436660178
+IoU fp32 vs int8 coffee 0.35806582454513847
+IoU fp32 vs int8 chelsea 0.8892396737700605

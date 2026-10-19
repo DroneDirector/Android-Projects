@@ -546,6 +546,11 @@ object MagicTracker {
             if (e > 1.5f + 0.05f * mag) { bad[i] = true; continue }
             carried[i] = bilF(pg, gw, gh, bx, by, 0f)
         }
+        // A cut the colours didn't give away: motion that doesn't agree both ways over most of the frame.
+        if (bad.count { it } > 0.45f * bad.size) return null
+        // The object suddenly mostly gone (left the picture, or the shot changed).
+        val pa = pg.count { it > 0.5f }
+        if (pa >= 50 && carried.count { it > 0.5f } < 0.25f * pa) return null
         val r = rectFor(carried, gw, gh, W, H) ?: return null
         val pts = promptsFrom(carried, gw, gh, r)
         val hint = hintFor(prev, r, W, H, ::back, bad, gw, gh)

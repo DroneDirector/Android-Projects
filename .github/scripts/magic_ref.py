@@ -172,6 +172,11 @@ def advance(prev, prev_frame, frame):
     err = np.sqrt((F[..., 0] + rx) ** 2 + (F[..., 1] + ry) ** 2)
     bad = err > 1.5 + 0.05 * np.sqrt(F[..., 0] ** 2 + F[..., 1] ** 2)
     carried[bad] = 0
+    # A cut the colours didn't give away: motion that doesn't agree both ways over most of the frame.
+    if bad.mean() > 0.45: return None
+    # The object suddenly mostly gone (left the picture, or the shot changed).
+    pa = (pg > 0.5).sum()
+    if pa >= 50 and (carried > 0.5).sum() < 0.25 * pa: return None
     if (carried > 0.5).sum() < 3: return None
     rect = rect_for(carried, W, H)
     pc = prompts_from(carried, rect, W, H)

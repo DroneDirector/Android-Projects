@@ -92,6 +92,8 @@ data class Layer(
 enum class LayerAnim(val label: String) {
     NONE("None"), FADE("Fade"), SLIDE_UP("Slide up"), SLIDE_DOWN("Slide down"), SLIDE_LEFT("Slide left"), SLIDE_RIGHT("Slide right"),
     POP("Pop"), ZOOM("Zoom"), BOUNCE("Bounce"), REVEAL("Wipe reveal"), TYPEWRITER("Typewriter"),
+    /** Rolling credits: the layer scrolls from below the frame to above it over its whole length. */
+    ROLL("Roll (credits)"),
 }
 
 /** How an animation changes a layer at one moment: move (share of the frame), scale, fade, wipe and typed characters. */
@@ -106,6 +108,17 @@ object LayerAnims {
     /** The animation state of [l] at timeline [ms]. */
     fun at(l: Layer, ms: Long): AnimFx {
         if (!hasAny(l)) return AnimFx()
+        if (l.animIn == LayerAnim.ROLL || l.animOut == LayerAnim.ROLL) {
+            // From just below the frame to just above it, at an even speed across the layer.
+            val start = if (l.wholeVideo) 0L else l.startMs
+            val len = if (l.wholeVideo) (l.animMs ?: 20_000L).coerceAtLeast(1000) else (l.endMs - l.startMs).coerceAtLeast(1)
+            val p = ((ms - start).toFloat() / len).coerceIn(0f, 1f)
+            val lines = l.text.lines().size.coerceAtLeast(1)
+            val half = lines * l.size * 1.25f / 2f
+            val from = 1f - l.y + half + 0.02f
+            val to = -(l.y + half + 0.02f)
+            return AnimFx(dy = from + (to - from) * p)
+        }
         val len = if (l.wholeVideo) Long.MAX_VALUE else (l.endMs - l.startMs).coerceAtLeast(1)
         val d = (l.animMs ?: 500L).coerceIn(50, if (l.wholeVideo) 10_000 else len / 2 + 1)
         var fx = AnimFx()
@@ -152,6 +165,7 @@ object LayerAnims {
             LayerAnim.BOUNCE -> AnimFx(dy = -(1f - bounceOut(p)) * 0.25f * dir, alpha = (p * 4f).coerceAtMost(1f))
             LayerAnim.REVEAL -> AnimFx(reveal = e)
             LayerAnim.TYPEWRITER -> if (text) AnimFx(chars = p) else AnimFx(reveal = e)
+            LayerAnim.ROLL -> AnimFx()
         }
     }
 

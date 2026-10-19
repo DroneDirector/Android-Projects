@@ -3577,6 +3577,24 @@ private fun LayersPage(
         SmallAction(Icons.Filled.Movie, "Video", onAddVideo)
         SmallAction(Icons.Filled.Photo, "Image", onAddImage)
         SmallAction(Icons.Filled.Image, "Logo", onAddLogo)
+        SmallAction(Icons.Filled.TextFields, "Credits") {
+            // Rolling credits over the last 12 s (or the whole video if it is shorter).
+            val total = totalMs.coerceAtLeast(1)
+            val from = (total - 12_000L).coerceAtLeast(0L)
+            onAdd(Layer(kind = LayerKind.TEXT, text = """Directed by
+Your Name
+
+Edited by
+Your Name
+
+Music
+Artist — Song title
+
+Filmed on
+VeyroCut Pro
+
+Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, animIn = LayerAnim.ROLL, animOut = LayerAnim.NONE, shadow = true))
+        }
         SmallAction(Icons.Filled.Tune, "Adjustment") {
             onAdd(Layer(kind = LayerKind.ADJUST, text = "Adjustment", startMs = playheadMs, endMs = end, adjGrade = ProGrade(exposure = 0f), opacity = 1f))
         }

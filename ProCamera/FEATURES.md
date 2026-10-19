@@ -213,6 +213,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 
 ### Layers
 - **Text, stickers, watermark, logo, image and video (picture-in-picture)** layers with timing, position, size and opacity.
+- **Unlimited video layers, above or below the main video**: + VIDEO on the timeline asks where the new video goes; above = on top (picture-in-picture or full frame), below = behind your clips (shows where the main video doesn't cover the frame). Switch later under PLACEMENT; reorder by dragging rows; marked ↑ / ↓ on the timeline; same stacking in the preview and the export.
 - **Keyframes** for layer position, size and opacity (smooth easing; diamonds on the timeline).
 - **Motion tracking**: a layer follows a moving object from the playhead (on-device patch tracking → position keyframes).
 - **Adjustment layers**: a grade over everything under them for their time range, with strength (up to 3 at a time).

@@ -132,6 +132,8 @@ fun TimelineView(
     snapping: Boolean = true,
     onToggleMarker: () -> Unit = {},
     onToggleSnap: () -> Unit = {},
+    /** "+ VIDEO": add a new video layer (above or below the main video). */
+    onAddVideoLayer: (() -> Unit)? = null,
 ) {
     val density = LocalDensity.current
     val totalMs = timelineLength(clips).coerceAtLeast(1)
@@ -198,6 +200,10 @@ fun TimelineView(
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(tc(headMs), style = Pro.Value.copy(color = accent, fontSize = 13.sp))
             Text(" / ${tc(totalMs)}", style = Pro.Value.copy(color = Pro.Dim, fontSize = 11.sp), modifier = Modifier.weight(1f))
+            if (onAddVideoLayer != null) Text(
+                "+ VIDEO", style = Pro.Label.copy(color = Color(0xFF7FA8FF), fontSize = 10.sp),
+                modifier = Modifier.padding(end = 4.dp).clip(RoundedCornerShape(50)).background(Color(0xFF3D7BFF).copy(alpha = 0.18f)).clickable(onClick = onAddVideoLayer).padding(horizontal = 8.dp, vertical = 4.dp),
+            )
             Text(
                 "◆ MARKER", style = Pro.Label.copy(color = accent, fontSize = 10.sp),
                 modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onToggleMarker).padding(horizontal = 8.dp, vertical = 4.dp),
@@ -561,7 +567,8 @@ fun TimelineView(
                     if (!l.locked) trimHandles(x0, x1, rowTop, layerRow, l.id == editingId || l.id == selectedLayerId, accent)
                     if (l.id == editingId) lengthTag(x0, x1, rowTop, e - s, textPaint, accent)
                     textPaint.textSize = 9.sp.toPx()
-                    val name = l.name?.takeIf { it.isNotBlank() } ?: when (l.kind) { LayerKind.TEXT, LayerKind.WATERMARK, LayerKind.STICKER -> l.text.replace('\n', ' '); else -> l.kind.label + " " + l.text }
+                    val name0 = l.name?.takeIf { it.isNotBlank() } ?: when (l.kind) { LayerKind.TEXT, LayerKind.WATERMARK, LayerKind.STICKER -> l.text.replace('\n', ' '); else -> l.kind.label + " " + l.text }
+                    val name = if (l.kind == LayerKind.VIDEO) (if (l.isBelow) "↓ " else "↑ ") + name0 else name0
                     drawContext.canvas.nativeCanvas.drawText(name.take(30), max(x0, 0f) + 5f, rowTop + layerRow * 0.68f, textPaint)
                     rowTop += layerRow + gap
                 }

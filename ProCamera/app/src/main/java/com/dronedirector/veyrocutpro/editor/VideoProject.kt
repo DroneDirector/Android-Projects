@@ -235,13 +235,16 @@ class TimelineExport(
 
     fun start() {
         val (outW, outH) = outputSize(clips, settings)
-        val videoLayers = if (audioOnly) emptyList() else layers.filter { it.visible && it.kind == LayerKind.VIDEO && it.videoUri != null }
+        val allVideoLayers = if (audioOnly) emptyList() else layers.filter { it.visible && it.kind == LayerKind.VIDEO && it.videoUri != null }
+        // Video layers above the main video (drawn first = on top) and below it (after the timeline).
+        val videoLayers = allVideoLayers.filter { !it.isBelow }
+        val belowLayers = allVideoLayers.filter { it.isBelow }
         val layout = if (settings.fill) Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP else Presentation.LAYOUT_SCALE_TO_FIT
         val totalMs = timelineLength(clips)
         val starts = clipStarts(clips)
         val overlaps = LongArray(clips.size) { overlapMs(clips, it) }
         val ab = overlaps.any { it > 0 }
-        val compositing = !audioOnly && (videoLayers.isNotEmpty() || ab)
+        val compositing = !audioOnly && (allVideoLayers.isNotEmpty() || ab)
         val items = clips.mapIndexed { i, c ->
             val media = MediaItem.Builder()
                 .setUri(c.uri)
@@ -329,6 +332,33 @@ class TimelineExport(
         // the first sequence on top, so layers go first (top layer first) and the timeline last.
         val sequences = mutableListOf<EditedMediaItemSequence>()
         val windows = mutableListOf<Pair<Long, Long>>()
+        val belowWindows = mutableListOf<Pair<Long, Long>>()
+        fun layerSequence(l: Layer, win: MutableList<Pair<Long, Long>>): EditedMediaItemSequence {
+            val startMs = if (l.wholeVideo) 0L else l.startMs.coerceIn(0, totalMs)
+            val wantEnd = if (l.wholeVideo) totalMs else l.endMs.coerceIn(startMs, totalMs)
+            val avail = (l.videoDurationMs - l.videoStartMs).coerceAtLeast(100)
+            val lenMs = (wantEnd - startMs).coerceIn(100, avail)
+            val ph = ((l.size * outH).toInt() / 2 * 2).coerceAtLeast(16)
+            val pw = ((ph * l.mediaAspect).toInt() / 2 * 2).coerceAtLeast(16)
+            val item = EditedMediaItem.Builder(
+                MediaItem.Builder().setUri(l.videoUri!!)
+                    .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(l.videoStartMs).setEndPositionMs(l.videoStartMs + lenMs).build())
+                    .build()
+            )
+                .setRemoveAudio(true)
+                .setEffects(Effects(emptyList(), buildList {
+                    add(Presentation.createForWidthAndHeight(pw, ph, Presentation.LAYOUT_SCALE_TO_FIT))
+                    l.chroma?.let { add(ChromaKeyEffect(it, l.chromaTol ?: 0.4f, l.chromaSoft ?: 0.3f)) }
+                }))
+                .build()
+            val seq = EditedMediaItemSequence.Builder(setOf(androidx.media3.common.C.TRACK_TYPE_VIDEO))
+            if (startMs > 0) seq.addGap(startMs * 1000)
+            seq.addItem(item)
+            val after = totalMs - startMs - lenMs
+            if (after > 0) seq.addGap(after * 1000)
+            win += (startMs * 1000) to ((startMs + lenMs) * 1000)
+            return seq.build()
+        }
         for (l in videoLayers.asReversed()) {
             val startMs = if (l.wholeVideo) 0L else l.startMs.coerceIn(0, totalMs)
             val wantEnd = if (l.wholeVideo) totalMs else l.endMs.coerceIn(startMs, totalMs)
@@ -378,6 +408,10 @@ class TimelineExport(
             }
         }
         val abCount = sequences.size - firstTimeline
+        // Video layers below the main video: after the timeline, so they're drawn underneath it.
+        val firstBelow = sequences.size
+        val belowSettings = belowLayers.asReversed()
+        for (l in belowSettings) sequences += layerSequence(l, belowWindows)
         // Music + extra audio tracks, each placed at its own spot on the timeline.
         if (settings.audio || audioOnly) for (m in (listOfNotNull(music) + extraAudio).filter { !it.muted }) {
             val len = m.playLength(totalMs)
@@ -445,8 +479,10 @@ class TimelineExport(
                         if (ab && inputId >= firstTimeline && inputId < firstTimeline + abCount) {
                             return abSettings(inputId - firstTimeline, presentationTimeUs / 1000, starts, overlaps)
                         }
-                        val l0 = layerSettings.getOrNull(inputId) ?: return androidx.media3.effect.StaticOverlaySettings.Builder().build()
-                        val (s, e) = windows[inputId]
+                        val isBelowInput = inputId >= firstBelow && inputId < firstBelow + belowSettings.size
+                        val l0 = (if (isBelowInput) belowSettings.getOrNull(inputId - firstBelow) else if (inputId < firstTimeline) layerSettings.getOrNull(inputId) else null)
+                            ?: return androidx.media3.effect.StaticOverlaySettings.Builder().build()
+                        val (s, e) = if (isBelowInput) belowWindows[inputId - firstBelow] else windows[inputId]
                         val on = presentationTimeUs in s..e
                         val l = l0.animAt(presentationTimeUs / 1000)
                         val k = if (l0.size > 0f) l.size / l0.size else 1f

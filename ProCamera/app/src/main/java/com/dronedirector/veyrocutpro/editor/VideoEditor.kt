@@ -423,20 +423,61 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             message = "Flight data added to clip ${current + 1} ($n overlays) — tap one on the timeline to restyle it"
         }
     }
+    // New video layer: you choose first whether it goes above or below the main video.
+    var askVideoLayer by remember { mutableStateOf(false) }
+    var videoLayerBelow by remember { mutableStateOf(false) }
     val pickLayerVideo = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) layerScope.launch {
             val c = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }
             if (c == null) { message = "Can't open that video"; return@launch }
             val total = timelineLength(clips)
             val start = ((clipStarts(clips).getOrNull(current) ?: 0L) + (clips.getOrNull(current)?.let { it.tlOffsetOf(it.startMs + posMs) } ?: posMs)).coerceIn(0, total)
+            val below = videoLayerBelow
             val l = Layer(
                 kind = LayerKind.VIDEO, text = c.name, videoUri = uri, videoDurationMs = c.durationMs,
                 mediaAspect = if (c.height > 0) c.width.toFloat() / c.height else 16f / 9f,
-                size = 0.35f, x = 0.72f, y = 0.28f, startMs = start, endMs = (start + c.durationMs).coerceAtMost(total.coerceAtLeast(start + 500)),
+                // Above: picture-in-picture in the corner. Below: full frame behind the main video.
+                size = if (below) 1f else 0.35f, x = if (below) 0.5f else 0.72f, y = if (below) 0.5f else 0.28f,
+                startMs = start, endMs = (start + c.durationMs).coerceAtMost(total.coerceAtLeast(start + 500)),
+                below = below,
             )
+            // New layers go on top of the other layers in their group.
             layers.add(l); selectedLayer = l.id
+            val n = layers.count { it.kind == LayerKind.VIDEO && it.visible }
+            message = "Video layer added ${if (below) "below" else "above"} the main video" +
+                if (n > 3) " — $n video layers play at once; if the preview stutters, use the Proxy tab or hide some with the eye" else ""
         }
     }
+    if (askVideoLayer) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { askVideoLayer = false },
+        containerColor = Pro.PanelSolid,
+        title = { Text("Add a video layer", color = Color.White) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Where should the new video go?", color = Pro.Dim, fontSize = 13.sp)
+                listOf(false, true).forEach { below ->
+                    Column(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Ed.Raised)
+                            .border(1.dp, Pro.Amber.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                            .clickable {
+                                askVideoLayer = false; videoLayerBelow = below
+                                pickLayerVideo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly))
+                            }.padding(12.dp),
+                    ) {
+                        Text(if (below) "↓  BELOW the main video" else "↑  ABOVE the main video", color = Pro.Amber, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            if (below) "Placed behind your clips, full frame. It shows wherever the main video doesn't cover the frame (bars, a smaller or moved clip, gaps)."
+                            else "Placed on top of your clips — picture-in-picture you can move and resize, or full frame with Size 100%.",
+                            color = Pro.Dim, fontSize = 11.sp,
+                        )
+                    }
+                }
+                Text("You can add as many video layers as you like, and change above / below later in the layer's settings.", color = Pro.Dim, fontSize = 11.sp)
+            }
+        },
+        confirmButton = {},
+        dismissButton = { androidx.compose.material3.TextButton(onClick = { askVideoLayer = false }) { Text("Cancel", color = Pro.Dim) } },
+    )
     val pickLayerImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             val total = timelineLength(clips)
@@ -1709,6 +1750,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         val fw = if (boxAspect > projAspect) maxHeight * projAspect else maxWidth
                         val fh = if (boxAspect > projAspect) maxHeight else maxWidth / projAspect
                         Box(Modifier.width(fw).height(fh).clipToBounds().background(Color.Black)) {
+                            // Video layers placed below the main video are drawn first (underneath it).
+                            val belowLayers = layers.filter { it.isBelow }
+                            if (belowLayers.isNotEmpty()) LayerPreview(
+                                layers = belowLayers, timeMs = globalMs, selectedId = null, showAll = false, playing = playing,
+                                onMove = { _, _, _ -> }, onSelect = { selectedLayer = it; page = Page.LAYERS },
+                            )
                             AndroidView(
                                 factory = { ctx ->
                                     android.widget.FrameLayout(ctx).apply {
@@ -1733,8 +1780,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 },
                                 modifier = Modifier.fillMaxSize(),
                             )
+                            // A selected below-layer shows as a see-through ghost on top while you place it.
+                            val ghost = if (page == Page.LAYERS && !playing) layers.firstOrNull { it.id == selectedLayer && it.isBelow } else null
                             LayerPreview(
-                                layers = layers,
+                                layers = layers.filter { !it.isBelow || it.id == ghost?.id }.map { if (it.id == ghost?.id) it.copy(opacity = it.opacity * 0.45f) else it },
                                 timeMs = globalMs,
                                 selectedId = if (page == Page.LAYERS) selectedLayer else null,
                                 showAll = page == Page.LAYERS && !playing,
@@ -1905,6 +1954,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         if (near != null) { markers.remove(near); markerNotes.remove(near); message = "Marker removed" }
                         else { markers.add(globalMs); markers.sort(); message = "Marker at ${tc(globalMs)} — tap ◆ MARKER on it again to remove" }
                     },
+                    onAddVideoLayer = { askVideoLayer = true },
                     onToggleSnap = {
                         snapping = !snapping
                         context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("tl_snap", snapping).apply()
@@ -2128,7 +2178,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onSelect = { selectedLayer = it },
                                 onAdd = { l -> layers.add(l); selectedLayer = l.id },
                                 onAddLogo = { pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                                onAddVideo = { pickLayerVideo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
+                                onAddVideo = { askVideoLayer = true },
                                 onAddImage = { pickLayerImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                                 onUpdate = { l ->
                                     val i = layers.indexOfFirst { it.id == l.id }
@@ -3266,6 +3316,15 @@ private fun LayersPage(
     if (l.kind == LayerKind.VIDEO && l.videoDurationMs > 0) {
         EdSlider("Start inside the video", l.videoStartMs.toFloat(), 0f..(l.videoDurationMs - 500).coerceAtLeast(1).toFloat(), 0f, { tc(it.toLong()) }) { onUpdate(l.copy(videoStartMs = it.toLong())) }
         Text("Overlay videos play muted. Size 100% = full frame height.", color = Pro.Dim, fontSize = 11.sp)
+    }
+    if (l.kind == LayerKind.VIDEO) {
+        SectionTitle("PLACEMENT")
+        Chips(listOf("↑ Above main video", "↓ Below main video"), if (l.isBelow) 1 else 0) { onUpdate(l.copy(below = it == 1)) }
+        Text(
+            if (l.isBelow) "Behind your clips: visible where the main video doesn't cover the frame. Drag it up / down on the timeline to change its order among the other layers."
+            else "On top of your clips. Drag it up / down on the timeline to change its order among the other layers.",
+            color = Pro.Dim, fontSize = 11.sp,
+        )
     }
     // With keyframes, the controls show (and edit) the layer as it is at the playhead.
     val la = l.animAt(playheadMs)

@@ -76,7 +76,11 @@ data class Layer(
     val animMs: Long? = null,
     /** Adjustment layer: the grade it puts on everything under it (strength = opacity). */
     val adjGrade: ProGrade? = null,
+    /** Video layers: placed below the main video track instead of on top of it. */
+    val below: Boolean? = null,
 ) {
+    /** A video layer under the main video (shows where the main picture doesn't cover the frame). */
+    val isBelow: Boolean get() = kind == LayerKind.VIDEO && below == true
     /** The name shown for this layer: your own name, else its text / kind. */
     val displayName: String get() = name?.takeIf { it.isNotBlank() }
         ?: when (kind) { LayerKind.TEXT, LayerKind.WATERMARK, LayerKind.STICKER -> text.replace('\n', ' '); LayerKind.LOGO, LayerKind.IMAGE -> "Image"; else -> kind.label }

@@ -140,7 +140,7 @@ jobs:
           scrollTo "Magic Mask"; tapText "Magic Mask"; for i in $(seq 1 30); do sleep 4; seeText "Tap the object" && break; seeText "couldn" && break; done; shot 09b-magic-dialog
           tapBetween "MAGIC MASK" "Tap the object"; sleep 12; shot 09c-magic-picked
           tapText "TRACK THROUGH"; for i in $(seq 1 60); do sleep 6; seeText "Tracked through" && break; seeText "couldn" && break; done; shot 09d-magic-tracked
-          adb logcat -d | grep -i -E "onnx|ort|morph|MagicMask|Sam" | tail -40 > out/ai.txt || true
+          adb logcat -d | grep -E "FrameReader|onnxruntime|OrtSession|Magic|TransitionPreview|veyrocut_morph|AndroidRuntime" | tail -60 > out/ai.txt || true
           adb logcat -d | grep -i -E "veyrocut_native|veyrocut_whisper|UnsatisfiedLink|whisper" | tail -20 > out/native.txt || true
                     start_video; shot 05-recover-banner
           tapText "RECOVER"; sleep 25; shot 06-after-recover

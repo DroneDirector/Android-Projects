@@ -134,6 +134,8 @@ fun TimelineView(
     onToggleSnap: () -> Unit = {},
     /** "+ VIDEO": add a new video layer (above or below the main video). */
     onAddVideoLayer: (() -> Unit)? = null,
+    /** A V1 clip's in / out point changed by dragging its edge (source ms). */
+    onClipTrim: (index: Int, startMs: Long, endMs: Long) -> Unit = { _, _, _ -> },
 ) {
     val density = LocalDensity.current
     val totalMs = timelineLength(clips).coerceAtLeast(1)
@@ -170,6 +172,17 @@ fun TimelineView(
     val musicRow = with(density) { 24.dp.toPx() }
     val gap = with(density) { 3.dp.toPx() }
     val shownLayers = layers.asReversed()
+    // Rows like DaVinci / Premiere: layers on top of the video above V1 (topmost first),
+    // video layers placed below the main video under V1, then the audio tracks.
+    val aboveRows = shownLayers.filter { !it.isBelow }
+    val belowRows = shownLayers.filter { it.isBelow }
+    val clipTop = ruler + aboveRows.size * (layerRow + gap)
+    val layerTops: Map<String, Float> = buildMap {
+        aboveRows.forEachIndexed { i, l -> put(l.id, ruler + i * (layerRow + gap)) }
+        belowRows.forEachIndexed { j, l -> put(l.id, clipTop + clipRow + gap + j * (layerRow + gap)) }
+    }
+    val audioTop = clipTop + clipRow + gap + belowRows.size * (layerRow + gap)
+    var editingClip by remember { mutableStateOf(-1) }
     val audioRows = listOfNotNull(music) + extraAudio
     val heightPx = ruler + clipRow + gap + shownLayers.size * (layerRow + gap) + audioRows.size * (musicRow + gap) + gap
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
@@ -190,6 +203,11 @@ fun TimelineView(
     val currentScrub by rememberUpdatedState(onScrub)
     val curClips by rememberUpdatedState(clips)
     val curLayers by rememberUpdatedState(shownLayers)
+    val curLayerTops by rememberUpdatedState(layerTops)
+    val curClipTop by rememberUpdatedState(clipTop)
+    val curAudioTop by rememberUpdatedState(audioTop)
+    val curClipTrim by rememberUpdatedState(onClipTrim)
+    val curVideoLocked by rememberUpdatedState(videoLocked)
     val curTotal by rememberUpdatedState(totalMs)
     val curSelectClip by rememberUpdatedState(onSelectClip)
     val curSelectLayer by rememberUpdatedState(onSelectLayer)
@@ -236,10 +254,21 @@ fun TimelineView(
                         val edgePx = 18.dp.toPx()
                         var hitId: String? = null; var hitAudio = false; var hitEdge = 0   // -1 start, 0 body, 1 end
                         var hitStart = 0L; var hitEnd = 0L; var hitOffset = 0L; var hitRow = -1
+                        var hitClip = -1; var clipEdge = 0
                         run {
                             val y = down.position.y; val x = down.position.x
-                            var top = ruler + clipRow + gap
+                            // V1: the start / end edge of a clip.
+                            if (y in curClipTop..(curClipTop + clipRow)) {
+                                val st = clipStarts(curClips)
+                                var best = edgePx + 1f
+                                curClips.forEachIndexed { i, cl ->
+                                    val xa = xOfMs(st[i]); val xb = xOfMs(st[i] + cl.lengthMs)
+                                    if (x >= xa - 4f && x - xa < best && x - xa <= edgePx) { best = x - xa; hitClip = i; clipEdge = -1 }
+                                    if (x <= xb + 4f && xb - x < best && xb - x <= edgePx) { best = xb - x; hitClip = i; clipEdge = 1 }
+                                }
+                            }
                             curLayers.forEachIndexed { r, l ->
+                                val top = curLayerTops[l.id] ?: return@forEachIndexed
                                 if (y in top..(top + layerRow)) {
                                     val a = if (l.wholeVideo) 0L else l.startMs; val b = if (l.wholeVideo) curTotal else l.endMs
                                     val xa = xOfMs(a); val xb = xOfMs(b)
@@ -248,8 +277,8 @@ fun TimelineView(
                                         hitEdge = if (x < xa + edgePx) -1 else if (x > xb - edgePx) 1 else 0
                                     }
                                 }
-                                top += layerRow + gap
                             }
+                            var top = curAudioTop
                             curAudio.forEach { m ->
                                 if (y in top..(top + musicRow)) {
                                     val a = m.startMs; val b = m.startMs + m.playLength(curTotal)
@@ -260,6 +289,41 @@ fun TimelineView(
                                     }
                                 }
                                 top += musicRow + gap
+                            }
+                        }
+                        if (hitClip >= 0 && hitId == null) {
+                            val heldClip = withTimeoutOrNull(380L) {
+                                while (true) {
+                                    val ev = awaitPointerEvent()
+                                    val c = ev.changes.first()
+                                    if (!c.pressed || ev.changes.size > 1) return@withTimeoutOrNull false
+                                    if ((c.position - down.position).getDistance() > viewConfiguration.touchSlop) return@withTimeoutOrNull false
+                                }
+                                @Suppress("UNREACHABLE_CODE") false
+                            } == null
+                            if (heldClip) {
+                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                if (curVideoLocked) {
+                                    curLocked()
+                                    do { val ev = awaitPointerEvent(); ev.changes.forEach { it.consume() } } while (ev.changes.any { it.pressed })
+                                    return@awaitEachGesture
+                                }
+                                val idx = hitClip
+                                val c0 = curClips[idx]
+                                val sp = c0.speed.coerceAtLeast(0.05f)
+                                val minSrc = (200 * sp).toLong()
+                                editingClip = idx
+                                curSelectClip(idx)
+                                do {
+                                    val ev = awaitPointerEvent()
+                                    val c = ev.changes.first()
+                                    val dSrc = ((c.position.x - down.position.x) / pxPerSec * 1000f * sp).toLong()
+                                    if (clipEdge < 0) curClipTrim(idx, (c0.startMs + dSrc).coerceIn(0, c0.endMs - minSrc), c0.endMs)
+                                    else curClipTrim(idx, c0.startMs, (c0.endMs + dSrc).coerceIn(c0.startMs + minSrc, c0.durationMs))
+                                    ev.changes.forEach { it.consume() }
+                                } while (ev.changes.any { it.pressed })
+                                editingClip = -1
+                                return@awaitEachGesture
                             }
                         }
                         val hitLocked = hitId != null && (if (hitAudio) curAudio.firstOrNull { it.id == hitId }?.locked == true else curLayers.firstOrNull { it.id == hitId }?.locked == true)
@@ -355,8 +419,12 @@ fun TimelineView(
                                                 curLayerTime(id, ns, ns + len)
                                                 // Up / down: change the stacking order.
                                                 val rowH = layerRow + gap
-                                                val row = (hitRow + ((c.position.y - down.position.y) / rowH).let { if (it < 0) it - 0.5f else it + 0.5f }.toInt())
-                                                    .coerceIn(0, curLayers.size - 1)
+                                                // Reorder within its group (above V1 or below V1).
+                                                val below = curLayers.getOrNull(hitRow)?.isBelow == true
+                                                val group = curLayers.indices.filter { curLayers[it].isBelow == below }
+                                                val pos0 = group.indexOf(hitRow).coerceAtLeast(0)
+                                                val steps = ((c.position.y - down.position.y) / rowH).let { if (it < 0) it - 0.5f else it + 0.5f }.toInt()
+                                                val row = group.getOrElse((pos0 + steps).coerceIn(0, (group.size - 1).coerceAtLeast(0))) { hitRow }
                                                 if (row != lastRow) {
                                                     lastRow = row
                                                     curLayerOrder(id, curLayers.size - 1 - row)
@@ -364,7 +432,13 @@ fun TimelineView(
                                                 }
                                             }
                                             -1 -> curLayerTime(id, snap(hitStart + dx).coerceIn(0, hitEnd - minLen), hitEnd)
-                                            else -> curLayerTime(id, hitStart, snap(hitEnd + dx).coerceIn(hitStart + minLen, curTotal))
+                                            else -> {
+                                                // Video layers can't run past the end of their own clip.
+                                                val vl = curLayers.firstOrNull { it.id == id }
+                                                val cap = if (vl != null && vl.kind == LayerKind.VIDEO && vl.videoDurationMs > 0)
+                                                    minOf(curTotal, hitStart + (vl.videoDurationMs - vl.videoStartMs).coerceAtLeast(minLen)) else curTotal
+                                                curLayerTime(id, hitStart, snap(hitEnd + dx).coerceIn(hitStart + minLen, cap.coerceAtLeast(hitStart + minLen)))
+                                            }
                                         }
                                     }
                                     ev.changes.forEach { it.consume() }
@@ -413,21 +487,20 @@ fun TimelineView(
                                 val tol = (14.dp.toPx() / pxPerSec * 1000f).toLong()
                                 val mk = curMarkers.minByOrNull { abs(it - ms) }?.takeIf { abs(it - ms) <= tol }
                                 currentScrub((mk ?: ms).coerceIn(0, curTotal), true)
-                            } else if (y in ruler..(ruler + clipRow)) {
+                            } else if (y in curClipTop..(curClipTop + clipRow)) {
                                 val st = clipStarts(curClips)
                                 // A tap on a transition (or near a cut) opens the transition.
                                 val tol = (24f / pxPerSec * 1000f).toLong()
                                 val cut = (0 until curClips.size - 1).firstOrNull { i ->
                                     val ov = overlapMs(curClips, i)
-                                    ms in (st[i + 1] - tol)..(st[i + 1] + ov + tol) && y > ruler + clipRow * 0.55f
+                                    ms in (st[i + 1] - tol)..(st[i + 1] + ov + tol) && y > curClipTop + clipRow * 0.55f
                                 }
                                 if (cut != null) curSelectTransition(cut)
                                 else curSelectClip(clipAt(curClips, ms).first)
                             } else {
-                                var top = ruler + clipRow + gap
                                 for (l in curLayers) {
+                                    val top = curLayerTops[l.id] ?: continue
                                     if (y in top..(top + layerRow)) { curSelectLayer(l.id); break }
-                                    top += layerRow + gap
                                 }
                             }
                             if (y < ruler) currentScrub(ms.coerceIn(0, curTotal), true)
@@ -458,7 +531,7 @@ fun TimelineView(
                 }
 
                 // V1 clips
-                val top = ruler
+                val top = clipTop
                 clips.forEachIndexed { i, c ->
                     val x0 = xOf(starts[i]); val x1 = xOf(starts[i] + c.lengthMs)
                     if (x1 < 0 || x0 > size.width) return@forEachIndexed
@@ -512,6 +585,12 @@ fun TimelineView(
                 }
 
                 if (videoLocked) clips.forEachIndexed { i, c -> lockHatch(xOf(starts[i]), xOf(starts[i] + c.lengthMs), top, clipRow) }
+                else clips.forEachIndexed { i, c ->
+                    val x0 = xOf(starts[i]); val x1 = xOf(starts[i] + c.lengthMs)
+                    if (x1 < 0 || x0 > size.width) return@forEachIndexed
+                    trimHandles(x0, x1, top, clipRow * 0.55f, i == editingClip || i == selectedClip, accent)
+                    if (i == editingClip) lengthTag(x0, x1, top + 2f + 17.dp.toPx(), c.lengthMs, textPaint, accent)
+                }
 
                 // Transitions: a marker on every cut (tap to choose one).
                 for (i in 0 until clips.size - 1) {
@@ -540,9 +619,10 @@ fun TimelineView(
                     }
                 }
 
-                // Layer tracks
-                var rowTop = ruler + clipRow + gap
+                // Layer tracks (each at its own row: above or below V1)
+                var rowTop: Float
                 for (l in shownLayers) {
+                    rowTop = layerTops[l.id] ?: continue
                     val s = if (l.wholeVideo) 0L else l.startMs
                     val e = if (l.wholeVideo) totalMs else l.endMs
                     val x0 = xOf(s); val x1 = xOf(e)
@@ -574,6 +654,7 @@ fun TimelineView(
                 }
 
                 // Audio tracks (music + extra audio), each at its own place on the timeline.
+                rowTop = audioTop
                 for (m in audioRows) {
                     val x0 = xOf(m.startMs); val x1 = xOf(m.startMs + m.playLength(totalMs))
                     val isMain = m.id == music?.id
@@ -618,14 +699,21 @@ fun TimelineView(
             // Track headers: one row per track, with its switches.
             Column(Modifier.width(with(density) { headerW.toDp() }).background(Ed.Panel)) {
                 Box(Modifier.fillMaxWidth().height(with(density) { ruler.toDp() }))
-                TrackHeader(with(density) { clipRow.toDp() }, "V1",
-                    if (videoMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, videoMuted, "Mute video track", onVideoMute,
-                    videoLocked, onVideoLock, vertical = true)
-                for (l in shownLayers) {
-                    Box(Modifier.height(with(density) { gap.toDp() }))
+                val layerHeader = @Composable { l: Layer ->
                     TrackHeader(with(density) { layerRow.toDp() }, null,
                         if (l.visible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, !l.visible, "Show layer", { onLayerFlags(l.copy(visible = !l.visible)) },
                         l.locked, { onLayerFlags(l.copy(locked = !l.locked)) })
+                }
+                for (l in aboveRows) {
+                    layerHeader(l)
+                    Box(Modifier.height(with(density) { gap.toDp() }))
+                }
+                TrackHeader(with(density) { clipRow.toDp() }, "V1",
+                    if (videoMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, videoMuted, "Mute video track", onVideoMute,
+                    videoLocked, onVideoLock, vertical = true)
+                for (l in belowRows) {
+                    Box(Modifier.height(with(density) { gap.toDp() }))
+                    layerHeader(l)
                 }
                 for (m in audioRows) {
                     Box(Modifier.height(with(density) { gap.toDp() }))

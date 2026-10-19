@@ -213,7 +213,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 
 ### Layers
 - **Text, stickers, watermark, logo, image and video (picture-in-picture)** layers with timing, position, size and opacity.
-- **Unlimited video layers, above or below the main video**: + VIDEO on the timeline asks where the new video goes; above = on top (picture-in-picture or full frame), below = behind your clips (shows where the main video doesn't cover the frame). Switch later under PLACEMENT; reorder by dragging rows; marked ↑ / ↓ on the timeline; same stacking in the preview and the export.
+- **Unlimited video layers, above or below the main video**: + VIDEO on the timeline asks where the new video goes; above = on top (picture-in-picture or full frame), below = behind your clips (shows where the main video doesn't cover the frame). Switch later under PLACEMENT; reorder by dragging rows; rows above V1 for layers on top, under V1 for layers below (marked ↑ / ↓); same stacking in the preview and the export.
 - **Keyframes** for layer position, size and opacity (smooth easing; diamonds on the timeline).
 - **Motion tracking**: a layer follows a moving object from the playhead (on-device patch tracking → position keyframes).
 - **Adjustment layers**: a grade over everything under them for their time range, with strength (up to 3 at a time).
@@ -234,7 +234,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 
 ### Deliver
 - **Audio only** export to Music/VeyroCutPro as AAC .m4a, WAV (16 / 24-bit, 32-bit float), AIFF 24-bit, FLAC (lossless) or Opus .ogg — all licence-free formats; WAV / AIFF / FLAC are written by the app's own encoder from the finished mix (lossless).
-- **Track switches & trim handles**: per-row mute, eye (hide a layer from the feed and the export) and lock; bracket-style trim handles on both ends of every layer and audio bar — hold and drag to lengthen or shorten within the video, with a live length read-out.
+- **Track switches & trim handles**: per-row mute, eye (hide a layer from the feed and the export) and lock; bracket-style trim handles on both ends of every V1 clip, layer and audio bar — hold and drag to lengthen or shorten within the video, with a live length read-out.
 - **Timeline scroll wheel**: a slim glowing wheel in the timeline's lower-right corner scrolls the tracks up and down (drag or tap), with an "upscale" effect — pixel blocks resolving and a scan line following the scroll.
 - **Keep HDR** (HLG / HDR10, 10-bit HEVC) or convert to SDR.
 - Resolution up to **4K UHD**, frame rate, **H.264 / HEVC**, bitrate up to very high, audio on/off.

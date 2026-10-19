@@ -1955,6 +1955,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         else { markers.add(globalMs); markers.sort(); message = "Marker at ${tc(globalMs)} — tap ◆ MARKER on it again to remove" }
                     },
                     onAddVideoLayer = { askVideoLayer = true },
+                    onClipTrim = { i, a, b ->
+                        if (i in clips.indices && !videoLocked) clips[i] = clips[i].copy(startMs = a, endMs = b)
+                    },
                     onToggleSnap = {
                         snapping = !snapping
                         context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("tl_snap", snapping).apply()

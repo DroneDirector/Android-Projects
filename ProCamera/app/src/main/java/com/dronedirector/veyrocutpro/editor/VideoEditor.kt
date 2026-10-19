@@ -45,6 +45,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -131,7 +135,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class Page(val label: String) { MEDIA("Media"), PROXY("Proxy"), EDIT("Edit"), TRANSITIONS("Transitions"), COLOR("Color"), LAYERS("Layers"), AUDIO("Audio"), DELIVER("Deliver") }
+private enum class Page(val label: String) { MEDIA("Media"), PROXY("Proxy"), EDIT("Edit"), TEXT("Text"), TRANSITIONS("Transitions"), COLOR("Color"), LAYERS("Layers"), AUDIO("Audio"), DELIVER("Deliver") }
 private enum class ColorTab(val label: String) { INPUT("Input"), LUTS("LUTs"), WHEELS("Wheels"), PRIMARIES("Primaries"), CURVES("Curves"), HSL("HSL"), MASKS("Masks"), DETAIL("Detail"), EFFECTS("Effects"), LOOKS("Looks") }
 
 @Composable
@@ -1535,6 +1539,82 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
 
     /** Detach audio: the clip's sound becomes its own audio track (move / trim it for J- and L-cuts). */
     /** Cuts the pauses out of one clip (or every clip), using the clip's sound. */
+    // ---- Text-based editing: transcribe on the phone, cut the video by deleting words.
+    val tWords = remember { mutableStateListOf<TWord>() }
+    var tModel by remember { mutableStateOf(SpeechModel.BASE) }
+    var tLang by remember { mutableStateOf<String?>(null) }
+    var tStatus by remember { mutableStateOf<String?>(null) }
+    var tJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var tDl by remember { mutableStateOf(-1) }
+    var tDlCancel by remember { mutableStateOf(false) }
+    fun downloadModel() {
+        if (tDl >= 0) return
+        tDl = 0; tDlCancel = false
+        layerScope.launch {
+            val m = tModel
+            val err = withContext(Dispatchers.IO) { Transcriber.download(context, m, { p -> tDl = p }, { tDlCancel }) }
+            tDl = -1
+            message = err ?: "${m.label} speech model ready"
+        }
+    }
+    fun transcribeAll() {
+        if (tJob != null || clips.isEmpty()) return
+        if (!Transcriber.available) { message = "Transcription isn't available on this phone"; return }
+        if (!Transcriber.hasModel(context, tModel)) { downloadModel(); message = "Downloading the speech model first (${tModel.sizeMb} MB)…"; return }
+        tJob = layerScope.launch {
+            val list = clips.toList()
+            val all = mutableListOf<TWord>()
+            for ((i, c) in list.withIndex()) {
+                if (c.muted) continue
+                tStatus = "Listening to clip ${i + 1} of ${list.size}…"
+                val poll = launch { while (true) { delay(400); tStatus = "Listening to clip ${i + 1} of ${list.size} · ${Transcriber.progress()}%" } }
+                val w = withContext(Dispatchers.Default) { try { Transcriber.transcribe(context, c, tModel, tLang) } catch (_: Throwable) { null } }
+                poll.cancel()
+                if (Transcriber.stopped) break
+                if (w != null) all += w
+            }
+            if (!Transcriber.stopped) {
+                tWords.clear(); tWords.addAll(all)
+                message = if (all.isEmpty()) "No speech found" else "Transcribed ${all.size} words — tap words to cut them"
+            } else message = "Transcription stopped"
+            tStatus = null; tJob = null
+        }
+    }
+    fun applyTextCuts() {
+        if (videoLocked) { message = "The video track is locked — tap its lock on the timeline to unlock"; return }
+        if (tWords.none { it.deleted }) { message = "Tap the words you want to cut first"; return }
+        val out = mutableListOf<Clip>(); val newWords = mutableListOf<TWord>()
+        var cutMs = 0L; var skipped = 0
+        for (c in clips.toList()) {
+            val ranges = Transcriber.cutRanges(c, tWords).sortedBy { it.first }
+            val mine = tWords.filter { it.clipId == c.id }
+            if (ranges.isEmpty()) { out += c; newWords += mine; continue }
+            if (c.ramp != null) { skipped++; out += c; newWords += mine.map { it.copy(deleted = false) }; continue }
+            val keeps = mutableListOf<LongRange>()
+            var cur = c.startMs
+            for (r in ranges) { if (r.first > cur + 60) keeps += cur..r.first; cur = maxOf(cur, r.last + 1) }
+            if (c.endMs > cur + 60) keeps += cur..c.endMs
+            cutMs += (c.endMs - c.startMs) - keeps.sumOf { it.last - it.first }
+            keeps.forEachIndexed { k, r ->
+                val id = if (k == 0) c.id else java.util.UUID.randomUUID().toString()
+                val shift = r.first - c.startMs
+                out += c.copy(
+                    id = id, startMs = r.first, endMs = r.last,
+                    transition = if (k == keeps.lastIndex) c.transition else Transition(),
+                    volKeys = null,
+                    reframe = c.reframe.copy(keys = c.reframe.keys?.map { it.copy(t = it.t - shift) }?.filter { it.t >= 0 && it.t <= r.last - r.first }?.takeIf { it.isNotEmpty() }),
+                )
+                newWords += mine.filter { !it.deleted && it.startMs >= r.first - 30 && it.endMs <= r.last + 30 }.map { it.copy(clipId = id) }
+            }
+        }
+        if (out.isEmpty()) { message = "That would cut everything — keep at least one word"; return }
+        clips.clear(); clips.addAll(out)
+        tWords.clear(); tWords.addAll(newWords)
+        selected = selected.coerceIn(0, clips.lastIndex); current = current.coerceIn(0, clips.lastIndex)
+        load(current, 0, false)
+        message = "Cut %.1f s from the edit".format(cutMs / 1000f) + (if (skipped > 0) " · $skipped clip(s) with a speed ramp skipped" else "") + " — undo brings it back"
+    }
+
     fun removeSilences(all: Boolean, db: Float, minMs: Long) {
         if (videoLocked) { message = "The video track is locked — tap its lock on the timeline to unlock"; return }
         if (clips.isEmpty()) return
@@ -2030,7 +2110,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val inspector = @Composable { mod: Modifier ->
                 Column(mod.background(Ed.Panel)) {
                     val pages = if (com.dronedirector.veyrocutpro.camera.SimpleMode.on)
-                        listOf(Page.MEDIA, Page.PROXY, Page.EDIT, Page.TRANSITIONS, Page.COLOR, Page.LAYERS, Page.AUDIO, Page.DELIVER)
+                        listOf(Page.MEDIA, Page.PROXY, Page.EDIT, Page.TEXT, Page.TRANSITIONS, Page.COLOR, Page.LAYERS, Page.AUDIO, Page.DELIVER)
                     else Page.entries.toList()
                     Chips(pages.map { it.label }, pages.indexOf(page)) { page = pages[it] }
                     if (clips.isNotEmpty() && (page == Page.EDIT || page == Page.COLOR || page == Page.AUDIO)) CopyPasteBar(
@@ -2152,6 +2232,25 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     message = "Proxy files deleted (${freed / 1_000_000} MB) — tap GENERATE to make them again"
                                     proxyMedia.forEach { if (it !in proxyCancelled) proxyCancelled.add(it) }
                                 },
+                            )
+                            Page.TEXT -> TextEditPage(
+                                words = tWords.toList(), clips = clips.toList(), currentClipId = clips.getOrNull(current)?.id, playSrcMs = clips.getOrNull(current)?.let { it.startMs + posMs } ?: 0L,
+                                model = tModel, onModel = { tModel = it }, hasModel = Transcriber.hasModel(context, tModel), downloading = tDl,
+                                onDownload = { downloadModel() }, onCancelDownload = { tDlCancel = true },
+                                lang = tLang, onLang = { tLang = it }, status = tStatus,
+                                onTranscribe = { transcribeAll() }, onStop = { Transcriber.stop(); tJob?.cancel(); tJob = null; tStatus = null },
+                                onToggle = { w -> val i = tWords.indexOf(w); if (i >= 0) tWords[i] = w.copy(deleted = !w.deleted) },
+                                onSeekWord = { w ->
+                                    val ci = clips.indexOfFirst { it.id == w.clipId }
+                                    if (ci >= 0) seekGlobal((clipStarts(clips).getOrNull(ci) ?: 0L) + clips[ci].tlOffsetOf(w.startMs))
+                                },
+                                onFillers = {
+                                    var n = 0
+                                    for (i in tWords.indices) if (!tWords[i].deleted && Transcriber.isFiller(tWords[i].text)) { tWords[i] = tWords[i].copy(deleted = true); n++ }
+                                    message = if (n == 0) "No filler words found" else "$n filler word(s) marked — tap APPLY CUTS"
+                                },
+                                onRestore = { for (i in tWords.indices) if (tWords[i].deleted) tWords[i] = tWords[i].copy(deleted = false) },
+                                onApply = { applyTextCuts() },
                             )
                             Page.TRANSITIONS -> TransitionsPanel(
                                 clips, selected, thumbs,
@@ -3930,4 +4029,79 @@ private fun SoundLibraries(onAdd: (LibSection, LibTrack) -> Unit) {
         }
     }
     Text("+ ADD puts the track on the timeline at the playhead (the first one becomes the music track). It plays in the preview and is mixed into your export.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+}
+
+
+/** Text-based editing: the edit as text; tap words to cut them, then APPLY CUTS. */
+@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
+@Composable
+private fun TextEditPage(
+    words: List<TWord>, clips: List<Clip>, currentClipId: String?, playSrcMs: Long,
+    model: SpeechModel, onModel: (SpeechModel) -> Unit, hasModel: Boolean, downloading: Int,
+    onDownload: () -> Unit, onCancelDownload: () -> Unit,
+    lang: String?, onLang: (String?) -> Unit, status: String?,
+    onTranscribe: () -> Unit, onStop: () -> Unit,
+    onToggle: (TWord) -> Unit, onSeekWord: (TWord) -> Unit,
+    onFillers: () -> Unit, onRestore: () -> Unit, onApply: () -> Unit,
+) {
+    SectionTitle("TEXT-BASED EDITING")
+    Text(
+        "Your edit as text, made on this phone (nothing is uploaded). Tap words to cut them — they turn red — then APPLY CUTS. Hold a word to jump there.",
+        color = Pro.Dim, fontSize = 11.sp,
+    )
+    Text("Speech model", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+    Chips(SpeechModel.entries.map { "${it.label} · ${it.sizeMb} MB" }, model.ordinal) { onModel(SpeechModel.entries[it]) }
+    if (downloading >= 0) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+        androidx.compose.material3.LinearProgressIndicator(progress = { downloading / 100f }, color = Pro.Amber, modifier = Modifier.weight(1f).height(4.dp))
+        Text("$downloading%", style = Pro.Label, modifier = Modifier.padding(horizontal = 8.dp))
+        Text("CANCEL", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { onCancelDownload() }.padding(6.dp))
+    } else if (!hasModel) Text(
+        "DOWNLOAD MODEL (${model.sizeMb} MB, once)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onDownload() }.padding(10.dp),
+    ) else Text("Model ready ✓", color = Pro.Green, fontSize = 11.sp)
+    val langs = listOf<Pair<String, String?>>("Auto" to null, "English" to "en", "Danish" to "da", "Faroese" to "fo", "Norwegian" to "no", "Swedish" to "sv", "Icelandic" to "is", "German" to "de", "Spanish" to "es", "French" to "fr")
+    Text("Language", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+    Chips(langs.map { it.first }, langs.indexOfFirst { it.second == lang }.coerceAtLeast(0)) { onLang(langs[it].second) }
+    if (status != null) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 6.dp)) {
+        CircularProgressIndicator(color = Pro.Amber, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+        Text(status, color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f).padding(start = 8.dp))
+        Text("STOP", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { onStop() }.padding(6.dp))
+    } else Text(
+        if (words.isEmpty()) "TRANSCRIBE THE EDIT" else "TRANSCRIBE AGAIN",
+        style = Pro.Value.copy(color = Color.Black, fontSize = 13.sp),
+        modifier = Modifier.padding(vertical = 6.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Pro.Amber).clickable(enabled = clips.isNotEmpty()) { onTranscribe() }.padding(12.dp),
+    )
+    if (words.isEmpty()) return
+    val deleted = words.count { it.deleted }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+        Text("REMOVE FILLERS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp),
+            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onFillers() }.padding(8.dp))
+        if (deleted > 0) Text("RESTORE ALL", style = Pro.Label.copy(color = Color.White, fontSize = 10.sp),
+            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onRestore() }.padding(8.dp))
+    }
+    clips.forEachIndexed { ci, c ->
+        val ws = words.filter { it.clipId == c.id }
+        if (ws.isEmpty()) return@forEachIndexed
+        Text("CLIP ${ci + 1} · ${c.name}", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.padding(top = 8.dp, bottom = 2.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            ws.forEach { w ->
+                val now = c.id == currentClipId && playSrcMs in w.startMs until w.endMs
+                Text(
+                    w.text,
+                    color = if (w.deleted) Pro.Red else if (now) Color.Black else Color.White,
+                    fontSize = 14.sp,
+                    textDecoration = if (w.deleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
+                    modifier = Modifier.clip(RoundedCornerShape(4.dp))
+                        .background(if (now) Pro.Amber else if (w.deleted) Pro.Red.copy(alpha = 0.12f) else Color.Transparent)
+                        .combinedClickable(onClick = { onToggle(w) }, onLongClick = { onSeekWord(w) })
+                        .padding(horizontal = 3.dp, vertical = 1.dp),
+                )
+            }
+        }
+    }
+    Text(
+        if (deleted > 0) "APPLY CUTS ($deleted WORDS)" else "TAP WORDS TO CUT THEM",
+        style = Pro.Value.copy(color = if (deleted > 0) Color.Black else Pro.Dim, fontSize = 13.sp),
+        modifier = Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(if (deleted > 0) Pro.Amber else Ed.Raised).clickable(enabled = deleted > 0) { onApply() }.padding(12.dp),
+    )
 }

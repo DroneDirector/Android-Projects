@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: new Proxy tab next to Media — add only the clips you want, switch Proxy on or off, choose 360p / 540p / 720p / 1080p; proxies are made in the background with progress and cancel, stay in sync with the originals (same timing, frame rate, orientation and sound), fall back to the original if missing or broken, and exports always use the original files. Replaces the old automatic preview copies.
 
 ## 1.0.268 — 2026-10-19
 - Photo editor: tested with a real Mavic 3 Pro DNG — the drone's vignetting correction (stored per colour after the lens profile) is now applied, so corners are no longer dark; the drone name now comes from the photo itself (e.g. "Mavic 3 Pro" instead of "Mavic 3").

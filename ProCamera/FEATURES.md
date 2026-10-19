@@ -145,7 +145,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Skip to the editor** from the start page: open an empty timeline without picking a video first (manual, every time).
 - Add clips from the gallery or files (MP4, MKV, MOV, WebM, SD card / USB).
 - Export to internal storage, an SD card / USB drive or a picked folder on any external drive (own SAVE LOCATION, or the same as capture).
-- **4:2:2 / 4:4:4 footage**: detected from the stream, decoded with whichever decoder on the phone can read it (hardware, then Android's software decoder), automatic preview copy, export from the original.
+- **4:2:2 / 4:4:4 footage**: detected from the stream, decoded with whichever decoder on the phone can read it (hardware, then Android's software decoder), plays directly (with the right decoder) or from a proxy, export from the original.
 - **Media pool** with codec, HDR / 10-bit badges; delete from the pool with confirmation.
 - **Multi-track timeline** starting at the left edge: filmstrips, layer rows and audio rows; drag the playhead or tap the ruler; two-finger pinch zoom and scroll; follows the playhead while playing.
 - Under the player: **mute, zoom out, show whole timeline, zoom in, split, undo, redo**, previous / play / next, full screen.
@@ -159,7 +159,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Hold-and-drag on the timeline**: move layers and audio in time, drag layers up / down to reorder, hold an edge to trim or extend.
 - **Audio in the media pool** (MP3, WAV, AAC…): add to the timeline at the playhead — the first becomes the music track, more become extra audio tracks with volume and fades.
 - Gapless clip-to-clip playback; **full-screen player** with auto-hiding controls.
-- **Preview copies** (optimized media) for heavy HDR / 10-bit / 4K clips, made in the background; choose Auto / Always / Off, H.264 or HEVC, 720p or 1080p.
+- **Proxy media**: a Proxy section next to Media — only media added there plays from a proxy; Proxy ON / OFF switch; 360p, 540p, 720p or 1080p (H.264 or HEVC), remade in the background when the quality changes; background generation with progress and cancel; proxies linked to their originals by a stable media ID and checked for matching length, frame rate, orientation and audio, so switching never shifts edits; missing, unfinished or failing proxies fall back to the original (never a blank frame); lighter timeline thumbnails and filmstrips from proxies; exports always use the originals.
 - Grade preview drawn on screen (Android 13+) for smooth, instant playback; exports use the full pipeline.
 
 ### Pro editing

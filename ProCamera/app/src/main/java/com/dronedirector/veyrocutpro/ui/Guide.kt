@@ -206,7 +206,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Video editor tips", Icons.Filled.Movie, null, listOf(
-            "4:2:2 footage (10-bit 4:2:2 H.264 / H.265 from Sony, Panasonic, Canon, Fujifilm, DJI…): the Media page shows a 4:2:2 badge. The editor finds a decoder on your phone that can read it, edits with a smooth preview copy and exports from the original (as 4:2:0 — phone encoders don't make 4:2:2). If no decoder on the phone can read it, the clip is marked in red.",
+            "4:2:2 footage (10-bit 4:2:2 H.264 / H.265 from Sony, Panasonic, Canon, Fujifilm, DJI…): the Media page shows a 4:2:2 badge. The editor finds a decoder on your phone that can read it, plays it directly (add it to the Proxy tab for smoother editing) and exports from the original (as 4:2:0 — phone encoders don't make 4:2:2). If no decoder on the phone can read it, the clip is marked in red.",
             "Media → MULTICAM (with 2 or more clips in the pool): pick 2–4 angles filmed at the same time — the first is the main angle for sound and timing — then SYNC BY SOUND & START. Tap an angle to start on it, press PLAY and tap angles while it plays to cut between them. DONE adds the edit to the end of the timeline.",
             "Audio → SYNC (on any audio track) or ⇆ SYNC TO THE SELECTED CLIP (music track): lines sound from an external recorder or wireless mic up with the selected clip by matching the sound. A clap at the start of the take makes it bulletproof.",
             "Layers → DRONE TELEMETRY: select the drone clip, choose what to show (altitude, speed, GPS, camera) and LOAD FLIGHT DATA (.SRT) — pick the .SRT your DJI drone saved next to the video. The read-out follows the clip's trim and speed.",
@@ -246,7 +246,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Media → Audio adds music and sound files to the media pool; ADD TO TIMELINE places them at the playhead.",
             "Edit → Crop & zoom: pinch, drag and twist on the player; Ken Burns animates start → end.",
             "COPY / PASTE SETTINGS copies a clip's grade, audio and more to other clips (or all clips).",
-            "Heavy clips (HDR, 10-bit, 4K) get a light preview copy for smooth playback; exports use the originals.",
+            "Proxy tab (next to Media): add the clips you want to edit smoothly (or ADD ALL MEDIA), switch Proxy ON / OFF, and pick the quality — 360p, 540p, 720p or 1080p. Proxies are made in the background with a progress bar and CANCEL; the original plays until a proxy is ready, and if a proxy is missing or fails, the original is used. Changing quality remakes the proxies (the old ones are used meanwhile). Proxies keep the original's timing, frame rate, orientation and sound, so switching never moves your edits. Exports always use the original files.",
             "If playback stalls, turn on \"Show playback info\" here and share a screenshot.",
             "Hold a divider to resize the player, timeline or controls; double-tap to reset.",
             "Layers → Adjustment: one grade over every clip in its time range (e.g. a look for a whole scene); set its length on the timeline and its strength.",

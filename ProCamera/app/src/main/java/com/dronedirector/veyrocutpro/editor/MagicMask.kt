@@ -233,6 +233,27 @@ class MaskTrack(val times: LongArray, val entries: Array<MaskEntry>) {
 object FrameReader {
     /** Calls [onFrame] for the frames from [fromMs] to [toMs], at least [stepMs] apart; return false from it to stop. */
     fun read(context: Context, uri: Uri, fromMs: Long, toMs: Long, maxSide: Int, stepMs: Long, onFrame: (Long, Bitmap) -> Boolean) {
+        var count = 0; var stopped = false
+        try {
+            readCodec(context, uri, fromMs, toMs, maxSide, stepMs) { t, b -> count++; val go = onFrame(t, b); if (!go) stopped = true; go }
+        } catch (e: Throwable) { android.util.Log.w("FrameReader", "decoder path failed: ${e.message}") }
+        if (count > 0 || stopped) return
+        // Some decoders (e.g. emulators) don't hand out frames as images: read them one by one instead.
+        val mmr = android.media.MediaMetadataRetriever()
+        try {
+            mmr.setDataSource(context, uri)
+            var t = fromMs
+            while (t <= toMs) {
+                val b = mmr.getFrameAtTime(t * 1000, android.media.MediaMetadataRetriever.OPTION_CLOSEST) ?: break
+                val k = min(1f, maxSide.toFloat() / max(b.width, b.height))
+                val sb = if (k < 1f) Bitmap.createScaledBitmap(b, (b.width * k).roundToInt().coerceAtLeast(2), (b.height * k).roundToInt().coerceAtLeast(2), true) else b
+                if (!onFrame(t, sb.copy(Bitmap.Config.ARGB_8888, false))) break
+                t += stepMs + 1
+            }
+        } catch (_: Throwable) {} finally { try { mmr.release() } catch (_: Throwable) {} }
+    }
+
+    private fun readCodec(context: Context, uri: Uri, fromMs: Long, toMs: Long, maxSide: Int, stepMs: Long, onFrame: (Long, Bitmap) -> Boolean) {
         val ex = MediaExtractor()
         ex.setDataSource(context, uri, null)
         var track = -1; var fmt: MediaFormat? = null
@@ -262,8 +283,8 @@ object FrameReader {
                     if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outDone = true
                     val t = info.presentationTimeUs / 1000
                     if (info.size > 0 && t >= next && t <= toMs) {
-                        val img = codec.getOutputImage(oi)
-                        val bmp = img?.let { toBitmap(it, maxSide, rotation) }
+                        val img = try { codec.getOutputImage(oi) } catch (_: Throwable) { null }
+                        val bmp = try { img?.let { toBitmap(it, maxSide, rotation) } } catch (_: Throwable) { null }
                         img?.close()
                         codec.releaseOutputBuffer(oi, false)
                         if (bmp != null) { next = t + stepMs; if (!onFrame(t, bmp)) outDone = true }
@@ -312,6 +333,9 @@ object FrameReader {
     fun frameAt(context: Context, uri: Uri, srcMs: Long, maxSide: Int): Bitmap? {
         var out: Bitmap? = null
         read(context, uri, srcMs, srcMs + 1000, maxSide, 1) { _, b -> out = b; false }
+        if (out != null) return out
+        // Past the last frame: the last one there is.
+        read(context, uri, (srcMs - 500).coerceAtLeast(0), srcMs, maxSide, 1) { _, b -> out = b; true }
         return out
     }
 }

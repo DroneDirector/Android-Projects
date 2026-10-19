@@ -25,7 +25,7 @@ object Merge {
         if (uris.size < 2) return null
         if (kind == MergeKind.PANORAMA) {
             onProgress("Loading photos…")
-            val frames = uris.mapNotNull { GradeIO.decode(context, it, 2400)?.let { b -> com.dronedirector.veyrocutpro.camera.Panorama.prepareFrame(b, 0) } }
+            val frames = uris.mapNotNull { decodeAny(context, it, 2400)?.let { b -> com.dronedirector.veyrocutpro.camera.Panorama.prepareFrame(b, 0) } }
             if (frames.size < 2) return null
             onProgress("Stitching…")
             // Field of view from the first photo's lens info (35 mm equivalent), else a typical phone lens.
@@ -37,7 +37,7 @@ object Merge {
         }
         onProgress("Loading photos…")
         val maxPx = 2200
-        val imgs = uris.take(if (kind == MergeKind.FOCUS) 6 else 5).mapNotNull { GradeIO.decode(context, it, maxPx) }
+        val imgs = uris.take(if (kind == MergeKind.FOCUS) 6 else 5).mapNotNull { decodeAny(context, it, maxPx) }
         if (imgs.size < 2) return null
         val w = imgs.minOf { it.width }; val h = imgs.minOf { it.height }
         val px = imgs.map { b -> IntArray(w * h).also { (if (b.width == w && b.height == h) b else Bitmap.createScaledBitmap(b, w, h, true)).getPixels(it, 0, w, 0, 0, w, h) } }
@@ -187,3 +187,10 @@ object Merge {
     @Suppress("unused")
     private fun draw(b: Bitmap) = Canvas(b).drawColor(0, android.graphics.PorterDuff.Mode.CLEAR).also { Paint() }
 }
+
+/** A photo for merging; DNGs (e.g. drone AEB brackets) are developed from the RAW data, not their small preview. */
+private fun decodeAny(context: android.content.Context, uri: android.net.Uri, maxPx: Int): android.graphics.Bitmap? =
+    try {
+        if (RawDng.isDng(context, uri)) RawDng.export(context, RawDng.open(context, uri), RawDng.Dev(), 0f, 0f, 0f, 0f, 0f, 0f, 0f, maxPx)
+        else GradeIO.decode(context, uri, maxPx)
+    } catch (_: RawDng.UnsupportedRaw) { GradeIO.decode(context, uri, maxPx) } catch (_: OutOfMemoryError) { GradeIO.decode(context, uri, maxPx) }

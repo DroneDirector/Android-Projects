@@ -158,6 +158,10 @@ object RawDng {
         internal val ops1: List<Op> = emptyList(), internal val ops2: List<Op> = emptyList(),
         internal val warp: Warp? = null, internal val vignette: DoubleArray? = null,
         val info: List<Pair<String, String>> = emptyList(),
+        /** DJI drones: lens calibration from the XMP (fx, fy, cx, cy offsets, k1, k2, p1, p2, k3), not yet applied. */
+        internal val dewarp: DoubleArray? = null,
+        /** DJI drones: flight / gimbal metadata from the XMP. */
+        val drone: Map<String, String> = emptyMap(),
     ) {
         /** Grey-world white balance from the preview, filled in by [preview]. */
         @Volatile internal var autoMul: FloatArray? = null
@@ -166,7 +170,8 @@ object RawDng {
         /** The file has its own camera profile (tone curve / colour tables). */
         val hasCameraProfile: Boolean get() = hueSat != null || look != null || toneCurve != null
         /** The file carries lens corrections (distortion, colour fringing, vignetting). */
-        val hasLensOps: Boolean get() = warp != null || vignette != null
+        val hasLensOps: Boolean get() = warp != null || vignette != null || dewarp != null
+        val isDji: Boolean get() = drone.isNotEmpty()
     }
 
     internal class GainMap(
@@ -327,6 +332,34 @@ object RawDng {
             if (vig != null) "vignetting" else null,
             if (ops1.any { it.id == 4 || it.id == 5 }) "bad-pixel fix" else null,
         )
+        // DJI drones: their own metadata block (drone-dji) in the XMP.
+        val xmp = ifd0.raw(700)?.let { String(it, Charsets.UTF_8) } ?: ""
+        val drone = LinkedHashMap<String, String>()
+        if (xmp.contains("drone-dji")) {
+            Regex("drone-dji:(\\w+)=\"([^\"]*)\"").findAll(xmp).forEach { drone[it.groupValues[1]] = it.groupValues[2] }
+            Regex("<drone-dji:(\\w+)>([^<]*)</drone-dji:\\w+>").findAll(xmp).forEach { drone[it.groupValues[1]] = it.groupValues[2] }
+        }
+        var dewarp: DoubleArray? = null
+        if (drone.isNotEmpty()) {
+            val model = ifd0.text(272) ?: ""
+            info.add(0, "Drone" to (djiName(model)?.let { "$it ($model)" } ?: "DJI $model"))
+            fun d(k: String) = drone[k]?.trim()?.removePrefix("+")?.toDoubleOrNull()
+            d("RelativeAltitude")?.let { info += "Height (take-off)" to "%.1f m".format(it) }
+            d("AbsoluteAltitude")?.let { info += "Altitude (sea level)" to "%.1f m".format(it) }
+            val lat = d("GpsLatitude"); val lon = d("GpsLongitude") ?: d("GpsLongtitude")
+            if (lat != null && lon != null && (lat != 0.0 || lon != 0.0)) info += "GPS" to "%.6f, %.6f".format(java.util.Locale.US, lat, lon)
+            d("GimbalPitchDegree")?.let { info += "Gimbal pitch" to "%.1f°".format(it) }
+            d("GimbalYawDegree")?.let { info += "Gimbal yaw" to "%.1f°".format(it) }
+            d("FlightYawDegree")?.let { info += "Drone heading" to "%.1f°".format(it) }
+            val sp = listOfNotNull(d("FlightXSpeed"), d("FlightYSpeed"), d("FlightZSpeed"))
+            if (sp.size == 3) info += "Flight speed" to "%.1f m/s".format(kotlin.math.sqrt(sp.sumOf { it * it }))
+            // Lens calibration ("date;fx,fy,cx,cy,k1,k2,p1,p2,k3"); DewarpFlag 1 = already corrected.
+            val flag = d("DewarpFlag")?.toInt() ?: 0
+            drone["DewarpData"]?.substringAfter(';')?.split(',')?.mapNotNull { it.trim().toDoubleOrNull() }?.takeIf { it.size >= 9 && it[0] > 100 }?.let { v ->
+                if (flag == 0 && warp == null) { dewarp = v.take(9).toDoubleArray(); info += "Lens calibration" to "DJI calibration in the file (applied)" }
+                else if (flag == 1) info += "Lens calibration" to "already corrected by the drone"
+            }
+        }
         if (extras.isNotEmpty()) info += "Corrections in the file" to extras.joinToString(", ")
 
         Meta(
@@ -344,8 +377,22 @@ object RawDng {
             baselineOffset = tag(51109)?.firstOrNull()?.toFloat() ?: 0f,
             profileName = ifd0.text(50936),
             ops1 = ops1, ops2 = ops2.filter { it.id != 9 }, warp = warp, vignette = vig, info = info,
+            dewarp = dewarp, drone = drone,
         )
     }
+
+    /** DJI camera model codes → drone names (the DNG only carries the camera code). */
+    private fun djiName(model: String): String? = mapOf(
+        "FC220" to "Mavic Pro", "FC2103" to "Mavic Air", "FC3170" to "Mavic Air 2", "FC3411" to "Air 2S",
+        "FC8282" to "Air 3", "FC8284" to "Air 3 (tele)", "FC9113" to "Air 3S", "FC9184" to "Air 3S (tele)",
+        "FC7203" to "Mavic Mini", "FC7303" to "Mini 2", "FC3582" to "Mini 3 Pro", "FC3682" to "Mini 3", "FC8482" to "Mini 4 Pro",
+        "FC1102" to "Spark", "FC6310" to "Phantom 4 Pro", "FC6310S" to "Phantom 4 Pro V2", "FC330" to "Phantom 4",
+        "L1D-20c" to "Mavic 2 Pro", "FC2204" to "Mavic 2 Zoom", "L2D-20c" to "Mavic 3", "FC4170" to "Mavic 3 Classic",
+        "FC4370" to "Mavic 3 Pro", "FC4382" to "Mavic 3 Pro (tele)", "FC4280" to "Mavic 3 Pro (medium tele)",
+        "FC4170A" to "Mavic 3 Classic", "M3E" to "Mavic 3 Enterprise", "M3T" to "Mavic 3 Thermal", "M3M" to "Mavic 3 Multispectral",
+        "FC7703" to "Avata", "FC8671" to "Avata 2", "FC3277" to "DJI FPV", "FC9813" to "Neo",
+        "ZH20T" to "Zenmuse H20T", "ZH20" to "Zenmuse H20", "ZenmuseP1" to "Zenmuse P1", "FC6520" to "Zenmuse X5S", "FC6540" to "Zenmuse X7",
+    )[model.trim()]
 
     private fun illumK(code: Int): Int = when (code) {
         17, 3, 24 -> 2856; 18 -> 4874; 19 -> 6774; 20 -> 5503; 21, 10 -> 6504; 22, 11 -> 7504; 23 -> 5003
@@ -1147,6 +1194,41 @@ object RawDng {
         return out
     }
 
+    /**
+     * DJI lens calibration (Brown–Conrady: fx, fy, cx, cy from the centre, k1, k2, p1, p2, k3,
+     * measured at [refW]×[refH]): every output pixel is taken from where the lens put it.
+     */
+    private fun dewarp(px: IntArray, w: Int, h: Int, d: DoubleArray, refW: Int, refH: Int): IntArray {
+        val sx = w.toDouble() / refW; val sy = h.toDouble() / refH
+        val fx = d[0] * sx; val fy = d[1] * sy
+        val cx = w / 2.0 + d[2] * sx; val cy = h / 2.0 + d[3] * sy
+        val k1 = d[4]; val k2 = d[5]; val p1 = d[6]; val p2 = d[7]; val k3 = d[8]
+        val out = IntArray(w * h)
+        for (v in 0 until h) {
+            val y = (v - cy) / fy
+            for (u in 0 until w) {
+                val x = (u - cx) / fx
+                val r2 = x * x + y * y
+                val rad = 1 + r2 * (k1 + r2 * (k2 + r2 * k3))
+                val xd = x * rad + 2 * p1 * x * y + p2 * (r2 + 2 * x * x)
+                val yd = y * rad + p1 * (r2 + 2 * y * y) + 2 * p2 * x * y
+                val xs = xd * fx + cx; val ys = yd * fy + cy
+                val x0 = kotlin.math.floor(xs).toInt(); val y0 = kotlin.math.floor(ys).toInt()
+                val ax = (xs - x0).toFloat(); val ay = (ys - y0).toFloat()
+                fun at(xx: Int, yy: Int) = px[yy.coerceIn(0, h - 1) * w + xx.coerceIn(0, w - 1)]
+                val c00 = at(x0, y0); val c10 = at(x0 + 1, y0); val c01 = at(x0, y0 + 1); val c11 = at(x0 + 1, y0 + 1)
+                var res = 0xFF shl 24
+                for (sh in intArrayOf(16, 8, 0)) {
+                    val a = ((c00 shr sh) and 0xFF) * (1 - ax) + ((c10 shr sh) and 0xFF) * ax
+                    val b = ((c01 shr sh) and 0xFF) * (1 - ax) + ((c11 shr sh) and 0xFF) * ax
+                    res = res or ((a * (1 - ay) + b * ay).roundToInt().coerceIn(0, 255) shl sh)
+                }
+                out[v * w + u] = res
+            }
+        }
+        return out
+    }
+
     /** Pre-computed develop: white balance, colour matrix, camera profile, exposure and tone. */
     private class Pipe(val m: Meta, dev: Dev, exposure: Float, highlights: Float, shadows: Float, whites: Float, blacks: Float, temp: Float, tint: Float) {
         val col = colour(m, dev, temp, tint)
@@ -1243,6 +1325,10 @@ object RawDng {
             val (cx, cy) = orientCentre(m.orientation, wp.cx, wp.cy)
             out = warp(out, src.w, src.h, wp, cx, cy)
         } catch (_: OutOfMemoryError) {}
+        val dw = m.dewarp
+        if (dw != null && !dev.lensOff && m.orientation <= 1) try {
+            out = dewarp(out, src.w, src.h, dw, m.cropW, m.cropH)
+        } catch (_: OutOfMemoryError) {}
         return Bitmap.createBitmap(out, src.w, src.h, Bitmap.Config.ARGB_8888)
     }
 
@@ -1288,6 +1374,14 @@ object RawDng {
             bmp.recycle()
             val o = warp(px, w, h, wp, wp.cx, wp.cy)
             bmp = Bitmap.createBitmap(o, w, h, Bitmap.Config.ARGB_8888)
+        } catch (_: OutOfMemoryError) {}
+        // DJI drones: the lens calibration from the file.
+        val dw = m.dewarp
+        if (dw != null && !dev.lensOff) try {
+            val w = bmp.width; val h = bmp.height
+            val px = IntArray(w * h); bmp.getPixels(px, 0, w, 0, 0, w, h)
+            bmp.recycle()
+            bmp = Bitmap.createBitmap(dewarp(px, w, h, dw, m.cropW, m.cropH), w, h, Bitmap.Config.ARGB_8888)
         } catch (_: OutOfMemoryError) {}
         // Upright, then fit the export size.
         val mx = Matrix()

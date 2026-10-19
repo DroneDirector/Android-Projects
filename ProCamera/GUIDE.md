@@ -86,6 +86,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 **RAW (DNG) photos**
 - Open a DNG (from VeyroCut Pro's Pro mode or any phone / camera that saves DNG) and the RAW badge appears: the editor develops the sensor data itself.
 - Light → RAW PROFILE picks the base look: Standard, Flat (most room for grading), Vivid, Portrait, Landscape or Mono.
+- DJI drone RAW (DNG from Mini, Air, Mavic, Avata, Phantom, Neo and Zenmuse cameras): opens with the drone's own lens calibration applied (switch: Lens corrections from the file), and RAW INFO shows the drone, height, altitude, GPS, gimbal pitch / yaw, heading and speed. Start page → MERGE PHOTOS develops DNG AEB brackets and panorama sets from the RAW data.
 - RAW goes further: DNGs from other cameras and apps open too — Fujifilm X-Trans and Quad Bayer sensors, lossy and Deflate-compressed DNGs, and 16 / 24 / 32-bit floating-point HDR DNGs (e.g. HDR merges from Lightroom).
 - Light → RAW PROFILE → Camera uses the camera maker's own profile stored in the DNG (its colour tables and tone curve), when the file has one.
 - Light → Lens corrections from the file: the distortion, colour fringing and vignetting fixes the phone or camera recorded in the DNG — on by default, switch off to see the uncorrected picture. RAW INFO lists the camera, lens, exposure, sensor and what the file contains.

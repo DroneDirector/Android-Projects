@@ -19,6 +19,7 @@ import com.google.mlkit.vision.segmentation.Segmenter
 import com.google.mlkit.vision.segmentation.selfie.SelfieSegmenterOptions
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.max
 
 /**
  * Background removal (Color → Detail → BACKGROUND, or a video layer's REMOVE BACKGROUND).
@@ -73,7 +74,8 @@ private class BgRemoveProgram(
     private var maskBytes: ByteBuffer? = null
     private var maskW = 0; private var maskH = 0
     private var t0 = Long.MIN_VALUE
-    private val trackBuf = track?.let { ByteArray(it.w * it.h) }
+    private var rect = floatArrayOf(0f, 0f, 1f, 1f)
+    private var lastEntry: MaskEntry? = null
     private val segmenter: Segmenter? = if (track == null) Segmentation.getClient(
         SelfieSegmenterOptions.Builder().setDetectorMode(SelfieSegmenterOptions.STREAM_MODE).enableRawSizeMask().build()
     ) else null
@@ -144,13 +146,17 @@ private class BgRemoveProgram(
     /** Magic Mask: the tracked outline at this frame's source time. */
     private fun tracked(presentationTimeUs: Long) {
         val t = track ?: return
-        val buf = trackBuf ?: return
         if (t0 == Long.MIN_VALUE) t0 = presentationTimeUs
         val src = srcAt?.invoke((presentationTimeUs - t0) / 1000) ?: ((presentationTimeUs - t0) / 1000)
-        t.at(src, buf)
-        val bytes = maskBytes?.takeIf { it.capacity() == buf.size } ?: ByteBuffer.allocateDirect(buf.size).also { maskBytes = it }
-        bytes.clear(); bytes.put(buf); bytes.rewind()
-        uploadMask(bytes, t.w, t.h)
+        val e = t.at(src)
+        if (e === lastEntry && maskTex != 0) return
+        lastEntry = e
+        // Not in the picture: an all-clear mask.
+        val w = if (e.empty) 1 else e.w; val h = if (e.empty) 1 else e.h
+        val bytes = maskBytes?.takeIf { it.capacity() >= w * h } ?: ByteBuffer.allocateDirect(max(w * h, 1)).also { maskBytes = it }
+        bytes.clear(); if (e.empty) bytes.put(0.toByte()) else bytes.put(e.bytes); bytes.rewind()
+        rect = if (e.empty) floatArrayOf(0f, 0f, 1f, 1f) else e.rect
+        uploadMask(bytes, w, h)
     }
 
     override fun drawFrame(inputTexId: Int, presentationTimeUs: Long) {
@@ -166,6 +172,7 @@ private class BgRemoveProgram(
             program.setFloatsUniform("uColor", floatArrayOf(((color shr 16) and 255) / 255f, ((color shr 8) and 255) / 255f, (color and 255) / 255f))
             program.setFloatsUniform("uTexel", floatArrayOf(1f / w, 1f / h))
             program.setFloatsUniform("uMaskSize", floatArrayOf(maskW.coerceAtLeast(1).toFloat(), maskH.coerceAtLeast(1).toFloat()))
+            program.setFloatsUniform("uRect", rect)
             program.bindAttributesAndUniforms()
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
         } catch (e: GlUtil.GlException) { throw VideoFrameProcessingException(e) }
@@ -208,18 +215,24 @@ private class BgRemoveProgram(
             uniform vec3 uColor;
             uniform vec2 uTexel;
             uniform vec2 uMaskSize;
+            uniform vec4 uRect;
             varying vec2 vUv;
             // Joint bilateral upsampling: the mask's own pixels, weighted by how alike their colour is to this pixel.
+            // The mask covers uRect of the picture (a close-up round the object); outside it is empty.
             float maskAt(vec2 uv, vec3 c) {
                 vec2 iuv = vec2(uv.x, 1.0 - uv.y);
-                vec2 p = iuv * uMaskSize - 0.5;
+                vec2 rs = uRect.zw - uRect.xy;
+                vec2 muv = (iuv - uRect.xy) / rs;
+                if (muv.x < 0.0 || muv.y < 0.0 || muv.x > 1.0 || muv.y > 1.0) return 0.0;
+                vec2 p = muv * uMaskSize - 0.5;
                 vec2 b = floor(p);
                 float s = 0.0; float ws = 0.0;
                 for (int j = -1; j <= 2; j++) {
                     for (int i = -1; i <= 2; i++) {
                         vec2 q = b + vec2(float(i), float(j));
                         vec2 qu = (clamp(q, vec2(0.0), uMaskSize - 1.0) + 0.5) / uMaskSize;
-                        vec3 qc = texture2D(uTex, vec2(qu.x, 1.0 - qu.y)).rgb;
+                        vec2 qi = uRect.xy + qu * rs;
+                        vec3 qc = texture2D(uTex, vec2(qi.x, 1.0 - qi.y)).rgb;
                         vec2 d = q - p;
                         vec3 dc = qc - c;
                         float wgt = exp(-dot(d, d) * 0.5 - dot(dc, dc) * 40.0);

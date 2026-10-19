@@ -28,12 +28,14 @@ object CutoutPreview {
         uniform shader mask;
         uniform float2 uSize;
         uniform float2 uMaskSize;
+        uniform float4 uRect;
         uniform float uMode;
         uniform float uInvert;
         uniform float3 uColor;
         half4 main(float2 p) {
             half4 c = content.eval(p);
-            float m = float(mask.eval(p / uSize * uMaskSize).r);
+            float2 muv = (p / uSize - uRect.xy) / (uRect.zw - uRect.xy);
+            float m = (muv.x < 0.0 || muv.y < 0.0 || muv.x > 1.0 || muv.y > 1.0) ? 0.0 : float(mask.eval(muv * uMaskSize).r);
             m = smoothstep(0.25, 0.75, m);
             if (uInvert > 0.5) m = 1.0 - m;
             if (uMode < 0.5) return c * half(m);
@@ -56,18 +58,23 @@ object CutoutPreview {
     private val segmenter by lazy {
         Segmentation.getClient(SelfieSegmenterOptions.Builder().setDetectorMode(SelfieSegmenterOptions.STREAM_MODE).enableRawSizeMask().build())
     }
-    private val trackBufs = HashMap<String, Pair<ByteArray, Bitmap>>()
+    private val entryBitmaps = WeakHashMap<MaskEntry, Bitmap>()
+    private val blank: Bitmap by lazy { Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888).apply { setPixel(0, 0, 0xFF000000.toInt()) } }
 
     /** The cut-out for [v] showing [bg]; [srcMs] = the shown frame's source time (Magic Mask). Call on the main thread. */
     fun effect(context: Context, v: View, bg: BgRemoval?, magic: MagicSel?, invert: Boolean, srcMs: Long): RenderEffect? {
         if (!supported || bg == null || v.width <= 0 || v.height <= 0) return null
+        var rect = floatArrayOf(0f, 0f, 1f, 1f)
         val mask: Bitmap = if (magic != null) {
             val t = MaskTrack.load(context, magic.id) ?: return null
-            val (buf, bmp) = trackBufs.getOrPut(magic.id) { ByteArray(t.w * t.h) to Bitmap.createBitmap(t.w, t.h, Bitmap.Config.ARGB_8888) }
-            t.at(srcMs, buf)
-            val px = IntArray(buf.size) { val g = buf[it].toInt() and 255; (0xFF shl 24) or (g shl 16) or (g shl 8) or g }
-            bmp.setPixels(px, 0, t.w, 0, 0, t.w, t.h)
-            bmp
+            val e = t.at(srcMs)
+            if (e.empty) blank else {
+                rect = e.rect
+                entryBitmaps.getOrPut(e) {
+                    val px = IntArray(e.bytes.size) { val g = e.bytes[it].toInt() and 255; (0xFF shl 24) or (g shl 16) or (g shl 8) or g }
+                    Bitmap.createBitmap(px, e.w, e.h, Bitmap.Config.ARGB_8888)
+                }
+            }
         } else {
             val st = live.getOrPut(v) { Live() }
             requestPeople(v, st)
@@ -77,6 +84,7 @@ object CutoutPreview {
         sh.setInputShader("mask", BitmapShader(mask, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply { filterMode = BitmapShader.FILTER_MODE_LINEAR })
         sh.setFloatUniform("uSize", v.width.toFloat(), v.height.toFloat())
         sh.setFloatUniform("uMaskSize", mask.width.toFloat(), mask.height.toFloat())
+        sh.setFloatUniform("uRect", rect[0], rect[1], rect[2], rect[3])
         sh.setFloatUniform("uMode", bg.mode.toFloat())
         sh.setFloatUniform("uInvert", if (invert) 1f else 0f)
         sh.setFloatUniform("uColor", ((bg.color shr 16) and 255) / 255f, ((bg.color shr 8) and 255) / 255f, (bg.color and 255) / 255f)

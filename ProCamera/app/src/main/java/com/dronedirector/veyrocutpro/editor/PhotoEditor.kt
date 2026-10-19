@@ -1035,6 +1035,7 @@ private fun PhotoWorkspace(
                                 busy = busy,
                                 onPickLogo = { pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                                 isRaw = rawOn(edit),
+                                rawMeta = if (rawOn(edit)) rawMeta else null,
                             )
                         }
                         if (panel == PhotoPanel.EFFECTS) { backgroundSection(); skySection() }
@@ -1140,6 +1141,7 @@ private fun PhotoPanelContent(
     busy: Boolean,
     onPickLogo: () -> Unit = {},
     isRaw: Boolean = false,
+    rawMeta: RawDng.Meta? = null,
 ) {
     val g = e.grade
     fun grade(f: (ProGrade) -> ProGrade) = set(e.copy(grade = f(g)))
@@ -1165,8 +1167,31 @@ private fun PhotoPanelContent(
         PhotoPanel.LIGHT -> {
             if (isRaw) {
                 SectionTitle("RAW PROFILE") { set(e.copy(raw = e.raw.copy(profile = 0))) }
-                Chips(RawDng.PROFILES.map { it.label }, e.raw.profile) { i -> set(e.copy(raw = e.raw.copy(profile = i))) }
+                // "Camera" (the maker's own profile in the file) only when the DNG has one.
+                val profs = RawDng.PROFILES.withIndex().filter { !it.value.camera || rawMeta?.hasCameraProfile == true }
+                Chips(profs.map { p -> if (p.value.camera) "Camera" + (rawMeta?.profileName?.let { " · " + it.take(18) } ?: "") else p.value.label },
+                    profs.indexOfFirst { it.index == e.raw.profile }.coerceAtLeast(0)) { i -> set(e.copy(raw = e.raw.copy(profile = profs[i].index))) }
                 Text("RAW (DNG): exposure, highlights, shadows, whites, blacks and white balance work on the sensor data, with headroom above white.", color = Pro.Dim, fontSize = 11.sp)
+                if (rawMeta?.hasLensOps == true) {
+                    Row(Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(10.dp)).background(Ed.Raised)
+                        .clickable { set(e.copy(raw = e.raw.copy(lensOff = !e.raw.lensOff))) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Lens corrections from the file", color = Color.White, fontSize = 14.sp)
+                            Text("Distortion, colour fringing and vignetting as the camera recorded them in the DNG.", color = Pro.Dim, fontSize = 11.sp)
+                        }
+                        androidx.compose.material3.Switch(checked = !e.raw.lensOff, onCheckedChange = { set(e.copy(raw = e.raw.copy(lensOff = !it))) },
+                            colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber))
+                    }
+                }
+                rawMeta?.info?.takeIf { it.isNotEmpty() }?.let { info ->
+                    SectionTitle("RAW INFO")
+                    info.forEach { (k, v) ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                            Text(k, color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.width(130.dp))
+                            Text(v, color = Color.White, fontSize = 12.sp)
+                        }
+                    }
+                }
             }
             SectionTitle("LIGHT") { grade { it.copy(exposure = 0f, contrast = 0f, highlights = 0f, shadows = 0f, whites = 0f, blacks = 0f) } }
             EdSlider("Exposure", g.exposure, if (isRaw) -5f..5f else -3f..3f, format = ::ev) { v -> grade { it.copy(exposure = v) } }

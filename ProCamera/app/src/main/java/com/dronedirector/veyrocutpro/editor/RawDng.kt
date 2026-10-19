@@ -33,9 +33,11 @@ object RawDng {
         val profile: Int = 0,
         /** Index into [WB_PRESETS]. */
         val wb: Int = 0,
+        /** Turn off the lens corrections stored in the file (distortion, colour fringing, vignetting). */
+        val lensOff: Boolean = false,
     )
 
-    class Profile(val label: String, val contrast: Float, val sat: Float, val knee: Float, val mono: Boolean = false)
+    class Profile(val label: String, val contrast: Float, val sat: Float, val knee: Float, val mono: Boolean = false, val camera: Boolean = false)
     val PROFILES = listOf(
         Profile("Standard", 0.22f, 1.10f, 0.74f),
         Profile("Flat", 0.0f, 0.96f, 0.60f),
@@ -43,6 +45,8 @@ object RawDng {
         Profile("Portrait", 0.12f, 1.02f, 0.70f),
         Profile("Landscape", 0.30f, 1.22f, 0.78f),
         Profile("Mono", 0.28f, 0f, 0.74f, mono = true),
+        /** The camera maker's own profile stored in the DNG (tone curve and colour tables). */
+        Profile("Camera", 0f, 1f, 0.92f, camera = true),
     )
     /** White balance presets; 0 = as shot, 1 = auto, others a colour temperature in Kelvin. */
     val WB_PRESETS = listOf("As shot" to 0, "Auto" to 0, "Daylight" to 5500, "Cloudy" to 6500, "Shade" to 7500, "Tungsten" to 2850, "Fluorescent" to 3800)
@@ -126,21 +130,43 @@ object RawDng {
         val width: Int, val height: Int,
         internal val spp: Int, internal val bps: Int, internal val compression: Int,
         internal val tileW: Int, internal val tileH: Int, internal val offsets: LongArray, internal val counts: LongArray, internal val rowsPerStrip: Int,
-        internal val cfa: IntArray?,
+        /** Colour filter pattern (0 R, 1 G, 2 B), [cfaW]×[cfaH], relative to the active area; null = linear RGB. */
+        internal val cfa: IntArray?, internal val cfaW: Int, internal val cfaH: Int,
         internal val blackRep: IntArray, internal val black: DoubleArray, internal val blackDH: DoubleArray?, internal val blackDV: DoubleArray?,
         internal val white: DoubleArray, internal val linTable: IntArray?,
+        internal val activeTop: Int, internal val activeLeft: Int,
         internal val cropTop: Int, internal val cropLeft: Int, val cropW: Int, val cropH: Int,
         internal val gainMaps: List<GainMap>,
-        /** XYZ → camera (3×3), or null. */
+        /** Daylight-ish XYZ → camera matrix (kept for presets), or null. */
         internal val colorMatrix: DoubleArray?,
         internal val asShot: DoubleArray,
         val baselineExposure: Float,
         val orientation: Int,
+        // ---- full DNG colour model
+        internal val sampleFormat: Int = 1, internal val predictor: Int = 1,
+        internal val cm1: DoubleArray? = null, internal val cm2: DoubleArray? = null,
+        internal val cc1: DoubleArray? = null, internal val cc2: DoubleArray? = null,
+        internal val fm1: DoubleArray? = null, internal val fm2: DoubleArray? = null,
+        internal val illum1: Int = 6504, internal val illum2: Int = 0,
+        internal val analog: DoubleArray? = null,
+        internal val asShotXY: DoubleArray? = null,
+        internal val hueSat: HsvTable? = null, internal val hueSat2: HsvTable? = null,
+        internal val look: HsvTable? = null,
+        internal val toneCurve: FloatArray? = null,
+        internal val baselineOffset: Float = 0f,
+        val profileName: String? = null,
+        internal val ops1: List<Op> = emptyList(), internal val ops2: List<Op> = emptyList(),
+        internal val warp: Warp? = null, internal val vignette: DoubleArray? = null,
+        val info: List<Pair<String, String>> = emptyList(),
     ) {
         /** Grey-world white balance from the preview, filled in by [preview]. */
         @Volatile internal var autoMul: FloatArray? = null
         /** Long side of the developed picture at full size. */
         val longSide: Int get() = max(cropW, cropH)
+        /** The file has its own camera profile (tone curve / colour tables). */
+        val hasCameraProfile: Boolean get() = hueSat != null || look != null || toneCurve != null
+        /** The file carries lens corrections (distortion, colour fringing, vignetting). */
+        val hasLensOps: Boolean get() = warp != null || vignette != null
     }
 
     internal class GainMap(
@@ -148,6 +174,20 @@ object RawDng {
         val rowPitch: Int, val colPitch: Int, val pv: Int, val ph: Int,
         val spV: Double, val spH: Double, val orV: Double, val orH: Double, val mapPlanes: Int, val gains: FloatArray,
     )
+
+    /** One DNG opcode (OpcodeList1 / 2) other than GainMap. */
+    internal class Op(
+        val id: Int, val top: Int, val left: Int, val bottom: Int, val right: Int, val plane: Int, val planes: Int,
+        val rowPitch: Int, val colPitch: Int,
+        val table: IntArray? = null, val poly: DoubleArray? = null, val values: FloatArray? = null,
+        val constant: Int = 0, val phase: Int = 0, val points: IntArray? = null, val rects: IntArray? = null,
+    )
+
+    /** WarpRectilinear (OpcodeList3): radial kr0..kr3 and tangential kt0, kt1 per plane, centre (0..1). */
+    internal class Warp(val coef: Array<DoubleArray>, val cx: Double, val cy: Double)
+
+    /** ProfileHueSatMap / ProfileLookTable: hue shift (degrees), saturation and value scales. */
+    internal class HsvTable(val hues: Int, val sats: Int, val vals: Int, val data: FloatArray, val srgbGamma: Boolean = false)
 
     /** True for files that look like DNGs (by name / type, confirmed by the DNGVersion tag). */
     fun isDng(context: Context, uri: Uri): Boolean = try {
@@ -162,17 +202,21 @@ object RawDng {
         }
     } catch (_: Throwable) { false }
 
+    private fun Ifd.text(t: Int): String? = raw(t)?.let { b -> String(b, Charsets.ISO_8859_1).trim('\u0000', ' ').takeIf { it.isNotEmpty() } }
+
     fun open(context: Context, uri: Uri): Meta = Src(context, uri).use { s ->
         val h = s.bytes(0, 8)
         val order = if (h[0] == 'M'.code.toByte()) ByteOrder.BIG_ENDIAN else ByteOrder.LITTLE_ENDIAN
         val first = ByteBuffer.wrap(h).order(order).getInt(4).toLong() and 0xFFFFFFFFL
         val all = ArrayList<Ifd>()
+        var exif: Ifd? = null
         fun walk(pos: Long, depth: Int) {
             var p = pos; var guard = 0
             while (p > 0 && guard++ < 16) {
                 val (ifd, next) = readIfd(s, p, order) ?: return
                 all += ifd
                 if (depth < 3) ifd.nums(330)?.forEach { walk(it.toLong(), depth + 1) }
+                if (exif == null) ifd.nums(34665)?.firstOrNull()?.let { e -> exif = readIfd(s, e.toLong(), order)?.first }
                 p = next
             }
         }
@@ -182,21 +226,33 @@ object RawDng {
             val pi = it.num(262).toInt()
             (it.num(254, 0.0).toInt() and 1) == 0 && (pi == 32803 || pi == 34892) && it.has(256)
         }.maxByOrNull { it.num(256) * it.num(257) } ?: throw UnsupportedRaw("No raw image in this DNG")
+        fun tag(t: Int) = rawIfd.nums(t) ?: ifd0.nums(t)
 
         val photometric = rawIfd.num(262).toInt()
         val spp = rawIfd.num(277, 1.0).toInt()
         val w = rawIfd.num(256).toInt(); val ht = rawIfd.num(257).toInt()
         val compression = rawIfd.num(259, 1.0).toInt()
-        if (compression != 1 && compression != 7) throw UnsupportedRaw("This DNG's compression isn't supported yet")
+        when (compression) {
+            1, 7, 8, 34892 -> {}
+            52546 -> throw UnsupportedRaw("JPEG XL DNG (newer iPhone ProRAW) can't be decoded on this phone yet")
+            else -> throw UnsupportedRaw("This DNG's compression ($compression) isn't supported yet")
+        }
         val bps = rawIfd.num(258, 16.0).toInt()
+        val sampleFormat = rawIfd.num(339, 1.0).toInt()
+        val predictor = rawIfd.num(317, 1.0).toInt()
         var cfa: IntArray? = null
+        var cfaW = 2; var cfaH = 2
         if (photometric == 32803) {
             if (spp != 1) throw UnsupportedRaw("Unusual sensor layout")
             val dim = rawIfd.nums(33421) ?: doubleArrayOf(2.0, 2.0)
+            cfaH = dim[0].toInt(); cfaW = dim[1].toInt()
+            if (cfaW !in 1..8 || cfaH !in 1..8) throw UnsupportedRaw("Unusual colour filter")
             val pat = rawIfd.nums(33422) ?: throw UnsupportedRaw("Missing colour filter pattern")
-            if (dim[0].toInt() != 2 || dim[1].toInt() != 2 || pat.size < 4) throw UnsupportedRaw("Only Bayer (2×2) sensors are supported")
-            cfa = IntArray(4) { pat[it].toInt() }
-            if (cfa.any { it !in 0..2 }) throw UnsupportedRaw("Unusual colour filter")
+            if (pat.size < cfaW * cfaH) throw UnsupportedRaw("Missing colour filter pattern")
+            // CFAPlaneColor maps plane numbers to R / G / B (default 0, 1, 2).
+            val planeColor = rawIfd.nums(50710)?.map { it.toInt() } ?: listOf(0, 1, 2)
+            cfa = IntArray(cfaW * cfaH) { planeColor.getOrElse(pat[it].toInt()) { pat[it].toInt() } }
+            if (cfa.any { it !in 0..2 } || (0..2).any { c -> c !in cfa }) throw UnsupportedRaw("Only red / green / blue colour filters are supported")
         } else if (spp != 3) throw UnsupportedRaw("Unusual sensor layout")
 
         val tiled = rawIfd.has(322)
@@ -205,7 +261,7 @@ object RawDng {
 
         val rep = rawIfd.nums(50713)?.map { it.toInt() }?.toIntArray() ?: intArrayOf(1, 1)
         val black = rawIfd.nums(50714) ?: ifd0.nums(50714) ?: doubleArrayOf(0.0)
-        val white = rawIfd.nums(50717) ?: ifd0.nums(50717) ?: doubleArrayOf(((1L shl bps) - 1).toDouble())
+        val white = rawIfd.nums(50717) ?: ifd0.nums(50717) ?: doubleArrayOf(if (sampleFormat == 3) 1.0 else ((1L shl bps.coerceAtMost(31)) - 1).toDouble())
         val lin = rawIfd.nums(50712)?.map { it.toInt() }?.toIntArray()
 
         // Active area, then the default crop inside it.
@@ -213,31 +269,81 @@ object RawDng {
         val aTop = aa?.getOrNull(0) ?: 0; val aLeft = aa?.getOrNull(1) ?: 0
         val aH = (aa?.getOrNull(2) ?: ht) - aTop; val aW = (aa?.getOrNull(3) ?: w) - aLeft
         val co = rawIfd.nums(50719); val cs = rawIfd.nums(50720)
-        val cTop = aTop + (co?.getOrNull(1)?.roundToInt() ?: 0)
-        val cLeft = aLeft + (co?.getOrNull(0)?.roundToInt() ?: 0)
-        val cW = (cs?.getOrNull(0)?.roundToInt() ?: aW).coerceAtMost(w - cLeft).coerceAtLeast(8)
-        val cH = (cs?.getOrNull(1)?.roundToInt() ?: aH).coerceAtMost(ht - cTop).coerceAtLeast(8)
+        var cTop = aTop + (co?.getOrNull(1)?.roundToInt() ?: 0)
+        var cLeft = aLeft + (co?.getOrNull(0)?.roundToInt() ?: 0)
+        var cW = (cs?.getOrNull(0)?.roundToInt() ?: aW).coerceAtMost(w - cLeft).coerceAtLeast(8)
+        var cH = (cs?.getOrNull(1)?.roundToInt() ?: aH).coerceAtMost(ht - cTop).coerceAtLeast(8)
+        // DefaultUserCrop (DNG 1.5): a further crop the camera / user set, as fractions.
+        rawIfd.nums(51125)?.takeIf { it.size >= 4 }?.let { uc ->
+            val t = (uc[0] * cH).roundToInt(); val l = (uc[1] * cW).roundToInt(); val b = (uc[2] * cH).roundToInt(); val r = (uc[3] * cW).roundToInt()
+            if (b - t >= 8 && r - l >= 8 && (t > 0 || l > 0 || b < cH || r < cW)) { cTop += t; cLeft += l; cW = r - l; cH = b - t }
+        }
 
+        val ops1 = parseOps(rawIfd.raw(51008) ?: ifd0.raw(51008))
+        val ops2 = parseOps(rawIfd.raw(51009) ?: ifd0.raw(51009))
         val gains = parseGainMaps(rawIfd.raw(51009) ?: ifd0.raw(51009))
+        val (warp, vig) = parseOps3(rawIfd.raw(51022) ?: ifd0.raw(51022))
 
-        // Colour: the matrix for daylight when there are two.
-        val cm1 = ifd0.nums(50721) ?: rawIfd.nums(50721)
-        val cm2 = ifd0.nums(50722) ?: rawIfd.nums(50722)
-        val il1 = ifd0.num(50778, 21.0).toInt(); val il2 = ifd0.num(50779, 21.0).toInt()
+        // Colour: both calibration illuminants, interpolated later by the picture's white.
+        fun m9(t: Int) = tag(t)?.takeIf { it.size >= 9 }?.copyOf(9)
+        val cm1 = m9(50721); val cm2 = m9(50722)
+        val il1 = illumK(ifd0.num(50778, 21.0).toInt()); val il2 = if (cm2 != null) illumK(ifd0.num(50779, 21.0).toInt()) else 0
         val cm = when {
-            cm1 != null && cm2 != null -> if (kotlin.math.abs(illumK(il2) - 6504) < kotlin.math.abs(illumK(il1) - 6504)) cm2 else cm1
+            cm1 != null && cm2 != null -> if (kotlin.math.abs(il2 - 6504) < kotlin.math.abs(il1 - 6504)) cm2 else cm1
             else -> cm1 ?: cm2
-        }?.takeIf { it.size >= 9 }
-        val asShot = (ifd0.nums(50728) ?: rawIfd.nums(50728))?.takeIf { it.size >= 3 && it.all { v -> v > 0 } } ?: doubleArrayOf(1.0, 1.0, 1.0)
-        val be = (ifd0.nums(50730) ?: rawIfd.nums(50730))?.firstOrNull()?.toFloat() ?: 0f
+        }
+        val asShot = tag(50728)?.takeIf { it.size >= 3 && it.all { v -> v > 0 } }
+        val asShotXY = tag(50729)?.takeIf { it.size >= 2 && it[0] > 0 && it[1] > 0 }
+        val be = tag(50730)?.firstOrNull()?.toFloat() ?: 0f
         val orient = ifd0.num(274, 1.0).toInt()
+
+        fun hsv(dimTag: Int, dataTag: Int, encTag: Int): HsvTable? {
+            val d = tag(dimTag) ?: return null
+            val data = tag(dataTag) ?: return null
+            val hn = d.getOrNull(0)?.toInt() ?: 0; val sn = d.getOrNull(1)?.toInt() ?: 0; val vn = (d.getOrNull(2)?.toInt() ?: 1).coerceAtLeast(1)
+            if (hn < 1 || sn < 2 || data.size < hn * sn * vn * 3) return null
+            return HsvTable(hn, sn, vn, FloatArray(hn * sn * vn * 3) { data[it].toFloat() }, srgbGamma = (tag(encTag)?.firstOrNull() ?: 0.0) == 1.0)
+        }
+        val curve = tag(50940)?.takeIf { it.size >= 4 }?.map { it.toFloat() }?.toFloatArray()
+
+        // Shooting details for the RAW INFO panel.
+        val info = ArrayList<Pair<String, String>>()
+        (ifd0.text(50708) ?: listOfNotNull(ifd0.text(271), ifd0.text(272)).joinToString(" ").ifBlank { null })?.let { info += "Camera" to it }
+        exif?.text(42036)?.let { info += "Lens" to it }
+        val ex = exif
+        if (ex != null) {
+            ex.nums(33434)?.firstOrNull()?.takeIf { it > 0 }?.let { info += "Shutter" to (if (it < 1) "1/${(1 / it).roundToInt()} s" else "%.1f s".format(it)) }
+            ex.nums(33437)?.firstOrNull()?.takeIf { it > 0 }?.let { info += "Aperture" to "f/%.1f".format(it) }
+            (ex.nums(34855) ?: ex.nums(34867))?.firstOrNull()?.takeIf { it > 0 }?.let { info += "ISO" to it.roundToInt().toString() }
+            ex.nums(37386)?.firstOrNull()?.takeIf { it > 0 }?.let { info += "Focal length" to "%.1f mm".format(it) }
+        }
+        info += "Sensor" to "${w}×${ht}, ${if (cfa == null) "linear RGB" else if (cfaW == 2 && cfaH == 2) "Bayer" else if (cfaW == 6 && cfaH == 6) "X-Trans 6×6" else if (cfaW == 4 && cfaH == 4) "Quad Bayer 4×4" else "${cfaW}×${cfaH} CFA"}, ${if (sampleFormat == 3) "$bps-bit float" else "$bps-bit"}"
+        info += "Compression" to when (compression) { 1 -> "Uncompressed"; 7 -> "Lossless JPEG"; 8 -> "Deflate" + if (sampleFormat == 3) " (floating point / HDR)" else ""; 34892 -> "Lossy JPEG"; else -> "$compression" }
+        ifd0.nums(50706)?.takeIf { it.size >= 2 }?.let { v -> info += "DNG version" to v.take(4).joinToString(".") { it.toInt().toString() } }
+        ifd0.text(50936)?.let { info += "Camera profile" to it }
+        val extras = listOfNotNull(
+            if (gains.isNotEmpty()) "lens shading" else null,
+            if (warp != null) (if (warp.coef.size >= 3) "distortion + colour fringing" else "distortion") else null,
+            if (vig != null) "vignetting" else null,
+            if (ops1.any { it.id == 4 || it.id == 5 }) "bad-pixel fix" else null,
+        )
+        if (extras.isNotEmpty()) info += "Corrections in the file" to extras.joinToString(", ")
 
         Meta(
             uri, order, w, ht, spp, bps, compression,
             if (tiled) rawIfd.num(322).toInt() else 0, if (tiled) rawIfd.num(323).toInt() else 0, offsets, counts,
             rawIfd.num(278, ht.toDouble()).toInt().coerceAtLeast(1),
-            cfa, rep, black, rawIfd.nums(50715), rawIfd.nums(50716), white, lin,
-            cTop, cLeft, cW, cH, gains, cm, asShot, be, orient,
+            cfa, cfaW, cfaH, rep, black, rawIfd.nums(50715), rawIfd.nums(50716), white, lin,
+            aTop, aLeft, cTop, cLeft, cW, cH, gains, cm, asShot ?: doubleArrayOf(1.0, 1.0, 1.0), be, orient,
+            sampleFormat = sampleFormat, predictor = predictor,
+            cm1 = cm1, cm2 = cm2, cc1 = m9(50723), cc2 = m9(50724), fm1 = m9(50964), fm2 = m9(50965),
+            illum1 = il1, illum2 = il2, analog = tag(50727)?.takeIf { it.size >= 3 },
+            asShotXY = if (asShot == null) asShotXY else null,
+            hueSat = hsv(50937, 50938, 51107), hueSat2 = hsv(50937, 50939, 51107)?.takeIf { cm2 != null },
+            look = hsv(50981, 50982, 51108), toneCurve = curve,
+            baselineOffset = tag(51109)?.firstOrNull()?.toFloat() ?: 0f,
+            profileName = ifd0.text(50936),
+            ops1 = ops1, ops2 = ops2.filter { it.id != 9 }, warp = warp, vignette = vig, info = info,
         )
     }
 
@@ -246,88 +352,243 @@ object RawDng {
         2, 14 -> 4200; 12 -> 6400; 13 -> 5000; 15 -> 3450; else -> 5500
     }
 
-    private fun parseGainMaps(b: ByteArray?): List<GainMap> {
+    /** Opcodes in a list (big-endian): count, then id, version, flags, size, parameters. */
+    private fun opcodes(b: ByteArray?): List<Pair<Int, ByteBuffer>> {
         if (b == null || b.size < 4) return emptyList()
         val bb = ByteBuffer.wrap(b).order(ByteOrder.BIG_ENDIAN)
-        val out = ArrayList<GainMap>()
+        val out = ArrayList<Pair<Int, ByteBuffer>>()
         try {
             val n = bb.int
-            repeat(n) {
+            repeat(n.coerceAtMost(256)) {
                 val id = bb.int; bb.int; bb.int; val size = bb.int
-                val start = bb.position()
-                if (id == 9) {
-                    val top = bb.int; val left = bb.int; val bottom = bb.int; val right = bb.int
-                    val plane = bb.int; val planes = bb.int; val rp = bb.int; val cp = bb.int
-                    val pv = bb.int; val ph = bb.int
-                    val sv = bb.double; val sh = bb.double; val ov = bb.double; val oh = bb.double
-                    val mp = bb.int
-                    val cnt = pv * ph * mp
-                    if (cnt in 1..1_000_000) {
-                        val g = FloatArray(cnt) { bb.float }
-                        out += GainMap(top, left, bottom, right, plane, planes, rp.coerceAtLeast(1), cp.coerceAtLeast(1), pv, ph, sv, sh, ov, oh, mp, g)
-                    }
-                }
-                bb.position(start + size)
+                if (size < 0 || size > bb.remaining()) return out
+                val p = ByteBuffer.wrap(b, bb.position(), size).slice().order(ByteOrder.BIG_ENDIAN)
+                out += id to p
+                bb.position(bb.position() + size)
             }
         } catch (_: Throwable) {}
+        return out
+    }
+
+    private fun parseOps(b: ByteArray?): List<Op> = opcodes(b).mapNotNull { (id, p) ->
+        try {
+            when (id) {
+                4 -> Op(id, 0, 0, Int.MAX_VALUE, Int.MAX_VALUE, 0, 1, 1, 1, constant = p.int, phase = p.int)
+                5 -> {
+                    val phase = p.int; val np = p.int; val nr = p.int
+                    if (np > 2_000_000 || nr > 200_000) null
+                    else Op(id, 0, 0, Int.MAX_VALUE, Int.MAX_VALUE, 0, 1, 1, 1, phase = phase,
+                        points = IntArray(np * 2) { p.int }, rects = IntArray(nr * 4) { p.int })
+                }
+                6 -> Op(id, p.int, p.int, p.int, p.int, 0, 0, 1, 1)
+                7, 8, 10, 11, 12, 13 -> {
+                    val top = p.int; val left = p.int; val bottom = p.int; val right = p.int
+                    val plane = p.int; val planes = p.int; val rp = p.int.coerceAtLeast(1); val cp = p.int.coerceAtLeast(1)
+                    when (id) {
+                        7 -> { val n = p.int; if (n !in 1..65536) null else Op(id, top, left, bottom, right, plane, planes, rp, cp, table = IntArray(n) { p.short.toInt() and 0xFFFF }) }
+                        8 -> { val d = p.int; if (d !in 0..8) null else Op(id, top, left, bottom, right, plane, planes, rp, cp, poly = DoubleArray(d + 1) { p.double }) }
+                        else -> { val n = p.int; if (n !in 1..200_000) null else Op(id, top, left, bottom, right, plane, planes, rp, cp, values = FloatArray(n) { p.float }) }
+                    }
+                }
+                else -> null   // 9 (GainMap) is read separately; unknown optional ops are skipped.
+            }
+        } catch (_: Throwable) { null }
+    }
+
+    private fun parseOps3(b: ByteArray?): Pair<Warp?, DoubleArray?> {
+        var warp: Warp? = null; var vig: DoubleArray? = null
+        for ((id, p) in opcodes(b)) try {
+            when (id) {
+                1 -> { val n = p.int; if (n in 1..4) { val c = Array(n) { DoubleArray(6) { p.double } }; warp = Warp(c, p.double, p.double) } }
+                3 -> vig = DoubleArray(7) { p.double }   // k0..k4, cx, cy
+            }
+        } catch (_: Throwable) {}
+        return warp to vig
+    }
+
+    private fun parseGainMaps(b: ByteArray?): List<GainMap> {
+        val out = ArrayList<GainMap>()
+        for ((id, bb) in opcodes(b)) {
+            if (id != 9) continue
+            try {
+                val top = bb.int; val left = bb.int; val bottom = bb.int; val right = bb.int
+                val plane = bb.int; val planes = bb.int; val rp = bb.int; val cp = bb.int
+                val pv = bb.int; val ph = bb.int
+                val sv = bb.double; val sh = bb.double; val ov = bb.double; val oh = bb.double
+                val mp = bb.int
+                val cnt = pv * ph * mp
+                if (cnt in 1..1_000_000) {
+                    val g = FloatArray(cnt) { bb.float }
+                    out += GainMap(top, left, bottom, right, plane, planes, rp.coerceAtLeast(1), cp.coerceAtLeast(1), pv, ph, sv, sh, ov, oh, mp, g)
+                }
+            } catch (_: Throwable) {}
+        }
         return out
     }
 
     // ------------------------------------------------------------------ sensor decode
 
     /** Normalised sensor values, cropped: 0..1 ⇒ 0..[ONE] (headroom for lens-shading gains). */
-    internal class Sensor(val w: Int, val h: Int, val spp: Int, val data: ShortArray, val cfa: IntArray?) {
+    internal class Sensor(val w: Int, val h: Int, val spp: Int, val data: ShortArray, val cfa: IntArray?, val cw: Int = 2, val ch: Int = 2) {
         fun v(i: Int): Float = (data[i].toInt() and 0xFFFF) / ONE
         /** Colour (0 R, 1 G, 2 B) at x, y. */
-        fun color(x: Int, y: Int): Int = cfa!![((y and 1) shl 1) or (x and 1)]
+        fun color(x: Int, y: Int): Int = cfa!![(y % ch) * cw + (x % cw)]
+        val bayer: Boolean get() = cfa != null && cw == 2 && ch == 2
     }
     private const val ONE = 16383f
+
+    private fun half(h: Int): Float {
+        val s = (h shr 15) and 1; val e = (h shr 10) and 0x1F; val m = h and 0x3FF
+        val v = when (e) { 0 -> m / 1024f * 2f.pow(-14); 31 -> if (m == 0) Float.POSITIVE_INFINITY else Float.NaN; else -> (1f + m / 1024f) * 2f.pow(e - 15) }
+        return if (s == 1) -v else v
+    }
+    /** DNG 24-bit float: sign, 7-bit exponent (bias 63), 16-bit mantissa. */
+    private fun f24(v: Int): Float {
+        val s = (v shr 23) and 1; val e = (v shr 16) and 0x7F; val m = v and 0xFFFF
+        if (e == 0 && m == 0) return 0f
+        val f = java.lang.Float.intBitsToFloat((s shl 31) or ((e - 63 + 127) shl 23) or (m shl 7))
+        return if (e == 0x7F) Float.POSITIVE_INFINITY else f
+    }
+
+    /** Undoes the TIFF / DNG predictors on one decoded tile or strip (rows of [cols] × [spp] samples). */
+    private fun unpredict(b: ByteArray, cols: Int, rows: Int, spp: Int, bytesPer: Int, predictor: Int, order: ByteOrder) {
+        val rowSamples = cols * spp
+        when (predictor) {
+            2, 34892, 34893 -> {
+                val step = when (predictor) { 34892 -> 2; 34893 -> 4; else -> 1 } * spp
+                val bb = ByteBuffer.wrap(b).order(order)
+                for (r in 0 until rows) {
+                    val base = r * rowSamples
+                    for (c in step until rowSamples) {
+                        val i = base + c; val j = i - step
+                        when (bytesPer) {
+                            1 -> if (i < b.size) b[i] = (b[i] + b[j]).toByte()
+                            2 -> if (i * 2 + 1 < b.size) bb.putShort(i * 2, (bb.getShort(i * 2) + bb.getShort(j * 2)).toShort())
+                            4 -> if (i * 4 + 3 < b.size) bb.putInt(i * 4, bb.getInt(i * 4) + bb.getInt(j * 4))
+                        }
+                    }
+                }
+            }
+            3, 34894, 34895 -> {
+                // Floating point predictor: byte-wise differences, then the bytes are de-interleaved.
+                val step = when (predictor) { 34894 -> 2; 34895 -> 4; else -> 1 } * spp
+                val rowBytes = rowSamples * bytesPer
+                val tmp = ByteArray(rowBytes)
+                for (r in 0 until rows) {
+                    val o = r * rowBytes
+                    if (o + rowBytes > b.size) break
+                    for (k in step until rowBytes) b[o + k] = (b[o + k] + b[o + k - step]).toByte()
+                    System.arraycopy(b, o, tmp, 0, rowBytes)
+                    for (c in 0 until rowSamples) for (k in 0 until bytesPer) {
+                        // Stored most significant byte first; rebuild in big-endian order.
+                        b[o + c * bytesPer + k] = tmp[k * rowSamples + c]
+                    }
+                }
+            }
+        }
+    }
 
     internal fun decode(context: Context, m: Meta): Sensor = Src(context, m.uri).use { s ->
         val w = m.width; val h = m.height; val spp = m.spp
         val raw = ShortArray(w * h * spp)
+        val isFloat = m.sampleFormat == 3
+        // Floats are stored scaled to 16 bits against the white level (0 … white ⇒ 0 … 65535).
+        val fWhite = (m.white.firstOrNull() ?: 1.0).coerceAtLeast(1e-6)
         fun put(x: Int, y: Int, c: Int, v: Int) { if (x in 0 until w && y in 0 until h) raw[(y * w + x) * spp + c] = v.toShort() }
+        fun putF(x: Int, y: Int, c: Int, f: Float) { put(x, y, c, (f / fWhite * 65535.0).roundToInt().coerceIn(0, 65535)) }
         val tiled = m.tileW > 0
         val tw = if (tiled) m.tileW else w
         val th = if (tiled) m.tileH else m.rowsPerStrip
         val across = if (tiled) (w + tw - 1) / tw else 1
         for (k in m.offsets.indices) {
-            val bytes = s.bytes(m.offsets[k], m.counts.getOrElse(k) { 0L }.toInt().coerceAtLeast(0))
+            var bytes = s.bytes(m.offsets[k], m.counts.getOrElse(k) { 0L }.toInt().coerceAtLeast(0))
             val x0 = if (tiled) (k % across) * tw else 0
             val y0 = if (tiled) (k / across) * th else k * th
-            if (m.compression == 7) {
-                val lj = LJpeg(bytes).decode()
-                val samplesPerRow = tw * spp
-                for (i in 0 until min(lj.size, samplesPerRow * th)) {
-                    val r = i / samplesPerRow; val c = i % samplesPerRow
-                    put(x0 + c / spp, y0 + r, c % spp, lj[i])
+            val rowsHere = if (tiled) th else min(th, h - y0)
+            when (m.compression) {
+                7 -> {
+                    val lj = LJpeg(bytes).decode()
+                    val samplesPerRow = tw * spp
+                    for (i in 0 until min(lj.size, samplesPerRow * th)) {
+                        val r = i / samplesPerRow; val c = i % samplesPerRow
+                        put(x0 + c / spp, y0 + r, c % spp, lj[i])
+                    }
+                    continue
                 }
-            } else {
-                val bb = ByteBuffer.wrap(bytes).order(m.order)
-                val rowLen = tw * spp
-                when (m.bps) {
-                    16 -> { var i = 0; val n = bytes.size / 2; while (i < n) { val r = i / rowLen; val c = i % rowLen; put(x0 + c / spp, y0 + r, c % spp, bb.getShort(i * 2).toInt() and 0xFFFF); i++ } }
-                    8 -> for (i in bytes.indices) { val r = i / rowLen; val c = i % rowLen; put(x0 + c / spp, y0 + r, c % spp, bytes[i].toInt() and 0xFF) }
-                    else -> {
-                        // Packed 10 / 12 / 14 bits, most significant bit first, rows byte-aligned.
-                        val rowBytes = (rowLen * m.bps + 7) / 8
-                        var r = 0
-                        while ((r + 1) * rowBytes <= bytes.size && r < th) {
-                            var bit = r.toLong() * rowBytes * 8
-                            for (c in 0 until rowLen) {
-                                var v = 0
-                                for (b in 0 until m.bps) { val byte = bytes[(bit ushr 3).toInt()].toInt(); v = (v shl 1) or ((byte shr (7 - (bit and 7).toInt())) and 1); bit++ }
-                                put(x0 + c / spp, y0 + r, c % spp, v)
-                            }
-                            r++
+                34892 -> {
+                    // Lossy DNG: each tile is an ordinary 8-bit JPEG (the linearisation table expands it).
+                    val bmp = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: continue
+                    val px = IntArray(bmp.width * bmp.height)
+                    bmp.getPixels(px, 0, bmp.width, 0, 0, bmp.width, bmp.height)
+                    for (yy in 0 until bmp.height) for (xx in 0 until bmp.width) {
+                        val c = px[yy * bmp.width + xx]
+                        if (spp >= 3) {
+                            put(x0 + xx, y0 + yy, 0, (c shr 16) and 0xFF); put(x0 + xx, y0 + yy, 1, (c shr 8) and 0xFF); put(x0 + xx, y0 + yy, 2, c and 0xFF)
+                        } else put(x0 + xx, y0 + yy, 0, (c shr 8) and 0xFF)
+                    }
+                    bmp.recycle()
+                    continue
+                }
+                8 -> {
+                    val inf = java.util.zip.Inflater()
+                    inf.setInput(bytes)
+                    val bytesPer = (m.bps + 7) / 8
+                    val out = ByteArray(tw * rowsHere * spp * bytesPer)
+                    var n = 0
+                    while (n < out.size && !inf.finished()) { val r = inf.inflate(out, n, out.size - n); if (r == 0 && (inf.needsInput() || inf.needsDictionary())) break; n += r }
+                    inf.end()
+                    unpredict(out, tw, rowsHere, spp, bytesPer, m.predictor, if (m.predictor == 3 || m.predictor >= 34894) ByteOrder.BIG_ENDIAN else m.order)
+                    bytes = out
+                }
+            }
+            // Uncompressed or inflated samples.
+            val fpOrder = if (m.compression == 8 && (m.predictor == 3 || m.predictor >= 34894)) ByteOrder.BIG_ENDIAN else m.order
+            val bb = ByteBuffer.wrap(bytes).order(fpOrder)
+            val rowLen = tw * spp
+            if (isFloat) {
+                val bp = m.bps / 8
+                val n = bytes.size / bp.coerceAtLeast(1)
+                for (i in 0 until n) {
+                    val r = i / rowLen; val c = i % rowLen
+                    if (r >= rowsHere) break
+                    val f = when (m.bps) {
+                        16 -> half(bb.getShort(i * 2).toInt() and 0xFFFF)
+                        24 -> f24(if (fpOrder == ByteOrder.BIG_ENDIAN) ((bytes[i * 3].toInt() and 0xFF) shl 16) or ((bytes[i * 3 + 1].toInt() and 0xFF) shl 8) or (bytes[i * 3 + 2].toInt() and 0xFF)
+                            else ((bytes[i * 3 + 2].toInt() and 0xFF) shl 16) or ((bytes[i * 3 + 1].toInt() and 0xFF) shl 8) or (bytes[i * 3].toInt() and 0xFF))
+                        else -> bb.getFloat(i * 4)
+                    }
+                    putF(x0 + c / spp, y0 + r, c % spp, if (f.isNaN()) 0f else f)
+                }
+                continue
+            }
+            when (m.bps) {
+                16 -> { var i = 0; val n = bytes.size / 2; while (i < n) { val r = i / rowLen; val c = i % rowLen; put(x0 + c / spp, y0 + r, c % spp, bb.getShort(i * 2).toInt() and 0xFFFF); i++ } }
+                32 -> { var i = 0; val n = bytes.size / 4; while (i < n) { val r = i / rowLen; val c = i % rowLen; put(x0 + c / spp, y0 + r, c % spp, ((bb.getInt(i * 4).toLong() and 0xFFFFFFFFL) shr 16).toInt()); i++ } }
+                8 -> for (i in bytes.indices) { val r = i / rowLen; val c = i % rowLen; put(x0 + c / spp, y0 + r, c % spp, bytes[i].toInt() and 0xFF) }
+                else -> {
+                    // Packed 10 / 12 / 14 bits, most significant bit first, rows byte-aligned.
+                    val rowBytes = (rowLen * m.bps + 7) / 8
+                    var r = 0
+                    while ((r + 1) * rowBytes <= bytes.size && r < th) {
+                        var bit = r.toLong() * rowBytes * 8
+                        for (c in 0 until rowLen) {
+                            var v = 0
+                            for (b in 0 until m.bps) { val byte = bytes[(bit ushr 3).toInt()].toInt(); v = (v shl 1) or ((byte shr (7 - (bit and 7).toInt())) and 1); bit++ }
+                            put(x0 + c / spp, y0 + r, c % spp, v)
                         }
+                        r++
                     }
                 }
             }
         }
+        // Colour at a stored position (pattern starts at the active area's corner).
+        fun colAt(x: Int, y: Int): Int = m.cfa?.let { p -> p[(((y - m.activeTop) % m.cfaH + m.cfaH) % m.cfaH) * m.cfaW + ((((x - m.activeLeft) % m.cfaW) + m.cfaW) % m.cfaW)] } ?: 0
+        // OpcodeList1: on the raw values (bad pixels, maps, per-row / column fixes).
+        applyOps(m.ops1, raw, w, h, spp, if (m.bps >= 16 || isFloat) 65535f else ((1 shl m.bps) - 1).toFloat(), ::colAt)
         // Linearise, black / white levels, normalise — in place (value × ONE, headroom for gains).
         val repR = m.blackRep.getOrElse(0) { 1 }.coerceAtLeast(1); val repC = m.blackRep.getOrElse(1) { 1 }.coerceAtLeast(1)
         val lt = m.linTable
+        val wScale = if (isFloat) 65535.0 / fWhite else 1.0
         for (y in 0 until h) for (x in 0 until w) for (c in 0 until spp) {
             val i = (y * w + x) * spp + c
             var v = raw[i].toInt() and 0xFFFF
@@ -336,11 +597,13 @@ object RawDng {
             var bl = m.black[bi]
             m.blackDH?.let { if (x < it.size) bl += it[x] }
             m.blackDV?.let { if (y < it.size) bl += it[y] }
-            val wl = m.white[c.coerceAtMost(m.white.size - 1)]
+            bl *= wScale
+            val wl = m.white[c.coerceAtMost(m.white.size - 1)] * wScale
             val f = ((v - bl) / (wl - bl).coerceAtLeast(1.0)).toFloat().coerceIn(0f, 1f)
             raw[i] = (f * ONE).roundToInt().toShort()
         }
-        // Lens shading (OpcodeList2 gain maps), in stored-image coordinates.
+        // OpcodeList2: maps / deltas / scales on the 0..1 data, then the lens-shading gain maps.
+        applyOps(m.ops2, raw, w, h, spp, ONE, ::colAt)
         for (g in m.gainMaps) {
             val hh = (g.bottom - g.top).coerceAtLeast(1).toDouble(); val ww = (g.right - g.left).coerceAtLeast(1).toDouble()
             var y = g.top
@@ -370,8 +633,59 @@ object RawDng {
             for (y in 0 until ch) System.arraycopy(raw, ((y + m.cropTop) * w + m.cropLeft) * spp, o, y * cw * spp, cw * spp)
             o
         }
-        val pat = m.cfa?.let { p -> IntArray(4) { k -> val yy = (k shr 1) + m.cropTop; val xx = (k and 1) + m.cropLeft; p[((yy and 1) shl 1) or (xx and 1)] } }
-        Sensor(cw, ch, spp, out, pat)
+        val pat = m.cfa?.let { IntArray(m.cfaW * m.cfaH) { k -> colAt((k % m.cfaW) + m.cropLeft, (k / m.cfaW) + m.cropTop) } }
+        Sensor(cw, ch, spp, out, pat, m.cfaW, m.cfaH)
+    }
+
+    /** Applies OpcodeList1 / 2 operations in place; [one] is the value of white in [raw]. */
+    private fun applyOps(ops: List<Op>, raw: ShortArray, w: Int, h: Int, spp: Int, one: Float, colAt: (Int, Int) -> Int) {
+        for (op in ops) {
+            val top = op.top.coerceAtLeast(0); val left = op.left.coerceAtLeast(0)
+            val bottom = op.bottom.coerceAtMost(h); val right = op.right.coerceAtMost(w)
+            val p0 = op.plane.coerceIn(0, spp - 1); val p1 = min(spp, op.plane + op.planes.coerceAtLeast(1))
+            fun each(f: (Int, Int, Int) -> Unit) {
+                var y = top
+                while (y < bottom) { var x = left; while (x < right) { for (p in p0 until p1) f(x, y, p); x += op.colPitch }; y += op.rowPitch }
+            }
+            fun get(i: Int) = raw[i].toInt() and 0xFFFF
+            fun set(i: Int, v: Float) { raw[i] = v.roundToInt().coerceIn(0, 65535).toShort() }
+            when (op.id) {
+                7 -> { val t = op.table!!; each { x, y, p -> val i = (y * w + x) * spp + p; raw[i] = t[get(i).coerceAtMost(t.size - 1)].toShort() } }
+                8 -> { val c = op.poly!!; each { x, y, p ->
+                    val i = (y * w + x) * spp + p; val v = get(i) / one; var r = 0.0; var xp = 1.0
+                    for (k in c.indices) { r += c[k] * xp; xp *= v }
+                    set(i, (r * one).toFloat())
+                } }
+                10 -> { val d = op.values!!; each { x, y, p -> val k = (y - top) / op.rowPitch; if (k < d.size) { val i = (y * w + x) * spp + p; set(i, get(i) + d[k] * one) } } }
+                11 -> { val d = op.values!!; each { x, y, p -> val k = (x - left) / op.colPitch; if (k < d.size) { val i = (y * w + x) * spp + p; set(i, get(i) + d[k] * one) } } }
+                12 -> { val d = op.values!!; each { x, y, p -> val k = (y - top) / op.rowPitch; if (k < d.size) { val i = (y * w + x) * spp + p; set(i, get(i) * d[k]) } } }
+                13 -> { val d = op.values!!; each { x, y, p -> val k = (x - left) / op.colPitch; if (k < d.size) { val i = (y * w + x) * spp + p; set(i, get(i) * d[k]) } } }
+                4, 5 -> {
+                    if (spp != 1) continue
+                    // Bad pixels: listed ones, or ones stuck at the constant — filled from same-colour neighbours.
+                    val bad = HashSet<Int>()
+                    if (op.id == 4) { for (i in 0 until w * h) if (get(i) == op.constant) bad += i }
+                    else {
+                        op.points?.let { pts -> for (k in 0 until pts.size / 2) { val y = pts[k * 2]; val x = pts[k * 2 + 1]; if (x in 0 until w && y in 0 until h) bad += y * w + x } }
+                        op.rects?.let { rs -> for (k in 0 until rs.size / 4) for (y in max(0, rs[k * 4]) until min(h, rs[k * 4 + 2])) for (x in max(0, rs[k * 4 + 1]) until min(w, rs[k * 4 + 3])) bad += y * w + x }
+                    }
+                    if (bad.size > w * h / 10) continue
+                    for (i in bad) {
+                        val x = i % w; val y = i / w; val c = colAt(x, y)
+                        var sum = 0; var n = 0
+                        for (dy in -2..2) for (dx in -2..2) {
+                            if (dx == 0 && dy == 0) continue
+                            val xx = x + dx; val yy = y + dy
+                            if (xx !in 0 until w || yy !in 0 until h) continue
+                            val j = yy * w + xx
+                            if (j in bad || colAt(xx, yy) != c) continue
+                            sum += get(j); n++
+                        }
+                        if (n > 0) raw[i] = (sum / n).toShort()
+                    }
+                }
+            }
+        }
     }
 
     // ------------------------------------------------------------------ lossless JPEG (ITU T.81, process 14)
@@ -511,21 +825,24 @@ object RawDng {
         0.2126729, 0.7151522, 0.0721750,
         0.0193339, 0.1191920, 0.9503041,
     )
+    private val RGB_XYZ = inv3(XYZ_RGB)!!
+    /** Bradford chromatic adaptation D50 → D65 (and back). */
+    private val BRAD_50_65 = doubleArrayOf(0.9555766, -0.0230393, 0.0631636, -0.0282895, 1.0099416, 0.0210077, 0.0122982, -0.0204830, 1.3299098)
+    private val BRAD_65_50 = inv3(BRAD_50_65)!!
+    /** XYZ (D50) → linear ProPhoto RGB. */
+    private val XYZ50_PP = doubleArrayOf(1.3459433, -0.2556075, -0.0511118, -0.5445989, 1.5081673, 0.0205351, 0.0, 0.0, 1.2118128)
+    private val SRGB_TO_PP = mul3(XYZ50_PP, mul3(BRAD_65_50, XYZ_RGB))
+    private val PP_TO_SRGB = inv3(SRGB_TO_PP)!!
 
     private fun mul3(a: DoubleArray, b: DoubleArray) = DoubleArray(9) { k -> val r = k / 3; val c = k % 3; a[r * 3] * b[c] + a[r * 3 + 1] * b[3 + c] + a[r * 3 + 2] * b[6 + c] }
+    private fun mulV(a: DoubleArray, v: DoubleArray) = DoubleArray(3) { r -> a[r * 3] * v[0] + a[r * 3 + 1] * v[1] + a[r * 3 + 2] * v[2] }
+    private fun diag(v: DoubleArray) = doubleArrayOf(v[0], 0.0, 0.0, 0.0, v[1], 0.0, 0.0, 0.0, v[2])
+    private val I3 = doubleArrayOf(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
     private fun inv3(m: DoubleArray): DoubleArray? {
         val a = m[0]; val b = m[1]; val c = m[2]; val d = m[3]; val e = m[4]; val f = m[5]; val g = m[6]; val h = m[7]; val i = m[8]
         val det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
         if (kotlin.math.abs(det) < 1e-12) return null
         return doubleArrayOf((e * i - f * h) / det, (c * h - b * i) / det, (b * f - c * e) / det, (f * g - d * i) / det, (a * i - c * g) / det, (c * d - a * f) / det, (d * h - e * g) / det, (b * g - a * h) / det, (a * e - b * d) / det)
-    }
-
-    /** White-balanced camera RGB → linear sRGB (rows of camera←sRGB normalised so white stays white). */
-    private fun rgbCam(m: Meta): DoubleArray {
-        val cm = m.colorMatrix ?: return doubleArrayOf(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
-        val camRgb = mul3(cm.copyOf(9), XYZ_RGB)
-        for (r in 0 until 3) { val s = camRgb[r * 3] + camRgb[r * 3 + 1] + camRgb[r * 3 + 2]; if (s > 1e-9) for (c in 0 until 3) camRgb[r * 3 + c] /= s }
-        return inv3(camRgb) ?: doubleArrayOf(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
     }
 
     /** CIE xy of a colour temperature (Planckian below 4000 K, daylight above). */
@@ -541,35 +858,146 @@ object RawDng {
         else -3.0 * x * x + 2.87 * x - 0.275
         return x to y
     }
+    /** Colour temperature of an xy white (McCamy). */
+    private fun xyCct(x: Double, y: Double): Double { val n = (x - 0.3320) / (0.1858 - y); return (449 * n * n * n + 3525 * n * n + 6823.3 * n + 5520.33).coerceIn(1500.0, 50000.0) }
+    private fun xyz(x: Double, y: Double) = doubleArrayOf(x / y, 1.0, (1 - x - y) / y)
 
-    /** Camera channel multipliers (green = 1) for the white balance choice and the Temperature / Tint sliders. */
-    private fun wbMul(m: Meta, dev: Dev, temp: Float, tint: Float): FloatArray {
-        val base: DoubleArray = when {
-            dev.wb == 1 -> m.autoMul?.let { a -> doubleArrayOf(a[0].toDouble(), 1.0, a[2].toDouble()) } ?: m.asShot
-            dev.wb >= 2 && m.colorMatrix != null -> {
+    /** Weight of calibration illuminant 1 for a white of [cct] Kelvin (DNG spec: by inverse temperature). */
+    private fun weight1(m: Meta, cct: Double): Double {
+        if (m.cm2 == null || m.illum2 <= 0 || m.illum1 == m.illum2) return 1.0
+        val t1 = m.illum1.toDouble(); val t2 = m.illum2.toDouble()
+        return ((1 / cct - 1 / t2) / (1 / t1 - 1 / t2)).coerceIn(0.0, 1.0)
+    }
+    private fun lerp(a: DoubleArray?, b: DoubleArray?, g: Double): DoubleArray? = when {
+        a != null && b != null -> DoubleArray(9) { a[it] * g + b[it] * (1 - g) }
+        else -> a ?: b
+    }
+    /** XYZ → camera at a white of [cct]: AnalogBalance × CameraCalibration × ColorMatrix (interpolated). */
+    private fun xyzToCam(m: Meta, cct: Double): DoubleArray? {
+        val g = weight1(m, cct)
+        val cm = lerp(m.cm1, m.cm2, g) ?: m.colorMatrix ?: return null
+        val cc = lerp(m.cc1, m.cc2, g) ?: I3
+        val ab = m.analog?.let { diag(it) } ?: I3
+        return mul3(ab, mul3(cc, cm))
+    }
+    /** The xy white a camera-space neutral corresponds to (iterated, as in the DNG spec). */
+    private fun neutralXy(m: Meta, n: DoubleArray): Pair<Double, Double> {
+        var x = 0.3457; var y = 0.3585
+        repeat(12) {
+            val c = xyzToCam(m, xyCct(x, y)) ?: return x to y
+            val ic = inv3(c) ?: return x to y
+            val v = mulV(ic, n); val s = v[0] + v[1] + v[2]
+            if (s <= 1e-9) return x to y
+            val nx = v[0] / s; val ny = v[1] / s
+            if (kotlin.math.abs(nx - x) < 1e-7 && kotlin.math.abs(ny - y) < 1e-7) return nx to ny
+            x = nx; y = ny
+        }
+        return x to y
+    }
+
+    /** Everything the develop needs about colour, for one white balance choice. */
+    private class Colour(val mul: FloatArray, val mtx: FloatArray, val weight: Double)
+
+    private fun colour(m: Meta, dev: Dev, temp: Float, tint: Float): Colour {
+        // 1. The white, as a camera neutral.
+        val neutral: DoubleArray = when {
+            dev.wb == 1 -> m.autoMul?.let { a -> doubleArrayOf(1.0 / a[0], 1.0, 1.0 / a[2]) } ?: m.asShot
+            dev.wb >= 2 -> {
                 val (x, y) = cctXy(WB_PRESETS[dev.wb].second.toDouble())
-                val xyz = doubleArrayOf(x / y, 1.0, (1 - x - y) / y)
-                val cm = m.colorMatrix
-                DoubleArray(3) { r -> cm[r * 3] * xyz[0] + cm[r * 3 + 1] * xyz[1] + cm[r * 3 + 2] * xyz[2] }.takeIf { n -> n.all { it > 1e-6 } } ?: m.asShot
+                xyzToCam(m, xyCct(x, y))?.let { c -> mulV(c, xyz(x, y)) }?.takeIf { n -> n.all { it > 1e-6 } } ?: m.asShot
             }
+            m.asShotXY != null -> { val x = m.asShotXY[0]; val y = m.asShotXY[1]; xyzToCam(m, xyCct(x, y))?.let { c -> mulV(c, xyz(x, y)) } ?: m.asShot }
             else -> m.asShot
         }
-        // Neutral → multipliers, green = 1.
-        var r = (base[1] / base[0]).toFloat(); var g = 1f; var b = (base[1] / base[2]).toFloat()
+        val (wx, wy) = if (m.colorMatrix != null || m.cm1 != null) neutralXy(m, neutral) else (0.3127 to 0.3290)
+        val cct = xyCct(wx, wy)
+        // 2. White balance multipliers (green = 1), with the Temperature / Tint sliders.
+        val base = doubleArrayOf(neutral[1] / neutral[0], 1.0, neutral[1] / neutral[2])
+        var r = base[0].toFloat(); var g = 1f; var b = base[2].toFloat()
         r *= 2f.pow(temp * 0.6f); b *= 2f.pow(-temp * 0.6f); g *= 2f.pow(-tint * 0.4f)
-        return floatArrayOf(r, g, b)
+        // 3. White-balanced camera RGB → linear sRGB.
+        val fm = lerp(m.fm1, m.fm2, weight1(m, cct))
+        val c = xyzToCam(m, cct)
+        val mtx: DoubleArray = if (fm != null && c != null) {
+            // Forward matrix route (DNG 1.2+): camera → XYZ D50 → sRGB.
+            val abcc = mul3(m.analog?.let { diag(it) } ?: I3, lerp(m.cc1, m.cc2, weight1(m, cct)) ?: I3)
+            val iabcc = inv3(abcc) ?: I3
+            val ref = mulV(iabcc, neutral)
+            val d = diag(DoubleArray(3) { 1.0 / ref[it].coerceAtLeast(1e-9) })
+            val camToSrgb = mul3(RGB_XYZ, mul3(BRAD_50_65, mul3(fm, mul3(d, iabcc))))
+            val onWb = mul3(camToSrgb, diag(DoubleArray(3) { 1.0 / base[it] }))
+            val wv = mulV(onWb, doubleArrayOf(1.0, 1.0, 1.0)); val k = (wv[0] + wv[1] + wv[2]) / 3
+            DoubleArray(9) { onWb[it] / k.coerceAtLeast(1e-9) }
+        } else if (c != null) {
+            val camRgb = mul3(c, XYZ_RGB)
+            for (row in 0 until 3) { val s = camRgb[row * 3] + camRgb[row * 3 + 1] + camRgb[row * 3 + 2]; if (s > 1e-9) for (k in 0 until 3) camRgb[row * 3 + k] /= s }
+            inv3(camRgb) ?: I3
+        } else I3
+        return Colour(floatArrayOf(r, g, b), FloatArray(9) { mtx[it].toFloat() }, weight1(m, cct))
     }
+
+    // ---- camera profile look tables (ProfileHueSatMap / ProfileLookTable), in linear ProPhoto RGB
+
+    private fun hsvApply(t: HsvTable, t2: HsvTable?, w1: Float, rgb: FloatArray) {
+        var r = rgb[0]; var g = rgb[1]; var b = rgb[2]
+        if (t.srgbGamma) { r = enc(r); g = enc(g); b = enc(b) }
+        val mx = max(r, max(g, b)); val mn = min(r, min(g, b))
+        if (mx <= 0f) return
+        val d = mx - mn
+        var hh = if (d <= 0f) 0f else when (mx) { r -> ((g - b) / d).let { if (it < 0) it + 6f else it }; g -> (b - r) / d + 2f; else -> (r - g) / d + 4f }
+        var ss = if (mx > 0f) d / mx else 0f
+        var vv = mx
+        // Trilinear lookup: hue wraps, saturation / value clamp.
+        val hf = hh / 6f * t.hues; val h0 = hf.toInt() % t.hues; val h1 = (h0 + 1) % t.hues; val fh = hf - hf.toInt()
+        val sf = (ss * (t.sats - 1)).coerceIn(0f, (t.sats - 1).toFloat()); val s0 = sf.toInt().coerceAtMost(t.sats - 2); val fs = sf - s0
+        val vf = if (t.vals > 1) (vv.coerceIn(0f, 1f) * (t.vals - 1)) else 0f; val v0 = vf.toInt().coerceAtMost(max(0, t.vals - 2)); val fv = vf - v0
+        val v1 = if (t.vals > 1) v0 + 1 else v0
+        val out = FloatArray(3)
+        for (k in 0 until 3) {
+            fun at(tb: HsvTable, vi: Int, hi: Int, si: Int) = tb.data[((vi * tb.hues + hi) * tb.sats + si) * 3 + k]
+            fun tri(tb: HsvTable): Float {
+                val a = (at(tb, v0, h0, s0) * (1 - fs) + at(tb, v0, h0, s0 + 1) * fs) * (1 - fh) + (at(tb, v0, h1, s0) * (1 - fs) + at(tb, v0, h1, s0 + 1) * fs) * fh
+                if (v1 == v0) return a
+                val c = (at(tb, v1, h0, s0) * (1 - fs) + at(tb, v1, h0, s0 + 1) * fs) * (1 - fh) + (at(tb, v1, h1, s0) * (1 - fs) + at(tb, v1, h1, s0 + 1) * fs) * fh
+                return a * (1 - fv) + c * fv
+            }
+            out[k] = if (t2 != null && t2.data.size == t.data.size) tri(t) * w1 + tri(t2) * (1 - w1) else tri(t)
+        }
+        hh += out[0] / 60f; ss = (ss * out[1]).coerceIn(0f, 1f); vv *= out[2]
+        hh = ((hh % 6f) + 6f) % 6f
+        val i = hh.toInt(); val f = hh - i
+        val p = vv * (1 - ss); val q = vv * (1 - ss * f); val u = vv * (1 - ss * (1 - f))
+        when (i) { 0 -> { r = vv; g = u; b = p }; 1 -> { r = q; g = vv; b = p }; 2 -> { r = p; g = vv; b = u }; 3 -> { r = p; g = q; b = vv }; 4 -> { r = u; g = p; b = vv }; else -> { r = vv; g = p; b = q } }
+        if (t.srgbGamma) { r = dec(r); g = dec(g); b = dec(b) }
+        rgb[0] = r; rgb[1] = g; rgb[2] = b
+    }
+    private fun enc(v: Float) = if (v <= 0.0031308f) v * 12.92f else 1.055f * v.coerceAtLeast(0f).pow(1f / 2.4f) - 0.055f
+    private fun dec(v: Float) = if (v <= 0.04045f) v / 12.92f else ((v + 0.055f) / 1.055f).pow(2.4f)
 
     // ------------------------------------------------------------------ develop
 
-    /** Linear camera RGB (no white balance), upright, at most [maxSide] on the long side — for the live preview. */
-    class Linear(val w: Int, val h: Int, val rgb: FloatArray)
+    /**
+     * Linear camera RGB (no white balance), upright, at most [maxSide] on the long side — for the
+     * live preview. [vig] is the file's vignetting correction per pixel (or null).
+     */
+    class Linear(val w: Int, val h: Int, val rgb: FloatArray, internal val vig: FloatArray? = null)
+
+    /** Vignetting gain from FixVignetteRadial at (x, y) of a w×h stored image. */
+    private fun vigGain(v: DoubleArray, x: Float, y: Float, w: Int, h: Int): Float {
+        val cx = v[5] * w; val cy = v[6] * h
+        val mx = max(max(cx, w - cx), 1.0); val my = max(max(cy, h - cy), 1.0)
+        val m = kotlin.math.sqrt(mx * mx + my * my)
+        val dx = (x - cx) / m; val dy = (y - cy) / m
+        val r2 = dx * dx + dy * dy
+        return (1 + r2 * (v[0] + r2 * (v[1] + r2 * (v[2] + r2 * (v[3] + r2 * v[4]))))).toFloat().coerceIn(0.5f, 8f)
+    }
 
     /** Decodes and makes the preview-size linear picture (half-size superpixels, then averaged down). */
     fun preview(context: Context, m: Meta, maxSide: Int): Linear {
         val s = decode(context, m)
         val half = superpixel(s)
-        val down = boxDown(half, maxSide)
+        var down = boxDown(half, maxSide)
+        m.vignette?.let { v -> down = Linear(down.w, down.h, down.rgb, FloatArray(down.w * down.h) { i -> vigGain(v, (i % down.w + 0.5f) / down.w * s.w, (i / down.w + 0.5f) / down.h * s.h, s.w, s.h) }) }
         // Grey-world auto white balance (ignoring near-black and clipped pixels).
         var sr = 0.0; var sg = 0.0; var sb = 0.0
         val px = down.rgb
@@ -580,7 +1008,7 @@ object RawDng {
             if (mx in 0.02f..0.95f) { sr += r; sg += g; sb += b }
             i += 3
         }
-        if (sr > 0 && sb > 0) m.autoMul = floatArrayOf((sr / sg).toFloat(), 1f, (sb / sg).toFloat())
+        if (sr > 0 && sb > 0) m.autoMul = floatArrayOf((sg / sr).toFloat(), 1f, (sg / sb).toFloat())
         return orient(down, m.orientation)
     }
 
@@ -589,17 +1017,36 @@ object RawDng {
             val f = FloatArray(s.w * s.h * 3) { s.v(it) }
             return Linear(s.w, s.h, f)
         }
-        val w = s.w / 2; val h = s.h / 2
-        val out = FloatArray(w * h * 3)
-        for (y in 0 until h) for (x in 0 until w) {
-            val o = (y * w + x) * 3
-            var g = 0f
-            for (dy in 0..1) for (dx in 0..1) {
-                val xx = x * 2 + dx; val yy = y * 2 + dy
-                val v = s.v(yy * s.w + xx)
-                when (s.color(xx, yy)) { 0 -> out[o] = v; 1 -> g += v * 0.5f; else -> out[o + 2] = v }
+        if (s.bayer) {
+            val w = s.w / 2; val h = s.h / 2
+            val out = FloatArray(w * h * 3)
+            for (y in 0 until h) for (x in 0 until w) {
+                val o = (y * w + x) * 3
+                var g = 0f
+                for (dy in 0..1) for (dx in 0..1) {
+                    val xx = x * 2 + dx; val yy = y * 2 + dy
+                    val v = s.v(yy * s.w + xx)
+                    when (s.color(xx, yy)) { 0 -> out[o] = v; 1 -> g += v * 0.5f; else -> out[o + 2] = v }
+                }
+                out[o + 1] = g
             }
-            out[o + 1] = g
+            return Linear(w, h, out)
+        }
+        // Any other pattern (X-Trans 6×6, Quad Bayer 4×4…): average each colour over one pattern
+        // repeat, stepping half a repeat so the preview keeps detail.
+        val st = max(1, min(s.cw, s.ch) / 2)
+        val w = ((s.w - s.cw) / st + 1).coerceAtLeast(1); val h = ((s.h - s.ch) / st + 1).coerceAtLeast(1)
+        val out = FloatArray(w * h * 3)
+        val sum = FloatArray(3); val n = IntArray(3)
+        for (y in 0 until h) for (x in 0 until w) {
+            sum.fill(0f); n.fill(0)
+            for (dy in 0 until s.ch) for (dx in 0 until s.cw) {
+                val xx = x * st + dx; val yy = y * st + dy
+                if (xx >= s.w || yy >= s.h) continue
+                val c = s.color(xx, yy); sum[c] += s.v(yy * s.w + xx); n[c]++
+            }
+            val o = (y * w + x) * 3
+            for (c in 0 until 3) out[o + c] = if (n[c] > 0) sum[c] / n[c] else 0f
         }
         return Linear(w, h, out)
     }
@@ -609,6 +1056,7 @@ object RawDng {
         if (k <= 1f) return src
         val w = (src.w / k).toInt().coerceAtLeast(1); val h = (src.h / k).toInt().coerceAtLeast(1)
         val out = FloatArray(w * h * 3)
+        val vg = src.vig?.let { FloatArray(w * h) }
         for (y in 0 until h) {
             val y0 = (y * k).toInt(); val y1 = min(src.h, ((y + 1) * k).toInt().coerceAtLeast(y0 + 1))
             for (x in 0 until w) {
@@ -617,13 +1065,25 @@ object RawDng {
                 for (yy in y0 until y1) for (xx in x0 until x1) { val i = (yy * src.w + xx) * 3; r += src.rgb[i]; g += src.rgb[i + 1]; b += src.rgb[i + 2]; n++ }
                 val o = (y * w + x) * 3
                 out[o] = r / n; out[o + 1] = g / n; out[o + 2] = b / n
+                if (vg != null) vg[y * w + x] = src.vig!![((y0 + y1) / 2).coerceAtMost(src.h - 1) * src.w + ((x0 + x1) / 2).coerceAtMost(src.w - 1)]
             }
         }
-        return Linear(w, h, out)
+        return Linear(w, h, out, vg)
     }
 
     /** Smaller copy of a preview (for the fast live preview while dragging). */
     fun shrink(src: Linear, maxSide: Int): Linear = boxDown(src, maxSide)
+
+    private fun orientXy(o: Int, x: Int, y: Int, sw: Int, sh: Int): Pair<Int, Int> = when (o) {
+        2 -> (sw - 1 - x) to y
+        3 -> (sw - 1 - x) to (sh - 1 - y)
+        4 -> x to (sh - 1 - y)
+        5 -> y to x
+        6 -> y to (sh - 1 - x)
+        7 -> (sw - 1 - y) to (sh - 1 - x)
+        8 -> (sw - 1 - y) to x
+        else -> x to y
+    }
 
     private fun orient(src: Linear, o: Int): Linear {
         if (o <= 1 || o > 8) return src
@@ -631,40 +1091,88 @@ object RawDng {
         val swap = o >= 5
         val w = if (swap) sh else sw; val h = if (swap) sw else sh
         val out = FloatArray(w * h * 3)
+        val vg = src.vig?.let { FloatArray(w * h) }
         for (y in 0 until h) for (x in 0 until w) {
             // Map output (x, y) back to the stored picture.
-            val (sx, sy) = when (o) {
-                2 -> (sw - 1 - x) to y
-                3 -> (sw - 1 - x) to (sh - 1 - y)
-                4 -> x to (sh - 1 - y)
-                5 -> y to x
-                6 -> y to (sh - 1 - x)
-                7 -> (sw - 1 - y) to (sh - 1 - x)
-                8 -> (sw - 1 - y) to x
-                else -> x to y
-            }
+            val (sx, sy) = orientXy(o, x, y, sw, sh)
             val si = (sy * sw + sx) * 3; val di = (y * w + x) * 3
             out[di] = src.rgb[si]; out[di + 1] = src.rgb[si + 1]; out[di + 2] = src.rgb[si + 2]
+            if (vg != null) vg[y * w + x] = src.vig!![sy * sw + sx]
         }
-        return Linear(w, h, out)
+        return Linear(w, h, out, vg)
     }
 
-    /** Pre-computed develop: white balance, colour matrix, exposure and tone. */
-    private class Pipe(m: Meta, dev: Dev, exposure: Float, highlights: Float, shadows: Float, whites: Float, blacks: Float, temp: Float, tint: Float) {
-        val mul = wbMul(m, dev, temp, tint)
+    /** Where the stored image's relative point (cx, cy) lands after orientation [o]. */
+    private fun orientCentre(o: Int, cx: Double, cy: Double): Pair<Double, Double> = when (o) {
+        2 -> (1 - cx) to cy; 3 -> (1 - cx) to (1 - cy); 4 -> cx to (1 - cy)
+        5 -> cy to cx; 6 -> (1 - cy) to cx; 7 -> (1 - cy) to (1 - cx); 8 -> cy to (1 - cx)
+        else -> cx to cy
+    }
+
+    /**
+     * WarpRectilinear from the file: lens distortion and, with one set per colour, lateral
+     * chromatic aberration (colour fringing). Returns a corrected copy of [px] (w×h ARGB).
+     */
+    private fun warp(px: IntArray, w: Int, h: Int, wp: Warp, cx0: Double, cy0: Double): IntArray {
+        val out = IntArray(w * h)
+        val cx = cx0 * w; val cy = cy0 * h
+        val mx = max(max(cx, w - cx), 1.0); val my = max(max(cy, h - cy), 1.0)
+        val m = kotlin.math.sqrt(mx * mx + my * my)
+        val planes = wp.coef.size
+        fun sample(xs: Double, ys: Double, shift: Int): Int {
+            val x0 = kotlin.math.floor(xs).toInt(); val y0 = kotlin.math.floor(ys).toInt()
+            val fx = (xs - x0).toFloat(); val fy = (ys - y0).toFloat()
+            fun at(x: Int, y: Int) = (px[y.coerceIn(0, h - 1) * w + x.coerceIn(0, w - 1)] shr shift) and 0xFF
+            val a = at(x0, y0) * (1 - fx) + at(x0 + 1, y0) * fx
+            val b = at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx
+            return (a * (1 - fy) + b * fy).roundToInt().coerceIn(0, 255)
+        }
+        for (y in 0 until h) {
+            val dy = (y - cy) / m
+            for (x in 0 until w) {
+                val dx = (x - cx) / m
+                val r2 = dx * dx + dy * dy
+                var res = 0xFF shl 24
+                for (ch in 0 until 3) {
+                    val k = wp.coef[if (planes >= 3) ch else 0]
+                    val f = k[0] + r2 * (k[1] + r2 * (k[2] + r2 * k[3]))
+                    val xs = cx + m * (dx * f + 2 * k[4] * dx * dy + k[5] * (r2 + 2 * dx * dx))
+                    val ys = cy + m * (dy * f + 2 * k[5] * dx * dy + k[4] * (r2 + 2 * dy * dy))
+                    val shift = 16 - ch * 8
+                    res = res or (sample(xs, ys, shift) shl shift)
+                }
+                out[y * w + x] = res
+            }
+        }
+        return out
+    }
+
+    /** Pre-computed develop: white balance, colour matrix, camera profile, exposure and tone. */
+    private class Pipe(val m: Meta, dev: Dev, exposure: Float, highlights: Float, shadows: Float, whites: Float, blacks: Float, temp: Float, tint: Float) {
+        val col = colour(m, dev, temp, tint)
+        val mul = col.mul
         val clip = min(mul[0], min(mul[1], mul[2]))
-        val mtx = rgbCam(m).map { it.toFloat() }.toFloatArray()
-        val k = 2f.pow(exposure + m.baselineExposure)
+        val mtx = col.mtx
         val prof = PROFILES[dev.profile.coerceIn(0, PROFILES.size - 1)]
+        val camera = prof.camera && m.hasCameraProfile
+        val k = 2f.pow(exposure + m.baselineExposure + if (camera) m.baselineOffset else 0f)
+        val hs = if (camera) m.hueSat else null
+        val hs2 = if (camera) m.hueSat2 else null
+        val look = if (camera) m.look else null
+        val w1 = col.weight.toFloat()
+        val toPP = SRGB_TO_PP.map { it.toFloat() }.toFloatArray()
+        val fromPP = PP_TO_SRGB.map { it.toFloat() }.toFloatArray()
         val sh = shadows; val hi = highlights; val wh = whites; val bl = blacks
-        // Display LUT: linear 0..1 → sRGB → profile contrast → 8-bit.
+        // Display LUT: linear 0..1 → (camera tone curve, or the profile's contrast) → sRGB → 8-bit.
+        val curve = if (camera) m.toneCurve else null
         val disp = IntArray(DISP + 1) { i ->
-            val lv = i / DISP.toFloat()
+            var lv = i / DISP.toFloat()
+            if (curve != null) lv = curveAt(curve, lv)
             var v = if (lv <= 0.0031308f) lv * 12.92f else 1.055f * lv.pow(1f / 2.4f) - 0.055f
-            val s = v * v * (3f - 2f * v)
-            v += (s - v) * prof.contrast
+            if (curve == null) { val s = v * v * (3f - 2f * v); v += (s - v) * prof.contrast }
             (v.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
         }
+        private val tmp = FloatArray(3)
 
         fun tone(y: Float): Float {
             if (y <= 0f) return 0f
@@ -679,13 +1187,24 @@ object RawDng {
             return if (v <= kn) v else kn + (1f - kn) * (1f - exp(-(v - kn) / (1f - kn)))
         }
 
-        /** Camera RGB (no WB) → ARGB. */
-        fun px(r0: Float, g0: Float, b0: Float): Int {
-            val cr = min(r0 * mul[0], clip); val cg = min(g0 * mul[1], clip); val cb = min(b0 * mul[2], clip)
+        /** Camera RGB (no WB) → ARGB; [gain] is the lens vignetting correction for this pixel. */
+        fun px(r0: Float, g0: Float, b0: Float, gain: Float = 1f): Int {
+            val cr = min(r0 * gain * mul[0], clip); val cg = min(g0 * gain * mul[1], clip); val cb = min(b0 * gain * mul[2], clip)
             var r = (mtx[0] * cr + mtx[1] * cg + mtx[2] * cb) * k
             var g = (mtx[3] * cr + mtx[4] * cg + mtx[5] * cb) * k
             var b = (mtx[6] * cr + mtx[7] * cg + mtx[8] * cb) * k
             r = max(r, 0f); g = max(g, 0f); b = max(b, 0f)
+            if (hs != null || look != null) {
+                // The camera maker's colour tables, in linear ProPhoto RGB.
+                tmp[0] = toPP[0] * r + toPP[1] * g + toPP[2] * b
+                tmp[1] = toPP[3] * r + toPP[4] * g + toPP[5] * b
+                tmp[2] = toPP[6] * r + toPP[7] * g + toPP[8] * b
+                hs?.let { hsvApply(it, hs2, w1, tmp) }
+                look?.let { hsvApply(it, null, 1f, tmp) }
+                r = max(0f, fromPP[0] * tmp[0] + fromPP[1] * tmp[1] + fromPP[2] * tmp[2])
+                g = max(0f, fromPP[3] * tmp[0] + fromPP[4] * tmp[1] + fromPP[5] * tmp[2])
+                b = max(0f, fromPP[6] * tmp[0] + fromPP[7] * tmp[1] + fromPP[8] * tmp[2])
+            }
             val y = 0.2126f * r + 0.7152f * g + 0.0722f * b
             if (y <= 1e-7f) return 0xFF000000.toInt()
             val y2 = tone(y)
@@ -703,30 +1222,49 @@ object RawDng {
     private const val DISP = 16383
     private const val LN2 = 0.6931472f
     private fun smooth(e0: Float, e1: Float, x: Float): Float { val t = ((x - e0) / (e1 - e0)).coerceIn(0f, 1f); return t * t * (3f - 2f * t) }
+    /** ProfileToneCurve: (x, y) pairs, linear interpolation. */
+    private fun curveAt(c: FloatArray, x: Float): Float {
+        val n = c.size / 2
+        if (x <= c[0]) return c[1]
+        for (i in 1 until n) if (x <= c[i * 2]) { val x0 = c[i * 2 - 2]; val y0 = c[i * 2 - 1]; val x1 = c[i * 2]; val y1 = c[i * 2 + 1]; return y0 + (y1 - y0) * ((x - x0) / (x1 - x0).coerceAtLeast(1e-6f)) }
+        return c[n * 2 - 1]
+    }
 
     /** Develops a preview with the current settings (fast enough for live sliders). */
     fun develop(src: Linear, m: Meta, dev: Dev, exposure: Float, highlights: Float, shadows: Float, whites: Float, blacks: Float, temp: Float, tint: Float): Bitmap {
         val p = Pipe(m, dev, exposure, highlights, shadows, whites, blacks, temp, tint)
         val n = src.w * src.h
-        val out = IntArray(n)
+        var out = IntArray(n)
         val f = src.rgb
-        for (i in 0 until n) out[i] = p.px(f[i * 3], f[i * 3 + 1], f[i * 3 + 2])
+        val vg = if (dev.lensOff) null else src.vig
+        for (i in 0 until n) out[i] = p.px(f[i * 3], f[i * 3 + 1], f[i * 3 + 2], vg?.get(i) ?: 1f)
+        val wp = m.warp
+        if (wp != null && !dev.lensOff) try {
+            val (cx, cy) = orientCentre(m.orientation, wp.cx, wp.cy)
+            out = warp(out, src.w, src.h, wp, cx, cy)
+        } catch (_: OutOfMemoryError) {}
         return Bitmap.createBitmap(out, src.w, src.h, Bitmap.Config.ARGB_8888)
     }
 
     /**
      * Full-quality develop for export: decodes the DNG again, demosaics (full size when the export
-     * needs it, else half-size superpixels), develops, turns upright and fits [maxSide].
+     * needs it, else half-size superpixels), develops, applies the file's lens corrections, turns
+     * upright and fits [maxSide].
      */
     fun export(context: Context, m: Meta, dev: Dev, exposure: Float, highlights: Float, shadows: Float, whites: Float, blacks: Float, temp: Float, tint: Float, maxSide: Int): Bitmap {
         val s = decode(context, m)
         if (dev.wb == 1 && m.autoMul == null) { preview(context, m, 512) } // fills autoMul
         val p = Pipe(m, dev, exposure, highlights, shadows, whites, blacks, temp, tint)
+        val vig = if (dev.lensOff) null else m.vignette
         val full = max(s.w, s.h)
-        val bmp: Bitmap = if (s.cfa == null || maxSide * 1.0f <= full / 2f) {
+        var bmp: Bitmap = if (s.cfa == null || maxSide * 1.0f <= full / 2f) {
             val half = superpixel(s)
             val out = IntArray(half.w * half.h)
-            for (i in out.indices) out[i] = p.px(half.rgb[i * 3], half.rgb[i * 3 + 1], half.rgb[i * 3 + 2])
+            val sx = s.w.toFloat() / half.w; val sy = s.h.toFloat() / half.h
+            for (i in out.indices) {
+                val g = vig?.let { vigGain(it, (i % half.w + 0.5f) * sx, (i / half.w + 0.5f) * sy, s.w, s.h) } ?: 1f
+                out[i] = p.px(half.rgb[i * 3], half.rgb[i * 3 + 1], half.rgb[i * 3 + 2], g)
+            }
             Bitmap.createBitmap(out, half.w, half.h, Bitmap.Config.ARGB_8888)
         } else {
             val w = s.w; val h = s.h
@@ -734,11 +1272,23 @@ object RawDng {
             val row = IntArray(w)
             val rgb = FloatArray(3)
             for (y in 0 until h) {
-                for (x in 0 until w) { mhc(s, x, y, rgb); row[x] = p.px(rgb[0], rgb[1], rgb[2]) }
+                for (x in 0 until w) {
+                    if (s.bayer) mhc(s, x, y, rgb) else generic(s, x, y, rgb)
+                    row[x] = p.px(rgb[0], rgb[1], rgb[2], vig?.let { vigGain(it, x.toFloat(), y.toFloat(), w, h) } ?: 1f)
+                }
                 b.setPixels(row, 0, w, 0, y, w, 1)
             }
             b
         }
+        // Lens distortion / colour fringing from the file (in the stored orientation).
+        val wp = m.warp
+        if (wp != null && !dev.lensOff) try {
+            val w = bmp.width; val h = bmp.height
+            val px = IntArray(w * h); bmp.getPixels(px, 0, w, 0, 0, w, h)
+            bmp.recycle()
+            val o = warp(px, w, h, wp, wp.cx, wp.cy)
+            bmp = Bitmap.createBitmap(o, w, h, Bitmap.Config.ARGB_8888)
+        } catch (_: OutOfMemoryError) {}
         // Upright, then fit the export size.
         val mx = Matrix()
         when (m.orientation) {
@@ -752,6 +1302,30 @@ object RawDng {
         val out = Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, mx, true)
         if (out !== bmp) bmp.recycle()
         return out
+    }
+
+    /** Demosaic for any colour filter pattern: each colour averaged over one pattern repeat around the pixel. */
+    private fun generic(s: Sensor, x: Int, y: Int, o: FloatArray) {
+        val sum = floatArrayOf(0f, 0f, 0f); val n = intArrayOf(0, 0, 0)
+        val rx = s.cw / 2; val ry = s.ch / 2
+        for (dy in -ry..ry) for (dx in -rx..rx) {
+            val xx = x + dx; val yy = y + dy
+            if (xx !in 0 until s.w || yy !in 0 until s.h) continue
+            val c = s.color(xx, yy)
+            // Nearer samples count more.
+            val wgt = 1f / (1 + dx * dx + dy * dy)
+            sum[c] += s.v(yy * s.w + xx) * wgt; n[c]++
+        }
+        val own = s.color(x, y)
+        for (c in 0 until 3) o[c] = if (c == own) s.v(y * s.w + x) else 0f
+        // Weighted means (weights recomputed to normalise).
+        val ws = floatArrayOf(0f, 0f, 0f)
+        for (dy in -ry..ry) for (dx in -rx..rx) {
+            val xx = x + dx; val yy = y + dy
+            if (xx !in 0 until s.w || yy !in 0 until s.h) continue
+            ws[s.color(xx, yy)] += 1f / (1 + dx * dx + dy * dy)
+        }
+        for (c in 0 until 3) if (c != own && ws[c] > 0f) o[c] = sum[c] / ws[c]
     }
 
     /** Malvar-He-Cutler demosaic of one pixel (gradient-corrected bilinear), camera RGB into [o]. */

@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor: full DNG RAW support — opens DNGs from Fujifilm X-Trans and Quad Bayer sensors, lossy-JPEG and Deflate DNGs and floating-point HDR DNGs; applies every correction stored in the file (bad pixels, maps, lens shading, lens distortion, colour fringing, vignetting — switchable); uses both of the camera's colour calibrations, forward matrices and calibration data for more accurate colour at any white balance; new RAW PROFILE → Camera uses the maker's own profile stored in the DNG; new RAW INFO (camera, lens, exposure, sensor, compression, corrections).
 
 ## 1.0.262 — 2026-10-19
 - The app now speaks Danish and Faroese: Settings → LANGUAGE · SPROG · MÁL (Phone language, English, Dansk, Føroyskt). It follows the phone's language by default; app-icon shortcuts are translated too.

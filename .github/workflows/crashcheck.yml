@@ -7,6 +7,8 @@ on:
         description: "Release tag to test (empty = latest)"
         required: false
         default: ""
+permissions:
+  contents: write
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -63,6 +65,16 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: bash crash.sh
+      - name: Save results to the 'crashcheck' branch
+        if: always()
+        run: |
+          [ -d out ] || exit 0
+          rm -f out/logcat-full.txt.gz; gzip -k out/logcat-full.txt 2>/dev/null; rm -f out/logcat-full.txt
+          cd out
+          git init -q -b crashcheck
+          git add -A
+          git -c user.name="github-actions" -c user.email="actions@github.com" commit -qm "Crash check ${{ inputs.tag }} (run ${{ github.run_number }})"
+          git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" crashcheck
       - uses: actions/upload-artifact@v4
         if: always()
         with:

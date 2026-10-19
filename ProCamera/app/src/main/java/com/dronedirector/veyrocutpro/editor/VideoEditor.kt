@@ -3045,7 +3045,9 @@ private fun LayerPreview(
         val wPx = with(density) { maxWidth.toPx() }.toInt().coerceAtLeast(2)
         val hPx = with(density) { maxHeight.toPx() }.toInt().coerceAtLeast(2)
         layers.forEach { base ->
-            if (!(base.activeAt(timeMs) || (showAll && base.visible) || base.id == selectedId)) return@forEach
+            // Hidden layers (eye off on the timeline) are never drawn in the video feed.
+            if (!base.visible) return@forEach
+            if (!(base.activeAt(timeMs) || showAll || base.id == selectedId)) return@forEach
             // Keyframed layers: where they are at this moment.
             val l = base.animAt(timeMs)
             if (l.kind == LayerKind.VIDEO) {

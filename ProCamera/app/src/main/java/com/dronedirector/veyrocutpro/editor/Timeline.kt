@@ -557,11 +557,9 @@ fun TimelineView(
                         drawPath(d, Color.White); drawPath(d, accent, style = Stroke(2f))
                     }
                     if (l.id == selectedLayerId || l.id == editingId) drawRoundRect(accent, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), layerRow), CornerRadius(5f), style = Stroke(if (l.id == editingId) 5f else 3f))
-                    // Edge grips
-                    if (l.id == editingId || l.id == selectedLayerId) {
-                        drawRoundRect(Color.White.copy(alpha = 0.85f), Offset(x0 + 2f, rowTop + layerRow * 0.25f), Size(4f, layerRow * 0.5f), CornerRadius(2f))
-                        drawRoundRect(Color.White.copy(alpha = 0.85f), Offset(x1 - 6f, rowTop + layerRow * 0.25f), Size(4f, layerRow * 0.5f), CornerRadius(2f))
-                    }
+                    // Trim handles on both ends (hold and drag to lengthen / shorten).
+                    if (!l.locked) trimHandles(x0, x1, rowTop, layerRow, l.id == editingId || l.id == selectedLayerId, accent)
+                    if (l.id == editingId) lengthTag(x0, x1, rowTop, e - s, textPaint, accent)
                     textPaint.textSize = 9.sp.toPx()
                     val name = l.name?.takeIf { it.isNotBlank() } ?: when (l.kind) { LayerKind.TEXT, LayerKind.WATERMARK, LayerKind.STICKER -> l.text.replace('\n', ' '); else -> l.kind.label + " " + l.text }
                     drawContext.canvas.nativeCanvas.drawText(name.take(30), max(x0, 0f) + 5f, rowTop + layerRow * 0.68f, textPaint)
@@ -585,6 +583,8 @@ fun TimelineView(
                         mx += 3f
                     }
                     if (m.id == editingId) drawRoundRect(accent, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), musicRow), CornerRadius(5f), style = Stroke(5f))
+                    if (!m.locked) trimHandles(x0, x1, rowTop, musicRow, m.id == editingId, accent)
+                    if (m.id == editingId) lengthTag(x0, x1, rowTop, m.playLength(totalMs), textPaint, accent)
                     textPaint.textSize = 9.sp.toPx()
                     drawContext.canvas.nativeCanvas.drawText("♪ " + m.name.take(30), max(x0, 0f) + 5f, rowTop + musicRow * 0.68f, textPaint)
                     rowTop += musicRow + gap
@@ -638,6 +638,49 @@ private fun peakAt(peaks: FloatArray, ms: Long, spanMs: Long): Float {
     var p = 0f
     for (i in a..b) if (i in peaks.indices && peaks[i] > p) p = peaks[i]
     return p
+}
+
+/**
+ * Trim handles at both ends of a bar, like DaVinci Resolve / Premiere: a raised tab with a bracket
+ * and grip lines, brighter when the item is selected or being trimmed.
+ */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.trimHandles(x0: Float, x1: Float, top: Float, h: Float, active: Boolean, accent: Color) {
+    val wBar = x1 - x0
+    if (wBar < 14f) return
+    val gw = min(7.dp.toPx(), wBar / 3f)
+    val tab = if (active) accent else Color.White.copy(alpha = 0.32f)
+    val line = if (active) Color.Black.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.45f)
+    for (left in listOf(true, false)) {
+        val xa = if (left) x0 else x1 - gw
+        if (xa + gw < 0f || xa > size.width) continue
+        // Tab
+        drawRoundRect(tab, Offset(xa, top), Size(gw, h), CornerRadius(4f))
+        // Bracket on the outer edge
+        val bx = if (left) xa + 1.5f else xa + gw - 1.5f
+        val inward = if (left) 3.dp.toPx() else -3.dp.toPx()
+        val bc = if (active) Color.White else Color.White.copy(alpha = 0.85f)
+        drawLine(bc, Offset(bx, top + 2f), Offset(bx, top + h - 2f), 2.2f)
+        drawLine(bc, Offset(bx, top + 2f), Offset(bx + inward, top + 2f), 2.2f)
+        drawLine(bc, Offset(bx, top + h - 2f), Offset(bx + inward, top + h - 2f), 2.2f)
+        // Grip lines
+        val cx = xa + gw / 2f + (if (left) 1f else -1f)
+        for (k in -1..1) drawLine(line, Offset(cx + k * 1.6f, top + h * 0.32f), Offset(cx + k * 1.6f, top + h * 0.68f), 1f)
+    }
+}
+
+/** While trimming: the item's length above the bar. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.lengthTag(x0: Float, x1: Float, top: Float, lenMs: Long, paint: Paint, accent: Color) {
+    val txt = if (lenMs < 60_000) "%.1f s".format(lenMs / 1000f) else "%d:%02d".format(lenMs / 60_000, (lenMs / 1000) % 60)
+    paint.textSize = 10.sp.toPx()
+    val tw = paint.measureText(txt) + 10f
+    val cx = ((max(x0, 0f) + min(x1, size.width)) / 2f).coerceIn(tw / 2f, size.width - tw / 2f)
+    val th = 15.dp.toPx()
+    val ty = (top - th - 2f).coerceAtLeast(0f)
+    drawRoundRect(accent, Offset(cx - tw / 2f, ty), Size(tw, th), CornerRadius(th / 2f))
+    val c = paint.color
+    paint.color = android.graphics.Color.BLACK
+    drawContext.canvas.nativeCanvas.drawText(txt, cx - tw / 2f + 5f, ty + th * 0.72f, paint)
+    paint.color = c
 }
 
 /** Diagonal stripes over a locked item. */

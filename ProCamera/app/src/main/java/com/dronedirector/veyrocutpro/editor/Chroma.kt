@@ -193,6 +193,7 @@ object Chroma {
                 .setEnableDecoderFallback(true)
                 .build(),
             androidx.media3.common.util.Clock.DEFAULT,
+            null,
         )
 
     /** Puts the named decoders first, so the player / export uses the one that works for 4:2:2. */

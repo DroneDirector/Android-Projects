@@ -22,6 +22,12 @@ import kotlin.math.min
 /** Crop / zoom / reposition of a clip; optionally animated from [start] to [end] over the clip. */
 data class Frame(val zoom: Float = 1f, val x: Float = 0f, val y: Float = 0f, val rotation: Float = 0f)
 
+/**
+ * A clip keyframe: framing and opacity at [t] (source ms from the clip's in point), and how it
+ * eases to the next key — 0 smooth, 1 linear, 2 hold.
+ */
+data class ClipKey(val t: Long, val frame: Frame = Frame(), val opacity: Float = 1f, val ease: Int = 0)
+
 data class Reframe(
     val start: Frame = Frame(),
     val end: Frame = Frame(),
@@ -29,8 +35,40 @@ data class Reframe(
     val flip: Boolean = false,
     /** Auto-reframe: horizontal shift (fraction of the frame) at evenly spaced points through the clip. */
     val track: List<Float>? = null,
+    /** Keyframes (zoom, position, rotation, opacity); when present they replace start / end. */
+    val keys: List<ClipKey>? = null,
 ) {
-    val isIdentity get() = start == Frame() && (!animate || end == Frame()) && !flip && track.isNullOrEmpty()
+    val isIdentity get() = start == Frame() && (!animate || end == Frame()) && !flip && track.isNullOrEmpty() && keys.isNullOrEmpty()
+    val hasKeys: Boolean get() = !keys.isNullOrEmpty()
+    /** Any keyframe below full opacity (needs the opacity effect on export). */
+    val hasOpacity: Boolean get() = keys?.any { it.opacity < 0.999f } == true
+
+    /** The keyframed framing / opacity at [rel] ms from the in point, or null without keyframes. */
+    fun keyedAt(rel: Long): ClipKey? {
+        val k = keys?.sortedBy { it.t } ?: return null
+        if (k.isEmpty()) return null
+        if (rel <= k.first().t) return k.first().copy(t = rel)
+        if (rel >= k.last().t) return k.last().copy(t = rel)
+        val i = k.indexOfLast { it.t <= rel }.coerceIn(0, k.size - 2)
+        val a = k[i]; val b = k[i + 1]
+        val u = ((rel - a.t).toFloat() / (b.t - a.t).coerceAtLeast(1)).coerceIn(0f, 1f)
+        val e = when (a.ease) { 1 -> u; 2 -> 0f; else -> u * u * (3f - 2f * u) }
+        fun l(x: Float, y: Float) = x + (y - x) * e
+        return ClipKey(
+            rel,
+            Frame(l(a.frame.zoom, b.frame.zoom), l(a.frame.x, b.frame.x), l(a.frame.y, b.frame.y), l(a.frame.rotation, b.frame.rotation)),
+            l(a.opacity, b.opacity), a.ease,
+        )
+    }
+
+    fun opacityAt(rel: Long): Float = keyedAt(rel)?.opacity ?: 1f
+
+    /** Adds or replaces the keyframe at [t] (within [tolMs]). */
+    fun upsertKey(t: Long, frame: Frame, opacity: Float, tolMs: Long = 40): Reframe {
+        val list = (keys ?: emptyList()).filter { kotlin.math.abs(it.t - t) > tolMs }
+        val ease = keys?.firstOrNull { kotlin.math.abs(it.t - t) <= tolMs }?.ease ?: 0
+        return copy(keys = (list + ClipKey(t.coerceAtLeast(0), frame, opacity.coerceIn(0f, 1f), ease)).sortedBy { it.t }, animate = false)
+    }
     fun at(f: Float): Frame {
         val t = track
         if (!t.isNullOrEmpty()) {
@@ -60,7 +98,8 @@ data class Xform(val scale: Float, val rotation: Float, val tx: Float, val ty: F
 object ClipXform {
     /** Combined crop + stabilisation transform at [sourceMs] inside the clip. */
     fun at(c: Clip, sourceMs: Long, motion: Motion?): Xform {
-        val f = c.reframe.at(((sourceMs - c.startMs).toFloat() / (c.endMs - c.startMs).coerceAtLeast(1)))
+        val f = c.reframe.keyedAt(sourceMs - c.startMs)?.frame
+            ?: c.reframe.at(((sourceMs - c.startMs).toFloat() / (c.endMs - c.startMs).coerceAtLeast(1)))
         var s = f.zoom; var r = f.rotation; var tx = f.x; var ty = f.y
         if (c.stab.enabled && motion != null) {
             val corr = motion.correction(c.stab, sourceMs, c.startMs, c.endMs)

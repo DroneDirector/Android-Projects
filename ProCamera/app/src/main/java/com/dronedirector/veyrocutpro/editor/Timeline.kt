@@ -596,6 +596,14 @@ fun TimelineView(
                     val x0 = xOf(starts[i]); val x1 = xOf(starts[i] + c.lengthMs)
                     if (x1 < 0 || x0 > size.width) return@forEachIndexed
                     trimHandles(x0, x1, top, clipRow * 0.55f, i == editingClip || i == selectedClip, accent)
+                    // Clip keyframes as diamonds along the top of the clip.
+                    c.reframe.keys?.forEach { k ->
+                        val kx = xOf(starts[i] + c.tlOffsetOf(c.startMs + k.t))
+                        if (kx < x0 - 1f || kx > x1 + 1f) return@forEach
+                        val cy = top + 8.dp.toPx(); val rr = 5.dp.toPx()
+                        val d = androidx.compose.ui.graphics.Path().apply { moveTo(kx, cy - rr); lineTo(kx + rr, cy); lineTo(kx, cy + rr); lineTo(kx - rr, cy); close() }
+                        drawPath(d, Color.White); drawPath(d, accent, style = Stroke(2f))
+                    }
                     if (i == editingClip) lengthTag(x0, x1, top + 2f + 17.dp.toPx(), c.lengthMs, textPaint, accent)
                 }
 

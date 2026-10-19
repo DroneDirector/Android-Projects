@@ -900,6 +900,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val a = deck.active
             if (c.id == loadedId) texViews[a]?.let {
                 ClipXform.applyToView(it, ClipXform.at(c, c.startMs + deck.cur.currentPosition, motionFor(c)))
+                it.alpha = c.reframe.opacityAt(deck.cur.currentPosition)
                 if (gpuGrade) { if (effectsOk) GradePreview.apply(it, adjOf(c), System.nanoTime() / 1e9f) else GradePreview.clear(it) }
             }
             val n = clips.getOrNull(i + 1)
@@ -957,6 +958,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 transitionOn[0] = true
                 texViews[1 - a]?.let {
                     ClipXform.applyToView(it, ClipXform.at(n, n.startMs + deck.spare.currentPosition, motionFor(n)))
+                    it.alpha = n.reframe.opacityAt(deck.spare.currentPosition)
                     if (gpuGrade && effectsOk) GradePreview.apply(it, adjOf(n), System.nanoTime() / 1e9f)
                 }
                 frameViews[a]?.let { TransitionPreview.apply(it, c.transition.type, p, false) }
@@ -1811,14 +1813,16 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onGesture = { pan, zf, rot, w, h ->
                                     update(current) { cl ->
                                         val r = cl.reframe
+                                        val keyAt = r.keyedAt(deck.cur.currentPosition)
                                         val end = r.animate && cropEditEnd
-                                        val f = if (end) r.end else r.start
+                                        val f = keyAt?.frame ?: if (end) r.end else r.start
                                         val nf = f.copy(
                                             zoom = (f.zoom * zf).coerceIn(0.25f, 8f),
                                             x = (f.x + pan.x / w).coerceIn(-2f, 2f), y = (f.y + pan.y / h).coerceIn(-2f, 2f),
                                             rotation = f.rotation + rot,
                                         )
-                                        cl.copy(reframe = if (end) r.copy(end = nf) else r.copy(start = nf))
+                                        cl.copy(reframe = if (keyAt != null) r.upsertKey(deck.cur.currentPosition, nf, keyAt.opacity)
+                                            else if (end) r.copy(end = nf) else r.copy(start = nf))
                                     }
                                 },
                                 onDone = { cropMode = false },
@@ -2163,6 +2167,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     },
                                     onChange = { f -> update(selected, f) },
                                     onAnalyze = { analyze(sc) },
+                                    playheadRel = if (selected == current) posMs else 0L,
+                                    onSeekRel = { t ->
+                                        val st = clipStarts(clips)
+                                        seekGlobal((st.getOrNull(selected) ?: 0L) + sc.tlOffsetOf(sc.startMs + t))
+                                    },
                                 )
                                 SectionTitle("ANAMORPHIC DESQUEEZE")
                                 val sq = listOf(1f, 1.33f, 1.5f, 1.55f, 1.8f, 2f)

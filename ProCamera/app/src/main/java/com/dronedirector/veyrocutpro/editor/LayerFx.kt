@@ -280,3 +280,59 @@ private class BlendProgram(private val bitmap: Bitmap, private val l: Layer, pri
         """
     }
 }
+
+
+/** Export: a clip's keyframed opacity (fades to black, or shows the layers under the main video). */
+@UnstableApi
+class ClipOpacityEffect(private val c: Clip) : GlEffect {
+    override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram = OpacityProgram(c, useHdr)
+}
+
+@UnstableApi
+private class OpacityProgram(private val c: Clip, useHdr: Boolean) : BaseGlShaderProgram(useHdr, 1) {
+    private val program = try { GlProgram(VERT, FRAG) } catch (e: GlUtil.GlException) { throw VideoFrameProcessingException(e) }
+    private var t0 = Long.MIN_VALUE
+
+    init { program.setBufferAttribute("aFramePosition", GlUtil.getNormalizedCoordinateBounds(), GlUtil.HOMOGENEOUS_COORDINATE_VECTOR_SIZE) }
+
+    override fun configure(inputWidth: Int, inputHeight: Int) = Size(inputWidth, inputHeight)
+
+    override fun drawFrame(inputTexId: Int, presentationTimeUs: Long) {
+        if (t0 == Long.MIN_VALUE) t0 = presentationTimeUs
+        val src = c.srcAtOffset((presentationTimeUs - t0) / 1000)
+        val k = c.reframe.opacityAt(src - c.startMs).coerceIn(0f, 1f)
+        try {
+            program.use()
+            program.setSamplerTexIdUniform("uTexSampler", inputTexId, 0)
+            program.setFloatUniform("uK", k)
+            program.bindAttributesAndUniforms()
+            GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+        } catch (e: GlUtil.GlException) { throw VideoFrameProcessingException(e) }
+    }
+
+    override fun release() {
+        super.release()
+        try { program.delete() } catch (e: GlUtil.GlException) { throw VideoFrameProcessingException(e) }
+    }
+
+    companion object {
+        const val VERT = """
+            attribute vec4 aFramePosition;
+            varying vec2 vTexSamplingCoord;
+            void main() {
+                gl_Position = aFramePosition;
+                vTexSamplingCoord = vec2(aFramePosition.x * 0.5 + 0.5, aFramePosition.y * 0.5 + 0.5);
+            }
+        """
+        const val FRAG = """
+            precision mediump float;
+            uniform sampler2D uTexSampler;
+            uniform float uK;
+            varying vec2 vTexSamplingCoord;
+            void main() {
+                vec4 c = texture2D(uTexSampler, vTexSamplingCoord);
+                gl_FragColor = vec4(c.rgb * uK, c.a * uK);
+            }
+        """
+    }
+}

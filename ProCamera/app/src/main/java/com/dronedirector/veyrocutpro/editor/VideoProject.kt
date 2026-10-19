@@ -268,6 +268,7 @@ class TimelineExport(
             if (c.detail.aiDenoise > 0f) video += AiDenoiseEffect(context, c.detail.aiDenoise)
             val motion = if (c.stab.enabled) Stabilizer.cached(context, c) else null
             if (!c.reframe.isIdentity || motion != null) video += ReframeEffect(c, motion)
+            if (c.reframe.hasOpacity) video += ClipOpacityEffect(c)
             // Anamorphic: stretch the squeezed picture back to its real width.
             c.desqueeze?.takeIf { it > 1f }?.let { video += androidx.media3.effect.ScaleAndRotateTransformation.Builder().setScale(it, 1f).build() }
             video += clipEffects(c)

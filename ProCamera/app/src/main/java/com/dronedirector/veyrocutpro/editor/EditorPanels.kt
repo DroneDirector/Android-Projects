@@ -140,17 +140,27 @@ fun ReframePanel(
     c: Clip, editingEnd: Boolean, cropMode: Boolean, stabProgress: Int?, analysed: Boolean,
     onEditEnd: (Boolean) -> Unit, onCropMode: (Boolean) -> Unit,
     onChange: ((Clip) -> Clip) -> Unit, onAnalyze: () -> Unit,
+    /** Playhead inside this clip (source ms from its in point) and a way to jump there. */
+    playheadRel: Long = 0L, onSeekRel: (Long) -> Unit = {},
 ) {
     val r = c.reframe
-    val f = if (r.animate && editingEnd) r.end else r.start
-    fun setF(nf: Frame) = onChange { cl -> cl.copy(reframe = if (cl.reframe.animate && editingEnd) cl.reframe.copy(end = nf) else cl.reframe.copy(start = nf)) }
+    val keyed = r.keyedAt(playheadRel)
+    val f = keyed?.frame ?: if (r.animate && editingEnd) r.end else r.start
+    fun setF(nf: Frame) = onChange { cl ->
+        val k = cl.reframe.keyedAt(playheadRel)
+        cl.copy(reframe = when {
+            k != null -> cl.reframe.upsertKey(playheadRel, nf, k.opacity)
+            cl.reframe.animate && editingEnd -> cl.reframe.copy(end = nf)
+            else -> cl.reframe.copy(start = nf)
+        })
+    }
     SectionTitle("CROP & ZOOM", onReset = { onChange { it.copy(reframe = Reframe()) } })
     Text(
         if (cropMode) "DONE — STOP EDITING ON THE PLAYER" else "CROP ON THE PLAYER (PINCH · DRAG · TWIST)",
         style = Pro.Label.copy(color = if (cropMode) Color.Black else Pro.Amber, fontSize = 10.sp),
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(if (cropMode) Pro.Amber else Ed.Raised).clickable { onCropMode(!cropMode) }.padding(10.dp),
     )
-    Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+    if (!r.hasKeys) Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("Animate (Ken Burns)", color = Color.White, fontSize = 13.sp)
             Text("Moves smoothly from a start framing to an end framing over the clip", color = Pro.Dim, fontSize = 11.sp)
@@ -158,7 +168,8 @@ fun ReframePanel(
         Switch(r.animate, { a -> onChange { it.copy(reframe = it.reframe.copy(animate = a, end = if (a && it.reframe.end == Frame()) it.reframe.start.copy(zoom = it.reframe.start.zoom * 1.3f) else it.reframe.end)) } },
             colors = SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
     }
-    if (r.animate) Chips(listOf("Edit start", "Edit end"), if (editingEnd) 1 else 0) { onEditEnd(it == 1) }
+    if (r.animate && !r.hasKeys) Chips(listOf("Edit start", "Edit end"), if (editingEnd) 1 else 0) { onEditEnd(it == 1) }
+    if (r.hasKeys) Text("Keyframed: the controls below edit the clip at the playhead (a keyframe is added or updated there).", color = Pro.Amber, fontSize = 11.sp)
     EdSlider("Zoom", f.zoom, 0.25f..4f, 1f, { "%.2fx".format(it) }) { setF(f.copy(zoom = it)) }
     EdSlider("Position X", f.x, -1f..1f, 0f) { setF(f.copy(x = it)) }
     EdSlider("Position Y", f.y, -1f..1f, 0f) { setF(f.copy(y = it)) }
@@ -169,6 +180,7 @@ fun ReframePanel(
             else -> onChange { it.copy(reframe = it.reframe.copy(flip = !it.reframe.flip)) }
         }
     }
+    ClipKeyframes(c, playheadRel, onChange, onSeekRel)
 
     SectionTitle("STABILIZE")
     val s = c.stab
@@ -360,5 +372,64 @@ private fun FadeGraph(type: AudioTransitionType, modifier: Modifier) {
         val stroke = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
         drawPath(path { ms -> fo?.gain(1000 - ms) ?: (1f - ms / 1000f) }, Pro.Amber, style = stroke)
         drawPath(path { ms -> fi?.gain(ms) ?: (ms / 1000f) }, Color.White, style = stroke)
+    }
+}
+
+
+/** Keyframes on a clip: zoom, position, rotation and opacity over time, with easing. */
+@Composable
+private fun ClipKeyframes(c: Clip, playheadRel: Long, onChange: ((Clip) -> Clip) -> Unit, onSeekRel: (Long) -> Unit) {
+    val r = c.reframe
+    val keys = r.keys.orEmpty().sortedBy { it.t }
+    val now = r.keyedAt(playheadRel)
+    SectionTitle("KEYFRAMES", onReset = if (keys.isNotEmpty()) ({ onChange { it.copy(reframe = it.reframe.copy(keys = null)) } }) else null)
+    Text(
+        "Move the playhead, set zoom / position / rotation / opacity, and tap ◆ ADD KEYFRAME. The clip moves smoothly between keyframes, in the preview and the export.",
+        color = Pro.Dim, fontSize = 11.sp,
+    )
+    val onKey = keys.any { kotlin.math.abs(it.t - playheadRel) <= 40 }
+    Text(
+        if (onKey) "◆ UPDATE KEYFRAME AT ${tc(playheadRel)}" else "◆ ADD KEYFRAME AT ${tc(playheadRel)}",
+        style = Pro.Label.copy(color = Color.Black, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 6.dp).fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Pro.Amber).clickable {
+            onChange { cl ->
+                val cur = cl.reframe.keyedAt(playheadRel)
+                // The first key starts from the clip's current framing (start / Ken Burns at this point).
+                val fr = cur?.frame ?: cl.reframe.at(playheadRel.toFloat() / (cl.endMs - cl.startMs).coerceAtLeast(1))
+                cl.copy(reframe = cl.reframe.upsertKey(playheadRel, fr, cur?.opacity ?: 1f))
+            }
+        }.padding(10.dp),
+    )
+    EdSlider("Opacity", now?.opacity ?: 1f, 0f..1f, 1f, ::pct) { v ->
+        onChange { cl ->
+            val cur = cl.reframe.keyedAt(playheadRel)
+            val fr = cur?.frame ?: cl.reframe.start
+            cl.copy(reframe = cl.reframe.upsertKey(playheadRel, fr, v))
+        }
+    }
+    keys.forEachIndexed { i, k ->
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(8.dp))
+                .background(if (kotlin.math.abs(k.t - playheadRel) <= 40) Pro.Amber.copy(alpha = 0.18f) else Ed.Raised).padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("◆ ${tc(k.t)}", style = Pro.Value.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.clickable { onSeekRel(k.t) }.padding(4.dp))
+            Text(
+                "%.2fx · %.0f%%".format(k.frame.zoom, k.opacity * 100), style = Pro.Label.copy(fontSize = 10.sp),
+                modifier = Modifier.weight(1f).padding(start = 6.dp),
+            )
+            if (i < keys.lastIndex) {
+                val labels = listOf("Smooth", "Linear", "Hold")
+                Text(
+                    labels[k.ease.coerceIn(0, 2)], style = Pro.Label.copy(color = Color.White, fontSize = 10.sp),
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Color.White.copy(alpha = 0.08f)).clickable {
+                        onChange { cl -> cl.copy(reframe = cl.reframe.copy(keys = cl.reframe.keys?.map { if (it.t == k.t) it.copy(ease = (it.ease + 1) % 3) else it })) }
+                    }.padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+            }
+            Text("✕", color = Pro.Red, fontSize = 14.sp, modifier = Modifier.clickable {
+                onChange { cl -> cl.copy(reframe = cl.reframe.copy(keys = cl.reframe.keys?.filter { it.t != k.t }?.takeIf { it.isNotEmpty() })) }
+            }.padding(8.dp))
+        }
     }
 }

@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.318 — 2026-10-19
 - Video editor: **Morph cut** (Transitions → Basic) now works like Premiere Pro's Morph Cut and DaVinci Resolve's Smooth Cut — VeyroCut Pro's own optical-flow engine analyses the jump cut and draws brand-new in-between frames, so a head glides to its new position instead of jumping or cross-fading. Shown in the preview; drawn at full size (with each clip's grade and effects) in the export.
 - Video editor: **Magic Mask** (Color → Detail → BACKGROUND, and Layers → REMOVE BACKGROUND) — tap or box any person, animal, car or object; the AI outlines it and follows it through the clip frame by frame (MobileSAM on the phone), handling things passing in front and stopping at scene cuts. Blur, recolour or remove the background, or invert to blur / hide the object itself.
 - Video editor: the background cut-out (people or Magic Mask) now shows live in the preview exactly as the export makes it, with finer edges that follow hair and outlines.

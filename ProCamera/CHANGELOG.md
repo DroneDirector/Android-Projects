@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.259 — 2026-10-19
 - Capture: face blur now works all the time in Video and Pro Video — faces are found in the camera picture itself when the phone can't run a separate analysis stream (4K, high frame rates).
 - Video editor: 4:2:2 footage support — 10-bit 4:2:2 (and 4:4:4) H.264 / H.265 clips are detected (badge in the Media page), read with a decoder on the phone that can handle them, edited through a smooth preview copy and exported from the original. Clips no decoder on the phone can read are clearly marked.
 

@@ -7,6 +7,10 @@ on:
         description: "Release tag to test (empty = latest)"
         required: false
         default: ""
+      run:
+        description: "Or: a build run id whose APK to test"
+        required: false
+        default: ""
 permissions:
   contents: write
   actions: read

@@ -41,7 +41,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
+import com.dronedirector.veyrocutpro.ui.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -146,7 +146,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
     val upNote = com.dronedirector.veyrocutpro.camera.Upscaler.lastNote
     LaunchedEffect(upNote) {
         if (upNote != null) {
-            android.widget.Toast.makeText(upCtx, upNote, android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(upCtx, com.dronedirector.veyrocutpro.ui.I18n.tr(upNote), android.widget.Toast.LENGTH_SHORT).show()
             com.dronedirector.veyrocutpro.camera.Upscaler.lastNote = null
         }
     }

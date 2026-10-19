@@ -138,7 +138,7 @@ fun BackupSection() {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var busy by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
     var askRestore by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<Uri?>(null) }
-    fun toast(s: String) = android.widget.Toast.makeText(ctx, s, android.widget.Toast.LENGTH_LONG).show()
+    fun toast(s: String) = android.widget.Toast.makeText(ctx, com.dronedirector.veyrocutpro.ui.I18n.tr(s), android.widget.Toast.LENGTH_LONG).show()
     val save = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri != null) {
             busy = "Saving backup…"
@@ -156,8 +156,8 @@ fun BackupSection() {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { askRestore = null },
             containerColor = Pro.PanelSolid,
-            title = { androidx.compose.material3.Text("Restore this backup?", color = androidx.compose.ui.graphics.Color.White) },
-            text = { androidx.compose.material3.Text("Your current settings, presets, LUTs, sounds and projects are replaced by the ones in the backup, then the app restarts. Photos and videos are not touched.", color = Pro.Dim) },
+            title = { com.dronedirector.veyrocutpro.ui.Text("Restore this backup?", color = androidx.compose.ui.graphics.Color.White) },
+            text = { com.dronedirector.veyrocutpro.ui.Text("Your current settings, presets, LUTs, sounds and projects are replaced by the ones in the backup, then the app restarts. Photos and videos are not touched.", color = Pro.Dim) },
             confirmButton = {
                 androidx.compose.material3.TextButton(onClick = {
                     askRestore = null
@@ -167,16 +167,16 @@ fun BackupSection() {
                         busy = null
                         if (ok) { toast("Backup restored — restarting"); Backup.restart(ctx) } else toast("That isn't a VeyroCut Pro backup")
                     }
-                }) { androidx.compose.material3.Text("Restore", color = Pro.Amber) }
+                }) { com.dronedirector.veyrocutpro.ui.Text("Restore", color = Pro.Amber) }
             },
-            dismissButton = { androidx.compose.material3.TextButton(onClick = { askRestore = null }) { androidx.compose.material3.Text("Cancel", color = Pro.Dim) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { askRestore = null }) { com.dronedirector.veyrocutpro.ui.Text("Cancel", color = Pro.Dim) } },
         )
     }
     androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.padding(vertical = 4.dp)) {
-        androidx.compose.material3.Text("BACKUP & RESTORE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp))
+        com.dronedirector.veyrocutpro.ui.Text("BACKUP & RESTORE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp))
         androidx.compose.foundation.layout.Row(androidx.compose.ui.Modifier.padding(vertical = 6.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
             val b = @androidx.compose.runtime.Composable { label: String, onClick: () -> Unit ->
-                androidx.compose.material3.Text(
+                com.dronedirector.veyrocutpro.ui.Text(
                     label, color = androidx.compose.ui.graphics.Color.Black, fontSize = 13.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
                     modifier = androidx.compose.ui.Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(50)).background(Pro.Amber)
                         .clickable(enabled = busy == null, onClick = onClick).padding(horizontal = 14.dp, vertical = 8.dp),
@@ -188,7 +188,7 @@ fun BackupSection() {
             }
             b("RESTORE") { open.launch(arrayOf("*/*")) }
         }
-        androidx.compose.material3.Text(
+        com.dronedirector.veyrocutpro.ui.Text(
             busy ?: "One file with all settings, presets, LUTs, watermarks, your sounds and saved projects — for a new phone or after reinstalling. Photos and videos stay in your gallery.",
             color = if (busy != null) Pro.Amber else Pro.Dim, fontSize = 12.sp,
         )

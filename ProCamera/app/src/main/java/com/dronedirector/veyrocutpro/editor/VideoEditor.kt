@@ -79,7 +79,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Text
+import com.dronedirector.veyrocutpro.ui.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -155,7 +155,7 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
             clips.addAll(loaded)
             loading = false
             loaded.firstOrNull { it.undecodable == true }?.let {
-                android.widget.Toast.makeText(context, "\"${it.name}\" is 4:2:2 and this phone can't decode it — see the Media page", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("\"${it.name}\" is 4:2:2 and this phone can't decode it — see the Media page"), android.widget.Toast.LENGTH_LONG).show()
             }
             if (clips.isNotEmpty()) started = true
         }
@@ -212,7 +212,7 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
                         val p = withContext(Dispatchers.IO) { ProjectStore.loadVideo(context, id) }
                         loading = false
                         if (p == null || p.clips.isEmpty()) {
-                            android.widget.Toast.makeText(context, "Couldn't open that project", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Couldn't open that project"), android.widget.Toast.LENGTH_SHORT).show()
                         } else {
                             clips.clear(); clips.addAll(p.clips); project = p; started = true
                         }
@@ -227,7 +227,7 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
                 clips, project, onAddGallery = pickGallery, onAddFiles = pickFiles, onExit = { ProjectStore.clearAutosave(context); onExit() },
                 onLoad = { id ->
                     val p = ProjectStore.loadVideo(context, id)
-                    if (p == null || p.clips.isEmpty()) android.widget.Toast.makeText(context, "Couldn't open that project", android.widget.Toast.LENGTH_SHORT).show()
+                    if (p == null || p.clips.isEmpty()) android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Couldn't open that project"), android.widget.Toast.LENGTH_SHORT).show()
                     else { clips.clear(); clips.addAll(p.clips); project = p }
                 },
             )

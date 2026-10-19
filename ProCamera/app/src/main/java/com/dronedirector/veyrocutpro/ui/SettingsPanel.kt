@@ -27,7 +27,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
+import com.dronedirector.veyrocutpro.ui.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -146,6 +146,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             LicensesButton()
             PrivacyButton()
             BackupSection()
+            LanguagePicker()
             TourButton()
 
             Section("VIDEO")
@@ -211,7 +212,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                     if (uri != null) try {
                         val l = com.dronedirector.veyrocutpro.editor.LutLibrary.import(ctx, uri)
                         x.monitorLut = l.id; x.save(ctx); c.refreshMonitorLut()
-                    } catch (t: Throwable) { android.widget.Toast.makeText(ctx, t.message ?: "Not a .cube LUT", android.widget.Toast.LENGTH_SHORT).show() }
+                    } catch (t: Throwable) { android.widget.Toast.makeText(ctx, com.dronedirector.veyrocutpro.ui.I18n.tr(t.message ?: "Not a .cube LUT"), android.widget.Toast.LENGTH_SHORT).show() }
                 }
                 Text("Monitoring LUT", color = Color.White, fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp))
                 Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {

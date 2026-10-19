@@ -130,7 +130,7 @@ object Storage {
         if (now - lastWarn < 8000) return
         lastWarn = now
         val app = context.applicationContext
-        Handler(Looper.getMainLooper()).post { try { Toast.makeText(app, text, Toast.LENGTH_LONG).show() } catch (_: Throwable) {} }
+        Handler(Looper.getMainLooper()).post { try { Toast.makeText(app, com.dronedirector.veyrocutpro.ui.I18n.tr(text), Toast.LENGTH_LONG).show() } catch (_: Throwable) {} }
     }
 
     /** [place], or internal storage (with a notice) if it isn't there right now. */

@@ -22,7 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Text
+import com.dronedirector.veyrocutpro.ui.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -90,6 +90,7 @@ class MainActivity : ComponentActivity() {
         com.dronedirector.veyrocutpro.editor.UserPresets.init(this)
         com.dronedirector.veyrocutpro.camera.CaptureExtras.load(this)
         com.dronedirector.veyrocutpro.camera.SimpleMode.load(this)
+        com.dronedirector.veyrocutpro.ui.I18n.load(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (Build.VERSION.SDK_INT >= 28) {

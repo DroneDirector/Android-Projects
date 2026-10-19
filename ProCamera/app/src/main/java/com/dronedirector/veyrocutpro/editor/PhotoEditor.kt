@@ -56,7 +56,7 @@ import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import com.dronedirector.veyrocutpro.ui.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -134,7 +134,7 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
     var merging by remember { mutableStateOf<String?>(null) }
     val mergePick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(8)) { list ->
         val kind = mergeKind ?: return@rememberLauncherForActivityResult
-        if (list.size < 2) { if (list.isNotEmpty()) android.widget.Toast.makeText(context, "Pick at least 2 photos", android.widget.Toast.LENGTH_SHORT).show(); return@rememberLauncherForActivityResult }
+        if (list.size < 2) { if (list.isNotEmpty()) android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Pick at least 2 photos"), android.widget.Toast.LENGTH_SHORT).show(); return@rememberLauncherForActivityResult }
         merging = "Starting…"
         scope.launch {
             val uri = withContext(Dispatchers.Default) {
@@ -145,7 +145,7 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
             }
             merging = null
             if (uri != null) { project = null; source = uri }
-            else android.widget.Toast.makeText(context, "Couldn't merge those photos", android.widget.Toast.LENGTH_LONG).show()
+            else android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Couldn't merge those photos"), android.widget.Toast.LENGTH_LONG).show()
         }
     }
 
@@ -173,7 +173,7 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
             onOpenProject = { id ->
                 val p = ProjectStore.loadPhoto(context, id)
                 if (p != null && p.uri != Uri.EMPTY) { project = p; source = p.uri }
-                else android.widget.Toast.makeText(context, "Couldn't open that project", android.widget.Toast.LENGTH_SHORT).show()
+                else android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Couldn't open that project"), android.widget.Toast.LENGTH_SHORT).show()
             },
         )
     } else {
@@ -184,7 +184,7 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
                 onLoad = { id ->
                 val p = ProjectStore.loadPhoto(context, id)
                 if (p != null && p.uri != Uri.EMPTY) { project = p; source = p.uri }
-                else android.widget.Toast.makeText(context, "Couldn't open that project", android.widget.Toast.LENGTH_SHORT).show()
+                else android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Couldn't open that project"), android.widget.Toast.LENGTH_SHORT).show()
             })
         }
     }

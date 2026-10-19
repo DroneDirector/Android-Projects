@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- The timeline scroll wheel now sits in its own narrow window on the right edge of the timeline (same place, full height, same effect, still scrolls the tracks up and down), so it never covers a track — the tracks end just before it.
 
 ## 1.0.290 — 2026-10-19
 - Video editor timeline: the trim handles on clips, layers and audio are now about three times wider and much easier to grab (bigger touch zone, still a third of the bar at most on short items).

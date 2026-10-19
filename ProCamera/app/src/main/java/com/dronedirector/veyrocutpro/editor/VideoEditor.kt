@@ -2320,11 +2320,19 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     // Tracks scroll up and down; the small wheel in the lower-right corner moves them.
                     Box(Modifier.fillMaxWidth()) {
                         val sized = if (tlPane.dp < 0f) Modifier.fillMaxWidth().heightIn(max = (boxH * 0.42f).dp) else Modifier.fillMaxWidth().height(tlPane.dp.dp)
-                        Box(sized.verticalScroll(tlScroll)) { timeline() }
-                        TimelineUpscaleOverlay(tlEnergy, tlScroll.value, Modifier.matchParentSize())
-                        // The wheel is as tall as the visible timeline, so it grows as tracks are added.
+                        // The tracks stop short of the right edge: the wheel has its own window there.
+                        Box(sized.padding(end = 26.dp).verticalScroll(tlScroll)) { timeline() }
+                        TimelineUpscaleOverlay(tlEnergy, tlScroll.value, Modifier.matchParentSize().padding(end = 26.dp))
+                        // Scroll wheel window: its own panel on the right, as tall as the visible timeline,
+                        // so it grows as tracks are added and never covers a track.
                         Box(Modifier.matchParentSize()) {
-                            TimelineWheel(tlScroll, Modifier.align(Alignment.CenterEnd).fillMaxHeight().padding(end = 4.dp, top = 32.dp, bottom = 4.dp)) { tlEnergy = it }
+                            Box(
+                                Modifier.align(Alignment.CenterEnd).width(26.dp).fillMaxHeight()
+                                    .background(Ed.Panel)
+                                    .border(1.dp, Color.White.copy(alpha = 0.08f)),
+                            ) {
+                                TimelineWheel(tlScroll, Modifier.align(Alignment.Center).fillMaxHeight().padding(top = 6.dp, bottom = 6.dp)) { tlEnergy = it }
+                            }
                         }
                     }
                 }

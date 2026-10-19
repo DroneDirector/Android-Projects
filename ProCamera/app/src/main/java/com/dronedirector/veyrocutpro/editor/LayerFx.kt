@@ -336,3 +336,78 @@ private class OpacityProgram(private val c: Clip, useHdr: Boolean) : BaseGlShade
         """
     }
 }
+
+/**
+ * Picture-in-picture frame for video layers: rounded corners, a border and a soft drop shadow
+ * (the output grows by [pad] pixels on each side for the shadow, so the layer stays centred).
+ */
+@UnstableApi
+class PipStyleEffect(private val radiusPx: Float, private val borderPx: Float, private val borderColor: Int, private val pad: Int) : GlEffect {
+    override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram = PipStyleProgram(radiusPx, borderPx, borderColor, pad, useHdr)
+}
+
+@UnstableApi
+private class PipStyleProgram(private val r: Float, private val b: Float, private val bc: Int, private val pad: Int, useHdr: Boolean) : BaseGlShaderProgram(useHdr, 1) {
+    private val program = try { GlProgram(VERT, FRAG) } catch (e: GlUtil.GlException) { throw VideoFrameProcessingException(e) }
+    private var iw = 1; private var ih = 1
+    init { program.setBufferAttribute("aFramePosition", GlUtil.getNormalizedCoordinateBounds(), GlUtil.HOMOGENEOUS_COORDINATE_VECTOR_SIZE) }
+    override fun configure(inputWidth: Int, inputHeight: Int): Size { iw = inputWidth; ih = inputHeight; return Size(inputWidth + pad * 2, inputHeight + pad * 2) }
+    override fun drawFrame(inputTexId: Int, presentationTimeUs: Long) {
+        try {
+            program.use()
+            program.setSamplerTexIdUniform("uTex", inputTexId, 0)
+            program.setFloatsUniform("uOut", floatArrayOf((iw + pad * 2).toFloat(), (ih + pad * 2).toFloat()))
+            program.setFloatsUniform("uIn", floatArrayOf(iw.toFloat(), ih.toFloat()))
+            program.setFloatUniform("uPad", pad.toFloat())
+            program.setFloatUniform("uR", r.coerceAtMost(minOf(iw, ih) / 2f))
+            program.setFloatUniform("uB", b)
+            program.setFloatsUniform("uBC", floatArrayOf(((bc shr 16) and 255) / 255f, ((bc shr 8) and 255) / 255f, (bc and 255) / 255f))
+            program.bindAttributesAndUniforms()
+            GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+        } catch (e: GlUtil.GlException) { throw VideoFrameProcessingException(e) }
+    }
+    override fun release() { super.release(); try { program.delete() } catch (e: GlUtil.GlException) { throw VideoFrameProcessingException(e) } }
+
+    companion object {
+        private const val VERT = """
+            attribute vec4 aFramePosition;
+            varying vec2 vUv;
+            void main() { gl_Position = aFramePosition; vUv = vec2(aFramePosition.x * 0.5 + 0.5, aFramePosition.y * 0.5 + 0.5); }
+        """
+        private const val FRAG = """
+            #ifdef GL_FRAGMENT_PRECISION_HIGH
+            precision highp float;
+            #else
+            precision mediump float;
+            #endif
+            uniform sampler2D uTex;
+            uniform vec2 uOut;
+            uniform vec2 uIn;
+            uniform float uPad;
+            uniform float uR;
+            uniform float uB;
+            uniform vec3 uBC;
+            varying vec2 vUv;
+            float sdRR(vec2 p, vec2 bb, float r) { vec2 q = abs(p) - bb + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }
+            void main() {
+                vec2 px = vUv * uOut;
+                vec2 c = px - uOut * 0.5;
+                float d = sdRR(c, uIn * 0.5, uR);
+                float inside = 1.0 - smoothstep(-0.75, 0.75, d);
+                vec4 img = texture2D(uTex, clamp((px - uPad) / uIn, 0.0, 1.0));
+                vec3 col = img.rgb;
+                float a = img.a;
+                if (uB > 0.0) { float bm = smoothstep(-uB - 0.75, -uB + 0.75, d); col = mix(col, uBC, bm); a = mix(a, 1.0, bm); }
+                a *= inside;
+                if (uPad > 0.0) {
+                    float ds = sdRR(c - vec2(0.0, -uPad * 0.3), uIn * 0.5, uR);
+                    float sa = 0.55 * (1.0 - smoothstep(-uPad * 0.3, uPad * 0.9, ds));
+                    float oa = a + sa * (1.0 - a);
+                    col = col * a / max(oa, 0.0001);
+                    a = oa;
+                }
+                gl_FragColor = vec4(col, a);
+            }
+        """
+    }
+}

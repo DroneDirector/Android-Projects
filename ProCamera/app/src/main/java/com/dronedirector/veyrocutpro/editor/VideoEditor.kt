@@ -12,6 +12,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -137,7 +139,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private enum class Page(val label: String) { MEDIA("Media"), PROXY("Proxy"), EDIT("Edit"), TEXT("Text"), TRANSITIONS("Transitions"), COLOR("Color"), LAYERS("Layers"), AUDIO("Audio"), DELIVER("Deliver") }
-private enum class ColorTab(val label: String) { INPUT("Input"), LUTS("LUTs"), WHEELS("Wheels"), PRIMARIES("Primaries"), CURVES("Curves"), HSL("HSL"), MASKS("Masks"), DETAIL("Detail"), EFFECTS("Effects"), LOOKS("Looks") }
+private enum class ColorTab(val label: String) { INPUT("Input"), LUTS("LUTs"), WHEELS("Wheels"), PRIMARIES("Primaries"), CURVES("Curves"), HSL("HSL"), MASKS("Masks"), DETAIL("Detail"), FILM("Film & lens"), EFFECTS("Effects"), LOOKS("Looks") }
 
 @Composable
 fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) {
@@ -621,6 +623,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val texViews = remember { arrayOfNulls<android.view.View>(2) }
     val transitionOn = remember { booleanArrayOf(false) }
     val gpuGrade = remember { GradePreview.supported }
+    val filmOn = remember { booleanArrayOf(false, false) }
+    val filmShown = remember { arrayOfNulls<FilmLook>(2) }
     var errorRetries by remember { mutableStateOf(0) }
     fun motionFor(c: Clip): Motion? = if (c.stab.enabled) motions[Stabilizer.keyOf(c)] else null
     fun analyze(c: Clip) {
@@ -646,6 +650,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         if (gpuGrade) {
             // Android 13+: the grade is drawn on the view; the player only decodes plain video.
             texViews[pi]?.let { if (effectsOk) GradePreview.apply(it, adjOf(c)) else GradePreview.clear(it) }
+            // Film / lens / deflicker need the frame itself: they run in the player (only when used).
+            val ff = if (effectsOk) filmEffects(c) else emptyList()
+            if (ff.isNotEmpty() || filmOn[pi]) {
+                try { p.setVideoEffects(ff); filmOn[pi] = ff.isNotEmpty(); filmShown[pi] = c.film?.takeIf { !it.isZero } } catch (_: Throwable) { filmOn[pi] = false }
+            }
         } else {
             try { p.setVideoEffects(if (effectsOk) clipEffects(adjOf(c)) else emptyList()) } catch (_: Throwable) { effectsOk = false }
         }
@@ -826,10 +835,25 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     // Live grade while dragging: the newest value is applied every ~80 ms (not only after letting go),
     // the colour table is built off the main thread, and a paused frame is redrawn.
     val gradeReq = remember { kotlinx.coroutines.channels.Channel<Clip>(kotlinx.coroutines.channels.Channel.CONFLATED) }
-    LaunchedEffect(cur?.grade, cur?.detail, cur?.masks, effectsOk) { cur?.let { gradeReq.trySend(it) } }
+    LaunchedEffect(cur?.grade, cur?.detail, cur?.masks, cur?.film, effectsOk) { cur?.let { gradeReq.trySend(it) } }
     LaunchedEffect(Unit) {
         for (c in gradeReq) {
-            if (gpuGrade) { if (effectsOk && c.id == loadedId) texViews[deck.active]?.let { GradePreview.apply(it, adjOf(c)) }; continue }
+            if (gpuGrade) {
+                if (effectsOk && c.id == loadedId) {
+                    texViews[deck.active]?.let { GradePreview.apply(it, adjOf(c)) }
+                    val a = deck.active
+                    val want = c.film?.takeIf { !it.isZero }
+                    if (want != filmShown[a] && (want != null || filmOn[a])) {
+                        filmShown[a] = want
+                        try {
+                            deck.cur.setVideoEffects(filmEffects(c)); filmOn[a] = want != null
+                            if (!deck.cur.playWhenReady && deck.cur.playbackState == Player.STATE_READY) deck.cur.seekTo(deck.cur.currentPosition)
+                        } catch (_: Throwable) { filmOn[a] = false }
+                        delay(80)
+                    }
+                }
+                continue
+            }
             if (!effectsOk || c.id != loadedId) continue
             val fx = withContext(Dispatchers.Default) { try { clipEffects(adjOf(c)) } catch (_: Throwable) { null } } ?: continue
             if (c.id != loadedId) continue
@@ -1378,6 +1402,37 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     // ---- AI captions
+    /** Split-screen layouts and picture in picture from the video layers above the main video. */
+    fun splitScreen(t: Int) {
+        val aspect = if (deliver.aspect > 0f) deliver.aspect else clips.firstOrNull()?.let { it.width.toFloat() / it.height.coerceAtLeast(1) } ?: (16f / 9f)
+        val vids = layers.indices.filter { layers[it].kind == LayerKind.VIDEO && !layers[it].isBelow }
+        val g = 0.012f
+        // Cells: centre x, centre y, width share, height share.
+        val cells: List<FloatArray> = when (t) {
+            0 -> { val w = (1f - 3 * g) / 2; listOf(floatArrayOf(g + w / 2, 0.5f, w, 1f - 2 * g), floatArrayOf(1f - g - w / 2, 0.5f, w, 1f - 2 * g)) }
+            1 -> { val h = (1f - 3 * g) / 2; listOf(floatArrayOf(0.5f, g + h / 2, 1f - 2 * g, h), floatArrayOf(0.5f, 1f - g - h / 2, 1f - 2 * g, h)) }
+            2 -> { val w = (1f - 4 * g) / 3; (0..2).map { floatArrayOf(g + w / 2 + it * (w + g), 0.5f, w, 1f - 2 * g) } }
+            3 -> { val w = (1f - 3 * g) / 2; val h = (1f - 3 * g) / 2; listOf(0 to 0, 1 to 0, 0 to 1, 1 to 1).map { (cx, cy) -> floatArrayOf(g + w / 2 + cx * (w + g), g + h / 2 + cy * (h + g), w, h) } }
+            else -> emptyList()
+        }
+        if (t == 4) {
+            val i = vids.firstOrNull() ?: run { message = "Add a video layer first (+ VIDEO → Above)"; return }
+            val l = layers[i]
+            val size = 0.32f
+            val hw = size * l.mediaAspect / aspect / 2f
+            layers[i] = l.copy(size = size, cellAspect = null, x = 1f - 0.035f - hw, y = 1f - 0.06f - size / 2f, keys = null, corner = 0.08f, border = 0.004f, borderColor = 0xFFFFFFFF.toInt(), dropShadow = true)
+            selectedLayer = l.id
+            message = "Picture in picture: bottom right with rounded corners, border and shadow — drag it anywhere"
+            return
+        }
+        if (vids.size < cells.size) { message = "This layout needs ${cells.size} video layers — add ${cells.size - vids.size} more with + VIDEO (Above)"; return }
+        vids.take(cells.size).forEachIndexed { k, i ->
+            val c = cells[k]
+            layers[i] = layers[i].copy(x = c[0], y = c[1], size = c[3], cellAspect = c[2] / c[3] * aspect, keys = null, corner = null, border = null, dropShadow = null)
+        }
+        message = "Split screen ready (${cells.size} cells) — the thin gaps show the main video; select a layer to change its frame"
+    }
+
     fun makeCaptions(lang: String?, clipsOnly: Boolean, style: Int) {
         com.dronedirector.veyrocutpro.camera.CloudAi.load(context)
         if (!com.dronedirector.veyrocutpro.camera.CloudAi.hasKey) { message = "AI captions use your fal.ai account — add the key in settings → Cloud AI"; return }
@@ -1655,6 +1710,51 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             clips.removeAt(i); clips.addAll(i, parts)
             load(current.coerceIn(0, clips.lastIndex), 0, false)
             message = "Split into ${parts.size} shots at the scene changes — undo brings the clip back"
+        }
+    }
+    // ---- Shot match (Color → FILM & LENS → SHOT MATCH)
+    var matchBusy by remember { mutableStateOf<Int?>(null) }
+    fun matchShot(ref: Int) {
+        val ti = selected
+        val t = clips.getOrNull(ti) ?: return
+        val r = clips.getOrNull(ref) ?: return
+        if (ref == ti || matchBusy != null) return
+        matchBusy = 0
+        layerScope.launch {
+            val g = withContext(Dispatchers.Default) { try { ShotMatch.match(context, r, t) { matchBusy = it } } catch (_: Throwable) { null } }
+            matchBusy = null
+            val i = clips.indexOfFirst { it.id == t.id }
+            if (g == null || i < 0) { message = "Couldn't read the clips to match"; return@launch }
+            clips[i] = clips[i].copy(grade = g)
+            message = "Clip ${i + 1} matched to clip ${ref + 1} — fine-tune in Primaries; undo brings the old grade back"
+        }
+    }
+    // ---- Generators (Media → GENERATORS)
+    var genBusy by remember { mutableStateOf<Int?>(null) }
+    var genCancel by remember { mutableStateOf<(() -> Unit)?>(null) }
+    fun makeGenerator(kind: GenKind, c1: Int, c2: Int, seconds: Int) {
+        if (genBusy != null) return
+        if (videoLocked) { message = "The video track is locked"; return }
+        val ref = clips.firstOrNull()
+        var w = ref?.width ?: 1920; var h = ref?.height ?: 1080
+        if (deliver.aspect > 0f) { h = h.coerceAtMost(w); w = (h * deliver.aspect).toInt() }
+        // Keep generated clips light: at most 4K on the long side.
+        val k = (3840f / maxOf(w, h)).coerceAtMost(1f); w = (w * k).toInt(); h = (h * k).toInt()
+        val fps = if (deliver.fps > 0) deliver.fps else 30
+        genBusy = 0
+        genCancel = Generators.make(context, GenSpec(kind, c1, c2, seconds, w, h, fps), onProgress = { genBusy = it }) { uri, err ->
+            genCancel = null
+            if (uri == null) { genBusy = null; if (err != null) message = err; return@make }
+            layerScope.launch {
+                val nc = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }
+                genBusy = null
+                if (nc == null) { message = "Couldn't open the generated clip"; return@launch }
+                val at = if (clips.isEmpty()) 0 else (selected + 1).coerceIn(0, clips.size)
+                clips.add(at, nc.copy(name = kind.label + if (kind == GenKind.COUNTDOWN) "" else " · ${seconds}s"))
+                selected = at
+                if (clips.size == 1) { current = 0; load(0, 0, false) }
+                message = "${kind.label} added after the selected clip"
+            }
         }
     }
     fun autoEditToBeat(every: Int) {
@@ -2373,6 +2473,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     message = "${c.name} removed from the project"
                                 },
                             )
+                            GeneratorTools(genBusy, onMake = { k, a, b, s -> makeGenerator(k, a, b, s) }, onCancel = { genCancel?.invoke(); genCancel = null; genBusy = null })
                             }
                             Page.PROXY -> ProxyPage(
                                 media = clips.filter { it.nested == null }.distinctBy { MediaId.of(it) },
@@ -2510,9 +2611,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 }
                                 Text("For clips filmed with an anamorphic lens or adapter: stretches the picture back to its real shape (preview and export).", color = Pro.Dim, fontSize = 11.sp)
                             }
-                            Page.COLOR -> if (sc != null) ColorPage(sc, colorTab, { colorTab = it }, maskTools = maskTools, onChange = { f -> update(selected, f) }, onCopyToAll = {
-                                val g = sc.grade; val d = sc.detail
-                                for (i in clips.indices) clips[i] = clips[i].copy(grade = g, detail = d)
+                            Page.COLOR -> if (sc != null) ColorPage(sc, colorTab, { colorTab = it }, maskTools = maskTools, onChange = { f -> update(selected, f) },
+                                clipNames = clips.map { it.name }, selfIdx = selected, matchBusy = matchBusy, onMatch = { matchShot(it) },
+                                onCopyToAll = {
+                                val g = sc.grade; val d = sc.detail; val fl = sc.film
+                                for (i in clips.indices) clips[i] = clips[i].copy(grade = g, detail = d, film = fl)
                                 message = "Grade copied to all clips"
                             })
                             Page.LAYERS -> LayersPage(
@@ -2537,6 +2640,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onTelemetryShow = { telemetryShow = it },
                                 onTelemetry = { pickSrt.launch(arrayOf("*/*")) },
                                 onTrack = { trackLayer(it) }, trackingId = trackingId,
+                                onSplit = { splitScreen(it) },
                                 onDelete = { id ->
                                     if (layers.any { it.id == id && it.locked }) message = "This layer is locked — tap its lock to delete it"
                                     else { layers.removeAll { it.id == id }; selectedLayer = layers.lastOrNull()?.id }
@@ -3119,6 +3223,7 @@ private fun ColorPage(
     c: Clip, tab: ColorTab, onTab: (ColorTab) -> Unit,
     onChange: ((Clip) -> Clip) -> Unit, onCopyToAll: () -> Unit,
     maskTools: LocalToolsState,
+    clipNames: List<String> = emptyList(), selfIdx: Int = 0, matchBusy: Int? = null, onMatch: (Int) -> Unit = {},
 ) {
     val g = c.grade
     fun grade(f: (ProGrade) -> ProGrade) = onChange { it.copy(grade = f(it.grade)) }
@@ -3128,7 +3233,7 @@ private fun ColorPage(
     Chips(tabs.map { it.label }, tabs.indexOf(tab)) { onTab(tabs[it]) }
     Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("COPY GRADE TO ALL CLIPS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(onClick = onCopyToAll).padding(8.dp))
-        Text("RESET CLIP", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { onChange { it.copy(grade = ProGrade(), detail = Detail()) } }.padding(8.dp))
+        Text("RESET CLIP", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { onChange { it.copy(grade = ProGrade(), detail = Detail(), film = null) } }.padding(8.dp))
     }
     when (tab) {
         ColorTab.INPUT -> {
@@ -3233,6 +3338,7 @@ private fun ColorPage(
             EdSlider("Vignette", c.detail.vignette) { v -> detail { it.copy(vignette = v) } }
             EdSlider("Film grain", c.detail.grain, 0f..1f, format = ::pct) { v -> detail { it.copy(grain = v) } }
         }
+        ColorTab.FILM -> FilmLensPanel(c, onChange, clipNames, selfIdx, matchBusy, onMatch)
         ColorTab.EFFECTS -> {
             SectionTitle("EFFECTS") { detail { it.copy(fx = VideoFx.NONE, fxAmount = 0.6f) } }
             Chips(VideoFx.entries.map { it.label }, c.detail.fx.ordinal) { i -> detail { it.copy(fx = VideoFx.entries[i]) } }
@@ -3467,13 +3573,19 @@ private fun LayerPreview(
             val l = base.animAt(timeMs)
             if (l.kind == LayerKind.VIDEO) {
                 val h = (l.size * hPx).toInt().coerceAtLeast(8)
-                val w = (h * l.mediaAspect).toInt().coerceAtLeast(8)
+                val w = (h * l.frameAspect).toInt().coerceAtLeast(8)
                 val sel = l.id == selectedId
+                // Picture-in-picture frame: rounded corners, border and drop shadow (as in the export).
+                val shape = RoundedCornerShape(with(density) { ((l.corner ?: 0f) * minOf(w, h)).toDp() })
+                val bpx = with(density) { ((l.border ?: 0f) * hPx).toDp() }
                 Box(
                     Modifier
                         .offset { androidx.compose.ui.unit.IntOffset((l.x * wPx - w / 2f).toInt(), (l.y * hPx - h / 2f).toInt()) }
                         .size(with(density) { w.toDp() }, with(density) { h.toDp() })
-                        .then(if (sel) Modifier.border(1.dp, Pro.Amber) else Modifier)
+                        .then(if (l.dropShadow == true) Modifier.shadow(10.dp, shape) else Modifier)
+                        .clip(shape)
+                        .then(if ((l.border ?: 0f) > 0f) Modifier.border(bpx, Color(l.borderColor ?: 0xFFFFFFFF.toInt()), shape) else Modifier)
+                        .then(if (sel) Modifier.border(1.dp, Pro.Amber, shape) else Modifier)
                         .pointerInput(l.id) {
                             detectDragGestures(onDragStart = { onSelect(l.id) }) { change, drag ->
                                 change.consume()
@@ -3481,7 +3593,14 @@ private fun LayerPreview(
                             }
                         },
                 ) {
-                    VideoLayerView(l, timeMs, playing && l.activeAt(timeMs))
+                    if (l.cellAspect != null) {
+                        // Cropped to fill its cell (split screen): the video keeps its shape and overflows.
+                        val ww: Int; val hh: Int
+                        if (l.mediaAspect > l.frameAspect) { hh = h; ww = (h * l.mediaAspect).toInt() } else { ww = w; hh = (w / l.mediaAspect).toInt() }
+                        Box(Modifier.fillMaxSize().clipToBounds(), contentAlignment = Alignment.Center) {
+                            Box(Modifier.requiredSize(with(density) { ww.toDp() }, with(density) { hh.toDp() })) { VideoLayerView(l, timeMs, playing && l.activeAt(timeMs)) }
+                        }
+                    } else VideoLayerView(l, timeMs, playing && l.activeAt(timeMs))
                 }
                 return@forEach
             }
@@ -3536,6 +3655,7 @@ private fun LayersPage(
     onCaptions: (String?, Boolean, Int) -> Unit = { _, _, _ -> },
     onTrack: (String) -> Unit = {}, trackingId: String? = null,
     telemetryShow: TelemetryShow = TelemetryShow(), onTelemetryShow: (TelemetryShow) -> Unit = {}, onTelemetry: () -> Unit = {},
+    onSplit: (Int) -> Unit = {},
 ) {
     var stickers by remember { mutableStateOf(false) }
     // AI captions: speech to text (Whisper) turned into caption layers.
@@ -3567,6 +3687,11 @@ private fun LayersPage(
     )
     Text("DJI drones save a .SRT file next to each video (turn on Video Subtitles / Video Caption in the DJI Fly app). Select the drone clip, then load its .SRT: altitude, speed, GPS and camera settings appear as a live read-out, matched to the clip's trim and speed.", color = Pro.Dim, fontSize = 11.sp)
     val end = (playheadMs + 3000).coerceAtMost(totalMs.coerceAtLeast(1))
+    SectionTitle("SPLIT SCREEN")
+    Text("Arranges your video layers (above the main video) into a layout — each fills its cell, cropped to fit. Add the video layers first with + VIDEO.", color = Pro.Dim, fontSize = 11.sp)
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+        listOf("2 side by side", "2 stacked", "3 columns", "2 × 2 grid", "Picture in picture").forEachIndexed { i, n -> PillChip(n, false) { onSplit(i) } }
+    }
     SectionTitle("ADD LAYER")
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
         SmallAction(Icons.Filled.TextFields, "Text") { onAdd(Layer(kind = LayerKind.TEXT, startMs = playheadMs, endMs = end)) }
@@ -3708,6 +3833,18 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
             else "On top of your clips. Drag it up / down on the timeline to change its order among the other layers.",
             color = Pro.Dim, fontSize = 11.sp,
         )
+        SectionTitle("FRAME") { onUpdate(l.copy(cellAspect = null, corner = null, border = null, borderColor = null, dropShadow = null)) }
+        val shapes = listOf<Pair<String, Float?>>("Video's own" to null, "16:9" to 16f / 9f, "4:3" to 4f / 3f, "1:1" to 1f, "4:5" to 0.8f, "9:16" to 9f / 16f)
+        Chips(shapes.map { it.first }, shapes.indexOfFirst { s -> s.second == l.cellAspect || (s.second != null && l.cellAspect != null && kotlin.math.abs(s.second!! - l.cellAspect) < 0.01f) }.let { if (it < 0) -1 else it }) { onUpdate(l.copy(cellAspect = shapes[it].second)) }
+        EdSlider("Rounded corners", l.corner ?: 0f, 0f..0.5f, 0f, ::pct) { onUpdate(l.copy(corner = it.takeIf { v -> v > 0.001f })) }
+        EdSlider("Border", l.border ?: 0f, 0f..0.03f, 0f, { "%.1f %%".format(it * 100) }) { onUpdate(l.copy(border = it.takeIf { v -> v > 0.0005f })) }
+        if ((l.border ?: 0f) > 0f) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+            TEXT_COLORS.forEach { col ->
+                Box(Modifier.size(28.dp).clip(CircleShape).background(Color(col)).border(2.dp, if ((l.borderColor ?: 0xFFFFFFFF.toInt()) == col) Pro.Amber else Color.DarkGray, CircleShape).clickable { onUpdate(l.copy(borderColor = col)) })
+            }
+        }
+        Chips(listOf("Drop shadow off", "Drop shadow on"), if (l.dropShadow == true) 1 else 0) { onUpdate(l.copy(dropShadow = it == 1)) }
+        Text("Frame shape crops the video to fill it (e.g. 1:1 or 9:16 picture-in-picture). Corners, border and shadow show in the preview and the export.", color = Pro.Dim, fontSize = 11.sp)
     }
     // With keyframes, the controls show (and edit) the layer as it is at the playhead.
     val la = l.animAt(playheadMs)
@@ -4388,4 +4525,67 @@ private fun MusicTools(hasMusic: Boolean, onFit: () -> Unit, onAutoEdit: (Int) -
         modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onAutoEdit(every) }.padding(10.dp),
     )
     Text("Rebuilds the timeline from your clips with a cut on the beat, taking the next part of each clip in turn, until the music ends. Undo brings your edit back.", color = Pro.Dim, fontSize = 11.sp)
+}
+
+@Composable
+private fun FilmLensPanel(
+    c: Clip, onChange: ((Clip) -> Clip) -> Unit,
+    clipNames: List<String>, selfIdx: Int, matchBusy: Int?, onMatch: (Int) -> Unit,
+) {
+    val f = c.film ?: FilmLook()
+    fun film(t: (FilmLook) -> FilmLook) = onChange { cl -> cl.copy(film = t(cl.film ?: FilmLook()).takeIf { !it.isZero }) }
+    SectionTitle("SHOT MATCH")
+    Text("Makes this clip's brightness and colour match another clip (as it looks with its grade). Pick the clip to match:", color = Pro.Dim, fontSize = 11.sp)
+    if (matchBusy != null) Text("Matching… $matchBusy%", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.padding(vertical = 6.dp))
+    else if (clipNames.size < 2) Text("Add another clip to match to.", color = Pro.Dim, fontSize = 11.sp)
+    else Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+        clipNames.forEachIndexed { i, n -> if (i != selfIdx) PillChip("${i + 1} · ${n.take(18)}", false) { onMatch(i) } }
+    }
+    SectionTitle("FILM EMULATION") { film { it.copy(halation = 0f, bloom = 0f, weave = 0f, grain = 0f, grainSize = 0.4f, preset = null) } }
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+        FilmPresets.films.forEach { (n, p) -> PillChip(n, f.preset == n || (n == "Off" && f.copy(lensK = 0f, lensCa = 0f, lensVig = 0f, deflicker = 0f, preset = null) == FilmLook())) { film { FilmPresets.withFilm(it, n, p) } } }
+    }
+    EdSlider("Halation", f.halation, 0f..1f, 0f, ::pct) { v -> film { it.copy(halation = v) } }
+    EdSlider("Bloom", f.bloom, 0f..1f, 0f, ::pct) { v -> film { it.copy(bloom = v) } }
+    EdSlider("Grain", f.grain, 0f..1f, 0f, ::pct) { v -> film { it.copy(grain = v) } }
+    EdSlider("Grain size", f.grainSize, 0f..1f, 0.4f, ::pct) { v -> film { it.copy(grainSize = v) } }
+    EdSlider("Gate weave", f.weave, 0f..1f, 0f, ::pct) { v -> film { it.copy(weave = v) } }
+    Text("Halation: the warm glow film gives bright lights. Gate weave: the gentle wobble of a film projector.", color = Pro.Dim, fontSize = 11.sp)
+    SectionTitle("LENS CORRECTION") { film { it.copy(lensK = 0f, lensCa = 0f, lensVig = 0f) } }
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+        FilmPresets.lenses.forEach { (n, p) -> PillChip(n, f.lensK == p.lensK && f.lensCa == p.lensCa && f.lensVig == p.lensVig) { film { FilmPresets.withLens(it, p) } } }
+    }
+    EdSlider("Distortion", f.lensK, -1f..1f, 0f, { if (it > 0f) "Barrel +${pct(it)}" else if (it < 0f) "Pincushion ${pct(-it)}" else "Off" }) { v -> film { it.copy(lensK = v) } }
+    EdSlider("Colour fringing", f.lensCa, -1f..1f, 0f, { "%+.0f".format(it * 100) }) { v -> film { it.copy(lensCa = v) } }
+    EdSlider("Vignette fix", f.lensVig, 0f..1f, 0f, ::pct) { v -> film { it.copy(lensVig = v) } }
+    Text("Straightens bent lines from wide lenses (action cams, drones, ultra-wide phones), removes colour fringes at the edges and brightens dark corners. The picture is enlarged slightly so no edges show.", color = Pro.Dim, fontSize = 11.sp)
+    SectionTitle("DEFLICKER") { film { it.copy(deflicker = 0f) } }
+    EdSlider("Deflicker", f.deflicker, 0f..1f, 0f, { if (it <= 0f) "Off" else pct(it) }) { v -> film { it.copy(deflicker = v) } }
+    Text("Evens out brightness flicker — timelapses and hyperlapses, LED / fluorescent lights, drones flying past the sun. Higher = smoother; scene cuts are left alone.", color = Pro.Dim, fontSize = 11.sp)
+}
+
+@Composable
+private fun GeneratorTools(busy: Int?, onMake: (GenKind, Int, Int, Int) -> Unit, onCancel: () -> Unit) {
+    var kind by remember { mutableStateOf(GenKind.BLACK) }
+    var c1 by remember { mutableStateOf(0xFF101010.toInt()) }
+    var c2 by remember { mutableStateOf(0xFF2A4C8C.toInt()) }
+    var secs by remember { mutableStateOf(5f) }
+    SectionTitle("GENERATORS")
+    Text("Make a clip: black, a colour, a gradient, TV noise, colour bars or a film countdown leader. It's added after the selected clip, at your project's size.", color = Pro.Dim, fontSize = 11.sp)
+    Chips(GenKind.entries.map { it.label }, kind.ordinal) { kind = GenKind.entries[it]; if (kind == GenKind.COUNTDOWN) secs = 8f }
+    val swatches = listOf(0xFF000000, 0xFF101010, 0xFFFFFFFF, 0xFF2A4C8C, 0xFF0A84FF, 0xFFFFB300, 0xFFFF3B30, 0xFF34C759, 0xFF8E44AD, 0xFFFF7EB6).map { it.toInt() }
+    @Composable fun swatchRow(sel: Int, on: (Int) -> Unit) = Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+        swatches.forEach { col -> Box(Modifier.size(28.dp).clip(CircleShape).background(Color(col)).border(2.dp, if (sel == col) Pro.Amber else Color.DarkGray, CircleShape).clickable { on(col) }) }
+    }
+    if (kind == GenKind.SOLID || kind == GenKind.GRADIENT) { Text(if (kind == GenKind.GRADIENT) "Top colour" else "Colour", style = Pro.Label); swatchRow(c1) { c1 = it } }
+    if (kind == GenKind.GRADIENT) { Text("Bottom colour", style = Pro.Label); swatchRow(c2) { c2 = it } }
+    if (kind == GenKind.COUNTDOWN) EdSlider("Count from", secs, 3f..10f, 8f, { "${it.toInt()}" }) { secs = it.toInt().toFloat() }
+    else EdSlider("Length", secs, 1f..30f, 5f, { "${it.toInt()} s" }) { secs = it.toInt().toFloat() }
+    if (busy != null) Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Making… $busy%", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.padding(vertical = 8.dp))
+        Text("CANCEL", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.padding(start = 10.dp).clickable { onCancel() }.padding(6.dp))
+    } else Text(
+        "+ ADD ${kind.label.uppercase()}", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 6.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onMake(kind, c1, c2, secs.toInt()) }.padding(10.dp),
+    )
 }

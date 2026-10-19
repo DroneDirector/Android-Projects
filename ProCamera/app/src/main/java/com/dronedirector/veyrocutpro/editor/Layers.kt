@@ -78,7 +78,17 @@ data class Layer(
     val adjGrade: ProGrade? = null,
     /** Video layers: placed below the main video track instead of on top of it. */
     val below: Boolean? = null,
+    /** Video layers: the shape of its frame (width / height, cropped to fill); null = the video's own shape. */
+    val cellAspect: Float? = null,
+    /** Video layers: rounded corners (share of the shorter side, 0..0.5), border (share of frame height) and its colour, drop shadow. */
+    val corner: Float? = null,
+    val border: Float? = null,
+    val borderColor: Int? = null,
+    val dropShadow: Boolean? = null,
 ) {
+    /** The video layer's frame shape on screen. */
+    val frameAspect: Float get() = cellAspect?.takeIf { it > 0f } ?: mediaAspect
+    val hasPipStyle: Boolean get() = (corner ?: 0f) > 0f || (border ?: 0f) > 0f || dropShadow == true
     /** A video layer under the main video (shows where the main picture doesn't cover the frame). */
     val isBelow: Boolean get() = kind == LayerKind.VIDEO && below == true
     /** The name shown for this layer: your own name, else its text / kind. */

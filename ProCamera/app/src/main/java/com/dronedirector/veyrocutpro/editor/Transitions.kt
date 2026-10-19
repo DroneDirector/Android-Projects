@@ -23,6 +23,8 @@ enum class TransitionType(val id: Float, val label: String, val group: Transitio
     DIP_WHITE(3f, "Dip to white", TransitionGroup.BASIC, TransitionKind.UNIFORM),
     FLASH(4f, "Flash", TransitionGroup.BASIC, TransitionKind.UNIFORM),
     BLUR(5f, "Blur dissolve", TransitionGroup.BASIC, TransitionKind.UNIFORM),
+    /** For jump cuts (interviews): an eased dissolve with a tiny matched push-in and soft blur at the seam. */
+    SMOOTH_CUT(7f, "Smooth cut", TransitionGroup.BASIC, TransitionKind.UNIFORM),
 
     WIPE_LEFT(10f, "Wipe left", TransitionGroup.WIPES, TransitionKind.MASK),
     WIPE_RIGHT(11f, "Wipe right", TransitionGroup.WIPES, TransitionKind.MASK),
@@ -209,6 +211,7 @@ object TransitionMath {
         2, 3 -> ss(0.48f, 0.52f, p)
         4 -> ss(0.35f, 0.65f, p)
         5, 6 -> ss(0.3f, 0.7f, p)
+        7 -> ss(0.1f, 0.9f, p)
         36, 37, 38 -> ss(0.4f, 0.6f, p)
         41 -> ss(0.45f, 0.55f, p)
         42, 43, 44, 45 -> ss(0.25f, 0.75f, p)
@@ -570,6 +573,7 @@ object TransitionMath {
             if (isT(2.0) || isT(3.0)) return sstep(0.48, 0.52, p);
             if (isT(4.0)) return sstep(0.35, 0.65, p);
             if (isT(5.0) || isT(6.0)) return sstep(0.3, 0.7, p);
+            if (isT(7.0)) return sstep(0.1, 0.9, p);
             if (isT(36.0) || isT(37.0) || isT(38.0)) return sstep(0.4, 0.6, p);
             if (isT(41.0)) return sstep(0.45, 0.55, p);
             if (isT(42.0) || isT(43.0) || isT(44.0) || isT(45.0)) return sstep(0.25, 0.75, p);
@@ -601,6 +605,7 @@ object TransitionMath {
             vec2 uv = uv0;
             vec2 c = uv - 0.5;
             if (isT(36.0)) { float s = inc ? mix(0.5, 1.0, easeF(p)) : mix(1.0, 2.5, easeF(p)); uv = c / s + 0.5; }
+            if (isT(7.0)) { float s = inc ? mix(1.03, 1.0, easeF(p)) : mix(1.0, 1.03, easeF(p)); uv = c / s + 0.5; }
             if (isT(37.0)) { float s = inc ? mix(2.5, 1.0, easeF(p)) : mix(1.0, 0.5, easeF(p)); uv = c / s + 0.5; }
             if (isT(38.0)) {
                 float ang = inc ? -(1.0 - easeF(p)) * 3.14159 : easeF(p) * 3.14159;
@@ -623,13 +628,14 @@ object TransitionMath {
                 if (blk > 1.0 - k * 0.6) uv.x += (rnd(vec2(blk, p)) - 0.5) * 0.25 * k;
             }
             vec3 col;
-            if (isT(5.0) || isT(34.0) || isT(35.0) || isT(36.0) || isT(37.0) || isT(38.0) || isT(44.0)) {
+            if (isT(5.0) || isT(7.0) || isT(34.0) || isT(35.0) || isT(36.0) || isT(37.0) || isT(38.0) || isT(44.0)) {
                 vec3 acc = vec3(0.0);
                 for (int i = 0; i < 12; i++) {
                     float f = float(i) / 11.0 - 0.5;
                     vec2 o;
                     if (isT(34.0) || isT(35.0)) o = vec2(f * 0.14 * k, 0.0);
                     else if (isT(5.0)) o = vec2(cos(f * 40.0), sin(f * 40.0)) * 0.014 * k * (0.3 + abs(f));
+                    else if (isT(7.0)) o = vec2(cos(f * 40.0), sin(f * 40.0)) * 0.003 * k * (0.3 + abs(f));
                     else o = (uv - 0.5) * f * 0.2 * k * (isT(44.0) ? 2.0 : 1.0);
                     acc += mtex(uv + o).rgb;
                 }

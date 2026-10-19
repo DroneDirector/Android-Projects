@@ -74,6 +74,8 @@ data class Clip(
     val decoder: String? = null,
     /** True when no decoder on this phone can read the clip. */
     val undecodable: Boolean? = null,
+    /** Film emulation, lens correction and deflicker (Color → FILM & LENS); null = none. */
+    val film: FilmLook? = null,
 ) {
     val is422: Boolean get() = (chroma ?: 1) >= 2
 
@@ -121,6 +123,7 @@ fun clipEffects(c: Clip): List<Effect> = buildList {
     if (!c.grade.isIdentity) add(SingleColorLut.createFromCube(LutCache.cube(c.grade)))
     if (c.detail.needsVideoPass) add(DetailEffect(c.detail))
     c.activeMasks().takeIf { it.isNotEmpty() }?.let { add(MaskGradeEffect(it)) }
+    addAll(filmEffects(c))
 }
 
 data class DeliverSettings(
@@ -340,7 +343,7 @@ class TimelineExport(
             val avail = (l.videoDurationMs - l.videoStartMs).coerceAtLeast(100)
             val lenMs = (wantEnd - startMs).coerceIn(100, avail)
             val ph = ((l.size * outH).toInt() / 2 * 2).coerceAtLeast(16)
-            val pw = ((ph * l.mediaAspect).toInt() / 2 * 2).coerceAtLeast(16)
+            val pw = ((ph * l.frameAspect).toInt() / 2 * 2).coerceAtLeast(16)
             val item = EditedMediaItem.Builder(
                 MediaItem.Builder().setUri(l.videoUri!!)
                     .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(l.videoStartMs).setEndPositionMs(l.videoStartMs + lenMs).build())
@@ -348,8 +351,13 @@ class TimelineExport(
             )
                 .setRemoveAudio(true)
                 .setEffects(Effects(emptyList(), buildList {
-                    add(Presentation.createForWidthAndHeight(pw, ph, Presentation.LAYOUT_SCALE_TO_FIT))
+                    add(Presentation.createForWidthAndHeight(pw, ph, if (l.cellAspect != null) Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP else Presentation.LAYOUT_SCALE_TO_FIT))
                     l.chroma?.let { add(ChromaKeyEffect(it, l.chromaTol ?: 0.4f, l.chromaSoft ?: 0.3f)) }
+                    // Picture-in-picture frame: rounded corners, border, drop shadow.
+                    if (l.hasPipStyle) add(PipStyleEffect(
+                        (l.corner ?: 0f) * minOf(pw, ph), (l.border ?: 0f) * outH, l.borderColor ?: 0xFFFFFFFF.toInt(),
+                        if (l.dropShadow == true) (minOf(pw, ph) * 0.07f).toInt().coerceAtLeast(4) else 0,
+                    ))
                 }))
                 .build()
             val seq = EditedMediaItemSequence.Builder(setOf(androidx.media3.common.C.TRACK_TYPE_VIDEO))
@@ -360,32 +368,7 @@ class TimelineExport(
             win += (startMs * 1000) to ((startMs + lenMs) * 1000)
             return seq.build()
         }
-        for (l in videoLayers.asReversed()) {
-            val startMs = if (l.wholeVideo) 0L else l.startMs.coerceIn(0, totalMs)
-            val wantEnd = if (l.wholeVideo) totalMs else l.endMs.coerceIn(startMs, totalMs)
-            val avail = (l.videoDurationMs - l.videoStartMs).coerceAtLeast(100)
-            val lenMs = (wantEnd - startMs).coerceIn(100, avail)
-            val ph = ((l.size * outH).toInt() / 2 * 2).coerceAtLeast(16)
-            val pw = ((ph * l.mediaAspect).toInt() / 2 * 2).coerceAtLeast(16)
-            val item = EditedMediaItem.Builder(
-                MediaItem.Builder().setUri(l.videoUri!!)
-                    .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(l.videoStartMs).setEndPositionMs(l.videoStartMs + lenMs).build())
-                    .build()
-            )
-                .setRemoveAudio(true)
-                .setEffects(Effects(emptyList(), buildList {
-                    add(Presentation.createForWidthAndHeight(pw, ph, Presentation.LAYOUT_SCALE_TO_FIT))
-                    l.chroma?.let { add(ChromaKeyEffect(it, l.chromaTol ?: 0.4f, l.chromaSoft ?: 0.3f)) }
-                }))
-                .build()
-            val seq = EditedMediaItemSequence.Builder(setOf(androidx.media3.common.C.TRACK_TYPE_VIDEO))
-            if (startMs > 0) seq.addGap(startMs * 1000)
-            seq.addItem(item)
-            val after = totalMs - startMs - lenMs
-            if (after > 0) seq.addGap(after * 1000)
-            sequences += seq.build()
-            windows += (startMs * 1000) to ((startMs + lenMs) * 1000)
-        }
+        for (l in videoLayers.asReversed()) sequences += layerSequence(l, windows)
         val layerSettings = videoLayers.asReversed()
         val firstTimeline = sequences.size
         if (!ab) {

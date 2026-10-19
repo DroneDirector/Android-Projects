@@ -29,7 +29,13 @@ jobs:
           else gh release download -R "${{ github.repository }}" -p '*.apk' -D apk; fi
           ls -la apk
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null
-          ffmpeg -loglevel error -f lavfi -i testsrc2=size=1920x1080:rate=30:duration=4 -f lavfi -i sine=f=440:duration=4 -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest test_clip.mp4
+          sudo apt-get install -y -qq espeak-ng >/dev/null || true
+          if command -v espeak-ng >/dev/null; then
+            espeak-ng -s 140 -w speech.wav "Hello and welcome. Um, today we are testing the video editor. This is a short test of text based editing."
+            ffmpeg -loglevel error -f lavfi -i testsrc2=size=1920x1080:rate=30:duration=8 -i speech.wav -c:v libx264 -pix_fmt yuv420p -c:a aac -ar 48000 -shortest test_clip.mp4
+          else
+            ffmpeg -loglevel error -f lavfi -i testsrc2=size=1920x1080:rate=30:duration=4 -f lavfi -i sine=f=440:duration=4 -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest test_clip.mp4
+          fi
           ls -la test_clip.mp4
           cat > crash.sh <<'SCRIPT'
           #!/usr/bin/env bash
@@ -88,7 +94,14 @@ jobs:
           echo "picker item at: $XY"; [ -n "$XY" ] && adb shell input tap $XY
           sleep 8; shot 04d-after-add-above
           tapText "Layers"; sleep 3; shot 04e-layers-page
-          start_video; shot 05-recover-banner
+          # Text-based editing: download the speech model and transcribe the clip.
+          tapText "Text"; sleep 3; shot 04f-text-page
+          tapText "DOWNLOAD MODEL"; for i in $(seq 1 24); do sleep 5; adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml | grep -q "Model ready" && break; done
+          shot 04g-model
+          tapText "TRANSCRIBE"; for i in $(seq 1 36); do sleep 5; adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml | grep -q "APPLY CUTS\|TAP WORDS\|No speech" && break; done
+          sleep 2; shot 04h-transcript
+          adb logcat -d | grep -i -E "veyrocut_native|veyrocut_whisper|UnsatisfiedLink|whisper" | tail -20 > out/native.txt || true
+                    start_video; shot 05-recover-banner
           tapText "RECOVER"; sleep 25; shot 06-after-recover
           adb shell am force-stop com.dronedirector.veyrocutpro
           adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen photo; sleep 10; shot 07-photo

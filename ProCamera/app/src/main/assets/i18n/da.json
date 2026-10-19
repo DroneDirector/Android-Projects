@@ -1780,5 +1780,7 @@
 "Share crash report": "Del nedbrudsrapport",
 "The last attempt to recover it closed the app. You can try again, or discard it.": "Sidste forsøg på at gendanne den lukkede appen. Du kan prøve igen eller kassere den.",
 "The unsaved edit couldn't be recovered — its media is no longer available": "Den ikke-gemte redigering kunne ikke gendannes — dens medier findes ikke længere",
-"Recovered — {n} missing file(s) were left out": "Gendannet — {n} manglende fil(er) blev udeladt"
+"Recovered — {n} missing file(s) were left out": "Gendannet — {n} manglende fil(er) blev udeladt",
+"The buttons at the left of each timeline row mute the video track or an audio track, hide a layer (the eye: tap it and the layer disappears from the video feed and the export; tap again to show it), or lock the row so it can't be moved, trimmed, split or deleted.": "Knapperne til venstre for hver række på tidslinjen slår lyden fra på videosporet eller et lydspor, skjuler et lag (øjet: tryk, og laget forsvinder fra videobilledet og eksporten; tryk igen for at vise det), eller låser rækken, så den ikke kan flyttes, trimmes, deles eller slettes.",
+"Each layer and audio bar has a handle at both ends (the bracket tab). Hold a handle and drag to lengthen or shorten it — like DaVinci Resolve or Premiere; it can't go past the start or end of the video, and the new length shows above the bar.": "Hvert lag og hver lydbjælke har et håndtag i begge ender (klammen). Hold på et håndtag og træk for at forlænge eller forkorte — som i DaVinci Resolve eller Premiere; det kan ikke gå forbi videoens start eller slutning, og den nye længde vises over bjælken."
 }

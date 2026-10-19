@@ -1836,5 +1836,7 @@
 "Share crash report": "Deil feilfrágreiðing",
 "The last attempt to recover it closed the app. You can try again, or discard it.": "Seinasta roynd at endurskapa hana lat appina aftur. Tú kanst royna aftur ella kasta hana.",
 "The unsaved edit couldn't be recovered — its media is no longer available": "Ógoymda rættingin kundi ikki endurskapast — miðlarnir eru ikki longur tøkir",
-"Recovered — {n} missing file(s) were left out": "Endurskapt — {n} manglandi fíla(r) vórðu útilátnar"
+"Recovered — {n} missing file(s) were left out": "Endurskapt — {n} manglandi fíla(r) vórðu útilátnar",
+"The buttons at the left of each timeline row mute the video track or an audio track, hide a layer (the eye: tap it and the layer disappears from the video feed and the export; tap again to show it), or lock the row so it can't be moved, trimmed, split or deleted.": "Knøttarnir vinstrumegin á hvørjari røð á tíðarlinjuni sløkkja ljóðið á videosporinum ella einum ljóðspori, fjala eitt lag (eygað: trýst, og lagið hvørvur úr videomyndini og útflytingini; trýst aftur fyri at vísa tað), ella læsa røðina, so hon ikki kann flytast, styttast, kloyvast ella strikast.",
+"Each layer and audio bar has a handle at both ends (the bracket tab). Hold a handle and drag to lengthen or shorten it — like DaVinci Resolve or Premiere; it can't go past the start or end of the video, and the new length shows above the bar.": "Hvørt lag og hvør ljóðstong hevur eitt handtak í báðum endum (klombrið). Halt á eitt handtak og drag fyri at longja ella stytta — sum í DaVinci Resolve ella Premiere; tað kann ikki fara út um byrjan ella enda á videoinum, og nýggja longdin sæst omanfyri stongina."
 }

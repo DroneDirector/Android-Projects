@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor timeline: every layer and audio bar now has trim handles at both ends (a bracket tab, like DaVinci Resolve / Premiere). Hold a handle and drag to lengthen or shorten — never past the start or end of the video — with the new length shown above the bar while you drag.
+- Video editor: the eye switch next to each layer now always hides that layer from the video feed, even while it's selected (it was still shown when selected); tap again to show it. Hidden layers are left out of the export as before.
 
 ## 1.0.281 — 2026-10-19
 - Fixed: the video editor closed the app as soon as it opened (1.0.278). The new timeline scroll wheel could be drawn at zero height for a moment, which Android doesn't allow; it now skips that frame.

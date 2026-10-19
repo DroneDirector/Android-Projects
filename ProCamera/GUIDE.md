@@ -172,8 +172,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Deliver → Audio only saves just the sound of your edit. AUDIO FORMAT: AAC .m4a, WAV (16-bit, 24-bit or 32-bit float), AIFF 24-bit, FLAC (lossless, about half the size of WAV) or Opus .ogg (Android 10+). WAV, AIFF and FLAC are made from the finished mix itself, so they're lossless.
 - Undo and redo sit right next to the scissors under the player and are always visible — they step back and forward through clip, layer and audio changes.
 - Give any layer its own name (Layers → selected layer → name) — handy for telling watermarks apart; the watermark text on the video is a separate field.
-- Hold a layer or audio bar until it buzzes, then drag: left / right moves it in time, up / down changes the layer order. Hold its left or right handle (the bracket at each end) and drag to lengthen or shorten it — like DaVinci Resolve or Premiere; it can't go past the start or end of the video, and the new length shows above the bar.
-- Hold the start or end edge of a layer or audio bar, then slide to shorten or extend it.
+- Hold a layer or audio bar until it buzzes, then drag: left / right moves it in time, up / down changes the layer order.
+- Each layer and audio bar has a handle at both ends (the bracket tab). Hold a handle and drag to lengthen or shorten it — like DaVinci Resolve or Premiere; it can't go past the start or end of the video, and the new length shows above the bar.
 - Media → Audio adds music and sound files to the media pool; ADD TO TIMELINE places them at the playhead.
 - Edit → Crop & zoom: pinch, drag and twist on the player; Ken Burns animates start → end.
 - COPY / PASTE SETTINGS copies a clip's grade, audio and more to other clips (or all clips).

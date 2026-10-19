@@ -175,6 +175,18 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **YouTube chapters** from timeline markers, copied ready for the description.
 - **Rolling credits**: Credits layer and a Roll animation for any text layer.
 - **Keyboard shortcuts** (Bluetooth / USB): J / K / L, Space, frame steps, cut to cut, split, ripple delete, markers, in / out, undo / redo, save.
+- **Shot match**: one tap sets a clip's exposure, white balance, contrast and saturation to match another clip as graded.
+- **Film emulation**: 35mm / 16mm / Super 8 looks, halation, bloom, grain (amount and size), gate weave.
+- **Lens correction**: barrel / pincushion distortion, colour fringing and vignette fix, with action cam, drone and ultra-wide presets.
+- **Deflicker** for timelapses, hyperlapses and flickering lights (scene cuts left alone).
+- **Background removal (people)**: blur, recolour or remove the background (AI on the phone, ML Kit); cut people out of video layers.
+- **Generators**: black, colour, gradient, noise and colour-bars clips, and a film countdown leader (3–10).
+- **Split-screen templates** (2 side by side, 2 stacked, 3 columns, 2 × 2) and **picture in picture**; video layers get a frame shape (crop to fill), rounded corners, border and drop shadow.
+- **Smooth cut** transition for jump cuts in interviews.
+- **Word-by-word captions** from the on-phone transcript: Highlight, Box, One word or Two lines.
+- **Animated title templates**: lower third, big title, cinematic, location, chapter, subscribe, end card.
+- **Source viewer & three-point editing**: mark in / out, then INSERT, OVERWRITE or APPEND at the playhead.
+- **Bins & colour labels** in the media pool and timeline; **relink missing media**; **project archive** (.zip with all media) to move or back up a project.
 - **Multicam**: 2–4 angles synced by sound, live switching between them while playing; the cut lands on the timeline as normal clips.
 - **Sync by sound**: external recorder / wireless mic audio lined up with a clip automatically (waveform cross-correlation).
 - **Trim tools**: slip, roll and slide by 1 or 10 frames; normal trims ripple (magnetic main track).

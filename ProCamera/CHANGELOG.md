@@ -4,6 +4,18 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: **Shot match** (Color → Film & lens) — one tap makes a clip's brightness and colour match another clip.
+- Video editor: **Film emulation** — 35mm, 16mm, Super 8 and more, or your own halation, bloom, grain and gate weave.
+- Video editor: **Lens correction** — straightens wide-angle bending (action cam, drone and ultra-wide presets), removes colour fringes, brightens dark corners.
+- Video editor: **Deflicker** — evens out flickering timelapses, hyperlapses and lights.
+- Video editor: **Background removal (people)** — blur, recolour or remove the background behind people (AI on the phone), and cut people out of video layers.
+- Video editor: **Generators** (Media page) — black, colour, gradient, noise and colour-bars clips, and a film countdown leader.
+- Video editor: **Split screen** (2 side by side, 2 stacked, 3 columns, 2 × 2 grid) and **picture in picture**, with frame shape, rounded corners, border and drop shadow for video layers.
+- Video editor: **Smooth cut** transition — hides jump cuts in interviews.
+- Video editor: **Word-by-word captions** (Text page) — each word lights up as it's spoken, made on the phone.
+- Video editor: **Title templates** (Layers page) — lower third, big title, cinematic, location, chapter, subscribe and end card.
+- Video editor: **Source viewer & three-point editing** — mark in / out on a file, then INSERT, OVERWRITE or APPEND at the playhead.
+- Video editor: **Bins**, **colour labels**, **relink missing media** and **project archive** (.zip with every file, to move or back up a project).
 
 ## 1.0.305 — 2026-10-19
 - Video editor: **Scene detection** (Edit → SCENE DETECTION) — finds every camera cut in a long clip or a finished film and splits it into separate shots.

@@ -1,0 +1,31 @@
+name: Whisper check (host)
+# Started by hand: runs the app's bundled whisper.cpp with the app's settings on a spoken test sentence.
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  whisper:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build and run
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq espeak-ng ffmpeg >/dev/null
+          W=ProCamera/app/src/main/cpp/whisper
+          INC="-D_GNU_SOURCE -DGGML_USE_CPU -I$W -I$W/src -I$W/include -I$W/ggml/include -I$W/ggml/src -I$W/ggml/src/ggml-cpu"
+          mkdir -p o out
+          for f in $W/ggml/src/ggml.c $W/ggml/src/ggml-alloc.c $W/ggml/src/ggml-quants.c $W/ggml/src/ggml-cpu/ggml-cpu.c $W/ggml/src/ggml-cpu/ggml-cpu-quants.c; do gcc -std=gnu11 -O3 -march=native -w $INC -c $f -o o/$(basename $f).o; done
+          for f in .github/scripts/whisper_test.cpp $W/src/whisper.cpp $W/ggml/src/ggml-backend.cpp $W/ggml/src/ggml-backend-reg.cpp $W/ggml/src/ggml-threading.cpp $W/ggml/src/ggml-cpu/ggml-cpu.cpp $W/ggml/src/ggml-cpu/ggml-cpu-aarch64.cpp $W/ggml/src/ggml-cpu/ggml-cpu-hbm.cpp $W/ggml/src/ggml-cpu/ggml-cpu-traits.cpp $W/ggml/src/ggml-cpu/unary-ops.cpp $W/ggml/src/ggml-cpu/binary-ops.cpp; do g++ -std=c++17 -O3 -march=native -w $INC -c $f -o o/$(basename $f).o; done
+          g++ o/*.o -o wt -lpthread
+          curl -fsSL -o base.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin
+          espeak-ng -s 140 -w speech.wav "Hello and welcome. Um, today we are testing the video editor. This is a short test of text based editing."
+          ffmpeg -loglevel error -i speech.wav -ar 16000 -ac 1 -f f32le speech.f32
+          ( time ./wt base.bin speech.f32 ) > out/result.txt 2>&1 || true
+          cat out/result.txt
+      - name: Save result
+        if: always()
+        run: |
+          cd out && git init -q -b whispertest && git add -A
+          git -c user.name="github-actions" -c user.email="actions@github.com" commit -qm "Whisper check"
+          git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" whispertest

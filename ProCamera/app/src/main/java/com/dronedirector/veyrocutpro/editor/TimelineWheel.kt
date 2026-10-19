@@ -32,6 +32,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
+import com.dronedirector.veyrocutpro.ui.Pro
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.sin

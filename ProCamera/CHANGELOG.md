@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.268 — 2026-10-19
 - Photo editor: tested with a real Mavic 3 Pro DNG — the drone's vignetting correction (stored per colour after the lens profile) is now applied, so corners are no longer dark; the drone name now comes from the photo itself (e.g. "Mavic 3 Pro" instead of "Mavic 3").
 
 ## 1.0.266 — 2026-10-19

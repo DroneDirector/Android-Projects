@@ -166,6 +166,15 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 ### Pro editing
 - **Text-based editing**: the edit as text, transcribed on the phone (whisper.cpp, MIT; Whisper model downloaded once — Fast 57 MB / Accurate 181 MB; 99 languages incl. Danish and Faroese). Tap words to cut them, REMOVE FILLERS (um / uh / øh), APPLY CUTS splits the clips without leaving dead air; undo restores; hold a word to jump there.
 - **Clip keyframes**: zoom, position, rotation and opacity over time, Smooth / Linear / Hold easing, diamonds on the timeline, edit on the player at the playhead; preview and export.
+- **Scene cut detection**: finds the camera cuts in a long clip or finished film and splits it into shots.
+- **Multi-select**: tick clips to delete (ripple), mute, change speed, duplicate or copy a grade in one go.
+- **Auto-edit to the beat**: rebuilds the timeline from your clips with a cut on every 1st / 2nd / 4th / 8th beat.
+- **Fit music to video**: the song ends exactly with the video on its real ending — a beat-aligned middle part is cut out or repeated.
+- **Before / after split** on the player (Color page, Android 13+) with a draggable divider.
+- **Project version history**: a version on every save and every 10 minutes (newest 30), RESTORE any of them.
+- **YouTube chapters** from timeline markers, copied ready for the description.
+- **Rolling credits**: Credits layer and a Roll animation for any text layer.
+- **Keyboard shortcuts** (Bluetooth / USB): J / K / L, Space, frame steps, cut to cut, split, ripple delete, markers, in / out, undo / redo, save.
 - **Multicam**: 2–4 angles synced by sound, live switching between them while playing; the cut lands on the timeline as normal clips.
 - **Sync by sound**: external recorder / wireless mic audio lined up with a clip automatically (waveform cross-correlation).
 - **Trim tools**: slip, roll and slide by 1 or 10 frames; normal trims ripple (magnetic main track).

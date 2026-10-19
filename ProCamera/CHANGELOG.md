@@ -4,6 +4,14 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: **Scene detection** (Edit → SCENE DETECTION) — finds every camera cut in a long clip or a finished film and splits it into separate shots.
+- Video editor: **Select clips** (Edit → SELECT CLIPS) — tick several clips and delete, mute, change speed, duplicate or copy a grade to all of them at once.
+- Video editor: **Music tools** (Audio page) — FIT MUSIC TO VIDEO makes the song end exactly with your video on its real ending; AUTO-EDIT MY CLIPS TO THE MUSIC cuts your clips on every 1st, 2nd, 4th or 8th beat.
+- Video editor: **Before | After** split on the player (Color page, Android 13+) — drag the divider to compare the ungraded picture with your grade.
+- Video editor: **Version history** (Settings ⚙) — a version of the project is kept on every save and every 10 minutes; RESTORE any of the last 30.
+- Video editor: **YouTube chapters** (Deliver) — your markers become a chapter list ready to paste into the YouTube description.
+- Video editor: **Rolling credits** — Layers → Credits, plus a Roll (credits) animation for any text layer.
+- Video editor: **Keyboard shortcuts** for Bluetooth / USB keyboards — Space / J / K / L, frame steps, cut to cut, split, ripple delete, markers, in / out, undo / redo and save (full list in the guide).
 
 ## 1.0.300 — 2026-10-19
 - Video editor: **Text-based editing** (new Text page) — transcribe the edit on your phone (on-device whisper.cpp; the speech model downloads once), tap words to cut them, REMOVE FILLERS for um / uh / øh, then APPLY CUTS. Undo brings everything back.

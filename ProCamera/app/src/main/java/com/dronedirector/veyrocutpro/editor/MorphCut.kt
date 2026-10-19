@@ -47,6 +47,7 @@ object MorphNative {
     @JvmStatic external fun render(h: Long, t: Float, out: Bitmap): Boolean
     @JvmStatic external fun motion(h: Long, t: Float, buf: ByteBuffer): Boolean
     @JvmStatic external fun occlusion(h: Long, buf: ByteBuffer): Boolean
+    @JvmStatic external fun flow(a: Bitmap, b: Bitmap, out: FloatArray): Boolean
     @JvmStatic external fun width(h: Long): Int
     @JvmStatic external fun height(h: Long): Int
     @JvmStatic external fun free(h: Long)

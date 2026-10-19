@@ -122,15 +122,16 @@ object ChromaPreview {
         }
     """
 
-    fun apply(v: android.view.View, l: Layer) {
+    fun apply(v: android.view.View, l: Layer, extra: android.graphics.RenderEffect? = null) {
         if (android.os.Build.VERSION.SDK_INT < 33) return
         val key = l.chroma
-        if (key == null) { v.setRenderEffect(null); return }
+        if (key == null) { v.setRenderEffect(extra); return }
         val sh = android.graphics.RuntimeShader(SHADER)
         sh.setFloatUniform("uKey", ((key shr 16) and 0xFF) / 255f, ((key shr 8) and 0xFF) / 255f, (key and 0xFF) / 255f)
         sh.setFloatUniform("uTol", l.chromaTol ?: 0.4f)
         sh.setFloatUniform("uSoft", l.chromaSoft ?: 0.3f)
-        v.setRenderEffect(android.graphics.RenderEffect.createRuntimeShaderEffect(sh, "content"))
+        val ck = android.graphics.RenderEffect.createRuntimeShaderEffect(sh, "content")
+        v.setRenderEffect(if (extra != null) android.graphics.RenderEffect.createChainEffect(ck, extra) else ck)
     }
 }
 

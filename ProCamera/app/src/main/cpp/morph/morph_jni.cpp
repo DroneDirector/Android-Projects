@@ -97,6 +97,18 @@ JNIEXPORT jboolean JNICALL Java_com_dronedirector_veyrocutpro_editor_MorphNative
     return JNI_TRUE;
 }
 
+/** Dense flow a → b (same-size RGBA bitmaps) into out (w·h·2 floats: dx, dy per pixel). */
+JNIEXPORT jboolean JNICALL Java_com_dronedirector_veyrocutpro_editor_MorphNative_flow(JNIEnv* env, jclass, jobject bmpA, jobject bmpB, jfloatArray out) {
+    std::vector<uint8_t> a, b; int wa, ha, wb, hb;
+    if (!readBitmap(env, bmpA, a, wa, ha) || !readBitmap(env, bmpB, b, wb, hb) || wa != wb || ha != hb || wa < 16 || ha < 16) return JNI_FALSE;
+    if (env->GetArrayLength(out) < (jsize)((size_t)wa * ha * 2)) return JNI_FALSE;
+    Flow f = computeFlow(a.data(), b.data(), wa, ha);
+    std::vector<float> tmp((size_t)wa * ha * 2);
+    for (size_t i = 0, n = (size_t)wa * ha; i < n; i++) { tmp[i * 2] = f.u[i]; tmp[i * 2 + 1] = f.v[i]; }
+    env->SetFloatArrayRegion(out, 0, (jsize)tmp.size(), tmp.data());
+    return JNI_TRUE;
+}
+
 JNIEXPORT jint JNICALL Java_com_dronedirector_veyrocutpro_editor_MorphNative_width(JNIEnv*, jclass, jlong h) { return h ? ((Session*)h)->w : 0; }
 JNIEXPORT jint JNICALL Java_com_dronedirector_veyrocutpro_editor_MorphNative_height(JNIEnv*, jclass, jlong h) { return h ? ((Session*)h)->h : 0; }
 JNIEXPORT void JNICALL Java_com_dronedirector_veyrocutpro_editor_MorphNative_free(JNIEnv*, jclass, jlong h) { delete (Session*)h; }

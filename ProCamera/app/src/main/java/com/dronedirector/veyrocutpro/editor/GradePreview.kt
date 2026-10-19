@@ -17,7 +17,7 @@ object GradePreview {
     val supported: Boolean get() = Build.VERSION.SDK_INT >= 33
 
     private const val N = 33
-    private class ViewState(val shader: Any, var key: Any? = null)
+    private class ViewState(val shader: Any, var key: Any? = null, var extra: Boolean = false)
     private val states = WeakHashMap<View, ViewState>()
     private val lutBitmaps = object : LinkedHashMap<ProGrade, Bitmap>(6, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<ProGrade, Bitmap>?) = size > 6
@@ -54,17 +54,29 @@ object GradePreview {
     /** Before / after split position (0 = off, else 0..1 across the frame). */
     @Volatile var split: Float = 0f
 
-    fun apply(view: View, c: Clip?, timeSec: Float = 0f) {
+    /** [extra]: a further effect drawn on top of the grade (the background cut-out). */
+    fun apply(view: View, c: Clip?, timeSec: Float = 0f, extra: RenderEffect? = null) {
         if (!supported) return
         val masks0 = c?.activeMasks() ?: emptyList()
-        if (c == null || (c.grade.isIdentity && !c.detail.needsVideoPass && masks0.isEmpty())) { clear(view); return }
+        if (c == null || (c.grade.isIdentity && !c.detail.needsVideoPass && masks0.isEmpty())) {
+            if (extra != null) {
+                view.setRenderEffect(extra)
+                states.getOrPut(view) { ViewState(newShader()) }.apply { key = null; this.extra = true }
+            } else {
+                val st = states[view]
+                if (st?.extra == true) { view.setRenderEffect(null); st.extra = false }
+                clear(view)
+            }
+            return
+        }
         if (view.width <= 0 || view.height <= 0) return
         val st = states.getOrPut(view) { ViewState(newShader()) }
         val sh = st.shader as RuntimeShader
         val masks = if (masksOk) masks0 else emptyList()
         val key = Triple(c.grade, c.detail, Triple(view.width, view.height, masks to split))
-        if (st.key == key && !animated(c)) return
+        if (st.key == key && !animated(c) && extra == null && !st.extra) return
         st.key = key
+        st.extra = extra != null
         sh.setFloatUniform("uSize", view.width.toFloat(), view.height.toFloat())
         val hasLut = !c.grade.isIdentity
         if (hasLut) {
@@ -97,7 +109,8 @@ object GradePreview {
                 filterMode = BitmapShader.FILTER_MODE_LINEAR
             })
         }
-        view.setRenderEffect(RenderEffect.createRuntimeShaderEffect(sh, "content"))
+        val g = RenderEffect.createRuntimeShaderEffect(sh, "content")
+        view.setRenderEffect(if (extra != null) RenderEffect.createChainEffect(extra, g) else g)
     }
 
     fun clear(view: View) {

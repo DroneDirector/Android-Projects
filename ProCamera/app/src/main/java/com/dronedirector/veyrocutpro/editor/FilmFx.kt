@@ -77,12 +77,17 @@ object FilmPresets {
 @UnstableApi
 fun filmEffects(c: Clip): List<androidx.media3.common.Effect> = c.film?.takeIf { !it.isZero }?.let { listOf(FilmEffect(it)) } ?: emptyList()
 
-/** Effects the preview player runs itself on Android 13+ (the grade is drawn on the view): background removal, film / lens. */
+/** Effects the preview player runs itself on Android 13+ (the grade and the background cut-out are drawn on the view): film / lens. */
 @UnstableApi
-fun liveEffects(c: Clip): List<androidx.media3.common.Effect> = (c.bg?.let { listOf(BgRemoveEffect(it.mode, it.color)) } ?: emptyList()) + filmEffects(c)
+fun liveEffects(c: Clip): List<androidx.media3.common.Effect> = filmEffects(c)
 
 /** What [liveEffects] depends on (to know when to rebuild them). */
-fun liveKey(c: Clip): Any? = if (c.bg == null && (c.film == null || c.film.isZero)) null else Pair(c.bg, c.film?.takeIf { !it.isZero })
+fun liveKey(c: Clip): Any? = c.film?.takeIf { !it.isZero }
+
+/** Preview before Android 13 (effects in the player): people background removal first, then the rest. */
+@UnstableApi
+fun olderPreviewEffects(c: Clip): List<androidx.media3.common.Effect> =
+    (c.bg?.takeIf { it.magic == null }?.let { listOf(BgRemoveEffect(it.mode, it.color, it.invert == true)) } ?: emptyList()) + clipEffects(c)
 
 @UnstableApi
 class FilmEffect(private val f: FilmLook) : GlEffect {

@@ -43,6 +43,9 @@ private val NOTICES = listOf(
     Notice("RNNoise (AI voice isolation)", "Xiph.Org Foundation, Mozilla, Jean-Marc Valin", "BSD 3-Clause License", "https://github.com/xiph/rnnoise"),
     Notice("whisper.cpp and ggml (on-device speech to text)", "Georgi Gerganov and the ggml authors", "MIT License", "https://github.com/ggml-org/whisper.cpp"),
     Notice("Whisper speech model weights (downloaded on first use)", "OpenAI", "MIT License", "https://github.com/openai/whisper"),
+    Notice("MobileSAM (Magic Mask object selection)", "Chaoning Zhang et al.", "Apache License 2.0", "https://github.com/ChaoningZhang/MobileSAM"),
+    Notice("Segment Anything (mask decoder in MobileSAM)", "Meta Platforms, Inc.", "Apache License 2.0", "https://github.com/facebookresearch/segment-anything"),
+    Notice("ONNX Runtime (runs the Magic Mask model)", "Microsoft Corporation", "MIT License", "https://github.com/microsoft/onnxruntime"),
 )
 
 /** Reads a bundled licence text (fetched at build time), or null if it isn't in this build. */

@@ -91,6 +91,9 @@ data class Layer(
     val hiBox: Boolean? = null,
     /** Video layers / clips: remove the background behind people (AI, on the phone). */
     val bgRemove: Boolean? = null,
+    /** Video layers: Magic Mask selection (any object) for REMOVE BACKGROUND; null = people. Invert = remove the object instead. */
+    val layerMagic: MagicSel? = null,
+    val bgInvert: Boolean? = null,
 ) {
     /** The word being spoken at [ms] (−1 before the first). */
     fun wordAt(ms: Long): Int = words?.let { w -> w.indexOfLast { it <= ms } } ?: -1

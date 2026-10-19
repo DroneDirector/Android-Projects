@@ -124,7 +124,6 @@ object ClipLoader {
 fun clipEffects(c: Clip): List<Effect> = buildList {
     // A fresh LUT effect every time: an effect instance holds a GPU texture that belongs to one
     // player's GL context and must never be shared between the two preview players or the export.
-    c.bg?.let { add(BgRemoveEffect(it.mode, it.color)) }
     if (!c.grade.isIdentity) add(SingleColorLut.createFromCube(LutCache.cube(c.grade)))
     if (c.detail.needsVideoPass) add(DetailEffect(c.detail))
     c.activeMasks().takeIf { it.isNotEmpty() }?.let { add(MaskGradeEffect(it)) }
@@ -249,6 +248,8 @@ class TimelineExport(
     /** A clip's own picture effects (everything before its transition), for a clip starting [offsetMs] into it. */
     private fun clipChain(c: Clip, offsetMs: Long, outW: Int, outH: Int, layout: Int, sized: Boolean): List<Effect> = buildList {
         if (c.detail.aiDenoise > 0f) add(AiDenoiseEffect(context, c.detail.aiDenoise))
+        // Background (people or Magic Mask) on the picture as filmed, before any reframing.
+        bgEffectFor(context, c, offsetMs)?.let { add(it) }
         val motion = if (c.stab.enabled) Stabilizer.cached(context, c) else null
         if (!c.reframe.isIdentity || motion != null) add(ReframeEffect(c, motion, offsetMs))
         if (c.reframe.hasOpacity) add(ClipOpacityEffect(c, offsetMs))
@@ -389,7 +390,12 @@ class TimelineExport(
                 .setRemoveAudio(true)
                 .setEffects(Effects(emptyList(), buildList {
                     add(Presentation.createForWidthAndHeight(pw, ph, if (l.cellAspect != null) Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP else Presentation.LAYOUT_SCALE_TO_FIT))
-                    if (l.bgRemove == true) add(BgRemoveEffect(0))
+                    if (l.bgRemove == true) {
+                        val mm = l.layerMagic
+                        val tr = mm?.let { MaskTrack.load(context, it.id) }
+                        if (mm == null) add(BgRemoveEffect(0, 0, l.bgInvert == true))
+                        else if (tr != null) add(BgRemoveEffect(0, 0, l.bgInvert == true, tr) { rel -> l.videoStartMs + rel })
+                    }
                     l.chroma?.let { add(ChromaKeyEffect(it, l.chromaTol ?: 0.4f, l.chromaSoft ?: 0.3f)) }
                     // Picture-in-picture frame: rounded corners, border, drop shadow.
                     if (l.hasPipStyle) add(PipStyleEffect(

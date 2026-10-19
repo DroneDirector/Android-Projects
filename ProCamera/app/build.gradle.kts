@@ -9,6 +9,8 @@ val ciVersionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
 
 android {
     namespace = "com.dronedirector.veyrocutpro"
+    // AI models are read straight from the APK (no unpacking).
+    androidResources { noCompress += listOf("onnx", "tflite") }
     compileSdk = 36
 
     lint {
@@ -87,6 +89,8 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("com.google.code.gson:gson:2.11.0")
     implementation("com.google.ai.edge.litert:litert:2.1.0")
+    // Magic Mask: ONNX Runtime (MIT) runs MobileSAM (Apache 2.0) on the phone.
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.19.2")
     implementation("androidx.security:security-crypto:1.0.0")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
     implementation("androidx.heifwriter:heifwriter:1.0.0")

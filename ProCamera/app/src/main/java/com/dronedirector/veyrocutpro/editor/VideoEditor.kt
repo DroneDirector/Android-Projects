@@ -662,14 +662,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val pi = players.indexOf(p).coerceAtLeast(0)
         if (gpuGrade) {
             // Android 13+: the grade is drawn on the view; the player only decodes plain video.
-            texViews[pi]?.let { if (effectsOk) GradePreview.apply(it, adjOf(c)) else GradePreview.clear(it) }
+            texViews[pi]?.let { if (effectsOk) GradePreview.apply(it, adjOf(c), 0f, CutoutPreview.forClip(context, it, c, c.startMs + startMs)) else GradePreview.clear(it) }
             // Film / lens / deflicker need the frame itself: they run in the player (only when used).
             val ff = if (effectsOk) liveEffects(c) else emptyList()
             if (ff.isNotEmpty() || filmOn[pi]) {
                 try { p.setVideoEffects(ff); filmOn[pi] = ff.isNotEmpty(); filmShown[pi] = liveKey(c) } catch (_: Throwable) { filmOn[pi] = false }
             }
         } else {
-            try { p.setVideoEffects(if (effectsOk) clipEffects(adjOf(c)) else emptyList()) } catch (_: Throwable) { effectsOk = false }
+            try { p.setVideoEffects(if (effectsOk) olderPreviewEffects(adjOf(c)) else emptyList()) } catch (_: Throwable) { effectsOk = false }
         }
         p.setMediaItem(mediaItemFor(c), startMs.coerceAtLeast(0))
         p.playbackParameters = PlaybackParameters(c.speedAtSrc(c.startMs + startMs))
@@ -853,7 +853,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         for (c in gradeReq) {
             if (gpuGrade) {
                 if (effectsOk && c.id == loadedId) {
-                    texViews[deck.active]?.let { GradePreview.apply(it, adjOf(c)) }
+                    texViews[deck.active]?.let { GradePreview.apply(it, adjOf(c), 0f, CutoutPreview.forClip(context, it, c, c.startMs + deck.cur.currentPosition)) }
                     val a = deck.active
                     val want = liveKey(c)
                     if (want != filmShown[a] && (want != null || filmOn[a])) {
@@ -868,7 +868,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 continue
             }
             if (!effectsOk || c.id != loadedId) continue
-            val fx = withContext(Dispatchers.Default) { try { clipEffects(adjOf(c)) } catch (_: Throwable) { null } } ?: continue
+            val fx = withContext(Dispatchers.Default) { try { olderPreviewEffects(adjOf(c)) } catch (_: Throwable) { null } } ?: continue
             if (c.id != loadedId) continue
             try {
                 deck.cur.setVideoEffects(fx)
@@ -992,7 +992,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             if (c.id == loadedId) texViews[a]?.let {
                 ClipXform.applyToView(it, ClipXform.at(c, c.startMs + deck.cur.currentPosition, motionFor(c)))
                 it.alpha = c.reframe.opacityAt(deck.cur.currentPosition)
-                if (gpuGrade) { if (effectsOk) GradePreview.apply(it, adjOf(c), System.nanoTime() / 1e9f) else GradePreview.clear(it) }
+                if (gpuGrade) { if (effectsOk) GradePreview.apply(it, adjOf(c), System.nanoTime() / 1e9f, CutoutPreview.forClip(context, it, c, c.startMs + deck.cur.currentPosition)) else GradePreview.clear(it) }
             }
             val n = clips.getOrNull(i + 1)
             val ov = overlapMs(clips, i)
@@ -1050,7 +1050,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 texViews[1 - a]?.let {
                     ClipXform.applyToView(it, ClipXform.at(n, n.startMs + deck.spare.currentPosition, motionFor(n)))
                     it.alpha = n.reframe.opacityAt(deck.spare.currentPosition)
-                    if (gpuGrade && effectsOk) GradePreview.apply(it, adjOf(n), System.nanoTime() / 1e9f)
+                    if (gpuGrade && effectsOk) GradePreview.apply(it, adjOf(n), System.nanoTime() / 1e9f, CutoutPreview.forClip(context, it, n, n.startMs + deck.spare.currentPosition))
                 }
                 frameViews[a]?.let { TransitionPreview.apply(it, c.transition.type, p, false) }
                 frameViews[1 - a]?.let { TransitionPreview.apply(it, c.transition.type, p, true) }
@@ -1970,6 +1970,43 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
         archiveAction = 0
     }
+    // ---- Magic Mask: pick any object, track it through the clip (Color → Detail → BACKGROUND, or a video layer).
+    var magicPick by remember { mutableStateOf<MagicTarget?>(null) }
+    val magicProgress = remember { mutableStateMapOf<String, Int>() }
+    val magicStops = remember { HashMap<String, java.util.concurrent.atomic.AtomicBoolean>() }
+    fun startMagic(t: MagicTarget, sel: MagicSel) {
+        val key = t.clipId ?: t.layerId ?: return
+        magicStops[key]?.set(true)
+        val stop = java.util.concurrent.atomic.AtomicBoolean(false); magicStops[key] = stop
+        val (from, to) = if (t.clipId != null) {
+            val c = clips.firstOrNull { it.id == t.clipId } ?: return
+            c.startMs to c.endMs
+        } else {
+            val l = layers.firstOrNull { it.id == t.layerId } ?: return
+            val len = if (l.wholeVideo) timelineLength(clips) else (l.endMs - l.startMs)
+            l.videoStartMs to (l.videoStartMs + len).coerceAtMost(l.videoDurationMs.coerceAtLeast(l.videoStartMs + 1))
+        }
+        magicProgress[key] = 0
+        layerScope.launch {
+            val tr = withContext(Dispatchers.Default) {
+                try { MagicTracker.track(context, t.uri, from, to, sel, { p -> magicProgress[key] = p }, { stop.get() }) } catch (_: Throwable) { null }
+            }
+            magicProgress.remove(key)
+            if (stop.get()) return@launch
+            if (tr == null) { message = "Magic Mask couldn't follow the object" + (Sam.failed?.let { " ($it)" } ?: ""); return@launch }
+            withContext(Dispatchers.IO) { MaskTrack.save(context, sel.id, tr) }
+            val done = sel.copy(fromMs = from, toMs = to, frames = tr.times.size)
+            if (t.clipId != null) {
+                val i = clips.indexOfFirst { it.id == t.clipId }
+                if (i >= 0) clips[i] = clips[i].copy(bg = (clips[i].bg ?: BgRemoval(1)).copy(magic = done))
+            } else {
+                val i = layers.indexOfFirst { it.id == t.layerId }
+                if (i >= 0) layers[i] = layers[i].copy(bgRemove = true, layerMagic = done)
+            }
+            message = "Magic Mask follows the object through ${tr.times.size} frames"
+        }
+    }
+    magicPick?.let { t -> MagicMaskDialog(t, onDismiss = { magicPick = null }) { sel -> magicPick = null; startMagic(t, sel) } }
     fun autoEditToBeat(every: Int) {
         if (videoLocked) { message = "The video track is locked"; return }
         val m = music ?: run { message = "Add a music track first (Media → Sound libraries or Audio)"; return }
@@ -2843,6 +2880,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             }
                             Page.COLOR -> if (sc != null) ColorPage(sc, colorTab, { colorTab = it }, maskTools = maskTools, onChange = { f -> update(selected, f) },
                                 clipNames = clips.map { it.name }, selfIdx = selected, matchBusy = matchBusy, onMatch = { matchShot(it) },
+                                onMagic = {
+                                    val st = clipStarts(clips).getOrNull(selected) ?: 0L
+                                    val src = if (globalMs in st until st + sc.lengthMs) sc.srcAtOffset(globalMs - st) else sc.startMs
+                                    magicPick = MagicTarget(clipId = sc.id, uri = sc.uri, srcMs = src, initial = sc.bg?.magic)
+                                },
+                                magicProgress = magicProgress[sc.id], onStopMagic = { magicStops[sc.id]?.set(true); magicProgress.remove(sc.id) },
                                 onCopyToAll = {
                                 val g = sc.grade; val d = sc.detail; val fl = sc.film
                                 for (i in clips.indices) clips[i] = clips[i].copy(grade = g, detail = d, film = fl)
@@ -2871,6 +2914,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onTelemetry = { pickSrt.launch(arrayOf("*/*")) },
                                 onTrack = { trackLayer(it) }, trackingId = trackingId,
                                 onSplit = { splitScreen(it) },
+                                onMagicLayer = { id ->
+                                    layers.firstOrNull { it.id == id }?.let { l ->
+                                        val u = l.videoUri ?: return@let
+                                        val src = (l.videoStartMs + (globalMs - (if (l.wholeVideo) 0L else l.startMs))).coerceIn(l.videoStartMs, (l.videoDurationMs - 1).coerceAtLeast(l.videoStartMs))
+                                        magicPick = MagicTarget(layerId = id, uri = u, srcMs = src, initial = l.layerMagic)
+                                    }
+                                },
+                                magicLayerProgress = magicProgress.toMap(), onStopMagicLayer = { id -> magicStops[id]?.set(true); magicProgress.remove(id) },
                                 onDelete = { id ->
                                     if (layers.any { it.id == id && it.locked }) message = "This layer is locked — tap its lock to delete it"
                                     else { layers.removeAll { it.id == id }; selectedLayer = layers.lastOrNull()?.id }
@@ -3512,6 +3563,7 @@ private fun ColorPage(
     onChange: ((Clip) -> Clip) -> Unit, onCopyToAll: () -> Unit,
     maskTools: LocalToolsState,
     clipNames: List<String> = emptyList(), selfIdx: Int = 0, matchBusy: Int? = null, onMatch: (Int) -> Unit = {},
+    onMagic: () -> Unit = {}, magicProgress: Int? = null, onStopMagic: () -> Unit = {},
 ) {
     val g = c.grade
     fun grade(f: (ProGrade) -> ProGrade) = onChange { it.copy(grade = f(it.grade)) }
@@ -3632,7 +3684,26 @@ private fun ColorPage(
                     Box(Modifier.size(28.dp).clip(CircleShape).background(Color(col)).border(2.dp, if (c.bg?.color == col) Pro.Amber else Color.DarkGray, CircleShape).clickable { onChange { cl -> cl.copy(bg = cl.bg?.copy(color = col)) } })
                 }
             }
-            Text("AI finds the people in every frame (on the phone) and blurs, recolours or removes what's behind them. Transparent shows the video layers placed below the main video. Works best with one or two people in clear view.", color = Pro.Dim, fontSize = 11.sp)
+            if (c.bg != null) {
+                Text("Find", style = Pro.Label, modifier = Modifier.padding(top = 4.dp))
+                Chips(listOf("People (automatic)", "Magic Mask (anything)"), if (c.bg.magic != null) 1 else 0) { i ->
+                    if (i == 0) onChange { cl -> cl.copy(bg = cl.bg?.copy(magic = null)) } else onMagic()
+                }
+                val mg = c.bg.magic
+                if (mg != null || magicProgress != null) {
+                    if (magicProgress != null) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+                        Text("Following the object… $magicProgress%", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.weight(1f))
+                        Text("STOP", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { onStopMagic() }.padding(6.dp))
+                    } else if (mg != null) Text(if (mg.frames > 0) "✓ Tracked through ${mg.frames} frames" else "Not tracked yet", style = Pro.Label.copy(color = if (mg.frames > 0) Pro.Green else Pro.Dim), modifier = Modifier.padding(vertical = 4.dp))
+                    Text(
+                        if (mg == null) "SELECT OBJECT…" else "CHANGE SELECTION…", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                        modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onMagic() }.padding(10.dp),
+                    )
+                    if (mg != null && (c.startMs < mg.fromMs || c.endMs > mg.toMs)) Text("The clip is now longer than the tracked part — tap CHANGE SELECTION to track it again.", color = Pro.Amber, fontSize = 11.sp)
+                }
+                Chips(listOf("Keep the subject", "Affect the subject (invert)"), if (c.bg.invert == true) 1 else 0) { i -> onChange { cl -> cl.copy(bg = cl.bg?.copy(invert = i == 1)) } }
+            }
+            Text("People: found automatically in every frame. Magic Mask: tap any person, animal, car or object once and the AI follows it through the clip (like DaVinci Resolve). Then blur, recolour or remove what's around it — or invert to blur / hide the object itself (a face, a number plate). Transparent shows the video layers placed below the main video.", color = Pro.Dim, fontSize = 11.sp)
             SectionTitle("FINISHING")
             EdSlider("Vignette", c.detail.vignette) { v -> detail { it.copy(vignette = v) } }
             EdSlider("Film grain", c.detail.grain, 0f..1f, format = ::pct) { v -> detail { it.copy(grain = v) } }
@@ -3962,6 +4033,7 @@ private fun LayersPage(
     onTrack: (String) -> Unit = {}, trackingId: String? = null,
     telemetryShow: TelemetryShow = TelemetryShow(), onTelemetryShow: (TelemetryShow) -> Unit = {}, onTelemetry: () -> Unit = {},
     onSplit: (Int) -> Unit = {},
+    onMagicLayer: (String) -> Unit = {}, magicLayerProgress: Map<String, Int> = emptyMap(), onStopMagicLayer: (String) -> Unit = {},
 ) {
     var stickers by remember { mutableStateOf(false) }
     // AI captions: speech to text (Whisper) turned into caption layers.
@@ -4174,9 +4246,18 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
             }
         }
         Chips(listOf("Drop shadow off", "Drop shadow on"), if (l.dropShadow == true) 1 else 0) { onUpdate(l.copy(dropShadow = it == 1)) }
-        SectionTitle("REMOVE BACKGROUND (PEOPLE)")
-        Chips(listOf("Off", "On"), if (l.bgRemove == true) 1 else 0) { onUpdate(l.copy(bgRemove = (it == 1).takeIf { v -> v })) }
-        Text("AI cuts the people out of this video layer (on the phone), so only they appear over your main video.", color = Pro.Dim, fontSize = 11.sp)
+        SectionTitle("REMOVE BACKGROUND")
+        Chips(listOf("Off", "People (automatic)", "Magic Mask (anything)"), if (l.bgRemove != true) 0 else if (l.layerMagic != null) 2 else 1) { i ->
+            when (i) { 0 -> onUpdate(l.copy(bgRemove = null)); 1 -> onUpdate(l.copy(bgRemove = true, layerMagic = null)); else -> onMagicLayer(l.id) }
+        }
+        val lp = magicLayerProgress[l.id]
+        if (lp != null) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+            Text("Following the object… $lp%", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.weight(1f))
+            Text("STOP", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { onStopMagicLayer(l.id) }.padding(6.dp))
+        } else l.layerMagic?.let { mg -> Text(if (mg.frames > 0) "✓ Tracked through ${mg.frames} frames" else "Not tracked yet", style = Pro.Label.copy(color = if (mg.frames > 0) Pro.Green else Pro.Dim), modifier = Modifier.padding(vertical = 4.dp)) }
+        if (l.layerMagic != null) Text("CHANGE SELECTION…", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onMagicLayer(l.id) }.padding(10.dp))
+        if (l.bgRemove == true) Chips(listOf("Keep the subject", "Remove the subject (invert)"), if (l.bgInvert == true) 1 else 0) { onUpdate(l.copy(bgInvert = (it == 1).takeIf { v -> v })) }
+        Text("AI cuts the subject out of this video layer (on the phone), so only it appears over your main video. People are found automatically; Magic Mask follows anything you tap.", color = Pro.Dim, fontSize = 11.sp)
         Text("Frame shape crops the video to fill it (e.g. 1:1 or 9:16 picture-in-picture). Corners, border and shadow show in the preview and the export.", color = Pro.Dim, fontSize = 11.sp)
     }
     // With keyframes, the controls show (and edit) the layer as it is at the playhead.
@@ -4538,19 +4619,27 @@ private fun VideoLayerView(l: Layer, timeMs: Long, play: Boolean) {
         }
     }
     DisposableEffect(p) { onDispose { p.release() } }
-    val bgSet = remember(p) { booleanArrayOf(false) }
     val target = l.videoStartMs + (timeMs - (if (l.wholeVideo) 0L else l.startMs)).coerceAtLeast(0)
     LaunchedEffect(play) { if (play) p.play() else p.pause() }
     LaunchedEffect(target / 300, play) {
         if (!play || kotlin.math.abs(p.currentPosition - target) > 400) p.seekTo(target.coerceAtMost((l.videoDurationMs - 50).coerceAtLeast(0)))
     }
-    // Background removal runs in this player (the cut-out shows through the see-through view).
-    LaunchedEffect(l.bgRemove) {
-        try { if (l.bgRemove == true) p.setVideoEffects(listOf(BgRemoveEffect(0))) else if (bgSet[0]) p.setVideoEffects(emptyList()) ; bgSet[0] = l.bgRemove == true } catch (_: Throwable) {}
+    // Background removal (people or Magic Mask): drawn on the view, frame by frame, like the export.
+    val tvRef = remember { arrayOfNulls<android.view.TextureView>(1) }
+    val cutBg = remember { BgRemoval(0) }
+    LaunchedEffect(l.bgRemove, l.layerMagic, l.bgInvert, l.chroma, l.chromaTol, l.chromaSoft) {
+        if (l.bgRemove != true) { tvRef[0]?.let { ChromaPreview.apply(it, l) }; return@LaunchedEffect }
+        while (true) {
+            androidx.compose.runtime.withFrameNanos { }
+            val tv = tvRef[0] ?: continue
+            val mm = l.layerMagic
+            val fx = if (mm != null && mm.frames <= 0) null else CutoutPreview.effect(context, tv, cutBg, mm, l.bgInvert == true, p.currentPosition)
+            ChromaPreview.apply(tv, l, fx)
+        }
     }
     AndroidView(
-        factory = { ctx -> android.view.TextureView(ctx).also { it.isOpaque = false; p.setVideoTextureView(it) } },
-        update = { tv -> ChromaPreview.apply(tv, l) },
+        factory = { ctx -> android.view.TextureView(ctx).also { it.isOpaque = false; p.setVideoTextureView(it); tvRef[0] = it } },
+        update = { tv -> if (l.bgRemove != true) ChromaPreview.apply(tv, l) },
         modifier = Modifier.fillMaxSize().graphicsLayer { alpha = l.opacity },
     )
 }

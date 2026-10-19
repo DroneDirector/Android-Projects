@@ -23,6 +23,16 @@ android {
         targetSdk = 35
         versionCode = ciVersionCode
         versionName = "1.0.$ciVersionCode"
+        // Native code (RNNoise voice isolation, whisper.cpp transcription): phones + the x86_64 emulator.
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
+        externalNativeBuild { cmake { cppFlags += "" } }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     // A fixed key kept in the repo so updates install over earlier builds.

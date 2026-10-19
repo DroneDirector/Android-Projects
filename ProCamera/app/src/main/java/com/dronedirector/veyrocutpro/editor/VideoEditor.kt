@@ -3027,7 +3027,8 @@ private fun AudioPage(
         }
         EdSlider("Clip volume", c.volume, 0f..2f, 1f, { "%+.1f dB".format(dbfs(it)) }) { v -> onChange { it.copy(volume = v) } }
         Text("VOICE NOISE REDUCTION", style = Pro.Label, modifier = Modifier.padding(top = 6.dp))
-        Chips(listOf("Off", "Light", "Strong"), c.audio.denoise.coerceIn(0, 2)) { i -> onChange { it.copy(audio = it.audio.copy(denoise = i)) } }
+        Chips(listOf("Off", "Light", "Strong", "Voice isolation (AI)"), c.audio.denoise.coerceIn(0, 3)) { i -> onChange { it.copy(audio = it.audio.copy(denoise = i)) } }
+        if (c.audio.denoise >= 3) Text("Keeps the voice and removes wind, traffic, hum, crowd and background music — on export. Works best on speech.", color = Pro.Dim, fontSize = 11.sp)
         Text("Cleans hiss, hum and background noise from this clip's sound. Heard in the export (the preview plays the original).", color = Pro.Dim, fontSize = 11.sp)
         SectionTitle("VOLUME KEYFRAMES") { onChange { it.copy(volKeys = null) } }
         Text("Rides the clip's volume over time — e.g. dip it under a voiceover. Add keyframes at different playhead positions and set each level.", color = Pro.Dim, fontSize = 11.sp)

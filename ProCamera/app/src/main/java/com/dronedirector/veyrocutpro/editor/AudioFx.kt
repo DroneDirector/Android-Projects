@@ -146,6 +146,7 @@ class AudioFxProcessor(
     }
 
     private var nr: com.dronedirector.veyrocutpro.camera.NoiseReducer? = null
+    private var vi: VoiceIsolator? = null
     private var nrDrop = 0
 
     override fun queueInput(inputBuffer0: ByteBuffer) {
@@ -156,11 +157,17 @@ class AudioFxProcessor(
         // Voice noise reduction (export only): cleaned first, then EQ and dynamics as usual.
         var inputBuffer = inputBuffer0
         if (!live && f.denoise > 0) {
-            val r = nr ?: com.dronedirector.veyrocutpro.camera.NoiseReducer(ch, f.denoise).also { nr = it; nrDrop = it.delay * ch }
             val sb = inputBuffer0.order(java.nio.ByteOrder.nativeOrder()).asShortBuffer()
             val inF = FloatArray(sb.remaining()) { sb.get() / 32768f }
             inputBuffer0.position(inputBuffer0.limit())
-            var outF = r.process(inF)
+            // 3 = AI voice isolation (RNNoise); falls back to Strong if the native part can't load.
+            var outF = if (f.denoise >= 3 && VoiceIsolator.available) {
+                val v = vi ?: VoiceIsolator(ch, rate).also { vi = it; nrDrop = it.delay * ch }
+                v.process(inF)
+            } else {
+                val r = nr ?: com.dronedirector.veyrocutpro.camera.NoiseReducer(ch, f.denoise.coerceAtMost(2)).also { nr = it; nrDrop = it.delay * ch }
+                r.process(inF)
+            }
             if (nrDrop > 0) { val d = minOf(nrDrop, outF.size); outF = outF.copyOfRange(d, outF.size); nrDrop -= d }
             val bb = ByteBuffer.allocate(outF.size * 2).order(java.nio.ByteOrder.nativeOrder())
             for (v in outF) bb.putShort((v.coerceIn(-1f, 0.99997f) * 32768f).toInt().toShort())
@@ -245,7 +252,7 @@ class AudioFxProcessor(
         }
     }
 
-    private fun clear() { frames = 0; env = 0.0; gateGain = 1.0; duck = 1.0; nr = null; nrDrop = 0; listOf(hp, ls, pk, hs, pres).forEach { it.reset() } }
+    private fun clear() { frames = 0; env = 0.0; gateGain = 1.0; duck = 1.0; nr = null; vi?.release(); vi = null; nrDrop = 0; listOf(hp, ls, pk, hs, pres).forEach { it.reset() } }
     override fun onFlush() = clear()
     override fun onReset() { clear(); built = null }
 }

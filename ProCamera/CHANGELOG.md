@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.266 — 2026-10-19
 - Photo editor: full DJI drone RAW support — DNGs from DJI drones open with the drone's own lens calibration applied (distortion fixed, switchable), RAW INFO shows the drone model and the flight data stored in the photo (height, altitude, GPS, gimbal angles, heading, speed), and MERGE PHOTOS (HDR / panorama) now develops DNG brackets from the RAW data instead of their small preview.
 
 ## 1.0.264 — 2026-10-19

@@ -538,6 +538,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     var stallSince by remember { mutableStateOf(0L) }
     var stallTries by remember { mutableStateOf(0) }
     var showInfo by remember { mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("ve_info", false)) }
+    // Timeline scroll wheels: animated "upscale" look, or plain colours without animation.
+    var wheelFx by remember { mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_wheel_fx", true)) }
     var infoText by remember { mutableStateOf("") }
     /** The proxy this clip plays from right now, or null (= the original). */
     fun proxyFor(c: Clip): Uri? {
@@ -592,6 +594,16 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 androidx.compose.material3.Switch(showInfo, {
                     showInfo = it
                     context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("ve_info", it).apply()
+                }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Scroll wheel effects", color = Color.White, fontSize = 15.sp)
+                    Text("Glow, pixel and scan-line animation on the timeline's scroll wheels. Off = plain colours, no animation.", color = Pro.Dim, fontSize = 12.sp)
+                }
+                androidx.compose.material3.Switch(wheelFx, {
+                    wheelFx = it
+                    context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("tl_wheel_fx", it).apply()
                 }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
             }
             Text("PROXY MEDIA", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
@@ -3058,8 +3070,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         val sized = if (tlPane.dp < 0f) Modifier.fillMaxWidth().heightIn(max = (boxH * 0.42f).dp) else Modifier.fillMaxWidth().height(tlPane.dp.dp)
                         // The tracks stop short of the right and bottom edges: each wheel has its own window there.
                         Box(sized.padding(end = 26.dp, bottom = 26.dp).verticalScroll(tlScroll)) { timeline() }
-                        TimelineUpscaleOverlay(tlEnergy, tlScroll.value, Modifier.matchParentSize().padding(end = 26.dp, bottom = 26.dp))
-                        TimelineUpscaleOverlay(tlHEnergy, zoom.scrollMs.toInt(), Modifier.matchParentSize().padding(end = 26.dp, bottom = 26.dp), horizontal = true)
+                        if (wheelFx) {
+                            TimelineUpscaleOverlay(tlEnergy, tlScroll.value, Modifier.matchParentSize().padding(end = 26.dp, bottom = 26.dp))
+                            TimelineUpscaleOverlay(tlHEnergy, zoom.scrollMs.toInt(), Modifier.matchParentSize().padding(end = 26.dp, bottom = 26.dp), horizontal = true)
+                        }
                         // Horizontal wheel window: along the bottom, from the left edge to the vertical wheel's window.
                         Box(Modifier.matchParentSize()) {
                             Box(
@@ -3067,7 +3081,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     .background(Ed.Panel)
                                     .border(1.dp, Color.White.copy(alpha = 0.08f)),
                             ) {
-                                TimelineHWheel(zoom, Modifier.align(Alignment.Center).fillMaxWidth().padding(start = 6.dp, end = 6.dp)) { tlHEnergy = it }
+                                TimelineHWheel(zoom, Modifier.align(Alignment.Center).fillMaxWidth().padding(start = 6.dp, end = 6.dp), fancy = wheelFx) { tlHEnergy = it }
                             }
                         }
                         // Scroll wheel window: its own panel on the right, as tall as the visible timeline,
@@ -3078,7 +3092,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     .background(Ed.Panel)
                                     .border(1.dp, Color.White.copy(alpha = 0.08f)),
                             ) {
-                                TimelineWheel(tlScroll, Modifier.align(Alignment.Center).fillMaxHeight().padding(top = 6.dp, bottom = 6.dp)) { tlEnergy = it }
+                                TimelineWheel(tlScroll, Modifier.align(Alignment.Center).fillMaxHeight().padding(top = 6.dp, bottom = 6.dp), fancy = wheelFx) { tlEnergy = it }
                             }
                         }
                     }

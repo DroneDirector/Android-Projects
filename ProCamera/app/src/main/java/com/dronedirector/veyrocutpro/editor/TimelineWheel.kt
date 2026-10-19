@@ -58,7 +58,7 @@ private fun hash(a: Int, b: Int, c: Int): Float {
  * into fine detail, a glowing scan line follows the scroll and the wheel's ridges roll.
  */
 @Composable
-fun TimelineWheel(state: ScrollState, modifier: Modifier = Modifier, onActive: (Float) -> Unit = {}) {
+fun TimelineWheel(state: ScrollState, modifier: Modifier = Modifier, fancy: Boolean = true, onActive: (Float) -> Unit = {}) {
     val haptic = LocalHapticFeedback.current
     var dragging by remember { mutableStateOf(false) }
     var lastTick by remember { mutableFloatStateOf(0f) }
@@ -69,9 +69,12 @@ fun TimelineWheel(state: ScrollState, modifier: Modifier = Modifier, onActive: (
         if (moving) energy.snapTo(1f)
         else energy.animateTo(0f, tween(900, easing = FastOutSlowInEasing))
     }
-    LaunchedEffect(energy.value) { onActive(energy.value) }
-    val glow = rememberInfiniteTransition(label = "wheel")
-    val phase by glow.animateFloat(0f, 1f, infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart), label = "ph")
+    LaunchedEffect(energy.value, fancy) { onActive(if (fancy) energy.value else 0f) }
+    // The glow only runs with effects on (plain look = no animation at all).
+    val phase = if (fancy) {
+        val glow = rememberInfiniteTransition(label = "wheel")
+        glow.animateFloat(0f, 1f, infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart), label = "ph").value
+    } else 0f
     val canScroll = state.maxValue > 0
 
     Canvas(
@@ -104,6 +107,17 @@ fun TimelineWheel(state: ScrollState, modifier: Modifier = Modifier, onActive: (
         // gradient would make Android throw.
         if (w < 4f || h < 8f || !w.isFinite() || !h.isFinite()) return@Canvas
         val r = CornerRadius(w / 2, w / 2)
+        if (!fancy) {
+            // Plain look: solid track and thumb, no effects or animation.
+            drawRoundRect(Color(0xFF1A1E26), size = size, cornerRadius = r)
+            val vp0 = state.viewportSize.toFloat().coerceAtLeast(1f)
+            val vis0 = (if (canScroll) (h * vp0 / (vp0 + state.maxValue)).coerceIn(h * 0.22f, h) else h).let { if (it.isFinite() && it >= 4f) it else h }
+            val t0 = (if (canScroll) state.value.toFloat() / state.maxValue else 0f).let { if (it.isFinite()) it.coerceIn(0f, 1f) else 0f }
+            val top0 = (h - vis0) * t0
+            drawRoundRect(Pro.Amber.copy(alpha = if (canScroll) 0.9f else 0.35f), topLeft = Offset(w * 0.2f, top0 + 1f), size = Size(w * 0.6f, vis0 - 2f), cornerRadius = CornerRadius(w * 0.3f, w * 0.3f))
+            drawRoundRect(Color.White.copy(alpha = 0.18f), size = size, cornerRadius = r, style = Stroke(width = 1.dp.toPx()))
+            return@Canvas
+        }
         val e = energy.value
         val dim = if (canScroll) 1f else 0.4f
         // Glass track.
@@ -203,7 +217,7 @@ fun TimelineUpscaleOverlay(energy: Float, scroll: Int, modifier: Modifier = Modi
  * scan line and glowing rim, turned on its side.
  */
 @Composable
-fun TimelineHWheel(zoom: TimelineZoom, modifier: Modifier = Modifier, onActive: (Float) -> Unit = {}) {
+fun TimelineHWheel(zoom: TimelineZoom, modifier: Modifier = Modifier, fancy: Boolean = true, onActive: (Float) -> Unit = {}) {
     val haptic = LocalHapticFeedback.current
     var dragging by remember { mutableStateOf(false) }
     var lastTick by remember { mutableFloatStateOf(0f) }
@@ -219,9 +233,11 @@ fun TimelineHWheel(zoom: TimelineZoom, modifier: Modifier = Modifier, onActive: 
         if (!dragging && kotlin.math.abs(value - prevScroll.floatValue) > 1f) { energy.snapTo(0.6f); energy.animateTo(0f, tween(900, easing = FastOutSlowInEasing)) }
         prevScroll.floatValue = value
     }
-    LaunchedEffect(energy.value) { onActive(energy.value) }
-    val glow = rememberInfiniteTransition(label = "hwheel")
-    val phase by glow.animateFloat(0f, 1f, infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart), label = "hph")
+    LaunchedEffect(energy.value, fancy) { onActive(if (fancy) energy.value else 0f) }
+    val phase = if (fancy) {
+        val glow = rememberInfiniteTransition(label = "hwheel")
+        glow.animateFloat(0f, 1f, infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart), label = "hph").value
+    } else 0f
     val maxMs = zoom.maxScrollMs.toFloat()
     val canScroll = maxMs > 0f
 
@@ -253,6 +269,17 @@ fun TimelineHWheel(zoom: TimelineZoom, modifier: Modifier = Modifier, onActive: 
         val w = size.width; val h = size.height
         if (w < 8f || h < 4f || !w.isFinite() || !h.isFinite()) return@Canvas
         val r = CornerRadius(h / 2, h / 2)
+        if (!fancy) {
+            // Plain look: solid track and thumb, no effects or animation.
+            drawRoundRect(Color(0xFF1A1E26), size = size, cornerRadius = r)
+            val total0 = zoom.totalMs.toFloat().coerceAtLeast(1f)
+            val vis0 = (if (canScroll) (w * zoom.viewMs / total0).coerceIn(w * 0.12f, w) else w).let { if (it.isFinite() && it >= 4f) it else w }
+            val t0 = (if (canScroll) value / maxMs else 0f).let { if (it.isFinite()) it.coerceIn(0f, 1f) else 0f }
+            val left0 = (w - vis0) * t0
+            drawRoundRect(Pro.Amber.copy(alpha = if (canScroll) 0.9f else 0.35f), topLeft = Offset(left0 + 1f, h * 0.2f), size = Size(vis0 - 2f, h * 0.6f), cornerRadius = CornerRadius(h * 0.3f, h * 0.3f))
+            drawRoundRect(Color.White.copy(alpha = 0.18f), size = size, cornerRadius = r, style = Stroke(width = 1.dp.toPx()))
+            return@Canvas
+        }
         val e = energy.value
         val dim = if (canScroll) 1f else 0.4f
         drawRoundRect(Color(0xCC0D1016), size = size, cornerRadius = r)

@@ -174,11 +174,13 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 ### Transitions
 Two sub-menus on the Transitions page: **Video transitions** and **Audio transitions**.
 
-**Video transitions (34)**
+**Video transitions (50)**
 - **Basic**: cross dissolve, dip to black, dip to white, flash, blur dissolve.
 - **Wipes & shapes**: wipe left / right / up / down, diagonal, iris, clock, blinds, barn door, mosaic.
 - **Motion**: push left / right / up / down, whip pan left / right, zoom in, zoom out, spin.
 - **Stylized**: light leak, ink bleed, sparkle dissolve, glitch, pixelate, chromatic, ripple, light speed, swirl.
+- **Cinematic** (13, original shaders written for VeyroCut Pro): film burn, anamorphic flare, lens warp, letterbox close, aperture (iris blades), smoke, shatter, kaleidoscope, cube turn (3D), card flip (3D), sun rays, neon edges, ember drift.
+- **More glitches** (Stylized): Glitch 2 · Datamosh, Glitch 3 · VHS rewind, Glitch 4 · Pixel sort.
 - Animated previews with your own clips, adjustable duration, apply to all cuts.
 
 **Audio transitions (8)**

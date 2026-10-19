@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: 16 new transitions — a new Cinematic group (film burn, anamorphic flare, lens warp, letterbox close, aperture, smoke, shatter, kaleidoscope, cube turn, card flip, sun rays, neon edges, ember drift) and three new glitch styles (datamosh, VHS rewind, pixel sort). All are original effects written for VeyroCut Pro, so there's nothing to license; they show in the preview and the export.
 
 ## 1.0.273 — 2026-10-19
 - Photo and video editors: start-page thumbnails show a small, readable file-type tag (DNG RAW, JPEG, PNG, HEIC / MP4, MOV, MKV…) while you browse; the editors themselves stay clean.

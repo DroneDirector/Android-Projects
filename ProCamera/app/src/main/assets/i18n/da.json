@@ -1751,5 +1751,22 @@
 "Only media added here plays from a proxy. Proxies keep the original's timing, frame rate, orientation and sound, so edits never move when you switch. The final export always uses the original files.": "Kun medier tilføjet her afspilles fra en proxy. Proxyer bevarer originalens timing, billedhastighed, retning og lyd, så redigeringer aldrig flytter sig, når du skifter. Den endelige eksport bruger altid de originale filer.",
 "Proxies are set up in the Proxy tab next to Media: add the clips you want, switch proxies on or off and pick the quality there. Exports always use your original files.": "Proxyer sættes op i Proxy-fanen ved siden af Medier: tilføj de klip, du vil, slå proxyer til eller fra, og vælg kvaliteten der. Eksport bruger altid dine originale filer.",
 "Start page → each photo thumbnail has a small file-type tag (DNG RAW, JPEG, PNG, HEIC…) so you can see what you're opening. The tag is only on the start page, not in the editor.": "Startside → hver fotominiature har et lille filtype-mærke (DNG RAW, JPEG, PNG, HEIC…), så du kan se, hvad du åbner. Mærket vises kun på startsiden, ikke i redigeringen.",
-"Start page → each video thumbnail has a small file-type tag (MP4, MOV, MKV, WEBM…) so you can see what you're opening. The tag is only on the start page, not in the editor.": "Startside → hver videominiature har et lille filtype-mærke (MP4, MOV, MKV, WEBM…), så du kan se, hvad du åbner. Mærket vises kun på startsiden, ikke i redigeringen."
+"Start page → each video thumbnail has a small file-type tag (MP4, MOV, MKV, WEBM…) so you can see what you're opening. The tag is only on the start page, not in the editor.": "Startside → hver videominiature har et lille filtype-mærke (MP4, MOV, MKV, WEBM…), så du kan se, hvad du åbner. Mærket vises kun på startsiden, ikke i redigeringen.",
+"Cinematic": "Filmisk",
+"Film burn": "Filmbrand",
+"Anamorphic flare": "Anamorfisk flare",
+"Lens warp": "Linseforvrængning",
+"Letterbox close": "Letterbox-luk",
+"Aperture": "Blænde",
+"Smoke": "Røg",
+"Shatter": "Splintre",
+"Kaleidoscope": "Kalejdoskop",
+"Cube turn": "Terningvend",
+"Card flip": "Kortvend",
+"Sun rays": "Solstråler",
+"Neon edges": "Neonkanter",
+"Ember drift": "Gløder",
+"Glitch 2 · Datamosh": "Glitch 2 · Datamosh",
+"Glitch 3 · VHS rewind": "Glitch 3 · VHS-spol",
+"Glitch 4 · Pixel sort": "Glitch 4 · Pixelsortering"
 }

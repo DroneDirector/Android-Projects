@@ -739,6 +739,9 @@ class ProCameraController(private val context: Context) {
         }
         imageAnalysis = if (withAnalysis) analysis else null
         if (!withAnalysis) _analysis.value = null
+        // Face blur without an analysis stream: the live filter reads the faces from its own frames.
+        filterProcessor.faceFeed = !withAnalysis
+        filterProcessor.faceRotation = try { bound.cameraInfo.getSensorRotationDegrees(rotation) } catch (_: Throwable) { 90 }
         // Without its own analysis stream (common alongside video), read the on-screen picture instead.
         startScreenAnalysis(!withAnalysis)
 

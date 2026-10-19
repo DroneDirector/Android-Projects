@@ -24,7 +24,7 @@ import androidx.media3.transformer.VideoEncoderSettings
 import java.io.File
 
 /** What a clip's video stream is (used to decide whether it needs a preview proxy). */
-data class StreamInfo(val mime: String, val hdr: Boolean, val tenBit: Boolean)
+data class StreamInfo(val mime: String, val hdr: Boolean, val tenBit: Boolean, val chroma: ChromaInfo? = null)
 
 object StreamProbe {
     fun probe(context: Context, uri: Uri): StreamInfo = try {
@@ -44,7 +44,7 @@ object StreamProbe {
             )
             val hdr = transfer == MediaFormat.COLOR_TRANSFER_ST2084 || transfer == MediaFormat.COLOR_TRANSFER_HLG ||
                 mime == MediaFormat.MIMETYPE_VIDEO_DOLBY_VISION
-            info = StreamInfo(mime, hdr, hevc10 || hdr)
+            info = StreamInfo(mime, hdr, hevc10 || hdr, Chroma.of(f))
             break
         }
         ex.release()
@@ -58,9 +58,10 @@ enum class ProxyMode(val label: String) { AUTO("Auto (HDR / 10-bit / 4K)"), ALWA
 
 data class ProxySettings(val mode: ProxyMode = ProxyMode.AUTO, val hevc: Boolean = false, val height: Int = 1080) {
     fun needsProxy(c: Clip): Boolean = when (mode) {
-        ProxyMode.OFF -> false
+        // Clips that need a special decoder (4:2:2) always get a smooth 4:2:0 preview copy.
+        ProxyMode.OFF -> c.decoder != null
         ProxyMode.ALWAYS -> true
-        ProxyMode.AUTO -> c.hdr || c.tenBit || minOf(c.width, c.height) > 1440
+        ProxyMode.AUTO -> c.hdr || c.tenBit || c.is422 || minOf(c.width, c.height) > 1440
     }
 
     companion object {
@@ -127,6 +128,7 @@ object ProxyMaker {
         val w = ((c.width * scale).toInt() / 2 * 2).coerceAtLeast(2)
         val h = ((c.height * scale).toInt() / 2 * 2).coerceAtLeast(2)
         val transformer = Transformer.Builder(context)
+            .also { b -> c.decoder?.let { b.setAssetLoaderFactory(Chroma.assetLoaders(context, listOf(it))) } }
             .setVideoMimeType(if (s.hevc) MimeTypes.VIDEO_H265 else MimeTypes.VIDEO_H264)
             .setAudioMimeType(MimeTypes.AUDIO_AAC)
             .setEncoderFactory(

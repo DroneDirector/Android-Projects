@@ -61,6 +61,17 @@ class FilterProcessor : SurfaceProcessor {
      * Electronic ND / motion blur for video: each output frame is a running blend of the last few
      * camera frames, like a longer shutter. 0 = off; 2, 4, 8 ≈ how many frames are blended.
      */
+    /** Feed face blur from the camera texture (when there's no separate analysis stream). */
+    @Volatile var faceFeed = false
+    /** Sensor rotation for that feed (as an analysis frame would report it). */
+    @Volatile var faceRotation = 0
+    private var faceFbo = 0
+    private var faceTex = 0
+    private var faceW = 0
+    private var faceH = 0
+    private var faceAt = 0L
+    private var faceBuf: ByteBuffer? = null
+
     @Volatile var ndFrames = 0
         set(v) { if (field != v) ndPrimed = false; field = v }
     private var ndW = 0
@@ -205,6 +216,7 @@ class FilterProcessor : SurfaceProcessor {
         st.getTransformMatrix(texMatrix)
         val timestamp = st.timestamp
         val nd = ndFrames > 1 && accumulateNd()
+        if (faceFeed && CaptureExtras.faceBlur) feedFaces()
 
         val dead = ArrayList<SurfaceOutput>()
         for ((output, egl) in outputs) {
@@ -314,6 +326,50 @@ class FilterProcessor : SurfaceProcessor {
         else GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texId)
         GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uTex"), 0)
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+    }
+
+    // ------------------------------------------------------------- face blur feed
+
+    /** About 6 times a second: a small, unblurred copy of the camera picture for face detection. */
+    private fun feedFaces() {
+        val now = System.currentTimeMillis()
+        if (now - faceAt < 160 || FaceBlur.isBusy) return
+        val size = inputSize ?: return
+        if (copyProg == 0) copyProg = buildSimple(COPY_FS, external = true)
+        if (copyProg == 0) return
+        faceAt = now
+        val scale = 360f / maxOf(size.width, size.height)
+        val w = (size.width * scale).toInt().coerceAtLeast(16) / 4 * 4
+        val h = (size.height * scale).toInt().coerceAtLeast(16) / 4 * 4
+        EGL14.eglMakeCurrent(display, pbuffer, pbuffer, context)
+        if (faceFbo == 0 || w != faceW || h != faceH) {
+            if (faceFbo != 0) { GLES20.glDeleteFramebuffers(1, intArrayOf(faceFbo), 0); GLES20.glDeleteTextures(1, intArrayOf(faceTex), 0) }
+            val f = IntArray(1); GLES20.glGenFramebuffers(1, f, 0); faceFbo = f[0]
+            val t = IntArray(1); GLES20.glGenTextures(1, t, 0); faceTex = t[0]
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, faceTex)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
+            GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, w, h, 0, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null)
+            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, faceFbo)
+            GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, faceTex, 0)
+            faceW = w; faceH = h
+            faceBuf = ByteBuffer.allocateDirect(w * h * 4).order(ByteOrder.nativeOrder())
+        }
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, faceFbo)
+        GLES20.glViewport(0, 0, w, h)
+        // Identity matrix: pixel (x, y) here is texture coordinate (x / w, y / h) — the space the
+        // blur shader works in, so the found boxes need no further conversion.
+        drawSimple(copyProg, identity, ext = texId, a = 0, b = 0, k = 0f)
+        val buf = faceBuf ?: return
+        buf.position(0)
+        GLES20.glReadPixels(0, 0, w, h, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buf)
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
+        val luma = ByteArray(w * h)
+        for (i in 0 until w * h) {
+            val r = buf.get(i * 4).toInt() and 0xFF; val g = buf.get(i * 4 + 1).toInt() and 0xFF; val b = buf.get(i * 4 + 2).toInt() and 0xFF
+            luma[i] = ((r * 77 + g * 150 + b * 29) shr 8).toByte()
+        }
+        FaceBlur.submitLuma(luma, w, h, faceRotation)
     }
 
     // ------------------------------------------------------------- electronic ND

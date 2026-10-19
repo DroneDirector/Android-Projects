@@ -124,6 +124,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 ## Video editor guide
 **AI noise reduction**
+- 4:2:2 footage (10-bit 4:2:2 H.264 / H.265 from Sony, Panasonic, Canon, Fujifilm, DJI…): the Media page shows a 4:2:2 badge. The editor finds a decoder on your phone that can read it, edits with a smooth preview copy and exports from the original (as 4:2:0 — phone encoders don't make 4:2:2). If no decoder on the phone can read it, the clip is marked in red.
 - Media → MULTICAM (with 2 or more clips in the pool): pick 2–4 angles filmed at the same time — the first is the main angle for sound and timing — then SYNC BY SOUND & START. Tap an angle to start on it, press PLAY and tap angles while it plays to cut between them. DONE adds the edit to the end of the timeline.
 - Audio → SYNC (on any audio track) or ⇆ SYNC TO THE SELECTED CLIP (music track): lines sound from an external recorder or wireless mic up with the selected clip by matching the sound. A clap at the start of the take makes it bulletproof.
 - Layers → DRONE TELEMETRY: select the drone clip, choose what to show (altitude, speed, GPS, camera) and LOAD FLIGHT DATA (.SRT) — pick the .SRT your DJI drone saved next to the video. The read-out follows the clip's trim and speed.

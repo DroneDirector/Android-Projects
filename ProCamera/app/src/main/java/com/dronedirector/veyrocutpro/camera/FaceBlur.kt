@@ -70,10 +70,37 @@ object FaceBlur {
             if (i < buf.limit()) nv21[y * w + x] = buf.get(i)
         }
         java.util.Arrays.fill(nv21, w * h, nv21.size, 128.toByte())
-        val rot = image.imageInfo.rotationDegrees
+        detect(nv21, w, h, image.imageInfo.rotationDegrees, null)
+    }
+
+    val isBusy: Boolean get() = busy
+
+    // GPU feed: which extra quarter-turn makes the faces upright (found by trying, then kept).
+    private var gpuTurn = 0
+    private var gpuMisses = 0
+
+    /**
+     * Frames read straight from the camera texture by the live filter (used when the phone can't
+     * run a separate analysis stream, e.g. while filming 4K). [luma] is w×h brightness in texture
+     * coordinates; [rot] the sensor rotation. If faces aren't found for a while, other
+     * orientations are tried, so it works whichever way the texture is stored.
+     */
+    fun submitLuma(luma: ByteArray, w: Int, h: Int, rot: Int) {
+        if (busy) return
+        val nv21 = ByteArray(w * h * 3 / 2)
+        System.arraycopy(luma, 0, nv21, 0, w * h)
+        java.util.Arrays.fill(nv21, w * h, nv21.size, 128.toByte())
+        detect(nv21, w, h, (rot + gpuTurn * 90) % 360) { found ->
+            if (found) gpuMisses = 0
+            else if (++gpuMisses >= 4) { gpuMisses = 0; gpuTurn = (gpuTurn + 1) % 4 }
+        }
+    }
+
+    private fun detect(nv21: ByteArray, w: Int, h: Int, rot: Int, onResult: ((Boolean) -> Unit)?) {
         busy = true
         live.process(InputImage.fromByteArray(nv21, w, h, rot, InputImage.IMAGE_FORMAT_NV21))
             .addOnSuccessListener { faces ->
+                onResult?.invoke(faces.isNotEmpty())
                 val out = ArrayList<Float>()
                 for (f in faces.take(MAX)) {
                     val b = f.boundingBox

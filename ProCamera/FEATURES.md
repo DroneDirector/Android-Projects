@@ -141,6 +141,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Skip to the editor** from the start page: open an empty timeline without picking a video first (manual, every time).
 - Add clips from the gallery or files (MP4, MKV, MOV, WebM, SD card / USB).
 - Export to internal storage, an SD card / USB drive or a picked folder on any external drive (own SAVE LOCATION, or the same as capture).
+- **4:2:2 / 4:4:4 footage**: detected from the stream, decoded with whichever decoder on the phone can read it (hardware, then Android's software decoder), automatic preview copy, export from the original.
 - **Media pool** with codec, HDR / 10-bit badges; delete from the pool with confirmation.
 - **Multi-track timeline** starting at the left edge: filmstrips, layer rows and audio rows; drag the playhead or tap the ruler; two-finger pinch zoom and scroll; follows the playhead while playing.
 - Under the player: **mute, zoom out, show whole timeline, zoom in, split, undo, redo**, previous / play / next, full screen.

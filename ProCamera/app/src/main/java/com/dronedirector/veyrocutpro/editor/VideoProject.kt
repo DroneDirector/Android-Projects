@@ -67,7 +67,16 @@ data class Clip(
     val volKeys: List<VolKey>? = null,
     /** Nested (compound) clip: the clips it was made from, so it can be opened up again. */
     val nested: List<Clip>? = null,
+    /** Colour sampling: 2 = 4:2:2, 3 = 4:4:4 (null / 1 = normal 4:2:0), and bit depth. */
+    val chroma: Int? = null,
+    val bitDepth: Int? = null,
+    /** Decoder that reads this clip when the phone's usual one can't (4:2:2), or null. */
+    val decoder: String? = null,
+    /** True when no decoder on this phone can read the clip. */
+    val undecodable: Boolean? = null,
 ) {
+    val is422: Boolean get() = (chroma ?: 1) >= 2
+
     val lengthMs: Long get() = (if (ramp != null) rampedLength() else ((endMs - startMs) / speed).toLong()).coerceAtLeast(1)
 }
 
@@ -85,7 +94,20 @@ object ClipLoader {
             if (c.moveToFirst()) c.getString(0) else null
         } ?: uri.lastPathSegment ?: "Clip"
         val info = StreamProbe.probe(context, uri)
-        if (dur <= 0) null else Clip(uri = uri, name = name, durationMs = dur, width = w, height = h, mime = info.mime, hdr = info.hdr, tenBit = info.tenBit)
+        // 4:2:2 / 4:4:4: find a decoder on this phone that can read it.
+        val ci = info.chroma
+        var dec: String? = null
+        var bad = false
+        if (ci != null && ci.chroma >= 2) {
+            dec = Chroma.workingDecoder(context, uri)
+            bad = dec == null
+        }
+        if (dur <= 0) null else Clip(
+            uri = uri, name = name, durationMs = dur, width = w, height = h, mime = info.mime, hdr = info.hdr,
+            tenBit = info.tenBit || (ci?.bitDepth ?: 8) > 8,
+            chroma = ci?.chroma?.takeIf { it >= 2 }, bitDepth = ci?.bitDepth,
+            decoder = dec, undecodable = if (bad) true else null,
+        )
     } catch (_: Throwable) {
         null
     }
@@ -431,6 +453,7 @@ class TimelineExport(
         else VideoEncoderSettings.DEFAULT
 
         transformer = Transformer.Builder(context)
+            .also { b -> clips.mapNotNull { it.decoder }.distinct().takeIf { it.isNotEmpty() }?.let { b.setAssetLoaderFactory(Chroma.assetLoaders(context, it)) } }
             .setVideoMimeType(if (settings.hevc || settings.keepHdr) MimeTypes.VIDEO_H265 else MimeTypes.VIDEO_H264)
             .setAudioMimeType(MimeTypes.AUDIO_AAC)
             .setEncoderFactory(

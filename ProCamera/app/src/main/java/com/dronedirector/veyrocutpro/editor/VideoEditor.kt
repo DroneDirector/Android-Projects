@@ -154,6 +154,9 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
             }
             clips.addAll(loaded)
             loading = false
+            loaded.firstOrNull { it.undecodable == true }?.let {
+                android.widget.Toast.makeText(context, "\"${it.name}\" is 4:2:2 and this phone can't decode it — see the Media page", android.widget.Toast.LENGTH_LONG).show()
+            }
             if (clips.isNotEmpty()) started = true
         }
     }
@@ -2281,7 +2284,19 @@ private fun MediaPage(
                         c.mime.contains("hevc") -> "HEVC"; c.mime.contains("avc") -> "H.264"; c.mime.contains("vp9") -> "VP9"
                         c.mime.contains("av01") -> "AV1"; c.mime.contains("dolby") -> "Dolby Vision"; else -> c.mime.removePrefix("video/").uppercase()
                     }
-                    Text("${c.width}×${c.height} · ${tc(c.durationMs)} · $codec" + (if (c.hdr) " · HDR" else if (c.tenBit) " · 10-bit" else ""), style = Pro.Label)
+                    Text(
+                        "${c.width}×${c.height} · ${tc(c.durationMs)} · $codec" +
+                            (if (c.is422) " · " + (if (c.chroma == 3) "4:4:4" else "4:2:2") + " ${c.bitDepth ?: 10}-bit" else "") +
+                            (if (c.hdr) " · HDR" else if (c.tenBit && !c.is422) " · 10-bit" else ""),
+                        style = Pro.Label,
+                    )
+                    if (c.undecodable == true) Text(
+                        "This phone has no decoder for ${if (c.chroma == 3) "4:4:4" else "4:2:2"} ${c.mime.removePrefix("video/").uppercase()} — it can't be shown or exported here. Convert it to 4:2:0 (e.g. ProRes / DNxHR → H.265 4:2:0 10-bit) on a computer, or shoot 4:2:0 for phone editing.",
+                        color = Pro.Red, fontSize = 11.sp,
+                    ) else if (c.decoder != null && c.is422) Text(
+                        "4:2:2 is read with ${if (c.decoder.startsWith("c2.android") || c.decoder.startsWith("OMX.google")) "Android's software decoder (slower)" else "the phone's hardware decoder"}; editing uses a smooth preview copy and the export is made from the original (saved as 4:2:0, which phones encode).",
+                        color = Pro.Dim, fontSize = 11.sp,
+                    )
                 }
                 Box(Modifier.size(36.dp).clip(CircleShape).clickable { confirm = c }, contentAlignment = Alignment.Center) {
                     Icon(Icons.Filled.Delete, contentDescription = "Delete from media pool", tint = Pro.Red, modifier = Modifier.size(20.dp))

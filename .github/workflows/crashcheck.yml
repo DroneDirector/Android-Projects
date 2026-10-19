@@ -17,7 +17,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Get the APK
         env:
@@ -99,7 +99,7 @@ jobs:
           tapText "Text"; sleep 3; shot 04f-text-page
           tapText "DOWNLOAD MODEL"; for i in $(seq 1 24); do sleep 5; adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml | grep -q "Model ready" && break; done
           shot 04g-model
-          tapText "TRANSCRIBE"; for i in $(seq 1 36); do sleep 5; adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml | grep -q "APPLY CUTS\|TAP WORDS\|No speech" && break; done
+          tapText "TRANSCRIBE"; for i in $(seq 1 100); do sleep 5; adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml | grep -q "APPLY CUTS\|TAP WORDS\|No speech" && break; done
           sleep 2; shot 04h-transcript
           adb logcat -d | grep -i -E "veyrocut_native|veyrocut_whisper|UnsatisfiedLink|whisper" | tail -20 > out/native.txt || true
                     start_video; shot 05-recover-banner

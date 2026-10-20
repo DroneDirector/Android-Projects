@@ -17,7 +17,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 110
+    timeout-minutes: 170
     steps:
       - name: Get the APK
         env:
@@ -150,7 +150,21 @@ jobs:
           scrollTo "PIN TO FOUR CORNERS"; tapText "PIN TO FOUR CORNERS"; sleep 3; shot 11b-pinned
           scrollTo "PLANAR TRACK FROM"; tapText "PLANAR TRACK FROM"; for i in $(seq 1 60); do sleep 5; seeText "Planar tracked" && break; seeText "follow that surface" && break; seeText "Tracked to" && break; done; shot 11c-planar
           adb shell input keyevent KEYCODE_SPACE; sleep 4; shot 11d-pin-playing; adb shell input keyevent KEYCODE_SPACE
-          adb logcat -d | grep -E "FlowRetime|Lottie|PlanarTracker|CornerPin|PenMask" | tail -40 > out/new.txt || true
+          # AI voiceover (downloads the voice model once, then speaks a line).
+          tapText "Audio"; sleep 3; scrollTo "What should the voice say"; tapText "What should the voice say"; sleep 1
+          adb shell input text "Hello%sfrom%sVeyroCut%sPro."; adb shell input keyevent KEYCODE_BACK; sleep 1
+          scrollTo "MAKE VOICEOVER"; tapText "MAKE VOICEOVER"; for i in $(seq 1 90); do sleep 6; seeText "AI voiceover added" && break; seeText "make the voice" && break; seeText "Download failed" && break; done; shot 12a-tts
+          # AI depth (Color → Detail → AI DEPTH → Lens blur → ANALYSE DEPTH).
+          tapText "Color"; sleep 3
+          for k in 1 2 3; do seeText '"Detail"' && break; [ -n "$ROWY" ] && adb shell input swipe 1000 $ROWY 150 $ROWY 300; sleep 1; done
+          tapText "Detail"; sleep 2; scrollTo "Lens blur"; tapText "Lens blur"; sleep 2; scrollTo "ANALYSE DEPTH"; tapText "ANALYSE DEPTH"
+          for i in $(seq 1 120); do sleep 6; seeText "Depth worked out" && break; seeText "work out the depth" && break; seeText "Download failed" && break; done; shot 12b-depth
+          scrollTo "Show depth map"; tapText "Show depth map"; sleep 3; shot 12c-depth-map
+          # Object removal (Color → Detail → REMOVE AN OBJECT): pick the middle, let it run up to ~15 min.
+          scrollTo "SELECT THE OBJECT TO REMOVE"; tapText "SELECT THE OBJECT TO REMOVE"; for i in $(seq 1 30); do sleep 4; seeText "Tap the object" && break; seeText "couldn" && break; done
+          tapBetween "MAGIC MASK" "Tap the object"; sleep 12; tapText "TRACK THROUGH"
+          for i in $(seq 1 150); do sleep 6; seeText "Object removed" && break; seeText "remove the object" && break; seeText "follow the object" && break; seeText "Download failed" && break; done; shot 12d-erase
+          adb logcat -d | grep -E "FlowRetime|Lottie|PlanarTracker|CornerPin|PenMask|ObjectRemoval|Depth|Voiceover|onnxruntime|libdf" | tail -60 > out/new.txt || true
           adb logcat -d | grep -E "FrameReader|onnxruntime|OrtSession|Magic|TransitionPreview|veyrocut_morph|AndroidRuntime" | tail -60 > out/ai.txt || true
           adb logcat -d | grep -i -E "veyrocut_native|veyrocut_whisper|UnsatisfiedLink|whisper" | tail -20 > out/native.txt || true
                     start_video; shot 05-recover-banner

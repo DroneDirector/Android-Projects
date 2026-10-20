@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.331 — 2026-10-20
 - Video editor: **Object removal (AI)** (Color → Detail → REMOVE AN OBJECT) — tap a person, car, sign or wire and it disappears from the whole clip, filled from the real background in the frames around it.
 - Video editor: **AI depth** (Color → Detail → AI DEPTH) — lens blur with real depth of field, fog by distance, or a darker, calmer background behind your subject.
 - Video editor: **AI voiceover from text** (Audio) — 12 natural English voices, made on the phone and added at the playhead.

@@ -7,7 +7,7 @@ file(GLOB RNNOISE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/rnnoise/src/*.c)
 add_library(veyrocut_native SHARED voice_jni.c ${RNNOISE_SRC})
 target_include_directories(veyrocut_native PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/rnnoise/include ${CMAKE_CURRENT_SOURCE_DIR}/rnnoise/src)
 target_compile_options(veyrocut_native PRIVATE -O3 -Wno-unused -w)
-target_link_libraries(veyrocut_native m)
+target_link_libraries(veyrocut_native m dl)
 
 # whisper.cpp (MIT): on-device speech-to-text for text-based editing (CPU backend only).
 set(W ${CMAKE_CURRENT_SOURCE_DIR}/whisper)

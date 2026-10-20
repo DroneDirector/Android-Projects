@@ -7,22 +7,33 @@ package com.dronedirector.veyrocutpro.editor
  * RNNoise works on 48 kHz mono frames of 480 samples; other sample rates are resampled to 48 kHz
  * and back. Interleaved samples in (−1..1) → the same number of samples out, [delay] frames late.
  */
-class VoiceIsolator(private val channels: Int, private val rate: Int, private val amount: Float = 1f) {
+class VoiceIsolator(private val channels: Int, private val rate: Int, private val amount: Float = 1f, private val studio: Boolean = false) {
     companion object {
         private const val FRAME = 480
+        /** DeepFilterNet3's own delay at 48 kHz: one frame of analysis plus its two frames of look-ahead. */
+        private const val DF_DELAY = 480 * 2
         val available: Boolean by lazy {
             try { System.loadLibrary("veyrocut_native"); true } catch (_: Throwable) { false }
         }
+        /** Studio voice (DeepFilterNet3) can run on this phone. */
+        val studioAvailable: Boolean by lazy { available && try { nativeDfAvailable() } catch (_: Throwable) { false } }
         @JvmStatic private external fun nativeCreate(): Long
         @JvmStatic private external fun nativeDestroy(h: Long)
         @JvmStatic private external fun nativeProcess(h: Long, input: FloatArray, output: FloatArray): Float
+        @JvmStatic private external fun nativeDfAvailable(): Boolean
+        @JvmStatic private external fun nativeDfCreate(atten: Float): Long
+        @JvmStatic private external fun nativeDfFrame(h: Long): Int
+        @JvmStatic private external fun nativeDfDestroy(h: Long)
+        @JvmStatic private external fun nativeDfProcess(h: Long, input: FloatArray, output: FloatArray): Float
     }
 
     /** Frames of delay (at the input rate) before the first cleaned sample. */
-    val delay: Int = (FRAME.toLong() * rate / 48000).toInt() + 4
+    val delay: Int = ((FRAME + (if (studio) DF_DELAY else 0)).toLong() * rate / 48000).toInt() + 4
 
     private inner class Chan {
-        val h = nativeCreate()
+        val h = if (studio) nativeDfCreate(100f) else nativeCreate()
+        // The dry signal, held back by the model's own delay so dry and clean line up when mixed.
+        val dryDelay = ArrayDeque<Float>().also { q -> if (studio) repeat(DF_DELAY) { q.addLast(0f) } }
         // Up-sampling (input rate → 48 kHz) state.
         var upPos = 0.0; var upPrev = 0f; var upHave = false
         // 48 kHz frame being filled, its dry copy, and cleaned 48 kHz output waiting to be down-sampled.
@@ -34,6 +45,16 @@ class VoiceIsolator(private val channels: Int, private val rate: Int, private va
         val outQ = ArrayDeque<Float>()
 
         fun push48(v: Float) {
+            if (studio) {
+                inBuf[fill++] = v
+                if (fill == FRAME) {
+                    nativeDfProcess(h, inBuf, outBuf)
+                    for (i in 0 until FRAME) { clean48.addLast(outBuf[i]); dryDelay.addLast(inBuf[i]); dry48.addLast(dryDelay.removeFirst()) }
+                    fill = 0
+                    drain()
+                }
+                return
+            }
             inBuf[fill++] = v * 32768f
             if (fill == FRAME) {
                 nativeProcess(h, inBuf, outBuf)
@@ -87,5 +108,5 @@ class VoiceIsolator(private val channels: Int, private val rate: Int, private va
         return out
     }
 
-    fun release() { chans.forEach { try { nativeDestroy(it.h) } catch (_: Throwable) {} } }
+    fun release() { chans.forEach { try { if (studio) nativeDfDestroy(it.h) else nativeDestroy(it.h) } catch (_: Throwable) {} } }
 }

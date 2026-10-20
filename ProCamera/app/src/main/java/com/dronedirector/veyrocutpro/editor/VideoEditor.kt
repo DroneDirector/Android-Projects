@@ -4106,8 +4106,12 @@ private fun AudioPage(
         }
         EdSlider("Clip volume", c.volume, 0f..2f, 1f, { "%+.1f dB".format(dbfs(it)) }) { v -> onChange { it.copy(volume = v) } }
         Text("VOICE NOISE REDUCTION", style = Pro.Label, modifier = Modifier.padding(top = 6.dp))
-        Chips(listOf("Off", "Light", "Strong", "Voice isolation (AI)"), c.audio.denoise.coerceIn(0, 3)) { i -> onChange { it.copy(audio = it.audio.copy(denoise = i)) } }
-        if (c.audio.denoise >= 3) Text("Keeps the voice and removes wind, traffic, hum, crowd and background music — on export. Works best on speech.", color = Pro.Dim, fontSize = 11.sp)
+        Chips(listOf("Off", "Light", "Strong", "Voice isolation (AI)", "Studio voice (AI)"), c.audio.denoise.coerceIn(0, 4)) { i -> onChange { it.copy(audio = it.audio.copy(denoise = i)) } }
+        if (c.audio.denoise == 3) Text("Keeps the voice and removes wind, traffic, hum, crowd and background music — on export. Works best on speech.", color = Pro.Dim, fontSize = 11.sp)
+        if (c.audio.denoise >= 4) Text("Studio voice: DeepFilterNet3, the cleanest AI voice clean-up — removes noise of every kind and takes room echo down, keeping the voice natural. On export, on the phone.", color = Pro.Dim, fontSize = 11.sp)
+        Text("REPAIR", style = Pro.Label, modifier = Modifier.padding(top = 6.dp))
+        Chips(listOf("Clicks off", "Remove clicks & crackle"), if (c.audio.declick) 1 else 0) { i -> onChange { it.copy(audio = it.audio.copy(declick = i == 1)) } }
+        EdSlider("Remove room echo", c.audio.dereverb, 0f..1f, 0f, ::pct) { v -> onChange { it.copy(audio = it.audio.copy(dereverb = v)) } }
         Text("Cleans hiss, hum and background noise from this clip's sound. Heard in the export (the preview plays the original).", color = Pro.Dim, fontSize = 11.sp)
         SectionTitle("VOLUME KEYFRAMES") { onChange { it.copy(volKeys = null) } }
         Text("Rides the clip's volume over time — e.g. dip it under a voiceover. Add keyframes at different playhead positions and set each level.", color = Pro.Dim, fontSize = 11.sp)

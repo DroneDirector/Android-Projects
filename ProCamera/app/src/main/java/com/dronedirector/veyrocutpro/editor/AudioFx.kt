@@ -32,8 +32,11 @@ data class AudioFx(
     val fadeOutMs: Long = 0L,
     val duckMusic: Boolean = false,
     val limiter: Boolean = true,
-    /** Voice noise reduction on export: 0 off, 1 light, 2 strong. */
+    /** Voice noise reduction on export: 0 off, 1 light, 2 strong, 3 voice isolation (AI), 4 studio voice (AI). */
     val denoise: Int = 0,
+    /** Repair on export: remove clicks / crackle, and take room echo down (0..1). */
+    val declick: Boolean = false,
+    val dereverb: Float = 0f,
 ) {
     val isNeutral get() = this == AudioFx() || this == AudioFx(limiter = false)
 }
@@ -131,7 +134,7 @@ class AudioFxProcessor(
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT) return AudioProcessor.AudioFormat.NOT_SET
-        if (!live && fx.isNeutral && fx.denoise == 0 && gain == 1f && duckRanges.isEmpty() && !meter && envelope.isNullOrEmpty() && xOut == null && xIn == null) return AudioProcessor.AudioFormat.NOT_SET
+        if (!live && fx.isNeutral && fx.denoise == 0 && !fx.declick && fx.dereverb <= 0f && gain == 1f && duckRanges.isEmpty() && !meter && envelope.isNullOrEmpty() && xOut == null && xIn == null) return AudioProcessor.AudioFormat.NOT_SET
         return inputAudioFormat
     }
 
@@ -145,9 +148,14 @@ class AudioFxProcessor(
         built = f; builtRate = rate
     }
 
+    private var dc: DeClicker? = null
+    private var dr: DeReverb? = null
     private var nr: com.dronedirector.veyrocutpro.camera.NoiseReducer? = null
     private var vi: VoiceIsolator? = null
     private var nrDrop = 0
+    /** Samples still inside the repair / noise-reduction processors (flushed at the end, so the tail isn't lost). */
+    private var held = 0
+    private var flushing = false
 
     override fun queueInput(inputBuffer0: ByteBuffer) {
         val fmt = inputAudioFormat
@@ -156,16 +164,19 @@ class AudioFxProcessor(
         val f = fx
         // Voice noise reduction (export only): cleaned first, then EQ and dynamics as usual.
         var inputBuffer = inputBuffer0
-        if (!live && f.denoise > 0) {
+        if (!live && (f.denoise > 0 || f.declick || f.dereverb > 0f)) {
             val sb = inputBuffer0.order(java.nio.ByteOrder.nativeOrder()).asShortBuffer()
-            val inF = FloatArray(sb.remaining()) { sb.get() / 32768f }
+            var inF = FloatArray(sb.remaining()) { sb.get() / 32768f }
             inputBuffer0.position(inputBuffer0.limit())
-            // 3 = AI voice isolation (RNNoise); falls back to Strong if the native part can't load.
-            var outF = if (f.denoise >= 3 && VoiceIsolator.available) {
-                val v = vi ?: VoiceIsolator(ch, rate).also { vi = it; nrDrop = it.delay * ch }
+            // Repair first (clicks, then room echo), each with its own delay taken off the front.
+            if (f.declick) { val d = dc ?: DeClicker(ch, rate).also { dc = it; nrDrop += it.delay * ch; held += it.delay * ch }; inF = d.process(inF) }
+            if (f.dereverb > 0f) { val d = dr ?: DeReverb(ch, rate, f.dereverb).also { dr = it; nrDrop += it.delay * ch; held += it.delay * ch }; inF = d.process(inF) }
+            // 3 = AI voice isolation (RNNoise), 4 = studio voice (DeepFilterNet3); falls back if the native part can't load.
+            var outF = if (f.denoise == 0) inF else if (f.denoise >= 3 && VoiceIsolator.available) {
+                val v = vi ?: VoiceIsolator(ch, rate, studio = f.denoise >= 4 && VoiceIsolator.studioAvailable).also { vi = it; nrDrop += it.delay * ch; held += it.delay * ch }
                 v.process(inF)
             } else {
-                val r = nr ?: com.dronedirector.veyrocutpro.camera.NoiseReducer(ch, f.denoise.coerceAtMost(2)).also { nr = it; nrDrop = it.delay * ch }
+                val r = nr ?: com.dronedirector.veyrocutpro.camera.NoiseReducer(ch, f.denoise.coerceAtMost(2)).also { nr = it; nrDrop += it.delay * ch; held += it.delay * ch }
                 r.process(inF)
             }
             if (nrDrop > 0) { val d = minOf(nrDrop, outF.size); outF = outF.copyOfRange(d, outF.size); nrDrop -= d }
@@ -252,7 +263,17 @@ class AudioFxProcessor(
         }
     }
 
-    private fun clear() { frames = 0; env = 0.0; gateGain = 1.0; duck = 1.0; nr = null; vi?.release(); vi = null; nrDrop = 0; listOf(hp, ls, pk, hs, pres).forEach { it.reset() } }
+    private fun clear() { frames = 0; env = 0.0; gateGain = 1.0; duck = 1.0; nr = null; vi?.release(); vi = null; dc = null; dr = null; nrDrop = 0; held = 0; flushing = false; listOf(hp, ls, pk, hs, pres).forEach { it.reset() } }
+    override fun onQueueEndOfStream() {
+        // Push silence through so the last moment of sound comes out of the processors' delay.
+        if (held > 0 && !flushing) {
+            val ch = inputAudioFormat.channelCount.coerceIn(1, 8)
+            val n = held - held % ch
+            held = 0; flushing = true
+            if (n > 0) queueInput(ByteBuffer.allocateDirect(n * 2).order(java.nio.ByteOrder.nativeOrder()))
+        }
+    }
+
     override fun onFlush() = clear()
     override fun onReset() { clear(); built = null }
 }

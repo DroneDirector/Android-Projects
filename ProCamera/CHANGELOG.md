@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.376 — 2026-10-20
 - Photo editor, Heal → **AI REMOVE** (was AI Erase):
   - **Tap to select** people, cars or signs (the AI selects each one), or paint over them, or both.
   - On the phone, the LaMa AI now paints in what was behind them at the photo's **full size**. Each area is filled separately, so small things keep their detail and the rest of the photo keeps every original pixel.

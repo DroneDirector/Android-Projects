@@ -492,25 +492,6 @@ private fun PhotoWorkspace(
     fun sourceUri(e: PhotoEdit): Uri = e.baseFile?.let { Uri.fromFile(java.io.File(it)) } ?: uri
     LaunchedEffect(clipWarn, preview) { val pv = preview; clipImg = if (clipWarn && pv != null) withContext(Dispatchers.Default) { Develop.clipOverlay(pv) } else null }
     LaunchedEffect(sharpMaskView, preview, edit.detail.sharpenMasking) { val pv = preview; sharpImg = if (sharpMaskView && pv != null) withContext(Dispatchers.Default) { Develop.sharpenMaskPreview(pv, edit.detail) } else null }
-    // 1:1 loupe: when zoomed in, a sharper render of the whole photo (up to 3600 px) replaces the preview.
-    var loupeSrc by remember { mutableStateOf<Pair<String, Bitmap>?>(null) }
-    LaunchedEffect(zoomK > 1.6f, edit, aiMasks.size) {
-        if (zoomK <= 1.6f) { loupe = null; return@LaunchedEffect }
-        delay(500)
-        val e = edit
-        if (rawOn(e)) return@LaunchedEffect
-        val key = sourceUri(e).toString()
-        loupe = withContext(Dispatchers.Default) {
-            try {
-                val hi = loupeSrc?.takeIf { it.first == key }?.second ?: (GradeIO.decode(context, sourceUri(e), 3600) ?: return@withContext null).also { loupeSrc = key to it }
-                val tables = if (e.grade.isIdentity) null else e.grade.tables()
-                var o = ImageOps.renderPhoto(hi, e.grade, e.detail.copy(aiDenoise = 0f), e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg, e.sky)
-                for (t in e.texts) o = stampLayer(context, o, t)
-                e.watermark?.let { o = stampLayer(context, o, it) }
-                o
-            } catch (_: OutOfMemoryError) { null } catch (_: Throwable) { null }
-        }
-    }
     fun resetZoom() { zoomK = 1f; panX = 0f; panY = 0f }
     LaunchedEffect(panel, split) { if (panel == PhotoPanel.MASKS || panel == PhotoPanel.HEAL || split) resetZoom(); if (panel != PhotoPanel.COLOR) picking = 0 }
     /** A tap on the photo (box coordinates) → pixel of the shown picture, undoing padding, fit and zoom. */
@@ -581,6 +562,25 @@ private fun PhotoWorkspace(
     }
     /** True while the edit works on the RAW data (not after AI erase, which makes a normal copy). */
     fun rawOn(e: PhotoEdit) = rawMeta != null && rawLin != null && e.baseFile == null
+    // 1:1 loupe: when zoomed in, a sharper render of the whole photo (up to 3600 px) replaces the preview.
+    var loupeSrc by remember { mutableStateOf<Pair<String, Bitmap>?>(null) }
+    LaunchedEffect(zoomK > 1.6f, edit, aiMasks.size) {
+        if (zoomK <= 1.6f) { loupe = null; return@LaunchedEffect }
+        delay(500)
+        val e = edit
+        if (rawOn(e)) return@LaunchedEffect
+        val key = sourceUri(e).toString()
+        loupe = withContext(Dispatchers.Default) {
+            try {
+                val hi = loupeSrc?.takeIf { it.first == key }?.second ?: (GradeIO.decode(context, sourceUri(e), 3600) ?: return@withContext null).also { loupeSrc = key to it }
+                val tables = if (e.grade.isIdentity) null else e.grade.tables()
+                var o = ImageOps.renderPhoto(hi, e.grade, e.detail.copy(aiDenoise = 0f), e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg, e.sky)
+                for (t in e.texts) o = stampLayer(context, o, t)
+                e.watermark?.let { o = stampLayer(context, o, it) }
+                o
+            } catch (_: OutOfMemoryError) { null } catch (_: Throwable) { null }
+        }
+    }
     /** Developed RAW at full quality for export / AI steps; [sliders] false = neutral (they're applied later in 8-bit). */
     fun rawExport(e: PhotoEdit, maxPx: Int, sliders: Boolean = true): Bitmap {
         val g = e.grade

@@ -3408,7 +3408,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     VideoPanelsButton(
                         onPage = { page = it },
                         onReset = {
-                            listOf("ve_timeline_land", "ve_timeline_port", "ve_inspector_w", "ve_viewer_port").forEach { PaneSizes.set(context, it, -1f) }
+                            listOf("ve_timeline_land", "ve_timeline_port", "ve_inspector_w", "ve_viewer_port", "ve_strip_h").forEach { PaneSizes.set(context, it, -1f) }
                             paneVersion++
                             message = "Layout reset to original"
                         },
@@ -3428,8 +3428,22 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 var tlEnergy by remember { mutableStateOf(0f) }
                 var tlHEnergy by remember { mutableStateOf(0f) }
                 val showStrip = com.dronedirector.veyrocutpro.ui.panelOn("ve.mediastrip")
+                // Shared with the portrait layout below: the media strip's top divider moves the viewer's edge too.
+                val viewerPane = rememberPane("ve_viewer_port", paneVersion)
+                val autoViewer = boxW * 9f / 16f
+                val stripPane = rememberPane("ve_strip_h", paneVersion)
+                val stripH = if (stripPane.dp < 0f) 70f else stripPane.dp
                 val timelineBox = @Composable {
-                    if (showStrip && library.isNotEmpty()) MediaStrip(
+                    val stripOn = showStrip && library.isNotEmpty()
+                    // Divider above the media strip: hold, then drag to give the viewer or the strip more room.
+                    if (stripOn) ResizeHandle(true,
+                        onDrag = { d ->
+                            if (!wide && showInspector) viewerPane.dp = ((if (viewerPane.dp < 0f) autoViewer else viewerPane.dp) + d).coerceIn(110f, boxH - 300f)
+                            stripPane.dp = (stripH - d).coerceIn(40f, 240f)
+                        },
+                        onEnd = { stripPane.save(); viewerPane.save() }, onReset = { stripPane.reset() })
+                    if (stripOn) MediaStrip(
+                        thumbHeight = stripH.dp,
                         library = library, uses = { c -> clips.count { it.uri == c.uri } }, ratings = ratings,
                         bins = bins, binNames = binNames,
                         onRate = { list, r -> list.forEach { c -> if (r == 0) ratings.remove(c.uri.toString()) else ratings[c.uri.toString()] = r } },
@@ -3447,6 +3461,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         onDragOver = { at -> tlBounds.contains(at) },
                         onDrop = { c, at -> if (tlBounds.contains(at)) dropAt(c, at.x) },
                     )
+                    // Divider between the media strip and the timeline.
+                    if (stripOn) ResizeHandle(true,
+                        onDrag = { d ->
+                            stripPane.dp = (stripH + d).coerceIn(40f, 240f)
+                            if (tlPane.dp >= 0f) tlPane.dp = (tlPane.dp - d).coerceIn(70f, boxH * 0.6f)
+                        },
+                        onEnd = { stripPane.save(); tlPane.save() }, onReset = { stripPane.reset() })
                     // Tracks scroll up and down with the wheel on the right, left and right with the wheel along the bottom.
                     Box(Modifier.fillMaxWidth()) {
                         val sized = if (tlPane.dp < 0f) Modifier.fillMaxWidth().heightIn(max = (boxH * 0.42f).dp) else Modifier.fillMaxWidth().height(tlPane.dp.dp)
@@ -3520,8 +3541,6 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         onEnd = { tlPane.save() }, onReset = { tlPane.reset() })
                     timelineBox()
                 } else {
-                    val viewerPane = rememberPane("ve_viewer_port", paneVersion)
-                    val autoViewer = boxW * 9f / 16f
                     val maxH = boxH
                     if (showInspector) {
                         viewer(Modifier.fillMaxWidth().height((if (viewerPane.dp < 0f) autoViewer else viewerPane.dp).dp))

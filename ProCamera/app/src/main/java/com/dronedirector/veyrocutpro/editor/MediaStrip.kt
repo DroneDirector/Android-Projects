@@ -149,6 +149,8 @@ fun MediaStrip(
     onDragOver: (Offset) -> Boolean = { false },
     /** Mouse drop at a window position. */
     onDrop: (Clip, Offset) -> Unit = { _, _ -> },
+    /** Thumbnail height (the strip can be made taller or shorter with its dividers). */
+    thumbHeight: androidx.compose.ui.unit.Dp = 70.dp,
 ) {
     var filter by remember { mutableStateOf(0) }       // 0 all, 1 unused, 2 used, 3 ★3+, 4 no rejects
     var bin by remember { mutableStateOf<String?>(null) }
@@ -201,6 +203,7 @@ fun MediaStrip(
                     onMenu = { menuFor = k },
                     onDragOver = onDragOver,
                     onDrop = { at -> onDrop(c, at) },
+                    th = thumbHeight,
                 )
                 DropdownMenu(expanded = menuFor == k, onDismissRequest = { menuFor = null }, containerColor = Pro.PanelSolid) {
                     Column(Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -216,7 +219,7 @@ fun MediaStrip(
                 }
             }
             item {
-                Column(Modifier.height(70.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(Modifier.height(thumbHeight), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Box(Modifier.width(70.dp).weight(1f).clip(RoundedCornerShape(6.dp)).border(1.dp, Pro.Amber.copy(alpha = 0.5f), RoundedCornerShape(6.dp)).clickable(onClick = onImport), contentAlignment = Alignment.Center) {
                         Text("+ Clips", color = Pro.Amber, fontSize = 11.sp)
                     }
@@ -234,13 +237,15 @@ private fun StripThumb(
     c: Clip, uses: Int, rating: Int, selected: Boolean, selecting: Boolean,
     onTap: () -> Unit, onDoubleTap: () -> Unit, onMenu: () -> Unit,
     onDragOver: (Offset) -> Boolean, onDrop: (Offset) -> Unit,
+    th: androidx.compose.ui.unit.Dp = 70.dp,
 ) {
     var rootOff by remember { mutableStateOf(Offset.Zero) }
     val curOver by rememberUpdatedState(onDragOver)
     val curDrop by rememberUpdatedState(onDrop)
     val context = LocalContext.current
     val density = LocalDensity.current
-    val wPx = with(density) { 112.dp.toPx() }
+    val tw = th * 1.6f
+    val wPx = with(density) { tw.toPx() }
     var skim by remember { mutableStateOf<Float?>(null) }
     val cover by produceState<Bitmap?>(SkimFrames.cached(c.uri, -1), c.uri) {
         if (value == null) value = withContext(SkimFrames.io) { SkimFrames.frame(context, c.uri, c.durationMs, -1) }
@@ -253,7 +258,7 @@ private fun StripThumb(
     }
     val img = skimFrame ?: cover
     Box(
-        Modifier.size(112.dp, 70.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFF1A1E26))
+        Modifier.size(tw, th).clip(RoundedCornerShape(6.dp)).background(Color(0xFF1A1E26))
             .border(if (selected) 2.dp else 1.dp, if (selected) Pro.Amber else Color.White.copy(alpha = 0.1f), RoundedCornerShape(6.dp))
             .onGloballyPositioned { rootOff = it.positionInRoot() }
             // Mouse: hover to skim, right-click for the menu, press and drag onto the timeline.
@@ -309,7 +314,7 @@ private fun StripThumb(
         // Used on the timeline: an amber bar along the top.
         if (uses > 0) Box(Modifier.fillMaxWidth().height(3.dp).background(Pro.Amber))
         skim?.let { s ->
-            Box(Modifier.fillMaxHeight().width(1.5.dp).offset(x = (112f * s).dp).background(Color.White))
+            Box(Modifier.fillMaxHeight().width(1.5.dp).offset(x = tw * s).background(Color.White))
             Text(tc((c.durationMs * s).toLong()), color = Color.White, fontSize = 8.sp,
                 modifier = Modifier.align(Alignment.TopStart).padding(3.dp).background(Color.Black.copy(alpha = 0.6f)).padding(horizontal = 2.dp))
         }

@@ -78,9 +78,19 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Photo editor guide
+**Lightroom-style develop**
+- Presets: choose a group, then tap a thumbnail. The Amount slider fades the preset in or pushes it further (up to 200 %). KEEP accepts the preset; UNDO PRESET goes back to how the photo was before.
+- IMPORT LIGHTROOM .XMP reads Lightroom / Camera Raw presets or sidecars into MY PRESETS. EXPORT AS .XMP saves your look for Lightroom in Documents/VeyroCutPro/Presets.
+- Light → AUTO sets exposure, contrast and the tone sliders. CLIPPING ⚠ shows blown-out highlights in red and crushed shadows in blue.
+- Color → AUTO or EYEDROPPER: tap something that should be white or grey. POINT COLOR: + PICK A COLOUR, tap a colour on the photo, then shift its hue, saturation and brightness. Range sets how similar a colour must be to change too. CALIBRATION moves the camera primaries.
+- Grading → Global tints everything; Blending and Balance work like in Lightroom.
+- Detail → Sharpening Radius / Detail / Masking (SHOW MASK: white areas are sharpened) and DEFRINGE.
+- Effects → after Vignette or Grain is turned up, the shape and size sliders appear.
+- Pinch or double-tap the photo to zoom (a sharper 1:1 view appears after a moment). Ctrl + wheel also zooms. Double-tap again to fit.
 **Mouse**
 - Wheel over the photo = next / previous filmstrip photo, right-click = before / after split, double-click = hide or show the tools. Right-click a filmstrip thumbnail for stars, flags and labels.
 **Filmstrip (many photos)**
+- Hold the divider above the filmstrip, then drag it up or down to change the thumbnail size. Double-tap the divider to reset it.
 - Gallery photos / Browse files: select several photos at once. They line up in the filmstrip under the photo; tap one to edit it. Your edit is kept automatically when you switch or leave.
 - Hold a thumbnail for stars, Pick / Reject and a colour label. The chips above the strip filter it (All, ★3+, Picks, Edited, No rejects).
 - SELECT → tick photos → Sync edit copies this photo's look (not crop, masks or spots) to them; Export saves each with its own edit using the Export settings; Remove takes them out of the strip.
@@ -139,6 +149,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 ## Video editor guide
 **Media strip and mouse**
+- Hold the divider above or below the media strip, then drag it to make the strip bigger or smaller. The viewer or the timeline gives up the space. Double-tap the divider to reset it.
 - The media strip above the timeline holds every clip you've imported. With a mouse, hover over a clip to skim it; on a touch screen, hold and slide. Tap a clip to pick it, then use Append, Insert at playhead, Overwrite or Source ›. Double-tap a clip to add it to the end of the timeline.
 - An amber bar and USED ×n show clips that are already on the timeline. Use the stars or ✕ Reject to sort your clips, and the chips at the top to filter them. SELECT works on several clips at once.
 - + Clips imports up to 100 clips at a time; + Folder imports a whole folder. Imported clips aren't put on the timeline until you add them.

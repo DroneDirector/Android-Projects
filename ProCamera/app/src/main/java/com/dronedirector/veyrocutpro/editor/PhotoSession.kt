@@ -151,6 +151,7 @@ fun Filmstrip(
     onSync: (List<Int>) -> Unit,
     onExport: (List<Int>) -> Unit,
     modifier: Modifier = Modifier,
+    thumbSize: androidx.compose.ui.unit.Dp = 64.dp,
 ) {
     val context = LocalContext.current
     val items = PhotoSession.items
@@ -200,7 +201,7 @@ fun Filmstrip(
                 val sel = u in picked
                 val bmp by produceState<Bitmap?>(null, p.uri, p.projectId, p.version) { value = withContext(Dispatchers.IO) { PhotoSession.thumb(context, p) } }
                 Box(
-                    Modifier.size(64.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFF1A1E26))
+                    Modifier.size(thumbSize).clip(RoundedCornerShape(6.dp)).background(Color(0xFF1A1E26))
                         .border(if (cur || sel) 2.dp else 1.dp, if (sel) Color.White else if (cur) Pro.Amber else Color.White.copy(alpha = 0.1f), RoundedCornerShape(6.dp))
                         .mouseActions(onRightClick = { menuFor = u })
                         .combinedClickable(
@@ -245,7 +246,7 @@ fun Filmstrip(
             }
             item {
                 Box(
-                    Modifier.size(64.dp).clip(RoundedCornerShape(6.dp)).border(1.dp, Pro.Amber.copy(alpha = 0.5f), RoundedCornerShape(6.dp)).combinedClickable(onClick = onAdd),
+                    Modifier.size(thumbSize).clip(RoundedCornerShape(6.dp)).border(1.dp, Pro.Amber.copy(alpha = 0.5f), RoundedCornerShape(6.dp)).combinedClickable(onClick = onAdd),
                     contentAlignment = Alignment.Center,
                 ) { Text("+", color = Pro.Amber, fontSize = 26.sp) }
             }

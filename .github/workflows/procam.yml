@@ -67,7 +67,7 @@ jobs:
           V="1.0.${{ github.run_number }}"
           ls -l app/build/outputs/apk/release/
           # One APK per processor type: 64-bit phones (almost all), older 32-bit phones, and emulators / Chromebooks.
-          cp app/build/outputs/apk/release/app-arm64-v8a-release.apk "VeyroCutPro-$V.apk"
+          cp app/build/outputs/apk/release/app-arm64-v8a-release.apk "VeyroCutPro-ARM-$V.apk"
           cp app/build/outputs/apk/release/app-armeabi-v7a-release.apk "VeyroCutPro-$V-OLD-32bit-phones.apk"
           cp app/build/outputs/apk/release/app-x86_64-release.apk "VeyroCutPro-$V-EMULATOR-ONLY-x86_64.apk"
           ls -l VeyroCutPro-*.apk
@@ -183,7 +183,7 @@ jobs:
             echo
             echo "📖 [Full feature list]($REPO/FEATURES.md) · 📝 [Changelog]($REPO/CHANGELOG.md)"
             echo
-            echo "**Install:** tap **VeyroCutPro-$VER.apk** below to download, then open it to install — this is the one for your phone (all modern phones). Only for very old phones: …-OLD-32bit-phones.apk. Not for phones: …-EMULATOR-ONLY-x86_64.apk (PC emulators and Chromebooks)."
+            echo "**Install:** tap **VeyroCutPro-ARM-$VER.apk** below to download, then open it to install — this is the one for your phone (all modern phones). Only for very old phones: …-OLD-32bit-phones.apk. Not for phones: …-EMULATOR-ONLY-x86_64.apk (PC emulators and Chromebooks)."
             echo
             echo "On first launch the app downloads its AI models and soundtracks once (about 700 MB; it asks first on mobile data)."
             echo
@@ -195,12 +195,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          APK="apk/VeyroCutPro-1.0.${{ github.run_number }}.apk"
+          APK="apk/VeyroCutPro-ARM-1.0.${{ github.run_number }}.apk"
           NAME=$(basename "$APK" .apk)
           SYM=$(ls symbols/*.zip 2>/dev/null | head -1)
           gh release create "veyrocutpro-1.0.${{ github.run_number }}" "$APK" apk/*-OLD-32bit-phones.apk apk/*-EMULATOR-ONLY-x86_64.apk $SYM \
             -R "${{ github.repository }}" \
-            --title "${NAME/VeyroCutPro-/VeyroCut Pro }" \
+            --title "VeyroCut Pro 1.0.${{ github.run_number }}" \
             --notes-file release-notes.md \
             --latest
 

@@ -546,16 +546,20 @@ private val EXIF_GPS = listOf(
     androidx.exifinterface.media.ExifInterface.TAG_GPS_TIMESTAMP, androidx.exifinterface.media.ExifInterface.TAG_GPS_DATESTAMP,
 )
 
-val PHOTO_FORMATS = listOf("JPEG", "PNG", "WebP", "HEIC", "TIFF 16-bit", "TIFF 8-bit")
+/** Why the last photo export failed, when it's something the person should know (e.g. no AV1 encoder). */
+object PhotoExportError { @Volatile var last: String? = null }
+
+val PHOTO_FORMATS = listOf("JPEG", "PNG", "WebP", "HEIC", "TIFF 16-bit", "TIFF 8-bit", "AVIF", "JPEG XL")
 
 /**
  * Saves an exported photo as JPEG, PNG, WebP or HEIC, optionally with the original's camera
  * details (and location unless [stripGps]), into the chosen folder or DCIM/VeyroCutPro.
  */
 fun savePhotoAs(context: Context, bmp0: Bitmap, format: Int, quality: Int, exifFrom: Uri?, stripGps: Boolean): Uri? {
+    PhotoExportError.last = null
     val f = if (format == 3 && Build.VERSION.SDK_INT < 28) 0 else format.coerceIn(0, PHOTO_FORMATS.lastIndex)
-    val ext = listOf("jpg", "png", "webp", "heic", "tif", "tif")[f]
-    val mime = listOf("image/jpeg", "image/png", "image/webp", "image/heic", "image/tiff", "image/tiff")[f]
+    val ext = listOf("jpg", "png", "webp", "heic", "tif", "tif", "avif", "jxl")[f]
+    val mime = listOf("image/jpeg", "image/png", "image/webp", "image/heic", "image/tiff", "image/tiff", "image/avif", "image/jxl")[f]
     // File name from the template (Export → FILE NAME), output sharpening and colour space (Export → OUTPUT).
     val name = ExportOpts.fileName(context, exifFrom) + ".$ext"
     val sharp = ExportOpts.outputSharpen(bmp0)
@@ -564,6 +568,11 @@ fun savePhotoAs(context: Context, bmp0: Bitmap, format: Int, quality: Int, exifF
     try {
         when (f) {
             4, 5 -> ExportOpts.writeTiff(bmp, tmp, bits16 = f == 4)
+            6 -> if (!AvifWriter.write(bmp, tmp, quality)) { PhotoExportError.last = "AVIF: " + (AvifWriter.lastError ?: "this phone has no AV1 encoder (needs Android 14 or newer)"); return null }
+            7 -> try {
+                tmp.writeBytes(com.awxkee.jxlcoder.JxlCoder.encode(bmp.let { if (it.config == Bitmap.Config.ARGB_8888) it else it.copy(Bitmap.Config.ARGB_8888, false) },
+                    quality = quality.coerceIn(1, 100), effort = com.awxkee.jxlcoder.JxlEffort.SQUIRREL))
+            } catch (t: Throwable) { PhotoExportError.last = "JPEG XL: " + (t.message ?: t.javaClass.simpleName); return null }
             3 -> {
                 val w = androidx.heifwriter.HeifWriter.Builder(tmp.path, bmp.width, bmp.height, androidx.heifwriter.HeifWriter.INPUT_MODE_BITMAP)
                     .setQuality(quality.coerceIn(1, 100)).build()
@@ -611,7 +620,14 @@ fun savePhotoAs(context: Context, bmp0: Bitmap, format: Int, quality: Int, exifF
             }
         }
         val resolver = context.contentResolver
-        val target = com.dronedirector.veyrocutpro.camera.Storage.insert(context, com.dronedirector.veyrocutpro.camera.Storage.load(context, com.dronedirector.veyrocutpro.camera.StorageArea.PHOTO), values, com.dronedirector.veyrocutpro.camera.Storage.Kind.IMAGE) ?: return null
+        val target = com.dronedirector.veyrocutpro.camera.Storage.insert(context, com.dronedirector.veyrocutpro.camera.Storage.load(context, com.dronedirector.veyrocutpro.camera.StorageArea.PHOTO), values, com.dronedirector.veyrocutpro.camera.Storage.Kind.IMAGE)
+            // Older Android versions don't know the newest picture types in the photo library: save those in Downloads instead.
+            ?: (if (f >= 6 && Build.VERSION.SDK_INT >= 29) try {
+                resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, name); put(MediaStore.MediaColumns.MIME_TYPE, mime)
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "Download/VeyroCutPro"); put(MediaStore.MediaColumns.IS_PENDING, 1)
+                })
+            } catch (_: Throwable) { null } else null) ?: return null
         return try {
             resolver.openOutputStream(target)?.use { os -> tmp.inputStream().use { it.copyTo(os) } }
             com.dronedirector.veyrocutpro.camera.Storage.publish(context, target)

@@ -949,7 +949,7 @@ private fun PhotoWorkspace(
             message = when {
                 ok == "stopped" -> "Export stopped"
                 ok != null -> "Saved"
-                else -> "Couldn't export — try a smaller size"
+                else -> PhotoExportError.last?.let { "Couldn't export — $it" } ?: "Couldn't export — try a smaller size"
             }
         }
     }
@@ -2319,9 +2319,11 @@ private fun PhotoPanelContent(
             }
             SectionTitle("FORMAT")
             Chips(PHOTO_FORMATS, exportState.format) { onExportState(it, exportState.quality, exportState.sizeIdx) }
-            if (exportState.format >= 4) Text("TIFF: uncompressed and lossless (large files), for print and other editing software.", color = Pro.Dim, fontSize = 11.sp)
+            if (exportState.format in 4..5) Text("TIFF: uncompressed and lossless (large files), for print and other editing software.", color = Pro.Dim, fontSize = 11.sp)
             if (exportState.format == 3) Text("HEIC: about half the size of JPEG (Android 9+).", color = Pro.Dim, fontSize = 11.sp)
-            if (exportState.format != 1 && exportState.format < 4) EdSlider("Quality", exportState.quality, 0.6f..1f, 0.95f, ::pct) { onExportState(exportState.format, it, exportState.sizeIdx) }
+            if (exportState.format == 6) Text(if (AvifWriter.supported) "AVIF: often half the size of JPEG at the same quality; opens on Android 12+, current browsers and most photo apps." else "AVIF needs an AV1 encoder — this phone doesn't have one (Android 14+ has it built in).", color = Pro.Dim, fontSize = 11.sp)
+            if (exportState.format == 7) Text("JPEG XL: high quality at small sizes, wide colour and HDR-ready; opens in newer photo software, Safari and on Apple devices. Few Android apps can show it yet.", color = Pro.Dim, fontSize = 11.sp)
+            if (exportState.format != 1 && (exportState.format < 4 || exportState.format >= 6)) EdSlider("Quality", exportState.quality, 0.6f..1f, 0.95f, ::pct) { onExportState(exportState.format, it, exportState.sizeIdx) }
             SectionTitle("SIZE (LONG EDGE)")
             Chips(listOf("Full (≤4800)", "4096", "2560", "1920", "Instagram 1080", "Web 2048", "4K 3840"), exportState.sizeIdx) { onExportState(exportState.format, exportState.quality, it) }
             Text("Exports a new picture to DCIM/VeyroCutPro; the original stays untouched.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 8.dp))

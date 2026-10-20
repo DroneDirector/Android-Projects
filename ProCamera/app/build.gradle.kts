@@ -21,6 +21,8 @@ android {
         }
     }
     compileSdk = 36
+    // Several native libraries ship the same C++ runtime; one copy is enough.
+    packaging { jniLibs { pickFirsts += listOf("**/libc++_shared.so") } }
 
     lint {
         // The audio gain stage uses a CameraX hook that is still marked library-internal.
@@ -114,6 +116,8 @@ dependencies {
     implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
     // Library AI search: what is in each photo (ML Kit image labelling via Google Play services — small, free).
     implementation("com.google.android.gms:play-services-mlkit-image-labeling:16.0.8")
+    // JPEG XL export (Apache 2.0 / BSD-3; libjxl BSD-3, Brotli MIT).
+    implementation("io.github.awxkee:jxl-coder:2.6.1")
     // Video colour grading (export with a LUT).
     implementation("androidx.media3:media3-transformer:1.11.1")
     implementation("androidx.media3:media3-effect:1.11.1")

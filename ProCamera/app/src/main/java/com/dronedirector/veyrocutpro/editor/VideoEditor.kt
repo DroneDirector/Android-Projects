@@ -145,7 +145,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class Page(val label: String) { MEDIA("Media"), PROXY("Proxy"), EDIT("Edit"), TEXT("Text"), TRANSITIONS("Transitions"), COLOR("Color"), LAYERS("Layers"), AUDIO("Audio"), DELIVER("Deliver") }
+private enum class Page(val label: String) { STRIP("Media strip"), MEDIA("Media"), PROXY("Proxy"), EDIT("Edit"), TEXT("Text"), TRANSITIONS("Transitions"), COLOR("Color"), LAYERS("Layers"), AUDIO("Audio"), DELIVER("Deliver") }
 private enum class ColorTab(val label: String) { INPUT("Input"), LUTS("LUTs"), WHEELS("Wheels"), PRIMARIES("Primaries"), CURVES("Curves"), HSL("HSL"), MASKS("Masks"), DETAIL("Detail"), FILM("Film & lens"), EFFECTS("Effects"), LOOKS("Looks") }
 
 @Composable
@@ -3021,15 +3021,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
             val inspector = @Composable { mod: Modifier ->
                 Column(mod.background(Ed.Panel)) {
-                    if (stripInTools && showStrip) {
-                        stripView(stripH.dp)
-                        ResizeHandle(true,
-                            onDrag = { d -> stripPane.dp = (stripH + d).coerceIn(40f, 240f) },
-                            onEnd = { stripPane.save() }, onReset = { stripPane.reset() })
-                    }
-                    val pages = if (com.dronedirector.veyrocutpro.camera.SimpleMode.on)
+                    // Landscape / tablet: the media strip is the first tab, on the left.
+                    val stripTab = stripInTools && showStrip
+                    LaunchedEffect(stripTab) { if (!stripTab && page == Page.STRIP) page = Page.MEDIA }
+                    val pages = (if (stripTab) listOf(Page.STRIP) else emptyList()) + (if (com.dronedirector.veyrocutpro.camera.SimpleMode.on)
                         listOf(Page.MEDIA, Page.PROXY, Page.EDIT, Page.TEXT, Page.TRANSITIONS, Page.COLOR, Page.LAYERS, Page.AUDIO, Page.DELIVER)
-                    else Page.entries.toList()
+                    else Page.entries.filter { it != Page.STRIP })
                     Chips(pages.map { it.label }, pages.indexOf(page)) { page = pages[it] }
                     if (clips.isNotEmpty() && (page == Page.EDIT || page == Page.COLOR || page == Page.AUDIO)) CopyPasteBar(
                         video = true,
@@ -3055,6 +3052,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 4.dp)) {
                         val sc = clips.getOrNull(selected)
                         when (page) {
+                            Page.STRIP -> Column {
+                                stripView(stripH.dp)
+                                ResizeHandle(true,
+                                    onDrag = { d -> stripPane.dp = (stripH + d).coerceIn(40f, 240f) },
+                                    onEnd = { stripPane.save() }, onReset = { stripPane.reset() })
+                                Text("Hold the divider and drag to make the thumbnails bigger or smaller. Drag a clip onto the timeline with a mouse, or pick it and use Append / Insert.", color = Pro.Dim, fontSize = 11.sp)
+                            }
                             Page.MEDIA -> Column {
                             if (markers.isNotEmpty()) {
                                 SectionTitle("MARKERS") { markers.clear(); markerNotes.clear() }

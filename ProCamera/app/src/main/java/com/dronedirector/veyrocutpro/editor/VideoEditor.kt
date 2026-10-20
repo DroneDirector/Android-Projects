@@ -877,7 +877,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     // Live grade while dragging: the newest value is applied every ~80 ms (not only after letting go),
     // the colour table is built off the main thread, and a paused frame is redrawn.
     val gradeReq = remember { kotlinx.coroutines.channels.Channel<Clip>(kotlinx.coroutines.channels.Channel.CONFLATED) }
-    LaunchedEffect(cur?.grade, cur?.detail, cur?.masks, cur?.film, cur?.bg, effectsOk) { cur?.let { gradeReq.trySend(it) } }
+    LaunchedEffect(cur?.grade, cur?.detail, cur?.masks, cur?.film, cur?.bg, cur?.depth, effectsOk) { cur?.let { gradeReq.trySend(it) } }
     LaunchedEffect(Unit) {
         for (c in gradeReq) {
             if (gpuGrade) {
@@ -1429,6 +1429,38 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
             markers.sort()
             message = if (added > 0) "$added beat markers added" else "No clear beat found"
+        }
+    }
+
+    // ---- AI depth (Depth Anything V2 Small, downloaded once)
+    var depthProgress by remember { mutableStateOf<Int?>(null) }
+    var depthStatus by remember { mutableStateOf<String?>(null) }
+    var depthJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    fun analyseDepth(i: Int) {
+        val c = clips.getOrNull(i) ?: return
+        if (depthJob != null) return
+        deck.cur.pause()
+        depthProgress = 0
+        depthJob = layerScope.launch {
+            val fx = c.depth ?: DepthFx()
+            var err: String? = null
+            if (!ModelStore.has(context, AiModel.DEPTH)) {
+                depthStatus = "Downloading the depth model…"
+                err = withContext(Dispatchers.IO) { ModelStore.ensure(context, AiModel.DEPTH, { p -> depthProgress = p }, { !isActive }) }
+            }
+            depthStatus = null
+            if (err != null) { depthProgress = null; depthJob = null; if (isActive) message = err; return@launch }
+            depthProgress = 0; depthStatus = "Working out depth…"
+            val id = java.util.UUID.randomUUID().toString()
+            val n = withContext(Dispatchers.Default) {
+                try { DepthTrack.make(context, c, id, { p -> depthProgress = p }, { !isActive }) } catch (_: Throwable) { 0 }
+            }
+            depthProgress = null; depthStatus = null; depthJob = null
+            if (!isActive) return@launch
+            val k = clips.indexOfFirst { it.id == c.id }
+            if (n <= 0 || k < 0) { message = "Couldn't work out the depth" + (DepthModel.failed?.let { " ($it)" } ?: ""); return@launch }
+            clips[k] = clips[k].copy(depth = (clips[k].depth ?: fx).copy(id = id, frames = n))
+            message = "Depth worked out ($n maps) — set the focus and strength"
         }
     }
 
@@ -3075,6 +3107,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             }
                             Page.COLOR -> if (sc != null) ColorPage(sc, colorTab, { colorTab = it }, maskTools = maskTools, onChange = { f -> update(selected, f) },
                                 onTrackPen = { m -> trackPen(selected, m.id) }, penTracking = penTrackingId,
+                                onDepth = { analyseDepth(selected) }, depthProgress = depthProgress, depthStatus = depthStatus, onStopDepth = { depthJob?.cancel(); depthJob = null; depthProgress = null },
                                 clipNames = clips.map { it.name }, selfIdx = selected, matchBusy = matchBusy, onMatch = { matchShot(it) },
                                 onMagic = {
                                     val st = clipStarts(clips).getOrNull(selected) ?: 0L
@@ -3805,6 +3838,7 @@ private fun ColorPage(
     clipNames: List<String> = emptyList(), selfIdx: Int = 0, matchBusy: Int? = null, onMatch: (Int) -> Unit = {},
     onMagic: () -> Unit = {}, magicProgress: Int? = null, onStopMagic: () -> Unit = {},
     onTrackPen: ((PhotoMask) -> Unit)? = null, penTracking: String? = null,
+    onDepth: () -> Unit = {}, depthProgress: Int? = null, depthStatus: String? = null, onStopDepth: () -> Unit = {},
 ) {
     val g = c.grade
     fun grade(f: (ProGrade) -> ProGrade) = onChange { it.copy(grade = f(it.grade)) }
@@ -3945,6 +3979,45 @@ private fun ColorPage(
                 Chips(listOf("Keep the subject", "Affect the subject (invert)"), if (c.bg.invert == true) 1 else 0) { i -> onChange { cl -> cl.copy(bg = cl.bg?.copy(invert = i == 1)) } }
             }
             Text("People: found automatically in every frame. Magic Mask: tap any person, animal, car or object once and the AI follows it through the clip (like DaVinci Resolve). Then blur, recolour or remove what's around it — or invert to blur / hide the object itself (a face, a number plate). Transparent shows the video layers placed below the main video.", color = Pro.Dim, fontSize = 11.sp)
+            SectionTitle("AI DEPTH") { onChange { it.copy(depth = null) } }
+            val dfx = c.depth
+            fun dset(f: (DepthFx) -> DepthFx) = onChange { cl -> cl.copy(depth = f(cl.depth ?: DepthFx())) }
+            Chips(listOf("Off", "Lens blur", "Fog / haze", "Background light"), if (dfx == null) 0 else dfx.mode + 1) { i ->
+                if (i == 0) onChange { it.copy(depth = null) } else dset { it.copy(mode = i - 1) }
+            }
+            if (dfx != null) {
+                if (depthProgress != null) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+                    androidx.compose.material3.LinearProgressIndicator(progress = { depthProgress / 100f }, color = Pro.Amber, modifier = Modifier.weight(1f).height(4.dp))
+                    Text(depthStatus ?: "$depthProgress%", style = Pro.Label, modifier = Modifier.padding(horizontal = 8.dp))
+                    Text("STOP", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { onStopDepth() }.padding(6.dp))
+                } else Text(
+                    if (dfx.frames > 0) "✓ Depth worked out (${dfx.frames} maps) — ANALYSE AGAIN" else "ANALYSE DEPTH", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                    modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onDepth() }.padding(10.dp),
+                )
+                when (dfx.mode) {
+                    0 -> {
+                        EdSlider("Focus (far → near)", dfx.focus, 0f..1f, 0.85f, ::pct) { v -> dset { it.copy(focus = v) } }
+                        EdSlider("Sharp zone", dfx.range, 0f..0.6f, 0.15f, ::pct) { v -> dset { it.copy(range = v) } }
+                        EdSlider("Blur", dfx.amount, 0f..1f, 0.6f, ::pct) { v -> dset { it.copy(amount = v) } }
+                    }
+                    1 -> {
+                        EdSlider("Fog", dfx.amount, 0f..1f, 0.6f, ::pct) { v -> dset { it.copy(amount = v) } }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+                            listOf(0xFFC9D3DD, 0xFFFFFFFF, 0xFFE8D9C0, 0xFFB8C8E8, 0xFF7F8C99, 0xFFF2C6A0).map { it.toInt() }.forEach { col ->
+                                Box(Modifier.size(28.dp).clip(CircleShape).background(Color(col)).border(2.dp, if (dfx.fogColor == col) Pro.Amber else Color.DarkGray, CircleShape).clickable { dset { it.copy(fogColor = col) } })
+                            }
+                        }
+                    }
+                    else -> {
+                        EdSlider("Subject distance", dfx.focus, 0f..1f, 0.85f, ::pct) { v -> dset { it.copy(focus = v) } }
+                        EdSlider("Background exposure", dfx.bgExposure, -2f..1f, -0.6f, ::ev) { v -> dset { it.copy(bgExposure = v) } }
+                        EdSlider("Background saturation", dfx.bgSaturation, -1f..0.5f, -0.3f, ::pct) { v -> dset { it.copy(bgSaturation = v) } }
+                        EdSlider("Strength", dfx.amount, 0f..1f, 0.6f, ::pct) { v -> dset { it.copy(amount = v) } }
+                    }
+                }
+                Chips(listOf("Picture", "Show depth map"), if (dfx.showMap == true) 1 else 0) { i -> dset { it.copy(showMap = (i == 1).takeIf { v -> v }) } }
+            }
+            Text("The AI works out how far away every part of the picture is (Depth Anything V2, on this phone — the model, ${AiModel.DEPTH.sizeMb} MB, is downloaded once). Then: a lens blur that keeps the chosen distance sharp, fog that thickens with distance, or a darker / calmer background behind your subject. Show depth map helps set the focus (white = near).", color = Pro.Dim, fontSize = 11.sp)
             SectionTitle("FINISHING")
             EdSlider("Vignette", c.detail.vignette) { v -> detail { it.copy(vignette = v) } }
             EdSlider("Film grain", c.detail.grain, 0f..1f, format = ::pct) { v -> detail { it.copy(grain = v) } }

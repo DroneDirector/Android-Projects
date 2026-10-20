@@ -80,6 +80,8 @@ data class Clip(
     val bg: BgRemoval? = null,
     /** Colour label (ARGB) shown on the timeline; null = none. */
     val label: Int? = null,
+    /** AI depth effect (lens blur, fog, background light); null = off. */
+    val depth: DepthFx? = null,
 ) {
     val is422: Boolean get() = (chroma ?: 1) >= 2
 
@@ -250,6 +252,8 @@ class TimelineExport(
         if (c.detail.aiDenoise > 0f) add(AiDenoiseEffect(context, c.detail.aiDenoise))
         // Background (people or Magic Mask) on the picture as filmed, before any reframing.
         bgEffectFor(context, c, offsetMs)?.let { add(it) }
+        // AI depth: lens blur, fog or background light, on the picture as filmed.
+        depthEffectFor(context, c, offsetMs)?.let { add(it) }
         val motion = if (c.stab.enabled) Stabilizer.cached(context, c) else null
         if (!c.reframe.isIdentity || motion != null) add(ReframeEffect(c, motion, offsetMs))
         if (c.reframe.hasOpacity) add(ClipOpacityEffect(c, offsetMs))

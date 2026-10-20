@@ -160,12 +160,10 @@ object PenMask {
 /** Everything drawn on a clip's preview after its grade: background cut-out, then pen masks. */
 object ClipPreviewFx {
     fun extra(context: Context, v: View, c: Clip, srcMs: Long): RenderEffect? {
-        val cut = CutoutPreview.forClip(context, v, c, srcMs)
-        val pen = PenMask.preview(v, c, srcMs)
-        return when {
-            cut != null && pen != null -> RenderEffect.createChainEffect(cut, pen)
-            else -> cut ?: pen
-        }
+        // Inner first: depth, then pen masks, then the background cut-out.
+        val fx = listOfNotNull(DepthPreview.effect(context, v, c, srcMs), PenMask.preview(v, c, srcMs), CutoutPreview.forClip(context, v, c, srcMs))
+        if (fx.isEmpty()) return null
+        return fx.drop(1).fold(fx[0]) { inner, outer -> RenderEffect.createChainEffect(outer, inner) }
     }
 }
 

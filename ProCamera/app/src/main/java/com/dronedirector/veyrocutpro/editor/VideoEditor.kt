@@ -1268,14 +1268,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         when (mode) {
             // SLIP: same place and length, different part of the clip.
             0 -> {
-                val dd = d.coerceIn(-c.startMs, c.durationMs - c.endMs)
+                val dd = d.safeIn(-c.startMs, c.durationMs - c.endMs)
                 if (dd == 0L) { message = "Nothing more of the clip to slip to"; return }
                 clips[i] = c.copy(startMs = c.startMs + dd, endMs = c.endMs + dd)
             }
             // ROLL: move the cut between this clip and the next; total length stays the same.
             1 -> {
                 val n = clips.getOrNull(i + 1) ?: run { message = "Roll moves the cut after this clip — select a clip that has one after it"; return }
-                val dd = d.coerceIn(maxOf(-(c.endMs - c.startMs - min), -n.startMs), minOf(c.durationMs - c.endMs, n.endMs - n.startMs - min))
+                val dd = d.safeIn(maxOf(-(c.endMs - c.startMs - min), -n.startMs), minOf(c.durationMs - c.endMs, n.endMs - n.startMs - min))
                 if (dd == 0L) return
                 clips[i] = c.copy(endMs = c.endMs + dd)
                 clips[i + 1] = n.copy(startMs = n.startMs + dd)
@@ -1284,7 +1284,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             2 -> {
                 val p = clips.getOrNull(i - 1); val n = clips.getOrNull(i + 1)
                 if (p == null || n == null) { message = "Slide needs a clip before and after this one"; return }
-                val dd = d.coerceIn(maxOf(-(p.endMs - p.startMs - min), -n.startMs), minOf(p.durationMs - p.endMs, n.endMs - n.startMs - min))
+                val dd = d.safeIn(maxOf(-(p.endMs - p.startMs - min), -n.startMs), minOf(p.durationMs - p.endMs, n.endMs - n.startMs - min))
                 if (dd == 0L) return
                 clips[i - 1] = p.copy(endMs = p.endMs + dd)
                 clips[i + 1] = n.copy(startMs = n.startMs + dd)
@@ -5888,3 +5888,6 @@ private fun PenEditOverlay(m: PhotoMask, srcMs: Long, onChange: (PhotoMask) -> U
         }
     }
 }
+
+/** Like coerceIn, but when the range is empty (a clip shorter than the minimum, or a file that reports a shorter length than the clip uses) nothing moves. */
+private fun Long.safeIn(lo: Long, hi: Long): Long = if (hi >= lo) coerceIn(lo, hi) else 0L

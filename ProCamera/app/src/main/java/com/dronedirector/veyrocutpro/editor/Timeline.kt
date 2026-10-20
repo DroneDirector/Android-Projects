@@ -336,8 +336,8 @@ fun TimelineView(
                                     val ev = awaitPointerEvent()
                                     val c = ev.changes.first()
                                     val dSrc = ((c.position.x - down.position.x) / pxPerSec * 1000f * sp).toLong()
-                                    if (clipEdge < 0) curClipTrim(idx, (c0.startMs + dSrc).coerceIn(0, c0.endMs - minSrc), c0.endMs)
-                                    else curClipTrim(idx, c0.startMs, (c0.endMs + dSrc).coerceIn(c0.startMs + minSrc, c0.durationMs))
+                                    if (clipEdge < 0) curClipTrim(idx, (c0.startMs + dSrc).coerceIn(0, (c0.endMs - minSrc).coerceAtLeast(0)).coerceAtMost(c0.startMs.coerceAtLeast(c0.endMs - minSrc)), c0.endMs)
+                                    else curClipTrim(idx, c0.startMs, (c0.endMs + dSrc).coerceIn(minOf(c0.startMs + minSrc, c0.endMs), maxOf(c0.durationMs, c0.endMs)))
                                     ev.changes.forEach { it.consume() }
                                 } while (ev.changes.any { it.pressed })
                                 editingClip = -1

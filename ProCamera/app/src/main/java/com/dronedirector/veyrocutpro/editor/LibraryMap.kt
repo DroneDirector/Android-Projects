@@ -25,6 +25,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dronedirector.veyrocutpro.ui.Pro
 import java.io.DataInputStream
 import kotlin.math.max
 import kotlin.math.min

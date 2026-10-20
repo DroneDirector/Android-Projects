@@ -4,6 +4,12 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: **Object removal (AI)** (Color → Detail → REMOVE AN OBJECT) — tap a person, car, sign or wire and it disappears from the whole clip, filled from the real background in the frames around it.
+- Video editor: **AI depth** (Color → Detail → AI DEPTH) — lens blur with real depth of field, fog by distance, or a darker, calmer background behind your subject.
+- Video editor: **AI voiceover from text** (Audio) — 12 natural English voices, made on the phone and added at the playhead.
+- Video editor: **Studio voice (AI)** — the cleanest voice clean-up (DeepFilterNet3), plus **Remove clicks & crackle** and **Remove room echo** (Audio → REPAIR).
+- Video editor: **Translate captions** into 19 languages on the phone (Layers → TRANSLATE CAPTIONS).
+- The new AI models are downloaded the first time you use them, so the app itself doesn't grow.
 - Video editor: **Optical-flow slow motion** (Edit → SMOOTH SLOW MOTION): ½, ¼ or ⅛ speed — or your own speed ramp — with new in-between frames drawn from the motion on the phone, like Optical Flow in DaVinci Resolve and Premiere. No more stutter.
 - Video editor: **Motion blur** (Edit → MOTION BLUR): natural camera-shutter blur on moving things (90°, 180° or 360°).
 - Video editor: **Corner pin & planar tracking** (Layers → selected layer): drag a layer's four corners onto a screen, sign or wall, then track it so it stays stuck there as the camera moves.

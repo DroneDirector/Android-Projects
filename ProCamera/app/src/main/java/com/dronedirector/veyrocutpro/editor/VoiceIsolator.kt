@@ -10,7 +10,7 @@ package com.dronedirector.veyrocutpro.editor
 class VoiceIsolator(private val channels: Int, private val rate: Int, private val amount: Float = 1f, private val studio: Boolean = false) {
     companion object {
         private const val FRAME = 480
-        /** DeepFilterNet3's own delay at 48 kHz: one frame of analysis plus its two frames of look-ahead. */
+        /** DeepFilterNet3's look-ahead at 48 kHz (two frames); with its analysis frame the output is 1440 samples late (measured). */
         private const val DF_DELAY = 480 * 2
         val available: Boolean by lazy {
             try { System.loadLibrary("veyrocut_native"); true } catch (_: Throwable) { false }
@@ -49,7 +49,7 @@ class VoiceIsolator(private val channels: Int, private val rate: Int, private va
     private inner class Chan {
         val h = if (studio) nativeDfCreate(dfModel ?: "", 100f) else nativeCreate()
         // The dry signal, held back by the model's own delay so dry and clean line up when mixed.
-        val dryDelay = ArrayDeque<Float>().also { q -> if (studio) repeat(DF_DELAY) { q.addLast(0f) } }
+        val dryDelay = ArrayDeque<Float>().also { q -> if (studio) repeat(FRAME + DF_DELAY) { q.addLast(0f) } }
         // Up-sampling (input rate → 48 kHz) state.
         var upPos = 0.0; var upPrev = 0f; var upHave = false
         // 48 kHz frame being filled, its dry copy, and cleaned 48 kHz output waiting to be down-sampled.

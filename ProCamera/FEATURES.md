@@ -192,6 +192,12 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Corner pin & planar tracking**: put any layer in perspective on a screen, sign or wall and keep it stuck there as the camera moves (own tracker: Lucas–Kanade + RANSAC homography).
 - **Shape layers** (rectangle, rounded, ellipse, line, arrow, triangle, star, heart; filled or outline) and **Lottie animation layers** (.json / .zip; lottie-android, Apache 2.0).
 - **Shape (pen) masks** on clips: a smooth curve with a soft edge and its own grade, planar-tracked to follow what it covers.
+- **Object removal (AI)**: tap anything and it's removed from the whole clip — filled from the real background in nearby frames (own optical flow), with LaMa (Apache 2.0) painting only what's never seen.
+- **AI depth** (Depth Anything V2 Small, Apache 2.0): lens blur with real depth of field, fog / haze by distance, or a darker, calmer background.
+- **AI voiceover from text**: 12 natural English voices (Kokoro 82M, Apache 2.0; misaki dictionaries), made on the phone and added as an audio track.
+- **Studio voice (AI)**: DeepFilterNet3 (MIT / Apache 2.0) voice clean-up; **de-click** and **de-reverb** (own code).
+- **Caption translation** on the phone (Google ML Kit) into 19 languages.
+- AI models are downloaded the first time a feature needs them (Depth 99 MB, Object removal 208 MB, Voiceover 105 MB), so the app stays smaller.
 - **Word-by-word captions** from the on-phone transcript: Highlight, Box, One word or Two lines.
 - **Animated title templates**: lower third, big title, cinematic, location, chapter, subscribe, end card.
 - **Source viewer & three-point editing**: mark in / out, then INSERT, OVERWRITE or APPEND at the playhead.

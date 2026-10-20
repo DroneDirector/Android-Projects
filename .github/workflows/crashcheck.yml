@@ -169,7 +169,9 @@ jobs:
           tapText "MP4"; sleep 30; dismiss; shot 03-clip-workspace
           if want mediastrip; then
           # Video media strip: filters, pick + append, rating, mouse hover / right-click / drag to the timeline, timeline wheel.
+          tapExact "Media strip"; sleep 2
           seeText "MEDIA 1" && echo "media strip shown" > out/mediastrip.txt; shot 13a-media-strip
+          tapExact "+"; sleep 2; tapExact "+"; sleep 2; shot 13a2-zoomed; tapExact "−"; sleep 1
           tapExact "Unused"; sleep 1; tapExact "Used"; sleep 1; tapExact "All"; sleep 1
           XY=$(xyOf "VID_TEST"); echo "strip clip at: $XY" >> out/mediastrip.txt
           if [ -n "$XY" ]; then

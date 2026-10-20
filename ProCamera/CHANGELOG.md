@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor timeline: **keyframes now show on the ruler** in their own lane along its bottom edge. Clip keyframes are amber diamonds, layer keyframes light-blue diamonds and volume keyframes blue dots. Each has a dark outline so it stands out without being large. The selected clip's or layer's keyframes are full strength with a thin line down to their track, and the others are dimmer. The diamonds on the clips themselves are easier to see too.
 
 ## 1.0.363 — 2026-10-20
 - **External monitor layouts**. These are used only when the app is shown on a monitor through Samsung DeX or HDMI / USB-C desktop mode. On the phone's or tablet's own screen nothing changes, and unplugging switches back straight away without losing your edit.

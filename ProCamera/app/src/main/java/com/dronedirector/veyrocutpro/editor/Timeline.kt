@@ -615,7 +615,7 @@ fun TimelineView(
                         if (kx < x0 - 1f || kx > x1 + 1f) return@forEach
                         val cy = top + 8.dp.toPx(); val rr = 5.dp.toPx()
                         val d = androidx.compose.ui.graphics.Path().apply { moveTo(kx, cy - rr); lineTo(kx + rr, cy); lineTo(kx, cy + rr); lineTo(kx - rr, cy); close() }
-                        drawPath(d, Color.White); drawPath(d, accent, style = Stroke(2f))
+                        drawPath(d, Color.Black.copy(alpha = 0.55f), style = Stroke(4f)); drawPath(d, Color.White); drawPath(d, accent, style = Stroke(2f))
                     }
                     if (i == editingClip) lengthTag(x0, x1, top + 2f + 17.dp.toPx(), c.lengthMs, textPaint, accent)
                 }
@@ -719,6 +719,39 @@ fun TimelineView(
                     drawLine(accent.copy(alpha = 0.35f), Offset(mx, ruler), Offset(mx, size.height), 1.5f)
                     val tri = androidx.compose.ui.graphics.Path().apply { moveTo(mx - 6f, 0f); lineTo(mx + 6f, 0f); lineTo(mx, ruler * 0.6f); close() }
                     drawPath(tri, accent)
+                }
+
+                // Keyframes on the ruler: one easy-to-see lane along its bottom edge for every keyframe on the
+                // timeline (clips: diamonds, layers: diamonds in the layer's colour, volume: dots). The selected
+                // clip's / layer's keyframes are full strength, the others dimmer; a hairline links each to its track.
+                run {
+                    val laneY = ruler - 5.5.dp.toPx()
+                    val dr = 4.5.dp.toPx()
+                    val outline = 1.2.dp.toPx()
+                    fun diamond(kx: Float, fill: Color, strong: Boolean, rowY: Float?) {
+                        if (kx < leftPad - dr || kx > size.width + dr) return
+                        if (strong && rowY != null) drawLine(fill.copy(alpha = 0.45f), Offset(kx, ruler), Offset(kx, rowY), 1.dp.toPx())
+                        val d = androidx.compose.ui.graphics.Path().apply { moveTo(kx, laneY - dr); lineTo(kx + dr, laneY); lineTo(kx, laneY + dr); lineTo(kx - dr, laneY); close() }
+                        drawPath(d, Color.Black.copy(alpha = 0.6f), style = Stroke(outline * 2.2f))
+                        drawPath(d, if (strong) fill else fill.copy(alpha = 0.5f))
+                        drawPath(d, Color.White.copy(alpha = if (strong) 0.95f else 0.5f), style = Stroke(outline))
+                    }
+                    clips.forEachIndexed { i, c ->
+                        val strong = i == selectedClip
+                        c.reframe.keys?.forEach { k -> diamond(xOf(starts[i] + c.tlOffsetOf(c.startMs + k.t)), accent, strong, clipTop + 8.dp.toPx()) }
+                        c.volKeys?.forEach { k ->
+                            val kx = xOf(starts[i] + c.tlOffsetOf(c.startMs + k.t))
+                            if (kx >= leftPad - dr && kx <= size.width + dr) {
+                                drawCircle(Color.Black.copy(alpha = 0.6f), dr * 0.75f, Offset(kx, laneY))
+                                drawCircle(Color(0xFF4FC3F7).copy(alpha = if (strong) 1f else 0.5f), dr * 0.55f, Offset(kx, laneY))
+                            }
+                        }
+                    }
+                    shownLayers.forEach { l ->
+                        val strong = l.id == selectedLayerId
+                        val rowY = layerTops[l.id]?.let { it + layerRow / 2f }
+                        l.keys?.forEach { k -> diamond(xOf(k.t), Color(0xFF7FDBFF), strong, rowY) }
+                    }
                 }
 
                 // Playhead

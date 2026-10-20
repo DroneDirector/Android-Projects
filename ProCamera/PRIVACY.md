@@ -62,7 +62,7 @@ Stream keys are stored only on your phone.
 
 - We do not collect, store or sell personal data, and we have no servers that receive your media.
 - No advertising, no analytics or tracking SDKs, no crash-reporting services, no user accounts.
-- The app does not request your location.
+- The app does not request your location. In the Library's Map view it asks to read the locations already saved inside your photos (Android's "photo locations" permission); they are read on the phone and never sent anywhere.
 
 ## 5. Children
 

@@ -4,6 +4,15 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor, Lens:
+  - **AUTO COLOUR FRINGES** measures how far red and blue are off towards the corners, and lines them up.
+  - **LENS PROFILE** sets distortion and corner shading for the kind of lens the photo was taken with (ultra-wide, wide, standard, normal or telephoto), read from the photo's camera details.
+- Photo editor **Library views**:
+  - **Stacks:** bursts are shown as one photo with a count; tap it to open the stack.
+  - **People:** photos grouped by how many people are in them (no people, 1, 2, groups). It counts faces but doesn't recognise who they are.
+  - **Map:** a pin for every photo that has a location. Tap a pin to see those photos. The world map is drawn by the app itself (Natural Earth, public domain), with no map service. The app asks once to read the locations saved in your photos, and they never leave the phone.
+- Photo editor, Color → CALIBRATION → **FROM A COLOUR CHART**: photograph a 24-patch colour chart, tap its first and last patch, and the app works out a colour matrix so the camera shows the true colours. Save it in MY PRESETS to use for other photos taken in the same light.
+- Photo editor masks: **Refine edge (hair)** for Subject, Sky, Object and People masks, so the edge follows hair, fur and leaves strand by strand.
 
 ## 1.0.380 — 2026-10-20
 - Photo editor, Export → OUTPUT → **Gamut warning** (Glossy print / Matte print): cyan marks colours that paper can't print, so you can tone them down before printing.

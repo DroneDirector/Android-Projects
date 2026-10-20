@@ -36,7 +36,9 @@ change "Shared" to **Yes → recipient: fal.ai (service provider), purpose: App 
 
 ## Do NOT declare (not collected)
 
-- **Location** — the app has no location permission (GPS already inside a photo's EXIF stays on
+- **Location** — the app never asks for the phone's location. It asks for the "photo locations"
+  (media location) permission only so the Library's Map view can read the GPS already inside your
+  photos' EXIF; that is read on the phone and never sent anywhere (GPS inside a photo stays on
   the phone; it is only uploaded inside the photo itself when the user runs a Cloud AI task, and
   "Remove location" strips it from exports).
 - **Personal info, financial info, health, messages, contacts, calendar, app activity, web

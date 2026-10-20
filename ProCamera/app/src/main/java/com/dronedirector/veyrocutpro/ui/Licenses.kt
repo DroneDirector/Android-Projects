@@ -53,6 +53,7 @@ private val NOTICES = listOf(
     Notice("LaMa — Resolution-robust Large Mask Inpainting (object removal, downloaded on first use); ONNX port by Carve", "Samsung AI Center Moscow (advimman)", "Apache License 2.0", "https://github.com/advimman/lama"),
     Notice("Kokoro 82M text-to-speech (AI voiceover, downloaded on first use)", "hexgrad", "Apache License 2.0", "https://huggingface.co/hexgrad/Kokoro-82M"),
     Notice("misaki pronunciation dictionaries (AI voiceover)", "hexgrad", "Apache License 2.0", "https://github.com/hexgrad/misaki"),
+    Notice("Natural Earth 1:110m land outlines (Library map view)", "Natural Earth (naturalearthdata.com)", "Public domain", "https://www.naturalearthdata.com/about/terms-of-use/"),
     Notice("Google ML Kit on-device translation and language identification (caption translation)", "Google LLC", "ML Kit Terms of Service", "https://developers.google.com/ml-kit/terms"),
 )
 

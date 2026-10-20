@@ -2992,8 +2992,41 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 )
             }
 
+            // The media strip: above the timeline on a phone held upright; in landscape and on tablets it
+            // is its own section at the top of the tools panel.
+            val showStrip = com.dronedirector.veyrocutpro.ui.panelOn("ve.mediastrip")
+            val stripPane = rememberPane("ve_strip_h", paneVersion)
+            val stripH = if (stripPane.dp < 0f) 70f else stripPane.dp
+            val stripInTools = wide && showInspector
+            val stripView = @Composable { h: androidx.compose.ui.unit.Dp ->
+            MediaStrip(
+                thumbHeight = h,
+                    library = library, uses = { c -> clips.count { it.uri == c.uri } }, ratings = ratings,
+                    bins = bins, binNames = binNames,
+                    onRate = { list, r -> list.forEach { c -> if (r == 0) ratings.remove(c.uri.toString()) else ratings[c.uri.toString()] = r } },
+                    onAppend = { list -> list.forEach { threePoint(it.copy(startMs = 0, endMs = it.durationMs), 2) } },
+                    onInsert = { threePoint(it.copy(startMs = 0, endMs = it.durationMs), 0) },
+                    onOverwrite = { threePoint(it.copy(startMs = 0, endMs = it.durationMs), 1) },
+                    onSource = { sourceClip = it.copy(startMs = 0, endMs = it.durationMs) },
+                    onRemove = { list ->
+                        val used = list.filter { c -> clips.any { it.uri == c.uri } }
+                        library.removeAll { c -> c in list && c !in used }
+                        if (used.isNotEmpty()) message = "${used.size} clip(s) are on the timeline — delete them in the Media page to remove them"
+                    },
+                    onImport = { libPick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
+                    onImportFolder = { try { libFolder.launch(null) } catch (_: Throwable) {} },
+                    onDragOver = { at -> tlBounds.contains(at) },
+                    onDrop = { c, at -> if (tlBounds.contains(at)) dropAt(c, at.x) },
+                )
+            }
             val inspector = @Composable { mod: Modifier ->
                 Column(mod.background(Ed.Panel)) {
+                    if (stripInTools && showStrip) {
+                        stripView(stripH.dp)
+                        ResizeHandle(true,
+                            onDrag = { d -> stripPane.dp = (stripH + d).coerceIn(40f, 240f) },
+                            onEnd = { stripPane.save() }, onReset = { stripPane.reset() })
+                    }
                     val pages = if (com.dronedirector.veyrocutpro.camera.SimpleMode.on)
                         listOf(Page.MEDIA, Page.PROXY, Page.EDIT, Page.TEXT, Page.TRANSITIONS, Page.COLOR, Page.LAYERS, Page.AUDIO, Page.DELIVER)
                     else Page.entries.toList()
@@ -3427,14 +3460,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 val tlScroll = rememberScrollState()
                 var tlEnergy by remember { mutableStateOf(0f) }
                 var tlHEnergy by remember { mutableStateOf(0f) }
-                val showStrip = com.dronedirector.veyrocutpro.ui.panelOn("ve.mediastrip")
                 // Shared with the portrait layout below: the media strip's top divider moves the viewer's edge too.
                 val viewerPane = rememberPane("ve_viewer_port", paneVersion)
                 val autoViewer = boxW * 9f / 16f
-                val stripPane = rememberPane("ve_strip_h", paneVersion)
-                val stripH = if (stripPane.dp < 0f) 70f else stripPane.dp
                 val timelineBox = @Composable {
-                    val stripOn = showStrip   // shown even when empty: + Clips / + Folder start it
+                    val stripOn = showStrip && !stripInTools   // phone upright: above the timeline (shown even when empty)
                     // Divider above the media strip: hold, then drag to give the viewer or the strip more room.
                     if (stripOn) ResizeHandle(true,
                         onDrag = { d ->
@@ -3442,25 +3472,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             stripPane.dp = (stripH - d).coerceIn(40f, 240f)
                         },
                         onEnd = { stripPane.save(); viewerPane.save() }, onReset = { stripPane.reset() })
-                    if (stripOn) MediaStrip(
-                        thumbHeight = stripH.dp,
-                        library = library, uses = { c -> clips.count { it.uri == c.uri } }, ratings = ratings,
-                        bins = bins, binNames = binNames,
-                        onRate = { list, r -> list.forEach { c -> if (r == 0) ratings.remove(c.uri.toString()) else ratings[c.uri.toString()] = r } },
-                        onAppend = { list -> list.forEach { threePoint(it.copy(startMs = 0, endMs = it.durationMs), 2) } },
-                        onInsert = { threePoint(it.copy(startMs = 0, endMs = it.durationMs), 0) },
-                        onOverwrite = { threePoint(it.copy(startMs = 0, endMs = it.durationMs), 1) },
-                        onSource = { sourceClip = it.copy(startMs = 0, endMs = it.durationMs) },
-                        onRemove = { list ->
-                            val used = list.filter { c -> clips.any { it.uri == c.uri } }
-                            library.removeAll { c -> c in list && c !in used }
-                            if (used.isNotEmpty()) message = "${used.size} clip(s) are on the timeline — delete them in the Media page to remove them"
-                        },
-                        onImport = { libPick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
-                        onImportFolder = { try { libFolder.launch(null) } catch (_: Throwable) {} },
-                        onDragOver = { at -> tlBounds.contains(at) },
-                        onDrop = { c, at -> if (tlBounds.contains(at)) dropAt(c, at.x) },
-                    )
+                    if (stripOn) stripView(stripH.dp)
                     // Divider between the media strip and the timeline.
                     if (stripOn) ResizeHandle(true,
                         onDrag = { d ->

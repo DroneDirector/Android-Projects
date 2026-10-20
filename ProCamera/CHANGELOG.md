@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.359 — 2026-10-20
 - **Autosave** in the photo and video editors (gear → AUTOSAVE). Choose how often (Off, or every 1, 2, 5, 10, 15 or 30 minutes) and how many autosaves to keep (1–5). Each save is a separate copy, and the oldest is removed only when there are more than you chose to keep. A copy is saved only when something changed. Open them from LOAD → AUTOSAVES; your own saved projects are never touched.
 
 ## 1.0.357 — 2026-10-20

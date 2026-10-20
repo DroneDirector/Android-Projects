@@ -200,6 +200,8 @@ fun Filmstrip(
     var filter by remember { mutableStateOf(0) }   // 0 all, 1 ★3+, 2 picks, 3 edited, 4 not rejected
     var menuFor by remember { mutableStateOf<String?>(null) }
     var askCull by remember { mutableStateOf(false) }
+    var cullResult by remember { mutableStateOf<String?>(null) }
+    val cullScope = androidx.compose.runtime.rememberCoroutineScope()
     var askRename by remember { mutableStateOf(false) }
     var renameTemplate by remember { mutableStateOf("{date}_{seq}") }
     var renameStart by remember { mutableStateOf(1) }
@@ -216,8 +218,6 @@ fun Filmstrip(
             cullResult = "Renamed $ok more photo" + if (ok == 1) "" else "s"
         } else cullResult = "Not renamed — Android's permission was declined"
     }
-    var cullResult by remember { mutableStateOf<String?>(null) }
-    val cullScope = androidx.compose.runtime.rememberCoroutineScope()
     fun idx(key: String) = items.indexOfFirst { it.key == key }
     fun upd(uri: String, f: (SessionPhoto) -> SessionPhoto) { val k = idx(uri); if (k >= 0) PhotoSession.update(context, k, f) }
     fun indices(uris: Collection<String>) = uris.map { idx(it) }.filter { it >= 0 }

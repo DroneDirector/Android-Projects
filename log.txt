@@ -1,0 +1,94 @@
+total 463388
+drwxr-xr-x 2 runner runner      4096 Oct 20 06:23 .
+drwxr-xr-x 7 runner runner      4096 Oct 20 06:23 ..
+-rw-r--r-- 1 runner runner   7983136 Oct 20 06:23 DeepFilterNet3_onnx.tar.gz
+-rw-r--r-- 1 runner runner   2779264 Oct 20 06:23 deeplab.tflite
+-rw-r--r-- 1 runner runner   4993712 Oct 20 06:23 esrgan.tflite
+-rw-r--r-- 1 runner runner  62454048 Oct 20 06:23 nafnet.tflite
+-rw-r--r-- 1 runner runner  16492708 Oct 20 06:23 sam_decoder.onnx
+-rw-r--r-- 1 runner runner  27976484 Oct 20 06:23 sam_encoder.onnx
+-rw-r--r-- 1 runner runner   6330844 Oct 20 06:23 sound_soundtracks_advisory.m4a
+-rw-r--r-- 1 runner runner   4868896 Oct 20 06:23 sound_soundtracks_and_we_run.m4a
+-rw-r--r-- 1 runner runner   4817508 Oct 20 06:23 sound_soundtracks_beyond_the_horizon.m4a
+-rw-r--r-- 1 runner runner   5357258 Oct 20 06:23 sound_soundtracks_black_eagle.m4a
+-rw-r--r-- 1 runner runner   5413774 Oct 20 06:23 sound_soundtracks_colorful_noise.m4a
+-rw-r--r-- 1 runner runner   3664162 Oct 20 06:23 sound_soundtracks_ethernal.m4a
+-rw-r--r-- 1 runner runner   3542068 Oct 20 06:23 sound_soundtracks_faithful_end_credits.m4a
+-rw-r--r-- 1 runner runner   3520218 Oct 20 06:23 sound_soundtracks_feather_fall.m4a
+-rw-r--r-- 1 runner runner   1870206 Oct 20 06:23 sound_soundtracks_heaven_encounters.m4a
+-rw-r--r-- 1 runner runner   4903137 Oct 20 06:23 sound_soundtracks_higher_again.m4a
+-rw-r--r-- 1 runner runner   2843652 Oct 20 06:23 sound_soundtracks_journey.m4a
+-rw-r--r-- 1 runner runner   4170180 Oct 20 06:23 sound_soundtracks_let_there_be.m4a
+-rw-r--r-- 1 runner runner   2758098 Oct 20 06:23 sound_soundtracks_lethal_weapons.m4a
+-rw-r--r-- 1 runner runner   5047761 Oct 20 06:23 sound_soundtracks_natures_roar.m4a
+-rw-r--r-- 1 runner runner   2578142 Oct 20 06:23 sound_soundtracks_natures_voice.m4a
+-rw-r--r-- 1 runner runner   2931646 Oct 20 06:23 sound_soundtracks_radioactive.m4a
+-rw-r--r-- 1 runner runner   2771133 Oct 20 06:23 sound_soundtracks_rings_of_saturn.m4a
+-rw-r--r-- 1 runner runner   3314955 Oct 20 06:23 sound_soundtracks_rise_like_the_dawn.m4a
+-rw-r--r-- 1 runner runner   5210395 Oct 20 06:23 sound_soundtracks_row.m4a
+-rw-r--r-- 1 runner runner   3458018 Oct 20 06:23 sound_soundtracks_skybound_dreams.m4a
+-rw-r--r-- 1 runner runner   3496524 Oct 20 06:23 sound_soundtracks_spring.m4a
+-rw-r--r-- 1 runner runner   4005687 Oct 20 06:23 sound_soundtracks_tales_of_the_brave.m4a
+-rw-r--r-- 1 runner runner   3193909 Oct 20 06:23 sound_soundtracks_the_flood.m4a
+-rw-r--r-- 1 runner runner   3219490 Oct 20 06:23 sound_soundtracks_the_haze.m4a
+-rw-r--r-- 1 runner runner   3347868 Oct 20 06:23 sound_soundtracks_there_back_again.m4a
+-rw-r--r-- 1 runner runner   5313695 Oct 20 06:23 sound_soundtracks_uprising.m4a
+-rw-r--r-- 1 runner runner  59707625 Oct 20 06:23 whisper_ggml-base-q5_1.bin
+-rw-r--r-- 1 runner runner 190085487 Oct 20 06:23 whisper_ggml-small-q5_1.bin
+DeepFilterNet3_onnx.tar.gz 7983136
+SHA256SUMS.txt 1902
+deeplab.tflite 2779264
+depth_anything_v2_small.onnx 99060839
+esrgan.tflite 4993712
+kokoro_README.md 6348
+kokoro_af_bella.bin 522240
+kokoro_af_heart.bin 522240
+kokoro_af_nicole.bin 522240
+kokoro_af_sarah.bin 522240
+kokoro_am_fenrir.bin 522240
+kokoro_am_michael.bin 522240
+kokoro_am_puck.bin 522240
+kokoro_bf_emma.bin 522240
+kokoro_bf_isabella.bin 522240
+kokoro_bm_fable.bin 522240
+kokoro_bm_george.bin 522240
+kokoro_bm_lewis.bin 522240
+kokoro_tokenizer.json 3497
+kokoro_v1_q8.onnx 92361116
+lama_fp32.onnx 208044816
+misaki_LICENSE.txt 11357
+misaki_gb_gold.json 2838552
+misaki_gb_silver.json 3663898
+misaki_us_gold.json 3000469
+misaki_us_silver.json 3099517
+nafnet.tflite 62454048
+sam_decoder.onnx 16492708
+sam_encoder.onnx 27976484
+sound_soundtracks_advisory.m4a 6330844
+sound_soundtracks_and_we_run.m4a 4868896
+sound_soundtracks_beyond_the_horizon.m4a 4817508
+sound_soundtracks_black_eagle.m4a 5357258
+sound_soundtracks_colorful_noise.m4a 5413774
+sound_soundtracks_ethernal.m4a 3664162
+sound_soundtracks_faithful_end_credits.m4a 3542068
+sound_soundtracks_feather_fall.m4a 3520218
+sound_soundtracks_heaven_encounters.m4a 1870206
+sound_soundtracks_higher_again.m4a 4903137
+sound_soundtracks_journey.m4a 2843652
+sound_soundtracks_let_there_be.m4a 4170180
+sound_soundtracks_lethal_weapons.m4a 2758098
+sound_soundtracks_natures_roar.m4a 5047761
+sound_soundtracks_natures_voice.m4a 2578142
+sound_soundtracks_radioactive.m4a 2931646
+sound_soundtracks_rings_of_saturn.m4a 2771133
+sound_soundtracks_rise_like_the_dawn.m4a 3314955
+sound_soundtracks_row.m4a 5210395
+sound_soundtracks_skybound_dreams.m4a 3458018
+sound_soundtracks_spring.m4a 3496524
+sound_soundtracks_tales_of_the_brave.m4a 4005687
+sound_soundtracks_the_flood.m4a 3193909
+sound_soundtracks_the_haze.m4a 3219490
+sound_soundtracks_there_back_again.m4a 3347868
+sound_soundtracks_uprising.m4a 5313695
+whisper_ggml-base-q5_1.bin 59707625
+whisper_ggml-small-q5_1.bin 190085487

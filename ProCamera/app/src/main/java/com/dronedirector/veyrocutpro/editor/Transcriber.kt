@@ -28,7 +28,7 @@ object Transcriber {
     val available: Boolean by lazy { try { System.loadLibrary("veyrocut_whisper"); true } catch (_: Throwable) { false } }
     @JvmStatic private external fun nativeInit(path: String): Long
     @JvmStatic private external fun nativeFree(h: Long)
-    @JvmStatic private external fun nativeTranscribe(h: Long, pcm: FloatArray, lang: String?, threads: Int): String
+    @JvmStatic private external fun nativeTranscribe(h: Long, pcm: FloatArray, lang: String?, threads: Int, prompt: String?): String
     @JvmStatic private external fun nativeProgress(): Int
     @JvmStatic private external fun nativeAbort(abort: Boolean)
 
@@ -95,7 +95,7 @@ object Transcriber {
         if (stopped) return null
         if (!ensure(context, m)) return null
         val threads = (Runtime.getRuntime().availableProcessors() - 1).coerceIn(2, 6)
-        val out = nativeTranscribe(ctx, pcm, lang, threads)
+        val out = nativeTranscribe(ctx, pcm, lang, threads, verbatimPrompt(lang))
         if (stopped) return null
         val words = out.lineSequence().mapNotNull { line ->
             val p = line.split('\t'); if (p.size < 3) return@mapNotNull null
@@ -109,7 +109,7 @@ object Transcriber {
 
     // ---- cache (per media + range + language), so re-opening a project is instant
     private fun cacheFile(context: Context, c: Clip, lang: String?) =
-        File(File(context.filesDir, "transcripts").apply { mkdirs() }, "${MediaId.of(c)}_${c.startMs}_${c.endMs}_${lang ?: "auto"}.tsv")
+        File(File(context.filesDir, "transcripts").apply { mkdirs() }, "v2_${MediaId.of(c)}_${c.startMs}_${c.endMs}_${lang ?: "auto"}.tsv")
 
     private fun cached(context: Context, c: Clip, lang: String?): List<TWord>? = try {
         val f = cacheFile(context, c, lang)
@@ -190,12 +190,76 @@ object Transcriber {
         }
     }
 
-    /** Filler words (by language) that REMOVE FILLERS marks for deletion. */
+    /**
+     * A short verbatim-style example for Whisper's prompt. Whisper normally tidies speech up and leaves
+     * out "um" and stutters; an example text full of them makes it write what was actually said.
+     */
+    private fun verbatimPrompt(lang: String?): String = when (lang) {
+        "da" -> "Øhm, altså, jeg, øh, tænkte at... hmm, ja, ja. Øh, det det var godt."
+        "fo" -> "Øh, sum, eg, øh, hugsaði... hmm, ja ja. Øh, tað tað var gott."
+        "de" -> "Ähm, also, ich, äh, dachte... hm, ja, ja. Äh, das das war gut."
+        "no", "nb", "nn", "sv" -> "Eh, altså, jeg, eh, tenkte at... hmm, ja, ja. Eh, det det var bra."
+        else -> "Umm, let me think, uh, like... hmm, okay. Uh, I I think, you know, it's, um, fine."
+    }
+
+    /** Filler sounds (by language) that REMOVE FILLERS marks for deletion. */
     private val FILLERS = setOf(
-        "um", "umm", "uh", "uhh", "uhm", "erm", "er", "ah", "ahh", "hmm", "mm", "mhm",
-        "øh", "øhm", "øhh", "æh", "æhm", "hm", "eh", "ehm",
+        "um", "umm", "ummm", "uh", "uhh", "uhm", "erm", "er", "err", "ah", "ahh", "hmm", "hm", "mm", "mmm", "mhm",
+        "øh", "øhm", "øhh", "æh", "æhm", "eh", "ehm", "öh", "äh", "ähm", "öhm",
     )
-    fun isFiller(w: String): Boolean = w.lowercase().trim().trim('.', ',', '!', '?', '…', '-', '"').let { it in FILLERS }
+    /** Filler phrases — often fillers, sometimes real words, so they're only marked when asked for. */
+    private val PHRASES = listOf(
+        listOf("you", "know"), listOf("i", "mean"), listOf("like"), listOf("sort", "of"), listOf("kind", "of"),
+        listOf("basically"), listOf("literally"), listOf("actually"), listOf("so", "yeah"),
+        listOf("altså"), listOf("ligesom"), listOf("sådan", "lidt"), listOf("ikke", "også"),
+        listOf("sum", "sagt"), listOf("liksom"),
+    )
+    private fun norm(w: String) = w.lowercase().trim().trim('.', ',', '!', '?', '…', '-', '"', '\'', ':', ';')
+    fun isFiller(w: String): Boolean = norm(w).let { it in FILLERS }
+
+    /** What REMOVE FILLERS can mark. */
+    data class FillerOptions(val sounds: Boolean = true, val repeats: Boolean = true, val phrases: Boolean = false)
+
+    /**
+     * The words to mark: filler sounds ("um"), repeated words and stutters ("I I think", "w- we") — the
+     * first of a repeat goes, the last one stays — and, if asked, filler phrases ("you know", "like").
+     * Returns the indices into [words].
+     */
+    fun findFillers(words: List<TWord>, o: FillerOptions): Set<Int> {
+        val out = HashSet<Int>()
+        // Work clip by clip, in time order.
+        val byClip = words.indices.groupBy { words[it].clipId }
+        for ((_, idx0) in byClip) {
+            val idx = idx0.sortedBy { words[it].startMs }
+            val n = idx.map { norm(words[it].text) }
+            for (k in idx.indices) {
+                val w = n[k]
+                if (w.isEmpty()) continue
+                if (o.sounds && w in FILLERS) { out += idx[k]; continue }
+                if (o.repeats && k + 1 < idx.size) {
+                    val next = n[k + 1]
+                    val gap = words[idx[k + 1]].startMs - words[idx[k]].endMs
+                    val stutter = words[idx[k]].text.trim().endsWith("-") && next.startsWith(w.trimEnd('-')) && w.length <= 4
+                    if (gap < 700 && (next == w && w.length <= 12 || stutter)) { out += idx[k]; continue }
+                }
+            }
+            if (o.phrases) for (p in PHRASES) {
+                var k = 0
+                while (k + p.size <= idx.size) {
+                    if ((0 until p.size).all { n[k + it] == p[it] }) {
+                        // "like" only when it's set off ("…, like, …") or starts a sentence — not "I like it".
+                        val single = p.size == 1 && p[0] == "like"
+                        val raw = words[idx[k]].text
+                        val before = if (k > 0) words[idx[k - 1]].text.trim() else "."
+                        val setOff = raw.trim().endsWith(",") || before.endsWith(",") || before.endsWith(".") || before.endsWith("?")
+                        if (!single || setOff) for (j in 0 until p.size) out += idx[k + j]
+                        k += p.size
+                    } else k++
+                }
+            }
+        }
+        return out
+    }
 
     /**
      * The source ranges to cut from each clip, from the deleted words: each run of deleted words is cut

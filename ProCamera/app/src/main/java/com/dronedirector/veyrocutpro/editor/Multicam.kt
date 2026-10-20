@@ -148,6 +148,22 @@ private fun MulticamSwitcher(angles: List<Clip>, off: LongArray, onDone: (List<C
     val cuts = remember { mutableStateListOf<Pair<Long, Int>>() }
     var startT by remember { mutableLongStateOf(-1L) }
     var endT by remember { mutableLongStateOf(-1L) }
+    // Auto switching (who's talking): the cuts are made up front, playback follows them.
+    var auto by remember { mutableStateOf(false) }
+    var autoBusy by remember { mutableStateOf(false) }
+    var wide by remember { mutableStateOf(-1) }
+    var autoRun by remember { mutableStateOf(0) }
+    fun angleAt(mt: Long): Int = cuts.lastOrNull { it.first <= mt }?.second ?: live
+    if (autoRun > 0) LaunchedEffect(autoRun) {
+        autoBusy = true
+        val waves = withContext(Dispatchers.IO) { angles.map { Waveforms.load(context, it.uri) } }
+        if (waves.any { it == null }) { autoBusy = false; return@LaunchedEffect }
+        val res = withContext(Dispatchers.Default) { AutoSwitch.cuts(waves.map { it!! }, off, masterLen, AutoSwitch.Options(wide = wide)) }
+        cuts.clear(); cuts.addAll(res)
+        startT = 0L; endT = masterLen; auto = true
+        live = angleAt(t)
+        autoBusy = false
+    }
 
     fun seekAll(mt: Long) {
         players.forEachIndexed { i, p -> p.seekTo((mt + off[i]).coerceIn(0L, angles[i].durationMs)) }
@@ -158,6 +174,7 @@ private fun MulticamSwitcher(angles: List<Clip>, off: LongArray, onDone: (List<C
         while (playing) {
             t = players[0].currentPosition
             if (endT < t) endT = t
+            if (auto) live = angleAt(t)
             // Keep the other angles in step.
             players.forEachIndexed { i, p ->
                 if (i > 0) {
@@ -191,7 +208,12 @@ private fun MulticamSwitcher(angles: List<Clip>, off: LongArray, onDone: (List<C
                                 .clickable {
                                     if (live != i) {
                                         live = i
-                                        if (startT >= 0) cuts.add(t to i)
+                                        if (startT >= 0) {
+                                            // In time order (auto cuts may lie ahead); a tap overrides until the next cut.
+                                            cuts.removeAll { kotlin.math.abs(it.first - t) < 100 }
+                                            val at = cuts.indexOfFirst { it.first > t }.let { if (it < 0) cuts.size else it }
+                                            cuts.add(at, t to i)
+                                        }
                                     }
                                 },
                             contentAlignment = Alignment.Center,
@@ -212,10 +234,24 @@ private fun MulticamSwitcher(angles: List<Clip>, off: LongArray, onDone: (List<C
             }
         }
         Text(
-            if (startT < 0) "Tap an angle to start on it, then PLAY. While it plays, tap an angle to cut to it."
+            if (auto) "Auto cut: ${cuts.size} shots, following who's talking. PLAY to watch it; tap an angle while it plays to change a shot. DONE adds the edit to your timeline."
+            else if (startT < 0) "Tap an angle to start on it, then PLAY. While it plays, tap an angle to cut to it. Or let AUTO cut to whoever is talking."
             else "Cuts so far: ${cuts.size}. Pause and play again to continue; DONE adds the edit to your timeline.",
             color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(vertical = 6.dp),
         )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 6.dp)) {
+            Text("Wide shot", color = Color.White, fontSize = 12.sp)
+            PillChip("None", wide < 0) { wide = -1 }
+            angles.indices.forEach { i -> PillChip("${i + 1}", wide == i) { wide = i } }
+        }
+        Row(Modifier.padding(bottom = 6.dp)) {
+            Text(
+                if (autoBusy) "LISTENING…" else "AUTO: WHO'S TALKING",
+                color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp,
+                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (autoBusy) Pro.Amber.copy(alpha = 0.35f) else Pro.Amber)
+                    .clickable(enabled = !autoBusy) { playing = false; autoRun++ }.padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 if (playing) "PAUSE" else "PLAY", color = Color.Black, fontWeight = FontWeight.Bold,
@@ -225,7 +261,7 @@ private fun MulticamSwitcher(angles: List<Clip>, off: LongArray, onDone: (List<C
                 }.padding(horizontal = 22.dp, vertical = 12.dp),
             )
             Text("RESTART", color = Pro.Dim, fontWeight = FontWeight.SemiBold, modifier = Modifier.clip(RoundedCornerShape(50)).clickable {
-                playing = false; t = 0L; seekAll(0L); startT = -1L; endT = -1L; cuts.clear()
+                playing = false; t = 0L; seekAll(0L); startT = -1L; endT = -1L; cuts.clear(); auto = false
             }.padding(horizontal = 14.dp, vertical = 12.dp))
             Box(Modifier.weight(1f))
             val canDone = startT >= 0 && endT > startT + 500

@@ -71,10 +71,10 @@ class MorphData(val handle: Long, val a: Bitmap, val b: Bitmap) {
 
     companion object {
         /** Analyses [a] → [b] (same size). Slow (seconds): call off the main thread. */
-        fun analyze(a: Bitmap, b: Bitmap): MorphData? {
+        fun analyze(a: Bitmap, b: Bitmap, side: Int = WORK_SIDE): MorphData? {
             if (!MorphNative.available) return null
-            val wa = scaledTo(a, WORK_SIDE)
-            val wb = if (b.width == a.width && b.height == a.height) scaledTo(b, WORK_SIDE) else Bitmap.createScaledBitmap(b, wa.width, wa.height, true)
+            val wa = scaledTo(a, side)
+            val wb = if (b.width == a.width && b.height == a.height) scaledTo(b, side) else Bitmap.createScaledBitmap(b, wa.width, wa.height, true)
             val h = try { MorphNative.analyze(wa, wb) } catch (_: Throwable) { 0L }
             return if (h == 0L) null else MorphData(h, a, b)
         }

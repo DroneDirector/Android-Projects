@@ -123,6 +123,9 @@ import com.dronedirector.veyrocutpro.ui.Pro
 import com.dronedirector.veyrocutpro.ui.hintedScroll
 import kotlinx.coroutines.Dispatchers
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.material.icons.filled.SlowMotionVideo
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.FastRewind
@@ -1416,6 +1419,44 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
 
+    // ---- Planar tracking: the corner-pinned layer follows a flat surface from the playhead on
+    var pinTrackingId by remember { mutableStateOf<String?>(null) }
+    var pinStop by remember { mutableStateOf(false) }
+    fun planarTrack(id: String) {
+        if (pinTrackingId != null) { pinStop = true; return }
+        val l0 = layers.firstOrNull { it.id == id } ?: return
+        val q0 = l0.pinAt(globalMs) ?: return
+        if (clips.isEmpty()) return
+        deck.cur.pause()
+        val from = globalMs
+        val starts = clipStarts(clips)
+        val ci = starts.indices.lastOrNull { starts[it] <= from } ?: 0
+        val to = if (l0.wholeVideo) timelineLength(clips) else l0.endMs
+        if (to - from < 300) { message = "Move the playhead to where tracking should start"; return }
+        pinTrackingId = id; pinStop = false; message = "Planar tracking… 0%"
+        val snapshot = clips.toList()
+        layerScope.launch {
+            val path = withContext(Dispatchers.Default) {
+                try {
+                    PlanarTracker.track(context, snapshot, ci, from, to, q0,
+                        progress = { p -> layerScope.launch { if (pinTrackingId != null) message = "Planar tracking… $p% — tap again to stop" } },
+                        cancelled = { pinStop })
+                } catch (_: Throwable) { emptyList() }
+            }
+            pinTrackingId = null
+            val i = layers.indexOfFirst { it.id == id }
+            if (i < 0 || path.size < 2) { message = "Couldn't follow that surface — pick one with some detail, or move the corners onto it"; return@launch }
+            val l = layers[i]
+            val end = path.last().t
+            // Keep what was before / after the tracked stretch.
+            val old = l.pin.orEmpty().let { if (it.size == 1) emptyList() else it }
+            val kept = old.filter { it.t < from - 20 || it.t > end + 20 }
+            layers[i] = l.copy(pin = (kept + path).sortedBy { it.t })
+            message = if (end < to - 250) "Tracked to ${tc(end)} — the surface was lost there (${path.size} frames)"
+            else "Planar tracked ${path.size} frames — the layer stays on the surface"
+        }
+    }
+
     // ---- Motion tracking: the selected layer follows the spot under it from the playhead on
     fun trackLayer(id: String) {
         if (trackingId != null) { trackStop = true; return }
@@ -1585,6 +1626,41 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 if (idx >= 0) clips[idx] = clips[idx].copy(reframe = clips[idx].reframe.copy(track = tr))
             }
             message = "Auto-reframe done — the picture follows the subject" + if (!AiSegment.hasModel(context)) " (motion)" else ""
+        }
+    }
+
+    // ---- Optical flow (on the phone): smooth slow motion and motion blur.
+    var flowProgress by remember { mutableStateOf(-1) }
+    var flowJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    fun flowRetime(i: Int, factor: Int, speed: Float?, shutter: Float) {
+        if (videoLocked) { message = "The video track is locked"; return }
+        val c = clips.getOrNull(i) ?: return
+        if (flowJob != null) return
+        if (!MorphNative.available) { message = "Optical flow isn't available on this phone"; return }
+        if (c.nested != null) { message = "Un-nest the clip first (or export it), then smooth it"; return }
+        deck.cur.pause()
+        flowProgress = 0
+        flowJob = layerScope.launch {
+            val side = if (deliver.shortSide in 1..720) 1280 else 1920
+            val f = withContext(Dispatchers.Default) {
+                try { FlowRetime.make(context, c, factor, shutter, side, { flowProgress = it }, { !isActive }) } catch (_: Throwable) { null }
+            }
+            flowProgress = -1; flowJob = null
+            if (!isActive) return@launch
+            val idx = clips.indexOfFirst { it.id == c.id }
+            if (f == null || idx < 0) { message = "Couldn't process this clip"; return@launch }
+            val len = c.endMs - c.startMs
+            val cur = clips[idx]
+            clips[idx] = cur.copy(
+                uri = android.net.Uri.fromFile(f), name = (if (factor > 1) "Smooth · " else "Blur · ") + cur.name.removePrefix("Smooth · ").removePrefix("Blur · "),
+                durationMs = len, startMs = 0, endMs = len,
+                speed = speed ?: cur.speed, ramp = if (speed != null) null else cur.ramp, rampName = if (speed != null) null else cur.rampName,
+                stab = Stabilize(), mime = "video/avc", hdr = false, tenBit = false, chroma = null, bitDepth = null, decoder = null, undecodable = null,
+                bg = cur.bg?.takeIf { it.magic == null },
+            )
+            load(idx.coerceAtMost(clips.lastIndex), 0, false)
+            message = if (factor > 1) "Smooth slow motion: ${factor}× the frames, drawn from the motion — undo brings the original back"
+            else "Motion blur added — undo brings the original back"
         }
     }
 
@@ -2021,6 +2097,26 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     magicPick?.let { t -> MagicMaskDialog(t, onDismiss = { magicPick = null }) { sel -> magicPick = null; startMagic(t, sel) } }
+    var hlProgress by remember { mutableStateOf(-1) }
+    var hlJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    fun makeHighlights(targetMs: Long) {
+        if (videoLocked) { message = "The video track is locked"; return }
+        if (clips.isEmpty() || hlJob != null) return
+        hlProgress = 0
+        hlJob = layerScope.launch {
+            val src = clips.distinctBy { it.id }.toList()
+            val out = withContext(Dispatchers.Default) {
+                try { Highlights.build(context, src, targetMs, tWords.toList(), { proxyFor(it) ?: it.uri }, { hlProgress = it }, { !isActive }) } catch (_: Throwable) { emptyList() }
+            }
+            hlProgress = -1; hlJob = null
+            if (!isActive) return@launch
+            if (out.isEmpty()) { message = "Couldn't find highlights — the clips may be too short"; return@launch }
+            clips.clear(); clips.addAll(out)
+            selected = 0; current = 0
+            load(0, 0, false)
+            message = "Highlight reel: ${out.size} moments, ${tc(out.sumOf { it.lengthMs })} — undo brings your clips back"
+        }
+    }
     fun autoEditToBeat(every: Int) {
         if (videoLocked) { message = "The video track is locked"; return }
         val m = music ?: run { message = "Add a music track first (Media → Sound libraries or Audio)"; return }
@@ -2401,6 +2497,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     }
                                 },
                                 onSelect = { selectedLayer = it; page = Page.LAYERS },
+                                onPinCorner = { id, k, dx, dy ->
+                                    val i = layers.indexOfFirst { it.id == id }
+                                    val p = layers.getOrNull(i)?.pin
+                                    if (p != null && !layers[i].locked) layers[i] = layers[i].copy(pin = p.map { q ->
+                                        q.copy(p = q.p.mapIndexed { j, v -> if (j == 2 * k) (v + dx).coerceIn(-0.5f, 1.5f) else if (j == 2 * k + 1) (v + dy).coerceIn(-0.5f, 1.5f) else v })
+                                    })
+                                },
                             )
                             // Before / after split (Color page, Android 13+): drag the divider across the picture.
                             if (page == Page.COLOR && gpuGrade && clips.isNotEmpty()) {
@@ -2794,10 +2897,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     val ci = clips.indexOfFirst { it.id == w.clipId }
                                     if (ci >= 0) seekGlobal((clipStarts(clips).getOrNull(ci) ?: 0L) + clips[ci].tlOffsetOf(w.startMs))
                                 },
-                                onFillers = {
+                                onFillers = { opt ->
                                     var n = 0
-                                    for (i in tWords.indices) if (!tWords[i].deleted && Transcriber.isFiller(tWords[i].text)) { tWords[i] = tWords[i].copy(deleted = true); n++ }
-                                    message = if (n == 0) "No filler words found" else "$n filler word(s) marked — tap APPLY CUTS"
+                                    for (i in Transcriber.findFillers(tWords.toList(), opt)) if (!tWords[i].deleted) { tWords[i] = tWords[i].copy(deleted = true); n++ }
+                                    message = if (n == 0) "No filler words found" else "$n filler word(s) marked in red — check them, then tap APPLY CUTS"
                                 },
                                 onRestore = { for (i in tWords.indices) if (tWords[i].deleted) tWords[i] = tWords[i].copy(deleted = false) },
                                 onApply = { applyTextCuts() },
@@ -2826,6 +2929,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onDetach = { detachAudio(selected) },
                                 onRemoveSilence = { all, db, ms -> removeSilences(all, db, ms) },
                                 onSlowMo = { aiSlowMo(selected) },
+                                flowProgress = flowProgress, onFlow = { f, sp, sh -> flowRetime(selected, f, sp, sh) }, onStopFlow = { flowJob?.cancel(); flowJob = null; flowProgress = -1 },
                                 onReframe = { a -> autoReframe(a) },
                                 onDuplicate = { if (videoLocked) message = "The video track is locked" else clips.add(selected + 1, sc.copy(id = java.util.UUID.randomUUID().toString())) },
                                 onDelete = {
@@ -2848,6 +2952,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 ProEditTools(
                                     clips = clips.toList(), selectedIdx = selected, sceneProgress = sceneProgress,
                                     onDetectScenes = { detectScenes() }, onStopScenes = { sceneJob?.cancel(); sceneJob = null; sceneProgress = -1 },
+                                    hlProgress = hlProgress, onHighlights = { makeHighlights(it) }, onStopHighlights = { hlJob?.cancel(); hlJob = null; hlProgress = -1 },
                                     picked = multi.toList(),
                                     onPick = { id -> if (id in multi) multi.remove(id) else multi.add(id) },
                                     onPickAll = { if (multi.size == clips.size) multi.clear() else { multi.clear(); multi.addAll(clips.map { it.id }) } },
@@ -2927,6 +3032,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onTelemetryShow = { telemetryShow = it },
                                 onTelemetry = { pickSrt.launch(arrayOf("*/*")) },
                                 onTrack = { trackLayer(it) }, trackingId = trackingId,
+                                onPin = { id, p -> val i = layers.indexOfFirst { it.id == id }; if (i >= 0) { if (layers[i].locked) message = "This layer is locked — tap its lock to edit" else layers[i] = layers[i].copy(pin = p) } },
+                                onPlanarTrack = { planarTrack(it) }, pinTrackingId = pinTrackingId,
+                                frameAspect = outputSize(clips, deliver).let { (w, h) -> w.toFloat() / h.coerceAtLeast(1) },
                                 onSplit = { splitScreen(it) },
                                 onMagicLayer = { id ->
                                     layers.firstOrNull { it.id == id }?.let { l ->
@@ -3457,6 +3565,7 @@ private fun EditPage(
     onSplit: () -> Unit, onDuplicate: () -> Unit, onDelete: () -> Unit, onMove: (Int) -> Unit,
     onFreeze: () -> Unit = {}, onReverse: () -> Unit = {}, onDetach: () -> Unit = {},
     onSlowMo: () -> Unit = {}, onReframe: (Float?) -> Unit = {},
+    flowProgress: Int = -1, onFlow: (factor: Int, speed: Float?, shutter: Float) -> Unit = { _, _, _ -> }, onStopFlow: () -> Unit = {},
     onRemoveSilence: (all: Boolean, db: Float, minMs: Long) -> Unit = { _, _, _ -> },
     onTrimTool: (Int, Long) -> Unit = { _, _ -> }, frameMs: Long = 33L,
     onNest: (Int) -> Unit = {}, onUnNest: () -> Unit = {}, nesting: Boolean = false, nestProgress: Int = 0,
@@ -3530,6 +3639,30 @@ private fun EditPage(
         SmallAction(Icons.Filled.KeyboardArrowLeft, "Move left") { onMove(-1) }
         SmallAction(Icons.Filled.KeyboardArrowRight, "Move right") { onMove(1) }
         SmallAction(Icons.Filled.Delete, "Delete", onDelete)
+    }
+    SectionTitle("SMOOTH SLOW MOTION · OPTICAL FLOW")
+    Text("Draws new in-between frames from the motion (on this phone), so slow motion is smooth instead of jerky — like Optical Flow in DaVinci Resolve or Premiere. Pick the speed, or keep the clip's own speed / ramp.", color = Pro.Dim, fontSize = 11.sp)
+    if (flowProgress >= 0) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+        androidx.compose.material3.LinearProgressIndicator(progress = { flowProgress / 100f }, color = Pro.Amber, modifier = Modifier.weight(1f).height(4.dp))
+        Text("$flowProgress%", style = Pro.Label, modifier = Modifier.padding(horizontal = 8.dp))
+        Text("STOP", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { onStopFlow() }.padding(6.dp))
+    } else {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
+            PillChip("½ speed", false) { onFlow(2, 0.5f, 0f) }
+            PillChip("¼ speed", false) { onFlow(4, 0.25f, 0f) }
+            PillChip("⅛ speed", false) { onFlow(8, 0.125f, 0f) }
+            val slowest = (c.ramp?.minOrNull() ?: 1f) * c.speed
+            if (slowest < 0.95f) PillChip("Keep my speed", false) {
+                onFlow(kotlin.math.ceil(1f / slowest).toInt().coerceIn(2, 8), null, 0f)
+            }
+        }
+        SectionTitle("MOTION BLUR")
+        Text("Adds the natural blur of a film camera's shutter to moving things (on this phone) — great for screen recordings, drone shots, fast action and timelapses.", color = Pro.Dim, fontSize = 11.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
+            PillChip("Light · 90°", false) { onFlow(1, null, 0.25f) }
+            PillChip("Natural · 180°", false) { onFlow(1, null, 0.5f) }
+            PillChip("Strong · 360°", false) { onFlow(1, null, 1f) }
+        }
     }
     SectionTitle("REMOVE SILENCES")
     Text("Cuts out the pauses in talking clips. Quieter than the level below for longer than the minimum pause = removed.", color = Pro.Dim, fontSize = 11.sp)
@@ -3957,6 +4090,7 @@ private fun LevelMeter(playing: Boolean) {
 private fun LayerPreview(
     layers: List<Layer>, timeMs: Long, selectedId: String?, showAll: Boolean, playing: Boolean,
     onMove: (String, Float, Float) -> Unit, onSelect: (String) -> Unit,
+    onPinCorner: (String, Int, Float, Float) -> Unit = { _, _, _, _ -> },
 ) {
     val context = LocalContext.current
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -3969,6 +4103,47 @@ private fun LayerPreview(
             if (!(base.activeAt(timeMs) || showAll || base.id == selectedId)) return@forEach
             // Keyframed layers: where they are at this moment.
             val l = base.animAt(timeMs)
+            val pinQ = base.pinAt(timeMs)
+            if (pinQ != null) {
+                // Corner pin: drawn in perspective onto its four corners; drag the corners to place it.
+                if (l.kind == LayerKind.VIDEO) Box(Modifier.fillMaxSize()) { VideoLayerView(l, timeMs, playing && l.activeAt(timeMs), pinQ) }
+                else {
+                    val pchars = LayerAnims.charCount(base, Int.MAX_VALUE)
+                    val pbmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, startMs = 0, endMs = 0, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null, pin = null), wPx, hPx) {
+                        value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, pchars) }
+                    }
+                    pbmp?.let { b0 ->
+                        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                            drawIntoCanvas { cv ->
+                                val nc = cv.nativeCanvas
+                                nc.save()
+                                nc.concat(pinMatrix(pinQ, b0.width.toFloat(), b0.height.toFloat(), size.width, size.height))
+                                nc.drawBitmap(b0, 0f, 0f, android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG or android.graphics.Paint.ANTI_ALIAS_FLAG).apply { alpha = (l.opacity.coerceIn(0f, 1f) * 255).toInt() })
+                                nc.restore()
+                            }
+                        }
+                    }
+                }
+                if (base.id == selectedId && showAll && !base.locked) {
+                    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                        val pts = (0 until 4).map { Offset(pinQ[2 * it] * size.width, pinQ[2 * it + 1] * size.height) }
+                        for (k in 0 until 4) drawLine(Pro.Amber, pts[k], pts[(k + 1) % 4], strokeWidth = 2f)
+                    }
+                    for (k in 0 until 4) {
+                        val hs = with(density) { 30.dp.toPx() }
+                        Box(
+                            Modifier
+                                .offset { androidx.compose.ui.unit.IntOffset((pinQ[2 * k] * wPx - hs / 2).toInt(), (pinQ[2 * k + 1] * hPx - hs / 2).toInt()) }
+                                .size(30.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(Color.Black.copy(alpha = 0.35f)).border(2.dp, Pro.Amber, androidx.compose.foundation.shape.CircleShape)
+                                .pointerInput(base.id, k) {
+                                    detectDragGestures { change, drag -> change.consume(); onPinCorner(base.id, k, drag.x / wPx, drag.y / hPx) }
+                                },
+                        )
+                    }
+                }
+                return@forEach
+            }
             if (l.kind == LayerKind.VIDEO) {
                 val h = (l.size * hPx).toInt().coerceAtLeast(8)
                 val w = (h * l.frameAspect).toInt().coerceAtLeast(8)
@@ -4059,6 +4234,7 @@ private fun LayersPage(
     onSeek: (Long) -> Unit = {},
     onCaptions: (String?, Boolean, Int) -> Unit = { _, _, _ -> },
     onTrack: (String) -> Unit = {}, trackingId: String? = null,
+    onPin: (String, List<PinQuad>?) -> Unit = { _, _ -> }, onPlanarTrack: (String) -> Unit = {}, pinTrackingId: String? = null, frameAspect: Float = 16f / 9f,
     telemetryShow: TelemetryShow = TelemetryShow(), onTelemetryShow: (TelemetryShow) -> Unit = {}, onTelemetry: () -> Unit = {},
     onSplit: (Int) -> Unit = {},
     onMagicLayer: (String) -> Unit = {}, magicLayerProgress: Map<String, Int> = emptyMap(), onStopMagicLayer: (String) -> Unit = {},
@@ -4323,6 +4499,31 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
         "Place the layer's centre on the object at the playhead, then track: it follows the object to the layer's end. Works best on sharp, high-contrast spots.",
         color = Pro.Dim, fontSize = 11.sp,
     )
+    if (l.kind != LayerKind.ADJUST) {
+        SectionTitle("CORNER PIN & PLANAR TRACK")
+        if (l.pin.isNullOrEmpty()) {
+            Text("Put the layer in perspective onto a flat surface — a phone or TV screen, a sign, a wall — by dragging its four corners. Then planar-track it so it stays stuck to the surface as the camera moves.", color = Pro.Dim, fontSize = 11.sp)
+            Text(
+                "◇ PIN TO FOUR CORNERS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onPin(l.id, l.defaultPin(frameAspect, playheadMs)) }.padding(10.dp),
+            )
+        } else {
+            val tracked = l.pin.size > 1
+            Text(
+                if (tracked) "Planar tracked: ${l.pin.size} frames. Dragging a corner moves it on every frame." else "Drag the four amber corners on the picture onto the corners of the surface (pause the video first).",
+                color = Pro.Dim, fontSize = 11.sp,
+            )
+            Text(
+                if (pinTrackingId == l.id) "■ STOP PLANAR TRACKING" else "⌖ PLANAR TRACK FROM PLAYHEAD", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onPlanarTrack(l.id) }.padding(10.dp),
+            )
+            Text("Follows the surface inside the corners from the playhead to the layer's end (works best on surfaces with some texture or detail).", color = Pro.Dim, fontSize = 11.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+                if (tracked) PillChip("Keep corners, drop track", false) { l.pinAt(playheadMs)?.let { q -> onPin(l.id, listOf(PinQuad(0L, q.toList()))) } }
+                PillChip("Remove corner pin", false) { onPin(l.id, null) }
+            }
+        }
+    }
     val keyList = l.keys.orEmpty()
     if (keyList.size > 24) Text("${keyList.size} keyframes (tracked) — showing the first and last", style = Pro.Label, modifier = Modifier.padding(vertical = 2.dp))
     (if (keyList.size > 24) keyList.take(4) + keyList.takeLast(4) else keyList).forEach { k ->
@@ -4638,7 +4839,7 @@ val ASPECTS = listOf(
 /** Live preview of a video layer: its own muted player, kept in step with the timeline. */
 @OptIn(UnstableApi::class)
 @Composable
-private fun VideoLayerView(l: Layer, timeMs: Long, play: Boolean) {
+private fun VideoLayerView(l: Layer, timeMs: Long, play: Boolean, pin: FloatArray? = null) {
     val context = LocalContext.current
     val p = remember(l.videoUri) {
         ExoPlayer.Builder(context).build().apply {
@@ -4667,7 +4868,12 @@ private fun VideoLayerView(l: Layer, timeMs: Long, play: Boolean) {
     }
     AndroidView(
         factory = { ctx -> android.view.TextureView(ctx).also { it.isOpaque = false; p.setVideoTextureView(it); tvRef[0] = it } },
-        update = { tv -> if (l.bgRemove != true) ChromaPreview.apply(tv, l) },
+        update = { tv ->
+            if (l.bgRemove != true) ChromaPreview.apply(tv, l)
+            // Corner pin: the picture drawn in perspective onto its corners.
+            if (pin != null && tv.width > 0) tv.setTransform(pinMatrix(pin, tv.width.toFloat(), tv.height.toFloat(), tv.width.toFloat(), tv.height.toFloat()))
+            else tv.setTransform(null)
+        },
         modifier = Modifier.fillMaxSize().graphicsLayer { alpha = l.opacity },
     )
 }
@@ -4853,7 +5059,7 @@ private fun TextEditPage(
     lang: String?, onLang: (String?) -> Unit, status: String?,
     onTranscribe: () -> Unit, onStop: () -> Unit,
     onToggle: (TWord) -> Unit, onSeekWord: (TWord) -> Unit,
-    onFillers: () -> Unit, onRestore: () -> Unit, onApply: () -> Unit,
+    onFillers: (Transcriber.FillerOptions) -> Unit, onRestore: () -> Unit, onApply: () -> Unit,
     onWordCaptions: (Int) -> Unit = {},
 ) {
     SectionTitle("TEXT-BASED EDITING")
@@ -4884,10 +5090,19 @@ private fun TextEditPage(
         modifier = Modifier.padding(vertical = 6.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Pro.Amber).clickable(enabled = clips.isNotEmpty()) { onTranscribe() }.padding(12.dp),
     )
     if (words.isEmpty()) return
+    var fSounds by remember { mutableStateOf(true) }
+    var fRepeats by remember { mutableStateOf(true) }
+    var fPhrases by remember { mutableStateOf(false) }
+    Text("Filler words to find", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 2.dp)) {
+        PillChip("um / uh", fSounds) { fSounds = !fSounds }
+        PillChip("Repeats & stutters", fRepeats) { fRepeats = !fRepeats }
+        PillChip("you know / like", fPhrases) { fPhrases = !fPhrases }
+    }
     val deleted = words.count { it.deleted }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
         Text("REMOVE FILLERS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp),
-            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onFillers() }.padding(8.dp))
+            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onFillers(Transcriber.FillerOptions(fSounds, fRepeats, fPhrases)) }.padding(8.dp))
         if (deleted > 0) Text("RESTORE ALL", style = Pro.Label.copy(color = Color.White, fontSize = 10.sp),
             modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onRestore() }.padding(8.dp))
     }
@@ -4930,6 +5145,7 @@ private fun TextEditPage(
 private fun ProEditTools(
     clips: List<Clip>, selectedIdx: Int, sceneProgress: Int,
     onDetectScenes: () -> Unit, onStopScenes: () -> Unit,
+    hlProgress: Int, onHighlights: (Long) -> Unit, onStopHighlights: () -> Unit,
     picked: List<String>, onPick: (String) -> Unit, onPickAll: () -> Unit, onBatch: (String) -> Unit,
 ) {
     SectionTitle("SCENE DETECTION")
@@ -4942,6 +5158,17 @@ private fun ProEditTools(
         "DETECT SCENES & SPLIT CLIP ${selectedIdx + 1}", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
         modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable(enabled = clips.isNotEmpty()) { onDetectScenes() }.padding(10.dp),
     )
+    SectionTitle("AUTO HIGHLIGHTS")
+    Text("Finds the liveliest moments of your clips — laughter, cheering, a raised voice, movement, lively talk — and makes a short reel of them, cut between words. Transcribe first (Text page) for the cleanest cuts. Undo brings your clips back.", color = Pro.Dim, fontSize = 11.sp)
+    if (hlProgress >= 0) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+        androidx.compose.material3.LinearProgressIndicator(progress = { hlProgress / 100f }, color = Pro.Amber, modifier = Modifier.weight(1f).height(4.dp))
+        Text("$hlProgress%", style = Pro.Label, modifier = Modifier.padding(horizontal = 8.dp))
+        Text("STOP", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { onStopHighlights() }.padding(6.dp))
+    } else Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+        listOf("15 s" to 15_000L, "30 s" to 30_000L, "60 s" to 60_000L, "2 min" to 120_000L).forEach { (n, ms) ->
+            PillChip("Reel $n", false) { if (clips.isNotEmpty()) onHighlights(ms) }
+        }
+    }
     SectionTitle("SELECT CLIPS")
     Text("Tick several clips, then delete, mute, change speed, duplicate or copy the selected clip's grade to all of them in one go.", color = Pro.Dim, fontSize = 11.sp)
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {

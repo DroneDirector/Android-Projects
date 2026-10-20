@@ -94,6 +94,8 @@ data class Layer(
     /** Video layers: Magic Mask selection (any object) for REMOVE BACKGROUND; null = people. Invert = remove the object instead. */
     val layerMagic: MagicSel? = null,
     val bgInvert: Boolean? = null,
+    /** Corner pin / planar track: the layer drawn onto four corners (see [PinQuad]); null = off. */
+    val pin: List<PinQuad>? = null,
 ) {
     /** The word being spoken at [ms] (−1 before the first). */
     fun wordAt(ms: Long): Int = words?.let { w -> w.indexOfLast { it <= ms } } ?: -1

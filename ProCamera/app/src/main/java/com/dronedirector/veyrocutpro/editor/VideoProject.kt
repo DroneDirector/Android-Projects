@@ -358,7 +358,7 @@ class TimelineExport(
         }
         // Text, stickers, watermarks and logos, bottom layer first.
         val pictureLayers = if (audioOnly) emptyList() else layers.filter { it.visible && it.kind != LayerKind.VIDEO }
-        val overlays = pictureLayers.filter { (it.blend ?: LayerBlend.NORMAL) == LayerBlend.NORMAL }.mapNotNull { l ->
+        val overlays = pictureLayers.filter { (it.blend ?: LayerBlend.NORMAL) == LayerBlend.NORMAL && it.pin.isNullOrEmpty() }.mapNotNull { l ->
             LayerRenderer.render(context, l, outW, outH)?.let {
                 LayerOverlay(it, l, partial = { n -> LayerRenderer.render(context, l, outW, outH, n) }, highlighted = { n -> LayerRenderer.render(context, l, outW, outH, hi = n) }) as androidx.media3.effect.TextureOverlay
             }
@@ -366,6 +366,8 @@ class TimelineExport(
         if (overlays.isNotEmpty()) global += androidx.media3.effect.OverlayEffect(overlays)
         // Layers with a blend mode are drawn by their own shader, in layer order.
         for (l in pictureLayers) {
+            // Corner-pinned layers: drawn onto their four corners (perspective), in layer order.
+            if (!l.pin.isNullOrEmpty()) { LayerRenderer.render(context, l, outW, outH)?.let { global += CornerPinEffect(it, l) }; continue }
             if ((l.blend ?: LayerBlend.NORMAL) == LayerBlend.NORMAL) continue
             LayerRenderer.render(context, l, outW, outH)?.let { global += BlendLayerEffect(it, l, outW, outH) }
         }
@@ -402,6 +404,8 @@ class TimelineExport(
                         (l.corner ?: 0f) * minOf(pw, ph), (l.border ?: 0f) * outH, l.borderColor ?: 0xFFFFFFFF.toInt(),
                         if (l.dropShadow == true) (minOf(pw, ph) * 0.07f).toInt().coerceAtLeast(4) else 0,
                     ))
+                    // Corner pin / planar track: warped onto a full-frame see-through canvas.
+                    if (!l.pin.isNullOrEmpty()) add(PinWarpEffect(l, outW, outH, startMs))
                 }))
                 .build()
             val seq = EditedMediaItemSequence.Builder(setOf(androidx.media3.common.C.TRACK_TYPE_VIDEO))
@@ -513,6 +517,8 @@ class TimelineExport(
                         val (s, e) = if (isBelowInput) belowWindows[inputId - firstBelow] else windows[inputId]
                         val on = presentationTimeUs in s..e
                         val l = l0.animAt(presentationTimeUs / 1000)
+                        if (!l0.pin.isNullOrEmpty()) return androidx.media3.effect.StaticOverlaySettings.Builder()
+                            .setAlphaScale(if (on) l.opacity.coerceIn(0f, 1f) else 0f).build()
                         val k = if (l0.size > 0f) l.size / l0.size else 1f
                         return androidx.media3.effect.StaticOverlaySettings.Builder()
                             .setBackgroundFrameAnchor((l.x * 2f - 1f).coerceIn(-1f, 1f), (1f - l.y * 2f).coerceIn(-1f, 1f))

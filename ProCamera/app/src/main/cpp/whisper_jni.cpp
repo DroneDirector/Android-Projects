@@ -37,7 +37,7 @@ static bool on_abort(void *) { return g_abort.load(); }
 
 // pcm: 16 kHz mono float. Returns one word per line: "startMs\tendMs\ttext".
 JNIEXPORT jstring JNICALL
-Java_com_dronedirector_veyrocutpro_editor_Transcriber_nativeTranscribe(JNIEnv *env, jclass, jlong h, jfloatArray pcm, jstring lang, jint threads) {
+Java_com_dronedirector_veyrocutpro_editor_Transcriber_nativeTranscribe(JNIEnv *env, jclass, jlong h, jfloatArray pcm, jstring lang, jint threads, jstring prompt) {
     whisper_context *ctx = (whisper_context *) (intptr_t) h;
     if (!ctx) return env->NewStringUTF("");
     g_progress.store(0);
@@ -46,6 +46,8 @@ Java_com_dronedirector_veyrocutpro_editor_Transcriber_nativeTranscribe(JNIEnv *e
     jfloat *data = env->GetFloatArrayElements(pcm, nullptr);
     std::string language = "auto";
     if (lang) { const char *l = env->GetStringUTFChars(lang, nullptr); language = l; env->ReleaseStringUTFChars(lang, l); }
+    std::string initial;
+    if (prompt) { const char *p = env->GetStringUTFChars(prompt, nullptr); initial = p; env->ReleaseStringUTFChars(prompt, p); }
 
     whisper_full_params wp = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
     wp.n_threads = threads > 0 ? threads : (int) std::max(1u, std::thread::hardware_concurrency() / 2);
@@ -57,6 +59,8 @@ Java_com_dronedirector_veyrocutpro_editor_Transcriber_nativeTranscribe(JNIEnv *e
     wp.split_on_word = true;
     wp.suppress_blank = true;
     wp.language = language.c_str();
+    // A verbatim-style prompt keeps "um", "uh" and repeats in the transcript (Whisper drops them otherwise).
+    if (!initial.empty()) wp.initial_prompt = initial.c_str();
     wp.progress_callback = on_progress;
     wp.abort_callback = on_abort;
 

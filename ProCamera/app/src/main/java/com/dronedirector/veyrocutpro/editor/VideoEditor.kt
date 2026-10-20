@@ -2135,21 +2135,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
         }
     }
-    deleteAsk?.let { di ->
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { deleteAsk = null },
-            containerColor = Pro.PanelSolid,
-            title = { Text("Delete clip ${di + 1}?", color = Color.White) },
-            text = { Text("Close the gap: the clips after it move left. Leave a gap: black of the same length takes its place, so everything after it stays where it is.", color = Pro.Dim, fontSize = 13.sp) },
-            confirmButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("LEAVE GAP", style = Pro.Label.copy(color = Color.White), modifier = Modifier.clickable { deleteAsk = null; deleteClip(di, leaveGap = true) }.padding(10.dp))
-                    Text("CLOSE GAP", style = Pro.Label.copy(color = Pro.Red), modifier = Modifier.clickable { deleteAsk = null; deleteClip(di, leaveGap = false) }.padding(10.dp))
-                }
-            },
-            dismissButton = { Text("CANCEL", style = Pro.Label.copy(color = Pro.Dim), modifier = Modifier.clickable { deleteAsk = null }.padding(10.dp)) },
-        )
-    }
+    deleteAsk?.let { di -> DeleteClipDialog(di, onClose = { deleteAsk = null }) { gap -> deleteAsk = null; deleteClip(di, gap) } }
     // ---- Generators (Media → GENERATORS)
     var genBusy by remember { mutableStateOf<Int?>(null) }
     var genCancel by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -5936,3 +5922,22 @@ private fun PenEditOverlay(m: PhotoMask, srcMs: Long, onChange: (PhotoMask) -> U
 
 /** Like coerceIn, but when the range is empty (a clip shorter than the minimum, or a file that reports a shorter length than the clip uses) nothing moves. */
 private fun Long.safeIn(lo: Long, hi: Long): Long = if (hi >= lo) coerceIn(lo, hi) else 0L
+
+/** Delete clip [index]: close the gap or leave one (its own function: the editor screen is already very large). */
+@Composable
+private fun DeleteClipDialog(index: Int, onClose: () -> Unit, onDelete: (leaveGap: Boolean) -> Unit) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onClose,
+        containerColor = Pro.PanelSolid,
+        title = { Text("Delete clip ${index + 1}?", color = Color.White) },
+        text = { Text("Close the gap: the clips after it move left. Leave a gap: black of the same length takes its place, so everything after it stays where it is.", color = Pro.Dim, fontSize = 13.sp) },
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("LEAVE GAP", style = Pro.Label.copy(color = Color.White), modifier = Modifier.clickable { onDelete(true) }.padding(10.dp))
+                Text("CLOSE GAP", style = Pro.Label.copy(color = Pro.Red), modifier = Modifier.clickable { onDelete(false) }.padding(10.dp))
+            }
+        },
+        dismissButton = { Text("CANCEL", style = Pro.Label.copy(color = Pro.Dim), modifier = Modifier.clickable(onClick = onClose).padding(10.dp)) },
+    )
+}
+

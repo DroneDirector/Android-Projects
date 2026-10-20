@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Fixed: the video editor wouldn't open in 1.0.395 (it closed straight away).
 
 ## 1.0.395 — 2026-10-20
 - Video editor timeline: **a bin on the selected clip**. Tap a clip to select it, then tap the red bin at the top of the clip to delete it. You choose each time:

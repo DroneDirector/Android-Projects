@@ -12,7 +12,7 @@ on:
         required: false
         default: ""
       tests:
-        description: "What to test (space-separated): layers transcribe morph magic slowmo highlights planar tts depth erase recover photo — or all. Empty = just open the editor with a clip."
+        description: "What to test (space-separated): setup layers transcribe morph magic slowmo highlights planar tts depth erase recover photo — or all. Empty = just open the editor with a clip."
         required: false
         default: ""
 permissions:
@@ -109,6 +109,14 @@ jobs:
           ")
             for k in 1 2 3; do seeText '"Detail"' && break; [ -n "$ROWY" ] && adb shell input swipe 1000 $ROWY 150 $ROWY 300; sleep 1; done
           }
+          if want setup; then
+          # First launch: the download screen, then wait for the whole first-time download.
+          adb shell am force-stop com.dronedirector.veyrocutpro; adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity; sleep 8; dismiss; shot 00a-setup-start
+          sleep 20; shot 00b-setup-progress
+          for i in $(seq 1 120); do sleep 10; seeText "All set" && break; seeText "Check the internet" && break; seeText "mobile data" && break; done; shot 00c-setup-end
+          adb shell run-as com.dronedirector.veyrocutpro ls -la files/models files/sound_library/soundtracks files/whisper > out/setup_files.txt 2>&1 || true
+          sleep 3; shot 00d-home
+          fi
           start_video; shot 01-video-start
           start_video
           tapText "MP4"; sleep 30; dismiss; shot 03-clip-workspace

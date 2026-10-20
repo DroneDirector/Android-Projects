@@ -3,6 +3,35 @@ set -x
 TESTS=" $(cat tests.txt) "
 want() { [[ "$TESTS" == *" all "* || "$TESTS" == *" $1 "* ]]; }
 mkdir -p out
+
+# ---- Live progress: a small note on the 'crashcheck-progress' branch after every section,
+# so the percentage and the part being tested can be read while the test runs.
+SECTIONS="setup mediastrip layers transcribe morph magic slowmo highlights planar tts depth erase recover filmstrip develop develop2 photo"
+TOTAL=2; for s in $SECTIONS; do want $s && TOTAL=$((TOTAL+1)); done
+DONE=0; T0=$(date +%s)
+step() {
+  { set +x; } 2>/dev/null
+  local now=$(date +%s); local el=$((now - T0))
+  local pct=$((DONE * 100 / TOTAL))
+  printf 'done=%s\ntotal=%s\npercent=%s\nnow=%s\nelapsed_s=%s\nupdated=%s\n' "$DONE" "$TOTAL" "$pct" "$1" "$el" "$(date -u +%FT%TZ)" > progress.txt
+  if [ -n "$GH_TOKEN" ] && [ -n "$REPO" ]; then
+    local api="https://api.github.com/repos/$REPO"
+    local auth="Authorization: Bearer $GH_TOKEN"
+    if [ -z "$PROG_READY" ]; then
+      local main=$(curl -fsS -H "$auth" "$api/git/ref/heads/main" | python3 -c "import sys,json;print(json.load(sys.stdin)['object']['sha'])" 2>/dev/null)
+      curl -fsS -X POST -H "$auth" "$api/git/refs" -d "{\"ref\":\"refs/heads/crashcheck-progress\",\"sha\":\"$main\"}" >/dev/null 2>&1 || true
+      PROG_READY=1
+    fi
+    local sha=$(curl -fsS -H "$auth" "$api/contents/progress.txt?ref=crashcheck-progress" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin).get('sha',''))" 2>/dev/null)
+    local body=$(python3 -c "import base64,json,sys;d={'message':'progress','branch':'crashcheck-progress','content':base64.b64encode(open('progress.txt','rb').read()).decode()};s=sys.argv[1]
+if s: d['sha']=s
+print(json.dumps(d))" "$sha")
+    curl -fsS -X PUT -H "$auth" "$api/contents/progress.txt" -d "$body" >/dev/null 2>&1 || true
+  fi
+  DONE=$((DONE + 1))
+  set -x
+}
+step "installing the app"
 adb wait-for-device
 adb install -r -g "$(ls apk/*x86_64*.apk 2>/dev/null | head -1 || true)" || adb install -r -g "$(ls apk/*.apk | head -1)" || echo "install failed"
 adb shell settings put secure immersive_mode_confirmations confirmed
@@ -110,6 +139,7 @@ for m in re.finditer(r'<node [^>]*>', t):
   for k in 1 2 3; do seeText '"Detail"' && break; [ -n "$ROWY" ] && adb shell input swipe 1000 $ROWY 150 $ROWY 300; sleep 1; done
 }
 if want setup; then
+step "setup"
 # First launch: the download screen, then wait for the whole first-time download.
 adb shell am force-stop com.dronedirector.veyrocutpro; adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity; sleep 8; dismiss; shot 00a-setup-start
 sleep 20; shot 00b-setup-progress
@@ -121,6 +151,7 @@ start_video; shot 01-video-start
 start_video
 tapText "MP4"; sleep 30; dismiss; shot 03-clip-workspace
 if want mediastrip; then
+step "mediastrip"
 # Video media strip: filters, pick + append, rating, mouse hover / right-click / drag to the timeline, timeline wheel.
 tapExact "Media strip"; sleep 2
 seeText "MEDIA 1" && echo "media strip shown" > out/mediastrip.txt; shot 13a-media-strip
@@ -140,6 +171,7 @@ fi
 tapExact "SELECT"; sleep 1; tapExact "All"; sleep 1; tapExact "No rejects"; sleep 1; tapExact "DONE"; sleep 1; shot 13g-select
 fi
 if want layers; then
+step "layers"
 tapText "+ VIDEO"; sleep 3; shot 04b-video-layer-dialog
 tapText "ABOVE the main video"; sleep 6; shot 04c-picker
 adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml > out/picker.xml
@@ -159,6 +191,7 @@ sleep 8; shot 04d-after-add-above
 tapText "Layers"; sleep 3; shot 04e-layers-page
 fi
 if want transcribe; then
+step "transcribe"
 # Text-based editing: download the speech model and transcribe the clip.
 tapText "Text"; sleep 3; shot 04f-text-page
 tapText "DOWNLOAD MODEL"; for i in $(seq 1 24); do sleep 5; adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml | grep -q "Model ready" && break; done
@@ -167,12 +200,14 @@ tapText "TRANSCRIBE"; for i in $(seq 1 100); do sleep 5; adb shell uiautomator d
 sleep 2; shot 04h-transcript
 fi
 if want morph; then
+step "morph"
 # Morph cut: split the clip (keyboard: L = +5 s, S = split), then pick Morph cut on the cut.
 adb shell input keyevent KEYCODE_MOVE_HOME; sleep 1; adb shell input keyevent KEYCODE_L; sleep 2; adb shell input keyevent KEYCODE_S; sleep 3; shot 08a-split
 tapText "Transitions"; sleep 3; scrollTo "Morph cut"; tapText "Morph cut"; sleep 20; shot 08b-morph-cut
 adb shell input keyevent KEYCODE_MOVE_HOME; sleep 1; adb shell input keyevent KEYCODE_L; sleep 1; adb shell input keyevent KEYCODE_J; adb shell input keyevent KEYCODE_SPACE; sleep 6; shot 08c-morph-playing; adb shell input keyevent KEYCODE_SPACE
 fi
 if want magic; then
+step "magic"
 # Magic Mask: Color → Detail → BACKGROUND → Blur → Magic Mask, tap the middle of the picture, track.
 tapText "Color"; sleep 3; colorTabs
 tapText "Detail"; sleep 2; scrollTo "BACKGROUND"; tapText "Blur"; sleep 2; shot 09a-background
@@ -181,16 +216,19 @@ tapBetween "MAGIC MASK" "Tap the object"; sleep 12; shot 09c-magic-picked
 tapText "TRACK THROUGH"; for i in $(seq 1 60); do sleep 6; seeText "Tracked through" && break; seeText "couldn" && break; done; shot 09d-magic-tracked
 fi
 if want slowmo; then
+step "slowmo"
 # Optical-flow slow motion on the selected clip (Edit → ½ speed), then play it.
 tapText "Edit"; sleep 3; scrollTo "½ speed"; tapText "½ speed"; for i in $(seq 1 80); do sleep 6; seeText "Smooth slow motion" && break; seeText "process this clip" && break; done; shot 10a-smooth-slowmo
 adb shell input keyevent KEYCODE_SPACE; sleep 5; shot 10b-slowmo-playing; adb shell input keyevent KEYCODE_SPACE
 fi
 if want highlights; then
+step "highlights"
 # Auto highlights (Edit → Reel 15 s).
 tapText "Edit"; sleep 3
 scrollTo "Reel 15"; tapText "Reel 15"; for i in $(seq 1 60); do sleep 5; seeText "Highlight reel" && break; seeText "find highlights" && break; done; shot 10c-highlights
 fi
 if want planar; then
+step "planar"
 # Shape layer, corner pin and planar tracking.
 tapText "Layers"; sleep 3; scrollTo "ADD LAYER"; tapText "Shape"; sleep 3; shot 11a-shape
 scrollTo "PIN TO FOUR CORNERS"; tapText "PIN TO FOUR CORNERS"; sleep 3; shot 11b-pinned
@@ -198,12 +236,14 @@ scrollTo "PLANAR TRACK FROM"; tapText "PLANAR TRACK FROM"; for i in $(seq 1 60);
 adb shell input keyevent KEYCODE_SPACE; sleep 4; shot 11d-pin-playing; adb shell input keyevent KEYCODE_SPACE
 fi
 if want tts; then
+step "tts"
 # AI voiceover (downloads the voice model once, then speaks a line).
 tapText "Audio"; sleep 3; scrollTo "What should the voice say"; tapText "What should the voice say"; sleep 1
 adb shell input text "Hello%sfrom%sVeyroCut%sPro."; adb shell input keyevent KEYCODE_BACK; sleep 1
 scrollTo "MAKE VOICEOVER"; tapText "MAKE VOICEOVER"; for i in $(seq 1 90); do sleep 6; seeText "AI voiceover added" && break; seeText "make the voice" && break; seeText "Download failed" && break; done; shot 12a-tts
 fi
 if want depth; then
+step "depth"
 # AI depth (Color → Detail → AI DEPTH → Lens blur → ANALYSE DEPTH).
 tapText "Color"; sleep 3; colorTabs
 tapText "Detail"; sleep 2; scrollTo "Lens blur"; tapText "Lens blur"; sleep 2; scrollTo "ANALYSE DEPTH"; tapText "ANALYSE DEPTH"
@@ -211,6 +251,7 @@ for i in $(seq 1 120); do sleep 6; seeText "Depth worked out" && break; seeText 
 scrollTo "Show depth map"; tapText "Show depth map"; sleep 3; shot 12c-depth-map
 fi
 if want erase; then
+step "erase"
 # Object removal (Color → Detail → REMOVE AN OBJECT): pick the middle, let it run up to ~15 min.
 seeText "SELECT THE OBJECT TO REMOVE" || { tapText "Color"; sleep 3; colorTabs; tapText "Detail"; sleep 2; }
 scrollTo "SELECT THE OBJECT TO REMOVE"; tapText "SELECT THE OBJECT TO REMOVE"; for i in $(seq 1 30); do sleep 4; seeText "Tap the object" && break; seeText "couldn" && break; done
@@ -221,10 +262,12 @@ adb logcat -d | grep -E "FlowRetime|Lottie|PlanarTracker|CornerPin|PenMask|Objec
 adb logcat -d | grep -E "FrameReader|onnxruntime|OrtSession|Magic|TransitionPreview|veyrocut_morph|AndroidRuntime" | tail -60 > out/ai.txt || true
 adb logcat -d | grep -i -E "veyrocut_native|veyrocut_whisper|UnsatisfiedLink|whisper" | tail -20 > out/native.txt || true
 if want recover; then
+step "recover"
 start_video; shot 05-recover-banner
 tapText "RECOVER"; sleep 25; shot 06-after-recover
 fi
 if want filmstrip; then
+step "filmstrip"
 # Photo filmstrip: open a recent photo, add a second from the picker, sync, rate, export, mouse wheel switch.
 adb shell am force-stop com.dronedirector.veyrocutpro
 adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen photo --ez bgsetup true; sleep 10; dismiss; shot 14a-photo-start
@@ -248,6 +291,7 @@ seeText "Continue filmstrip" && echo "continue banner" >> out/filmstrip.txt
 tapText "Continue filmstrip"; sleep 8; shot 14k-continued
 fi
 if want develop; then
+step "develop"
 # Pro develop tools on a photo: presets + amount, auto, clipping, eyedropper, point colour, sharpening mask, zoom.
 adb shell am force-stop com.dronedirector.veyrocutpro
 adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen photo --ez bgsetup true; sleep 10; dismiss
@@ -262,6 +306,7 @@ adb shell input tap 540 600; sleep 0.1; adb shell input tap 540 600; sleep 6; sh
 tapText "Detail"; sleep 2; scrollTo "SHOW MASK"; tapText "SHOW MASK"; sleep 4; shot 15i-sharpen-mask; tapText "SHOW MASK"; sleep 1
 fi
 if want develop2; then
+step "develop2"
 tabTo() {  # photo editor tabs scroll sideways: swipe the tab row until "$1" shows, then tap it
   for k in 1 2 3 4 5 6; do
     seeText "text=\"$1\"" && break
@@ -291,9 +336,11 @@ scrollTo "EXPORT PHOTO"; tapText "EXPORT PHOTO"; for i in $(seq 1 60); do sleep 
 adb shell ls -la /sdcard/DCIM/VeyroCutPro/ > out/exports.txt 2>&1 || true
 fi
 if want photo; then
+step "photo"
 adb shell am force-stop com.dronedirector.veyrocutpro
 adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen photo; sleep 10; shot 07-photo
 fi
+step "saving the results"; DONE=$TOTAL; step "finished"
 adb logcat -d -b crash > out/crash.txt || true
 adb logcat -d > out/logcat-full.txt || true
 grep -n -A40 "FATAL EXCEPTION" out/logcat-full.txt > out/fatal.txt || echo "no fatal exception" > out/fatal.txt

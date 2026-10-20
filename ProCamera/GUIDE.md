@@ -80,6 +80,12 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ## Photo editor guide
 **Autosave**
 - Gear → AUTOSAVE: pick how often a copy of your project is saved, and how many copies (1–5) to keep. LOAD → AUTOSAVES opens one; SAVE then asks for a name, so the autosave stays as it was.
+**Library**
+- Start page → Library shows every photo on your phone (allow photo access the first time). Search finds file names, keywords, albums and what's in the photo (the AI labels your photos in the background — the counter at the top shows how far it is).
+- Filters: ★ (tap to raise the minimum), Picks, Rejected, colour labels; albums and smart albums underneath (hold one to delete it). "+ Smart album" saves the current filters and search.
+- Tap a photo for a big view with stars, flag, label, keywords, albums and camera INFO; EDIT opens it, VIRTUAL COPY gives it a second, separate edit.
+- SELECT (or hold a photo): rate, flag, add to an album, add keywords, Compare (2 photos, pinch zooms both), Survey (2–12: tap ✕ to drop the weaker ones) or Edit them together in the filmstrip.
+
 **Pro develop**
 - Crop & perspective → UPRIGHT: Auto (balanced), Level (horizon), Vertical (buildings upright too) or Full (both perspectives). Off undoes it.
 - Heal → DUST SPOTS: VISUALISE SPOTS shows dust as white specks; FIND DUST AUTOMATICALLY heals them (check and hold any wrong spot to delete it). Sensitivity finds fainter or only clear specks.

@@ -104,6 +104,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - Open from the gallery, files or recent VeyroCut Pro photos; **saved projects** row on the start page.
 - **Skip to the editor** from the start page: open the editor without picking a photo first, then add one from inside (manual, every time).
 - **Pro develop**:
+  - **Library**: all phone photos with stars, flags, colour labels, keywords, albums, smart albums, on-device AI content search, EXIF info, compare (2, linked zoom) and survey (up to 12) views, virtual copies, and multi-photo editing in the filmstrip.
   - **Upright** (Auto, Level, Vertical, Full), **dust spot** visualise and auto-heal, **panorama** projections (cylindrical / spherical / perspective), boundary warp and AI edge fill.
   - **Export**: TIFF 16 / 8-bit, sRGB / Display P3 / Adobe RGB with embedded profile, output sharpening (screen / matte / glossy), file-name templates, export presets and a matte-print soft proof.
   - **Masks**: Object (AI) by tapping, Depth range (AI), and add / subtract / intersect combinations (colour, brightness, depth, subject, sky).

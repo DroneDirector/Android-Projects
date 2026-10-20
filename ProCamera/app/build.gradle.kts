@@ -112,6 +112,8 @@ dependencies {
     implementation("com.google.mlkit:segmentation-selfie:16.0.0-beta6")
     // Portrait mode: any subject (pets, flowers, rocks, branches…) — ML Kit via Google Play services; free for commercial apps.
     implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
+    // Library AI search: what is in each photo (ML Kit image labelling via Google Play services — small, free).
+    implementation("com.google.android.gms:play-services-mlkit-image-labeling:16.0.8")
     // Video colour grading (export with a LUT).
     implementation("androidx.media3:media3-transformer:1.11.1")
     implementation("androidx.media3:media3-effect:1.11.1")

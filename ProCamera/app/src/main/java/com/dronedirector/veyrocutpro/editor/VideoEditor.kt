@@ -4108,7 +4108,7 @@ private fun LayerPreview(
                 // Corner pin: drawn in perspective onto its four corners; drag the corners to place it.
                 if (l.kind == LayerKind.VIDEO) Box(Modifier.fillMaxSize()) { VideoLayerView(l, timeMs, playing && l.activeAt(timeMs), pinQ) }
                 else {
-                    val pchars = LayerAnims.charCount(base, Int.MAX_VALUE)
+                    val pchars = LayerAnims.charCount(base, 1f)
                     val pbmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, startMs = 0, endMs = 0, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null, pin = null), wPx, hPx) {
                         value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, pchars) }
                     }

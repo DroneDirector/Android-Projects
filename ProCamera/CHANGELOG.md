@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.361 — 2026-10-20
 - Photo editor **Library** (start page → Library): every photo on your phone in one place.
   - Star ratings, Pick / Reject flags, colour labels and keywords.
   - **Albums**, and **smart albums** that save a set of filters and a search.

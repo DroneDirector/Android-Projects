@@ -127,6 +127,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.material.icons.filled.SlowMotionVideo
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.CallSplit
@@ -516,6 +517,16 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             layers.add(l); selectedLayer = l.id
         }
     }
+    val pickLottie = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) layerScope.launch {
+            val u = withContext(Dispatchers.IO) { LottieRender.import(context, uri) }
+            if (u == null) { message = "That isn't a Lottie animation (.json or .zip)"; return@launch }
+            val dur = LottieRender.durationMs(context, Layer(kind = LayerKind.LOTTIE, imageUri = u))
+            val l = Layer(kind = LayerKind.LOTTIE, text = "Animation", imageUri = u, size = 0.35f, startMs = globalMs, endMs = globalMs + dur.coerceIn(1000L, 10_000L), shadow = false)
+            layers.add(l); selectedLayer = l.id
+            message = "Lottie animation added — it loops for the layer's length"
+        }
+    }
     val pickLogo = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             val l = Layer(kind = LayerKind.LOGO, imageUri = uri, size = 0.12f, x = 0.85f, y = 0.88f, opacity = 0.85f, wholeVideo = true)
@@ -679,7 +690,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val pi = players.indexOf(p).coerceAtLeast(0)
         if (gpuGrade) {
             // Android 13+: the grade is drawn on the view; the player only decodes plain video.
-            texViews[pi]?.let { if (effectsOk) GradePreview.apply(it, adjOf(c), 0f, CutoutPreview.forClip(context, it, c, c.startMs + startMs)) else GradePreview.clear(it) }
+            texViews[pi]?.let { if (effectsOk) GradePreview.apply(it, adjOf(c), 0f, ClipPreviewFx.extra(context, it, c, c.startMs + startMs)) else GradePreview.clear(it) }
             // Film / lens / deflicker need the frame itself: they run in the player (only when used).
             val ff = if (effectsOk) liveEffects(c) else emptyList()
             if (ff.isNotEmpty() || filmOn[pi]) {
@@ -870,7 +881,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         for (c in gradeReq) {
             if (gpuGrade) {
                 if (effectsOk && c.id == loadedId) {
-                    texViews[deck.active]?.let { GradePreview.apply(it, adjOf(c), 0f, CutoutPreview.forClip(context, it, c, c.startMs + deck.cur.currentPosition)) }
+                    texViews[deck.active]?.let { GradePreview.apply(it, adjOf(c), 0f, ClipPreviewFx.extra(context, it, c, c.startMs + deck.cur.currentPosition)) }
                     val a = deck.active
                     val want = liveKey(c)
                     if (want != filmShown[a] && (want != null || filmOn[a])) {
@@ -1009,7 +1020,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             if (c.id == loadedId) texViews[a]?.let {
                 ClipXform.applyToView(it, ClipXform.at(c, c.startMs + deck.cur.currentPosition, motionFor(c)))
                 it.alpha = c.reframe.opacityAt(deck.cur.currentPosition)
-                if (gpuGrade) { if (effectsOk) GradePreview.apply(it, adjOf(c), System.nanoTime() / 1e9f, CutoutPreview.forClip(context, it, c, c.startMs + deck.cur.currentPosition)) else GradePreview.clear(it) }
+                if (gpuGrade) { if (effectsOk) GradePreview.apply(it, adjOf(c), System.nanoTime() / 1e9f, ClipPreviewFx.extra(context, it, c, c.startMs + deck.cur.currentPosition)) else GradePreview.clear(it) }
             }
             val n = clips.getOrNull(i + 1)
             val ov = overlapMs(clips, i)
@@ -1067,7 +1078,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 texViews[1 - a]?.let {
                     ClipXform.applyToView(it, ClipXform.at(n, n.startMs + deck.spare.currentPosition, motionFor(n)))
                     it.alpha = n.reframe.opacityAt(deck.spare.currentPosition)
-                    if (gpuGrade && effectsOk) GradePreview.apply(it, adjOf(n), System.nanoTime() / 1e9f, CutoutPreview.forClip(context, it, n, n.startMs + deck.spare.currentPosition))
+                    if (gpuGrade && effectsOk) GradePreview.apply(it, adjOf(n), System.nanoTime() / 1e9f, ClipPreviewFx.extra(context, it, n, n.startMs + deck.spare.currentPosition))
                 }
                 frameViews[a]?.let { TransitionPreview.apply(it, c.transition.type, p, false) }
                 frameViews[1 - a]?.let { TransitionPreview.apply(it, c.transition.type, p, true) }
@@ -1416,6 +1427,39 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
             markers.sort()
             message = if (added > 0) "$added beat markers added" else "No clear beat found"
+        }
+    }
+
+    // ---- Shape (pen) masks: planar-track the mask from the playhead to the clip's end
+    var penTrackingId by remember { mutableStateOf<String?>(null) }
+    var penStop by remember { mutableStateOf(false) }
+    fun trackPen(ci: Int, maskId: String) {
+        if (penTrackingId != null) { penStop = true; return }
+        val c = clips.getOrNull(ci) ?: return
+        val m = c.masks?.firstOrNull { it.id == maskId } ?: return
+        val st = clipStarts(clips).getOrNull(ci) ?: 0L
+        val rel = (globalMs - st).coerceIn(0L, c.lengthMs - 1)
+        val src = c.srcAtOffset(rel)
+        val pts = PenMask.pointsAt(m, src)
+        if (pts.size < 6) return
+        val q0 = PenMask.boundsQuad(pts)
+        if (c.lengthMs - rel < 300) { message = "Move the playhead to where tracking should start"; return }
+        deck.cur.pause()
+        penTrackingId = maskId; penStop = false; message = "Tracking the mask… 0%"
+        layerScope.launch {
+            val path = withContext(Dispatchers.Default) {
+                try {
+                    PlanarTracker.track(context, listOf(c), 0, rel, c.lengthMs, q0,
+                        progress = { p -> layerScope.launch { if (penTrackingId != null) message = "Tracking the mask… $p% — tap again to stop" } },
+                        cancelled = { penStop })
+                } catch (_: Throwable) { emptyList() }
+            }
+            penTrackingId = null
+            val i = clips.indexOfFirst { it.id == c.id }
+            if (i < 0 || path.size < 2) { message = "Couldn't follow what's under the mask — try a part with more detail"; return@launch }
+            val track = path.map { it.copy(t = c.srcAtOffset(it.t)) }
+            clips[i] = clips[i].copy(masks = clips[i].masks?.map { if (it.id == maskId) it.copy(pts = pts.toList(), pref = q0.toList(), ptrack = track) else it })
+            message = "Mask tracked through ${track.size} frames — it follows the motion"
         }
     }
 
@@ -2525,7 +2569,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             // Colour mask handles on the player (Color → Masks).
                             val mc = clips.getOrNull(current)
                             val selMask = mc?.masks?.firstOrNull { it.id == maskTools.selected }
-                            if (page == Page.COLOR && colorTab == ColorTab.MASKS && selMask != null && selected == current && !playing) {
+                            if (page == Page.COLOR && colorTab == ColorTab.MASKS && selMask != null && selected == current && !playing && selMask.type == MaskType.PEN) {
+                                PenEditOverlay(selMask, mc.startMs + deck.cur.currentPosition) { m ->
+                                    update(current) { cl -> cl.copy(masks = cl.masks?.map { if (it.id == m.id) m else it }) }
+                                }
+                            } else if (page == Page.COLOR && colorTab == ColorTab.MASKS && selMask != null && selected == current && !playing) {
                                 MaskEditOverlay(selMask, ow, oh, maskTools, image = thumbs[mc.id], pad = 0.dp) { m ->
                                     update(current) { cl -> cl.copy(masks = cl.masks?.map { if (it.id == m.id) m else it }) }
                                 }
@@ -2998,6 +3046,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 Text("For clips filmed with an anamorphic lens or adapter: stretches the picture back to its real shape (preview and export).", color = Pro.Dim, fontSize = 11.sp)
                             }
                             Page.COLOR -> if (sc != null) ColorPage(sc, colorTab, { colorTab = it }, maskTools = maskTools, onChange = { f -> update(selected, f) },
+                                onTrackPen = { m -> trackPen(selected, m.id) }, penTracking = penTrackingId,
                                 clipNames = clips.map { it.name }, selfIdx = selected, matchBusy = matchBusy, onMatch = { matchShot(it) },
                                 onMagic = {
                                     val st = clipStarts(clips).getOrNull(selected) ?: 0L
@@ -3017,6 +3066,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onAddLogo = { pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                                 onAddVideo = { askVideoLayer = true },
                                 onAddImage = { pickLayerImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                                onAddLottie = { pickLottie.launch(arrayOf("application/json", "application/zip", "application/octet-stream", "*/*")) },
                                 onUpdate = { l ->
                                     val i = layers.indexOfFirst { it.id == l.id }
                                     if (i >= 0) {
@@ -3725,6 +3775,7 @@ private fun ColorPage(
     maskTools: LocalToolsState,
     clipNames: List<String> = emptyList(), selfIdx: Int = 0, matchBusy: Int? = null, onMatch: (Int) -> Unit = {},
     onMagic: () -> Unit = {}, magicProgress: Int? = null, onStopMagic: () -> Unit = {},
+    onTrackPen: ((PhotoMask) -> Unit)? = null, penTracking: String? = null,
 ) {
     val g = c.grade
     fun grade(f: (ProGrade) -> ProGrade) = onChange { it.copy(grade = f(it.grade)) }
@@ -3802,7 +3853,7 @@ private fun ColorPage(
         ColorTab.HSL -> HslMixer(g.hsl) { list -> grade { it.copy(hsl = list) } }
         ColorTab.MASKS -> {
             Text("Grade only part of the picture: a gradient (e.g. darken the sky), a radial (lift a face), or a colour / brightness range. Up to $MAX_VIDEO_MASKS masks per clip; drag the handles on the player.", color = Pro.Dim, fontSize = 11.sp)
-            MasksPanel(c.masks ?: emptyList(), maskTools, { list -> onChange { it.copy(masks = list) } }, video = true)
+            MasksPanel(c.masks ?: emptyList(), maskTools, { list -> onChange { it.copy(masks = list) } }, video = true, onTrackPen = onTrackPen, penTracking = penTracking)
         }
         ColorTab.DETAIL -> {
             SectionTitle("DETAIL") { detail { Detail() } }
@@ -4109,8 +4160,9 @@ private fun LayerPreview(
                 if (l.kind == LayerKind.VIDEO) Box(Modifier.fillMaxSize()) { VideoLayerView(l, timeMs, playing && l.activeAt(timeMs), pinQ) }
                 else {
                     val pchars = LayerAnims.charCount(base, 1f)
-                    val pbmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, startMs = 0, endMs = 0, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null, pin = null), wPx, hPx) {
-                        value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, pchars) }
+                    val plf = if (base.kind == LayerKind.LOTTIE) LottieRender.frameIndex(context, base, timeMs) else 0
+                    val pbmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, startMs = 0, endMs = 0, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null, pin = null), wPx, hPx, plf) {
+                        value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, pchars, atMs = if (base.kind == LayerKind.LOTTIE) timeMs else -1L) }
                     }
                     pbmp?.let { b0 ->
                         androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
@@ -4181,8 +4233,10 @@ private fun LayerPreview(
             val fx = if ((base.id == selectedId && !playing) || !base.activeAt(timeMs)) AnimFx() else LayerAnims.at(base, timeMs)
             val chars = LayerAnims.charCount(base, fx.chars)
             val hiWord = if (base.words != null) base.wordAt(timeMs) else -1
-            val bmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, startMs = 0, endMs = 0, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null), wPx, hPx, chars, hiWord) {
-                value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, chars, hiWord) }
+            // Lottie animations: a new picture for each animation frame.
+            val lf = if (base.kind == LayerKind.LOTTIE) LottieRender.frameIndex(context, base, timeMs) else 0
+            val bmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, startMs = 0, endMs = 0, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null), wPx, hPx, chars, hiWord, lf) {
+                value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, chars, hiWord, atMs = if (base.kind == LayerKind.LOTTIE) timeMs else -1L) }
             }
             // Keep the last picture while a new one (next word / letter) is drawn, so it never blinks.
             val lastBmp = remember(base.id) { arrayOfNulls<Bitmap>(1) }
@@ -4229,7 +4283,7 @@ private val TEXT_COLORS = listOf(0xFFFFFFFF, 0xFF000000, 0xFFFFB300, 0xFFFF3B30,
 private fun LayersPage(
     layers: List<Layer>, selectedId: String?, totalMs: Long, playheadMs: Long,
     onSelect: (String) -> Unit, onAdd: (Layer) -> Unit, onAddLogo: () -> Unit,
-    onAddVideo: () -> Unit = {}, onAddImage: () -> Unit = {},
+    onAddVideo: () -> Unit = {}, onAddImage: () -> Unit = {}, onAddLottie: () -> Unit = {},
     onUpdate: (Layer) -> Unit, onDelete: (String) -> Unit, onMove: (String, Int) -> Unit,
     onSeek: (Long) -> Unit = {},
     onCaptions: (String?, Boolean, Int) -> Unit = { _, _, _ -> },
@@ -4308,6 +4362,8 @@ private fun LayersPage(
         SmallAction(Icons.Filled.Movie, "Video", onAddVideo)
         SmallAction(Icons.Filled.Photo, "Image", onAddImage)
         SmallAction(Icons.Filled.Image, "Logo", onAddLogo)
+        SmallAction(Icons.Filled.Star, "Shape") { onAdd(Layer(kind = LayerKind.SHAPE, text = "Shape", shape = ShapeKind.ROUNDED.ordinal, size = 0.2f, color = 0xFFFFB300.toInt(), shadow = false, startMs = playheadMs, endMs = end)) }
+        SmallAction(Icons.Filled.Movie, "Lottie", onAddLottie)
         SmallAction(Icons.Filled.TextFields, "Credits") {
             // Rolling credits over the last 12 s (or the whole video if it is shorter).
             val total = totalMs.coerceAtLeast(1)
@@ -4426,6 +4482,27 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
         }
         Chips(listOf("Shadow", "Box"), -1) { if (it == 0) onUpdate(l.copy(shadow = !l.shadow)) else onUpdate(l.copy(box = !l.box)) }
         Text("Shadow: ${if (l.shadow) "on" else "off"} · Box: ${if (l.box) "on" else "off"}", style = Pro.Label)
+    }
+    if (l.kind == LayerKind.SHAPE) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
+            ShapeKind.entries.forEach { k -> PillChip(k.label, (l.shape ?: 0) == k.ordinal) { onUpdate(l.copy(shape = k.ordinal, shapeAspect = null)) } }
+        }
+        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            TEXT_COLORS.forEach { c ->
+                Box(Modifier.size(28.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(c))
+                    .border(if (c == l.color) 3.dp else 1.dp, if (c == l.color) Pro.Amber else Pro.Line, androidx.compose.foundation.shape.CircleShape)
+                    .clickable { onUpdate(l.copy(color = c)) })
+            }
+        }
+        Chips(listOf("Filled", "Outline"), if ((l.stroke ?: 0f) > 0f) 1 else 0) { onUpdate(l.copy(stroke = if (it == 1) 0.06f else null)) }
+        if ((l.stroke ?: 0f) > 0f) EdSlider("Outline width", l.stroke ?: 0.06f, 0.01f..0.3f, 0.06f, ::pct) { onUpdate(l.copy(stroke = it)) }
+        val defAspect = when (ShapeKind.entries.getOrElse(l.shape ?: 0) { ShapeKind.RECT }) { ShapeKind.LINE, ShapeKind.ARROW -> 4f; ShapeKind.RECT, ShapeKind.ROUNDED -> 1.6f; else -> 1f }
+        EdSlider("Width", l.shapeAspect ?: defAspect, 0.2f..10f, defAspect, { "%.1f×".format(it) }) { onUpdate(l.copy(shapeAspect = it)) }
+        Chips(listOf("No shadow", "Shadow"), if (l.shadow) 1 else 0) { onUpdate(l.copy(shadow = it == 1)) }
+        Text("Shapes animate, keyframe, blend and corner-pin like any layer — e.g. a box behind a title, an arrow pointing at something, a highlight circle.", color = Pro.Dim, fontSize = 11.sp)
+    }
+    if (l.kind == LayerKind.LOTTIE) {
+        Text("A Lottie animation (After Effects, exported as .json or .zip). It loops over the layer's length (one loop: ${tc(LottieRender.durationMs(LocalContext.current, l))}). Free animations: lottiefiles.com — check each one's licence.", color = Pro.Dim, fontSize = 11.sp)
     }
     if (l.kind == LayerKind.VIDEO && l.videoDurationMs > 0) {
         EdSlider("Start inside the video", l.videoStartMs.toFloat(), 0f..(l.videoDurationMs - 500).coerceAtLeast(1).toFloat(), 0f, { tc(it.toLong()) }) { onUpdate(l.copy(videoStartMs = it.toLong())) }
@@ -5278,4 +5355,86 @@ private fun GeneratorTools(busy: Int?, onMake: (GenKind, Int, Int, Int) -> Unit,
         "+ ADD ${kind.label.uppercase()}", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
         modifier = Modifier.padding(vertical = 6.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onMake(kind, c1, c2, secs.toInt()) }.padding(10.dp),
     )
+}
+
+/** Pen mask on the player: drag points, tap to add one (on the nearest edge), hold a point to remove it. */
+@Composable
+private fun PenEditOverlay(m: PhotoMask, srcMs: Long, onChange: (PhotoMask) -> Unit) {
+    // Points as shown at this moment (a tracked mask is edited in its moved place, then the track is re-based).
+    val shown = PenMask.pointsAt(m, srcMs)
+    val cur = androidx.compose.runtime.rememberUpdatedState(m)
+    val pts = androidx.compose.runtime.rememberUpdatedState(shown)
+    fun commit(p: FloatArray) {
+        val mm = cur.value
+        // Editing a tracked mask: keep its track, but store the points where they are on the reference frame.
+        val tr = mm.ptrack; val ref = mm.pref
+        val stored = if (!tr.isNullOrEmpty() && ref != null) {
+            val q = Layer(pin = tr).pinAt(srcMs)
+            val a = Homography.squareTo(ref.toFloatArray()); val b = q?.let { Homography.squareTo(it) }
+            val inv = if (a != null && b != null) Homography.invert(Homography.mul(b, Homography.invert(a) ?: a)) else null
+            if (inv == null) p else FloatArray(p.size) { i -> val (u, v) = Homography.apply(inv, p[i - i % 2].toDouble(), p[i - i % 2 + 1].toDouble()); if (i % 2 == 0) u.toFloat() else v.toFloat() }
+        } else p
+        onChange(mm.copy(pts = stored.toList()))
+    }
+    var drag by remember { mutableStateOf(-1) }
+    androidx.compose.foundation.Canvas(
+        Modifier.fillMaxSize()
+            .pointerInput(m.id) {
+                detectTapGestures(
+                    onLongPress = { o ->
+                        val p = pts.value
+                        val k = (0 until p.size / 2).minByOrNull { val dx = p[2 * it] * size.width - o.x; val dy = p[2 * it + 1] * size.height - o.y; dx * dx + dy * dy } ?: return@detectTapGestures
+                        val dx = p[2 * k] * size.width - o.x; val dy = p[2 * k + 1] * size.height - o.y
+                        if (dx * dx + dy * dy < 60f * 60f && p.size > 6) commit(p.toMutableList().also { it.removeAt(2 * k); it.removeAt(2 * k) }.toFloatArray())
+                    },
+                    onTap = { o ->
+                        val p = pts.value
+                        val n = p.size / 2
+                        val x = o.x / size.width; val y = o.y / size.height
+                        // Insert on the nearest edge.
+                        var best = 0; var bd = Float.MAX_VALUE
+                        for (i in 0 until n) {
+                            val ax = p[2 * i]; val ay = p[2 * i + 1]; val bx = p[2 * ((i + 1) % n)]; val by = p[2 * ((i + 1) % n) + 1]
+                            val ex = bx - ax; val ey = by - ay
+                            val t = (((x - ax) * ex + (y - ay) * ey) / (ex * ex + ey * ey).coerceAtLeast(1e-6f)).coerceIn(0f, 1f)
+                            val qx = ax + ex * t - x; val qy = ay + ey * t - y
+                            val d = qx * qx + qy * qy
+                            if (d < bd) { bd = d; best = i }
+                        }
+                        val l = p.toMutableList(); l.add(2 * best + 2, y); l.add(2 * best + 2, x)
+                        commit(l.toFloatArray())
+                    },
+                )
+            }
+            .pointerInput(m.id + "d") {
+                detectDragGestures(
+                    onDragStart = { o ->
+                        val p = pts.value
+                        drag = (0 until p.size / 2).filter { val dx = p[2 * it] * size.width - o.x; val dy = p[2 * it + 1] * size.height - o.y; dx * dx + dy * dy < 70f * 70f }
+                            .minByOrNull { val dx = p[2 * it] * size.width - o.x; val dy = p[2 * it + 1] * size.height - o.y; dx * dx + dy * dy } ?: -1
+                    },
+                    onDragEnd = { drag = -1 }, onDragCancel = { drag = -1 },
+                ) { ch, d ->
+                    val k = drag
+                    if (k >= 0) {
+                        ch.consume()
+                        val p = pts.value.copyOf()
+                        p[2 * k] = (p[2 * k] + d.x / size.width).coerceIn(-0.2f, 1.2f); p[2 * k + 1] = (p[2 * k + 1] + d.y / size.height).coerceIn(-0.2f, 1.2f)
+                        commit(p)
+                    }
+                }
+            },
+    ) {
+        if (shown.size < 6) return@Canvas
+        val path = PenMask.path(shown, size.width, size.height)
+        drawIntoCanvas { cv ->
+            cv.nativeCanvas.drawPath(path, android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { style = android.graphics.Paint.Style.STROKE; strokeWidth = 5f; color = 0x88000000.toInt() })
+            cv.nativeCanvas.drawPath(path, android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { style = android.graphics.Paint.Style.STROKE; strokeWidth = 2.5f; color = 0xFFFFB300.toInt() })
+        }
+        for (i in 0 until shown.size / 2) {
+            val c = Offset(shown[2 * i] * size.width, shown[2 * i + 1] * size.height)
+            drawCircle(Color.Black.copy(alpha = 0.5f), 13f, c)
+            drawCircle(if (i == drag) Color.White else Pro.Amber, 9f, c)
+        }
+    }
 }

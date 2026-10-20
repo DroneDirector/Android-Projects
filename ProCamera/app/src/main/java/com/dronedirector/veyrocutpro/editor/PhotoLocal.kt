@@ -15,7 +15,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /** Kinds of local-adjustment masks. */
-enum class MaskType(val label: String) { LINEAR("Linear gradient"), RADIAL("Radial"), BRUSH("Brush"), SUBJECT("Subject (AI)"), SKY("Sky (AI)"), COLOR_RANGE("Colour range"), LUMA_RANGE("Brightness range") }
+enum class MaskType(val label: String) { LINEAR("Linear gradient"), RADIAL("Radial"), BRUSH("Brush"), SUBJECT("Subject (AI)"), SKY("Sky (AI)"), COLOR_RANGE("Colour range"), LUMA_RANGE("Brightness range"), PEN("Shape (pen)") }
 
 /** One brush stroke: points (x, y pairs, 0..1 of the picture), size (share of the width), add or erase. */
 data class BrushStroke(val points: List<Float>, val size: Float, val erase: Boolean = false, val soft: Float = 0.5f)
@@ -47,6 +47,10 @@ data class PhotoMask(
     val lumHigh: Float = 1f,
     /** Softness of the range edges, 0..1. */
     val rangeSoft: Float = 0.4f,
+    /** Shape (pen) masks on video: the curve's points (x, y pairs, 0..1), and its planar track (source ms) from reference corners [pref]. */
+    val pts: List<Float>? = null,
+    val ptrack: List<PinQuad>? = null,
+    val pref: List<Float>? = null,
 )
 
 /** A healed spot: centre and radius (share of the width) and where the patch is taken from (offset, same units). */

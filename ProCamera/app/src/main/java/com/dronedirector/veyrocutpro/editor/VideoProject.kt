@@ -256,6 +256,8 @@ class TimelineExport(
         // Anamorphic: stretch the squeezed picture back to its real width.
         c.desqueeze?.takeIf { it > 1f }?.let { add(androidx.media3.effect.ScaleAndRotateTransformation.Builder().setScale(it, 1f).build()) }
         addAll(clipEffects(c))
+        // Shape (pen) masks: their own grade inside the curve (tracked masks move frame by frame).
+        if (PenMask.active(c).isNotEmpty()) add(PenMaskEffect(c, offsetMs))
         // When compositing, every clip is sized to the project frame first.
         if (sized) add(Presentation.createForWidthAndHeight(outW, outH, layout))
     }
@@ -360,7 +362,11 @@ class TimelineExport(
         val pictureLayers = if (audioOnly) emptyList() else layers.filter { it.visible && it.kind != LayerKind.VIDEO }
         val overlays = pictureLayers.filter { (it.blend ?: LayerBlend.NORMAL) == LayerBlend.NORMAL && it.pin.isNullOrEmpty() }.mapNotNull { l ->
             LayerRenderer.render(context, l, outW, outH)?.let {
-                LayerOverlay(it, l, partial = { n -> LayerRenderer.render(context, l, outW, outH, n) }, highlighted = { n -> LayerRenderer.render(context, l, outW, outH, hi = n) }) as androidx.media3.effect.TextureOverlay
+                LayerOverlay(
+                    it, l, partial = { n -> LayerRenderer.render(context, l, outW, outH, n) }, highlighted = { n -> LayerRenderer.render(context, l, outW, outH, hi = n) },
+                    frameIndex = if (l.kind == LayerKind.LOTTIE) { ms -> LottieRender.frameIndex(context, l, ms) } else null,
+                    frameAt = if (l.kind == LayerKind.LOTTIE) { n -> LottieRender.render(context, l, maxOf(8f, l.size * outH), outW, n) } else null,
+                ) as androidx.media3.effect.TextureOverlay
             }
         }
         if (overlays.isNotEmpty()) global += androidx.media3.effect.OverlayEffect(overlays)

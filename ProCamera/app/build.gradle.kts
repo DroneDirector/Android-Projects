@@ -88,6 +88,8 @@ dependencies {
 
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("com.google.code.gson:gson:2.11.0")
+    // Lottie animations as layers (Apache 2.0).
+    implementation("com.airbnb.android:lottie:6.6.0")
     implementation("com.google.ai.edge.litert:litert:2.1.0")
     // Magic Mask: ONNX Runtime (MIT) runs MobileSAM (Apache 2.0) on the phone.
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.19.2")

@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.Gesture
 import androidx.compose.material.icons.filled.Contrast
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Delete
@@ -323,7 +324,7 @@ fun HealOverlay(
 
 /** The Masks panel: add, pick, show / hide, delete masks; edit the selected mask's settings. */
 @Composable
-fun MasksPanel(masks: List<PhotoMask>, ui: LocalToolsState, onMasks: (List<PhotoMask>) -> Unit, onAi: ((MaskType) -> Unit)? = null, video: Boolean = false) {
+fun MasksPanel(masks: List<PhotoMask>, ui: LocalToolsState, onMasks: (List<PhotoMask>) -> Unit, onAi: ((MaskType) -> Unit)? = null, video: Boolean = false, onTrackPen: ((PhotoMask) -> Unit)? = null, penTracking: String? = null) {
     SectionTitle("ADD A MASK")
     val full = video && masks.size >= MAX_VIDEO_MASKS
     if (full) Text("This clip has the most masks it can have ($MAX_VIDEO_MASKS). Delete one to add another.", color = Pro.Dim, fontSize = 11.sp)
@@ -333,6 +334,7 @@ fun MasksPanel(masks: List<PhotoMask>, ui: LocalToolsState, onMasks: (List<Photo
         if (!video) SmallAction(Icons.Filled.Brush, "Brush") { val m = PhotoMask(type = MaskType.BRUSH); onMasks(masks + m); ui.selected = m.id }
         SmallAction(Icons.Filled.Palette, "Colour range") { val m = PhotoMask(type = MaskType.COLOR_RANGE); onMasks(masks + m); ui.selected = m.id }
         SmallAction(Icons.Filled.Contrast, "Brightness range") { val m = PhotoMask(type = MaskType.LUMA_RANGE); onMasks(masks + m); ui.selected = m.id }
+        if (video) SmallAction(Icons.Filled.Gesture, "Shape (pen)") { val m = PhotoMask(type = MaskType.PEN, pts = PenMask.starter(), feather = 0.3f); onMasks(masks + m); ui.selected = m.id }
         if (onAi != null) {
             SmallAction(Icons.Filled.Visibility, "Subject (AI)") { onAi(MaskType.SUBJECT) }
             SmallAction(Icons.Filled.Visibility, "Sky (AI)") { onAi(MaskType.SKY) }
@@ -396,6 +398,21 @@ fun MasksPanel(masks: List<PhotoMask>, ui: LocalToolsState, onMasks: (List<Photo
             EdSlider("From", m.lumLow, 0f..1f, 0.7f, ::pct) { v -> upd { it.copy(lumLow = v.coerceAtMost(it.lumHigh)) } }
             EdSlider("To", m.lumHigh, 0f..1f, 1f, ::pct) { v -> upd { it.copy(lumHigh = v.coerceAtLeast(it.lumLow)) } }
             EdSlider("Softness", m.rangeSoft, 0f..1f, 0.4f, ::pct) { v -> upd { it.copy(rangeSoft = v) } }
+        }
+        MaskType.PEN -> {
+            Text("Drag the points onto the outline of what you want (pause first). Tap the picture to add a point there; hold a point to remove it. The curve runs smoothly through the points.", color = Pro.Dim, fontSize = 11.sp)
+            EdSlider("Soft edge", m.feather, 0f..1f, 0.3f, ::pct) { v -> upd { it.copy(feather = v) } }
+            if (onTrackPen != null) {
+                Text(
+                    if (penTracking == m.id) "■ STOP TRACKING" else "⌖ TRACK THE MASK FROM THE PLAYHEAD", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                    modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onTrackPen(m) }.padding(10.dp),
+                )
+                if (!m.ptrack.isNullOrEmpty()) Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("✓ Tracked through ${m.ptrack.size} frames", style = Pro.Label.copy(color = Pro.Green), modifier = Modifier.weight(1f))
+                    Text("REMOVE TRACK", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { upd { it.copy(ptrack = null, pref = null) } }.padding(6.dp))
+                }
+                Text("Planar tracking: the mask follows the surface it covers (a face, a sign, a car) as it moves.", color = Pro.Dim, fontSize = 11.sp)
+            }
         }
         else -> Text("Selected by the AI.", color = Pro.Dim, fontSize = 11.sp)
     }

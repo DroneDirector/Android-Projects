@@ -26,7 +26,7 @@ object GradePreview {
     /** True when the grade/detail needs the frame-by-frame time (film grain). */
     fun animated(c: Clip) = c.detail.grain > 0f
 
-    private fun lut(g: ProGrade): Bitmap = synchronized(lutBitmaps) {
+    fun lut(g: ProGrade): Bitmap = synchronized(lutBitmaps) {
         lutBitmaps.getOrPut(g) {
             val cube = LutCache.cube(g)
             val bmp = Bitmap.createBitmap(N * N, N, Bitmap.Config.ARGB_8888)

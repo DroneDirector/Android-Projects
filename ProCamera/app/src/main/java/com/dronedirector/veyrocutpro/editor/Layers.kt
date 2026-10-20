@@ -20,7 +20,7 @@ import java.util.UUID
 import kotlin.math.max
 import kotlin.math.min
 
-enum class LayerKind(val label: String) { TEXT("Text"), STICKER("Sticker"), WATERMARK("Watermark"), LOGO("Logo"), IMAGE("Image"), VIDEO("Video"), ADJUST("Adjustment") }
+enum class LayerKind(val label: String) { TEXT("Text"), STICKER("Sticker"), WATERMARK("Watermark"), LOGO("Logo"), IMAGE("Image"), VIDEO("Video"), ADJUST("Adjustment"), SHAPE("Shape"), LOTTIE("Animation") }
 
 enum class LayerFont(val label: String, val typeface: Typeface) {
     SANS("Sans", Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)),
@@ -96,6 +96,10 @@ data class Layer(
     val bgInvert: Boolean? = null,
     /** Corner pin / planar track: the layer drawn onto four corners (see [PinQuad]); null = off. */
     val pin: List<PinQuad>? = null,
+    /** Shape layers: which shape ([ShapeKind] ordinal), its width / height, and outline width (share of its size; null / 0 = filled). */
+    val shape: Int? = null,
+    val shapeAspect: Float? = null,
+    val stroke: Float? = null,
 ) {
     /** The word being spoken at [ms] (−1 before the first). */
     fun wordAt(ms: Long): Int = words?.let { w -> w.indexOfLast { it <= ms } } ?: -1
@@ -107,7 +111,7 @@ data class Layer(
     /** The name shown for this layer: your own name, else its text / kind. */
     val displayName: String get() = name?.takeIf { it.isNotBlank() }
         ?: when (kind) { LayerKind.TEXT, LayerKind.WATERMARK, LayerKind.STICKER -> text.replace('\n', ' '); LayerKind.LOGO, LayerKind.IMAGE -> "Image"; else -> kind.label }
-    val isMedia get() = kind == LayerKind.VIDEO || kind == LayerKind.IMAGE || kind == LayerKind.LOGO
+    val isMedia get() = kind == LayerKind.VIDEO || kind == LayerKind.IMAGE || kind == LayerKind.LOGO || kind == LayerKind.SHAPE || kind == LayerKind.LOTTIE
     fun activeAt(ms: Long) = visible && (wholeVideo || ms in startMs..endMs)
 }
 
@@ -212,10 +216,12 @@ object LayerRenderer {
     private val logoCache = HashMap<String, Bitmap>()
 
     /** Draws a layer at the size it should have on a [frameW]×[frameH] frame. */
-    fun render(context: Context, l: Layer, frameW: Int, frameH: Int, chars: Int = Int.MAX_VALUE, hi: Int = -1): Bitmap? {
+    fun render(context: Context, l: Layer, frameW: Int, frameH: Int, chars: Int = Int.MAX_VALUE, hi: Int = -1, atMs: Long = -1L): Bitmap? {
         val px = max(8f, l.size * frameH)
         return when (l.kind) {
             LayerKind.VIDEO, LayerKind.ADJUST -> null
+            LayerKind.SHAPE -> ShapeRender.render(l, px, frameW)
+            LayerKind.LOTTIE -> LottieRender.render(context, l, px, frameW, if (atMs < 0) 0 else LottieRender.frameIndex(context, l, atMs))
             LayerKind.LOGO, LayerKind.IMAGE -> {
                 val uri = l.imageUri ?: return null
                 val src = synchronized(logoCache) {
@@ -306,7 +312,12 @@ class LayerOverlay(
     private val partial: ((Int) -> Bitmap?)? = null,
     /** Draws the layer with word n highlighted (word-by-word captions). */
     private val highlighted: ((Int) -> Bitmap?)? = null,
+    /** Animated layers (Lottie): the frame index at a time, and that frame's picture. */
+    private val frameIndex: ((Long) -> Int)? = null,
+    private val frameAt: ((Int) -> Bitmap?)? = null,
 ) : BitmapOverlay() {
+    private var lastFrame = -1
+    private var lastBmp: Bitmap? = null
     private val blank = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
     private val startUs = l.startMs * 1000
     private val endUs = l.endMs * 1000
@@ -321,6 +332,12 @@ class LayerOverlay(
 
     override fun getBitmap(presentationTimeUs: Long): Bitmap {
         if (!(whole || presentationTimeUs in startUs..endUs)) return blank
+        if (frameIndex != null && frameAt != null) {
+            // A new bitmap per frame (the overlay re-uploads only when the bitmap object changes).
+            val n = frameIndex.invoke(presentationTimeUs / 1000)
+            if (n != lastFrame || lastBmp == null) { lastBmp = frameAt.invoke(n) ?: lastBmp; lastFrame = n }
+            return lastBmp ?: bitmap
+        }
         if (l.words != null && highlighted != null) {
             val n = l.wordAt(presentationTimeUs / 1000)
             if (n >= 0) return frames.getOrPut(100_000 + n) { highlighted.invoke(n) ?: bitmap }

@@ -85,6 +85,7 @@ class MainActivity : ComponentActivity() {
     private val screen = androidx.compose.runtime.mutableStateOf(com.dronedirector.veyrocutpro.ui.AppScreen.HOME)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        Thread { com.dronedirector.veyrocutpro.editor.VoiceIsolator.prepare(applicationContext) }.start()
         super.onCreate(savedInstanceState)
         com.dronedirector.veyrocutpro.ui.CrashReport.install(this)
         com.dronedirector.veyrocutpro.editor.LutLibrary.init(this)

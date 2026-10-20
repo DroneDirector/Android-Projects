@@ -15,13 +15,29 @@ class VoiceIsolator(private val channels: Int, private val rate: Int, private va
         val available: Boolean by lazy {
             try { System.loadLibrary("veyrocut_native"); true } catch (_: Throwable) { false }
         }
+        /** Where the DeepFilterNet3 model file is (copied out of the app's assets by [prepare]). */
+        @Volatile var dfModel: String? = null
         /** Studio voice (DeepFilterNet3) can run on this phone. */
-        val studioAvailable: Boolean by lazy { available && try { nativeDfAvailable() } catch (_: Throwable) { false } }
+        val studioAvailable: Boolean get() = dfModel != null && dfOk
+        private val dfOk: Boolean by lazy { available && try { nativeDfAvailable() } catch (_: Throwable) { false } }
+
+        /** Copies the DeepFilterNet3 model out of the app (once) so the native part can read it. */
+        fun prepare(context: android.content.Context) {
+            if (dfModel != null) return
+            try {
+                val f = java.io.File(context.filesDir, "models/DeepFilterNet3_onnx.tar.gz")
+                if (!f.exists() || f.length() < 1000) {
+                    f.parentFile?.mkdirs()
+                    context.assets.open("DeepFilterNet3_onnx.tar.gz").use { i -> f.outputStream().use { o -> i.copyTo(o) } }
+                }
+                dfModel = f.path
+            } catch (_: Throwable) {}
+        }
         @JvmStatic private external fun nativeCreate(): Long
         @JvmStatic private external fun nativeDestroy(h: Long)
         @JvmStatic private external fun nativeProcess(h: Long, input: FloatArray, output: FloatArray): Float
         @JvmStatic private external fun nativeDfAvailable(): Boolean
-        @JvmStatic private external fun nativeDfCreate(atten: Float): Long
+        @JvmStatic private external fun nativeDfCreate(model: String, atten: Float): Long
         @JvmStatic private external fun nativeDfFrame(h: Long): Int
         @JvmStatic private external fun nativeDfDestroy(h: Long)
         @JvmStatic private external fun nativeDfProcess(h: Long, input: FloatArray, output: FloatArray): Float
@@ -31,7 +47,7 @@ class VoiceIsolator(private val channels: Int, private val rate: Int, private va
     val delay: Int = ((FRAME + (if (studio) DF_DELAY else 0)).toLong() * rate / 48000).toInt() + 4
 
     private inner class Chan {
-        val h = if (studio) nativeDfCreate(100f) else nativeCreate()
+        val h = if (studio) nativeDfCreate(dfModel ?: "", 100f) else nativeCreate()
         // The dry signal, held back by the model's own delay so dry and clean line up when mixed.
         val dryDelay = ArrayDeque<Float>().also { q -> if (studio) repeat(DF_DELAY) { q.addLast(0f) } }
         // Up-sampling (input rate → 48 kHz) state.

@@ -29,7 +29,7 @@ Java_com_dronedirector_veyrocutpro_editor_VoiceIsolator_nativeProcess(JNIEnv *en
 // ---------------------------------------------------------------- DeepFilterNet3 (studio voice)
 // libdf.so (DeepFilterNet, MIT / Apache 2.0) is loaded at run time, so the app still works without it.
 #include <dlfcn.h>
-typedef void *(*df_create_t)(const char *, float, const char *);
+typedef void *(*df_create_t)(const char *, float);
 typedef size_t (*df_len_t)(void *);
 typedef float (*df_proc_t)(void *, float *, float *);
 typedef void (*df_free_t)(void *);
@@ -53,11 +53,13 @@ static int df_load(void) {
 JNIEXPORT jboolean JNICALL
 Java_com_dronedirector_veyrocutpro_editor_VoiceIsolator_nativeDfAvailable(JNIEnv *env, jclass clazz) { return df_load() ? JNI_TRUE : JNI_FALSE; }
 
-// atten: how far the noise may be pushed down (dB); NULL model path = the built-in DeepFilterNet3.
+// model: path of DeepFilterNet3_onnx.tar.gz; atten: how far the noise may be pushed down (dB).
 JNIEXPORT jlong JNICALL
-Java_com_dronedirector_veyrocutpro_editor_VoiceIsolator_nativeDfCreate(JNIEnv *env, jclass clazz, jfloat atten) {
-    if (!df_load()) return 0;
-    void *st = p_create(NULL, atten, NULL);
+Java_com_dronedirector_veyrocutpro_editor_VoiceIsolator_nativeDfCreate(JNIEnv *env, jclass clazz, jstring model, jfloat atten) {
+    if (!df_load() || !model) return 0;
+    const char *path = (*env)->GetStringUTFChars(env, model, NULL);
+    void *st = p_create(path, atten);
+    (*env)->ReleaseStringUTFChars(env, model, path);
     if (st && p_beta) p_beta(st, 0.02f);
     return (jlong)(intptr_t) st;
 }

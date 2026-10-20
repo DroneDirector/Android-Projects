@@ -310,7 +310,7 @@ class G2P private constructor(private val gold: Map<String, String>, private val
         val r = listOf(
             "tion" to "ʃən", "sion" to "ʒən", "ough" to "O", "augh" to "ɔ", "eigh" to "A", "igh" to "I", "tch" to "ʧ", "sch" to "sk",
             "ch" to "ʧ", "sh" to "ʃ", "th" to "θ", "ph" to "f", "wh" to "w", "ck" to "k", "ng" to "ŋ", "qu" to "kw", "gh" to "",
-            "ee" to "i", "ea" to "i", "oo" to "u", "ou" to "W", "ow" to "O", "oi" to "Y", "oy" to "Y", "ai" to "A", "ay" to "A",
+            "ey" to "A", "oe" to "O", "ee" to "i", "ea" to "i", "oo" to "u", "ou" to "W", "ow" to "O", "oi" to "Y", "oy" to "Y", "ai" to "A", "ay" to "A",
             "au" to "ɔ", "aw" to "ɔ", "ie" to "i", "ei" to "A", "ue" to "u", "ew" to "u", "oa" to "O", "ar" to "ɑɹ", "or" to "ɔɹ",
             "er" to "əɹ", "ir" to "ɜɹ", "ur" to "ɜɹ",
             "a" to "æ", "b" to "b", "c" to "k", "d" to "d", "e" to "ɛ", "f" to "f", "g" to "ɡ", "h" to "h", "i" to "ɪ", "j" to "ʤ",
@@ -333,8 +333,9 @@ class G2P private constructor(private val gold: Map<String, String>, private val
             if (m.first.length == 1 && i > 0 && word[i - 1] == word[i] && word[i] !in "aeiou") { i++; continue }
             sb.append(m.second); i += m.first.length
         }
-        // Stress on the first vowel.
-        val p = sb.toString()
+        // Stress on the first vowel; British English drops the r after a vowel.
+        var p = sb.toString()
+        if (british) p = p.replace("əɹ", "ə").replace("ɑɹ", "ɑː").replace("ɔɹ", "ɔː").replace("ɜɹ", "ɜː").replace("O", "Q")
         val v = p.indexOfFirst { it in "æɛɪɑʌəaeiouAIOWYɜɔ" }
         return if (v >= 0 && p.count { it in "æɛɪɑʌəaeiouAIOWYɜɔ" } > 1) p.substring(0, v) + "ˈ" + p.substring(v) else p
     }

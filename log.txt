@@ -1,0 +1,81 @@
++ pip install -q onnxruntime==1.19.2 numpy soundfile faster-whisper
++ B=https://github.com/DroneDirector/Android-Projects/releases/download/ai-models-v1
++ mkdir -p m
++ for f in kokoro_v1_q8.onnx kokoro_af_heart.bin kokoro_bm_george.bin misaki_us_gold.json misaki_us_silver.json misaki_gb_gold.json misaki_gb_silver.json kokoro_tokenizer.json
++ curl -fsSL -o m/kokoro_v1_q8.onnx https://github.com/DroneDirector/Android-Projects/releases/download/ai-models-v1/kokoro_v1_q8.onnx
++ for f in kokoro_v1_q8.onnx kokoro_af_heart.bin kokoro_bm_george.bin misaki_us_gold.json misaki_us_silver.json misaki_gb_gold.json misaki_gb_silver.json kokoro_tokenizer.json
++ curl -fsSL -o m/kokoro_af_heart.bin https://github.com/DroneDirector/Android-Projects/releases/download/ai-models-v1/kokoro_af_heart.bin
++ for f in kokoro_v1_q8.onnx kokoro_af_heart.bin kokoro_bm_george.bin misaki_us_gold.json misaki_us_silver.json misaki_gb_gold.json misaki_gb_silver.json kokoro_tokenizer.json
++ curl -fsSL -o m/kokoro_bm_george.bin https://github.com/DroneDirector/Android-Projects/releases/download/ai-models-v1/kokoro_bm_george.bin
++ for f in kokoro_v1_q8.onnx kokoro_af_heart.bin kokoro_bm_george.bin misaki_us_gold.json misaki_us_silver.json misaki_gb_gold.json misaki_gb_silver.json kokoro_tokenizer.json
++ curl -fsSL -o m/misaki_us_gold.json https://github.com/DroneDirector/Android-Projects/releases/download/ai-models-v1/misaki_us_gold.json
++ for f in kokoro_v1_q8.onnx kokoro_af_heart.bin kokoro_bm_george.bin misaki_us_gold.json misaki_us_silver.json misaki_gb_gold.json misaki_gb_silver.json kokoro_tokenizer.json
++ curl -fsSL -o m/misaki_us_silver.json https://github.com/DroneDirector/Android-Projects/releases/download/ai-models-v1/misaki_us_silver.json
++ for f in kokoro_v1_q8.onnx kokoro_af_heart.bin kokoro_bm_george.bin misaki_us_gold.json misaki_us_silver.json misaki_gb_gold.json misaki_gb_silver.json kokoro_tokenizer.json
++ curl -fsSL -o m/misaki_gb_gold.json https://github.com/DroneDirector/Android-Projects/releases/download/ai-models-v1/misaki_gb_gold.json
++ for f in kokoro_v1_q8.onnx kokoro_af_heart.bin kokoro_bm_george.bin misaki_us_gold.json misaki_us_silver.json misaki_gb_gold.json misaki_gb_silver.json kokoro_tokenizer.json
++ curl -fsSL -o m/misaki_gb_silver.json https://github.com/DroneDirector/Android-Projects/releases/download/ai-models-v1/misaki_gb_silver.json
++ for f in kokoro_v1_q8.onnx kokoro_af_heart.bin kokoro_bm_george.bin misaki_us_gold.json misaki_us_silver.json misaki_gb_gold.json misaki_gb_silver.json kokoro_tokenizer.json
++ curl -fsSL -o m/kokoro_tokenizer.json https://github.com/DroneDirector/Android-Projects/releases/download/ai-models-v1/kokoro_tokenizer.json
++ curl -fsSL -o kc.zip https://github.com/JetBrains/kotlin/releases/download/v2.0.21/kotlin-compiler-2.0.21.zip
++ unzip -q kc.zip
++ curl -fsSL -o json.jar https://repo1.maven.org/maven2/org/json/json/20240303/json-20240303.jar
++ python3 -
++ cat
++ kotlinc/bin/kotlinc G2PTest.kt -cp json.jar -include-runtime -d g2p.jar
++ grep -v warning
++ true
++ java -cp g2p.jar:json.jar G2PTestKt
++ cp sent.txt ph_us.txt ph_gb.txt out/
++ cat
++ python3 k.py
++ tee out/tts.txt
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[us af_heart] Welcome to VeyroCut Pro, the video editor that fits in your pocket.
+   ph: wˈɛlkəm tu vˈɛiɹɑkʌt pɹˈO, ði vˈɪdiO ˈɛdəɾəɹ ðæt fˈɪts ɪn jʊɹ pˈɑkət.
+   heard: Welcome to Veyrockut Pro, the video editor that fits in your pocket.
+   missing: []
+[us af_heart] On the 3rd of July 2026, we filmed 150 drone shots over the Faroe Islands.
+   ph: ˌɔn ði θˈɜɹd ʌv ʤəlˈI twˈɛnti twˈɛnti sˈɪks, wi fˈɪlmd wˈʌn hˈʌndɹəd ænd fˈɪfti dɹˈOn ʃˈɑts ˈOvəɹ ði fˈɑɹɑɛ ˈIləndz.
+   heard: On the 3rd of July, 2026, we filmed 150 drone shots over the Far Eye Islands.
+   missing: []
+[us af_heart] It costs $4.99 and saves you 25% of your time.
+   ph: ɪt kˈɔsts fˈɔɹ dˈɑləɹz ænd nˈIndi nˈIn sˈɛnts ænd sˈAvz ju twˈɛnti fˈIv pəɹsˈɛnt ʌv jʊɹ tˈIm.
+   heard: It costs $4.99 and saves you 25% of your time.
+   missing: []
+[us af_heart] Dr. Smith's interview starts at 9:30, so don't be late!
+   ph: dˈɑktəɹ smˈɪθs ˈɪntəɹvjˌu stˈɑɹts æt nˈIn θˈɜɹɾi, sˌO dˈOnt bi lˈAt!
+   heard: Dr. Smith's interview starts at 9.30, so don't be late.
+   missing: []
+[us af_heart] The quick brown fox jumps over the lazy dog.
+   ph: ði kwˈɪk bɹˈWn fˈɑks ʤˈʌmps ˈOvəɹ ði lˈAzi dˈɔɡ.
+   heard: The quick brown fox jumps over the lazy dog.
+   missing: []
+[us af_heart] Glimmerfrost and Thundervale are made-up words that aren't in any dictionary.
+   ph: ɡlˈɪməɹfɹɑst ænd θˈʌndəɹvAl ɑɹ mˌAdˈʌp wˈɜɹdz ðæt ˌɑɹnt ɪn ˈɛni dˈɪkʃənˌɛɹi.
+   heard: Glimmer Frost and Thunderville are made up words that aren't in any dictionary.
+   missing: []
+[gb bm_george] Welcome to VeyroCut Pro, the video editor that fits in your pocket.
+   ph: wˈɛlkəm tuː vˈɛiɹɑkʌt pɹˈQ, ðə vˈɪdɪQ ˈɛdɪtə ðat fˈɪts ɪn jɔː pˈɒkɪt.
+   heard: Welcome to Vey Ruckut Pro, the video editor that fits in your pocket.
+   missing: []
+[gb bm_george] On the 3rd of July 2026, we filmed 150 drone shots over the Faroe Islands.
+   ph: ˌɒn ðə θˈɜːd ɒv ʤʊlˈI twˈɛnti twˈɛnti sˈɪks, wiː fˈɪlmd wˈʌn hˈʌndɹəd and fˈɪfti dɹˈQn ʃˈɒts ˈQvə ðə fˈɑɹɑɛ ˈIləndz.
+   heard: On the 3rd of July, 2026, we filmed 150 drone shots over the Faray Islands.
+   missing: []
+[gb bm_george] It costs $4.99 and saves you 25% of your time.
+   ph: ɪt kˈɒsts fˈɔː dˈɒləz and nˈInti nˈIn sˈɛnts and sˈAvz juː twˈɛnti fˈIv pəsˈɛnt ɒv jɔː tˈIm.
+   heard: It costs $4.99 and saves you 25% of your time.
+   missing: []
+[gb bm_george] Dr. Smith's interview starts at 9:30, so don't be late!
+   ph: dˈɒktə smˈɪθs ˈɪntəvjuː stˈɑːts at nˈIn θˈɜːti, sˌQ dˈQnt biː lˈAt!
+   heard: Dr. Smith's interview starts at 9.30, so don't be late.
+   missing: []
+[gb bm_george] The quick brown fox jumps over the lazy dog.
+   ph: ðə kwˈɪk bɹˈWn fˈɒks ʤˈʌmps ˈQvə ðə lˈAzi dˈɒɡ.
+   heard: The quick brown fox jumps over the lazy dog.
+   missing: []
+[gb bm_george] Glimmerfrost and Thundervale are made-up words that aren't in any dictionary.
+   ph: ɡlˈɪməɹfɹɑst and θˈʌndəɹvAl ɑː mˌAdˈʌp wˈɜːdz ðat ˌɑːnt ɪn ˈɛni dˈɪkʃənəɹi.
+   heard: Glimmer Frost and Thunderville are made up words that aren't in any dictionary.
+   missing: []

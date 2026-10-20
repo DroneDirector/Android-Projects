@@ -1,0 +1,97 @@
++ git clone -q --depth 1 --branch v0.5.6 https://github.com/Rikorose/DeepFilterNet.git dfn
+Note: switching to '978576aa8400552a4ce9730838c635aa30db5e61'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
++ cp dfn/libDF/Cargo.toml out/libDF_Cargo.toml
++ cp dfn/libDF/src/capi.rs out/capi.rs
++ ls dfn/models
++ ls -la dfn/models
+total 82892
+drwxr-xr-x  2 runner runner     4096 Oct 20 04:41 .
+drwxr-xr-x 13 runner runner     4096 Oct 20 04:41 ..
+-rw-r--r--  1 runner runner  6645650 Oct 20 04:41 DeepFilterNet.zip
+-rw-r--r--  1 runner runner  8629708 Oct 20 04:41 DeepFilterNet2.zip
+-rw-r--r--  1 runner runner  8628375 Oct 20 04:41 DeepFilterNet2_onnx.tar.gz
+-rw-r--r--  1 runner runner  8628785 Oct 20 04:41 DeepFilterNet2_onnx_ll.tar.gz
+-rw-r--r--  1 runner runner  7986207 Oct 20 04:41 DeepFilterNet3.zip
+-rw-r--r--  1 runner runner 36359660 Oct 20 04:41 DeepFilterNet3_ll_onnx.tar.gz
+-rw-r--r--  1 runner runner  7983136 Oct 20 04:41 DeepFilterNet3_onnx.tar.gz
++ rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+info: downloading 3 components
++ cargo install -q cargo-ndk
++ export ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/30.0.16248370
++ ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/30.0.16248370
++ cd dfn/libDF
++ cargo build -q --release --features capi,default-model --lib
++ tail -5
+83 |     let items: Box<_> = format_items
+   |              ++++++++
+
+For more information about this error, try `rustc --explain E0282`.
+error: could not compile `time` (lib) due to 1 previous error
++ ls -la ../target/release
++ tee ../../out/host_libs.txt
++ grep -i '\.so\|\.a'
++ cd ../..
++ cd dfn/libDF
++ cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -P 24 -o ../../out/jniLibs build --release --features capi,default-model --lib
++ tail -20
+error[E0282]: type annotations needed for `Box<_>`
+  --> /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/time-0.3.28/src/format_description/parse/mod.rs:83:9
+   |
+83 |     let items = format_items
+   |         ^^^^^
+...
+86 |     Ok(items.into())
+   |        ----- type must be known at this point
+   |
+help: consider giving `items` an explicit type, where the placeholder `_` is specified
+   |
+83 |     let items: Box<_> = format_items
+   |              ++++++++
+
+For more information about this error, try `rustc --explain E0282`.
+error: could not compile `time` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+note: If the build failed due to a missing target, you can run this command:
+note: 
+note:     rustup target install aarch64-linux-android
++ cd ../..
++ find out/jniLibs -type f
++ xargs ls -la
+total 36
+drwxr-xr-x  7 runner runner 4096 Oct 20 04:41 .
+drwxr-xr-x  3 runner runner 4096 Oct 20 04:41 ..
+drwxr-xr-x  7 runner runner 4096 Oct 20 04:41 .git
+drwxr-xr-x  4 runner runner 4096 Oct 20 04:41 .github
+-rw-r--r--  1 runner runner   75 Oct 20 04:41 .gitignore
+drwxr-xr-x  6 runner runner 4096 Oct 20 04:41 ProCamera
+-rw-r--r--  1 runner runner 1977 Oct 20 04:41 README.md
+drwxr-xr-x 14 runner runner 4096 Oct 20 04:42 dfn
+drwxr-xr-x  3 runner runner 4096 Oct 20 04:43 out
++ pip install -q numpy soundfile
++ curl -fsSL -o speech.wav https://raw.githubusercontent.com/Rikorose/DeepFilterNet/main/assets/noisy_snr0.wav
++ ls -la speech.wav
+-rw-r--r-- 1 runner runner 1017226 Oct 20 04:43 speech.wav
++ cat
++ python3 t.py
+Traceback (most recent call last):
+  File "/home/runner/work/Android-Projects/Android-Projects/t.py", line 2, in <module>
+    lib = ctypes.CDLL(glob.glob('dfn/target/release/libdeep_filter*.so')[0])
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^
+IndexError: list index out of range
++ true

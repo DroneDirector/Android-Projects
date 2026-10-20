@@ -28,6 +28,6 @@ jobs:
         if: always()
         run: |
           [ -d out ] || exit 0
-          cd out && find . -size +40M -delete; git init -q -b aitest && git add -A
+          cd out && find . -size +40M -delete; git init -q -b aitest-${{ inputs.script }} && git add -A
           git -c user.name="github-actions" -c user.email="actions@github.com" commit -qm "AI run ${{ inputs.script }}"
-          git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" aitest
+          git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" aitest-${{ inputs.script }}

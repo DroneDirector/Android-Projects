@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.388 — 2026-10-20
 - Photo editor, Export → FORMAT: **AVIF** and **JPEG XL**.
   - **AVIF** is often half the size of a JPEG at the same quality. It uses the phone's own AV1 encoder, which Android 14 and newer have built in. The app checks that every AVIF file opens before keeping it.
   - **JPEG XL** gives high quality at small sizes and opens on Apple devices, in Safari and in newer photo software.

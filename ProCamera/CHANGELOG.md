@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.402 — 2026-10-20
 - Video editor timeline: clips start right next to the track headers and are never drawn past them, even when scrolled or selected.
 
 ## 1.0.400 — 2026-10-20

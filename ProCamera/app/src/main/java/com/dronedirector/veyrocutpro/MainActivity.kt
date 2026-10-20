@@ -159,6 +159,8 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+                // First launch: AI models and soundtracks are downloaded once (not inside the APK).
+                com.dronedirector.veyrocutpro.ui.FirstRunGate()
             }
         }
     }
@@ -196,6 +198,8 @@ class MainActivity : ComponentActivity() {
             com.dronedirector.veyrocutpro.camera.LivePlatform.entries.firstOrNull { it.name == p }?.let { controller.live.selectPlatform(it) }
         }
         if (extras.getBoolean("nosetup", false)) controller.live.showSetup(false)
+        // Automated runs: let the first-time download carry on in the background.
+        if (extras.getBoolean("bgsetup", false)) com.dronedirector.veyrocutpro.editor.AppData.background = true
         if (extras.getBoolean("peaking", false)) controller.togglePeaking()
         if (extras.getBoolean("zebras", false)) controller.toggleZebras()
         if (extras.getBoolean("falsecolor", false)) controller.toggleFalseColor()

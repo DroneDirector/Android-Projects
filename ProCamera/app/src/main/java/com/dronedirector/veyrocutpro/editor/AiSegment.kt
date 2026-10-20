@@ -28,8 +28,9 @@ object AiSegment {
     private fun ensure(context: Context): CompiledModel? {
         model?.let { return it }
         if (failed) return null
+        if (!hasModel(context)) return null
         for (acc in listOf(Accelerator.GPU, Accelerator.CPU)) {
-            try { return CompiledModel.create(context.assets, ASSET, CompiledModel.Options(acc), null).also { model = it } } catch (_: Throwable) {}
+            try { return CompiledModel.create(AppData.file(context, ASSET).path, CompiledModel.Options(acc), null).also { model = it } } catch (_: Throwable) {}
         }
         failed = true
         return null
@@ -95,7 +96,7 @@ object AiSegment {
         return if (sw < N * N * 0.004f) null else sx / sw / (N - 1)
     }
 
-    fun hasModel(context: Context) = try { context.assets.open(ASSET).close(); true } catch (_: Throwable) { false }
+    fun hasModel(context: Context) = AppData.has(context, ASSET)
 
     private fun jpeg(b: Bitmap): ByteArray = java.io.ByteArrayOutputStream().also { b.compress(Bitmap.CompressFormat.JPEG, 92, it) }.toByteArray()
 

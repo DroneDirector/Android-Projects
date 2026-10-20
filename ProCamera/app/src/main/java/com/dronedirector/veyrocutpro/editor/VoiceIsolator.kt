@@ -19,19 +19,14 @@ class VoiceIsolator(private val channels: Int, private val rate: Int, private va
         @Volatile var dfModel: String? = null
         /** Studio voice (DeepFilterNet3) can run on this phone. */
         val studioAvailable: Boolean get() = dfModel != null && dfOk
+        /** Call before export: picks up the model if it has arrived since start-up. */
+        fun studioReady(context: android.content.Context): Boolean { prepare(context); return studioAvailable }
         private val dfOk: Boolean by lazy { available && try { nativeDfAvailable() } catch (_: Throwable) { false } }
 
-        /** Copies the DeepFilterNet3 model out of the app (once) so the native part can read it. */
+        /** Finds the DeepFilterNet3 model (downloaded on first launch). */
         fun prepare(context: android.content.Context) {
             if (dfModel != null) return
-            try {
-                val f = java.io.File(context.filesDir, "models/DeepFilterNet3_onnx.tar.gz")
-                if (!f.exists() || f.length() < 1000) {
-                    f.parentFile?.mkdirs()
-                    context.assets.open("DeepFilterNet3_onnx.tar.gz").use { i -> f.outputStream().use { o -> i.copyTo(o) } }
-                }
-                dfModel = f.path
-            } catch (_: Throwable) {}
+            if (AppData.has(context, "DeepFilterNet3_onnx.tar.gz")) dfModel = AppData.file(context, "DeepFilterNet3_onnx.tar.gz").path
         }
         @JvmStatic private external fun nativeCreate(): Long
         @JvmStatic private external fun nativeDestroy(h: Long)

@@ -37,14 +37,16 @@ object AiDenoiser {
 
     fun stop() = cancel.set(true)
 
-    fun available(context: Context): Boolean = try { context.assets.open(ASSET).close(); true } catch (_: Throwable) { false }
+    /** The model is downloaded on first launch (app data). */
+    fun available(context: Context): Boolean = AppData.has(context, ASSET)
 
     private fun ensure(context: Context): CompiledModel? {
         model?.let { return it }
         if (failed) return null
+        if (!available(context)) return null
         for (acc in listOf(Accelerator.GPU, Accelerator.CPU)) {
             try {
-                val m = CompiledModel.create(context.assets, ASSET, CompiledModel.Options(acc), null)
+                val m = CompiledModel.create(AppData.file(context, ASSET).path, CompiledModel.Options(acc), null)
                 model = m
                 return m
             } catch (_: Throwable) {}

@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- **Much smaller app**: one APK per phone type (almost every phone takes the main APK), and the AI models and soundtracks are no longer inside the APK — on first launch the app downloads them once (about 700 MB) with a progress screen. It asks first on mobile data, carries on where it stopped if the connection drops, and you can start using the app while it downloads.
 
 ## 1.0.331 — 2026-10-20
 - Video editor: **Object removal (AI)** (Color → Detail → REMOVE AN OBJECT) — tap a person, car, sign or wire and it disappears from the whole clip, filled from the real background in the frames around it.

@@ -9,8 +9,17 @@ val ciVersionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
 
 android {
     namespace = "com.dronedirector.veyrocutpro"
-    // AI models are read straight from the APK (no unpacking).
+    // AI models and soundtracks are downloaded on first launch (not in the APK).
     androidResources { noCompress += listOf("onnx", "tflite") }
+    // One APK per processor type: each phone gets only its own native code (smaller download).
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = false
+        }
+    }
     compileSdk = 36
 
     lint {
@@ -25,8 +34,7 @@ android {
         targetSdk = 35
         versionCode = ciVersionCode
         versionName = "1.0.$ciVersionCode"
-        // Native code (RNNoise voice isolation, whisper.cpp transcription): phones + the x86_64 emulator.
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
+        // Native code (RNNoise, whisper.cpp, morph, DeepFilterNet): phones + the x86_64 emulator — see splits below.
         externalNativeBuild { cmake { cppFlags += "" } }
     }
 

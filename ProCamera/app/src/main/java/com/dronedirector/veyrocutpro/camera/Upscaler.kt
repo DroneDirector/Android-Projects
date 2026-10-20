@@ -148,10 +148,11 @@ object Upscaler {
     private fun ensureModel(context: Context): Boolean {
         if (model != null) return true
         if (modelMissing) return false
-        try { context.assets.open("esrgan.tflite").close() } catch (_: Throwable) { modelMissing = true; return false }
+        // Downloaded on first launch; not there yet = classic resize for now (asked again next time).
+        if (!com.dronedirector.veyrocutpro.editor.AppData.has(context, "esrgan.tflite")) return false
         for (acc in listOf(com.google.ai.edge.litert.Accelerator.GPU, com.google.ai.edge.litert.Accelerator.CPU)) {
             try {
-                val m = com.google.ai.edge.litert.CompiledModel.create(context.assets, "esrgan.tflite", com.google.ai.edge.litert.CompiledModel.Options(acc), null)
+                val m = com.google.ai.edge.litert.CompiledModel.create(com.dronedirector.veyrocutpro.editor.AppData.file(context, "esrgan.tflite").path, com.google.ai.edge.litert.CompiledModel.Options(acc), null)
                 val ins = m.createInputBuffers(); val outs = m.createOutputBuffers()
                 // ESRGAN: 50×50 RGB in (0..255, NHWC) → 200×200 out. Self-test on a colour ramp.
                 val tin = 50; val tout = 200

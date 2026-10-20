@@ -68,9 +68,8 @@ object Sam {
                 try { addXnnpack(mapOf("intra_op_num_threads" to Runtime.getRuntime().availableProcessors().coerceIn(2, 6).toString())) } catch (_: Throwable) {}
                 setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
             }
-            val eb = context.assets.open("sam_encoder.onnx").use { it.readBytes() }
-            val db = context.assets.open("sam_decoder.onnx").use { it.readBytes() }
-            env = e; enc = e.createSession(eb, opts()); dec = e.createSession(db, opts())
+            if (!AppData.has(context, "sam_encoder.onnx") || !AppData.has(context, "sam_decoder.onnx")) { failed = "the Magic Mask model is still downloading"; return false }
+            env = e; enc = e.createSession(AppData.file(context, "sam_encoder.onnx").path, opts()); dec = e.createSession(AppData.file(context, "sam_decoder.onnx").path, opts())
             true
         } catch (t: Throwable) { failed = t.message ?: t.javaClass.simpleName; false }
     }

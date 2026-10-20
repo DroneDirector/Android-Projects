@@ -54,19 +54,15 @@ object SoundLibrary {
         LibSection("nature", "Nature sounds", "Wind, water, birds and ambience", emptyList()),
     )
 
-    private fun assetPath(section: LibSection, t: LibTrack) = "sound_library/${section.folder}/${t.id}.m4a"
 
-    /** A file copy of the track the editor can use anywhere; made once, then reused. */
-    fun file(context: Context, section: LibSection, t: LibTrack): Uri? = try {
-        val dir = File(context.filesDir, "sound_library/${section.folder}").apply { mkdirs() }
-        val f = File(dir, "${t.id}.m4a")
-        if (!f.exists() || f.length() == 0L) {
-            val tmp = File(dir, "${t.id}.part")
-            context.assets.open(assetPath(section, t)).use { i -> tmp.outputStream().use { o -> i.copyTo(o) } }
-            tmp.renameTo(f)
-        }
-        Uri.fromFile(f)
-    } catch (_: Throwable) { null }
+    /** Where a track is kept (downloaded on first launch). */
+    fun target(context: Context, folder: String, id: String) = File(File(context.filesDir, "sound_library/$folder").apply { mkdirs() }, "$id.m4a")
+
+    /** The track's file, or null while it hasn't been downloaded yet. */
+    fun file(context: Context, section: LibSection, t: LibTrack): Uri? {
+        val f = target(context, section.folder, t.id)
+        return if (f.exists() && f.length() > 0L) Uri.fromFile(f) else null
+    }
 
     // ---- preview (listen before adding)
 
@@ -79,7 +75,9 @@ object SoundLibrary {
         if (wasThis) { onChange(null); return }
         try {
             val mp = MediaPlayer()
-            context.assets.openFd(assetPath(section, t)).use { fd -> mp.setDataSource(fd.fileDescriptor, fd.startOffset, fd.length) }
+            val f = target(context, section.folder, t.id)
+            if (!f.exists()) { onChange(null); return }
+            mp.setDataSource(f.path)
             mp.setOnCompletionListener { stopPreview(); onChange(null) }
             mp.prepare()
             mp.start()

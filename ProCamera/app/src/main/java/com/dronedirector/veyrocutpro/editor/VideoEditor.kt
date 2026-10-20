@@ -2994,7 +2994,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onLibraryAdd = { sec, t ->
                                     layerScope.launch {
                                         val uri = withContext(Dispatchers.IO) { SoundLibrary.file(context, sec, t) }
-                                        if (uri == null) { message = "Couldn't add ${t.title}"; return@launch }
+                                        if (uri == null) { message = "${t.title} is still being downloaded (first-time download) — try again in a moment"; return@launch }
                                         val a = audioPool.firstOrNull { it.uri == uri } ?: PoolAudio(uri, t.title, t.durationMs).also { audioPool.add(it) }
                                         val total = timelineLength(clips)
                                         val head = ((clipStarts(clips).getOrNull(current) ?: 0L) + (clips.getOrNull(current)?.let { it.tlOffsetOf(it.startMs + posMs) } ?: posMs)).coerceIn(0, total)

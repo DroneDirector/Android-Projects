@@ -17,7 +17,8 @@ data class TWord(val clipId: String, val startMs: Long, val endMs: Long, val tex
 enum class SpeechModel(val label: String, val file: String, val sizeMb: Int) {
     BASE("Fast (Base)", "ggml-base-q5_1.bin", 57),
     SMALL("Accurate (Small)", "ggml-small-q5_1.bin", 181);
-    val url: String get() = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$file"
+    /** From the app's own download server (GitHub release); Fast is fetched on first launch, Accurate when chosen. */
+    val url: String get() = ModelStore.BASE + "whisper_$file"
 }
 
 /**

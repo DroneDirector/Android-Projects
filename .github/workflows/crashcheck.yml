@@ -49,7 +49,7 @@ jobs:
           want() { [[ "$TESTS" == *" all "* || "$TESTS" == *" $1 "* ]]; }
           mkdir -p out
           adb wait-for-device
-          adb install -r -g "$(ls apk/*.apk | head -1)" || echo "install failed"
+          adb install -r -g "$(ls apk/*x86_64*.apk 2>/dev/null | head -1 || true)" || adb install -r -g "$(ls apk/*.apk | head -1)" || echo "install failed"
           adb shell settings put secure immersive_mode_confirmations confirmed
           adb shell settings put global hide_error_dialogs 1
           adb shell settings put global anr_show_background 0
@@ -97,7 +97,7 @@ jobs:
           )
             echo "tap between at: $xy"; [ -n "$xy" ] && adb shell input tap $xy
           }
-          start_video() { adb shell am force-stop com.dronedirector.veyrocutpro; adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen video; sleep 12; dismiss; }
+          start_video() { adb shell am force-stop com.dronedirector.veyrocutpro; adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen video --ez bgsetup true; sleep 12; dismiss; }
           colorTabs() {  # the colour tabs scroll sideways: swipe the row that holds "Input" until "Detail" shows
             ROWY=$(adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml | python3 -c "
           import re,sys

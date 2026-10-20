@@ -20,6 +20,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Open from other apps**: Share / Edit with VeyroCut Pro opens the photo or video editor directly.
 
 - **Languages**: English, Danish (Dansk) and Faroese (Føroyskt), following the phone or chosen in settings.
+- **First-launch setup**: the AI models and soundtracks (about 700 MB) are downloaded once on first launch, with a progress screen (asks first on mobile data, resumes after a dropped connection, can carry on in the background); one small APK per phone type.
 
 ## Capture
 ### Modes

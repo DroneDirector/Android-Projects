@@ -42,22 +42,12 @@ jobs:
       - name: Fetch AI upscale model (ESRGAN, Apache-2.0)
         run: |
           mkdir -p app/src/main/assets
-          curl -fsSL --retry 3 -o app/src/main/assets/esrgan.tflite \
-            https://storage.googleapis.com/download.tensorflow.org/models/tflite/esrgan/ESRGAN.tflite \
-            || echo "::warning::ESRGAN model download failed; AI upscale will fall back to classic resize"
-          curl -fsSL --retry 3 -o app/src/main/assets/nafnet.tflite \
-            https://huggingface.co/litert-community/NAFNet-SIDD-width32-LiteRT/resolve/main/nafnet_sidd_width32_fp16.tflite \
-            || echo "::warning::NAFNet model download failed; AI noise reduction will be unavailable"
-          curl -fsSL --retry 3 -o app/src/main/assets/deeplab.tflite \
-            https://storage.googleapis.com/download.tensorflow.org/models/tflite/gpu/deeplabv3_257_mv_gpu.tflite \
-            || echo "::warning::DeepLab model download failed; on-phone AI subject masks will be unavailable"
-          # Magic Mask model (MobileSAM, Apache 2.0), exported to ONNX by the "Magic Mask model" workflow.
-          git fetch -q --depth 1 origin models && for f in sam_encoder.onnx sam_decoder.onnx; do git show FETCH_HEAD:$f > app/src/main/assets/$f; done \
-            || echo "::warning::Magic Mask model missing; Magic Mask will be unavailable"
+          # The AI models and soundtracks are NOT in the APK: the app downloads them on first launch
+          # from the "ai-models-v1" release (see AppData in ModelStore.kt).
+          git fetch -q --depth 1 origin models
           mkdir -p app/src/main/assets/licenses && (git show FETCH_HEAD:MobileSAM-LICENSE.txt > app/src/main/assets/licenses/mobilesam-apache.txt 2>/dev/null || true)
           # Studio voice (DeepFilterNet3, MIT / Apache 2.0): native libraries built by the "AI model prep" workflow, and the model.
           for abi in arm64-v8a armeabi-v7a x86_64; do mkdir -p app/src/main/jniLibs/$abi; git show FETCH_HEAD:dfn/$abi/libdf.so > app/src/main/jniLibs/$abi/libdf.so || rm -f app/src/main/jniLibs/$abi/libdf.so; done
-          git show FETCH_HEAD:dfn/DeepFilterNet3_onnx.tar.gz > app/src/main/assets/DeepFilterNet3_onnx.tar.gz || rm -f app/src/main/assets/DeepFilterNet3_onnx.tar.gz
           git show FETCH_HEAD:dfn/DeepFilterNet-LICENSE-MIT > app/src/main/assets/licenses/deepfilternet-mit.txt 2>/dev/null || true
           # Licence texts shown in the app (Settings → Open-source licences).
           mkdir -p app/src/main/assets/licenses
@@ -74,7 +64,13 @@ jobs:
           chmod +x gradlew
           set -o pipefail
           ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
-          cp app/build/outputs/apk/release/app-release.apk "VeyroCutPro-1.0.${{ github.run_number }}.apk"
+          V="1.0.${{ github.run_number }}"
+          ls -l app/build/outputs/apk/release/
+          # One APK per processor type: 64-bit phones (almost all), older 32-bit phones, and emulators / Chromebooks.
+          cp app/build/outputs/apk/release/app-arm64-v8a-release.apk "VeyroCutPro-$V.apk"
+          cp app/build/outputs/apk/release/app-armeabi-v7a-release.apk "VeyroCutPro-$V-32bit.apk"
+          cp app/build/outputs/apk/release/app-x86_64-release.apk "VeyroCutPro-$V-x86_64.apk"
+          ls -l VeyroCutPro-*.apk
 
       - name: Save native debug symbols (for the Play Console)
         run: |
@@ -137,7 +133,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back virtualscene -camera-front emulated
-          script: bash ProCamera/scripts/screenshots.sh "$(ls apk/*.apk | head -1)" shots
+          script: bash ProCamera/scripts/screenshots.sh "$(ls apk/*x86_64*.apk | head -1)" shots
 
       - name: Save screenshots to the 'screenshots' branch
         if: always()
@@ -187,7 +183,9 @@ jobs:
             echo
             echo "📖 [Full feature list]($REPO/FEATURES.md) · 📝 [Changelog]($REPO/CHANGELOG.md)"
             echo
-            echo "**Install:** tap VeyroCutPro-$VER.apk below to download, then open it to install."
+            echo "**Install:** tap **VeyroCutPro-$VER.apk** below to download, then open it to install (for almost every phone). Older 32-bit phones: VeyroCutPro-$VER-32bit.apk. Emulators / Chromebooks: VeyroCutPro-$VER-x86_64.apk."
+            echo
+            echo "On first launch the app downloads its AI models and soundtracks once (about 700 MB; it asks first on mobile data)."
             echo
             echo "_VeyroCutPro-$VER-native-debug-symbols.zip is for developers only (upload it to the Play Console with this version so native crash reports are readable)._"
           } > release-notes.md
@@ -197,10 +195,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          APK=$(ls apk/*.apk | head -1)
+          APK="apk/VeyroCutPro-1.0.${{ github.run_number }}.apk"
           NAME=$(basename "$APK" .apk)
           SYM=$(ls symbols/*.zip 2>/dev/null | head -1)
-          gh release create "veyrocutpro-1.0.${{ github.run_number }}" "$APK" $SYM \
+          gh release create "veyrocutpro-1.0.${{ github.run_number }}" "$APK" apk/*-32bit.apk apk/*-x86_64.apk $SYM \
             -R "${{ github.repository }}" \
             --title "${NAME/VeyroCutPro-/VeyroCut Pro }" \
             --notes-file release-notes.md \

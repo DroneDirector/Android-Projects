@@ -2690,6 +2690,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
             val wide = maxWidth > maxHeight || maxWidth >= 720.dp
             val boxW = maxWidth.value; val boxH = maxHeight.value
+            // External monitor only (DeX / HDMI desktop): wide, ultra-wide and super ultra-wide layouts.
+            val mon = com.dronedirector.veyrocutpro.ui.monitorClass(boxW, boxH)
+            val monCols = mon == com.dronedirector.veyrocutpro.ui.MonitorClass.ULTRA_WIDE || mon == com.dronedirector.veyrocutpro.ui.MonitorClass.SUPER_ULTRA_WIDE
 
             val viewer = @Composable { mod: Modifier ->
                 // Mouse: double-click the player for full screen, wheel steps through frames.
@@ -3025,10 +3028,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val stripH = if (stripPane.dp < 0f) 70f else stripPane.dp
             val tablet = androidx.compose.ui.platform.LocalConfiguration.current.smallestScreenWidthDp >= 600
             val landscape = maxWidth > maxHeight
-            val stripInTools = showInspector && (!tablet || !landscape)
-            val stripView = @Composable { h: androidx.compose.ui.unit.Dp ->
+            val stripInTools = mon == com.dronedirector.veyrocutpro.ui.MonitorClass.NONE && showInspector && (!tablet || !landscape)
+            val stripView = @Composable { h: androidx.compose.ui.unit.Dp, vertical: Boolean ->
             MediaStrip(
                 thumbHeight = h,
+                vertical = vertical,
+                modifier = if (vertical) Modifier.fillMaxSize() else Modifier,
                 onZoom = { step -> stripPane.dp = (stripH + step).coerceIn(40f, 240f); stripPane.save() },
                     library = library, uses = { c -> clips.count { it.uri == c.uri } }, ratings = ratings,
                     bins = bins, binNames = binNames,
@@ -3082,7 +3087,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         val sc = clips.getOrNull(selected)
                         when (page) {
                             Page.STRIP -> Column {
-                                stripView(stripH.dp)
+                                stripView(stripH.dp, false)
                                 ResizeHandle(true,
                                     onDrag = { d -> stripPane.dp = (stripH + d).coerceIn(40f, 240f) },
                                     onEnd = { stripPane.save() }, onReset = { stripPane.reset() })
@@ -3474,7 +3479,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     VideoPanelsButton(
                         onPage = { page = it },
                         onReset = {
-                            listOf("ve_timeline_land", "ve_timeline_port", "ve_inspector_w", "ve_viewer_port", "ve_strip_h").forEach { PaneSizes.set(context, it, -1f) }
+                            listOf("ve_timeline_land", "ve_timeline_port", "ve_inspector_w", "ve_viewer_port", "ve_strip_h", "ve_mon_media_s", "ve_mon_media_u", "ve_mon_tools_s", "ve_mon_tools_u", "ve_mon_tools_w").forEach { PaneSizes.set(context, it, -1f) }
                             paneVersion++
                             message = "Layout reset to original"
                         },
@@ -3497,7 +3502,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 val viewerPane = rememberPane("ve_viewer_port", paneVersion)
                 val autoViewer = boxW * 9f / 16f
                 val timelineBox = @Composable {
-                    val stripOn = showStrip && !stripInTools   // phone upright: above the timeline (shown even when empty)
+                    val stripOn = showStrip && !stripInTools && !monCols   // above the timeline (shown even when empty); a column on ultra-wide monitors
                     // Divider above the media strip: hold, then drag to give the viewer or the strip more room.
                     if (stripOn) ResizeHandle(true,
                         onDrag = { d ->
@@ -3505,7 +3510,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             stripPane.dp = (stripH - d).coerceIn(40f, 240f)
                         },
                         onEnd = { stripPane.save(); viewerPane.save() }, onReset = { stripPane.reset() })
-                    if (stripOn) stripView(stripH.dp)
+                    if (stripOn) stripView(stripH.dp, false)
                     // Divider between the media strip and the timeline.
                     if (stripOn) ResizeHandle(true,
                         onDrag = { d ->
@@ -3566,8 +3571,37 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         }
                     }
                 }
-                if (wide) {
-                    val insp = rememberPane("ve_inspector_w", paneVersion)
+                if (monCols) {
+                    // Ultra-wide / super ultra-wide monitor: media | viewer | tools, with the timeline across the whole width.
+                    val sup = mon == com.dronedirector.veyrocutpro.ui.MonitorClass.SUPER_ULTRA_WIDE
+                    val mediaPane = rememberPane(if (sup) "ve_mon_media_s" else "ve_mon_media_u", paneVersion)
+                    val toolsPane = rememberPane(if (sup) "ve_mon_tools_s" else "ve_mon_tools_u", paneVersion)
+                    val mediaW = if (mediaPane.dp < 0f) boxW * (if (sup) 0.24f else 0.2f) else mediaPane.dp
+                    val toolsW = if (toolsPane.dp < 0f) boxW * (if (sup) 0.27f else 0.25f) else toolsPane.dp
+                    Row(Modifier.fillMaxWidth().weight(1f)) {
+                        if (showStrip) {
+                            Box(Modifier.width(mediaW.dp).fillMaxHeight().background(Ed.Panel)) { stripView(stripH.dp, true) }
+                            ResizeHandle(false,
+                                onDrag = { d -> mediaPane.dp = (mediaW + d).coerceIn(200f, boxW * 0.4f) },
+                                onEnd = { mediaPane.save() }, onReset = { mediaPane.reset() })
+                        }
+                        Column(Modifier.weight(1f).fillMaxHeight()) {
+                            viewer(Modifier.fillMaxWidth().weight(1f))
+                            if (showTransport) transport()
+                        }
+                        if (showInspector) {
+                            ResizeHandle(false,
+                                onDrag = { d -> toolsPane.dp = (toolsW - d).coerceIn(280f, boxW * 0.45f) },
+                                onEnd = { toolsPane.save() }, onReset = { toolsPane.reset() })
+                            inspector(Modifier.width(toolsW.dp).fillMaxHeight())
+                        }
+                    }
+                    ResizeHandle(true,
+                        onDrag = { d -> tlPane.dp = ((if (tlPane.dp < 0f) 150f else tlPane.dp) - d).coerceIn(70f, boxH * 0.6f) },
+                        onEnd = { tlPane.save() }, onReset = { tlPane.reset() })
+                    timelineBox()
+                } else if (wide) {
+                    val insp = rememberPane(if (mon != com.dronedirector.veyrocutpro.ui.MonitorClass.NONE) "ve_mon_tools_w" else "ve_inspector_w", paneVersion)
                     val maxW = boxW
                     Row(Modifier.fillMaxWidth().weight(1f)) {
                         Column(Modifier.weight(1f).fillMaxHeight()) {

@@ -164,6 +164,8 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
         val scale = if (tablet) (minOf(maxWidth, maxHeight).value / 600f).coerceIn(1.15f, 1.35f) else 1f
 
         CompositionLocalProvider(LocalDensity provides Density(baseDensity.density * scale, baseDensity.fontScale)) {
+            // External ultra-wide monitors: the camera in the middle, a big histogram and the exposure read-out at the sides.
+            MonitorCaptureFrame(analysis, s) {
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val landscape = maxWidth > maxHeight
 
@@ -539,6 +541,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                     if (Tour.visible && !showSettings) TourOverlay()
                 }
             }
+            }
         }
     }
     if (showGallery) GalleryScreen(onClose = { showGallery = false }, onChanged = { controller.refreshLastMedia() })
@@ -861,6 +864,28 @@ private fun ProStatus(s: CameraUiState) {
                 "Screen locked · hold 🔒 to unlock", style = Pro.Label.copy(color = Color.White, fontSize = 10.sp),
                 modifier = Modifier.align(Alignment.CenterStart).padding(start = 62.dp).clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.5f)).padding(4.dp),
             )
+        }
+    }
+}
+
+/** On an ultra-wide / super ultra-wide external monitor, keeps the camera at a sensible shape in the middle with side panels; elsewhere it shows [content] unchanged. */
+@androidx.compose.runtime.Composable
+private fun MonitorCaptureFrame(analysis: com.dronedirector.veyrocutpro.camera.AnalysisResult?, s: com.dronedirector.veyrocutpro.camera.CameraUiState, content: @androidx.compose.runtime.Composable () -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val mon = monitorClass(maxWidth.value, maxHeight.value)
+        if (mon != MonitorClass.ULTRA_WIDE && mon != MonitorClass.SUPER_ULTRA_WIDE) { content(); return@BoxWithConstraints }
+        val centreW = minOf(maxWidth, maxHeight * 1.9f)
+        val side = (maxWidth - centreW) / 2
+        androidx.compose.foundation.layout.Row(Modifier.fillMaxSize()) {
+            androidx.compose.foundation.layout.Column(Modifier.width(side).fillMaxHeight().background(Color(0xFF0B0D12)).padding(16.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(14.dp)) {
+                Text("HISTOGRAM", style = Pro.Label.copy(color = Pro.Amber))
+                Histogram(analysis, width = side - 32.dp, height = (side - 32.dp) * 0.45f)
+            }
+            Box(Modifier.width(centreW).fillMaxHeight()) { content() }
+            androidx.compose.foundation.layout.Column(Modifier.width(side).fillMaxHeight().background(Color(0xFF0B0D12)).padding(16.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(14.dp)) {
+                Text("EXPOSURE", style = Pro.Label.copy(color = Pro.Amber))
+                ExposureHud(s, null, null)
+            }
         }
     }
 }

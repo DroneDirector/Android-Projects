@@ -23,6 +23,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -177,6 +180,8 @@ fun Filmstrip(
     thumbSize: androidx.compose.ui.unit.Dp = 64.dp,
     /** Smaller (−) / bigger (+) thumbnails: the change in dp. */
     onZoom: ((Float) -> Unit)? = null,
+    /** Monitor layouts: a tall column (grid) instead of a strip. */
+    vertical: Boolean = false,
 ) {
     val context = LocalContext.current
     val items = PhotoSession.items
@@ -224,8 +229,7 @@ fun Filmstrip(
             }
         }
         if (items.isEmpty()) Text("No photos in the filmstrip — tap + to add some (you can pick many at once).", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), modifier = Modifier.padding(horizontal = 8.dp))
-        LazyRow(state = state, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            items(shown, key = { it.key }) { p ->
+        val cell = @Composable { p: SessionPhoto ->
                 val u = p.key
                 val cur = u == curUri
                 val sel = u in picked
@@ -274,13 +278,23 @@ fun Filmstrip(
                         }
                     }
                 }
-            }
-            item {
+        }
+        val addTile = @Composable {
                 Box(
                     Modifier.size(thumbSize).clip(RoundedCornerShape(6.dp)).border(1.dp, Pro.Amber.copy(alpha = 0.5f), RoundedCornerShape(6.dp)).combinedClickable(onClick = onAdd),
                     contentAlignment = Alignment.Center,
                 ) { Text("+", color = Pro.Amber, fontSize = 26.sp) }
+        }
+        if (vertical) {
+            // Monitor layout: the filmstrip as a column (grid) beside the photo.
+            LazyVerticalGrid(GridCells.Adaptive(thumbSize + 5.dp), Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                gridItems(shown, key = { it.key }) { p -> cell(p) }
+                item { addTile() }
             }
+        } else LazyRow(state = state, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            items(shown, key = { it.key }) { p -> cell(p) }
+            item { addTile() }
         }
     }
 }

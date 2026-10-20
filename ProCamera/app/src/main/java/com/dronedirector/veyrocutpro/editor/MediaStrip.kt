@@ -28,6 +28,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -153,6 +156,8 @@ fun MediaStrip(
     thumbHeight: androidx.compose.ui.unit.Dp = 70.dp,
     /** Smaller (−) / bigger (+) thumbnails: the change in dp. */
     onZoom: ((Float) -> Unit)? = null,
+    /** Monitor layouts: a tall column (grid) instead of a strip. */
+    vertical: Boolean = false,
 ) {
     var filter by remember { mutableStateOf(0) }       // 0 all, 1 unused, 2 used, 3 ★3+, 4 no rejects
     var bin by remember { mutableStateOf<String?>(null) }
@@ -199,8 +204,7 @@ fun MediaStrip(
             StripChip("Remove") { onRemove(targets); picked.clear(); focus = null }
             if (selecting) StripChip("All") { picked.clear(); picked.addAll(shown.map { it.uri.toString() }) }
         }
-        LazyRow(contentPadding = PaddingValues(horizontal = 6.dp, vertical = 3.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            items(shown, key = { it.uri.toString() }) { c ->
+        val cell = @Composable { c: Clip ->
                 val k = c.uri.toString()
                 StripThumb(
                     c, uses(c), ratings[k] ?: 0,
@@ -225,8 +229,8 @@ fun MediaStrip(
                         StripChip("Remove from media") { menuFor = null; onRemove(listOf(c)) }
                     }
                 }
-            }
-            item {
+        }
+        val addButtons = @Composable {
                 Column(Modifier.height(thumbHeight), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Box(Modifier.width(70.dp).weight(1f).clip(RoundedCornerShape(6.dp)).border(1.dp, Pro.Amber.copy(alpha = 0.5f), RoundedCornerShape(6.dp)).clickable(onClick = onImport), contentAlignment = Alignment.Center) {
                         Text("+ Clips", color = Pro.Amber, fontSize = 11.sp)
@@ -235,7 +239,17 @@ fun MediaStrip(
                         Text("+ Folder", color = Pro.Amber, fontSize = 11.sp)
                     }
                 }
+        }
+        if (vertical) {
+            // Monitor layout: a tall column of clips (grid), the add buttons on top.
+            Row(Modifier.padding(horizontal = 6.dp, vertical = 3.dp)) { addButtons() }
+            LazyVerticalGrid(GridCells.Adaptive(thumbHeight * 1.6f + 5.dp), Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                gridItems(shown, key = { it.uri.toString() }) { c -> cell(c) }
             }
+        } else LazyRow(contentPadding = PaddingValues(horizontal = 6.dp, vertical = 3.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            items(shown, key = { it.uri.toString() }) { c -> cell(c) }
+            item { addButtons() }
         }
     }
 }

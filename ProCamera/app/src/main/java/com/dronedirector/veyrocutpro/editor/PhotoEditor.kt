@@ -1559,7 +1559,7 @@ private fun PhotoWorkspace(
                     PhotoPanelsButton(
                         onTab = { panel = it },
                         onReset = {
-                            listOf("pe_controls_w", "pe_controls_h", "pe_strip_h").forEach { PaneSizes.set(context, it, -1f) }
+                            listOf("pe_controls_w", "pe_controls_h", "pe_strip_h", "pe_mon_film_s", "pe_mon_film_u", "pe_mon_tools_s", "pe_mon_tools_u").forEach { PaneSizes.set(context, it, -1f) }
                             paneVersion++
                             split = false
                             message = "Layout reset to original"
@@ -1577,14 +1577,24 @@ private fun PhotoWorkspace(
                 val strip = com.dronedirector.veyrocutpro.ui.panelOn("pe.filmstrip")
                 val stripPane = rememberPane("pe_strip_h", paneVersion)
                 val stripSz = if (stripPane.dp < 0f) 64f else stripPane.dp
+                // External monitor only: ultra-wide / super ultra-wide get filmstrip | photo | tools columns.
+                val mon = com.dronedirector.veyrocutpro.ui.monitorClass(boxW, boxH)
+                val monCols = mon == com.dronedirector.veyrocutpro.ui.MonitorClass.ULTRA_WIDE || mon == com.dronedirector.veyrocutpro.ui.MonitorClass.SUPER_ULTRA_WIDE
+                val filmCol = @Composable { mod: Modifier ->
+                    Filmstrip(
+                        thumbSize = stripSz.dp, vertical = true, modifier = mod,
+                        onZoom = { step -> stripPane.dp = (stripSz + step).coerceIn(40f, 200f); stripPane.save() },
+                        onOpen = { switchTo(it) }, onAdd = onAddGallery, onSync = { syncTo(it) }, onExport = { exportSession(it) },
+                    )
+                }
                 val viewer = @Composable { mod: Modifier ->
                     Column(mod) {
                         previewBox(Modifier.fillMaxWidth().weight(1f))
                         // Divider between the photo and the filmstrip: hold, then drag up for bigger thumbnails.
-                        if (strip) ResizeHandle(true,
+                        if (strip && !monCols) ResizeHandle(true,
                             onDrag = { d -> stripPane.dp = (stripSz - d).coerceIn(40f, 200f) },
                             onEnd = { stripPane.save() }, onReset = { stripPane.reset() })
-                        if (strip) Filmstrip(
+                        if (strip && !monCols) Filmstrip(
                             thumbSize = stripSz.dp,
                             onZoom = { step -> stripPane.dp = (stripSz + step).coerceIn(40f, 200f); stripPane.save() },
                             onOpen = { switchTo(it) },
@@ -1596,7 +1606,28 @@ private fun PhotoWorkspace(
                 }
                 // Resizable panels: hold the divider, then drag. Double-tap the divider to reset.
                 // With the tools panel hidden, the photo fills the screen; shown again, it returns to its saved size.
-                if (!showControls) {
+                if (monCols) {
+                    val sup = mon == com.dronedirector.veyrocutpro.ui.MonitorClass.SUPER_ULTRA_WIDE
+                    val filmPane = rememberPane(if (sup) "pe_mon_film_s" else "pe_mon_film_u", paneVersion)
+                    val toolsPane = rememberPane(if (sup) "pe_mon_tools_s" else "pe_mon_tools_u", paneVersion)
+                    val filmW = if (filmPane.dp < 0f) boxW * (if (sup) 0.2f else 0.16f) else filmPane.dp
+                    val toolsW = if (toolsPane.dp < 0f) boxW * (if (sup) 0.26f else 0.25f) else toolsPane.dp
+                    Row(Modifier.fillMaxWidth().weight(1f)) {
+                        if (strip) {
+                            filmCol(Modifier.width(filmW.dp).fillMaxHeight())
+                            ResizeHandle(false,
+                                onDrag = { d -> filmPane.dp = (filmW + d).coerceIn(140f, boxW * 0.4f) },
+                                onEnd = { filmPane.save() }, onReset = { filmPane.reset() })
+                        }
+                        viewer(Modifier.weight(1f).fillMaxHeight())
+                        if (showControls) {
+                            ResizeHandle(false,
+                                onDrag = { d -> toolsPane.dp = (toolsW - d).coerceIn(280f, boxW * 0.45f) },
+                                onEnd = { toolsPane.save() }, onReset = { toolsPane.reset() })
+                            controls(Modifier.width(toolsW.dp).fillMaxHeight())
+                        }
+                    }
+                } else if (!showControls) {
                     viewer(Modifier.fillMaxWidth().weight(1f))
                 } else if (wide) {
                     val pane = rememberPane("pe_controls_w", paneVersion)

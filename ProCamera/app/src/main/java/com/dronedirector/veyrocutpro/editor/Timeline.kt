@@ -297,21 +297,6 @@ fun TimelineView(
                             return@awaitEachGesture
                         }
                         run {
-                            val del = curDeleteClip ?: return@run
-                            val si = curSelectedClip
-                            if (si !in curClips.indices || curVideoLocked) return@run
-                            val st = clipStarts(curClips)
-                            val xa = xOfMs(st[si]); val xb = xOfMs(st[si] + curClips[si].lengthMs)
-                            if (xb - xa < 64.dp.toPx()) return@run
-                            val c = androidx.compose.ui.geometry.Offset((max(xa, leftPad) + min(xb, size.width.toFloat())) / 2f, curClipTop + 15.dp.toPx())
-                            if ((down.position - c).getDistance() > 20.dp.toPx()) return@run
-                            down.consume()
-                            var up: androidx.compose.ui.input.pointer.PointerInputChange? = null
-                            do { val ev = awaitPointerEvent(); ev.changes.forEach { it.consume() }; if (ev.changes.none { it.pressed }) up = ev.changes.first() } while (up == null)
-                            if ((up!!.position - c).getDistance() < 30.dp.toPx()) del(si)
-                            return@awaitEachGesture
-                        }
-                        run {
                             val y = down.position.y; val x = down.position.x
                             // V1: the start / end edge of a clip.
                             if (y in curClipTop..(curClipTop + clipRow)) {

@@ -274,6 +274,28 @@ fun TimelineView(
                         var hitStart = 0L; var hitEnd = 0L; var hitOffset = 0L; var hitRow = -1
                         var hitClip = -1; var clipEdge = 0
                         // The bin on the selected clip (top middle): tap it to delete the clip.
+                        val binDel = curDeleteClip
+                        val binIdx = curSelectedClip
+                        var binAt: androidx.compose.ui.geometry.Offset? = null
+                        if (binDel != null && binIdx in curClips.indices && !curVideoLocked) {
+                            val st = clipStarts(curClips)
+                            val xa = xOfMs(st[binIdx]); val xb = xOfMs(st[binIdx] + curClips[binIdx].lengthMs)
+                            if (xb - xa >= 64.dp.toPx()) {
+                                val c = androidx.compose.ui.geometry.Offset((max(xa, leftPad) + min(xb, size.width.toFloat())) / 2f, curClipTop + 15.dp.toPx())
+                                if ((down.position - c).getDistance() <= 20.dp.toPx()) binAt = c
+                            }
+                        }
+                        if (binDel != null && binAt != null) {
+                            down.consume()
+                            var upPos: androidx.compose.ui.geometry.Offset? = null
+                            while (upPos == null) {
+                                val ev = awaitPointerEvent()
+                                ev.changes.forEach { it.consume() }
+                                if (ev.changes.none { it.pressed }) upPos = ev.changes.first().position
+                            }
+                            if ((upPos - binAt).getDistance() < 30.dp.toPx()) binDel(binIdx)
+                            return@awaitEachGesture
+                        }
                         run {
                             val del = curDeleteClip ?: return@run
                             val si = curSelectedClip

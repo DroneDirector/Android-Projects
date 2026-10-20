@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.337 — 2026-10-20
 - After an app update, the first start quickly checks the download server for changed AI models or soundtracks and fetches only what changed (nothing, if nothing did).
 
 ## 1.0.334 — 2026-10-20

@@ -1395,7 +1395,8 @@ private fun PhotoWorkspace(
                         modifier = Modifier.padding(start = 4.dp, end = 4.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !busy) { panel = PhotoPanel.EXPORT; com.dronedirector.veyrocutpro.ui.Panels.set(context, "pe.controls", true) }.padding(horizontal = 10.dp, vertical = 7.dp),
                     )
                 }
-                val strip = PhotoSession.items.isNotEmpty() && com.dronedirector.veyrocutpro.ui.panelOn("pe.filmstrip")
+                // Shown whenever it is on in the Panels menu, even when empty (its + adds photos).
+                val strip = com.dronedirector.veyrocutpro.ui.panelOn("pe.filmstrip")
                 val stripPane = rememberPane("pe_strip_h", paneVersion)
                 val stripSz = if (stripPane.dp < 0f) 64f else stripPane.dp
                 val viewer = @Composable { mod: Modifier ->

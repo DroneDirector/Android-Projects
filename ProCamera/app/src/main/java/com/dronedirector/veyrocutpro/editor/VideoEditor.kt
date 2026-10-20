@@ -3434,7 +3434,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 val stripPane = rememberPane("ve_strip_h", paneVersion)
                 val stripH = if (stripPane.dp < 0f) 70f else stripPane.dp
                 val timelineBox = @Composable {
-                    val stripOn = showStrip && library.isNotEmpty()
+                    val stripOn = showStrip   // shown even when empty: + Clips / + Folder start it
                     // Divider above the media strip: hold, then drag to give the viewer or the strip more room.
                     if (stripOn) ResizeHandle(true,
                         onDrag = { d ->

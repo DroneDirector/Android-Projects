@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Fixed: the photo filmstrip and the video media strip disappeared when they were empty (for example after removing every photo). They now stay on screen with their + buttons until you hide them in the Panels menu.
 - Samsung DeX: plugging in or removing a keyboard or mouse, or moving between the phone screen and a monitor, no longer reloads the screen or closes your edit.
 - Photo editor, **pro develop tools**:
   - **60 built-in presets** in 10 groups, with live thumbnails of your photo and an **Amount** slider (0–200 %).

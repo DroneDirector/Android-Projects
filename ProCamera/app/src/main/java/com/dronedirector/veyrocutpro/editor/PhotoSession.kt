@@ -194,6 +194,7 @@ fun Filmstrip(
                 Chip("Remove") { val list = indices(picked); picked.clear(); PhotoSession.remove(context, list) }
             }
         }
+        if (items.isEmpty()) Text("No photos in the filmstrip — tap + to add some (you can pick many at once).", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), modifier = Modifier.padding(horizontal = 8.dp))
         LazyRow(state = state, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             items(shown, key = { it.uri }) { p ->
                 val u = p.uri

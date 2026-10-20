@@ -101,12 +101,22 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Detail → Sharpening Radius / Detail / Masking (SHOW MASK: white areas are sharpened) and DEFRINGE.
 - Effects → after Vignette or Grain is turned up, the shape and size sliders appear.
 - Pinch or double-tap the photo to zoom (a sharper 1:1 view appears after a moment). Ctrl + wheel also zooms. Double-tap again to fit.
+- Heal → AI REMOVE: TAP TO SELECT and tap each person, car or sign to remove (red shows what's selected; UNDO TAP drops the last), or PAINT over wires and small things — you can do both. REMOVE paints in what was behind them at the photo's full size (on the phone with the LaMa AI, or Bria Eraser with Cloud AI). Do it again for more; RESET goes back to the original.
+- Masks → People (AI): selects parts of everyone in the photo. Tap the parts you want — Whole person, Face skin, Body skin, Eye whites, Irises, Eyebrows, Lips, Teeth, Hair, Clothes. PORTRAIT LOOKS (Smooth skin, Whiten teeth, Brighten eyes, Iris enhance, Lip colour, Hair shine, Brows define) pick the parts and set the adjustments for you; fine-tune them under ADJUST INSIDE THE MASK. Texture (minus = smoother skin) and Clarity are there for every mask.
+- Export → OUTPUT → Ultra HDR (JPEG, Android 14+): Subtle, Standard or Strong. On HDR screens (most newer phones) the bright parts — sky, lights, reflections — glow brighter; on other screens the photo looks exactly as edited.
+- Curve → ◎ TARGETED ADJUSTMENT, or HSL Mixer → ◎ TARGETED with Hue / Sat / Lum: put a finger on the photo and drag up or down. The tone curve (or the colour sliders) for exactly that tone or colour move with it.
+**Keyboard (Bluetooth / USB keyboard, Samsung DeX)**
+- ← / → previous / next photo, Home / End first / last; 0–5 stars; 6 / 7 / 8 / 9 red / yellow / green / blue label; P pick, X reject, U unflag.
+- \ or Y before / after; Z zoom 1:1; J clipping warning; Tab hides the panels; Esc leaves zoom, before / after and picks.
+- L Light, C Color, D Detail, R Crop, Q Heal, M Masks, E Export, H History, G Library.
+- Ctrl+Z / Ctrl+Shift+Z undo / redo; Ctrl+C / Ctrl+V copy / paste the look (Ctrl+Shift+V also crop and watermark); Ctrl+S save; Ctrl+E export. ? or F1 shows the list in the app.
 **Mouse**
 - Wheel over the photo = next / previous filmstrip photo, right-click = before / after split, double-click = hide or show the tools. Right-click a filmstrip thumbnail for stars, flags and labels.
 **Filmstrip (many photos)**
 - Hold the divider above the filmstrip, then drag it up or down to change the thumbnail size. Double-tap the divider to reset it.
 - Gallery photos / Browse files: select several photos at once. They line up in the filmstrip under the photo; tap one to edit it. Your edit is kept automatically when you switch or leave.
 - Hold a thumbnail for stars, Pick / Reject and a colour label. The chips above the strip filter it (All, ★3+, Picks, Edited, No rejects).
+- SELECT → AI cull (the ticked photos, or all shown): rejects blurry and out-of-focus shots and closed eyes, finds similar shots (bursts) and flags the best of each as a pick. A small note on each thumbnail says why (Blurry, Eyes closed, Best of 4, Similar). Nothing is deleted; use the Picks / No rejects filters, and change any flag yourself.
 - SELECT → tick photos → Sync edit copies this photo's look (not crop, masks or spots) to them; Export saves each with its own edit using the Export settings; Remove takes them out of the strip.
 - + at the end of the strip adds more photos. The start page shows "Continue filmstrip" to carry on later, or Clear to start over.
 **AI noise reduction**
@@ -127,7 +137,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Exposure (±5 stops), Highlights, Shadows, Whites and Blacks work on the full-range data — pull Highlights down to bring back bright skies, lift Shadows without the blotches you'd get from a JPEG.
 - Color → WHITE BALANCE: As shot, Auto, Daylight, Cloudy, Shade, Tungsten or Fluorescent, then fine-tune with Temperature and Tint.
 - The DNG is never changed; exports are JPEG, PNG, WebP or HEIC. RAW exports take a little longer (the full-size photo is developed again at top quality).
-- AI erase on a RAW makes a normal copy to work on; after that, the photo is edited like a JPEG.
+- AI Remove on a RAW makes a normal copy to work on; after that, the photo is edited like a JPEG.
 
 **Photo editor tips**
 - Leave the editor with your phone's back gesture or back button (the top bar has no back arrow, so EXPORT always fits).
@@ -137,7 +147,6 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Hold your finger on the photo to see the original.
 - Masks → Subject (AI) / Sky (AI) select the subject or the sky for you (on the phone, or more precisely with Cloud AI).
 - Effects → BACKGROUND (AI): FIND SUBJECT, then blur the background (portrait look), remove it (transparent PNG) or fill it with a colour.
-- Heal → AI ERASE: paint over a person, sign or power line and tap ERASE (Bria Eraser with Cloud AI; on the phone for smaller things).
 - Masks: add a Linear gradient, Radial or Brush mask, then use ADJUST INSIDE THE MASK. Drag the handles on the photo (or paint with the brush); red shows where the mask applies.
 - Heal: tap dust, blemishes or small objects on the photo — a matching patch from nearby covers each one. Clone stamp: tap the source, then tap where to paint. Drag a solid circle to move a spot, drag its dashed circle to change where it copies from, hold a spot to delete it. UNDO LAST removes the latest.
 - Lens: Distortion straightens bulging lines from wide lenses; Vignetting brightens dark corners; Colour fringes removes purple / green outlines.

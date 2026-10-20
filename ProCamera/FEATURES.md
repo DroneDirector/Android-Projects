@@ -118,6 +118,12 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
   - Pro sharpening (**Radius, Detail, Masking** + mask preview) and **Defringe** (purple / green).
   - **Post-crop vignette** (Midpoint, Roundness, Feather, Highlights) and **grain** (Size, Roughness).
   - **Zoom / 1:1 loupe** (pinch, double-tap, Ctrl + wheel).
+  - **AI Remove**: tap people, cars or signs (the AI selects each), or paint over wires, and the AI (LaMa on the phone, or Bria Eraser with Cloud AI) paints in what was behind them at the photo's full size.
+  - **People masks (AI)**: face skin, body skin, eye whites, irises, eyebrows, lips, teeth, hair and clothes of everyone in the photo, plus one-tap **portrait looks** (smooth skin, whiten teeth, brighten eyes, iris enhance, lip colour, hair shine, brows). **Texture** and **Clarity** inside every mask.
+  - **Keyboard shortcuts** (Bluetooth / USB keyboards, Samsung DeX): photo navigation, stars, flags, colour labels, before / after, zoom, panels, undo / redo, copy / paste the look, save and export; ? shows the list.
+  - **Ultra HDR export** (Android 14+): JPEGs with a gain map, so highlights glow brighter on HDR screens (Subtle / Standard / Strong).
+  - **AI culling** in the filmstrip: rejects blurry shots and closed eyes, groups similar shots (bursts) and picks the best of each, with notes on the thumbnails.
+  - **Targeted adjustment**: drag on the photo to change the tone curve or the HSL mixer (hue / saturation / luminance) for exactly the tone or colour under your finger.
 - **Multi-import + filmstrip**: pick up to 100 photos at once from the gallery or files; a filmstrip under the photo switches between them, and every photo keeps its own edit automatically. Star ratings, Pick / Reject flags, colour labels, filters (All, ★3+, Picks, Edited, No rejects), multi-select **Sync edit** (colour, light, detail, lens, RAW develop), batch rate / flag, **export selected** (each with its own edit) and remove. "Continue filmstrip" on the start page; hide it from the Panels menu.
 - Panels: **Presets, Light, Curve, Color, HSL Mixer, Grading, Detail, Effects, Crop & format, Watermark, Export**.
 - **RAW (DNG) develop**: the editor reads the sensor data itself (uncompressed and lossless-compressed DNGs, lens-shading maps, the camera's colour matrix) — exposure ±5 stops, highlights, shadows, whites, blacks and white balance work on the full-range data with a soft highlight roll-off; **RAW profiles** (Standard, Flat, Vivid, Portrait, Landscape, Mono) and **white balance presets** (As shot, Auto, Daylight, Cloudy, Shade, Tungsten, Fluorescent); full-quality demosaic on export; RAW files in a batch export are developed too.
@@ -140,7 +146,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Colour-range and brightness-range masks**: tap the photo to pick a colour or brightness (e.g. only the blues, only the highlights), with range and softness.
 - **Background (AI)**: portrait blur, transparent background or colour fill behind the subject.
 - **Sky replacement (AI)**: 5 built-in skies or your own picture, with strength and light matching.
-- **AI erase**: paint over bigger objects to remove them.
+- **AI Remove**: tap or paint over bigger objects to remove them.
 - **Merge photos**: HDR (exposure fusion), panorama stitching, focus stacking.
 - **Watermark**: text or logo, font, colour, size, position, opacity; optional **Remember watermark**.
 - **Text & stickers**: any number of text and emoji layers with font, colour, shadow / box, size, position and opacity.

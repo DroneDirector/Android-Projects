@@ -4,6 +4,24 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor, Heal → **AI REMOVE** (was AI Erase):
+  - **Tap to select** people, cars or signs (the AI selects each one), or paint over them, or both.
+  - On the phone, the LaMa AI now paints in what was behind them at the photo's **full size**. Each area is filled separately, so small things keep their detail and the rest of the photo keeps every original pixel.
+- Photo editor, Masks → **People (AI)**:
+  - Selects parts of everyone in the photo: face skin, body skin, eye whites, irises, eyebrows, lips, teeth, hair and clothes.
+  - **Portrait looks** in one tap: Smooth skin, Whiten teeth, Brighten eyes, Iris enhance, Lip colour, Hair shine and Brows define.
+  - Every mask now also has **Texture** (minus smooths skin) and **Clarity**.
+- Photo editor **keyboard shortcuts** (Bluetooth / USB keyboards, Samsung DeX):
+  - ← → next photo, 0–5 stars, P / X / U flags, 6–9 colour labels, \ before / after, Z zoom.
+  - L / C / D / R / Q / M / E / H panels, G library.
+  - Ctrl+Z undo, Ctrl+C / Ctrl+V copy and paste the look, Ctrl+S save, Ctrl+E export.
+  - Press ? or F1 for the list.
+- Photo editor, Export → OUTPUT → **Ultra HDR** (Android 14+): JPEGs whose bright parts (sky, lights, reflections) glow brighter on HDR screens, and look exactly as edited everywhere else. Choose Subtle, Standard or Strong.
+- Photo editor filmstrip → SELECT → **AI cull**:
+  - Rejects blurry and out-of-focus shots, and shots with closed eyes.
+  - Groups similar shots (bursts) and picks the best of each.
+  - A note on each thumbnail says why. Nothing is deleted.
+- Photo editor **targeted adjustment**: in Curve or HSL Mixer (Hue / Sat / Lum), put a finger on a tone or colour in the photo and drag up or down to change exactly that.
 
 ## 1.0.371 — 2026-10-20
 - Video editor, Audio → AI VOICEOVER FROM TEXT: **tap a voice to hear a sample**. It reads the first sentence of your text, or a short hello if the text box is empty. The first sample of each voice takes a moment, because the voice is downloaded; after that it plays straight away.

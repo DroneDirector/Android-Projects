@@ -164,15 +164,9 @@ private fun HubLayout(title: String, subtitle: String, onBack: (() -> Unit)?, ti
             }
             val header = @Composable {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(
-                        Modifier.size(if (landscape) 96.dp else 128.dp).clip(CircleShape)
-                            .border(2.dp, accent.copy(alpha = 0.6f * pulse + 0.2f), CircleShape),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Image(painterResource(R.drawable.ic_launcher_background), null, Modifier.fillMaxSize())
-                        Image(painterResource(R.drawable.ic_launcher_foreground), null, Modifier.fillMaxSize().graphicsLayer { scaleX = 1.45f; scaleY = 1.45f })
-                    }
-                    Text(title, color = Color.White, fontSize = if (landscape) 30.sp else 38.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 14.dp))
+                    // Logo with the glowing, sparkling ring in the app colour.
+                    GlowLogo(if (landscape) 96.dp else 128.dp)
+                    Text(title, color = Color.White, fontSize = if (landscape) 30.sp else 38.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 2.dp))
                     Text(subtitle, style = Pro.Label.copy(color = accent, fontSize = 12.sp, letterSpacing = 4.sp))
                 }
             }

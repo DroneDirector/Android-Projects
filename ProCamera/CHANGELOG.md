@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- The logo on the start screens now has a **glowing, sparkling ring** in your app colour (Settings → App colour). A light runs around it, sparkles orbit and a soft glow breathes behind it. It appears on the first-time download screen, the update check, the start screen and the Editor screen.
 - Video editor media strip placement:
   - **Phones:** always the first tab, on the left, of the tools panel ("Media strip"), whichever way the phone is turned.
   - **Tablets:** above the timeline in landscape, and the first tab of the tools panel when upright.

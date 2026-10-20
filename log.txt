@@ -1,0 +1,141 @@
++ git clone -q --depth 1 --branch v0.5.6 https://github.com/Rikorose/DeepFilterNet.git dfn
+Note: switching to '978576aa8400552a4ce9730838c635aa30db5e61'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
++ cp dfn/libDF/Cargo.toml out/libDF_Cargo.toml
++ cp dfn/libDF/src/capi.rs out/capi.rs
++ ls dfn/models
++ ls -la dfn/models
+total 82892
+drwxr-xr-x  2 runner runner     4096 Oct 20 04:55 .
+drwxr-xr-x 13 runner runner     4096 Oct 20 04:55 ..
+-rw-r--r--  1 runner runner  6645650 Oct 20 04:55 DeepFilterNet.zip
+-rw-r--r--  1 runner runner  8629708 Oct 20 04:55 DeepFilterNet2.zip
+-rw-r--r--  1 runner runner  8628375 Oct 20 04:55 DeepFilterNet2_onnx.tar.gz
+-rw-r--r--  1 runner runner  8628785 Oct 20 04:55 DeepFilterNet2_onnx_ll.tar.gz
+-rw-r--r--  1 runner runner  7986207 Oct 20 04:55 DeepFilterNet3.zip
+-rw-r--r--  1 runner runner 36359660 Oct 20 04:55 DeepFilterNet3_ll_onnx.tar.gz
+-rw-r--r--  1 runner runner  7983136 Oct 20 04:55 DeepFilterNet3_onnx.tar.gz
++ rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+info: downloading 3 components
++ cargo install -q cargo-ndk
++ export ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/30.0.16248370
++ ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/30.0.16248370
++ cd dfn
++ cargo update -p time
++ tail -3
+    Updating time-core v0.1.1 -> v0.1.6 (available: v0.1.9)
+    Updating time-macros v0.2.14 -> v0.2.24 (available: v0.2.32)
+note: pass `--verbose` to see 270 unchanged dependencies behind latest
++ cd libDF
++ cargo rustc --lib --release --no-default-features --features capi --crate-type cdylib
++ tail -5
+1054 | pub fn tvalue_to_array_view_mut(x: &mut TValue) -> ArrayViewMutD<'_, f32> {
+     |                                                                  +++
+
+warning: `deep_filter` (lib) generated 7 warnings (run `cargo fix --lib -p deep_filter` to apply 4 suggestions)
+    Finished `release` profile [optimized] target(s) in 2m 25s
++ ls -la ../target/release
++ grep -i '\.so'
++ tee ../../out/host_libs.txt
+-rwxr-xr-x   2 runner runner 23475232 Oct 20 04:59 libdf.so
++ for abi in arm64-v8a armeabi-v7a x86_64
++ cargo ndk -t arm64-v8a -P 24 rustc --lib --release --no-default-features --features capi --crate-type cdylib
++ tail -3
+
+warning: `deep_filter` (lib) generated 7 warnings (run `cargo fix --lib -p deep_filter` to apply 4 suggestions)
+    Finished `release` profile [optimized] target(s) in 2m 17s
++ for abi in arm64-v8a armeabi-v7a x86_64
++ cargo ndk -t armeabi-v7a -P 24 rustc --lib --release --no-default-features --features capi --crate-type cdylib
++ tail -3
+
+warning: `deep_filter` (lib) generated 7 warnings (run `cargo fix --lib -p deep_filter` to apply 4 suggestions)
+    Finished `release` profile [optimized] target(s) in 1m 59s
++ for abi in arm64-v8a armeabi-v7a x86_64
++ cargo ndk -t x86_64 -P 24 rustc --lib --release --no-default-features --features capi --crate-type cdylib
++ tail -3
+
+warning: `deep_filter` (lib) generated 7 warnings (run `cargo fix --lib -p deep_filter` to apply 4 suggestions)
+    Finished `release` profile [optimized] target(s) in 2m 11s
++ cd ../..
++ mkdir -p out/jniLibs
++ for p in aarch64-linux-android:arm64-v8a armv7-linux-androideabi:armeabi-v7a x86_64-linux-android:x86_64
++ t=aarch64-linux-android
++ a=arm64-v8a
++ mkdir -p out/jniLibs/arm64-v8a
++ cp dfn/target/aarch64-linux-android/release/libdf.so out/jniLibs/arm64-v8a/libdf.so
++ /usr/local/lib/android/sdk/ndk/30.0.16248370/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip out/jniLibs/arm64-v8a/libdf.so
++ for p in aarch64-linux-android:arm64-v8a armv7-linux-androideabi:armeabi-v7a x86_64-linux-android:x86_64
++ t=armv7-linux-androideabi
++ a=armeabi-v7a
++ mkdir -p out/jniLibs/armeabi-v7a
++ cp dfn/target/armv7-linux-androideabi/release/libdf.so out/jniLibs/armeabi-v7a/libdf.so
++ /usr/local/lib/android/sdk/ndk/30.0.16248370/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip out/jniLibs/armeabi-v7a/libdf.so
++ for p in aarch64-linux-android:arm64-v8a armv7-linux-androideabi:armeabi-v7a x86_64-linux-android:x86_64
++ t=x86_64-linux-android
++ a=x86_64
++ mkdir -p out/jniLibs/x86_64
++ cp dfn/target/x86_64-linux-android/release/libdf.so out/jniLibs/x86_64/libdf.so
++ /usr/local/lib/android/sdk/ndk/30.0.16248370/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip out/jniLibs/x86_64/libdf.so
++ find out/jniLibs -type f
++ xargs ls -la
+-rwxr-xr-x 1 runner runner 13920192 Oct 20 05:05 out/jniLibs/arm64-v8a/libdf.so
+-rwxr-xr-x 1 runner runner  8086480 Oct 20 05:05 out/jniLibs/armeabi-v7a/libdf.so
+-rwxr-xr-x 1 runner runner 17637920 Oct 20 05:05 out/jniLibs/x86_64/libdf.so
++ pip install -q numpy soundfile
++ curl -fsSL -o speech.wav https://raw.githubusercontent.com/Rikorose/DeepFilterNet/main/assets/noisy_snr0.wav
++ ls -la speech.wav
+-rw-r--r-- 1 runner runner 1017226 Oct 20 05:06 speech.wav
++ cat
++ python3 t.py
+sr 48000 len 508591 frame 480
+rtf 0.07039453835401306
+rms in 0.06399162113666534 out 0.04561219364404678
+delay samples 1440
++ git fetch -q --depth 1 origin models
++ git worktree add -q ../mb FETCH_HEAD
++ mkdir -p ../mb/dfn
++ cp -r out/jniLibs/arm64-v8a out/jniLibs/armeabi-v7a out/jniLibs/x86_64 ../mb/dfn/
++ cp dfn/LICENSE-MIT ../mb/dfn/DeepFilterNet-LICENSE-MIT
++ cp dfn/LICENSE-APACHE ../mb/dfn/DeepFilterNet-LICENSE-APACHE
++ cp dfn/models/DeepFilterNet3_onnx.tar.gz ../mb/dfn/
++ cd ../mb
++ git add -A
++ git -c user.name=github-actions -c user.email=actions@github.com commit -qm 'DeepFilterNet3 libraries (v0.5.6, capi)'
++ set +x
++ ls -la dfn/DeepFilterNet-LICENSE-APACHE dfn/DeepFilterNet-LICENSE-MIT dfn/DeepFilterNet3_onnx.tar.gz dfn/arm64-v8a dfn/armeabi-v7a dfn/x86_64
+-rw-r--r-- 1 runner runner   10837 Oct 20 05:06 dfn/DeepFilterNet-LICENSE-APACHE
+-rw-r--r-- 1 runner runner    1083 Oct 20 05:06 dfn/DeepFilterNet-LICENSE-MIT
+-rw-r--r-- 1 runner runner 7983136 Oct 20 05:06 dfn/DeepFilterNet3_onnx.tar.gz
+
+dfn/arm64-v8a:
+total 13604
+drwxr-xr-x 2 runner runner     4096 Oct 20 05:06 .
+drwxr-xr-x 5 runner runner     4096 Oct 20 05:06 ..
+-rwxr-xr-x 1 runner runner 13920192 Oct 20 05:06 libdf.so
+
+dfn/armeabi-v7a:
+total 7908
+drwxr-xr-x 2 runner runner    4096 Oct 20 05:06 .
+drwxr-xr-x 5 runner runner    4096 Oct 20 05:06 ..
+-rwxr-xr-x 1 runner runner 8086480 Oct 20 05:06 libdf.so
+
+dfn/x86_64:
+total 17236
+drwxr-xr-x 2 runner runner     4096 Oct 20 05:06 .
+drwxr-xr-x 5 runner runner     4096 Oct 20 05:06 ..
+-rwxr-xr-x 1 runner runner 17637920 Oct 20 05:06 libdf.so

@@ -14,6 +14,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 data class VideoProjectData(
     val id: String = UUID.randomUUID().toString(),
@@ -41,6 +43,8 @@ data class VideoProjectData(
     val library: List<Clip>? = null,
     /** Media strip ratings: file (uri text) → 1–5 stars, or −1 rejected. */
     val ratings: Map<String, Int>? = null,
+    /** True for automatic saves (gear → AUTOSAVE); listed apart from your own projects. */
+    val autosave: Boolean? = null,
 )
 
 data class PhotoProjectData(
@@ -69,6 +73,8 @@ data class PhotoProjectData(
     val session: Boolean? = null,
     /** Lens Blur (depth of field from the AI depth map). */
     val lensBlur: LensBlur? = null,
+    /** True for automatic saves (gear → AUTOSAVE); listed apart from your own projects. */
+    val autosave: Boolean? = null,
 )
 
 /** A saved project as shown in the list. */
@@ -204,13 +210,14 @@ object ProjectStore {
         p
     } catch (_: Throwable) { null }
 
-    fun list(context: Context, video: Boolean): List<ProjectEntry> {
+    fun list(context: Context, video: Boolean, autosaves: Boolean = false): List<ProjectEntry> {
         val d = dir(context, video)
         return d.listFiles { f -> f.name.endsWith(".json") }.orEmpty().mapNotNull { f ->
             val id = f.name.removeSuffix(".json")
             try {
                 val o = com.google.gson.JsonParser.parseString(f.readText()).asJsonObject
                 if (!video && o.get("session")?.asBoolean == true) return@mapNotNull null
+                if ((o.get("autosave")?.asBoolean == true) != autosaves) return@mapNotNull null
                 val detail = if (video) {
                     val n = o.getAsJsonArray("clips")?.size() ?: 0
                     "$n clip" + (if (n == 1) "" else "s")
@@ -254,5 +261,37 @@ internal object Defaults {
             }
             cls = cls.superclass
         }
+    }
+}
+
+/**
+ * Timed automatic saves of the open edit (gear → AUTOSAVE): every [minutes] (0 = off), keeping
+ * the newest [keep] copies (1–5) side by side; older ones are removed. Separate for the photo and
+ * the video editor.
+ */
+object AutoSave {
+    val INTERVALS = listOf(0, 1, 2, 5, 10, 15, 30)
+    private fun prefs(c: Context) = c.getSharedPreferences("procam", Context.MODE_PRIVATE)
+    fun minutes(c: Context, video: Boolean) = prefs(c).getInt(if (video) "as_min_v" else "as_min_p", 5)
+    /** Bumped on every settings change so open editors pick up the new interval. */
+    var changes by androidx.compose.runtime.mutableIntStateOf(0)
+    fun setMinutes(c: Context, video: Boolean, m: Int) { prefs(c).edit().putInt(if (video) "as_min_v" else "as_min_p", m).apply(); changes++ }
+    fun keep(c: Context, video: Boolean) = prefs(c).getInt(if (video) "as_keep_v" else "as_keep_p", 3).coerceIn(1, 5)
+    fun setKeep(c: Context, video: Boolean, n: Int) { prefs(c).edit().putInt(if (video) "as_keep_v" else "as_keep_p", n.coerceIn(1, 5)).apply(); prune(c, video) }
+
+    fun nameFor(projectName: String): String =
+        "Autosave · " + projectName.ifBlank { "Untitled" } + " · " + SimpleDateFormat("d MMM HH:mm", Locale.getDefault()).format(Date())
+
+    fun saveVideo(c: Context, p: VideoProjectData, thumb: Bitmap?) {
+        ProjectStore.saveVideo(c, p.copy(id = "auto_" + UUID.randomUUID(), autosave = true), thumb); prune(c, true)
+    }
+    fun savePhoto(c: Context, p: PhotoProjectData, thumb: Bitmap?) {
+        ProjectStore.savePhoto(c, p.copy(id = "auto_" + UUID.randomUUID(), autosave = true, session = null), thumb); prune(c, false)
+    }
+
+    /** Keeps only the newest autosaves. */
+    fun prune(c: Context, video: Boolean) {
+        val all = ProjectStore.list(c, video, autosaves = true)
+        all.drop(keep(c, video)).forEach { ProjectStore.delete(c, video, it.id) }
     }
 }

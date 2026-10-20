@@ -419,7 +419,7 @@ private fun PhotoWorkspace(
         )
     }
     // A filmstrip photo's hidden edit is not a named project: SAVE makes a separate one.
-    var projectId by remember { mutableStateOf(initial?.id?.takeIf { initial.session != true }) }
+    var projectId by remember { mutableStateOf(initial?.id?.takeIf { initial.session != true && initial.autosave != true }) }
     var projectName by remember { mutableStateOf(initial?.name ?: "") }
     var askName by remember { mutableStateOf(false) }
     var showLoad by remember { mutableStateOf(false) }
@@ -498,6 +498,25 @@ private fun PhotoWorkspace(
         }
     }
     if (askName) ProjectNameDialog(ProjectStore.defaultName(false), onSave = { askName = false; saveProject(it) }, onDismiss = { askName = false })
+    // Timed autosave (gear → AUTOSAVE): a full project copy every few minutes when something changed.
+    val asMinutes = remember(AutoSave.changes) { AutoSave.minutes(context, false) }
+    LaunchedEffect(asMinutes, uri) {
+        if (asMinutes <= 0 || uri == Uri.EMPTY) return@LaunchedEffect
+        var last: PhotoEdit? = initial?.let { null }
+        while (true) {
+            delay(asMinutes * 60_000L)
+            val e = edit
+            if (e == last || undo.size <= 1) continue
+            last = e
+            val p = PhotoProjectData(
+                name = AutoSave.nameFor(projectName.ifBlank { uri.lastPathSegment?.substringAfterLast('/') ?: "" }), uri = uri,
+                grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark,
+                format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw, lensBlur = e.lensBlur,
+            )
+            val thumb = preview
+            withContext(Dispatchers.IO) { try { AutoSave.savePhoto(context, p, thumb) } catch (_: Throwable) {} }
+        }
+    }
     val sizes = listOf(4800, 4096, 2560, 1920, 1080, 2048, 3840)
 
     // ---- Filmstrip: this photo's edit is kept automatically before switching or leaving.

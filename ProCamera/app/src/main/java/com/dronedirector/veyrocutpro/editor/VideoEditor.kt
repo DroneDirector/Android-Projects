@@ -283,7 +283,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     var trackingId by remember { mutableStateOf<String?>(null) }
     var trackStop by remember { mutableStateOf(false) }
     var deliver by remember { mutableStateOf(initial?.deliver ?: DeliverSettings()) }
-    var projectId by remember { mutableStateOf(initial?.id) }
+    // An opened autosave is a copy: SAVE asks for a name instead of overwriting it.
+    var projectId by remember { mutableStateOf(initial?.id?.takeIf { initial.autosave != true }) }
     var projectName by remember { mutableStateOf(initial?.name ?: "") }
     var askName by remember { mutableStateOf(false) }
     var leaveAfterSave by remember { mutableStateOf(false) }
@@ -1372,6 +1373,30 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 last = json
                 withContext(Dispatchers.IO) { ProjectStore.writeAutosave(context, json); try { ProjectStore.keepAutosaveAccess(context, p) } catch (_: Throwable) {} }
             }
+        }
+    }
+    // Timed autosave (gear → AUTOSAVE): a full project copy every few minutes when something changed.
+    val asMinutes = remember(AutoSave.changes) { AutoSave.minutes(context, true) }
+    LaunchedEffect(asMinutes) {
+        if (asMinutes <= 0) return@LaunchedEffect
+        var last = ""
+        while (true) {
+            delay(asMinutes * 60_000L)
+            if (clips.isEmpty() && layers.isEmpty() && music == null) continue
+            val p = VideoProjectData(
+                name = AutoSave.nameFor(projectName),
+                clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
+                extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
+                videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
+                markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
+                proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
+                bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
+            )
+            val sig = withContext(Dispatchers.Default) { try { ProjectStore.gson.toJson(p.copy(name = "", id = "")) } catch (_: Throwable) { "" } }
+            if (sig.isEmpty() || sig == last) continue
+            last = sig
+            val thumb = clips.firstOrNull()?.let { thumbs[it.id] }
+            withContext(Dispatchers.IO) { try { AutoSave.saveVideo(context, p, thumb) } catch (_: Throwable) {} }
         }
     }
     if (askName) ProjectNameDialog(

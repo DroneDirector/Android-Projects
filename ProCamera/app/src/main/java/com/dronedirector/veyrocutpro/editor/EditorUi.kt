@@ -265,6 +265,20 @@ fun EditorSettingsDialog(
                 com.dronedirector.veyrocutpro.ui.AccentPicker()
                 if (colourExtra != null) colourExtra()
                 com.dronedirector.veyrocutpro.ui.PointerAndWheelSettings(showWheel = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR)
+                if (screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR || screen == com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR) {
+                    val vid = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR
+                    var mins by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(AutoSave.minutes(ctx, vid)) }
+                    var keep by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(AutoSave.keep(ctx, vid)) }
+                    Text("AUTOSAVE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
+                    Text("Saves a copy of the open project automatically (only when something changed). Find them under LOAD → AUTOSAVES.", color = Pro.Dim, fontSize = 12.sp)
+                    Text("Every", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                    Chips(AutoSave.INTERVALS.map { if (it == 0) "Off" else "$it min" }, AutoSave.INTERVALS.indexOf(mins).coerceAtLeast(0)) { i -> mins = AutoSave.INTERVALS[i]; AutoSave.setMinutes(ctx, vid, mins) }
+                    if (mins > 0) {
+                        Text("Autosaves to keep", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                        Chips((1..5).map { "$it" }, keep - 1) { i -> keep = i + 1; AutoSave.setKeep(ctx, vid, keep) }
+                        Text("The newest $keep autosave" + (if (keep == 1) " is" else "s are") + " kept side by side; older ones are removed. Your own saved projects are never touched.", color = Pro.Dim, fontSize = 11.sp)
+                    }
+                }
                 val gv = if (screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR) com.dronedirector.veyrocutpro.ui.GuideVariant.VIDEO else com.dronedirector.veyrocutpro.ui.GuideVariant.PHOTO
                 com.dronedirector.veyrocutpro.ui.CloudAiSettings(gv)
                 com.dronedirector.veyrocutpro.ui.GuideButton(gv)

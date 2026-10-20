@@ -69,6 +69,7 @@ fun BarButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
 fun LoadProjectDialog(video: Boolean, onOpen: (String) -> Unit, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val list by produceState<List<ProjectEntry>?>(null) { value = withContext(Dispatchers.IO) { ProjectStore.list(context, video) } }
+    val autos by produceState<List<ProjectEntry>>(emptyList()) { value = withContext(Dispatchers.IO) { ProjectStore.list(context, video, autosaves = true) } }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Pro.PanelSolid,
@@ -76,6 +77,18 @@ fun LoadProjectDialog(video: Boolean, onOpen: (String) -> Unit, onDismiss: () ->
         text = {
             Column(Modifier.androidxVerticalScroll()) {
                 val l = list
+                if (autos.isNotEmpty()) {
+                    Text("AUTOSAVES", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(bottom = 4.dp))
+                    autos.forEach { p ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onOpen(p.id) }.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(p.name, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    Text("YOUR PROJECTS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
+                }
                 when {
                     l == null -> Text("Loading…", color = Pro.Dim)
                     l.isEmpty() -> Text("No saved projects yet. Use SAVE to keep your edit.", color = Pro.Dim)

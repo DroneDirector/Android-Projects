@@ -2402,5 +2402,12 @@
 "Soft proof (matte print)": "Softproof (mat print)",
 "FILE NAME": "FILNAVN",
 "Template": "Skabelon",
-"Save export preset": "Gem eksportforudindstilling"
+"Save export preset": "Gem eksportforudindstilling",
+"AUTOSAVE": "AUTOGEM",
+"AUTOSAVES": "AUTOGEMTE",
+"YOUR PROJECTS": "DINE PROJEKTER",
+"Every": "Hver",
+"Autosaves to keep": "Autogemte kopier at beholde",
+"Saves a copy of the open project automatically (only when something changed). Find them under LOAD → AUTOSAVES.": "Gemmer automatisk en kopi af det åbne projekt (kun når noget er ændret). Find dem under INDLÆS → AUTOGEMTE.",
+"{0} min": "{0} min"
 }

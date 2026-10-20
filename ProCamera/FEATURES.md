@@ -91,6 +91,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Colour grading** for photos and videos straight from the gallery.
 
 ### Settings
+- **Autosave** (photo and video editors): interval Off / 1 / 2 / 5 / 10 / 15 / 30 min and 1–5 kept copies, listed under LOAD → AUTOSAVES.
 - **Samsung DeX ready**: resizable windows, wide layouts, mouse and keyboard; the app keeps your edit when you connect a keyboard / mouse or move between the phone and a monitor.
 - **Mouse support**: VeyroCut's own glowing pointer (halo, trail, click ripple, orbiting spark), or a plain pointer, or the normal Android arrow. Choose the **pointer colour** and, separately, the **scroll wheel colour** in each screen's gear settings. Wheel, right-click, middle-click and double-click actions in Capture, the Photo editor and the Video editor, plus drag from the media strip to the timeline.
 - **Copyright**: your name and copyright written into every photo (camera and photo editor exports).

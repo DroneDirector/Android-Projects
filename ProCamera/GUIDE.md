@@ -78,6 +78,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Photo editor guide
+**Autosave**
+- Gear → AUTOSAVE: pick how often a copy of your project is saved, and how many copies (1–5) to keep. LOAD → AUTOSAVES opens one; SAVE then asks for a name, so the autosave stays as it was.
 **Pro develop**
 - Crop & perspective → UPRIGHT: Auto (balanced), Level (horizon), Vertical (buildings upright too) or Full (both perspectives). Off undoes it.
 - Heal → DUST SPOTS: VISUALISE SPOTS shows dust as white specks; FIND DUST AUTOMATICALLY heals them (check and hold any wrong spot to delete it). Sensitivity finds fainter or only clear specks.
@@ -154,6 +156,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Video editor guide
+**Autosave**
+- Gear → AUTOSAVE: pick how often a copy of your project is saved, and how many copies (1–5) to keep. LOAD → AUTOSAVES opens one.
 **Media strip and mouse**
 - Phones: the media strip is the first tab of the tools panel ("Media strip"), in any rotation. Tablets: above the timeline in landscape, the first tools tab when upright. With the tools panel hidden it is above the timeline. − / + change the thumbnail size.
 - Hold the divider above or below the media strip, then drag it to make the strip bigger or smaller. The viewer or the timeline gives up the space. Double-tap the divider to reset it.

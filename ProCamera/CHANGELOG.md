@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.344 — 2026-10-20
 - Fixed: removing a photo from the photo editor's filmstrip (hold → Remove from strip) closed the app.
 
 ## 1.0.342 — 2026-10-20

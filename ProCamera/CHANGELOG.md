@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: the media strip is now the first tab of the tools panel on **both phones and tablets, in any rotation**. With the tools panel hidden it sits above the timeline, and external monitors keep their own layouts.
 
 ## 1.0.367 — 2026-10-20
 - Capture: **shutter sound styles** (Settings → Shutter sound). Choose from Phone default, SLR, Rangefinder, Film camera (with the winder) and Digital, and tap a style to hear it. The app makes these sounds itself. Where the law requires a shutter sound, the phone's own sound is always used.

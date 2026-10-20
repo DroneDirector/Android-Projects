@@ -166,7 +166,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Gear → AUTOSAVE: pick how often a copy of your project is saved, and how many copies (1–5) to keep. LOAD → AUTOSAVES opens one.
 **Media strip and mouse**
 - On an external monitor (Samsung DeX, HDMI / USB-C desktop mode), ultra-wide and super ultra-wide screens show media | viewer | tools columns with the timeline across the bottom; drag the dividers to resize. Unplug and the phone / tablet layout comes back at once.
-- Phones: the media strip is the first tab of the tools panel ("Media strip"), in any rotation. Tablets: above the timeline in landscape, the first tools tab when upright. With the tools panel hidden it is above the timeline. − / + change the thumbnail size.
+- Phones and tablets: the media strip is the first tab of the tools panel ("Media strip"), in any rotation. With the tools panel hidden it is above the timeline. − / + change the thumbnail size.
 - Hold the divider above or below the media strip, then drag it to make the strip bigger or smaller. The viewer or the timeline gives up the space. Double-tap the divider to reset it.
 - The media strip above the timeline holds every clip you've imported. With a mouse, hover over a clip to skim it; on a touch screen, hold and slide. Tap a clip to pick it, then use Append, Insert at playhead, Overwrite or Source ›. Double-tap a clip to add it to the end of the timeline.
 - An amber bar and USED ×n show clips that are already on the timeline. Use the stars or ✕ Reject to sort your clips, and the chips at the top to filter them. SELECT works on several clips at once.

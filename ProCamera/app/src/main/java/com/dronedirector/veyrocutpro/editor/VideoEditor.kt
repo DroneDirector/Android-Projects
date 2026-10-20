@@ -3020,15 +3020,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 )
             }
 
-            // Where the media strip goes: phones — always the first tab of the tools panel (any rotation);
-            // tablets — above the timeline in landscape, the first tab of the tools panel when upright.
-            // With the tools panel hidden it is always above the timeline.
             val showStrip = com.dronedirector.veyrocutpro.ui.panelOn("ve.mediastrip")
             val stripPane = rememberPane("ve_strip_h", paneVersion)
             val stripH = if (stripPane.dp < 0f) 70f else stripPane.dp
             val tablet = androidx.compose.ui.platform.LocalConfiguration.current.smallestScreenWidthDp >= 600
             val landscape = maxWidth > maxHeight
-            val stripInTools = mon == com.dronedirector.veyrocutpro.ui.MonitorClass.NONE && showInspector && (!tablet || !landscape)
+            // Phones and tablets, any rotation: the media strip is the first tab of the tools panel.
+            // (Monitors use their own layouts; with the tools panel hidden it sits above the timeline.)
+            val stripInTools = mon == com.dronedirector.veyrocutpro.ui.MonitorClass.NONE && showInspector
             val stripView = @Composable { h: androidx.compose.ui.unit.Dp, vertical: Boolean ->
             MediaStrip(
                 thumbHeight = h,

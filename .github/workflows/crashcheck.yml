@@ -306,6 +306,35 @@ jobs:
           adb shell input tap 540 600; sleep 0.1; adb shell input tap 540 600; sleep 6; shot 15h-zoom; adb shell input tap 540 600; sleep 0.1; adb shell input tap 540 600; sleep 2
           tapText "Detail"; sleep 2; scrollTo "SHOW MASK"; tapText "SHOW MASK"; sleep 4; shot 15i-sharpen-mask; tapText "SHOW MASK"; sleep 1
           fi
+          if want develop2; then
+          tabTo() {  # photo editor tabs scroll sideways: swipe the tab row until "$1" shows, then tap it
+            for k in 1 2 3 4 5 6; do
+              seeText "text=\"$1\"" && break
+              Y=$(adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml | python3 -c "
+          import re,sys
+          t=sys.stdin.read()
+          for lab in ('Presets','Light','Curve','Color','HSL Mixer','Grading','Detail','Effects','Masks','Heal','Lens'):
+              m=re.search(r'text=\"'+lab+r'\"[^>]*bounds=\"\[(\d+),(\d+)\]\[(\d+),(\d+)\]\"',t)
+              if m: print((int(m.group(2))+int(m.group(4)))//2); break
+          ")
+              [ -n "$Y" ] && adb shell input swipe 900 $Y 200 $Y 300; sleep 1
+            done
+            tapExact "$1"; sleep 2
+          }
+          # Masks (object, depth, combine), Lens Blur, Upright, dust spots, export presets / TIFF / colour space.
+          adb shell am force-stop com.dronedirector.veyrocutpro
+          adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen photo --ez bgsetup true; sleep 10; dismiss
+          seeText "Continue filmstrip" && tapText "Continue filmstrip" || tapText "JPEG"; sleep 10; dismiss; shot 16a-open
+          tabTo "Masks"; tapText "Brightness range"; sleep 3; scrollTo "COMBINE"; tapExact "− Subtract"; sleep 1; tapExact "Colour range"; sleep 3; shot 16b-combine
+          scrollTo "ADD A MASK" || true; tapText "Depth (AI)"; for i in $(seq 1 60); do sleep 5; seeText "Depth range" && break; seeText "work out the depth" && break; done; shot 16c-depth-mask
+          tapText "Object (AI)"; sleep 2; adb shell input tap 540 600; for i in $(seq 1 40); do sleep 4; seeText "Object selected" && break; seeText "select that" && break; done; shot 16d-object
+          tabTo "Effects"; scrollTo "LENS BLUR"; tapText "ANALYSE DEPTH"; for i in $(seq 1 60); do sleep 5; seeText "Blur amount" && break; done; scrollTo "PICK FOCUS"; tapText "PICK FOCUS"; sleep 1; adb shell input tap 540 600; sleep 12; scrollTo "Bokeh"; tapExact "Hexagon"; sleep 12; shot 16e-lens-blur
+          tabTo "Crop & perspective"; scrollTo "UPRIGHT"; tapExact "Auto"; sleep 8; shot 16f-upright; tapExact "Full"; sleep 8
+          tabTo "Heal"; scrollTo "DUST SPOTS"; tapText "VISUALISE SPOTS"; sleep 4; shot 16g-visualise; tapText "VISUALISE SPOTS"; tapText "FIND DUST"; sleep 8; shot 16h-dust
+          tapExact "EXPORT"; sleep 2; scrollTo "EXPORT PRESETS"; tapText "Print (TIFF"; sleep 2; scrollTo "OUTPUT"; tapText "Soft proof" ; sleep 1; shot 16i-export-opts
+          scrollTo "EXPORT PHOTO"; tapText "EXPORT PHOTO"; for i in $(seq 1 60); do sleep 4; seeText "EXPORTING" || break; done; sleep 3; shot 16j-exported
+          adb shell ls -la /sdcard/DCIM/VeyroCutPro/ > out/exports.txt 2>&1 || true
+          fi
           if want photo; then
           adb shell am force-stop com.dronedirector.veyrocutpro
           adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen photo; sleep 10; shot 07-photo

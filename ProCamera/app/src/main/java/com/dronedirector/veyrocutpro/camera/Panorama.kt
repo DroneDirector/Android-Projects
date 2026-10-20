@@ -55,7 +55,8 @@ object Panorama {
      * without a gyroscope), [longFovDeg] the camera's field of view across the frame's long side.
      * [direction] > 0 means the user turned right.
      */
-    fun stitch(frames: List<Bitmap>, angles: List<Float>?, longFovDeg: Float, direction: Int, filter: Filter): Bitmap? {
+    /** [keepEdges] = keep the uneven edges (empty, transparent) instead of trimming them, for boundary warp / AI fill. */
+    fun stitch(frames: List<Bitmap>, angles: List<Float>?, longFovDeg: Float, direction: Int, filter: Filter, keepEdges: Boolean = false): Bitmap? {
         if (frames.isEmpty()) return null
         val w0 = frames[0].width; val h0 = frames[0].height
         val fov = Math.toRadians(longFovDeg.coerceIn(30f, 130f).toDouble())
@@ -140,11 +141,11 @@ object Panorama {
         if (covered.isEmpty()) return null
         val x0 = covered.first(); val x1 = covered.last()
         val ts = (x0..x1).map { tops[it] }.sorted(); val bs = (x0..x1).map { bottoms[it] }.sorted()
-        val top = ts[(ts.size * 0.97).toInt().coerceAtMost(ts.size - 1)]
-        val bottom = bs[(bs.size * 0.03).toInt()]
+        val top = if (keepEdges) ts.first() else ts[(ts.size * 0.97).toInt().coerceAtMost(ts.size - 1)]
+        val bottom = if (keepEdges) bs.last() else bs[(bs.size * 0.03).toInt()]
         // Columns at the ends that don't reach the full band are trimmed too.
-        var l = x0; while (l < x1 && (tops[l] > top + 2 || bottoms[l] < bottom - 2)) l++
-        var r = x1; while (r > l && (tops[r] > top + 2 || bottoms[r] < bottom - 2)) r--
+        var l = x0; while (!keepEdges && l < x1 && (tops[l] > top + 2 || bottoms[l] < bottom - 2)) l++
+        var r = x1; while (!keepEdges && r > l && (tops[r] > top + 2 || bottoms[r] < bottom - 2)) r--
         val cropW = r - l + 1; val cropH = bottom - top + 1
         if (cropW < 32 || cropH < 32) return null
         var result = Bitmap.createBitmap(cropW, cropH, Bitmap.Config.ARGB_8888)

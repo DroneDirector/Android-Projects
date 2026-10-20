@@ -181,8 +181,38 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
                 }
             }
         }
+        // Panorama: choose the projection and how to handle the uneven edges first.
+        var panoAsk by remember { mutableStateOf(false) }
+        if (panoAsk) {
+            var proj by remember { mutableStateOf(PanoOpts.projection) }
+            var warp by remember { mutableStateOf(PanoOpts.warp) }
+            var fill by remember { mutableStateOf(PanoOpts.fill) }
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { panoAsk = false }, containerColor = Pro.PanelSolid,
+                title = { Text("Panorama", color = Color.White) },
+                text = {
+                    Column {
+                        Text("Projection", color = Color.White, fontSize = 13.sp)
+                        Chips(PanoOpts.PROJECTIONS, proj) { proj = it }
+                        Text(listOf("Best for wide, sweeping panoramas.", "Very wide or tall views (360° style); straight lines curve.", "Keeps straight lines straight (narrower panoramas, buildings).")[proj], color = Pro.Dim, fontSize = 11.sp)
+                        EdSlider("Boundary warp", warp, 0f..1f, 0f, ::pct) { warp = it }
+                        Text("Stretches the panorama to fill the frame instead of cropping away its uneven edges.", color = Pro.Dim, fontSize = 11.sp)
+                        Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("Fill edges (AI)", color = Color.White, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                            androidx.compose.material3.Switch(fill, { fill = it }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
+                        }
+                        Text("Paints in the empty corners instead of cropping them.", color = Pro.Dim, fontSize = 11.sp)
+                    }
+                },
+                confirmButton = { androidx.compose.material3.TextButton(onClick = {
+                    PanoOpts.projection = proj; PanoOpts.warp = warp; PanoOpts.fill = fill; panoAsk = false
+                    mergeKind = MergeKind.PANORAMA; mergePick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                }) { Text("Pick photos", color = Pro.Amber) } },
+                dismissButton = { androidx.compose.material3.TextButton(onClick = { panoAsk = false }) { Text("Cancel", color = Pro.Dim) } },
+            )
+        }
         MediaChooser(
-            onMerge = { k -> mergeKind = k; mergePick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+            onMerge = { k -> if (k == MergeKind.PANORAMA) panoAsk = true else { mergeKind = k; mergePick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } },
             title = "Photo editor",
             subtitle = "Choose a photo to edit. The original is never changed; edits are exported as a new picture.",
             videos = false,
@@ -399,6 +429,11 @@ private fun PhotoWorkspace(
     // Develop tools: eyedropper (1 = white balance, 2 = Point Color), clipping warning, sharpening mask, zoom / 1:1 loupe.
     var picking by remember { mutableStateOf(0) }
     var pendingObject by remember { mutableStateOf<Pair<Float, Float>?>(null) }
+    var dustView by remember { mutableStateOf(false) }
+    var dustSens by remember { mutableStateOf(0.5f) }
+    var dustImg by remember { mutableStateOf<Bitmap?>(null) }
+    var proofImg by remember { mutableStateOf<Bitmap?>(null) }
+    var uprightBusy by remember { mutableStateOf(false) }
     var clipWarn by remember { mutableStateOf(false) }
     var sharpMaskView by remember { mutableStateOf(false) }
     var zoomK by remember { mutableStateOf(1f) }
@@ -494,6 +529,9 @@ private fun PhotoWorkspace(
     // The photo being edited: the original, or its AI-erased copy.
     fun sourceUri(e: PhotoEdit): Uri = e.baseFile?.let { Uri.fromFile(java.io.File(it)) } ?: uri
     LaunchedEffect(clipWarn, preview) { val pv = preview; clipImg = if (clipWarn && pv != null) withContext(Dispatchers.Default) { Develop.clipOverlay(pv) } else null }
+    LaunchedEffect(dustView, dustSens, preview, panel) { val pv = preview; dustImg = if (dustView && panel == PhotoPanel.HEAL && pv != null) withContext(Dispatchers.Default) { Upright.visualise(pv, dustSens) } else null }
+    LaunchedEffect(ExportOpts.proof, preview) { val pv = preview; proofImg = if (ExportOpts.proof && pv != null) withContext(Dispatchers.Default) { ExportOpts.proofView(pv) } else null }
+    LaunchedEffect(Unit) { ExportOpts.load(context) }
     LaunchedEffect(sharpMaskView, preview, edit.detail.sharpenMasking) { val pv = preview; sharpImg = if (sharpMaskView && pv != null) withContext(Dispatchers.Default) { Develop.sharpenMaskPreview(pv, edit.detail) } else null }
     fun resetZoom() { zoomK = 1f; panX = 0f; panY = 0f }
     LaunchedEffect(panel, split) { if (panel == PhotoPanel.MASKS || panel == PhotoPanel.HEAL || split) resetZoom(); if (panel != PhotoPanel.COLOR && panel != PhotoPanel.MASKS && panel != PhotoPanel.EFFECTS) picking = 0 }
@@ -758,7 +796,7 @@ private fun PhotoWorkspace(
                     for (t in e.texts) out = stampLayer(context, out, t)
                     e.watermark?.let { out = stampLayer(context, out, it) }
                     // A removed background needs a format with transparency.
-                    val fmt = if (e.bg.active && e.bg.mode == 2 && format != 1 && format != 2) 1 else format
+                    val fmt = if (e.bg.active && e.bg.mode == 2 && format !in listOf(1, 2, 4, 5)) 1 else format
                     savePhotoAs(context, out, fmt, (quality * 100).toInt(), if (keepExif) uri else null, stripGps).also { saved ->
                         // Camera Raw (.xmp) sidecar for the original, with the closest matching settings.
                         if (saved != null && PhotoMeta.sidecar && uri != Uri.EMPTY) {
@@ -1205,7 +1243,7 @@ private fun PhotoWorkspace(
                             Modifier.fillMaxSize().padding(6.dp).onSizeChanged { viewSize = it }
                                 .graphicsLayer(scaleX = zoomK, scaleY = zoomK, translationX = panX, translationY = panY),
                         ) {
-                            val img = if (zoomK > 1.6f && !comparing) loupe ?: shown else shown
+                            val img = if (comparing) shown else dustImg ?: (if (zoomK > 1.6f) loupe else null) ?: proofImg ?: shown
                             Image(img.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
                             if (!comparing) {
                                 sharpImg?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
@@ -1318,6 +1356,23 @@ private fun PhotoWorkspace(
                                     Text("UNDO LAST", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable { edit = edit.copy(spots = edit.spots.dropLast(1)) }.padding(8.dp))
                                     Text("CLEAR ALL", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { edit = edit.copy(spots = emptyList()) }.padding(8.dp))
                                 }
+                                SectionTitle("DUST SPOTS")
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    PillChip(if (dustView) "VISUALISE SPOTS ✓" else "VISUALISE SPOTS", dustView) { dustView = !dustView }
+                                    PillChip("FIND DUST AUTOMATICALLY", false, accentText = true) {
+                                        val b = base
+                                        if (b != null) scope.launch {
+                                            message = "Looking for dust…"
+                                            val found = withContext(Dispatchers.Default) { Upright.findDust(b, dustSens) }
+                                            // Skip spots that are already healed.
+                                            val fresh = found.filter { n -> edit.spots.none { kotlin.math.hypot((it.x - n.x).toDouble(), (it.y - n.y).toDouble()) < (it.r + n.r) } }
+                                            edit = edit.copy(spots = edit.spots + fresh)
+                                            message = if (fresh.isEmpty()) "No dust spots found" else "${fresh.size} dust spot(s) healed — check them and remove any that aren't dust"
+                                        }
+                                    }
+                                }
+                                EdSlider("Sensitivity", dustSens, 0f..1f, 0.5f, ::pct) { dustSens = it }
+                                Text("VISUALISE SPOTS shows a black-and-white view where dust and specks stand out. FIND DUST heals small dark specks in smooth areas such as the sky.", color = Pro.Dim, fontSize = 11.sp)
                                 aiEraseSection()
                             }
                             PhotoPanel.TEXT -> {
@@ -1413,6 +1468,19 @@ private fun PhotoWorkspace(
                                     exportXmp = { exportXmp() },
                                     analyseDepth = { withDepth { p -> edit = edit.copy(lensBlur = (edit.lensBlur ?: LensBlur()).copy(depthFile = p, on = true)) } },
                                     depthBusy = depthBusy,
+                                    upright = { mode ->
+                                        val b = base
+                                        if (mode < 0) edit = edit.copy(geometry = edit.geometry.copy(straighten = 0f, vertical = 0f, horizontal = 0f))
+                                        else if (b != null && !uprightBusy) {
+                                            uprightBusy = true
+                                            scope.launch {
+                                                val g = withContext(Dispatchers.Default) { try { Upright.solve(b, edit.geometry, mode) } catch (_: Throwable) { null } }
+                                                uprightBusy = false
+                                                if (g != null) { edit = edit.copy(geometry = g); message = "Upright: ${Upright.MODES[mode]} — rotate %.1f°".format(g.straighten) }
+                                            }
+                                        }
+                                    },
+                                    uprightBusy = uprightBusy,
                                 ),
                             )
                         }
@@ -1752,6 +1820,14 @@ private fun PhotoPanelContent(
                 "16:9" to 16f / 9f, "9:16" to 9f / 16f, "21:9" to 21f / 9f, "2.39:1" to 2.39f, "5:7" to 5f / 7f,
             )
             Chips(aspects.map { it.first }, aspects.indexOfFirst { it.second == geom.aspect }.coerceAtLeast(0)) { i -> geo { it.copy(aspect = aspects[i].second) } }
+            SectionTitle("UPRIGHT") { dev?.upright?.invoke(-1) }
+            if (dev != null) {
+                Row(Modifier.hintedScroll(horizontal = true), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Upright.MODES.forEachIndexed { i, n -> PillChip(n, false, accentText = i == 0) { dev.upright(i) } }
+                    PillChip("Off", false) { dev.upright(-1) }
+                }
+                Text(if (dev.uprightBusy) "Finding the lines…" else "Auto: balanced fix · Level: straightens the horizon · Vertical: also makes buildings upright · Full: vertical and horizontal perspective.", color = if (dev.uprightBusy) Pro.Amber else Pro.Dim, fontSize = 11.sp)
+            }
             SectionTitle("ROTATE & FLIP")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SmallAction(Icons.Filled.RotateRight, "Rotate") { geo { it.copy(rotate90 = it.rotate90 + 1) } }
@@ -1811,13 +1887,59 @@ private fun PhotoPanelContent(
         }
         PhotoPanel.MASKS, PhotoPanel.HEAL, PhotoPanel.LENS, PhotoPanel.HISTORY, PhotoPanel.TEXT -> {}   // drawn by the workspace
         PhotoPanel.EXPORT -> {
+            run {
+                val ctx = LocalContext.current
+                SectionTitle("EXPORT PRESETS")
+                var naming by remember { mutableStateOf(false) }
+                Row(Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    (ExportOpts.builtIn + ExportOpts.user).forEach { p ->
+                        PillChip(p.name, ExportOpts.presetName == p.name, onLongClick = if (p in ExportOpts.user) ({ ExportOpts.user.remove(p); ExportOpts.save(ctx) }) else null) {
+                            onExportState(p.format, p.quality, p.sizeIdx)
+                            ExportOpts.space = p.space; ExportOpts.sharpenFor = p.sharpenFor; ExportOpts.sharpenAmount = p.sharpenAmount; ExportOpts.template = p.template; ExportOpts.presetName = p.name
+                            ExportOpts.save(ctx)
+                        }
+                    }
+                    PillChip("+ SAVE", false, accentText = true) { naming = true }
+                }
+                if (naming) ProjectNameDialog("My export ${ExportOpts.user.size + 1}", onSave = { n ->
+                    ExportOpts.user.add(ExportOpts.Preset(n, exportState.format, exportState.quality, exportState.sizeIdx, ExportOpts.space, ExportOpts.sharpenFor, ExportOpts.sharpenAmount, ExportOpts.template))
+                    ExportOpts.presetName = n; ExportOpts.save(ctx); naming = false
+                }, onDismiss = { naming = false }, title = "Save export preset", info = "Saves the format, size, quality, colour space, output sharpening and file name.", fieldLabel = "Preset name")
+            }
             SectionTitle("FORMAT")
             Chips(PHOTO_FORMATS, exportState.format) { onExportState(it, exportState.quality, exportState.sizeIdx) }
+            if (exportState.format >= 4) Text("TIFF: uncompressed and lossless (large files), for print and other editing software.", color = Pro.Dim, fontSize = 11.sp)
             if (exportState.format == 3) Text("HEIC: about half the size of JPEG (Android 9+).", color = Pro.Dim, fontSize = 11.sp)
-            if (exportState.format != 1) EdSlider("Quality", exportState.quality, 0.6f..1f, 0.95f, ::pct) { onExportState(exportState.format, it, exportState.sizeIdx) }
+            if (exportState.format != 1 && exportState.format < 4) EdSlider("Quality", exportState.quality, 0.6f..1f, 0.95f, ::pct) { onExportState(exportState.format, it, exportState.sizeIdx) }
             SectionTitle("SIZE (LONG EDGE)")
             Chips(listOf("Full (≤4800)", "4096", "2560", "1920", "Instagram 1080", "Web 2048", "4K 3840"), exportState.sizeIdx) { onExportState(exportState.format, exportState.quality, it) }
             Text("Exports a new picture to DCIM/VeyroCutPro; the original stays untouched.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 8.dp))
+            run {
+                val ctx = LocalContext.current
+                SectionTitle("OUTPUT")
+                Text("Colour space (profile embedded)", color = Color.White, fontSize = 13.sp)
+                Chips(ExportOpts.SPACES, ExportOpts.space) { ExportOpts.space = it; ExportOpts.save(ctx) }
+                Text("Output sharpening", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                Chips(ExportOpts.SHARPEN_FOR, ExportOpts.sharpenFor) { ExportOpts.sharpenFor = it; ExportOpts.save(ctx) }
+                if (ExportOpts.sharpenFor != 0) Chips(ExportOpts.SHARPEN_AMOUNT, ExportOpts.sharpenAmount) { ExportOpts.sharpenAmount = it; ExportOpts.save(ctx) }
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Soft proof (matte print)", color = Color.White, fontSize = 13.sp)
+                        Text("Shows on screen how a print on matte paper will look: softer blacks and whites.", color = Pro.Dim, fontSize = 11.sp)
+                    }
+                    androidx.compose.material3.Switch(ExportOpts.proof, { ExportOpts.proof = it }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
+                }
+                SectionTitle("FILE NAME")
+                androidx.compose.material3.OutlinedTextField(
+                    value = ExportOpts.template, onValueChange = { ExportOpts.template = it.take(80); ExportOpts.save(ctx) }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth(), label = { Text("Template") },
+                    colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber),
+                )
+                Row(Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ExportOpts.TOKENS.forEach { t -> PillChip(t, false) { ExportOpts.template = ExportOpts.template + (if (ExportOpts.template.isEmpty() || t == "{name}") "" else "_") + t; ExportOpts.save(ctx) } }
+                }
+                Text("{name} original file name · {date} · {time} · {seq} counting number (next: ${ExportOpts.seq}) · {preset} export preset", color = Pro.Dim, fontSize = 11.sp)
+            }
             run {
                 val ctx = LocalContext.current
                 LaunchedEffect(Unit) { PhotoMeta.load(ctx) }

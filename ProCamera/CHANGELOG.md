@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.371 — 2026-10-20
 - Video editor, Audio → AI VOICEOVER FROM TEXT: **tap a voice to hear a sample**. It reads the first sentence of your text, or a short hello if the text box is empty. The first sample of each voice takes a moment, because the voice is downloaded; after that it plays straight away.
 
 ## 1.0.369 — 2026-10-20

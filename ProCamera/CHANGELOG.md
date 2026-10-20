@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.395 — 2026-10-20
 - Video editor timeline: **a bin on the selected clip**. Tap a clip to select it, then tap the red bin at the top of the clip to delete it. You choose each time:
   - **Close gap:** the clips after it move left.
   - **Leave gap:** black of the same length takes its place, so everything after it stays where it is.

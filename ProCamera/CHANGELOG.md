@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.385 — 2026-10-20
 - Photo editor, Lens:
   - **AUTO COLOUR FRINGES** measures how far red and blue are off towards the corners, and lines them up.
   - **LENS PROFILE** sets distortion and corner shading for the kind of lens the photo was taken with (ultra-wide, wide, standard, normal or telephoto), read from the photo's camera details.

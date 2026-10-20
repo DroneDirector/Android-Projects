@@ -31,7 +31,7 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
- * AI depth for a clip (Color → Detail → AI DEPTH), like DaVinci Resolve's Depth Map: how far away
+ * AI depth for a clip (Color → Detail → AI DEPTH): how far away
  * every part of the picture is, worked out by Depth Anything V2 Small (Apache 2.0, on the phone),
  * then used for a lens blur (depth of field), haze / fog, or a darker / calmer background.
  * [mode] 0 = depth of field, 1 = fog, 2 = background light. [focus] = depth kept sharp (1 = nearest),

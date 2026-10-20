@@ -52,7 +52,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Show / hide panels per screen (like the Workspace menu in DaVinci Resolve or Premiere Pro).
+ * Show / hide panels per screen.
  * Every panel is visible by default; the user's choices are saved and survive restarts.
  * Keys look like "cap.hud" or "ve.inspector".
  */

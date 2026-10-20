@@ -2,8 +2,8 @@ package com.dronedirector.veyrocutpro.editor
 
 /**
  * Timeline exchange with desktop editors (Deliver → SEND TO DESKTOP EDITOR):
- *  - CMX 3600 EDL: cuts, dissolves and speed changes; opens in DaVinci Resolve, Premiere Pro, Avid.
- *  - FCPXML 1.9: cuts and markers; opens in DaVinci Resolve and Final Cut Pro (Premiere via a converter).
+ *  - CMX 3600 EDL: cuts, dissolves and speed changes; opens in most desktop editors.
+ *  - FCPXML 1.9: cuts and markers; opens in desktop editors that read FCPXML.
  * Only the edit travels: grades, effects and layers stay in VeyroCut Pro. Media is matched by file name,
  * so on the computer you point the editor at the folder with the original clips.
  */

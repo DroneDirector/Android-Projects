@@ -26,7 +26,7 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /**
- * Magic Mask (like DaVinci Resolve's Magic Mask): tap or box any person, animal, vehicle or object
+ * Magic Mask: tap or box any person, animal, vehicle or object
  * on one frame; the AI outlines it (MobileSAM — Apache 2.0 — on the phone, through ONNX Runtime —
  * MIT) and it is tracked through the clip: every frame's outline is carried forward with
  * VeyroCut Pro's own optical flow and re-fitted by the AI.

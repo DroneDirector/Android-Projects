@@ -91,6 +91,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Colour grading** for photos and videos straight from the gallery.
 
 ### Settings
+- **Samsung DeX ready**: resizable windows, wide layouts, mouse and keyboard; the app keeps your edit when you connect a keyboard / mouse or move between the phone and a monitor.
 - **Mouse support**: VeyroCut's own glowing pointer (halo, trail, click ripple, orbiting spark), or a plain pointer, or the normal Android arrow. Choose the **pointer colour** and, separately, the **scroll wheel colour** in each screen's gear settings. Wheel, right-click, middle-click and double-click actions in Capture, the Photo editor and the Video editor, plus drag from the media strip to the timeline.
 - **Copyright**: your name and copyright written into every photo (camera and photo editor exports).
 - **External storage**: save to phone storage, an SD card / USB drive, or a folder you pick on any USB stick, SSD or SD card (videos record straight onto the drive; falls back to internal storage if it is unplugged); **app colour** (accent) picker; layout and control options.
@@ -101,16 +102,16 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 ## Photo editor
 - Open from the gallery, files or recent VeyroCut Pro photos; **saved projects** row on the start page.
 - **Skip to the editor** from the start page: open the editor without picking a photo first, then add one from inside (manual, every time).
-- **Lightroom-style develop**:
+- **Pro develop**:
   - **60 built-in presets** (Portrait, Landscape, B&W, Film, Cinematic, Vintage, Urban, Food, Travel, Moody) with live thumbnails and an **Amount** slider.
-  - **Lightroom .xmp** preset and sidecar import, and .xmp preset export.
+  - **.xmp** preset and sidecar import, and .xmp preset export.
   - **Auto tone**, **Auto white balance**, a **WB eyedropper** and **clipping warnings**.
   - **Point Color** and **Calibration** (shadows tint, red / green / blue primaries).
   - Colour grading with **Global, Blending and Balance**.
   - Pro sharpening (**Radius, Detail, Masking** + mask preview) and **Defringe** (purple / green).
   - **Post-crop vignette** (Midpoint, Roundness, Feather, Highlights) and **grain** (Size, Roughness).
   - **Zoom / 1:1 loupe** (pinch, double-tap, Ctrl + wheel).
-- **Multi-import + filmstrip** (Lightroom-style): pick up to 100 photos at once from the gallery or files; a filmstrip under the photo switches between them, and every photo keeps its own edit automatically. Star ratings, Pick / Reject flags, colour labels, filters (All, ★3+, Picks, Edited, No rejects), multi-select **Sync edit** (colour, light, detail, lens, RAW develop), batch rate / flag, **export selected** (each with its own edit) and remove. "Continue filmstrip" on the start page; hide it from the Panels menu.
+- **Multi-import + filmstrip**: pick up to 100 photos at once from the gallery or files; a filmstrip under the photo switches between them, and every photo keeps its own edit automatically. Star ratings, Pick / Reject flags, colour labels, filters (All, ★3+, Picks, Edited, No rejects), multi-select **Sync edit** (colour, light, detail, lens, RAW develop), batch rate / flag, **export selected** (each with its own edit) and remove. "Continue filmstrip" on the start page; hide it from the Panels menu.
 - Panels: **Presets, Light, Curve, Color, HSL Mixer, Grading, Detail, Effects, Crop & format, Watermark, Export**.
 - **RAW (DNG) develop**: the editor reads the sensor data itself (uncompressed and lossless-compressed DNGs, lens-shading maps, the camera's colour matrix) — exposure ±5 stops, highlights, shadows, whites, blacks and white balance work on the full-range data with a soft highlight roll-off; **RAW profiles** (Standard, Flat, Vivid, Portrait, Landscape, Mono) and **white balance presets** (As shot, Auto, Daylight, Cloudy, Shade, Tungsten, Fluorescent); full-quality demosaic on export; RAW files in a batch export are developed too.
 - **Full DNG support**: uncompressed, lossless-JPEG, lossy-JPEG and Deflate DNGs; 8–32-bit integer and 16 / 24 / 32-bit floating-point (HDR) data with all TIFF / DNG predictors; Bayer, X-Trans, Quad Bayer and any other RGB colour filter pattern, plus linear (demosaiced) DNGs; strips or tiles; linearisation tables, per-row / column black levels, active area, default crop and DefaultUserCrop; all OpcodeList1 / 2 / 3 corrections (bad pixels, map table / polynomial, per-row / column delta and scale, lens-shading gain maps, WarpRectilinear distortion + lateral chromatic aberration, FixVignetteRadial); full colour model (dual-illuminant ColorMatrix / CameraCalibration / ForwardMatrix interpolated by the white, AnalogBalance, AsShotNeutral / AsShotWhiteXY); the embedded camera profile (ProfileHueSatMap, ProfileLookTable, ProfileToneCurve, BaselineExposureOffset); RAW INFO panel. (JPEG XL DNGs from the newest iPhones aren't decodable on Android yet.)
@@ -146,7 +147,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **LOAD / SAVE projects** next to Export.
 - Export **JPEG or PNG**, quality and size choice; choose the **save folder** (default DCIM/VeyroCutPro).
 - Also **WebP** and **HEIC**; Instagram / web / 4K sizes; **AI upscale** 2× / 4× in the export; keep or remove **camera info and location**.
-- **IPTC title, caption & keywords** in every export, and an optional **Lightroom / Camera Raw .xmp sidecar** with the edit.
+- **IPTC title, caption & keywords** in every export, and an optional **.xmp sidecar** (Camera Raw settings) with the edit.
 - **Batch export**: apply the current edit to up to 50 photos at once.
 - **Resizable panels** (hold the divider, then drag; double-tap to reset).
 - **Panels menu** (icon next to the gear): show / hide the tools panel, copy / paste bar, histogram and before / after buttons — the photo fills freed space and returns to its saved size; presets **Full / View / Edit / Color**; **triple-tap** the icon to restore the original layout. The histogram button (bar-chart icon) choice is now remembered.
@@ -196,11 +197,11 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Background removal & Magic Mask**: people found automatically (ML Kit), or Magic Mask — tap / box any object and it is tracked through the clip (MobileSAM, Apache 2.0, via ONNX Runtime, MIT; own optical-flow tracking with close-up re-fitting, occlusion and scene-cut handling); blur, recolour, remove or invert; edges refined against the full picture; live preview matches the export; cut-outs for video layers.
 - **Generators**: black, colour, gradient, noise and colour-bars clips, and a film countdown leader (3–10).
 - **Split-screen templates** (2 side by side, 2 stacked, 3 columns, 2 × 2) and **picture in picture**; video layers get a frame shape (crop to fill), rounded corners, border and drop shadow.
-- **Morph cut** (like Premiere's Morph Cut / DaVinci's Smooth Cut): own optical-flow engine draws new in-between frames for jump cuts — the frames are rendered through each clip's own grade and effects at full size.
+- **Morph cut**: own optical-flow engine draws new in-between frames for jump cuts — the frames are rendered through each clip's own grade and effects at full size.
 - **Smarter filler removal**: um / uh, repeats & stutters, and optional filler phrases (you know, like) — the transcript now keeps what was really said.
 - **Auto podcast / interview switching** (Multicam → AUTO: WHO'S TALKING): cuts to whoever is speaking from each angle's own microphone, with an optional wide shot for cross-talk and pauses.
 - **Auto highlights**: a 15 s – 2 min reel of the liveliest moments (sound bursts, movement, lively talk), cut between words.
-- **Optical-flow slow motion** on the phone (own motion engine): ½ / ¼ / ⅛ speed or the clip's own ramp with new in-between frames — like Optical Flow in DaVinci Resolve / Premiere.
+- **Optical-flow slow motion** on the phone (own motion engine): ½ / ¼ / ⅛ speed or the clip's own ramp with new in-between frames.
 - **Motion blur** from the motion (90° / 180° / 360° shutter).
 - **Corner pin & planar tracking**: put any layer in perspective on a screen, sign or wall and keep it stuck there as the camera moves (own tracker: Lucas–Kanade + RANSAC homography).
 - **Shape layers** (rectangle, rounded, ellipse, line, arrow, triangle, star, heart; filled or outline) and **Lottie animation layers** (.json / .zip; lottie-android, Apache 2.0).
@@ -299,7 +300,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - Choose the **save folder** (default DCIM/VeyroCutPro).
 - **Animated GIF** export (320–640 px, 10–15 fps, up to 20 s) with grade and layers.
 - **Subtitles (.srt)** from the AI captions.
-- **Send to desktop editor**: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) for DaVinci Resolve, Premiere Pro, Avid and Final Cut Pro.
+- **Send to desktop editor**: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) for desktop editing software.
 
 ### Projects & workflow
 - **LOAD / SAVE projects** next to Export; **Save & leave** when exiting; saved projects on the start page.

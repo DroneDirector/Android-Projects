@@ -12,9 +12,9 @@ import java.io.File
 import java.util.Locale
 
 /**
- * Photo metadata for clients, agencies and Lightroom:
+ * Photo metadata for clients, agencies and photo software:
  *  - IPTC title, caption and keywords written into every exported JPEG / WebP (as XMP), and
- *  - an optional Lightroom / Camera Raw .xmp sidecar with the edit, for the original photo.
+ *  - an optional Camera Raw .xmp sidecar with the edit, for the original photo.
  */
 object PhotoMeta {
     var title by mutableStateOf("")
@@ -79,7 +79,7 @@ $body  </rdf:Description>
         Math.round((x * scale).coerceIn(lo, hi)).toString()
 
     /**
-     * A Lightroom / Adobe Camera Raw sidecar with the closest matching settings. [raw] = the
+     * A Camera Raw (.xmp) sidecar with the closest matching settings. [raw] = the
      * original is a DNG (white balance then stays "As Shot").
      */
     fun sidecarXmp(g: ProGrade, d: Detail, geo: Geometry, raw: Boolean): String {

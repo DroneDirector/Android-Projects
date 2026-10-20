@@ -4,9 +4,10 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
-- Photo editor, **Lightroom-style develop tools**:
+- Samsung DeX: plugging in or removing a keyboard or mouse, or moving between the phone screen and a monitor, no longer reloads the screen or closes your edit.
+- Photo editor, **pro develop tools**:
   - **60 built-in presets** in 10 groups, with live thumbnails of your photo and an **Amount** slider (0–200 %).
-  - **Lightroom .xmp** presets and sidecars can be imported (they go into My presets), and your look can be exported as an .xmp preset.
+  - **.xmp** presets and sidecars can be imported (they go into My presets), and your look can be exported as an .xmp preset.
   - **Auto** tone, **Auto** white balance, a **white-balance eyedropper** and a **clipping warning** (red = blown highlights, blue = crushed shadows).
   - **Point Color**: pick a colour on the photo and shift only that colour. **Calibration** adjusts the shadows tint and the red, green and blue primaries.
   - Colour grading now has **Global**, **Blending** and **Balance**.
@@ -28,7 +29,7 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 - Mouse controls in the Video editor: drag a clip from the media strip onto the timeline. On the timeline, Ctrl + wheel zooms, Shift + wheel scrolls along the edit, and right-click on a clip opens its tools. On the player, double-click goes full screen and the wheel steps through frames.
 
 ## 1.0.340 — 2026-10-20
-- Photo editor: pick many photos at once (gallery or files). They appear in a **filmstrip** under the photo, like Lightroom; tap one to switch, and each photo keeps its own edit automatically.
+- Photo editor: pick many photos at once (gallery or files). They appear in a **filmstrip** under the photo; tap one to switch, and each photo keeps its own edit automatically.
 - Filmstrip: hold a thumbnail for stars (0–5), Pick / Reject and colour labels; filters for All, ★3+, Picks, Edited and No rejects; SELECT to sync the current edit to other photos, rate, flag, export the selected photos (each with its own edit) or remove them.
 - The start page offers "Continue filmstrip" so you can carry on later; the filmstrip can be hidden from the Panels menu.
 
@@ -47,7 +48,7 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 - Video editor: **Studio voice (AI)** — the cleanest voice clean-up (DeepFilterNet3), plus **Remove clicks & crackle** and **Remove room echo** (Audio → REPAIR).
 - Video editor: **Translate captions** into 19 languages on the phone (Layers → TRANSLATE CAPTIONS).
 - The new AI models are downloaded the first time you use them, so the app itself doesn't grow.
-- Video editor: **Optical-flow slow motion** (Edit → SMOOTH SLOW MOTION): ½, ¼ or ⅛ speed — or your own speed ramp — with new in-between frames drawn from the motion on the phone, like Optical Flow in DaVinci Resolve and Premiere. No more stutter.
+- Video editor: **Optical-flow slow motion** (Edit → SMOOTH SLOW MOTION): ½, ¼ or ⅛ speed — or your own speed ramp — with new in-between frames drawn from the motion on the phone. No more stutter.
 - Video editor: **Motion blur** (Edit → MOTION BLUR): natural camera-shutter blur on moving things (90°, 180° or 360°).
 - Video editor: **Corner pin & planar tracking** (Layers → selected layer): drag a layer's four corners onto a screen, sign or wall, then track it so it stays stuck there as the camera moves.
 - Video editor: **Shape layers** and **Lottie animation layers** (Layers → Shape / Lottie).
@@ -64,7 +65,7 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 - Video editor timeline: a **horizontal scroll wheel** along the bottom, matching the vertical one — drag it like a wheel to move through the edit left and right, or tap to jump. It has its own window from the left edge to the vertical wheel's window, so it never covers a track.
 
 ## 1.0.318 — 2026-10-19
-- Video editor: **Morph cut** (Transitions → Basic) now works like Premiere Pro's Morph Cut and DaVinci Resolve's Smooth Cut — VeyroCut Pro's own optical-flow engine analyses the jump cut and draws brand-new in-between frames, so a head glides to its new position instead of jumping or cross-fading. Shown in the preview; drawn at full size (with each clip's grade and effects) in the export.
+- Video editor: **Morph cut** (Transitions → Basic) has been rebuilt — VeyroCut Pro's own optical-flow engine analyses the jump cut and draws brand-new in-between frames, so a head glides to its new position instead of jumping or cross-fading. Shown in the preview; drawn at full size (with each clip's grade and effects) in the export.
 - Video editor: **Magic Mask** (Color → Detail → BACKGROUND, and Layers → REMOVE BACKGROUND) — tap or box any person, animal, car or object; the AI outlines it and follows it through the clip frame by frame (MobileSAM on the phone), handling things passing in front and stopping at scene cuts. Blur, recolour or remove the background, or invert to blur / hide the object itself.
 - Video editor: the background cut-out (people or Magic Mask) now shows live in the preview exactly as the export makes it, with finer edges that follow hair and outlines.
 - Releases now include a separate native debug-symbols file for the Google Play Console (not part of the app).
@@ -108,13 +109,13 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 
 ## 1.0.288 — 2026-10-19
 - Video editor timeline: video clips on V1 now have trim handles too — hold the start or end of a clip and drag to shorten or lengthen it (up to the full length of its video file; the clips after it move along). Video layers can't be stretched past the end of their own clip.
-- Fixed: a video layer added ABOVE the main video showed its timeline row under V1. Layers on top of the video now sit above the V1 row (the top row is the topmost layer) and layers placed below the video sit under V1, like DaVinci Resolve and Premiere. Drag a row up / down to reorder within its group.
+- Fixed: a video layer added ABOVE the main video showed its timeline row under V1. Layers on top of the video now sit above the V1 row (the top row is the topmost layer) and layers placed below the video sit under V1. Drag a row up / down to reorder within its group.
 
 ## 1.0.286 — 2026-10-19
 - Video editor: add as many video layers as you like, each above or below the main video. Tap + VIDEO on the timeline (or Layers → Video), choose ABOVE or BELOW, then pick the clip. Above layers sit on top (picture-in-picture, or full frame); below layers sit behind your clips and show where the main video doesn't cover the frame. Change it any time under the layer's PLACEMENT; rows are marked ↑ / ↓ on the timeline, and the preview and export stack them the same way.
 
 ## 1.0.284 — 2026-10-19
-- Video editor timeline: every layer and audio bar now has trim handles at both ends (a bracket tab, like DaVinci Resolve / Premiere). Hold a handle and drag to lengthen or shorten — never past the start or end of the video — with the new length shown above the bar while you drag.
+- Video editor timeline: every layer and audio bar now has trim handles at both ends (a bracket tab). Hold a handle and drag to lengthen or shorten — never past the start or end of the video — with the new length shown above the bar while you drag.
 - Video editor: the eye switch next to each layer now always hides that layer from the video feed, even while it's selected (it was still shown when selected); tap again to show it. Hidden layers are left out of the export as before.
 
 ## 1.0.281 — 2026-10-19
@@ -165,7 +166,7 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 - Video editor: DRONE TELEMETRY — DJI .SRT flight data (altitude, speed, GPS, camera) as an overlay that follows the clip.
 - Video editor: TRIM TOOLS (slip, roll, slide by frames) and NEST / UN-NEST for compound clips.
 - Video editor: auto-save every 20 seconds and RECOVER on the start page after an unexpected close.
-- Photo editor: IPTC title, caption and keywords in exports, and an optional Lightroom .xmp sidecar with the edit.
+- Photo editor: IPTC title, caption and keywords in exports, and an optional .xmp sidecar with the edit.
 
 ## 1.0.252 — 2026-10-18
 - Video editor: new SOUND LIBRARIES on the Media page — 26 built-in cinematic soundtracks you can listen to and add to the timeline at the playhead; they play in the preview and are mixed into the export. A Nature sounds section is ready for more.
@@ -250,7 +251,7 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 ## 1.0.198 — 2026-10-17
 - Copyright: your name and copyright notice (Settings → COPYRIGHT) are written into every photo you take and every photo exported from the photo editor.
 - Gallery: culling — 1–5 star ratings, ✓ pick and ✕ reject in the viewer; marks on the thumbnails; filters (★1+, ★3+, ★5, picks, rejects, hide rejects); delete all rejects at once.
-- Video editor: send the edit to a desktop editor — Deliver → SEND TO DESKTOP EDITOR saves an EDL (cuts, dissolves, speed) or FCPXML (cuts, markers) for DaVinci Resolve, Premiere Pro, Avid or Final Cut Pro.
+- Video editor: send the edit to a desktop editor — Deliver → SEND TO DESKTOP EDITOR saves an EDL (cuts, dissolves, speed) or FCPXML (cuts, markers) for desktop editing software (Final Cut Pro.
 - Capture: red tally border while recording, touch lock (padlock; hold to unlock) and warnings for low storage, low battery and heat — each can be hidden in the Panels menu.
 - Capture: custom set-ups C1 / C2 / C3 in the quick bar — hold to save the current settings, tap to recall (can be hidden in the Panels menu).
 
@@ -296,7 +297,7 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 - Photo editor and Video editor: the screen name is gone from the top bar, leaving more room for the icons and buttons.
 
 ## 1.0.161 — 2026-10-17
-- New Panels menu in Capture and the Video editor (icon next to the settings gear): hide the parts you don't need, like the Workspace menu in DaVinci Resolve / Premiere Pro. Presets: Capture — Full, Minimal, Video; Video editor — Full, Cut, Color, Audio. Choices are remembered.
+- New Panels menu in Capture and the Video editor (icon next to the settings gear): hide the parts you don't need. Presets: Capture — Full, Minimal, Video; Video editor — Full, Cut, Color, Audio. Choices are remembered.
 - Video editor: hidden panels give their space to the player and timeline; shown again, everything returns to its saved size.
 - Triple-tap the panels icon to reset the layout to the original (all panels shown, positions and divider sizes back to default). Also available as RESET LAYOUT in the menu.
 

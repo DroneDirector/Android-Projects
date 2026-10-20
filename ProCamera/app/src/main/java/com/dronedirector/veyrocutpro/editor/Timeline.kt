@@ -183,7 +183,7 @@ fun TimelineView(
     val musicRow = with(density) { 24.dp.toPx() }
     val gap = with(density) { 3.dp.toPx() }
     val shownLayers = layers.asReversed()
-    // Rows like DaVinci / Premiere: layers on top of the video above V1 (topmost first),
+    // Rows: layers on top of the video above V1 (topmost first),
     // video layers placed below the main video under V1, then the audio tracks.
     val aboveRows = shownLayers.filter { !it.isBelow }
     val belowRows = shownLayers.filter { it.isBelow }
@@ -766,7 +766,7 @@ private fun peakAt(peaks: FloatArray, ms: Long, spanMs: Long): Float {
 }
 
 /**
- * Trim handles at both ends of a bar, like DaVinci Resolve / Premiere: a raised tab with a bracket
+ * Trim handles at both ends of a bar: a raised tab with a bracket
  * and grip lines, brighter when the item is selected or being trimmed.
  */
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.trimHandles(x0: Float, x1: Float, top: Float, h: Float, active: Boolean, accent: Color) {

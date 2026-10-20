@@ -130,7 +130,7 @@ object Homography {
 }
 
 /**
- * Planar tracking (like Mocha or DaVinci Resolve's planar tracker): follows a flat surface inside the
+ * Planar tracking: follows a flat surface inside the
  * four corners frame by frame — corner points found inside it are followed with pyramidal
  * Lucas–Kanade (checked forwards and backwards), then the surface's perspective is fitted to them
  * with RANSAC. Own code, on the phone.

@@ -17,7 +17,7 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
- * Object removal for video (like DaVinci Resolve's Object Removal or Premiere's Content-Aware Fill),
+ * Object removal for video ,
  * on the phone. The object is the one Magic Mask follows. For every frame:
  *  1. the motion of the scene is worked out (VeyroCut Pro's own optical flow) and completed inside
  *     the object, so it describes the background behind it;

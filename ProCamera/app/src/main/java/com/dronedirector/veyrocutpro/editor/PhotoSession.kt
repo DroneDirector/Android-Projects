@@ -67,7 +67,7 @@ data class SessionPhoto(
 )
 
 /**
- * The photo editor's working set, like Lightroom's filmstrip: many photos imported at once, each with
+ * The photo editor's working set, like a desktop filmstrip: many photos imported at once, each with
  * its own edit. Kept until cleared, so you can come back later and carry on.
  */
 object PhotoSession {

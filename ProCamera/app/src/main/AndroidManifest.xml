@@ -35,6 +35,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.VeyroCutPro">
 
+        <!-- Samsung DeX: keep running (and keep the edit open) when moving between the phone screen and a monitor or changing density. -->
+        <meta-data android:name="com.samsung.android.keepalive.density" android:value="true" />
+        <meta-data android:name="com.samsung.android.multidisplay.keep_process_alive" android:value="true" />
+
         <!-- Portrait mode: download ML Kit's subject segmentation model (pets, flowers, rocks…) with the app. -->
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
@@ -43,7 +47,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density|uiMode"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|density|uiMode"
             android:resizeableActivity="true"
             android:screenOrientation="fullUser">
             <intent-filter>

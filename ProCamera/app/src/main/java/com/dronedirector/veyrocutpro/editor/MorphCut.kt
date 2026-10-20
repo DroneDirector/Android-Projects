@@ -35,7 +35,7 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
- * Morph cut (Transitions → Basic → Morph cut), like Premiere Pro's Morph Cut and DaVinci Resolve's
+ * Morph cut (Transitions → Basic → Morph cut),
  * Smooth Cut: for a jump cut (words cut out of an interview), the last frame before the transition
  * and the first frame after it are analysed with VeyroCut Pro's own optical flow, and every frame in
  * between is drawn new — each pixel moves along its own path from one picture to the other, so a

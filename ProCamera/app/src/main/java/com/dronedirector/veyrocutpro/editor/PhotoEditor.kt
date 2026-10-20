@@ -538,24 +538,24 @@ private fun PhotoWorkspace(
         }
         picking = 0
     }
-    // Lightroom .xmp presets / sidecars: import (as your presets, the first one is applied) and export.
+    // .xmp presets / sidecars: import (as your presets, the first one is applied) and export.
     val pickXmp = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { list ->
         var n = 0; var first: Pair<ProGrade, Detail>? = null
         for (u in list) {
-            val t = LrPresets.readText(context, u) ?: continue
-            val res = LrPresets.parseXmp(t) ?: continue
-            val name = LrPresets.nameOf(t, u.lastPathSegment?.substringAfterLast('/') ?: "Preset")
+            val t = DevPresets.readText(context, u) ?: continue
+            val res = DevPresets.parseXmp(t) ?: continue
+            val name = DevPresets.nameOf(t, u.lastPathSegment?.substringAfterLast('/') ?: "Preset")
             UserPresets.init(context); UserPresets.add(name, res.first, res.second); n++
-            if (first == null) first = LrPresets.parseXmp(t, edit.grade, edit.detail)
+            if (first == null) first = DevPresets.parseXmp(t, edit.grade, edit.detail)
         }
         first?.let { (g, d) -> edit = edit.copy(grade = g, detail = d.copy(aiDenoise = edit.detail.aiDenoise)) }
-        message = if (n == 0) "No Lightroom settings found in that file" else "Imported $n preset" + (if (n == 1) "" else "s") + " (in MY PRESETS); the first one is applied"
+        message = if (n == 0) "No develop settings found in that file" else "Imported $n preset" + (if (n == 1) "" else "s") + " (in MY PRESETS); the first one is applied"
     }
     fun exportXmp() {
         val name = projectName.ifBlank { "VeyroCut look " + java.text.SimpleDateFormat("d MMM HH.mm", java.util.Locale.getDefault()).format(java.util.Date()) }
         val e = edit
         scope.launch {
-            val where = withContext(Dispatchers.IO) { LrPresets.savePreset(context, name, LrPresets.presetXmp(name, e.grade, e.detail)) }
+            val where = withContext(Dispatchers.IO) { DevPresets.savePreset(context, name, DevPresets.presetXmp(name, e.grade, e.detail)) }
             message = where?.let { "Preset saved: $it" } ?: "Couldn't save the preset"
         }
     }
@@ -749,7 +749,7 @@ private fun PhotoWorkspace(
                     // A removed background needs a format with transparency.
                     val fmt = if (e.bg.active && e.bg.mode == 2 && format != 1 && format != 2) 1 else format
                     savePhotoAs(context, out, fmt, (quality * 100).toInt(), if (keepExif) uri else null, stripGps).also { saved ->
-                        // Lightroom / Camera Raw sidecar for the original, with the closest matching settings.
+                        // Camera Raw (.xmp) sidecar for the original, with the closest matching settings.
                         if (saved != null && PhotoMeta.sidecar && uri != Uri.EMPTY) {
                             val where = PhotoMeta.writeSidecar(context, uri, PhotoMeta.sidecarXmp(e.grade, e.detail, e.geometry, raw))
                             if (where == null) scope.launch { message = "Photo saved, but the .xmp sidecar couldn't be written" }
@@ -1483,10 +1483,10 @@ private fun PhotoPanelContent(
         PhotoPanel.PRESETS -> {
             UserPresetSection({ g to e.detail }) { p -> set(e.copy(grade = p.grade, detail = p.detail.copy(aiDenoise = e.detail.aiDenoise))) }
             if (dev != null) Row(Modifier.padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PillChip("IMPORT LIGHTROOM .XMP", false, accentText = true) { dev.importXmp() }
+                PillChip("IMPORT .XMP PRESETS", false, accentText = true) { dev.importXmp() }
                 PillChip("EXPORT AS .XMP", false, accentText = true) { dev.exportXmp() }
             }
-            Text("Import Lightroom / Camera Raw presets or .xmp sidecars (they're added to MY PRESETS). Export saves this look as a Lightroom preset in Documents/VeyroCutPro/Presets.", color = Pro.Dim, fontSize = 11.sp)
+            Text("Import .xmp presets or sidecars (Camera Raw settings) (they're added to MY PRESETS). Export saves this look as an .xmp preset in Documents/VeyroCutPro/Presets.", color = Pro.Dim, fontSize = 11.sp)
             BuiltInPresetSection(thumbSrc, g, e.detail) { ng, nd -> set(e.copy(grade = ng, detail = nd.copy(aiDenoise = e.detail.aiDenoise))) }
             LutSection(g) { ng -> set(e.copy(grade = ng)) }
             SectionTitle("PROFILE / LOOK")
@@ -1744,15 +1744,15 @@ private fun PhotoPanelContent(
                 tf("Title / headline", PhotoMeta.title, true) { PhotoMeta.title = it }
                 tf("Caption", PhotoMeta.caption, false) { PhotoMeta.caption = it }
                 tf("Keywords (comma-separated)", PhotoMeta.keywords, true) { PhotoMeta.keywords = it }
-                Text("Written into every exported JPEG / WebP with your name and copyright — read by Lightroom, Photo Mechanic, Bridge and stock / news agencies. Kept for the next photos until you change it.", color = Pro.Dim, fontSize = 11.sp)
+                Text("Written into every exported JPEG / WebP with your name and copyright — read by photo-management software and stock / news agencies. Kept for the next photos until you change it.", color = Pro.Dim, fontSize = 11.sp)
                 Row(
                     Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(10.dp)).background(Ed.Raised)
                         .clickable { PhotoMeta.sidecar = !PhotoMeta.sidecar; PhotoMeta.save(ctx) }.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("Also save a Lightroom .xmp sidecar", color = Color.White, fontSize = 14.sp)
-                        Text("Your edit (light, colour, HSL, detail, straighten) as Adobe Camera Raw settings, named after the original, in Documents/VeyroCutPro/XMP. Put it next to the original to continue in Lightroom.", color = Pro.Dim, fontSize = 11.sp)
+                        Text("Also save an .xmp sidecar", color = Color.White, fontSize = 14.sp)
+                        Text("Your edit (light, colour, HSL, detail, straighten) as Adobe Camera Raw settings, named after the original, in Documents/VeyroCutPro/XMP. Put it next to the original to continue in other photo software.", color = Pro.Dim, fontSize = 11.sp)
                     }
                     androidx.compose.material3.Switch(
                         checked = PhotoMeta.sidecar, onCheckedChange = { PhotoMeta.sidecar = it; PhotoMeta.save(ctx) },

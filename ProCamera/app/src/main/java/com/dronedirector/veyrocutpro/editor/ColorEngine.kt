@@ -101,7 +101,7 @@ data class ProGrade(
     val curveG: List<Float>? = null,
     val curveB: List<Float>? = null,
     // Newer settings: every default is 0 / null, so projects and presets saved before they existed look the same.
-    /** Colour grading: global tint, blending offset (−0.5..0.5 around Lightroom's 50) and balance (−1..1). */
+    /** Colour grading: global tint, blending offset (−0.5..0.5 around the usual 50) and balance (−1..1). */
     val gradeGlobal: Wheel? = null,
     val gradeBlend: Float = 0f,
     val gradeBalance: Float = 0f,
@@ -352,7 +352,7 @@ data class Detail(
     val fxAmount: Float = 0.6f,
     /** AI noise reduction strength (0 = off). */
     val aiDenoise: Float = 0f,
-    // Newer settings are stored as offsets from Lightroom's defaults, so 0 = default and older
+    // Newer settings are stored as offsets from the usual defaults, so 0 = default and older
     // projects / presets (which don't have them) look exactly as before.
     /** Sharpening radius offset (radius = 1 + this, 0.5..3 px), detail offset (detail = 0.25 + this), edge masking 0..1. */
     val sharpenRadius: Float = 0f,

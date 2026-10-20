@@ -27,7 +27,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * Shape (pen) masks for clips, like DaVinci Resolve's curve power windows: a smooth closed curve
+ * Shape (pen) masks for clips: a smooth closed curve
  * through the points you place, with a soft edge, its own grade inside (or outside), and optional
  * planar tracking so it stays on a moving object.
  */

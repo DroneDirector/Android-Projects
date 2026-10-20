@@ -47,7 +47,7 @@ data class PointColor(
 object Develop {
     // ---------------------------------------------------------------- auto tone / white balance
 
-    /** Lightroom-style Auto Tone: only the Light sliders (and a touch of vibrance). */
+    /** Auto Tone: only the Light sliders (and a touch of vibrance). */
     fun autoTone(bmp: Bitmap, g: ProGrade): ProGrade {
         val a = AutoEnhance.gradeFor(bmp)
         return g.copy(exposure = a.exposure, contrast = a.contrast, highlights = a.highlights, shadows = a.shadows, whites = a.whites, blacks = a.blacks, vibrance = maxOf(g.vibrance, a.vibrance))
@@ -104,7 +104,7 @@ object Develop {
         return Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
     }
 
-    /** Where sharpening lands (white) with the current Masking, like holding Alt in Lightroom. */
+    /** Where sharpening lands (white) with the current Masking. */
     fun sharpenMaskPreview(bmp: Bitmap, d: Detail): Bitmap {
         val w = bmp.width; val h = bmp.height
         val px = IntArray(w * h); bmp.getPixels(px, 0, w, 0, 0, w, h)

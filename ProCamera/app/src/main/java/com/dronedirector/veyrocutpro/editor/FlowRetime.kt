@@ -32,8 +32,7 @@ import kotlin.math.roundToInt
  * Optical-flow retiming, on the phone (VeyroCut Pro's own motion engine, as in the morph cut):
  *
  *  - Smooth slow motion: [factor]× more frames — new in-between frames drawn from the motion
- *    between each pair of real frames, like DaVinci Resolve's "Optical Flow" retime or Premiere's
- *    "Optical Flow" time interpolation. The new file keeps the clip's length and sound, so the clip's
+ *    between each pair of real frames (optical-flow retiming). The new file keeps the clip's length and sound, so the clip's
  *    own speed (or ramp) then plays it back slowly without stutter.
  *  - Motion blur: each frame smeared along its own motion, like a real camera shutter
  *    ([shutter] = fraction of the frame time, 0.5 = 180°).

@@ -3953,7 +3953,7 @@ private fun EditPage(
         SmallAction(Icons.Filled.Delete, "Delete", onDelete)
     }
     SectionTitle("SMOOTH SLOW MOTION · OPTICAL FLOW")
-    Text("Draws new in-between frames from the motion (on this phone), so slow motion is smooth instead of jerky — like Optical Flow in DaVinci Resolve or Premiere. Pick the speed, or keep the clip's own speed / ramp.", color = Pro.Dim, fontSize = 11.sp)
+    Text("Draws new in-between frames from the motion (on this phone), so slow motion is smooth instead of jerky. Pick the speed, or keep the clip's own speed / ramp.", color = Pro.Dim, fontSize = 11.sp)
     if (flowProgress >= 0) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
         androidx.compose.material3.LinearProgressIndicator(progress = { flowProgress / 100f }, color = Pro.Amber, modifier = Modifier.weight(1f).height(4.dp))
         Text("$flowProgress%", style = Pro.Label, modifier = Modifier.padding(horizontal = 8.dp))
@@ -4179,7 +4179,7 @@ private fun ColorPage(
                 }
                 Chips(listOf("Keep the subject", "Affect the subject (invert)"), if (c.bg.invert == true) 1 else 0) { i -> onChange { cl -> cl.copy(bg = cl.bg?.copy(invert = i == 1)) } }
             }
-            Text("People: found automatically in every frame. Magic Mask: tap any person, animal, car or object once and the AI follows it through the clip (like DaVinci Resolve). Then blur, recolour or remove what's around it — or invert to blur / hide the object itself (a face, a number plate). Transparent shows the video layers placed below the main video.", color = Pro.Dim, fontSize = 11.sp)
+            Text("People: found automatically in every frame. Magic Mask: tap any person, animal, car or object once and the AI follows it through the clip. Then blur, recolour or remove what's around it — or invert to blur / hide the object itself (a face, a number plate). Transparent shows the video layers placed below the main video.", color = Pro.Dim, fontSize = 11.sp)
             SectionTitle("REMOVE AN OBJECT (AI)")
             if (eraseProgress != null) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
                 androidx.compose.material3.LinearProgressIndicator(progress = { eraseProgress / 100f }, color = Pro.Amber, modifier = Modifier.weight(1f).height(4.dp))
@@ -4617,7 +4617,7 @@ private fun LayerPreview(
     }
 }
 
-/** Colour labels for clips (like DaVinci Resolve / Premiere). */
+/** Colour labels for clips. */
 val CLIP_LABELS = listOf(0xFFFF3B30, 0xFFFF9500, 0xFFFFD60A, 0xFF34C759, 0xFF00C7BE, 0xFF0A84FF, 0xFFBF5AF2, 0xFFFF7EB6).map { it.toInt() }
 
 private val TEXT_COLORS = listOf(0xFFFFFFFF, 0xFF000000, 0xFFFFB300, 0xFFFF3B30, 0xFF34C759, 0xFF0A84FF, 0xFFFF7EB6, 0xFFB79CFF).map { it.toInt() }
@@ -5029,7 +5029,7 @@ private fun DeliverPage(
     queue: List<DeliverSettings> = emptyList(), queueAt: Int = -1,
     onQueueAdd: () -> Unit = {}, onQueueRemove: (Int) -> Unit = {}, onQueueStart: () -> Unit = {}, onQueueStop: () -> Unit = {},
 ) {
-    // Send the edit to a desktop editor (DaVinci Resolve, Premiere Pro, Final Cut Pro).
+    // Send the edit to a desktop editor (EDL / FCPXML).
     val ictx = LocalContext.current
     val fpsX = if (s.fps > 0) s.fps else 30
     val title = projectName?.takeIf { it.isNotBlank() } ?: "VeyroCut Pro edit"
@@ -5131,7 +5131,7 @@ private fun DeliverPage(
     val audioMbps = if (s.audioOnly) s.audioFmt.bytesPerSecond() * 8 / 1_000_000 else if (s.audio) 0.13 else 0.0
     val bytes = (videoMbps + audioMbps) * 1_000_000 / 8 * (total / 1000.0) * 1.01
     SectionTitle("SEND TO DESKTOP EDITOR")
-    Text("Continue the edit on a computer: the cuts (and dissolves / speed in the EDL) open in DaVinci Resolve, Premiere Pro, Avid or Final Cut Pro. Grades, effects and layers stay here. Copy the original clips to the computer too.", color = Pro.Dim, fontSize = 11.sp)
+    Text("Continue the edit on a computer: the cuts (and dissolves / speed in the EDL) open in desktop editing software that reads EDL or FCPXML. Grades, effects and layers stay here. Copy the original clips to the computer too.", color = Pro.Dim, fontSize = 11.sp)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
         Text("EDL (.edl)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(enabled = clips.isNotEmpty()) { saveEdl.launch(title.replace(Regex("[^A-Za-z0-9 _-]"), "") + ".edl") }.padding(10.dp))
         Text("FCPXML (.fcpxml)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(enabled = clips.isNotEmpty()) { saveXml.launch(title.replace(Regex("[^A-Za-z0-9 _-]"), "") + ".fcpxml") }.padding(10.dp))

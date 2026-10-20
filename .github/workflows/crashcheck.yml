@@ -293,7 +293,7 @@ jobs:
           tapText "Continue filmstrip"; sleep 8; shot 14k-continued
           fi
           if want develop; then
-          # Lightroom-style develop tools on a photo: presets + amount, auto, clipping, eyedropper, point colour, sharpening mask, zoom.
+          # Pro develop tools on a photo: presets + amount, auto, clipping, eyedropper, point colour, sharpening mask, zoom.
           adb shell am force-stop com.dronedirector.veyrocutpro
           adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen photo --ez bgsetup true; sleep 10; dismiss
           seeText "Continue filmstrip" && tapText "Continue filmstrip" || tapText "JPEG"; sleep 10; dismiss; shot 15a-open

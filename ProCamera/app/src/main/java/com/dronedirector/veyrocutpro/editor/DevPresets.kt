@@ -44,7 +44,7 @@ import java.util.Locale
 /** A built-in preset: changes made on top of the current edit (so the amount slider can fade it in). */
 class BuiltInPreset(val name: String, val group: String, val grade: (ProGrade) -> ProGrade, val detail: (Detail) -> Detail = { it })
 
-object LrPresets {
+object DevPresets {
     private fun hsl(vararg b: Pair<Int, HslBand>): List<HslBand> = List(8) { i -> b.firstOrNull { it.first == i }?.second ?: HslBand() }
     private fun w(h: Float, a: Float, l: Float = 0f) = Wheel(h, a, l)
     private fun mono(g: ProGrade) = g.copy(saturation = -1f, vibrance = 0f)
@@ -123,9 +123,9 @@ object LrPresets {
         BuiltInPreset("Low Key", "Moody", { it.copy(exposure = it.exposure - 0.4f, contrast = 0.25f, blacks = -0.3f, shadows = -0.1f) }, { it.copy(vignette = -0.4f) }),
     )
 
-    // ------------------------------------------------------------------------- Lightroom .xmp
+    // ------------------------------------------------------------------------- .xmp presets
 
-    /** Reads a Lightroom / Camera Raw .xmp preset or sidecar into a grade and detail (unknown keys are skipped). */
+    /** Reads a Camera Raw .xmp preset or sidecar into a grade and detail (unknown keys are skipped). */
     fun parseXmp(text: String, base: ProGrade = ProGrade(), detail: Detail = Detail()): Pair<ProGrade, Detail>? {
         val kv = HashMap<String, String>()
         Regex("""crs:([A-Za-z0-9]+)\s*=\s*"([^"]*)"""").findAll(text).forEach { kv[it.groupValues[1]] = it.groupValues[2] }
@@ -206,7 +206,7 @@ object LrPresets {
         return g to d
     }
 
-    /** A Lightroom Classic / Camera Raw .xmp preset with these settings. */
+    /** A Camera Raw .xmp preset with these settings. */
     fun presetXmp(name: String, g: ProGrade, d: Detail): String {
         val a = StringBuilder()
         fun put(k: String, v: String) { a.append("\n    crs:").append(k).append("=\"").append(v).append('"') }
@@ -288,7 +288,7 @@ $curves  </rdf:Description>
 
 /**
  * Built-in presets with live thumbnails of your photo, by group, and an Amount slider that fades
- * the last one you tapped in and out (like Lightroom's preset amount).
+ * the last one you tapped in and out.
  */
 @Composable
 fun BuiltInPresetSection(
@@ -304,11 +304,11 @@ fun BuiltInPresetSection(
     val small = remember(thumbSrc) {
         thumbSrc?.let { b -> val k = 96f / maxOf(b.width, b.height); if (k < 1f) Bitmap.createScaledBitmap(b, (b.width * k).toInt().coerceAtLeast(1), (b.height * k).toInt().coerceAtLeast(1), true) else b }
     }
-    SectionTitle("PRESETS (${LrPresets.all.size})")
-    val groups = LrPresets.all.map { it.group }.distinct()
+    SectionTitle("PRESETS (${DevPresets.all.size})")
+    val groups = DevPresets.all.map { it.group }.distinct()
     Chips(groups, groups.indexOf(group).coerceAtLeast(0)) { group = groups[it] }
     Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        LrPresets.all.filter { it.group == group }.forEach { pr ->
+        DevPresets.all.filter { it.group == group }.forEach { pr ->
             val thumb by produceState<Bitmap?>(null, small, pr) {
                 value = small?.let { s -> withContext(Dispatchers.Default) { try { val g = pr.grade(ProGrade()); ImageOps.render(s, g, pr.detail(Detail()).copy(aiDenoise = 0f), Geometry(), if (g.isIdentity) null else g.tables(17)) } catch (_: Throwable) { null } } }
             }

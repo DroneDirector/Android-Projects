@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.380 — 2026-10-20
 - Photo editor, Export → OUTPUT → **Gamut warning** (Glossy print / Matte print): cyan marks colours that paper can't print, so you can tone them down before printing.
 - Photo editor **reference view**:
   - REFERENCE on the photo (or hold a filmstrip photo → Use as reference) shows a reference photo next to the one you're editing. Use it to keep a set looking the same.

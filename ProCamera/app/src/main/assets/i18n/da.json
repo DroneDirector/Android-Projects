@@ -2240,5 +2240,6 @@
 "AI voiceover": "AI-speak",
 "{0} is still being downloaded (first-time download) — try again in a moment": "{0} hentes stadig (første download) — prøv igen om lidt",
 "The AI models are still downloading (first-time setup, {0}%) — try again when it's done": "AI-modellerne hentes stadig (første opsætning, {0}%) — prøv igen, når det er færdigt",
-"the Magic Mask model is still downloading": "Magic Mask-modellen hentes stadig"
+"the Magic Mask model is still downloading": "Magic Mask-modellen hentes stadig",
+"Checking for updated AI files…": "Tjekker for opdaterede AI-filer…"
 }

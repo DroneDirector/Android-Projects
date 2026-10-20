@@ -89,8 +89,7 @@ object ModelStore {
  * Downloads resume where they stopped.
  */
 object AppData {
-    /** Release file name → size (bytes). */
-    private val FILES = linkedMapOf(
+    private val BUILT_IN = linkedMapOf(
         "DeepFilterNet3_onnx.tar.gz" to 7983136L,
         "deeplab.tflite" to 2779264L,
         "depth_anything_v2_small.onnx" to 99060839L,
@@ -144,6 +143,85 @@ object AppData {
         "sound_soundtracks_uprising.m4a" to 5313695L,
         "whisper_ggml-base-q5_1.bin" to 59707625L,
     )
+
+    /** Release file name → size (bytes): what this version of the app needs (from the server's list when known). */
+    @Volatile private var FILES: Map<String, Long> = BUILT_IN
+
+    // ---- after an app update: a quick look at the server's list (one small file) for changed or new files
+
+    private const val MANIFEST = "manifest.json"
+    var checking by androidx.compose.runtime.mutableStateOf(false); private set
+
+    private fun prefs(context: Context) = context.getSharedPreferences("procam", Context.MODE_PRIVATE)
+    private fun appVersion(context: Context): Long = try {
+        val pi = context.packageManager.getPackageInfo(context.packageName, 0)
+        if (android.os.Build.VERSION.SDK_INT >= 28) pi.longVersionCode else @Suppress("DEPRECATION") pi.versionCode.toLong()
+    } catch (_: Throwable) { 0L }
+
+    /** The server's list as saved on the phone: name → (size, checksum). */
+    private fun parse(text: String): Map<String, Pair<Long, String>> = try {
+        val j = org.json.JSONObject(text)
+        j.keys().asSequence().associateWith { k -> val o = j.getJSONObject(k); o.optLong("size") to o.optString("sha256") }
+    } catch (_: Throwable) { emptyMap() }
+
+    /** Loads the saved list (if any) so the files it names are the ones checked. Call at start-up. */
+    fun init(context: Context) {
+        val f = File(ModelStore.dir(context), MANIFEST)
+        if (f.exists()) applyManifest(parse(f.readText()))
+    }
+
+    private fun applyManifest(m: Map<String, Pair<Long, String>>) {
+        if (m.isEmpty()) return
+        // Everything this app version knows about, with the server's sizes; plus new files the server lists for these kinds.
+        val known = BUILT_IN.keys
+        val kinds = listOf("sound_", "kokoro_", "misaki_", "sam_", "whisper_ggml-base")
+        val out = LinkedHashMap<String, Long>()
+        for (k in known) out[k] = m[k]?.first ?: BUILT_IN[k]!!
+        for ((k, v) in m) if (k !in out && kinds.any { k.startsWith(it) } && (k.endsWith(".m4a") || k.endsWith(".bin") || k.endsWith(".json") || k.endsWith(".onnx"))) out[k] = v.first
+        FILES = out
+    }
+
+    /**
+     * Only on the first start after an app update (blocking, a second or two): fetches the server's
+     * small file list and compares it with the one saved last time. Changed files are removed so they
+     * download again; nothing else is downloaded. Returns true if something needs downloading.
+     */
+    fun checkAfterUpdate(context: Context): Boolean {
+        val ver = appVersion(context)
+        if (prefs(context).getLong("data_checked_version", -1L) == ver) return needed(context)
+        main.post { checking = true }
+        try {
+            val text = try {
+                var url = URL(ModelStore.BASE + MANIFEST)
+                var hops = 0
+                var body: String? = null
+                while (body == null) {
+                    val c = url.openConnection() as HttpURLConnection
+                    c.instanceFollowRedirects = false; c.connectTimeout = 4000; c.readTimeout = 4000
+                    val code = c.responseCode
+                    if (code in 300..399 && hops < 8) { url = URL(url, c.getHeaderField("Location")); c.disconnect(); hops++; continue }
+                    if (code != 200) return needed(context)
+                    body = c.inputStream.bufferedReader().use { it.readText() }
+                }
+                body
+            } catch (_: Throwable) { return needed(context) }   // offline: check again next start
+            val fresh = parse(text)
+            if (fresh.isEmpty()) return needed(context)
+            val saved = File(ModelStore.dir(context), MANIFEST)
+            val old = if (saved.exists()) parse(saved.readText()) else emptyMap()
+            applyManifest(fresh)
+            // A file whose checksum (or size) changed on the server is removed, so it downloads again.
+            for ((k, v) in fresh) {
+                val o = old[k]
+                val changed = if (o != null) (o.second.isNotEmpty() && v.second.isNotEmpty() && o.second != v.second) || o.first != v.first
+                else { val f = local(context, k); f.exists() && f.length() != v.first }
+                if (changed && k in FILES) { local(context, k).delete(); File(local(context, k).path + ".part").delete() }
+            }
+            saved.writeText(text)
+            prefs(context).edit().putLong("data_checked_version", ver).apply()
+            return needed(context)
+        } finally { main.post { checking = false } }
+    }
 
     /** Where a downloaded file lives on the phone. */
     fun local(context: Context, remote: String): File = when {

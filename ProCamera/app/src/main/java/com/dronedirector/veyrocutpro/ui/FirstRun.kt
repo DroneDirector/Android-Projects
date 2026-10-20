@@ -57,12 +57,17 @@ import kotlin.math.sin
 @Composable
 fun FirstRunGate() {
     val context = LocalContext.current
-    var needed by remember { mutableStateOf(AppData.needed(context)) }
+    var needed by remember { mutableStateOf(false) }
+    var checked by remember { mutableStateOf(false) }
     var askData by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
+        // Only after an app update does this ask the server (one small file); otherwise it just looks at the phone.
+        needed = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { AppData.init(context); AppData.checkAfterUpdate(context) }
+        checked = true
         if (!needed) return@LaunchedEffect
         if (AppData.metered(context)) askData = true else AppData.start(context)
     }
+    if (!checked && AppData.checking) { CheckingSplash(); return }
     // Waiting for Wi-Fi: start as soon as the phone is on a free network.
     LaunchedEffect(AppData.waitingForWifi) {
         while (AppData.waitingForWifi) {
@@ -211,6 +216,18 @@ private fun DownloadBadge() {
                 style = Pro.Label.copy(color = Color.White, fontSize = 10.sp),
             )
             GlowBar(frac, AppData.running, Modifier.size(140.dp, 5.dp).padding(top = 0.dp))
+        }
+    }
+}
+
+/** After an app update: a brief look for changed files on the server. */
+@Composable
+private fun CheckingSplash() {
+    Box(Modifier.fillMaxSize().background(Color(0xFF07090D)), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("VeyroCut Pro", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text("Checking for updated AI files…", style = Pro.Label.copy(color = Pro.Dim, fontSize = 12.sp), modifier = Modifier.padding(top = 10.dp, bottom = 14.dp))
+            GlowBar(0.35f, true, Modifier.size(180.dp, 6.dp))
         }
     }
 }

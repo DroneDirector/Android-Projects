@@ -2296,5 +2296,6 @@
 "AI voiceover": "AI-talurødd",
 "{0} is still being downloaded (first-time download) — try again in a moment": "{0} verður enn heintað (fyrsta niðurtøka) — royn aftur um eina løtu",
 "The AI models are still downloading (first-time setup, {0}%) — try again when it's done": "AI-modellirnar verða enn heintaðar (fyrsta uppseting, {0}%) — royn aftur, tá ið tað er liðugt",
-"the Magic Mask model is still downloading": "Magic Mask-modellin verður enn heintaður"
+"the Magic Mask model is still downloading": "Magic Mask-modellin verður enn heintaður",
+"Checking for updated AI files…": "Kannar eftir dagførdum AI-fílum…"
 }

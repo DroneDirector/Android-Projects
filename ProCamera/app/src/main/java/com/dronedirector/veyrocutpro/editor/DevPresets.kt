@@ -310,7 +310,7 @@ fun BuiltInPresetSection(
     Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         DevPresets.all.filter { it.group == group }.forEach { pr ->
             val thumb by produceState<Bitmap?>(null, small, pr) {
-                value = small?.let { s -> withContext(Dispatchers.Default) { try { val g = pr.grade(ProGrade()); ImageOps.render(s, g, pr.detail(Detail()).copy(aiDenoise = 0f), Geometry(), if (g.isIdentity) null else g.tables(17)) } catch (_: Throwable) { null } } }
+                value = small?.let { s -> withContext(Dispatchers.Default) { try { val g = pr.grade(ProGrade()); ImageOps.render(s, g, pr.detail(Detail()).copy(aiDenoise = 0f), Geometry(), if (g.isIdentity) null else g.tables()) } catch (_: Throwable) { null } } }
             }
             val on = chosen === pr
             Column(

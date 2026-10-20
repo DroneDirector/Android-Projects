@@ -2446,5 +2446,8 @@
 "Phone default": "Telefonens standard",
 "Rangefinder": "Afstandsmåler",
 "Film camera": "Filmkamera",
-"Digital": "Digital"
+"Digital": "Digital",
+"Tap a voice to hear it.": "Tryk på en stemme for at høre den.",
+"Preparing the sample… (the first time, the voice is downloaded)": "Forbereder prøven… (første gang hentes stemmen)",
+"Couldn't play the voice sample": "Kunne ikke afspille stemmeprøven"
 }

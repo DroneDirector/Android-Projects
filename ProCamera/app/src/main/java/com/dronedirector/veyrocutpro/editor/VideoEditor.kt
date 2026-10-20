@@ -4338,6 +4338,9 @@ private fun AudioPage(
 ) {
     LevelMeter(playing)
     SectionTitle("AI VOICEOVER FROM TEXT")
+    val previewScope = androidx.compose.runtime.rememberCoroutineScope()
+    val previewCtx = androidx.compose.ui.platform.LocalContext.current
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { Voiceover.stopPreview() } }
     var ttsText by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
     var ttsVoice by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0) }
     var ttsSpeed by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(1f) }
@@ -4351,8 +4354,18 @@ private fun AudioPage(
         ),
     )
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
-        Voiceover.voices.forEachIndexed { i, v -> PillChip(v.label, ttsVoice == i) { ttsVoice = i } }
+        // Tap a voice to choose it and hear a short sample (your text's first sentence, or a hello).
+        Voiceover.voices.forEachIndexed { i, v ->
+            PillChip((if (Voiceover.previewing == v.id) "♪ " else "") + v.label, ttsVoice == i) {
+                ttsVoice = i
+                previewScope.launch {
+                    val err = withContext(Dispatchers.IO) { try { Voiceover.preview(previewCtx, v, ttsText, { false }) } catch (t: Throwable) { t.message ?: "error" } }
+                    if (err != null) android.widget.Toast.makeText(previewCtx, com.dronedirector.veyrocutpro.ui.I18n.tr("Couldn't play the voice sample") + " ($err)", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
+    Text(if (Voiceover.previewing != null) "Preparing the sample… (the first time, the voice is downloaded)" else "Tap a voice to hear it.", color = Pro.Dim, fontSize = 11.sp)
     EdSlider("Speed", ttsSpeed, 0.6f..1.5f, 1f, { "%.2f×".format(it) }) { ttsSpeed = it }
     if (ttsProgress != null) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
         androidx.compose.material3.LinearProgressIndicator(progress = { ttsProgress / 100f }, color = Pro.Amber, modifier = Modifier.weight(1f).height(4.dp))

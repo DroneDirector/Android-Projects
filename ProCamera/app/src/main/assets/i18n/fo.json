@@ -2500,5 +2500,8 @@
 "Phone default": "Vanligt á telefonini",
 "Rangefinder": "Fjarstøðumátari",
 "Film camera": "Filmmyndatól",
-"Digital": "Talgilt"
+"Digital": "Talgilt",
+"Tap a voice to hear it.": "Trýst á eina rødd fyri at hoyra hana.",
+"Preparing the sample… (the first time, the voice is downloaded)": "Gerir royndina klára… (fyrstu ferð verður røddin tikin niður)",
+"Couldn't play the voice sample": "Kundi ikki spæla røddarroyndina"
 }

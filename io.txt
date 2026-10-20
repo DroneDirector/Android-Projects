@@ -1,0 +1,6 @@
+m/depth_anything_v2_small.onnx IN [('pixel_values', ['batch_size', 3, 'height', 'width'], 'tensor(float)')] OUT [('predicted_depth', ['floor(1.0*batch_size)', '14*floor(height/14)', '14*floor(width/14)'], 'tensor(float)')]
+depth out (1, 294, 518) 0.0 5.0265903 time 0.41072916984558105
+m/lama_fp32.onnx IN [('image', ['batch', 3, 512, 512], 'tensor(float)'), ('mask', ['batch', 1, 512, 512], 'tensor(float)')] OUT [('output', ['batch', 3, 512, 512], 'tensor(float)')]
+lama out (1, 3, 512, 512) 0.0 225.0 time 4.046755790710449
+m/kokoro_v1_q8.onnx IN [('input_ids', [1, 'sequence_length'], 'tensor(int64)'), ('style', [1, 256], 'tensor(float)'), ('speed', [1], 'tensor(float)')] OUT [('waveform', [1, 'num_samples'], 'tensor(float)')]
+voice (130560,) (510, 256)

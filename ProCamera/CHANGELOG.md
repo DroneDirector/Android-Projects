@@ -4,6 +4,12 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: a **media strip** above the timeline shows every imported clip, whether it is on the timeline or not. Hover with a mouse, or hold and slide a finger, to skim through a clip. Tap a clip to pick it and double-tap to add it to the end. Clips already on the timeline get an amber USED mark. You can give clips 1–5 stars or reject them, filter by All / Unused / Used / ★3+ / No rejects or by bin, and use SELECT to append, rate or remove several clips at once. **+ Clips** imports up to 100 clips at a time; **+ Folder** imports every video in a folder (including two levels of sub-folders).
+- **Mouse support** in Capture, the Photo editor and the Video editor. A connected mouse gets VeyroCut's own **glowing pointer**, with a halo, a trail, a click ripple and an orbiting spark. A plain pointer and the normal Android arrow are also available.
+- In the gear settings you can pick a **pointer colour** and, separately, a **scroll wheel colour**, so both stand out from the rest of the app's graphics.
+- Mouse controls in Capture: the wheel zooms, right-click locks or unlocks exposure and focus at that spot, and middle-click takes the shot.
+- Mouse controls in the Photo editor: the wheel moves to the next or previous filmstrip photo, right-click switches the before / after split, double-click hides or shows the tools, and right-click on a thumbnail opens its menu.
+- Mouse controls in the Video editor: drag a clip from the media strip onto the timeline. On the timeline, Ctrl + wheel zooms, Shift + wheel scrolls along the edit, and right-click on a clip opens its tools. On the player, double-click goes full screen and the wheel steps through frames.
 
 ## 1.0.340 — 2026-10-20
 - Photo editor: pick many photos at once (gallery or files). They appear in a **filmstrip** under the photo, like Lightroom; tap one to switch, and each photo keeps its own edit automatically.

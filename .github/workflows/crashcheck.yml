@@ -41,6 +41,8 @@ jobs:
             ffmpeg -loglevel error -f lavfi -i testsrc2=size=1920x1080:rate=30:duration=4 -f lavfi -i sine=f=440:duration=4 -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest test_clip.mp4
           fi
           ls -la test_clip.mp4
+          ffmpeg -loglevel error -f lavfi -i testsrc2=size=1600x1200 -frames:v 1 -q:v 3 test_a.jpg
+          ffmpeg -loglevel error -f lavfi -i "smptehdbars=size=1600x1200" -frames:v 1 -q:v 3 test_b.jpg
           echo "${{ inputs.tests }}" > tests.txt
           cat > crash.sh <<'SCRIPT'
           #!/usr/bin/env bash
@@ -56,6 +58,9 @@ jobs:
           for L in com.google.android.apps.nexuslauncher com.android.launcher3; do adb shell pm disable-user --user 0 "$L" >/dev/null 2>&1 || true; done
           adb shell mkdir -p /sdcard/DCIM/VeyroCutPro
           adb push test_clip.mp4 /sdcard/DCIM/VeyroCutPro/VID_TEST.mp4
+          adb push test_a.jpg /sdcard/DCIM/VeyroCutPro/IMG_TEST_A.jpg
+          adb push test_b.jpg /sdcard/DCIM/VeyroCutPro/IMG_TEST_B.jpg
+          for f in IMG_TEST_A.jpg IMG_TEST_B.jpg; do adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/DCIM/VeyroCutPro/$f >/dev/null 2>&1 || true; done
           adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/DCIM/VeyroCutPro/VID_TEST.mp4 || true
           adb shell content call --uri content://media/external/file --method scan_volume --arg external_primary >/dev/null 2>&1 || true
           sleep 5
@@ -78,6 +83,48 @@ jobs:
             [ -n "$xy" ] && adb shell input tap $xy
           }
           shot() { adb exec-out screencap -p > "out/$1.png"; }
+          xyOf() {  # centre of the first element whose text contains $1 (prints "x y")
+            adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml > ui.xml
+            python3 - "$1" <<'PY'
+          import re,sys
+          t=open('ui.xml',encoding='utf-8',errors='ignore').read()
+          for m in re.finditer(r'<node [^>]*>', t):
+              n=m.group(0); tx=re.search(r'text="([^"]*)"',n); b=re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"',n)
+              if tx and b and sys.argv[1].lower() in tx.group(1).lower():
+                  x1,y1,x2,y2=map(int,b.groups()); print((x1+x2)//2,(y1+y2)//2); break
+          PY
+          }
+          tapExact() {  # tap the first element whose whole text is exactly $1
+            adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml > ui.xml
+            local xy
+            xy=$(python3 - "$1" <<'PY'
+          import re,sys,html
+          t=open('ui.xml',encoding='utf-8',errors='ignore').read()
+          for m in re.finditer(r'<node [^>]*>', t):
+              n=m.group(0); tx=re.search(r'text="([^"]*)"',n); b=re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"',n)
+              if tx and b and html.unescape(tx.group(1)).strip() == sys.argv[1]:
+                  x1,y1,x2,y2=map(int,b.groups()); print((x1+x2)//2,(y1+y2)//2); break
+          PY
+          )
+            echo "tap exact '$1' at: $xy"; [ -n "$xy" ] && adb shell input tap $xy
+          }
+          pickFirst() {  # photo picker: tap the first item, then Add / Done if the picker asks
+            adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml > out/picker.xml
+            XY=$(python3 - "$1" <<'PY'
+          import re,sys
+          t=open('out/picker.xml',encoding='utf-8',errors='ignore').read()
+          k=0
+          for m in re.finditer(r'<node [^>]*>', t):
+              n=m.group(0); d=re.search(r'content-desc="([^"]*)"',n); b=re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"',n)
+              if d and b and re.search(r'photo|video|taken|IMG_|VID_', d.group(1), re.I):
+                  if k == int(sys.argv[1]):
+                      x1,y1,x2,y2=map(int,b.groups()); print((x1+x2)//2,(y1+y2)//2); break
+                  k+=1
+          PY
+          )
+            echo "picker item at: $XY"; [ -n "$XY" ] && adb shell input tap $XY; sleep 2
+            seeText '"Add' && tapText "Add"; seeText '"Done' && tapText "Done"; true
+          }
           dismiss() { for k in 1 2 3; do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; if adb shell cat /sdcard/ui.xml | grep -q "isn't responding"; then tapText "Wait"; sleep 3; else break; fi; done; }
           seeText() { adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml | grep -qi "$1"; }
           scrollTo() { for k in 1 2 3 4 5 6 7 8 9 10; do seeText "$1" && return 0; adb shell input swipe 540 2150 540 1450 400; sleep 1; done; return 1; }
@@ -120,6 +167,23 @@ jobs:
           start_video; shot 01-video-start
           start_video
           tapText "MP4"; sleep 30; dismiss; shot 03-clip-workspace
+          if want mediastrip; then
+          # Video media strip: filters, pick + append, rating, mouse hover / right-click / drag to the timeline, timeline wheel.
+          seeText "MEDIA 1" && echo "media strip shown" > out/mediastrip.txt; shot 13a-media-strip
+          tapExact "Unused"; sleep 1; tapExact "Used"; sleep 1; tapExact "All"; sleep 1
+          XY=$(xyOf "VID_TEST"); echo "strip clip at: $XY" >> out/mediastrip.txt
+          if [ -n "$XY" ]; then
+            set -- $XY; X=$1; Y=$2
+            adb shell input tap $X $Y; sleep 2; shot 13b-picked
+            tapExact "★4"; sleep 1; tapExact "Append"; sleep 4; shot 13c-appended
+            adb shell input mouse tap $X $Y; sleep 1
+            adb shell input mouse swipe $((X-60)) $Y $((X+60)) $Y 900; sleep 2; shot 13d-mouse-skim
+            adb shell input mouse swipe $X $Y 700 $((Y+400)) 1200; sleep 4; shot 13e-mouse-drop
+            adb shell input mouse scroll 540 $((Y+300)) --axis VSCROLL,2 || true; sleep 2
+            adb shell input mouse scroll 540 $((Y+300)) --axis HSCROLL,2 || true; sleep 2; shot 13f-wheel
+          fi
+          tapExact "SELECT"; sleep 1; tapExact "All"; sleep 1; tapExact "No rejects"; sleep 1; tapExact "DONE"; sleep 1; shot 13g-select
+          fi
           if want layers; then
           tapText "+ VIDEO"; sleep 3; shot 04b-video-layer-dialog
           tapText "ABOVE the main video"; sleep 6; shot 04c-picker
@@ -204,6 +268,27 @@ jobs:
           if want recover; then
           start_video; shot 05-recover-banner
           tapText "RECOVER"; sleep 25; shot 06-after-recover
+          fi
+          if want filmstrip; then
+          # Photo filmstrip: open a recent photo, add a second from the picker, sync, rate, export, mouse wheel switch.
+          adb shell am force-stop com.dronedirector.veyrocutpro
+          adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen photo --ez bgsetup true; sleep 10; dismiss; shot 14a-photo-start
+          tapText "JPEG"; sleep 10; dismiss; shot 14b-photo-open
+          seeText "1 / 1" && echo "filmstrip shown" > out/filmstrip.txt
+          XY=$(xyOf "1 / 1"); echo "counter at: $XY" >> out/filmstrip.txt
+          tapExact "+"; sleep 6; shot 14c-picker; pickFirst 1; sleep 8; shot 14d-two-photos
+          seeText "/ 2" && echo "two photos" >> out/filmstrip.txt
+          tapExact "Light"; sleep 2; shot 14e-light
+          adb shell input mouse scroll 540 700 --axis VSCROLL,1 || true; sleep 6; shot 14f-wheel-next
+          adb shell input mouse scroll 540 700 --axis VSCROLL,-1 || true; sleep 6
+          adb shell input mouse tap 540 700; sleep 1; adb shell input mouse tap 540 700; sleep 3; shot 14g-double-click
+          adb shell input mouse tap 540 700; sleep 1; adb shell input mouse tap 540 700; sleep 2
+          tapExact "SELECT"; sleep 1; tapExact "All"; sleep 1; tapExact "★★★"; sleep 1; tapExact "Sync edit"; sleep 10; shot 14h-synced
+          tapExact "Export"; for i in $(seq 1 30); do sleep 4; seeText "Exported" && break; done; shot 14i-exported
+          tapExact "DONE"; sleep 1; tapExact "Picks"; sleep 1; tapExact "All"; sleep 1
+          adb shell input keyevent KEYCODE_BACK; sleep 4; shot 14j-start-continue
+          seeText "Continue filmstrip" && echo "continue banner" >> out/filmstrip.txt
+          tapText "Continue filmstrip"; sleep 8; shot 14k-continued
           fi
           if want photo; then
           adb shell am force-stop com.dronedirector.veyrocutpro

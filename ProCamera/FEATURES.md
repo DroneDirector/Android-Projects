@@ -91,6 +91,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Colour grading** for photos and videos straight from the gallery.
 
 ### Settings
+- **Mouse support**: VeyroCut's own glowing pointer (halo, trail, click ripple, orbiting spark), or a plain pointer, or the normal Android arrow. Choose the **pointer colour** and, separately, the **scroll wheel colour** in each screen's gear settings. Wheel, right-click, middle-click and double-click actions in Capture, the Photo editor and the Video editor, plus drag from the media strip to the timeline.
 - **Copyright**: your name and copyright written into every photo (camera and photo editor exports).
 - **External storage**: save to phone storage, an SD card / USB drive, or a folder you pick on any USB stick, SSD or SD card (videos record straight onto the drive; falls back to internal storage if it is unplugged); **app colour** (accent) picker; layout and control options.
 - **Panels menu** (icon next to the gear): show / hide the exposure read-out, histogram, audio meter, level, Pro controls bar and tips; presets **Full / Minimal / Video**; **triple-tap** the icon to restore the original layout.
@@ -165,6 +166,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Proxy media**: a Proxy section next to Media — only media added there plays from a proxy; Proxy ON / OFF switch; 360p, 540p, 720p or 1080p (H.264 or HEVC), remade in the background when the quality changes; background generation with progress and cancel; proxies linked to their originals by a stable media ID and checked for matching length, frame rate, orientation and audio, so switching never shifts edits; missing, unfinished or failing proxies fall back to the original (never a blank frame); lighter timeline thumbnails and filmstrips from proxies; exports always use the originals.
 - Grade preview drawn on screen (Android 13+) for smooth, instant playback; exports use the full pipeline.
 
+- **Media strip** (always on screen above the timeline, can be hidden in the Panels menu): every imported clip, used on the timeline or not. Mouse-hover or hold-and-slide **skimming**, an amber **USED ×n** mark, **1–5 star ratings and reject**, filters (All, Unused, Used, ★3+, No rejects, bins), multi-select (append, rate, reject, remove), Append / Insert / Overwrite / Source viewer, **+ Clips** (up to 100 at once) and **+ Folder** (every video in a folder and its sub-folders). With a mouse, drag a clip straight onto the timeline.
 ### Pro editing
 - **Text-based editing**: the edit as text, transcribed on the phone (whisper.cpp, MIT; Whisper model downloaded once — Fast 57 MB / Accurate 181 MB; 99 languages incl. Danish and Faroese). Tap words to cut them, REMOVE FILLERS (um / uh / øh), APPLY CUTS splits the clips without leaving dead air; undo restores; hold a word to jump there.
 - **Clip keyframes**: zoom, position, rotation and opacity over time, Smooth / Linear / Hold easing, diamonds on the timeline, edit on the player at the playhead; preview and export.

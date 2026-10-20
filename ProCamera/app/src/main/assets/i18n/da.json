@@ -2281,5 +2281,14 @@
 "No videos in that folder": "Ingen videoer i den mappe",
 "{0} clip(s) are on the timeline — delete them in the Media page to remove them": "{0} klip er på tidslinjen — slet dem på Medier-siden for at fjerne dem",
 "Media strip": "Mediestrimmel",
-"Imported clips above the timeline: skim, rate, add to the timeline": "Importerede klip over tidslinjen: skim, bedøm, føj til tidslinjen"
+"Imported clips above the timeline: skim, rate, add to the timeline": "Importerede klip over tidslinjen: skim, bedøm, føj til tidslinjen",
+"MOUSE POINTER": "MUSEMARKØR",
+"Glowing pointer": "Lysende markør",
+"With a mouse connected: VeyroCut's own pointer in your colour. Off = the normal Android arrow.": "Med en mus tilsluttet: VeyroCuts egen markør i din farve. Fra = den normale Android-pil.",
+"Pointer effects": "Markøreffekter",
+"Halo, trail, click ripple and orbiting spark. Off = a plain arrow in the colour below.": "Glorie, spor, klikbølge og kredsende gnist. Fra = en enkel pil i farven nedenfor.",
+"Pointer colour": "Markørfarve",
+"SCROLL WHEELS": "RULLEHJUL",
+"Scroll wheel colour (timeline wheels), kept separate from the pointer and the rest of the app": "Rullehjulenes farve (tidslinjehjul), adskilt fra markøren og resten af appen",
+"{0} placed on the timeline": "{0} placeret på tidslinjen"
 }

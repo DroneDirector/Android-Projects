@@ -96,6 +96,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Capture tips", Icons.Filled.CameraAlt, null, listOf(
+            "With a mouse: the wheel zooms, right-click locks / unlocks exposure and focus there, and middle-click takes the shot.",
             "Use the volume keys as a shutter / record button.",
             "Settings → SLATE & SHOT LOG: set scene, shot, take and notes; they show on the viewfinder, go into photos, and every clip and photo is logged. Export the log as a .csv for Excel / Sheets; the take number goes up after each recording.",
             "Settings → COPYRIGHT: your name and copyright notice are written into every photo you take and every photo you export (Artist / Copyright in the photo's details).",
@@ -168,6 +169,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "AI erase on a RAW makes a normal copy to work on; after that, the photo is edited like a JPEG.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Photo editor tips", Icons.Filled.Photo, null, listOf(
+            "With a mouse: the wheel over the photo goes to the next / previous filmstrip photo, right-click shows the before / after split, and double-click hides the tools.",
             "Pick many photos at once: they go in the filmstrip under the photo. Tap to switch (each keeps its own edit), hold for stars / Pick / Reject / colour label, SELECT to sync the edit, export or remove several.",
             "Hold your finger on the photo to see the original.",
             "Leave the editor with your phone's back gesture or back button (the top bar has no back arrow, so EXPORT always fits).",
@@ -208,6 +210,8 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Video editor tips", Icons.Filled.Movie, null, listOf(
+            "Media strip above the timeline: hover (mouse) or hold and slide to skim, tap to pick, double-tap to append. Stars and reject help you sort; USED marks what's already on the timeline. + Folder imports a whole folder.",
+            "With a mouse: drag clips from the media strip onto the timeline, Ctrl + wheel zooms the timeline, Shift + wheel scrolls it, right-click opens a clip's tools, and double-click the player for full screen.",
             "4:2:2 footage (10-bit 4:2:2 H.264 / H.265 from Sony, Panasonic, Canon, Fujifilm, DJI…): the Media page shows a 4:2:2 badge. The editor finds a decoder on your phone that can read it, plays it directly (add it to the Proxy tab for smoother editing) and exports from the original (as 4:2:0 — phone encoders don't make 4:2:2). If no decoder on the phone can read it, the clip is marked in red.",
             "Media → MULTICAM (with 2 or more clips in the pool): pick 2–4 angles filmed at the same time — the first is the main angle for sound and timing — then SYNC BY SOUND & START. Tap an angle to start on it, press PLAY and tap angles while it plays to cut between them. DONE adds the edit to the end of the timeline.",
             "Audio → SYNC (on any audio track) or ⇆ SYNC TO THE SELECTED CLIP (music track): lines sound from an external recorder or wireless mic up with the selected clip by matching the sound. A clap at the start of the take makes it bulletproof.",

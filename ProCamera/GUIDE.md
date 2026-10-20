@@ -19,6 +19,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Capture guide
+**Mouse**
+- Wheel = zoom, right-click = lock / unlock exposure and focus at that spot, middle-click = take the shot. Gear → MOUSE POINTER sets the pointer's look and colour.
 **AI upscale**
 - Settings → AI UPSCALE → turn on "AI upscale sizes".
 - Pick AI 24 / 36 / 48 MP under SIZE (quick controls or Settings → Photo size).
@@ -76,6 +78,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Photo editor guide
+**Mouse**
+- Wheel over the photo = next / previous filmstrip photo, right-click = before / after split, double-click = hide or show the tools. Right-click a filmstrip thumbnail for stars, flags and labels.
 **Filmstrip (many photos)**
 - Gallery photos / Browse files: select several photos at once. They line up in the filmstrip under the photo; tap one to edit it. Your edit is kept automatically when you switch or leave.
 - Hold a thumbnail for stars, Pick / Reject and a colour label. The chips above the strip filter it (All, ★3+, Picks, Edited, No rejects).
@@ -134,6 +138,12 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Video editor guide
+**Media strip and mouse**
+- The media strip above the timeline holds every clip you've imported. With a mouse, hover over a clip to skim it; on a touch screen, hold and slide. Tap a clip to pick it, then use Append, Insert at playhead, Overwrite or Source ›. Double-tap a clip to add it to the end of the timeline.
+- An amber bar and USED ×n show clips that are already on the timeline. Use the stars or ✕ Reject to sort your clips, and the chips at the top to filter them. SELECT works on several clips at once.
+- + Clips imports up to 100 clips at a time; + Folder imports a whole folder. Imported clips aren't put on the timeline until you add them.
+- Mouse: drag a clip from the strip onto the timeline. On the timeline, Ctrl + wheel zooms, Shift + wheel scrolls along the edit, and right-click on a clip opens its tools. On the player, double-click goes full screen and the wheel steps through frames.
+- Gear → MOUSE POINTER: glowing pointer on or off, pointer effects, and pointer colour. Gear → SCROLL WHEELS: the timeline wheels' colour.
 **AI noise reduction**
 - 4:2:2 footage (10-bit 4:2:2 H.264 / H.265 from Sony, Panasonic, Canon, Fujifilm, DJI…): the Media page shows a 4:2:2 badge. The editor finds a decoder on your phone that can read it, plays it directly (add it to the Proxy tab for smoother editing) and exports from the original (as 4:2:0 — phone encoders don't make 4:2:2). If no decoder on the phone can read it, the clip is marked in red.
 - Media → MULTICAM (with 2 or more clips in the pool): pick 2–4 angles filmed at the same time — the first is the main angle for sound and timing — then SYNC BY SOUND & START. Tap an angle to start on it, press PLAY and tap angles while it plays to cut between them. DONE adds the edit to the end of the timeline.

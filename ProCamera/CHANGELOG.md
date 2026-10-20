@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.340 — 2026-10-20
 - Photo editor: pick many photos at once (gallery or files). They appear in a **filmstrip** under the photo, like Lightroom; tap one to switch, and each photo keeps its own edit automatically.
 - Filmstrip: hold a thumbnail for stars (0–5), Pick / Reject and colour labels; filters for All, ★3+, Picks, Edited and No rejects; SELECT to sync the current edit to other photos, rate, flag, export the selected photos (each with its own edit) or remove them.
 - The start page offers "Continue filmstrip" so you can carry on later; the filmstrip can be hidden from the Panels menu.

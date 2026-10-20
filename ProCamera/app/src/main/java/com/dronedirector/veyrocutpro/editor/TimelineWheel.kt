@@ -42,8 +42,10 @@ import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.sin
 
-private val Cyan = Color(0xFF4FE3FF)
-private val Violet = Color(0xFF9B6BFF)
+// The wheels use their own colour (gear settings → SCROLL WHEELS), apart from the app's accent.
+private val Cyan: Color get() = com.dronedirector.veyrocutpro.ui.CursorStyle.wheel
+private val Violet: Color get() = com.dronedirector.veyrocutpro.ui.CursorStyle.partner(com.dronedirector.veyrocutpro.ui.CursorStyle.wheel)
+private val WheelTip: Color get() = androidx.compose.ui.graphics.lerp(com.dronedirector.veyrocutpro.ui.CursorStyle.wheel, Color.White, 0.45f)
 
 /** Pseudo-random 0..1 for a cell (stable per cell and step). */
 private fun hash(a: Int, b: Int, c: Int): Float {
@@ -114,7 +116,7 @@ fun TimelineWheel(state: ScrollState, modifier: Modifier = Modifier, fancy: Bool
             val vis0 = (if (canScroll) (h * vp0 / (vp0 + state.maxValue)).coerceIn(h * 0.22f, h) else h).let { if (it.isFinite() && it >= 4f) it else h }
             val t0 = (if (canScroll) state.value.toFloat() / state.maxValue else 0f).let { if (it.isFinite()) it.coerceIn(0f, 1f) else 0f }
             val top0 = (h - vis0) * t0
-            drawRoundRect(Pro.Amber.copy(alpha = if (canScroll) 0.9f else 0.35f), topLeft = Offset(w * 0.2f, top0 + 1f), size = Size(w * 0.6f, vis0 - 2f), cornerRadius = CornerRadius(w * 0.3f, w * 0.3f))
+            drawRoundRect(WheelTip.copy(alpha = if (canScroll) 0.9f else 0.35f), topLeft = Offset(w * 0.2f, top0 + 1f), size = Size(w * 0.6f, vis0 - 2f), cornerRadius = CornerRadius(w * 0.3f, w * 0.3f))
             drawRoundRect(Color.White.copy(alpha = 0.18f), size = size, cornerRadius = r, style = Stroke(width = 1.dp.toPx()))
             return@Canvas
         }
@@ -155,7 +157,7 @@ fun TimelineWheel(state: ScrollState, modifier: Modifier = Modifier, fancy: Bool
         }
         // Thumb with gradient glow.
         drawRoundRect(
-            Brush.verticalGradient(listOf(Cyan.copy(alpha = 0.85f * dim), Violet.copy(alpha = 0.85f * dim), Pro.Amber.copy(alpha = 0.9f * dim)), startY = top, endY = top + vis),
+            Brush.verticalGradient(listOf(Cyan.copy(alpha = 0.85f * dim), Violet.copy(alpha = 0.85f * dim), WheelTip.copy(alpha = 0.9f * dim)), startY = top, endY = top + vis),
             topLeft = Offset(w * 0.18f, top + 1f), size = Size(w * 0.64f, vis - 2f), cornerRadius = CornerRadius(w * 0.32f, w * 0.32f),
         )
         // Scan line: a bright band sweeping through the thumb, stronger while moving.
@@ -169,7 +171,7 @@ fun TimelineWheel(state: ScrollState, modifier: Modifier = Modifier, fancy: Bool
             drawCircle(Color.White.copy(alpha = e * 0.9f), radius = 1.dp.toPx() * (0.6f + 0.6f * sin(phase * 40f + k).coerceAtLeast(0f)), center = Offset(sx, sy))
         }
         // Rim: animated gradient border.
-        val rim = Brush.sweepGradient(listOf(Cyan, Violet, Pro.Amber, Cyan), center = Offset(w / 2, h * phase))
+        val rim = Brush.sweepGradient(listOf(Cyan, Violet, WheelTip, Cyan), center = Offset(w / 2, h * phase))
         drawRoundRect(rim, size = size, cornerRadius = r, style = Stroke(width = (1f + 1.2f * e).dp.toPx()), alpha = (0.45f + 0.55f * e) * dim)
     }
 }
@@ -276,7 +278,7 @@ fun TimelineHWheel(zoom: TimelineZoom, modifier: Modifier = Modifier, fancy: Boo
             val vis0 = (if (canScroll) (w * zoom.viewMs / total0).coerceIn(w * 0.12f, w) else w).let { if (it.isFinite() && it >= 4f) it else w }
             val t0 = (if (canScroll) value / maxMs else 0f).let { if (it.isFinite()) it.coerceIn(0f, 1f) else 0f }
             val left0 = (w - vis0) * t0
-            drawRoundRect(Pro.Amber.copy(alpha = if (canScroll) 0.9f else 0.35f), topLeft = Offset(left0 + 1f, h * 0.2f), size = Size(vis0 - 2f, h * 0.6f), cornerRadius = CornerRadius(h * 0.3f, h * 0.3f))
+            drawRoundRect(WheelTip.copy(alpha = if (canScroll) 0.9f else 0.35f), topLeft = Offset(left0 + 1f, h * 0.2f), size = Size(vis0 - 2f, h * 0.6f), cornerRadius = CornerRadius(h * 0.3f, h * 0.3f))
             drawRoundRect(Color.White.copy(alpha = 0.18f), size = size, cornerRadius = r, style = Stroke(width = 1.dp.toPx()))
             return@Canvas
         }
@@ -314,7 +316,7 @@ fun TimelineHWheel(zoom: TimelineZoom, modifier: Modifier = Modifier, fancy: Boo
             }
         }
         drawRoundRect(
-            Brush.horizontalGradient(listOf(Cyan.copy(alpha = 0.85f * dim), Violet.copy(alpha = 0.85f * dim), Pro.Amber.copy(alpha = 0.9f * dim)), startX = left, endX = left + vis),
+            Brush.horizontalGradient(listOf(Cyan.copy(alpha = 0.85f * dim), Violet.copy(alpha = 0.85f * dim), WheelTip.copy(alpha = 0.9f * dim)), startX = left, endX = left + vis),
             topLeft = Offset(left + 1f, h * 0.18f), size = Size(vis - 2f, h * 0.64f), cornerRadius = CornerRadius(h * 0.32f, h * 0.32f),
         )
         val scanX = left + vis * ((phase * 1.4f) % 1f)
@@ -325,7 +327,7 @@ fun TimelineHWheel(zoom: TimelineZoom, modifier: Modifier = Modifier, fancy: Boo
             val sy = h * hash(k, 11, floor(phase * 30f).toInt())
             drawCircle(Color.White.copy(alpha = e * 0.9f), radius = 1.dp.toPx() * (0.6f + 0.6f * sin(phase * 40f + k).coerceAtLeast(0f)), center = Offset(sx, sy))
         }
-        val rim = Brush.sweepGradient(listOf(Cyan, Violet, Pro.Amber, Cyan), center = Offset(w * phase, h / 2))
+        val rim = Brush.sweepGradient(listOf(Cyan, Violet, WheelTip, Cyan), center = Offset(w * phase, h / 2))
         drawRoundRect(rim, size = size, cornerRadius = r, style = Stroke(width = (1f + 1.2f * e).dp.toPx()), alpha = (0.45f + 0.55f * e) * dim)
     }
 }

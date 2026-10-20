@@ -340,6 +340,12 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                                         if (zoom != 1f) controller.setZoom(controller.state.value.zoom * zoom)
                                     }
                                 }
+                                // Mouse: wheel zooms, right-click locks / unlocks exposure and focus there, middle-click takes the shot.
+                                .mouseActions(
+                                    onWheel = { dy, _, _, _, _ -> controller.setZoom(controller.state.value.zoom * (if (dy > 0) 0.92f else 1.087f)); true },
+                                    onRightClick = { o -> if (controller.state.value.aeLockPoint != null) controller.unlockExposure() else controller.lockExposureAt(o.x, o.y) },
+                                    onMiddleClick = { controller.shutter() },
+                                )
                         )
                         FocusReticle(s.focusPoint, s.focusId, locked = s.aeLock || s.manualFocusActive)
                         HoldRing(holdAt, (HOLD_MF_MS - HOLD_LOCK_MS).toInt())

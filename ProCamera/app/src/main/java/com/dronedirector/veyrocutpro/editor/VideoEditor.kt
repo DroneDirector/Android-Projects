@@ -87,6 +87,9 @@ import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import com.dronedirector.veyrocutpro.ui.Text
+import com.dronedirector.veyrocutpro.ui.mouseActions
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -343,6 +346,43 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     // Extra audio tracks on the timeline, and audio files in the media pool.
     val extraAudio = remember { mutableStateListOf<MusicTrack>().apply { initial?.extraAudio?.let { addAll(it) } } }
     val audioPool = remember { mutableStateListOf<PoolAudio>().apply { initial?.audioPool?.let { addAll(it) } } }
+    // Media strip: all imported clips (on the timeline or not), with ratings.
+    val library = remember { mutableStateListOf<Clip>().apply { initial?.library?.let { addAll(it.distinctBy { c -> c.uri.toString() }) } } }
+    val ratings = remember { mutableStateMapOf<String, Int>().apply { initial?.ratings?.let { putAll(it) } } }
+    LaunchedEffect(clips.map { it.uri.toString() }.distinct()) {
+        val have = library.map { it.uri.toString() }.toHashSet()
+        for (c in clips) if (c.nested == null && c.uri != Uri.EMPTY && have.add(c.uri.toString()))
+            library.add(c.copy(id = java.util.UUID.randomUUID().toString(), startMs = 0, endMs = c.durationMs, speed = 1f, ramp = null, rampName = null, volKeys = null, transition = Transition()))
+    }
+    val libScope = rememberCoroutineScope()
+    var libLoading by remember { mutableStateOf(0) }
+    fun importToLibrary(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        libLoading += uris.size
+        libScope.launch {
+            var added = 0
+            for (u in uris) {
+                if (library.any { it.uri == u }) { libLoading--; continue }
+                val c = withContext(Dispatchers.IO) {
+                    try { context.contentResolver.takePersistableUriPermission(u, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
+                    ClipLoader.load(context, u)
+                }
+                libLoading--
+                if (c != null) { library.add(c); added++ }
+            }
+            message = "$added clip(s) added to the media strip"
+        }
+    }
+    val libPick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(100)) { importToLibrary(it) }
+    val libFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+        if (tree != null) {
+            try { context.contentResolver.takePersistableUriPermission(tree, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
+            libScope.launch {
+                val list = withContext(Dispatchers.IO) { SkimFrames.folderVideos(context, tree) }
+                if (list.isEmpty()) message = "No videos in that folder" else importToLibrary(list)
+            }
+        }
+    }
     val audioPlayers = remember { HashMap<String, ExoPlayer>() }
     // Real waveforms for clips and audio tracks (decoded once in the background).
     val waves = remember { mutableStateMapOf<String, FloatArray>() }
@@ -1300,7 +1340,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val p = VideoProjectData(
             id = projectId ?: java.util.UUID.randomUUID().toString(), name = name,
             clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
-            extraAudio = extraAudio.toList(), audioPool = audioPool.toList(),
+            extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
             videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
             markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
             proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
@@ -1321,7 +1361,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val p = VideoProjectData(
                 id = projectId ?: "", name = projectName,
                 clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
-                extraAudio = extraAudio.toList(), audioPool = audioPool.toList(),
+                extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
                 videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
                 markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
             proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
@@ -2069,6 +2109,21 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
     // ---- Three-point editing (source viewer), relink, project archive
     var sourceClip by remember { mutableStateOf<Clip?>(null) }
+    // Where the timeline is on screen (window coordinates), for dropping clips dragged with the mouse.
+    var tlBounds by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+    val tlLeftPad = with(androidx.compose.ui.platform.LocalDensity.current) { 56.dp.toPx() }
+    /** Puts [src] on the timeline at the clip boundary nearest the time under the pointer. */
+    fun dropAt(src: Clip, windowX: Float) {
+        if (videoLocked) { message = "The video track is locked — tap its lock on the timeline to unlock"; return }
+        val ms = zoom.scrollMs + ((windowX - tlBounds.left - tlLeftPad) / zoom.pxPerSec * 1000f).toLong()
+        val nc = src.copy(id = java.util.UUID.randomUUID().toString(), startMs = 0, endMs = src.durationMs, transition = Transition(), volKeys = null, ramp = null, rampName = null, nested = null, speed = 1f)
+        val st = clipStarts(clips)
+        var at = clips.size
+        for (i in clips.indices) if (ms < st[i] + clips[i].lengthMs / 2) { at = i; break }
+        clips.add(at, nc); selected = at
+        if (clips.size == 1) { current = 0; load(0, 0, false) }
+        message = "${nc.name} placed on the timeline"
+    }
     fun threePoint(src: Clip, mode: Int) {
         if (videoLocked) { message = "The video track is locked — tap its lock on the timeline to unlock"; return }
         val nc = src.copy(id = java.util.UUID.randomUUID().toString(), transition = Transition(), volKeys = null, ramp = null, rampName = null, reframe = Reframe(), nested = null, speed = 1f)
@@ -2146,6 +2201,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         music = p.music
         extraAudio.clear(); extraAudio.addAll(p.extraAudio)
         audioPool.clear(); audioPool.addAll(p.audioPool)
+        library.clear(); p.library?.let { library.addAll(it) }
+        ratings.clear(); p.ratings?.let { ratings.putAll(it) }
         markers.clear(); markers.addAll(p.markers)
         markerNotes.clear(); p.markerNotes?.forEach { (k, v) -> k.toLongOrNull()?.let { markerNotes[it] = v } }
         bins.clear(); p.bins?.let { bins.putAll(it) }
@@ -2158,7 +2215,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val p = VideoProjectData(
             id = projectId ?: java.util.UUID.randomUUID().toString(), name = projectName.ifBlank { "Project" },
             clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
-            extraAudio = extraAudio.toList(), audioPool = audioPool.toList(),
+            extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
             videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
             markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
             bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
@@ -2347,7 +2404,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val p = VideoProjectData(
                 id = pid, name = projectName, savedAt = System.currentTimeMillis(),
                 clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
-                extraAudio = extraAudio.toList(), audioPool = audioPool.toList(),
+                extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
                 videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
                 markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
                 proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
@@ -2610,7 +2667,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val boxW = maxWidth.value; val boxH = maxHeight.value
 
             val viewer = @Composable { mod: Modifier ->
-                Box(mod.background(Color.Black), contentAlignment = Alignment.Center) {
+                // Mouse: double-click the player for full screen, wheel steps through frames.
+                Box(mod.background(Color.Black).mouseActions(
+                    onDoubleClick = { fullscreen = true },
+                    onWheel = { dy, _, _, _, _ -> seekGlobal((globalMs + if (dy > 0) 40L else -40L).coerceAtLeast(0L)); true },
+                ), contentAlignment = Alignment.Center) {
                     val (ow, oh) = outputSize(clips, deliver)
                     val projAspect = ow.toFloat() / oh
                     BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -3031,6 +3092,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     val k = c.uri.toString()
                                     removeFromProxy(MediaId.of(c))
                                     clips.removeAll { it.uri.toString() == k }
+                                    library.removeAll { it.uri.toString() == k }
                                     selected = selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
                                     current = current.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
                                     message = "${c.name} removed from the project"
@@ -3365,12 +3427,52 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 val tlScroll = rememberScrollState()
                 var tlEnergy by remember { mutableStateOf(0f) }
                 var tlHEnergy by remember { mutableStateOf(0f) }
+                val showStrip = com.dronedirector.veyrocutpro.ui.panelOn("ve.mediastrip")
                 val timelineBox = @Composable {
+                    if (showStrip && library.isNotEmpty()) MediaStrip(
+                        library = library, uses = { c -> clips.count { it.uri == c.uri } }, ratings = ratings,
+                        bins = bins, binNames = binNames,
+                        onRate = { list, r -> list.forEach { c -> if (r == 0) ratings.remove(c.uri.toString()) else ratings[c.uri.toString()] = r } },
+                        onAppend = { list -> list.forEach { threePoint(it.copy(startMs = 0, endMs = it.durationMs), 2) } },
+                        onInsert = { threePoint(it.copy(startMs = 0, endMs = it.durationMs), 0) },
+                        onOverwrite = { threePoint(it.copy(startMs = 0, endMs = it.durationMs), 1) },
+                        onSource = { sourceClip = it.copy(startMs = 0, endMs = it.durationMs) },
+                        onRemove = { list ->
+                            val used = list.filter { c -> clips.any { it.uri == c.uri } }
+                            library.removeAll { c -> c in list && c !in used }
+                            if (used.isNotEmpty()) message = "${used.size} clip(s) are on the timeline — delete them in the Media page to remove them"
+                        },
+                        onImport = { libPick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
+                        onImportFolder = { try { libFolder.launch(null) } catch (_: Throwable) {} },
+                        onDragOver = { at -> tlBounds.contains(at) },
+                        onDrop = { c, at -> if (tlBounds.contains(at)) dropAt(c, at.x) },
+                    )
                     // Tracks scroll up and down with the wheel on the right, left and right with the wheel along the bottom.
                     Box(Modifier.fillMaxWidth()) {
                         val sized = if (tlPane.dp < 0f) Modifier.fillMaxWidth().heightIn(max = (boxH * 0.42f).dp) else Modifier.fillMaxWidth().height(tlPane.dp.dp)
                         // The tracks stop short of the right and bottom edges: each wheel has its own window there.
-                        Box(sized.padding(end = 26.dp, bottom = 26.dp).verticalScroll(tlScroll)) { timeline() }
+                        Box(
+                            sized.padding(end = 26.dp, bottom = 26.dp)
+                                .onGloballyPositioned { val p = it.positionInRoot(); tlBounds = androidx.compose.ui.geometry.Rect(p.x, p.y, p.x + it.size.width, p.y + it.size.height) }
+                                .verticalScroll(tlScroll)
+                                // Mouse: Ctrl + wheel zooms, Shift + wheel (or a sideways wheel) scrolls along the edit; the plain wheel moves the tracks up and down.
+                                // Right-click a clip to pick it and open its tools.
+                                .mouseActions(
+                                    onWheel = { dy, dx, _, ctrl, shift ->
+                                        when {
+                                            ctrl -> { if (dy < 0) zoom.zoomIn() else zoom.zoomOut(); true }
+                                            shift || dx != 0f -> { zoom.scrollBy((((if (dx != 0f) dx else dy)) * 120f / zoom.pxPerSec * 1000f).toLong()); true }
+                                            else -> false
+                                        }
+                                    },
+                                    onRightClick = { o ->
+                                        val ms = zoom.scrollMs + ((o.x - tlLeftPad) / zoom.pxPerSec * 1000f).toLong()
+                                        val st = clipStarts(clips)
+                                        val i = clips.indices.firstOrNull { ms >= st[it] && ms < st[it] + clips[it].lengthMs }
+                                        if (i != null) { selected = i; page = Page.EDIT; com.dronedirector.veyrocutpro.ui.Panels.set(context, "ve.inspector", true) }
+                                    },
+                                ),
+                        ) { timeline() }
                         if (wheelFx) {
                             TimelineUpscaleOverlay(tlEnergy, tlScroll.value, Modifier.matchParentSize().padding(end = 26.dp, bottom = 26.dp))
                             TimelineUpscaleOverlay(tlHEnergy, zoom.scrollMs.toInt(), Modifier.matchParentSize().padding(end = 26.dp, bottom = 26.dp), horizontal = true)
@@ -5293,6 +5395,7 @@ private fun VideoPanelsButton(onPage: (Page) -> Unit, onReset: () -> Unit) {
         com.dronedirector.veyrocutpro.ui.PanelDef("ve.scope", "Histogram pull-out", "Show or hide the RGB histogram tab on the right edge of the player"),
         com.dronedirector.veyrocutpro.ui.PanelDef("ve.timecode", "Timecode", "Time read-out on the viewer"),
         com.dronedirector.veyrocutpro.ui.PanelDef("ve.waves", "Audio waveforms", "Sound waves drawn on the timeline clips"),
+        com.dronedirector.veyrocutpro.ui.PanelDef("ve.mediastrip", "Media strip", "Imported clips above the timeline: skim, rate, add to the timeline"),
     )
     val all = panels.map { it.key }.toSet()
     com.dronedirector.veyrocutpro.ui.PanelsButton(

@@ -264,6 +264,7 @@ fun EditorSettingsDialog(
                 Text("APP COLOUR", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp, bottom = 4.dp))
                 com.dronedirector.veyrocutpro.ui.AccentPicker()
                 if (colourExtra != null) colourExtra()
+                com.dronedirector.veyrocutpro.ui.PointerAndWheelSettings(showWheel = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR)
                 val gv = if (screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR) com.dronedirector.veyrocutpro.ui.GuideVariant.VIDEO else com.dronedirector.veyrocutpro.ui.GuideVariant.PHOTO
                 com.dronedirector.veyrocutpro.ui.CloudAiSettings(gv)
                 com.dronedirector.veyrocutpro.ui.GuideButton(gv)

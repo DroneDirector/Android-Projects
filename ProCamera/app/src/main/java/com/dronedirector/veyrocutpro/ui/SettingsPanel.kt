@@ -147,6 +147,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             PrivacyButton()
             BackupSection()
             LanguagePicker()
+            PointerAndWheelSettings(showWheel = false)
             TourButton()
 
             Section("VIDEO")

@@ -131,6 +131,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             ProCamTheme {
                 com.dronedirector.veyrocutpro.ui.CrashReportDialog()
+                com.dronedirector.veyrocutpro.ui.MousePointerHost {
                 val current = screen.value
                 androidx.compose.animation.Crossfade(current, label = "screen") { s ->
                     when (s) {
@@ -161,6 +162,7 @@ class MainActivity : ComponentActivity() {
                 }
                 // First launch: AI models and soundtracks are downloaded once (not inside the APK).
                 com.dronedirector.veyrocutpro.ui.FirstRunGate()
+                }
             }
         }
     }

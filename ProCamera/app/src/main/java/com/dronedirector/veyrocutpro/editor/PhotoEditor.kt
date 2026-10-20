@@ -57,6 +57,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import com.dronedirector.veyrocutpro.ui.Text
+import com.dronedirector.veyrocutpro.ui.mouseActions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -967,7 +968,15 @@ private fun PhotoWorkspace(
             val boxW = maxWidth.value; val boxH = maxHeight.value
             val previewBox = @Composable { mod: Modifier ->
                 Box(
-                    mod.pointerInput(split, panel) {
+                    // Mouse: wheel = next / previous filmstrip photo, right-click = before / after split, double-click = hide / show the tools.
+                    mod.mouseActions(
+                        onWheel = { dy, _, _, _, _ ->
+                            val n = PhotoSession.items.size
+                            if (sessionIdx >= 0 && n > 1) { val to = (sessionIdx + if (dy > 0) 1 else -1).coerceIn(0, n - 1); if (to != sessionIdx) switchTo(to); true } else false
+                        },
+                        onRightClick = { split = !split },
+                        onDoubleClick = { com.dronedirector.veyrocutpro.ui.Panels.set(context, "pe.controls", !showControls) },
+                    ).pointerInput(split, panel) {
                         if (split) {
                             // Drag anywhere to move the before / after divider.
                             detectHorizontalDragGestures { ch, _ -> splitX = (ch.position.x / size.width).coerceIn(0.02f, 0.98f) }

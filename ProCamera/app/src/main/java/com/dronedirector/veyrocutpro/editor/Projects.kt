@@ -37,6 +37,10 @@ data class VideoProjectData(
     /** Media pool bins: file (uri text) → bin name, and the bins in order. */
     val bins: Map<String, String>? = null,
     val binNames: List<String>? = null,
+    /** The media strip: every clip imported into the project, used on the timeline or not. */
+    val library: List<Clip>? = null,
+    /** Media strip ratings: file (uri text) → 1–5 stars, or −1 rejected. */
+    val ratings: Map<String, Int>? = null,
 )
 
 data class PhotoProjectData(
@@ -171,6 +175,7 @@ object ProjectStore {
         p.clips.forEach { Defaults.fix(it, Clip(uri = Uri.EMPTY, name = "", durationMs = 1, width = 1, height = 1)) }
         // Clips inside nested (compound) clips.
         p.clips.forEach { c -> c.nested?.forEach { Defaults.fix(it, Clip(uri = Uri.EMPTY, name = "", durationMs = 1, width = 1, height = 1)) } }
+        p.library?.forEach { Defaults.fix(it, Clip(uri = Uri.EMPTY, name = "", durationMs = 1, width = 1, height = 1)) }
         p.layers.forEach { Defaults.fix(it, Layer()) }
         p.music?.let { Defaults.fix(it, MusicTrack(Uri.EMPTY, "", 1)) }
         p.extraAudio.forEach { Defaults.fix(it, MusicTrack(Uri.EMPTY, "", 1)) }

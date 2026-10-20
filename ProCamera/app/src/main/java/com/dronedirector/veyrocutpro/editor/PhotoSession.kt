@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dronedirector.veyrocutpro.ui.Pro
 import com.dronedirector.veyrocutpro.ui.Text
+import com.dronedirector.veyrocutpro.ui.mouseActions
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -195,6 +196,7 @@ fun Filmstrip(
                 Box(
                     Modifier.size(64.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFF1A1E26))
                         .border(if (cur || sel) 2.dp else 1.dp, if (sel) Color.White else if (cur) Pro.Amber else Color.White.copy(alpha = 0.1f), RoundedCornerShape(6.dp))
+                        .mouseActions(onRightClick = { menuFor = i })
                         .combinedClickable(
                             onClick = { if (selecting) { if (sel) picked.remove(i) else picked.add(i) } else if (!cur) onOpen(i) },
                             onLongClick = { menuFor = i },

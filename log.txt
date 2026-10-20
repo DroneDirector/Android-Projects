@@ -1,0 +1,102 @@
+62454048 62454048 assets/nafnet.tflite
+27976484 27976484 assets/sam_encoder.onnx
+22983260 6059836 classes2.dex
+20338600 20338600 lib/x86_64/libonnxruntime.so
+19344264 5298737 classes.dex
+17637920 17637920 lib/x86_64/libdf.so
+17575688 17575688 lib/arm64-v8a/libonnxruntime.so
+17371616 17371616 lib/x86_64/libtranslate_jni.so
+16492708 16492708 assets/sam_decoder.onnx
+16361032 16361032 lib/arm64-v8a/libtranslate_jni.so
+13920192 13920192 lib/arm64-v8a/libdf.so
+12290308 12290308 lib/armeabi-v7a/libonnxruntime.so
+12008004 4777799 classes3.dex
+11608796 11608796 lib/armeabi-v7a/libtranslate_jni.so
+11436600 11436600 lib/x86_64/libxeno_native.so
+10260032 10260032 lib/arm64-v8a/libxeno_native.so
+10222872 3676543 classes5.dex
+9685400 9685400 lib/x86_64/libface_detector_v2_jni.so
+8695292 3138696 classes4.dex
+8601600 7983273 assets/DeepFilterNet3_onnx.tar
+8520960 8520960 lib/arm64-v8a/libface_detector_v2_jni.so
+8086480 8086480 lib/armeabi-v7a/libdf.so
+6918696 6918696 lib/x86_64/libLiteRt.so
+6696800 6696800 lib/armeabi-v7a/libxeno_native.so
+6330844 6330844 assets/sound_library/soundtracks/advisory.m4a
+5413774 5413774 assets/sound_library/soundtracks/colorful_noise.m4a
+5388224 5388224 lib/armeabi-v7a/libface_detector_v2_jni.so
+5357258 5357258 assets/sound_library/soundtracks/black_eagle.m4a
+5313695 5313695 assets/sound_library/soundtracks/uprising.m4a
+5210395 5210395 assets/sound_library/soundtracks/row.m4a
+5104832 5104832 lib/arm64-v8a/libLiteRt.so
+5047761 5047761 assets/sound_library/soundtracks/natures_roar.m4a
+4993712 4993712 assets/esrgan.tflite
+4903137 4903137 assets/sound_library/soundtracks/higher_again.m4a
+4868896 4868896 assets/sound_library/soundtracks/and_we_run.m4a
+4817508 4817508 assets/sound_library/soundtracks/beyond_the_horizon.m4a
+4170180 4170180 assets/sound_library/soundtracks/let_there_be.m4a
+4005687 4005687 assets/sound_library/soundtracks/tales_of_the_brave.m4a
+3664162 3664162 assets/sound_library/soundtracks/ethernal.m4a
+3542068 3542068 assets/sound_library/soundtracks/faithful_end_credits.m4a
+3520218 3520218 assets/sound_library/soundtracks/feather_fall.m4a
+3496524 3496524 assets/sound_library/soundtracks/spring.m4a
+3458018 3458018 assets/sound_library/soundtracks/skybound_dreams.m4a
+3347868 3347868 assets/sound_library/soundtracks/there_back_again.m4a
+3314955 3314955 assets/sound_library/soundtracks/rise_like_the_dawn.m4a
+3308648 3308648 lib/x86_64/libLiteRtOpenClAccelerator.so
+3219490 3219490 assets/sound_library/soundtracks/the_haze.m4a
+3193909 3193909 assets/sound_library/soundtracks/the_flood.m4a
+2931646 2931646 assets/sound_library/soundtracks/radioactive.m4a
+2843652 2843652 assets/sound_library/soundtracks/journey.m4a
+2779264 2779264 assets/deeplab.tflite
+2771133 2771133 assets/sound_library/soundtracks/rings_of_saturn.m4a
+2758098 2758098 assets/sound_library/soundtracks/lethal_weapons.m4a
+2675512 2675512 lib/arm64-v8a/libLiteRtOpenClAccelerator.so
+2578142 2578142 assets/sound_library/soundtracks/natures_voice.m4a
+2076296 2076296 lib/x86_64/libveyrocut_whisper.so
+1891112 1891112 lib/arm64-v8a/libveyrocut_whisper.so
+1870206 1870206 assets/sound_library/soundtracks/heaven_encounters.m4a
+1326872 1326872 lib/armeabi-v7a/libveyrocut_whisper.so
+1324480 1324480 lib/x86_64/liblanguage_id_l2c_jni.so
+
+== by folder (uncompressed / stored)
+   101.9 MB raw    101.9 MB packed  assets/sound_library
+    91.5 MB raw     91.5 MB packed  lib/x86_64
+    78.7 MB raw     78.7 MB packed  lib/arm64-v8a
+    62.5 MB raw     62.5 MB packed  assets/nafnet.tflite
+    47.0 MB raw     47.0 MB packed  lib/armeabi-v7a
+    28.0 MB raw     28.0 MB packed  assets/sam_encoder.onnx
+    23.0 MB raw      6.1 MB packed  classes2.dex
+    19.3 MB raw      5.3 MB packed  classes.dex
+    16.5 MB raw     16.5 MB packed  assets/sam_decoder.onnx
+    12.0 MB raw      4.8 MB packed  classes3.dex
+    10.2 MB raw      3.7 MB packed  classes5.dex
+     8.7 MB raw      3.1 MB packed  classes4.dex
+     8.6 MB raw      8.0 MB packed  assets/DeepFilterNet3_onnx.tar
+     5.0 MB raw      5.0 MB packed  assets/esrgan.tflite
+     4.3 MB raw      3.8 MB packed  assets/models_bundled
+     2.8 MB raw      2.8 MB packed  assets/deeplab.tflite
+     1.4 MB raw      1.2 MB packed  org
+     1.0 MB raw      1.0 MB packed  resources.arsc
+     0.5 MB raw      0.2 MB packed  res
+     0.5 MB raw      0.2 MB packed  assets/i18n
+     0.3 MB raw      0.3 MB packed  assets/tflite_langid.tflite.jpg
+     0.2 MB raw      0.2 MB packed  assets/selfiesegmentation_mlkit-256x256-2021_01_19-v1215.f16.tflite
+     0.2 MB raw      0.1 MB packed  classes6.dex
+     0.1 MB raw      0.0 MB packed  META-INF
+     0.1 MB raw      0.0 MB packed  kotlin
+     0.0 MB raw      0.0 MB packed  assets/licenses
+     0.0 MB raw      0.0 MB packed  AndroidManifest.xml
+     0.0 MB raw      0.0 MB packed  assets/dexopt
+     0.0 MB raw      0.0 MB packed  assets/kokoro_tokenizer.json
+     0.0 MB raw      0.0 MB packed  DebugProbesKt.bin
+     0.0 MB raw      0.0 MB packed  kotlin-tooling-metadata.json
+     0.0 MB raw      0.0 MB packed  assets/segmentation_graph.binarypb
+     0.0 MB raw      0.0 MB packed  play-services-mlkit-subject-segmentation.properties
+     0.0 MB raw      0.0 MB packed  play-services-mlkit-face-detection.properties
+     0.0 MB raw      0.0 MB packed  mediapipe-internal.properties
+     0.0 MB raw      0.0 MB packed  segmentation-selfie.properties
+     0.0 MB raw      0.0 MB packed  play-services-basement.properties
+     0.0 MB raw      0.0 MB packed  firebase-encoders-json.properties
+     0.0 MB raw      0.0 MB packed  transport-backend-cct.properties
+     0.0 MB raw      0.0 MB packed  firebase-annotations.properties

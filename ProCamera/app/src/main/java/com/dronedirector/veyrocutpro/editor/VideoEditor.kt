@@ -1432,6 +1432,32 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
 
+    // ---- Caption translation (ML Kit, on the phone)
+    var translateStatus by remember { mutableStateOf<String?>(null) }
+    fun translateCaptions(to: String) {
+        if (translateStatus != null) return
+        val caps = layers.filter { it.kind == LayerKind.TEXT && (it.name == "Caption" || it.name == "Word caption") }
+        if (caps.isEmpty()) { message = "Make captions first (AI CAPTIONS, or word-by-word captions on the Text page)"; return }
+        translateStatus = "Starting…"
+        layerScope.launch {
+            val res = withContext(Dispatchers.IO) {
+                try { Result.success(CaptionTranslate.translate(caps.map { it.text.replace('\n', ' ') }, null, to) { s -> layerScope.launch { translateStatus = s } }) }
+                catch (e: Throwable) { Result.failure(e) }
+            }
+            translateStatus = null
+            val out = res.getOrNull()
+            if (out == null) { message = res.exceptionOrNull()?.message ?: "Translation failed"; return@launch }
+            for ((k, l) in caps.withIndex()) {
+                val i = layers.indexOfFirst { it.id == l.id }
+                if (i < 0) continue
+                // Word timings don't fit a translation: it becomes a plain caption.
+                val t = captionPieces(out[k], 38).joinToString("\n").ifBlank { out[k] }
+                layers[i] = l.copy(text = if (l.text == l.text.uppercase() && l.text.any { it.isLetter() }) t.uppercase() else t, words = null, name = "Caption")
+            }
+            message = "${caps.size} captions translated — Translated by Google"
+        }
+    }
+
     // ---- Shape (pen) masks: planar-track the mask from the playhead to the clip's end
     var penTrackingId by remember { mutableStateOf<String?>(null) }
     var penStop by remember { mutableStateOf(false) }
@@ -3080,6 +3106,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 },
                                 onSeek = { seekGlobal(it) },
                                 onCaptions = { lang, clipsOnly, style -> makeCaptions(lang, clipsOnly, style) },
+                                onTranslate = { to -> translateCaptions(to) }, translateStatus = translateStatus,
                                 telemetryShow = telemetryShow,
                                 onTelemetryShow = { telemetryShow = it },
                                 onTelemetry = { pickSrt.launch(arrayOf("*/*")) },
@@ -4289,6 +4316,7 @@ private fun LayersPage(
     onUpdate: (Layer) -> Unit, onDelete: (String) -> Unit, onMove: (String, Int) -> Unit,
     onSeek: (Long) -> Unit = {},
     onCaptions: (String?, Boolean, Int) -> Unit = { _, _, _ -> },
+    onTranslate: (String) -> Unit = {}, translateStatus: String? = null,
     onTrack: (String) -> Unit = {}, trackingId: String? = null,
     onPin: (String, List<PinQuad>?) -> Unit = { _, _ -> }, onPlanarTrack: (String) -> Unit = {}, pinTrackingId: String? = null, frameAspect: Float = 16f / 9f,
     telemetryShow: TelemetryShow = TelemetryShow(), onTelemetryShow: (TelemetryShow) -> Unit = {}, onTelemetry: () -> Unit = {},
@@ -4310,6 +4338,19 @@ private fun LayersPage(
         modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onCaptions(langs[capLang].second, capClipsOnly, capStyle) }.padding(10.dp),
     )
     Text("Writes timed caption layers from the speech in your edit (Whisper, via your fal.ai account in Cloud AI settings). Edit or delete any caption like a normal text layer.", color = Pro.Dim, fontSize = 11.sp)
+    SectionTitle("TRANSLATE CAPTIONS")
+    var trTo by remember { mutableStateOf(0) }
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+        CaptionTranslate.targets.forEachIndexed { i, (_, n) -> PillChip(n, trTo == i) { trTo = i } }
+    }
+    if (translateStatus != null) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+        androidx.compose.material3.CircularProgressIndicator(color = Pro.Amber, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+        Text(translateStatus, color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(start = 8.dp))
+    } else Text(
+        "TRANSLATE ALL CAPTIONS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onTranslate(CaptionTranslate.targets[trTo].first) }.padding(10.dp),
+    )
+    Text("Translates every caption layer (AI captions and word-by-word captions) on the phone; the language is found by itself. Each language pack (about 30 MB) is downloaded once. Undo brings the originals back. Translated by Google.", color = Pro.Dim, fontSize = 11.sp)
     SectionTitle("DRONE TELEMETRY")
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
         val t = telemetryShow

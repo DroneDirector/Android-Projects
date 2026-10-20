@@ -1,0 +1,33 @@
+name: AI model prep / host tests
+# Started by hand: runs .github/scripts/ai/<script>.sh on the runner; results go to the 'aitest' branch.
+on:
+  workflow_dispatch:
+    inputs:
+      script:
+        description: Script name in .github/scripts/ai (without .sh)
+        required: true
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p out
+          set -o pipefail
+          bash .github/scripts/ai/${{ inputs.script }}.sh 2>&1 | tee out/log.txt
+      - name: Save result
+        if: always()
+        run: |
+          [ -d out ] || exit 0
+          cd out && find . -size +40M -delete; git init -q -b aitest && git add -A
+          git -c user.name="github-actions" -c user.email="actions@github.com" commit -qm "AI run ${{ inputs.script }}"
+          git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" aitest

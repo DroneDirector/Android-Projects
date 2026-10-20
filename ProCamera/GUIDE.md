@@ -181,6 +181,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 ## Video editor guide
 **Autosave**
+- Delete a clip: tap it on the timeline, then tap the red bin at its top. CLOSE GAP moves the clips after it left; LEAVE GAP puts black of the same length in its place. Undo brings it back.
 - Gear → AUTOSAVE: pick how often a copy of your project is saved, and how many copies (1–5) to keep. LOAD → AUTOSAVES opens one.
 **Media strip and mouse**
 - On an external monitor (Samsung DeX, HDMI / USB-C desktop mode), ultra-wide and super ultra-wide screens show media | viewer | tools columns with the timeline across the bottom; drag the dividers to resize. Unplug and the phone / tablet layout comes back at once.

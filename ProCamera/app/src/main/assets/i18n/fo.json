@@ -2637,5 +2637,12 @@
 "Makes the edge follow fine detail in the photo — hair, fur, leaves against the sky.": "Fær kantin at fylgja fínum smálutum á myndini — hár, feldi, bløð móti himli.",
 "AVIF: often half the size of JPEG at the same quality; opens on Android 12+, current browsers and most photo apps.": "AVIF: ofta helmingin so stór sum JPEG við somu góðsku; letur upp á Android 12+, í nýggjum kagum og flestum mynda-appum.",
 "AVIF needs an AV1 encoder — this phone doesn't have one (Android 14+ has it built in).": "AVIF krevur ein AV1-koðara — henda telefonin hevur ongan (Android 14+ hevur hann innbygdan).",
-"JPEG XL: high quality at small sizes, wide colour and HDR-ready; opens in newer photo software, Safari and on Apple devices. Few Android apps can show it yet.": "JPEG XL: høg góðska við lítlari stødd, víðir litir og klárt til HDR; letur upp í nýggjari myndaforritum, Safari og á Apple-tólum. Fá Android-appir kunnu vísa tað enn."
+"JPEG XL: high quality at small sizes, wide colour and HDR-ready; opens in newer photo software, Safari and on Apple devices. Few Android apps can show it yet.": "JPEG XL: høg góðska við lítlari stødd, víðir litir og klárt til HDR; letur upp í nýggjari myndaforritum, Safari og á Apple-tólum. Fá Android-appir kunnu vísa tað enn.",
+"Close the gap: the clips after it move left. Leave a gap: black of the same length takes its place, so everything after it stays where it is.": "Lat holið aftur: brotini aftaná flyta seg til vinstru. Lat eitt hol vera: svart við somu longd kemur í staðin, so alt aftaná verður verandi, har tað er.",
+"LEAVE GAP": "LAT HOL VERA",
+"CLOSE GAP": "LAT HOL AFTUR",
+"Clip deleted — undo brings it back": "Brot strikað — angra fær tað aftur",
+"Making the gap…": "Gerir holið…",
+"Couldn't make the gap": "Kundi ikki gera holið",
+"Clip deleted, gap left — undo brings it back": "Brot strikað, hol eftir — angra fær tað aftur"
 }

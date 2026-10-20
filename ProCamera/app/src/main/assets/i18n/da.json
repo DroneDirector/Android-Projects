@@ -2583,5 +2583,12 @@
 "Makes the edge follow fine detail in the photo — hair, fur, leaves against the sky.": "Får kanten til at følge fine detaljer i fotoet — hår, pels, blade mod himlen.",
 "AVIF: often half the size of JPEG at the same quality; opens on Android 12+, current browsers and most photo apps.": "AVIF: ofte halvt så stor som JPEG ved samme kvalitet; åbner på Android 12+, i nye browsere og de fleste foto-apps.",
 "AVIF needs an AV1 encoder — this phone doesn't have one (Android 14+ has it built in).": "AVIF kræver en AV1-encoder — denne telefon har ingen (Android 14+ har den indbygget).",
-"JPEG XL: high quality at small sizes, wide colour and HDR-ready; opens in newer photo software, Safari and on Apple devices. Few Android apps can show it yet.": "JPEG XL: høj kvalitet ved små størrelser, brede farver og klar til HDR; åbner i nyere fotoprogrammer, Safari og på Apple-enheder. Få Android-apps kan vise det endnu."
+"JPEG XL: high quality at small sizes, wide colour and HDR-ready; opens in newer photo software, Safari and on Apple devices. Few Android apps can show it yet.": "JPEG XL: høj kvalitet ved små størrelser, brede farver og klar til HDR; åbner i nyere fotoprogrammer, Safari og på Apple-enheder. Få Android-apps kan vise det endnu.",
+"Close the gap: the clips after it move left. Leave a gap: black of the same length takes its place, so everything after it stays where it is.": "Luk hullet: klippene efter rykker til venstre. Efterlad et hul: sort af samme længde tager dens plads, så alt efter den bliver, hvor det er.",
+"LEAVE GAP": "EFTERLAD HUL",
+"CLOSE GAP": "LUK HUL",
+"Clip deleted — undo brings it back": "Klip slettet — fortryd henter det tilbage",
+"Making the gap…": "Laver hullet…",
+"Couldn't make the gap": "Kunne ikke lave hullet",
+"Clip deleted, gap left — undo brings it back": "Klip slettet, hul efterladt — fortryd henter det tilbage"
 }

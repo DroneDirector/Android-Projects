@@ -227,6 +227,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Video editor tips", Icons.Filled.Movie, null, listOf(
+            "Delete a clip: tap it, then tap the red bin on top of it — CLOSE GAP moves the next clips left, LEAVE GAP keeps them in place.",
             "Media strip above the timeline: hover (mouse) or hold and slide to skim, tap to pick, double-tap to append. Stars and reject help you sort; USED marks what's already on the timeline. + Folder imports a whole folder.",
             "With a mouse: drag clips from the media strip onto the timeline, Ctrl + wheel zooms the timeline, Shift + wheel scrolls it, right-click opens a clip's tools, and double-click the player for full screen.",
             "4:2:2 footage (10-bit 4:2:2 H.264 / H.265 from Sony, Panasonic, Canon, Fujifilm, DJI…): the Media page shows a 4:2:2 badge. The editor finds a decoder on your phone that can read it, plays it directly (add it to the Proxy tab for smoother editing) and exports from the original (as 4:2:0 — phone encoders don't make 4:2:2). If no decoder on the phone can read it, the clip is marked in red.",

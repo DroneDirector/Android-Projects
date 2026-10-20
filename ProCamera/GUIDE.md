@@ -105,9 +105,13 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Masks → People (AI): selects parts of everyone in the photo. Tap the parts you want — Whole person, Face skin, Body skin, Eye whites, Irises, Eyebrows, Lips, Teeth, Hair, Clothes. PORTRAIT LOOKS (Smooth skin, Whiten teeth, Brighten eyes, Iris enhance, Lip colour, Hair shine, Brows define) pick the parts and set the adjustments for you; fine-tune them under ADJUST INSIDE THE MASK. Texture (minus = smoother skin) and Clarity are there for every mask.
 - Export → OUTPUT → Ultra HDR (JPEG, Android 14+): Subtle, Standard or Strong. On HDR screens (most newer phones) the bright parts — sky, lights, reflections — glow brighter; on other screens the photo looks exactly as edited.
 - Curve → ◎ TARGETED ADJUSTMENT, or HSL Mixer → ◎ TARGETED with Hue / Sat / Lum: put a finger on the photo and drag up or down. The tone curve (or the colour sliders) for exactly that tone or colour move with it.
+- Export → OUTPUT → Gamut warning: choose Glossy print or Matte print. Cyan shows the colours that paper can't print (they'll come out duller); lower them with the HSL Mixer if they matter.
+- REFERENCE (top-left of the photo, with the before / after buttons): pick a reference photo, or hold a filmstrip photo → Use as reference. It's shown next to the photo you're editing (side by side, or above on a tall screen). CHANGE picks another; MATCH LOOK matches exposure, white balance, contrast and saturation to it. Tap REFERENCE ✓ (or Shift+R) to hide it.
+- Masks → ADJUST INSIDE THE MASK → Noise reduction: cleans up noise only inside the mask, for example a grainy sky or lifted shadows.
+- Filmstrip → SELECT → tick photos → Rename: type a name with {name} (old name), {date}, {time}, {seq} (001, 002…) and your own text; the first new name is shown. The files themselves get the new names. Android asks once to allow changes to gallery photos. Photos added with the gallery picker can't be renamed — open them from Browse files or the Library instead.
 **Keyboard (Bluetooth / USB keyboard, Samsung DeX)**
 - ← / → previous / next photo, Home / End first / last; 0–5 stars; 6 / 7 / 8 / 9 red / yellow / green / blue label; P pick, X reject, U unflag.
-- \ or Y before / after; Z zoom 1:1; J clipping warning; Tab hides the panels; Esc leaves zoom, before / after and picks.
+- \ or Y before / after; Shift+R reference view; Z zoom 1:1; J clipping warning; Tab hides the panels; Esc leaves zoom, before / after and picks.
 - L Light, C Color, D Detail, R Crop, Q Heal, M Masks, E Export, H History.
 - Ctrl+Z / Ctrl+Shift+Z undo / redo; Ctrl+C / Ctrl+V copy / paste the look (Ctrl+Shift+V also crop and watermark); Ctrl+S save; Ctrl+E export. ? or F1 shows the list in the app.
 **Mouse**

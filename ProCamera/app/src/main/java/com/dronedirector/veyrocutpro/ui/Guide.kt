@@ -187,6 +187,8 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Keyboard (Bluetooth / USB / DeX): ← → next photo, 0–5 stars, P / X / U flags, 6–9 colour labels, \\ before / after, Z zoom, Ctrl+Z undo, Ctrl+C / Ctrl+V copy / paste the look, Ctrl+E export. Press ? for the full list.",
             "Export → OUTPUT → Ultra HDR (Android 14+): JPEGs whose bright parts glow brighter on HDR screens, and look exactly as edited everywhere else.",
             "Filmstrip → SELECT → AI cull: rejects blurry shots and closed eyes, and picks the best of each burst. Nothing is deleted — the notes on the thumbnails say why.",
+            "REFERENCE (top-left of the photo) shows a reference photo next to yours; MATCH LOOK matches exposure, white balance, contrast and saturation to it. Export → OUTPUT → Gamut warning marks colours a print can't show.",
+            "Filmstrip → SELECT → Rename gives the files new names from a template ({name}, {date}, {time}, {seq}). Masks now have Noise reduction too.",
             "Curve or HSL Mixer → ◎ TARGETED: put a finger on a tone or colour in the photo and drag up / down to change exactly that.",
             "Masks: add a Linear gradient, Radial or Brush mask, then use ADJUST INSIDE THE MASK. Drag the handles on the photo (or paint with the brush); red shows where the mask applies.",
             "Heal: tap dust, blemishes or small objects on the photo — a matching patch from nearby covers each one. Clone stamp: tap the source, then tap where to paint. Drag a solid circle to move a spot, drag its dashed circle to change where it copies from, hold a spot to delete it. UNDO LAST removes the latest.",

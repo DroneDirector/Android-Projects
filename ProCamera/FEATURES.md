@@ -123,6 +123,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
   - **Keyboard shortcuts** (Bluetooth / USB keyboards, Samsung DeX): photo navigation, stars, flags, colour labels, before / after, zoom, panels, undo / redo, copy / paste the look, save and export; ? shows the list.
   - **Ultra HDR export** (Android 14+): JPEGs with a gain map, so highlights glow brighter on HDR screens (Subtle / Standard / Strong).
   - **AI culling** in the filmstrip: rejects blurry shots and closed eyes, groups similar shots (bursts) and picks the best of each, with notes on the thumbnails.
+  - **Gamut warning** for glossy or matte prints, **reference view** with **match look**, **batch rename** of photo files from a template, and **noise reduction inside masks**.
   - **Targeted adjustment**: drag on the photo to change the tone curve or the HSL mixer (hue / saturation / luminance) for exactly the tone or colour under your finger.
 - **Multi-import + filmstrip**: pick up to 100 photos at once from the gallery or files; a filmstrip under the photo switches between them, and every photo keeps its own edit automatically. Star ratings, Pick / Reject flags, colour labels, filters (All, ★3+, Picks, Edited, No rejects), multi-select **Sync edit** (colour, light, detail, lens, RAW develop), batch rate / flag, **export selected** (each with its own edit) and remove. "Continue filmstrip" on the start page; hide it from the Panels menu.
 - Panels: **Presets, Light, Curve, Color, HSL Mixer, Grading, Detail, Effects, Crop & format, Watermark, Export**.

@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.357 — 2026-10-20
 - The start-screen logo's aperture now **closes and opens like a shutter** about every 2.6 seconds, as if a photo is being taken, and the glowing ring flashes as it fires. The sparkling ring effect stays as before.
 
 ## 1.0.355 — 2026-10-20

@@ -126,7 +126,8 @@ object FlowRetime {
     }
 
     /** Encoder + GPU drawing + muxer for the new file. */
-    private class Writer(val context: Context, val c: Clip, val file: File, val w: Int, val h: Int, rate: Double) {
+    /** Encoder + GPU drawing + muxer for a new file of [c]'s used range (with its sound). Also used by object removal. */
+    internal class Writer(val context: Context, val c: Clip, val file: File, val w: Int, val h: Int, rate: Double) {
         private val codec: MediaCodec
         private val input: Surface
         private val dpy: EGLDisplay
@@ -254,6 +255,11 @@ object FlowRetime {
             morph.setFloatsUniform("uWork", floatArrayOf(workW.toFloat(), workH.toFloat())); morph.setFloatUniform("uT", t)
             morph.bindAttributesAndUniforms()
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+        }
+
+        /** One finished picture shown at source time [tMs]. */
+        fun still(b: Bitmap, tMs: Long) {
+            val t = upload(b); drawCopy(t); present(pts(tMs.toDouble())); del(t)
         }
 
         private var firstMs = -1L

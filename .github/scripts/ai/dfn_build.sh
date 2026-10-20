@@ -30,10 +30,10 @@ cat > t.py <<'PY'
 import ctypes, numpy as np, soundfile as sf, glob, sys
 lib = ctypes.CDLL(glob.glob('dfn/target/release/libdf.so')[0])
 lib.df_create.restype = ctypes.c_void_p
-lib.df_create.argtypes = [ctypes.c_char_p, ctypes.c_float, ctypes.c_char_p]
+lib.df_create.argtypes = [ctypes.c_char_p, ctypes.c_float]
 lib.df_get_frame_length.argtypes = [ctypes.c_void_p]; lib.df_get_frame_length.restype = ctypes.c_size_t
 lib.df_process_frame.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float)]; lib.df_process_frame.restype = ctypes.c_float
-st = lib.df_create(None, 100.0, None)
+st = lib.df_create(b'dfn/models/DeepFilterNet3_onnx.tar.gz', 100.0)
 n = lib.df_get_frame_length(st)
 x, sr = sf.read('speech.wav', dtype='float32')
 if x.ndim > 1: x = x.mean(1)
@@ -47,11 +47,18 @@ for i in range(0, len(x) - n, n):
 print('rtf', (time.time()-t)/(len(x)/sr))
 sf.write('out/denoised.wav', y, sr)
 print('rms in', float(np.sqrt((x**2).mean())), 'out', float(np.sqrt((y**2).mean())))
+# Delay of the output against the input: best cross-correlation lag of the envelopes.
+import numpy.fft as F
+a = x[:sr*8]; b = y[:sr*8]
+c = np.real(F.irfft(F.rfft(b, 2*len(a)) * np.conj(F.rfft(a, 2*len(a)))))
+lag = int(np.argmax(c[:4000]))
+print('delay samples', lag)
 PY
 python3 t.py || true
 
 # Keep the Android libraries on the 'models' branch for the app build.
 git fetch -q --depth 1 origin models && git worktree add -q ../mb FETCH_HEAD
 mkdir -p ../mb/dfn && cp -r out/jniLibs/* ../mb/dfn/ && cp dfn/LICENSE-MIT ../mb/dfn/DeepFilterNet-LICENSE-MIT && cp dfn/LICENSE-APACHE ../mb/dfn/DeepFilterNet-LICENSE-APACHE
-cd ../mb && git add -A && git -c user.name=github-actions -c user.email=actions@github.com commit -qm "DeepFilterNet3 libraries (v0.5.6, capi)" && git push -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:models
+cp dfn/models/DeepFilterNet3_onnx.tar.gz ../mb/dfn/
+cd ../mb && git add -A && git -c user.name=github-actions -c user.email=actions@github.com commit -qm "DeepFilterNet3 libraries (v0.5.6, capi)" && set +x; git push -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:models; set -x
 ls -la dfn/*

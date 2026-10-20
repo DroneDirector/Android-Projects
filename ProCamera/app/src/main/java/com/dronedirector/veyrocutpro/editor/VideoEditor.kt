@@ -1355,6 +1355,35 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         message = "Split at ${tc(globalMs)}"
     }
 
+    // ---- AI voiceover from text (Kokoro, downloaded once)
+    var ttsProgress by remember { mutableStateOf<Int?>(null) }
+    var ttsStatus by remember { mutableStateOf<String?>(null) }
+    var ttsJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    fun makeTts(text: String, v: Voiceover.Voice, speed: Float) {
+        if (ttsJob != null) return
+        val at = globalMs
+        ttsProgress = 0
+        ttsJob = layerScope.launch {
+            ttsStatus = "Getting the voice…"
+            val err = withContext(Dispatchers.IO) { Voiceover.ensure(context, v, { p -> ttsProgress = p }, { !isActive }) }
+            if (err != null) { ttsProgress = null; ttsStatus = null; ttsJob = null; if (isActive) message = err; return@launch }
+            ttsStatus = "Speaking…"; ttsProgress = 0
+            val audio = withContext(Dispatchers.Default) {
+                try { Voiceover.speak(context, text, v, speed, { p -> ttsProgress = p }, { !isActive }) } catch (_: Throwable) { null }
+            }
+            ttsProgress = null; ttsStatus = null; ttsJob = null
+            if (!isActive) return@launch
+            if (audio == null || audio.isEmpty()) { message = "Couldn't make the voice" + (Voiceover.failed?.let { " ($it)" } ?: ""); return@launch }
+            val dir = java.io.File(context.filesDir, "voiceovers").apply { mkdirs() }
+            val f = java.io.File(dir, "ai_voice_${System.currentTimeMillis()}.wav")
+            withContext(Dispatchers.IO) { Voiceover.writeWav(f, audio) }
+            val dur = audio.size * 1000L / Voiceover.RATE
+            val n = extraAudio.count { it.name.startsWith("AI voice") } + 1
+            extraAudio.add(MusicTrack(uri = android.net.Uri.fromFile(f), name = "AI voice $n · ${v.label.substringBefore(" (")}", durationMs = dur, volume = 1f, fadeInMs = 0, fadeOutMs = 100, duck = 0f, startMs = at))
+            message = "AI voiceover added at ${tc(at)} (${tc(dur)})"
+        }
+    }
+
     // ---- Voiceover: record the microphone while the edit plays.
     var voiceRec by remember { mutableStateOf<android.media.MediaRecorder?>(null) }
     var voiceFile by remember { mutableStateOf<java.io.File?>(null) }
@@ -2164,11 +2193,54 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
         archiveAction = 0
     }
+    // ---- Object removal: Magic Mask follows the object, then it is filled from the frames around it (and LaMa).
+    var eraseProgress by remember { mutableStateOf<Int?>(null) }
+    var eraseStatus by remember { mutableStateOf<String?>(null) }
+    var eraseJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    fun startErase(t: MagicTarget, sel: MagicSel) {
+        val c = clips.firstOrNull { it.id == t.clipId } ?: return
+        if (eraseJob != null) return
+        if (videoLocked) { message = "The video track is locked"; return }
+        deck.cur.pause()
+        eraseProgress = 0
+        eraseJob = layerScope.launch {
+            var err: String? = null
+            if (!ModelStore.has(context, AiModel.INPAINT)) {
+                eraseStatus = "Downloading the painting model…"
+                err = withContext(Dispatchers.IO) { ModelStore.ensure(context, AiModel.INPAINT, { p -> eraseProgress = p }, { !isActive }) }
+            }
+            if (err != null) { eraseProgress = null; eraseStatus = null; eraseJob = null; if (isActive) message = err; return@launch }
+            eraseStatus = "Following the object…"; eraseProgress = 0
+            val tr = withContext(Dispatchers.Default) {
+                try { MagicTracker.track(context, c.uri, c.startMs, c.endMs, sel, { p -> eraseProgress = p }, { !isActive }) } catch (_: Throwable) { null }
+            }
+            if (tr == null || !isActive) { eraseProgress = null; eraseStatus = null; eraseJob = null; if (isActive) message = "Magic Mask couldn't follow the object"; return@launch }
+            withContext(Dispatchers.IO) { MaskTrack.save(context, sel.id, tr) }
+            eraseStatus = "Removing the object…"; eraseProgress = 0
+            val f = withContext(Dispatchers.Default) {
+                try { ObjectRemoval.make(context, c, tr, sel.id, { p -> eraseProgress = p }, { !isActive }) } catch (_: Throwable) { null }
+            }
+            eraseProgress = null; eraseStatus = null; eraseJob = null
+            if (!isActive) return@launch
+            val idx = clips.indexOfFirst { it.id == c.id }
+            if (f == null || idx < 0) { message = "Couldn't remove the object" + (ObjectRemoval.failed?.let { " ($it)" } ?: ""); return@launch }
+            val len = c.endMs - c.startMs
+            val cur = clips[idx]
+            clips[idx] = cur.copy(
+                uri = android.net.Uri.fromFile(f), name = "Erased · " + cur.name.removePrefix("Erased · "),
+                durationMs = len, startMs = 0, endMs = len, stab = Stabilize(), mime = "video/avc", hdr = false, tenBit = false,
+                chroma = null, bitDepth = null, decoder = null, undecodable = null, bg = cur.bg?.takeIf { it.magic == null }, depth = null,
+            )
+            load(idx.coerceAtMost(clips.lastIndex), 0, false)
+            message = "Object removed — undo brings the original back"
+        }
+    }
     // ---- Magic Mask: pick any object, track it through the clip (Color → Detail → BACKGROUND, or a video layer).
     var magicPick by remember { mutableStateOf<MagicTarget?>(null) }
     val magicProgress = remember { mutableStateMapOf<String, Int>() }
     val magicStops = remember { HashMap<String, java.util.concurrent.atomic.AtomicBoolean>() }
     fun startMagic(t: MagicTarget, sel: MagicSel) {
+        if (t.remove) { startErase(t, sel); return }
         val key = t.clipId ?: t.layerId ?: return
         magicStops[key]?.set(true)
         val stop = java.util.concurrent.atomic.AtomicBoolean(false); magicStops[key] = stop
@@ -3107,6 +3179,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             }
                             Page.COLOR -> if (sc != null) ColorPage(sc, colorTab, { colorTab = it }, maskTools = maskTools, onChange = { f -> update(selected, f) },
                                 onTrackPen = { m -> trackPen(selected, m.id) }, penTracking = penTrackingId,
+                                onErase = {
+                                    val st = clipStarts(clips).getOrNull(selected) ?: 0L
+                                    val src = if (globalMs in st until st + sc.lengthMs) sc.srcAtOffset(globalMs - st) else sc.startMs
+                                    magicPick = MagicTarget(clipId = sc.id, uri = sc.uri, srcMs = src, initial = null, remove = true)
+                                },
+                                eraseProgress = eraseProgress, eraseStatus = eraseStatus, onStopErase = { eraseJob?.cancel(); eraseJob = null; eraseProgress = null; eraseStatus = null },
                                 onDepth = { analyseDepth(selected) }, depthProgress = depthProgress, depthStatus = depthStatus, onStopDepth = { depthJob?.cancel(); depthJob = null; depthProgress = null },
                                 clipNames = clips.map { it.name }, selfIdx = selected, matchBusy = matchBusy, onMatch = { matchShot(it) },
                                 onMagic = {
@@ -3168,6 +3246,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             Page.AUDIO -> Column {
                                 AudioPage(
                                 sc, deliver, music, playing,
+                                onTts = { t, v, sp -> makeTts(t, v, sp) }, ttsProgress = ttsProgress, ttsStatus = ttsStatus, onStopTts = { ttsJob?.cancel(); ttsJob = null; ttsProgress = null; ttsStatus = null },
                                 onChange = { f -> update(selected, f) },
                                 onPickMusic = { pickMusic.launch(arrayOf("audio/*")) },
                                 onMusic = { music = it; if (it == null) musicPlayer.stop() },
@@ -3839,6 +3918,7 @@ private fun ColorPage(
     onMagic: () -> Unit = {}, magicProgress: Int? = null, onStopMagic: () -> Unit = {},
     onTrackPen: ((PhotoMask) -> Unit)? = null, penTracking: String? = null,
     onDepth: () -> Unit = {}, depthProgress: Int? = null, depthStatus: String? = null, onStopDepth: () -> Unit = {},
+    onErase: () -> Unit = {}, eraseProgress: Int? = null, eraseStatus: String? = null, onStopErase: () -> Unit = {},
 ) {
     val g = c.grade
     fun grade(f: (ProGrade) -> ProGrade) = onChange { it.copy(grade = f(it.grade)) }
@@ -3979,6 +4059,16 @@ private fun ColorPage(
                 Chips(listOf("Keep the subject", "Affect the subject (invert)"), if (c.bg.invert == true) 1 else 0) { i -> onChange { cl -> cl.copy(bg = cl.bg?.copy(invert = i == 1)) } }
             }
             Text("People: found automatically in every frame. Magic Mask: tap any person, animal, car or object once and the AI follows it through the clip (like DaVinci Resolve). Then blur, recolour or remove what's around it — or invert to blur / hide the object itself (a face, a number plate). Transparent shows the video layers placed below the main video.", color = Pro.Dim, fontSize = 11.sp)
+            SectionTitle("REMOVE AN OBJECT (AI)")
+            if (eraseProgress != null) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+                androidx.compose.material3.LinearProgressIndicator(progress = { eraseProgress / 100f }, color = Pro.Amber, modifier = Modifier.weight(1f).height(4.dp))
+                Text((eraseStatus ?: "") + " $eraseProgress%", style = Pro.Label, modifier = Modifier.padding(horizontal = 8.dp))
+                Text("STOP", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { onStopErase() }.padding(6.dp))
+            } else Text(
+                "SELECT THE OBJECT TO REMOVE…", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onErase() }.padding(10.dp),
+            )
+            Text("Tap a person, a car, a sign or a wire: Magic Mask follows it, then it's removed — what's behind it is taken from the frames before and after (the real background), and anything never seen is painted by the AI (LaMa, on this phone; the model, ${AiModel.INPAINT.sizeMb} MB, is downloaded once). It takes a while; the clip becomes a new file — undo brings the original back.", color = Pro.Dim, fontSize = 11.sp)
             SectionTitle("AI DEPTH") { onChange { it.copy(depth = null) } }
             val dfx = c.depth
             fun dset(f: (DepthFx) -> DepthFx) = onChange { cl -> cl.copy(depth = f(cl.depth ?: DepthFx())) }
@@ -4045,8 +4135,35 @@ private fun AudioPage(
     extra: List<MusicTrack> = emptyList(), onExtra: (String, MusicTrack?) -> Unit = { _, _ -> },
     posInClip: Long = 0L, recording: Boolean = false, recordMs: Long = 0L, onVoice: () -> Unit = {}, onBeats: (MusicTrack) -> Unit = {},
     onSync: (MusicTrack) -> Unit = {},
+    onTts: (String, Voiceover.Voice, Float) -> Unit = { _, _, _ -> }, ttsProgress: Int? = null, ttsStatus: String? = null, onStopTts: () -> Unit = {},
 ) {
     LevelMeter(playing)
+    SectionTitle("AI VOICEOVER FROM TEXT")
+    var ttsText by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
+    var ttsVoice by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0) }
+    var ttsSpeed by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(1f) }
+    androidx.compose.material3.OutlinedTextField(
+        value = ttsText, onValueChange = { ttsText = it },
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), minLines = 2,
+        label = { Text("What should the voice say? (English)") },
+        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+            focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+            focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,
+        ),
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+        Voiceover.voices.forEachIndexed { i, v -> PillChip(v.label, ttsVoice == i) { ttsVoice = i } }
+    }
+    EdSlider("Speed", ttsSpeed, 0.6f..1.5f, 1f, { "%.2f×".format(it) }) { ttsSpeed = it }
+    if (ttsProgress != null) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+        androidx.compose.material3.LinearProgressIndicator(progress = { ttsProgress / 100f }, color = Pro.Amber, modifier = Modifier.weight(1f).height(4.dp))
+        Text((ttsStatus ?: "") + " $ttsProgress%", style = Pro.Label, modifier = Modifier.padding(horizontal = 8.dp))
+        Text("STOP", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { onStopTts() }.padding(6.dp))
+    } else Text(
+        "MAKE VOICEOVER AT THE PLAYHEAD", style = Pro.Label.copy(color = if (ttsText.isNotBlank()) Pro.Amber else Pro.Dim, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable(enabled = ttsText.isNotBlank()) { onTts(ttsText, Voiceover.voices[ttsVoice], ttsSpeed) }.padding(10.dp),
+    )
+    Text("A natural AI voice reads your text (Kokoro, on this phone — the voice model, ${AiModel.VOICE.sizeMb} MB, is downloaded once). It's added as an audio track at the playhead; numbers, money and times are read out properly.", color = Pro.Dim, fontSize = 11.sp)
     SectionTitle("VOICEOVER")
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(

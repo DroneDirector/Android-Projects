@@ -47,6 +47,13 @@ private val NOTICES = listOf(
     Notice("Segment Anything (mask decoder in MobileSAM)", "Meta Platforms, Inc.", "Apache License 2.0", "https://github.com/facebookresearch/segment-anything"),
     Notice("ONNX Runtime (runs the Magic Mask model)", "Microsoft Corporation", "MIT License", "https://github.com/microsoft/onnxruntime"),
     Notice("Lottie for Android (animation layers)", "Airbnb, Inc.", "Apache License 2.0", "https://github.com/airbnb/lottie-android"),
+    Notice("DeepFilterNet3 (studio voice clean-up)", "Hendrik Schröter", "MIT License / Apache License 2.0", "https://github.com/Rikorose/DeepFilterNet"),
+    Notice("tract (runs DeepFilterNet)", "Sonos, Inc.", "MIT License / Apache License 2.0", "https://github.com/sonos/tract"),
+    Notice("Depth Anything V2 Small (AI depth, downloaded on first use)", "Lihe Yang et al. (HKU, TikTok)", "Apache License 2.0", "https://github.com/DepthAnything/Depth-Anything-V2"),
+    Notice("LaMa — Resolution-robust Large Mask Inpainting (object removal, downloaded on first use); ONNX port by Carve", "Samsung AI Center Moscow (advimman)", "Apache License 2.0", "https://github.com/advimman/lama"),
+    Notice("Kokoro 82M text-to-speech (AI voiceover, downloaded on first use)", "hexgrad", "Apache License 2.0", "https://huggingface.co/hexgrad/Kokoro-82M"),
+    Notice("misaki pronunciation dictionaries (AI voiceover)", "hexgrad", "Apache License 2.0", "https://github.com/hexgrad/misaki"),
+    Notice("Google ML Kit on-device translation and language identification (caption translation)", "Google LLC", "ML Kit Terms of Service", "https://developers.google.com/ml-kit/terms"),
 )
 
 /** Reads a bundled licence text (fetched at build time), or null if it isn't in this build. */

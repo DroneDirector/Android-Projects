@@ -45,7 +45,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** What a Magic Mask is being picked for: a clip on the timeline, or a video layer. */
-data class MagicTarget(val clipId: String? = null, val layerId: String? = null, val uri: Uri, val srcMs: Long, val initial: MagicSel?)
+data class MagicTarget(val clipId: String? = null, val layerId: String? = null, val uri: Uri, val srcMs: Long, val initial: MagicSel?, val remove: Boolean = false)
 
 /**
  * Magic Mask picker: tap the object (and, if needed, tap what isn't part of it, or drag a box round

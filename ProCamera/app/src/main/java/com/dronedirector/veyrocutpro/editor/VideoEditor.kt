@@ -966,7 +966,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     (if (p.playWhenReady) "▶" else "‖") + " " + (p.currentPosition / 100) / 10f + "s" + (p.playerError?.let { " ERR ${it.errorCodeName}" } ?: "")
                 infoText = "clip ${current + 1}/${clips.size} · player ${deck.active + 1}\n" +
                     "A: ${st(players[0])}  B: ${st(players[1])}\n" +
-                    "src ${if (c0 != null && proxyFor(c0) != null) "proxy " + (proxyFor(c0)?.let { ProxyMaker.qualityOf(it)?.label } ?: "") else "original"} · fx ${if (effectsOk) "on" else "off"} · frame ${if (renderedFor[deck.active] == c0?.id) "ok" else "none"} · stalls $stallTries"
+                    "src ${if (c0 != null && proxyFor(c0) != null) "proxy " + (proxyFor(c0)?.let { ProxyMaker.qualityOf(it)?.label } ?: "") else "original"} · fx ${if (effectsOk) "on" else "off"} · frame ${if (renderedFor[deck.active] == c0?.id) "ok" else "none"} · stalls ${wx.stallTries}"
             }
             val nowPlaying = deck.cur.isPlaying
             if (nowPlaying && !playing) wx.playSince = System.currentTimeMillis()
@@ -3247,7 +3247,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onDetach = { detachAudio(selected) },
                                 onRemoveSilence = { all, db, ms -> removeSilences(all, db, ms) },
                                 onSlowMo = { aiSlowMo(selected) },
-                                wx.flowProgress = wx.flowProgress, onFlow = { f, sp, sh -> flowRetime(selected, f, sp, sh) }, onStopFlow = { wx.flowJob?.cancel(); wx.flowJob = null; wx.flowProgress = -1 },
+                                flowProgress = wx.flowProgress, onFlow = { f, sp, sh -> flowRetime(selected, f, sp, sh) }, onStopFlow = { wx.flowJob?.cancel(); wx.flowJob = null; wx.flowProgress = -1 },
                                 onReframe = { a -> autoReframe(a) },
                                 onDuplicate = { if (videoLocked) message = "The video track is locked" else clips.add(selected + 1, sc.copy(id = java.util.UUID.randomUUID().toString())) },
                                 onDelete = {

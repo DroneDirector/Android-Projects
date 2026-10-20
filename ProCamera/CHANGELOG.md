@@ -4,6 +4,17 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor, **Lightroom-style develop tools**:
+  - **60 built-in presets** in 10 groups, with live thumbnails of your photo and an **Amount** slider (0–200 %).
+  - **Lightroom .xmp** presets and sidecars can be imported (they go into My presets), and your look can be exported as an .xmp preset.
+  - **Auto** tone, **Auto** white balance, a **white-balance eyedropper** and a **clipping warning** (red = blown highlights, blue = crushed shadows).
+  - **Point Color**: pick a colour on the photo and shift only that colour. **Calibration** adjusts the shadows tint and the red, green and blue primaries.
+  - Colour grading now has **Global**, **Blending** and **Balance**.
+  - Sharpening now has **Radius**, **Detail** and **Masking**, with a mask preview.
+  - **Defringe** for purple and green fringes.
+  - **Post-crop vignette** shape: Midpoint, Roundness, Feather and Highlights. **Grain** now has Size and Roughness.
+  - **Zoom** (pinch, double-tap or Ctrl + wheel), with a sharper **1:1 loupe** render.
+- Resizable media strips: hold the divider above or below the video editor's media strip, or above the photo filmstrip, then drag to make it taller or shorter. Double-tap the divider to reset it.
 - Fixed: removing a photo from the photo editor's filmstrip (hold → Remove from strip) closed the app.
 
 ## 1.0.342 — 2026-10-20

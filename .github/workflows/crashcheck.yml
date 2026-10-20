@@ -292,6 +292,20 @@ jobs:
           seeText "Continue filmstrip" && echo "continue banner" >> out/filmstrip.txt
           tapText "Continue filmstrip"; sleep 8; shot 14k-continued
           fi
+          if want develop; then
+          # Lightroom-style develop tools on a photo: presets + amount, auto, clipping, eyedropper, point colour, sharpening mask, zoom.
+          adb shell am force-stop com.dronedirector.veyrocutpro
+          adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen photo --ez bgsetup true; sleep 10; dismiss
+          seeText "Continue filmstrip" && tapText "Continue filmstrip" || tapText "JPEG"; sleep 10; dismiss; shot 15a-open
+          tapExact "Presets"; sleep 3; scrollTo "PRESETS ("; tapExact "Film"; sleep 4; shot 15b-presets; tapExact "Portra"; sleep 4; scrollTo "Amount"; shot 15c-preset-applied
+          tapExact "KEEP"; sleep 1
+          tapExact "Light"; sleep 2; tapExact "AUTO"; sleep 3; tapText "CLIPPING"; sleep 4; shot 15d-auto-clip; tapText "CLIPPING"; sleep 1
+          tapExact "Color"; sleep 2; tapExact "EYEDROPPER"; sleep 1; adb shell input tap 540 600; sleep 4; shot 15e-wb-pick
+          scrollTo "PICK A COLOUR"; tapText "PICK A COLOUR"; sleep 1; adb shell input tap 400 500; sleep 4; scrollTo "Hue shift"; shot 15f-point-color
+          scrollTo "CALIBRATION"; shot 15g-calibration
+          adb shell input tap 540 600; sleep 0.1; adb shell input tap 540 600; sleep 6; shot 15h-zoom; adb shell input tap 540 600; sleep 0.1; adb shell input tap 540 600; sleep 2
+          tapText "Detail"; sleep 2; scrollTo "SHOW MASK"; tapText "SHOW MASK"; sleep 4; shot 15i-sharpen-mask; tapText "SHOW MASK"; sleep 1
+          fi
           if want photo; then
           adb shell am force-stop com.dronedirector.veyrocutpro
           adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen photo; sleep 10; shot 07-photo

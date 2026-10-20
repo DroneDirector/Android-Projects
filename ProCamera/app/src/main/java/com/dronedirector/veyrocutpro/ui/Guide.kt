@@ -169,6 +169,9 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "AI erase on a RAW makes a normal copy to work on; after that, the photo is edited like a JPEG.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Photo editor tips", Icons.Filled.Photo, null, listOf(
+            "Presets: 60 built-in looks with live thumbnails and an Amount slider. Import Lightroom .xmp presets, or export your look as one.",
+            "Color → EYEDROPPER sets white balance from a tap. POINT COLOR changes just one colour. Light → CLIPPING ⚠ shows blown highlights and crushed shadows.",
+            "Pinch or double-tap the photo for a 1:1 zoom.",
             "With a mouse: the wheel over the photo goes to the next / previous filmstrip photo, right-click shows the before / after split, and double-click hides the tools.",
             "Pick many photos at once: they go in the filmstrip under the photo. Tap to switch (each keeps its own edit), hold for stars / Pick / Reject / colour label, SELECT to sync the edit, export or remove several.",
             "Hold your finger on the photo to see the original.",

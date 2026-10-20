@@ -156,23 +156,54 @@ object ImageOps {
         if (d.clarity != 0f) unsharp(px, w, h, max(2, (18 * scale).toInt()), d.clarity * 0.6f, midtonesOnly = true)
         if (d.texture != 0f) unsharp(px, w, h, max(1, (4 * scale).toInt()), d.texture * 0.6f, midtonesOnly = false)
         if (d.sharpen > 0f) {
-            if (d.sharpenRadius == 1f && d.sharpenDetail == 0.25f && d.sharpenMasking == 0f) unsharp(px, w, h, max(1, (1.2f * scale).toInt()), d.sharpen * 1.2f, midtonesOnly = false)
+            if (d.sharpenRadius == 0f && d.sharpenDetail == 0f && d.sharpenMasking == 0f) unsharp(px, w, h, max(1, (1.2f * scale).toInt()), d.sharpen * 1.2f, midtonesOnly = false)
             else proSharpen(px, w, h, d, scale)
         }
         Develop.defringe(px, w, h, d.defringePurple, d.defringeGreen)
-        // Vignette after the crop (post-crop vignette), with Lightroom's shape controls.
-        Develop.vignette(px, w, h, d.vignette, d.vignetteMid, d.vignetteRound, d.vignetteFeather, d.vignetteHighlights)
-        Develop.grain(px, w, h, d.grain, d.grainSize, d.grainRough)
+        // Vignette after the crop (post-crop vignette). Untouched shape controls keep the original look.
+        if (d.vignette != 0f) {
+            if (d.vignetteMid == 0f && d.vignetteRound == 0f && d.vignetteFeather == 0f && d.vignetteHighlights == 0f) legacyVignette(px, w, h, d.vignette)
+            else Develop.vignette(px, w, h, d.vignette, d.vigMid, d.vignetteRound, d.vigFeather, d.vignetteHighlights)
+        }
+        if (d.grain > 0f) {
+            if (d.grainSize == 0f && d.grainRough == 0f) legacyGrain(px, d.grain)
+            else Develop.grain(px, w, h, d.grain, d.grainSz, d.grainRg)
+        }
+    }
+
+    private fun legacyVignette(px: IntArray, w: Int, h: Int, amount: Float) {
+        val cx = w / 2f; val cy = h / 2f
+        val maxD = sqrt(cx * cx + cy * cy)
+        for (y in 0 until h) for (x in 0 until w) {
+            val dx = (x - cx) / maxD; val dy = (y - cy) / maxD
+            val dist = sqrt(dx * dx + dy * dy)
+            val f = ((dist - 0.35f) / 0.65f).coerceIn(0f, 1f).let { it * it }
+            val k = 1f + amount * f
+            val i = y * w + x
+            val p = px[i]
+            px[i] = (0xFF shl 24) or (clamp8(((p shr 16) and 0xFF) * k) shl 16) or (clamp8(((p shr 8) and 0xFF) * k) shl 8) or clamp8((p and 0xFF) * k)
+        }
+    }
+
+    private fun legacyGrain(px: IntArray, grain: Float) {
+        val amt = grain * 28f
+        var seed = 0x2545F491
+        for (i in px.indices) {
+            seed = seed xor (seed shl 13); seed = seed xor (seed ushr 17); seed = seed xor (seed shl 5)
+            val n = ((seed and 0xFFFF) / 65535f - 0.5f) * amt
+            val p = px[i]
+            px[i] = (0xFF shl 24) or (clamp8(((p shr 16) and 0xFF) + n) shl 16) or (clamp8(((p shr 8) and 0xFF) + n) shl 8) or clamp8((p and 0xFF) + n)
+        }
     }
 
     /** Sharpening with Radius, Detail (halo control) and edge Masking. */
     private fun proSharpen(px: IntArray, w: Int, h: Int, d: Detail, scale: Float) {
-        val radius = max(1, (d.sharpenRadius * 1.2f * scale).toInt())
+        val radius = max(1, (d.sharpRadius * 1.2f * scale).toInt())
         val blur = boxBlur(px, w, h, radius)
         val mask = Develop.edgeMask(px, w, h, d.sharpenMasking)
-        val amount = d.sharpen * 1.2f * (0.6f + d.sharpenDetail * 0.8f)
+        val amount = d.sharpen * 1.2f * (0.6f + d.sharpDetail * 0.8f)
         // Low Detail damps big differences (halos); high Detail lets fine texture through fully.
-        val limit = 18f + d.sharpenDetail * 120f
+        val limit = 18f + d.sharpDetail * 120f
         for (i in px.indices) {
             val k = amount * mask[i]
             if (k <= 0f) continue

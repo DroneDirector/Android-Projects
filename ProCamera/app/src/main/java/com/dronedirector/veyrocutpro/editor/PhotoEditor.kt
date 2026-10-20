@@ -17,6 +17,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.draw.drawWithContent
@@ -390,6 +394,17 @@ private fun PhotoWorkspace(
     if (showLoad) LoadProjectDialog(false, onOpen = { showLoad = false; onLoad(it) }, onDismiss = { showLoad = false })
     var panel by remember { mutableStateOf(PhotoPanel.PRESETS) }
     var comparing by remember { mutableStateOf(false) }
+    // Develop tools: eyedropper (1 = white balance, 2 = Point Color), clipping warning, sharpening mask, zoom / 1:1 loupe.
+    var picking by remember { mutableStateOf(0) }
+    var clipWarn by remember { mutableStateOf(false) }
+    var sharpMaskView by remember { mutableStateOf(false) }
+    var zoomK by remember { mutableStateOf(1f) }
+    var panX by remember { mutableStateOf(0f) }
+    var panY by remember { mutableStateOf(0f) }
+    var viewSize by remember { mutableStateOf(IntSize.Zero) }
+    var clipImg by remember { mutableStateOf<Bitmap?>(null) }
+    var sharpImg by remember { mutableStateOf<Bitmap?>(null) }
+    var loupe by remember { mutableStateOf<Bitmap?>(null) }
     // Before / after split view with a draggable divider.
     var split by remember { mutableStateOf(false) }
     var splitX by remember { mutableStateOf(0.5f) }
@@ -475,6 +490,75 @@ private fun PhotoWorkspace(
 
     // The photo being edited: the original, or its AI-erased copy.
     fun sourceUri(e: PhotoEdit): Uri = e.baseFile?.let { Uri.fromFile(java.io.File(it)) } ?: uri
+    LaunchedEffect(clipWarn, preview) { val pv = preview; clipImg = if (clipWarn && pv != null) withContext(Dispatchers.Default) { Develop.clipOverlay(pv) } else null }
+    LaunchedEffect(sharpMaskView, preview, edit.detail.sharpenMasking) { val pv = preview; sharpImg = if (sharpMaskView && pv != null) withContext(Dispatchers.Default) { Develop.sharpenMaskPreview(pv, edit.detail) } else null }
+    // 1:1 loupe: when zoomed in, a sharper render of the whole photo (up to 3600 px) replaces the preview.
+    var loupeSrc by remember { mutableStateOf<Pair<String, Bitmap>?>(null) }
+    LaunchedEffect(zoomK > 1.6f, edit, aiMasks.size) {
+        if (zoomK <= 1.6f) { loupe = null; return@LaunchedEffect }
+        delay(500)
+        val e = edit
+        if (rawOn(e)) return@LaunchedEffect
+        val key = sourceUri(e).toString()
+        loupe = withContext(Dispatchers.Default) {
+            try {
+                val hi = loupeSrc?.takeIf { it.first == key }?.second ?: (GradeIO.decode(context, sourceUri(e), 3600) ?: return@withContext null).also { loupeSrc = key to it }
+                val tables = if (e.grade.isIdentity) null else e.grade.tables()
+                var o = ImageOps.renderPhoto(hi, e.grade, e.detail.copy(aiDenoise = 0f), e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg, e.sky)
+                for (t in e.texts) o = stampLayer(context, o, t)
+                e.watermark?.let { o = stampLayer(context, o, it) }
+                o
+            } catch (_: OutOfMemoryError) { null } catch (_: Throwable) { null }
+        }
+    }
+    fun resetZoom() { zoomK = 1f; panX = 0f; panY = 0f }
+    LaunchedEffect(panel, split) { if (panel == PhotoPanel.MASKS || panel == PhotoPanel.HEAL || split) resetZoom(); if (panel != PhotoPanel.COLOR) picking = 0 }
+    /** A tap on the photo (box coordinates) → pixel of the shown picture, undoing padding, fit and zoom. */
+    fun tapToPixel(o: androidx.compose.ui.geometry.Offset, img: Bitmap, padPx: Float): Pair<Int, Int>? {
+        val bw = viewSize.width.toFloat(); val bh = viewSize.height.toFloat()
+        if (bw < 2f || bh < 2f) return null
+        val lx = o.x - padPx; val ly = o.y - padPx
+        val ux = (lx - bw / 2f - panX) / zoomK + bw / 2f; val uy = (ly - bh / 2f - panY) / zoomK + bh / 2f
+        val sc = minOf(bw / img.width, bh / img.height)
+        val ox = (bw - img.width * sc) / 2f; val oy = (bh - img.height * sc) / 2f
+        val px = ((ux - ox) / sc).toInt(); val py = ((uy - oy) / sc).toInt()
+        return if (px in 0 until img.width && py in 0 until img.height) px to py else null
+    }
+    fun pickAt(o: androidx.compose.ui.geometry.Offset, padPx: Float) {
+        val img = preview ?: return
+        val (px, py) = tapToPixel(o, img, padPx) ?: return
+        val c = Develop.sample(img, px, py, (img.width / 300).coerceAtLeast(2))
+        if (picking == 1) {
+            val (t, ti) = Develop.wbFromSample(c[0], c[1], c[2], edit.grade.temperature, edit.grade.tint)
+            edit = edit.copy(grade = edit.grade.copy(temperature = t, tint = ti)); message = "White balance set from the picked spot"
+        } else if (picking == 2) {
+            val hsv = FloatArray(3); android.graphics.Color.RGBToHSV(c[0].toInt(), c[1].toInt(), c[2].toInt(), hsv)
+            edit = edit.copy(grade = edit.grade.copy(pointColors = (edit.grade.pointColors ?: emptyList()) + PointColor(hsv[0], hsv[1], hsv[2])))
+            message = "Colour picked — adjust it in POINT COLOR"
+        }
+        picking = 0
+    }
+    // Lightroom .xmp presets / sidecars: import (as your presets, the first one is applied) and export.
+    val pickXmp = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { list ->
+        var n = 0; var first: Pair<ProGrade, Detail>? = null
+        for (u in list) {
+            val t = LrPresets.readText(context, u) ?: continue
+            val res = LrPresets.parseXmp(t) ?: continue
+            val name = LrPresets.nameOf(t, u.lastPathSegment?.substringAfterLast('/') ?: "Preset")
+            UserPresets.init(context); UserPresets.add(name, res.first, res.second); n++
+            if (first == null) first = LrPresets.parseXmp(t, edit.grade, edit.detail)
+        }
+        first?.let { (g, d) -> edit = edit.copy(grade = g, detail = d.copy(aiDenoise = edit.detail.aiDenoise)) }
+        message = if (n == 0) "No Lightroom settings found in that file" else "Imported $n preset" + (if (n == 1) "" else "s") + " (in MY PRESETS); the first one is applied"
+    }
+    fun exportXmp() {
+        val name = projectName.ifBlank { "VeyroCut look " + java.text.SimpleDateFormat("d MMM HH.mm", java.util.Locale.getDefault()).format(java.util.Date()) }
+        val e = edit
+        scope.launch {
+            val where = withContext(Dispatchers.IO) { LrPresets.savePreset(context, name, LrPresets.presetXmp(name, e.grade, e.detail)) }
+            message = where?.let { "Preset saved: $it" } ?: "Couldn't save the preset"
+        }
+    }
     // RAW (DNG): the sensor data, developed by the editor itself (see RawDng). Null for other photos.
     var rawMeta by remember { mutableStateOf<RawDng.Meta?>(null) }
     var rawLin by remember { mutableStateOf<RawDng.Linear?>(null) }
@@ -970,18 +1054,50 @@ private fun PhotoWorkspace(
                 Box(
                     // Mouse: wheel = next / previous filmstrip photo, right-click = before / after split, double-click = hide / show the tools.
                     mod.mouseActions(
-                        onWheel = { dy, _, _, _, _ ->
+                        onWheel = { dy, _, at, ctrl, _ ->
+                            if (ctrl || zoomK > 1f) {
+                                val nz = (zoomK * (if (dy < 0) 1.25f else 0.8f)).coerceIn(1f, 8f)
+                                val bw = viewSize.width.toFloat(); val bh = viewSize.height.toFloat()
+                                panX = (panX - (at.x - bw / 2f - panX) * (nz / zoomK - 1f)).coerceIn(-bw * (nz - 1f) / 2f, bw * (nz - 1f) / 2f)
+                                panY = (panY - (at.y - bh / 2f - panY) * (nz / zoomK - 1f)).coerceIn(-bh * (nz - 1f) / 2f, bh * (nz - 1f) / 2f)
+                                zoomK = nz; if (nz <= 1.001f) resetZoom()
+                                return@mouseActions true
+                            }
                             val n = PhotoSession.items.size
                             if (sessionIdx >= 0 && n > 1) { val to = (sessionIdx + if (dy > 0) 1 else -1).coerceIn(0, n - 1); if (to != sessionIdx) switchTo(to); true } else false
                         },
                         onRightClick = { split = !split },
                         onDoubleClick = { com.dronedirector.veyrocutpro.ui.Panels.set(context, "pe.controls", !showControls) },
-                    ).pointerInput(split, panel) {
+                    ).pointerInput(split, panel, picking) {
+                        // Pinch to zoom in (1:1 loupe), drag to look around while zoomed. Off in Masks / Heal and the split view.
+                        if (!split && picking == 0 && panel != PhotoPanel.MASKS && panel != PhotoPanel.HEAL) detectTransformGestures { c, pan, z, _ ->
+                            val nz = (zoomK * z).coerceIn(1f, 8f)
+                            if (nz != zoomK || zoomK > 1f) {
+                                val bw = viewSize.width.toFloat(); val bh = viewSize.height.toFloat()
+                                panX = ((panX + pan.x) - (c.x - bw / 2f - panX) * (nz / zoomK - 1f)).coerceIn(-bw * (nz - 1f) / 2f, bw * (nz - 1f) / 2f)
+                                panY = ((panY + pan.y) - (c.y - bh / 2f - panY) * (nz / zoomK - 1f)).coerceIn(-bh * (nz - 1f) / 2f, bh * (nz - 1f) / 2f)
+                                zoomK = nz
+                                if (zoomK <= 1.001f) resetZoom()
+                            }
+                        }
+                    }.pointerInput(split, panel, picking) {
                         if (split) {
                             // Drag anywhere to move the before / after divider.
                             detectHorizontalDragGestures { ch, _ -> splitX = (ch.position.x / size.width).coerceIn(0.02f, 0.98f) }
+                        } else if (picking != 0) {
+                            // Eyedropper: tap the spot to sample.
+                            detectTapGestures(onTap = { o -> pickAt(o, 6.dp.toPx()) })
                         } else if (panel != PhotoPanel.MASKS && panel != PhotoPanel.HEAL) {
-                            detectTapGestures(onPress = { comparing = true; tryAwaitRelease(); comparing = false })
+                            detectTapGestures(
+                                onPress = { if (zoomK <= 1f) { comparing = true; tryAwaitRelease(); comparing = false } },
+                                // Double-tap: 1:1 loupe at that spot, again to fit.
+                                onDoubleTap = { o ->
+                                    if (zoomK > 1f) resetZoom() else {
+                                        val bw = viewSize.width.toFloat(); val bh = viewSize.height.toFloat(); val z = 3f
+                                        zoomK = z; panX = (-(o.x - bw / 2f) * (z - 1f)).coerceIn(-bw, bw); panY = (-(o.y - bh / 2f) * (z - 1f)).coerceIn(-bh, bh)
+                                    }
+                                },
+                            )
                         }
                     },
                     contentAlignment = Alignment.Center,
@@ -1019,7 +1135,17 @@ private fun PhotoWorkspace(
                             Text("BEFORE", style = Pro.Label.copy(color = Color.White), modifier = Modifier.align(Alignment.BottomStart).padding(10.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 8.dp, vertical = 3.dp))
                             Text("AFTER", style = Pro.Label.copy(color = Color.White), modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 8.dp, vertical = 3.dp))
                         }
-                        shown != null -> Image(shown.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(6.dp))
+                        shown != null -> Box(
+                            Modifier.fillMaxSize().padding(6.dp).onSizeChanged { viewSize = it }
+                                .graphicsLayer(scaleX = zoomK, scaleY = zoomK, translationX = panX, translationY = panY),
+                        ) {
+                            val img = if (zoomK > 1.6f && !comparing) loupe ?: shown else shown
+                            Image(img.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+                            if (!comparing) {
+                                sharpImg?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
+                                clipImg?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
+                            }
+                        }
                         else -> CircularProgressIndicator(color = Pro.Amber)
                     }
                     // Mask handles / brush, and heal taps, on top of the photo.
@@ -1039,6 +1165,15 @@ private fun PhotoWorkspace(
                     }
                     // RGB histogram: the same pull-out drawer as in the video editor, on the right edge.
                     if (showScope && !comparing) ScopeDrawer(hist, Modifier.align(Alignment.CenterEnd), frame = preview ?: base)
+                    if (zoomK > 1f) Text(
+                        (if (loupe != null && zoomK > 1.6f) "1:1 · " else "") + "${(zoomK * 100).toInt()}% · double-tap to fit", style = Pro.Label.copy(color = Color.White),
+                        modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.6f)).clickable { resetZoom() }.padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                    if (picking != 0) Text(
+                        if (picking == 1) "Tap something that should be neutral grey or white" else "Tap the colour you want to change",
+                        style = Pro.Label.copy(color = Color.Black),
+                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 34.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable { picking = 0 }.padding(horizontal = 10.dp, vertical = 5.dp),
+                    )
                     if (rawOn(edit)) Text(
                         "RAW", style = Pro.Label.copy(color = Color.Black),
                         modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).padding(horizontal = 8.dp, vertical = 3.dp),
@@ -1201,6 +1336,16 @@ private fun PhotoWorkspace(
                                 onPickLogo = { pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                                 isRaw = rawOn(edit),
                                 rawMeta = if (rawOn(edit)) rawMeta else null,
+                                thumbSrc = base,
+                                dev = DevUi(
+                                    picking = picking, setPicking = { picking = if (picking == it) 0 else it },
+                                    clipWarn = clipWarn, setClipWarn = { clipWarn = it },
+                                    sharpMask = sharpMaskView, setSharpMask = { sharpMaskView = it },
+                                    autoTone = { base?.let { b -> edit = edit.copy(grade = Develop.autoTone(b, edit.grade)); message = "Auto tone applied" } },
+                                    autoWb = { base?.let { b -> edit = edit.copy(grade = Develop.autoWb(b, edit.grade)); message = "Auto white balance applied" } },
+                                    importXmp = { try { pickXmp.launch(arrayOf("*/*")) } catch (_: Throwable) {} },
+                                    exportXmp = { exportXmp() },
+                                ),
                             )
                         }
                         if (panel == PhotoPanel.EFFECTS) { backgroundSection(); skySection() }
@@ -1236,7 +1381,7 @@ private fun PhotoWorkspace(
                     PhotoPanelsButton(
                         onTab = { panel = it },
                         onReset = {
-                            listOf("pe_controls_w", "pe_controls_h").forEach { PaneSizes.set(context, it, -1f) }
+                            listOf("pe_controls_w", "pe_controls_h", "pe_strip_h").forEach { PaneSizes.set(context, it, -1f) }
                             paneVersion++
                             split = false
                             message = "Layout reset to original"
@@ -1251,10 +1396,17 @@ private fun PhotoWorkspace(
                     )
                 }
                 val strip = PhotoSession.items.isNotEmpty() && com.dronedirector.veyrocutpro.ui.panelOn("pe.filmstrip")
+                val stripPane = rememberPane("pe_strip_h", paneVersion)
+                val stripSz = if (stripPane.dp < 0f) 64f else stripPane.dp
                 val viewer = @Composable { mod: Modifier ->
                     Column(mod) {
                         previewBox(Modifier.fillMaxWidth().weight(1f))
+                        // Divider between the photo and the filmstrip: hold, then drag up for bigger thumbnails.
+                        if (strip) ResizeHandle(true,
+                            onDrag = { d -> stripPane.dp = (stripSz - d).coerceIn(40f, 200f) },
+                            onEnd = { stripPane.save() }, onReset = { stripPane.reset() })
                         if (strip) Filmstrip(
+                            thumbSize = stripSz.dp,
                             onOpen = { switchTo(it) },
                             onAdd = onAddGallery,
                             onSync = { syncTo(it) },
@@ -1319,6 +1471,8 @@ private fun PhotoPanelContent(
     onPickLogo: () -> Unit = {},
     isRaw: Boolean = false,
     rawMeta: RawDng.Meta? = null,
+    thumbSrc: Bitmap? = null,
+    dev: DevUi? = null,
 ) {
     val g = e.grade
     fun grade(f: (ProGrade) -> ProGrade) = set(e.copy(grade = f(g)))
@@ -1328,6 +1482,12 @@ private fun PhotoPanelContent(
     when (panel) {
         PhotoPanel.PRESETS -> {
             UserPresetSection({ g to e.detail }) { p -> set(e.copy(grade = p.grade, detail = p.detail.copy(aiDenoise = e.detail.aiDenoise))) }
+            if (dev != null) Row(Modifier.padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PillChip("IMPORT LIGHTROOM .XMP", false, accentText = true) { dev.importXmp() }
+                PillChip("EXPORT AS .XMP", false, accentText = true) { dev.exportXmp() }
+            }
+            Text("Import Lightroom / Camera Raw presets or .xmp sidecars (they're added to MY PRESETS). Export saves this look as a Lightroom preset in Documents/VeyroCutPro/Presets.", color = Pro.Dim, fontSize = 11.sp)
+            BuiltInPresetSection(thumbSrc, g, e.detail) { ng, nd -> set(e.copy(grade = ng, detail = nd.copy(aiDenoise = e.detail.aiDenoise))) }
             LutSection(g) { ng -> set(e.copy(grade = ng)) }
             SectionTitle("PROFILE / LOOK")
             LookStrip(g.look) { f -> grade { it.copy(look = f) } }
@@ -1371,6 +1531,11 @@ private fun PhotoPanelContent(
                 }
             }
             SectionTitle("LIGHT") { grade { it.copy(exposure = 0f, contrast = 0f, highlights = 0f, shadows = 0f, whites = 0f, blacks = 0f) } }
+            if (dev != null) Row(Modifier.padding(bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PillChip("AUTO", false, accentText = true) { dev.autoTone() }
+                PillChip(if (dev.clipWarn) "CLIPPING ⚠ ON" else "CLIPPING ⚠", dev.clipWarn) { dev.setClipWarn(!dev.clipWarn) }
+            }
+            if (dev?.clipWarn == true) Text("Red = blown-out highlights, blue = crushed shadows.", color = Pro.Dim, fontSize = 11.sp)
             EdSlider("Exposure", g.exposure, if (isRaw) -5f..5f else -3f..3f, format = ::ev) { v -> grade { it.copy(exposure = v) } }
             EdSlider("Contrast", g.contrast) { v -> grade { it.copy(contrast = v) } }
             EdSlider("Highlights", g.highlights) { v -> grade { it.copy(highlights = v) } }
@@ -1396,11 +1561,48 @@ private fun PhotoPanelContent(
         PhotoPanel.COLOR -> {
             SectionTitle("WHITE BALANCE") { set(e.copy(raw = if (isRaw) e.raw.copy(wb = 0) else e.raw, grade = g.copy(temperature = 0f, tint = 0f))) }
             if (isRaw) Chips(RawDng.WB_PRESETS.map { it.first }, e.raw.wb) { i -> set(e.copy(raw = e.raw.copy(wb = i))) }
+            if (dev != null) Row(Modifier.padding(bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PillChip("AUTO", false, accentText = true) { dev.autoWb() }
+                PillChip(if (dev.picking == 1) "EYEDROPPER — TAP THE PHOTO" else "EYEDROPPER", dev.picking == 1) { dev.setPicking(1) }
+            }
             EdSlider("Temperature", g.temperature) { v -> grade { it.copy(temperature = v) } }
             EdSlider("Tint", g.tint) { v -> grade { it.copy(tint = v) } }
             SectionTitle("PRESENCE") { grade { it.copy(vibrance = 0f, saturation = 0f) } }
             EdSlider("Vibrance", g.vibrance) { v -> grade { it.copy(vibrance = v) } }
             EdSlider("Saturation", g.saturation) { v -> grade { it.copy(saturation = v) } }
+            // ---- Point Color
+            SectionTitle("POINT COLOR") { grade { it.copy(pointColors = null) } }
+            if (dev != null) PillChip(if (dev.picking == 2) "TAP A COLOUR ON THE PHOTO" else "+ PICK A COLOUR", dev.picking == 2, accentText = true) { dev.setPicking(2) }
+            val pcs = g.pointColors.orEmpty()
+            var pcSel by remember { mutableStateOf(0) }
+            if (pcs.isEmpty()) Text("Pick a colour on the photo, then shift just that colour's hue, saturation and brightness.", color = Pro.Dim, fontSize = 11.sp)
+            else {
+                val sel = pcSel.coerceIn(0, pcs.lastIndex)
+                Row(Modifier.padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    pcs.forEachIndexed { i, pc ->
+                        Box(Modifier.size(28.dp).clip(CircleShape).background(Color(android.graphics.Color.HSVToColor(floatArrayOf(pc.hue, pc.sat, pc.lum.coerceAtLeast(0.3f)))))
+                            .border(2.dp, if (i == sel) Color.White else Color.Transparent, CircleShape).clickable { pcSel = i })
+                    }
+                    Text("DELETE", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { grade { it.copy(pointColors = pcs.filterIndexed { k, _ -> k != sel }.ifEmpty { null }) }; pcSel = 0 }.padding(6.dp))
+                }
+                val pc = pcs[sel]
+                fun upd(n: PointColor) = grade { it.copy(pointColors = pcs.toMutableList().also { l -> l[sel] = n }) }
+                EdSlider("Hue shift", pc.dHue) { v -> upd(pc.copy(dHue = v)) }
+                EdSlider("Saturation", pc.dSat) { v -> upd(pc.copy(dSat = v)) }
+                EdSlider("Luminance", pc.dLum) { v -> upd(pc.copy(dLum = v)) }
+                EdSlider("Range", pc.range, 0f..1f, 0.5f, ::pct) { v -> upd(pc.copy(range = v)) }
+            }
+            // ---- Calibration
+            val cal = g.calib ?: Calibration()
+            fun calib(f: (Calibration) -> Calibration) = grade { it.copy(calib = f(cal).takeIf { c -> !c.isZero }) }
+            SectionTitle("CALIBRATION") { grade { it.copy(calib = null) } }
+            EdSlider("Shadows tint", cal.shadowTint) { v -> calib { it.copy(shadowTint = v) } }
+            EdSlider("Red primary · hue", cal.redHue) { v -> calib { it.copy(redHue = v) } }
+            EdSlider("Red primary · saturation", cal.redSat) { v -> calib { it.copy(redSat = v) } }
+            EdSlider("Green primary · hue", cal.greenHue) { v -> calib { it.copy(greenHue = v) } }
+            EdSlider("Green primary · saturation", cal.greenSat) { v -> calib { it.copy(greenSat = v) } }
+            EdSlider("Blue primary · hue", cal.blueHue) { v -> calib { it.copy(blueHue = v) } }
+            EdSlider("Blue primary · saturation", cal.blueSat) { v -> calib { it.copy(blueSat = v) } }
         }
         PhotoPanel.MIXER -> HslMixer(g.hsl) { list -> grade { it.copy(hsl = list) } }
         PhotoPanel.GRADING -> {
@@ -1408,10 +1610,19 @@ private fun PhotoPanelContent(
             WheelControl("Shadows", g.gradeShadows, showLuma = false) { w -> grade { it.copy(gradeShadows = w) } }
             WheelControl("Midtones", g.gradeMids, showLuma = false) { w -> grade { it.copy(gradeMids = w) } }
             WheelControl("Highlights", g.gradeHighlights, showLuma = false) { w -> grade { it.copy(gradeHighlights = w) } }
+            WheelControl("Global", g.gradeGlobal ?: Wheel(40f), showLuma = true) { w -> grade { it.copy(gradeGlobal = w.takeIf { x -> !x.isZero }) } }
+            EdSlider("Blending", 0.5f + g.gradeBlend, 0f..1f, 0.5f, ::pct) { v -> grade { it.copy(gradeBlend = v - 0.5f) } }
+            EdSlider("Balance", g.gradeBalance) { v -> grade { it.copy(gradeBalance = v) } }
+            Text("Blending: how much the shadow, midtone and highlight tints overlap. Balance: moves the split between shadows and highlights.", color = Pro.Dim, fontSize = 11.sp)
         }
         PhotoPanel.DETAIL -> {
             SectionTitle("SHARPENING")
             EdSlider("Amount", e.detail.sharpen, 0f..1f, format = ::pct) { v -> detail { it.copy(sharpen = v) } }
+            EdSlider("Radius", e.detail.sharpRadius, 0.5f..3f, 1f, { "%.1f".format(it) }) { v -> detail { it.copy(sharpenRadius = v - 1f) } }
+            EdSlider("Detail", e.detail.sharpDetail, 0f..1f, 0.25f, ::pct) { v -> detail { it.copy(sharpenDetail = v - 0.25f) } }
+            EdSlider("Masking", e.detail.sharpenMasking, 0f..1f, 0f, ::pct) { v -> detail { it.copy(sharpenMasking = v) } }
+            if (dev != null) PillChip(if (dev.sharpMask) "SHOW MASK ✓" else "SHOW MASK", dev.sharpMask) { dev.setSharpMask(!dev.sharpMask) }
+            Text("Masking keeps sharpening off smooth areas (skin, sky): white in SHOW MASK is sharpened. Pinch or double-tap the photo for a 1:1 view.", color = Pro.Dim, fontSize = 11.sp)
             SectionTitle("AI NOISE REDUCTION")
             EdSlider("Strength", e.detail.aiDenoise, 0f..1f, format = { if (it <= 0f) "Off" else pct(it) }) { v -> detail { it.copy(aiDenoise = v) } }
             Text("Built-in AI (NAFNet, trained on real phone-camera noise). Runs on the phone; cleaning the full photo takes a little longer when exporting.", color = Pro.Dim, fontSize = 11.sp)
@@ -1421,11 +1632,24 @@ private fun PhotoPanelContent(
             EdSlider("Texture", e.detail.texture) { v -> detail { it.copy(texture = v) } }
             EdSlider("Clarity", e.detail.clarity) { v -> detail { it.copy(clarity = v) } }
             EdSlider("Dehaze", g.dehaze) { v -> grade { it.copy(dehaze = v) } }
+            SectionTitle("DEFRINGE") { detail { it.copy(defringePurple = 0f, defringeGreen = 0f) } }
+            EdSlider("Purple fringe", e.detail.defringePurple, 0f..1f, 0f, ::pct) { v -> detail { it.copy(defringePurple = v) } }
+            EdSlider("Green fringe", e.detail.defringeGreen, 0f..1f, 0f, ::pct) { v -> detail { it.copy(defringeGreen = v) } }
         }
         PhotoPanel.EFFECTS -> {
             SectionTitle("EFFECTS")
             EdSlider("Vignette", e.detail.vignette) { v -> detail { it.copy(vignette = v) } }
+            if (e.detail.vignette != 0f) {
+                EdSlider("  Midpoint", e.detail.vigMid, 0f..1f, 0.5f, ::pct) { v -> detail { it.copy(vignetteMid = v - 0.5f) } }
+                EdSlider("  Roundness", e.detail.vignetteRound) { v -> detail { it.copy(vignetteRound = v) } }
+                EdSlider("  Feather", e.detail.vigFeather, 0f..1f, 0.5f, ::pct) { v -> detail { it.copy(vignetteFeather = v - 0.5f) } }
+                EdSlider("  Highlights", e.detail.vignetteHighlights, 0f..1f, 0f, ::pct) { v -> detail { it.copy(vignetteHighlights = v) } }
+            }
             EdSlider("Grain", e.detail.grain, 0f..1f, format = ::pct) { v -> detail { it.copy(grain = v) } }
+            if (e.detail.grain > 0f) {
+                EdSlider("  Size", e.detail.grainSz, 0f..1f, 0.25f, ::pct) { v -> detail { it.copy(grainSize = v - 0.25f) } }
+                EdSlider("  Roughness", e.detail.grainRg, 0f..1f, 0.5f, ::pct) { v -> detail { it.copy(grainRough = v - 0.5f) } }
+            }
             EdSlider("Fade", g.fade, 0f..1f, format = ::pct) { v -> grade { it.copy(fade = v) } }
         }
         PhotoPanel.CROP -> {

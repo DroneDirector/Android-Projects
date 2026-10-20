@@ -100,14 +100,15 @@ data class ProGrade(
     val curveR: List<Float>? = null,
     val curveG: List<Float>? = null,
     val curveB: List<Float>? = null,
-    /** Colour grading: global tint, how much the ranges overlap (0..1) and where shadows end / highlights start (−1..1). */
-    val gradeGlobal: Wheel = Wheel(40f),
-    val gradeBlend: Float = 0.5f,
+    // Newer settings: every default is 0 / null, so projects and presets saved before they existed look the same.
+    /** Colour grading: global tint, blending offset (−0.5..0.5 around Lightroom's 50) and balance (−1..1). */
+    val gradeGlobal: Wheel? = null,
+    val gradeBlend: Float = 0f,
     val gradeBalance: Float = 0f,
     /** Point Color: picked colours with their own hue / saturation / brightness shifts. */
     val pointColors: List<PointColor>? = null,
     /** Camera calibration (primaries and shadow tint). */
-    val calib: Calibration = Calibration(),
+    val calib: Calibration? = null,
 ) {
     val isIdentity: Boolean get() = this == ProGrade()
 
@@ -132,7 +133,8 @@ data class ProGrade(
             lb *= 1f - temperature * 0.25f
             lg *= 1f - tint * 0.18f
         }
-        if (!calib.isZero) {
+        val calib = calib
+        if (calib != null && !calib.isZero) {
             val m = calib.matrix()
             val nr = m[0] * lr + m[1] * lg + m[2] * lb; val ng = m[3] * lr + m[4] * lg + m[5] * lb; val nb = m[6] * lr + m[7] * lg + m[8] * lb
             lr = nr; lg = ng; lb = nb
@@ -178,7 +180,7 @@ data class ProGrade(
         l = luma(r, g, b).coerceIn(0f, 1f)
         // Blending (overlap of the ranges) and balance (where shadows end and highlights begin).
         val split = (0.5f + gradeBalance * 0.3f).coerceIn(0.15f, 0.85f)
-        val bt = (gradeBlend * 2f).coerceIn(0.02f, 2f)
+        val bt = ((0.5f + gradeBlend) * 2f).coerceIn(0.02f, 2f)
         val hs = 1f - split
         val sE0 = split * (1f - bt); val sE1 = maxOf(split * (0.5f + 0.5f * bt), sE0 + 0.01f)
         val hE0 = 1f - hs * (0.5f + 0.5f * bt); val hE1 = maxOf(1f - hs * (1f - bt), hE0 + 0.01f)
@@ -186,7 +188,8 @@ data class ProGrade(
         if (!gradeShadows.isZero) tintRange(gradeShadows, 1f - smooth(sE0, sE1, l)).let { r += it[0]; g += it[1]; b += it[2] }
         if (!gradeMids.isZero) tintRange(gradeMids, 1f - abs(l - split) / mW).let { r += it[0]; g += it[1]; b += it[2] }
         if (!gradeHighlights.isZero) tintRange(gradeHighlights, smooth(hE0, hE1, l)).let { r += it[0]; g += it[1]; b += it[2] }
-        if (!gradeGlobal.isZero) tintRange(gradeGlobal, 1f).let { r += it[0]; g += it[1]; b += it[2] }
+        val gGlobal = gradeGlobal
+        if (gGlobal != null && !gGlobal.isZero) tintRange(gGlobal, 1f).let { r += it[0]; g += it[1]; b += it[2] }
 
         // 7. HSL mixer.
         if (hsl.any { it.hue != 0f || it.sat != 0f || it.lum != 0f }) {
@@ -349,22 +352,30 @@ data class Detail(
     val fxAmount: Float = 0.6f,
     /** AI noise reduction strength (0 = off). */
     val aiDenoise: Float = 0f,
-    // Pro sharpening (photo): radius in pixels at 1080p, detail 0..1, edge masking 0..1.
-    val sharpenRadius: Float = 1f,
-    val sharpenDetail: Float = 0.25f,
+    // Newer settings are stored as offsets from Lightroom's defaults, so 0 = default and older
+    // projects / presets (which don't have them) look exactly as before.
+    /** Sharpening radius offset (radius = 1 + this, 0.5..3 px), detail offset (detail = 0.25 + this), edge masking 0..1. */
+    val sharpenRadius: Float = 0f,
+    val sharpenDetail: Float = 0f,
     val sharpenMasking: Float = 0f,
-    // Grain size and roughness (0..1).
-    val grainSize: Float = 0.25f,
-    val grainRough: Float = 0.5f,
-    // Post-crop vignette shape.
-    val vignetteMid: Float = 0.5f,
+    /** Grain size offset (0.25 + this) and roughness offset (0.5 + this). */
+    val grainSize: Float = 0f,
+    val grainRough: Float = 0f,
+    /** Post-crop vignette: midpoint offset (0.5 + this), roundness −1..1, feather offset (0.5 + this), highlights 0..1. */
+    val vignetteMid: Float = 0f,
     val vignetteRound: Float = 0f,
-    val vignetteFeather: Float = 0.5f,
+    val vignetteFeather: Float = 0f,
     val vignetteHighlights: Float = 0f,
-    // Defringe (0..1).
+    /** Defringe (0..1). */
     val defringePurple: Float = 0f,
     val defringeGreen: Float = 0f,
 ) {
+    val sharpRadius get() = 1f + sharpenRadius
+    val sharpDetail get() = 0.25f + sharpenDetail
+    val grainSz get() = 0.25f + grainSize
+    val grainRg get() = 0.5f + grainRough
+    val vigMid get() = 0.5f + vignetteMid
+    val vigFeather get() = 0.5f + vignetteFeather
     val isZero get() = this == Detail()
     /** Parts the video GPU effect handles. */
     val needsVideoPass get() = sharpen != 0f || denoise != 0f || vignette != 0f || grain != 0f || localDetail != 0f || fx != VideoFx.NONE

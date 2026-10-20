@@ -241,8 +241,9 @@ object Develop {
     fun lerpGrade(a: ProGrade, b: ProGrade, t: Float): ProGrade = lerpAny(a, b, t) as ProGrade
     fun lerpDetail(a: Detail, b: Detail, t: Float): Detail = lerpAny(a, b, t) as Detail
 
+    /** t may go above 1 (numbers keep moving the same way, e.g. a preset at 150 %). */
     private fun lerpAny(a: Any?, b: Any?, t: Float): Any? {
-        if (t >= 1f) return b
+        if (t == 1f) return b
         if (t <= 0f) return a
         if (a == null || b == null) return if (t > 0.5f) b else a
         if (a is Float && b is Float) return a + (b - a) * t
@@ -265,3 +266,12 @@ object Develop {
         return copy
     }
 }
+
+/** What the develop panels need from the photo editor's workspace. */
+class DevUi(
+    val picking: Int, val setPicking: (Int) -> Unit,
+    val clipWarn: Boolean, val setClipWarn: (Boolean) -> Unit,
+    val sharpMask: Boolean, val setSharpMask: (Boolean) -> Unit,
+    val autoTone: () -> Unit, val autoWb: () -> Unit,
+    val importXmp: () -> Unit, val exportXmp: () -> Unit,
+)

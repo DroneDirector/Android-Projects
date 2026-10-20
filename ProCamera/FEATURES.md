@@ -101,6 +101,15 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 ## Photo editor
 - Open from the gallery, files or recent VeyroCut Pro photos; **saved projects** row on the start page.
 - **Skip to the editor** from the start page: open the editor without picking a photo first, then add one from inside (manual, every time).
+- **Lightroom-style develop**:
+  - **60 built-in presets** (Portrait, Landscape, B&W, Film, Cinematic, Vintage, Urban, Food, Travel, Moody) with live thumbnails and an **Amount** slider.
+  - **Lightroom .xmp** preset and sidecar import, and .xmp preset export.
+  - **Auto tone**, **Auto white balance**, a **WB eyedropper** and **clipping warnings**.
+  - **Point Color** and **Calibration** (shadows tint, red / green / blue primaries).
+  - Colour grading with **Global, Blending and Balance**.
+  - Pro sharpening (**Radius, Detail, Masking** + mask preview) and **Defringe** (purple / green).
+  - **Post-crop vignette** (Midpoint, Roundness, Feather, Highlights) and **grain** (Size, Roughness).
+  - **Zoom / 1:1 loupe** (pinch, double-tap, Ctrl + wheel).
 - **Multi-import + filmstrip** (Lightroom-style): pick up to 100 photos at once from the gallery or files; a filmstrip under the photo switches between them, and every photo keeps its own edit automatically. Star ratings, Pick / Reject flags, colour labels, filters (All, ★3+, Picks, Edited, No rejects), multi-select **Sync edit** (colour, light, detail, lens, RAW develop), batch rate / flag, **export selected** (each with its own edit) and remove. "Continue filmstrip" on the start page; hide it from the Panels menu.
 - Panels: **Presets, Light, Curve, Color, HSL Mixer, Grading, Detail, Effects, Crop & format, Watermark, Export**.
 - **RAW (DNG) develop**: the editor reads the sensor data itself (uncompressed and lossless-compressed DNGs, lens-shading maps, the camera's colour matrix) — exposure ±5 stops, highlights, shadows, whites, blacks and white balance work on the full-range data with a soft highlight roll-off; **RAW profiles** (Standard, Flat, Vivid, Portrait, Landscape, Mono) and **white balance presets** (As shot, Auto, Daylight, Cloudy, Shade, Tungsten, Fluorescent); full-quality demosaic on export; RAW files in a batch export are developed too.

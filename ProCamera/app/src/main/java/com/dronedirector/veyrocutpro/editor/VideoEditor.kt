@@ -269,6 +269,7 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
 @OptIn(UnstableApi::class)
 @Composable
 private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAddGallery: () -> Unit, onAddFiles: () -> Unit, onExit: () -> Unit, onLoad: (String) -> Unit) {
+    val wx = remember { WorkspaceExtra() }
     val context = LocalContext.current
     var page by remember { mutableStateOf(Page.EDIT) }
     var colorTab by remember { mutableStateOf(ColorTab.INPUT) }
@@ -589,10 +590,6 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     var proxyCancel by remember { mutableStateOf<(() -> Unit)?>(null) }
     var proxyRun by remember { mutableStateOf(0) }                   // bumps to restart the worker
     val renderedFor = remember { mutableStateListOf<String?>(null, null) }
-    var playSince by remember { mutableStateOf(0L) }
-    var stallPos by remember { mutableStateOf(-1L) }
-    var stallSince by remember { mutableStateOf(0L) }
-    var stallTries by remember { mutableStateOf(0) }
     var showInfo by remember { mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("ve_info", false)) }
     // Timeline scroll wheels: animated "upscale" look, or plain colours without animation.
     var wheelFx by remember { mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_wheel_fx", true)) }
@@ -972,17 +969,17 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     "src ${if (c0 != null && proxyFor(c0) != null) "proxy " + (proxyFor(c0)?.let { ProxyMaker.qualityOf(it)?.label } ?: "") else "original"} · fx ${if (effectsOk) "on" else "off"} · frame ${if (renderedFor[deck.active] == c0?.id) "ok" else "none"} · stalls $stallTries"
             }
             val nowPlaying = deck.cur.isPlaying
-            if (nowPlaying && !playing) playSince = System.currentTimeMillis()
+            if (nowPlaying && !playing) wx.playSince = System.currentTimeMillis()
             playing = nowPlaying
             // Frozen (playing but the position stopped moving): reload the clip where it stopped.
             if (deck.cur.playWhenReady && deck.cur.playbackState != Player.STATE_ENDED && c0 != null && c0.id == loadedId) {
                 val p = deck.cur.currentPosition
-                if (p != stallPos) { stallPos = p; stallSince = System.currentTimeMillis() }
-                else if (System.currentTimeMillis() - stallSince > 2500 && stallTries < 3) {
-                    stallSince = System.currentTimeMillis() + 2000
-                    stallTries++
+                if (p != wx.stallPos) { wx.stallPos = p; wx.stallSince = System.currentTimeMillis() }
+                else if (System.currentTimeMillis() - wx.stallSince > 2500 && wx.stallTries < 3) {
+                    wx.stallSince = System.currentTimeMillis() + 2000
+                    wx.stallTries++
                     // Escalate: reload → reload without live effects → use a preview copy.
-                    when (stallTries) {
+                    when (wx.stallTries) {
                         1 -> load(current, p, true)
                         2 -> { if (effectsOk && !gpuGrade) { effectsOk = false; message = "Live effects paused in the preview to keep playback smooth (the export keeps them)" }; load(current, p, true) }
                         else -> {
@@ -994,12 +991,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         }
                     }
                 }
-            } else stallSince = System.currentTimeMillis()
-            if (deck.cur.isPlaying && deck.cur.currentPosition != stallPos) { stallTries = 0; errorRetries = 0 }
+            } else wx.stallSince = System.currentTimeMillis()
+            if (deck.cur.isPlaying && deck.cur.currentPosition != wx.stallPos) { wx.stallTries = 0; errorRetries = 0 }
             // Safety net: playing but no picture for a while → make a preview copy, or drop the live effects.
             val c = clips.getOrNull(current)
-            if (c != null && nowPlaying && renderedFor[deck.active] != c.id && System.currentTimeMillis() - playSince > 2500) {
-                playSince = System.currentTimeMillis() + 60_000
+            if (c != null && nowPlaying && renderedFor[deck.active] != c.id && System.currentTimeMillis() - wx.playSince > 2500) {
+                wx.playSince = System.currentTimeMillis() + 60_000
                 if (proxyFor(c) != null) {
                     // The proxy gives no picture: never show a blank frame — use the original.
                     proxyBad.add(MediaId.of(c))
@@ -1421,22 +1418,19 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     // ---- AI voiceover from text (Kokoro, downloaded once)
-    var ttsProgress by remember { mutableStateOf<Int?>(null) }
-    var ttsStatus by remember { mutableStateOf<String?>(null) }
-    var ttsJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     fun makeTts(text: String, v: Voiceover.Voice, speed: Float) {
-        if (ttsJob != null) return
+        if (wx.ttsJob != null) return
         val at = globalMs
-        ttsProgress = 0
-        ttsJob = layerScope.launch {
-            ttsStatus = "Getting the voice…"
-            val err = withContext(Dispatchers.IO) { Voiceover.ensure(context, v, { p -> ttsProgress = p }, { !isActive }) }
-            if (err != null) { ttsProgress = null; ttsStatus = null; ttsJob = null; if (isActive) message = err; return@launch }
-            ttsStatus = "Speaking…"; ttsProgress = 0
+        wx.ttsProgress = 0
+        wx.ttsJob = layerScope.launch {
+            wx.ttsStatus = "Getting the voice…"
+            val err = withContext(Dispatchers.IO) { Voiceover.ensure(context, v, { p -> wx.ttsProgress = p }, { !isActive }) }
+            if (err != null) { wx.ttsProgress = null; wx.ttsStatus = null; wx.ttsJob = null; if (isActive) message = err; return@launch }
+            wx.ttsStatus = "Speaking…"; wx.ttsProgress = 0
             val audio = withContext(Dispatchers.Default) {
-                try { Voiceover.speak(context, text, v, speed, { p -> ttsProgress = p }, { !isActive }) } catch (_: Throwable) { null }
+                try { Voiceover.speak(context, text, v, speed, { p -> wx.ttsProgress = p }, { !isActive }) } catch (_: Throwable) { null }
             }
-            ttsProgress = null; ttsStatus = null; ttsJob = null
+            wx.ttsProgress = null; wx.ttsStatus = null; wx.ttsJob = null
             if (!isActive) return@launch
             if (audio == null || audio.isEmpty()) { message = "Couldn't make the voice" + (Voiceover.failed?.let { " ($it)" } ?: ""); return@launch }
             val dir = java.io.File(context.filesDir, "voiceovers").apply { mkdirs() }
@@ -1450,14 +1444,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     // ---- Voiceover: record the microphone while the edit plays.
-    var voiceRec by remember { mutableStateOf<android.media.MediaRecorder?>(null) }
-    var voiceFile by remember { mutableStateOf<java.io.File?>(null) }
-    var voiceStart by remember { mutableStateOf(0L) }
-    var voiceMs by remember { mutableStateOf(0L) }
-    var mutedBeforeVoice by remember { mutableStateOf(false) }
-    LaunchedEffect(voiceRec) {
+    LaunchedEffect(wx.voiceRec) {
         val t0 = System.currentTimeMillis()
-        while (voiceRec != null) { voiceMs = System.currentTimeMillis() - t0; delay(200) }
+        while (wx.voiceRec != null) { wx.voiceMs = System.currentTimeMillis() - t0; delay(200) }
     }
     fun beginVoice() {
         val dir = java.io.File(context.filesDir, "voice").apply { mkdirs() }
@@ -1475,8 +1464,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 start()
             }
         } catch (t: Throwable) { message = "Couldn't start the microphone"; return }
-        voiceFile = f; voiceRec = r; voiceStart = globalMs
-        mutedBeforeVoice = previewMuted
+        wx.voiceFile = f; wx.voiceRec = r; wx.voiceStart = globalMs
+        wx.mutedBeforeVoice = previewMuted
         previewMuted = true
         if (!deck.cur.isPlaying) deck.cur.play()
     }
@@ -1488,22 +1477,22 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         else micPermission.launch(android.Manifest.permission.RECORD_AUDIO)
     }
     fun stopVoice() {
-        val r = voiceRec ?: return
-        voiceRec = null
+        val r = wx.voiceRec ?: return
+        wx.voiceRec = null
         deck.cur.pause()
-        previewMuted = mutedBeforeVoice
+        previewMuted = wx.mutedBeforeVoice
         try { r.stop() } catch (_: Throwable) {}
         r.release()
-        val f = voiceFile ?: return
+        val f = wx.voiceFile ?: return
         val dur = try {
             android.media.MediaMetadataRetriever().let { m -> m.setDataSource(f.path); val d = m.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L; m.release(); d }
         } catch (_: Throwable) { 0L }
         if (dur < 300) { f.delete(); message = "Voiceover too short"; return }
         val n = extraAudio.count { it.name.startsWith("Voiceover") } + 1
-        extraAudio.add(MusicTrack(uri = android.net.Uri.fromFile(f), name = "Voiceover $n", durationMs = dur, volume = 1f, fadeInMs = 0, fadeOutMs = 150, duck = 0f, startMs = voiceStart))
-        message = "Voiceover $n added at ${tc(voiceStart)}"
+        extraAudio.add(MusicTrack(uri = android.net.Uri.fromFile(f), name = "Voiceover $n", durationMs = dur, volume = 1f, fadeInMs = 0, fadeOutMs = 150, duck = 0f, startMs = wx.voiceStart))
+        message = "Voiceover $n added at ${tc(wx.voiceStart)}"
     }
-    DisposableEffect(Unit) { onDispose { voiceRec?.let { try { it.stop() } catch (_: Throwable) {}; it.release() } } }
+    DisposableEffect(Unit) { onDispose { wx.voiceRec?.let { try { it.stop() } catch (_: Throwable) {}; it.release() } } }
 
     /** Beat markers from a music / audio track. */
     fun addBeatMarkers(t: MusicTrack) {
@@ -1527,29 +1516,26 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     // ---- AI depth (Depth Anything V2 Small, downloaded once)
-    var depthProgress by remember { mutableStateOf<Int?>(null) }
-    var depthStatus by remember { mutableStateOf<String?>(null) }
-    var depthJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     fun analyseDepth(i: Int) {
         val c = clips.getOrNull(i) ?: return
-        if (depthJob != null) return
+        if (wx.depthJob != null) return
         deck.cur.pause()
-        depthProgress = 0
-        depthJob = layerScope.launch {
+        wx.depthProgress = 0
+        wx.depthJob = layerScope.launch {
             val fx = c.depth ?: DepthFx()
             var err: String? = null
             if (!ModelStore.has(context, AiModel.DEPTH)) {
-                depthStatus = "Downloading the depth model…"
-                err = withContext(Dispatchers.IO) { ModelStore.ensure(context, AiModel.DEPTH, { p -> depthProgress = p }, { !isActive }) }
+                wx.depthStatus = "Downloading the depth model…"
+                err = withContext(Dispatchers.IO) { ModelStore.ensure(context, AiModel.DEPTH, { p -> wx.depthProgress = p }, { !isActive }) }
             }
-            depthStatus = null
-            if (err != null) { depthProgress = null; depthJob = null; if (isActive) message = err; return@launch }
-            depthProgress = 0; depthStatus = "Working out depth…"
+            wx.depthStatus = null
+            if (err != null) { wx.depthProgress = null; wx.depthJob = null; if (isActive) message = err; return@launch }
+            wx.depthProgress = 0; wx.depthStatus = "Working out depth…"
             val id = java.util.UUID.randomUUID().toString()
             val n = withContext(Dispatchers.Default) {
-                try { DepthTrack.make(context, c, id, { p -> depthProgress = p }, { !isActive }) } catch (_: Throwable) { 0 }
+                try { DepthTrack.make(context, c, id, { p -> wx.depthProgress = p }, { !isActive }) } catch (_: Throwable) { 0 }
             }
-            depthProgress = null; depthStatus = null; depthJob = null
+            wx.depthProgress = null; wx.depthStatus = null; wx.depthJob = null
             if (!isActive) return@launch
             val k = clips.indexOfFirst { it.id == c.id }
             if (n <= 0 || k < 0) { message = "Couldn't work out the depth" + (DepthModel.failed?.let { " ($it)" } ?: ""); return@launch }
@@ -1585,10 +1571,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     // ---- Shape (pen) masks: planar-track the mask from the playhead to the clip's end
-    var penTrackingId by remember { mutableStateOf<String?>(null) }
-    var penStop by remember { mutableStateOf(false) }
     fun trackPen(ci: Int, maskId: String) {
-        if (penTrackingId != null) { penStop = true; return }
+        if (wx.penTrackingId != null) { wx.penStop = true; return }
         val c = clips.getOrNull(ci) ?: return
         val m = c.masks?.firstOrNull { it.id == maskId } ?: return
         val st = clipStarts(clips).getOrNull(ci) ?: 0L
@@ -1599,16 +1583,16 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val q0 = PenMask.boundsQuad(pts)
         if (c.lengthMs - rel < 300) { message = "Move the playhead to where tracking should start"; return }
         deck.cur.pause()
-        penTrackingId = maskId; penStop = false; message = "Tracking the mask… 0%"
+        wx.penTrackingId = maskId; wx.penStop = false; message = "Tracking the mask… 0%"
         layerScope.launch {
             val path = withContext(Dispatchers.Default) {
                 try {
                     PlanarTracker.track(context, listOf(c), 0, rel, c.lengthMs, q0,
-                        progress = { p -> layerScope.launch { if (penTrackingId != null) message = "Tracking the mask… $p% — tap again to stop" } },
-                        cancelled = { penStop })
+                        progress = { p -> layerScope.launch { if (wx.penTrackingId != null) message = "Tracking the mask… $p% — tap again to stop" } },
+                        cancelled = { wx.penStop })
                 } catch (_: Throwable) { emptyList() }
             }
-            penTrackingId = null
+            wx.penTrackingId = null
             val i = clips.indexOfFirst { it.id == c.id }
             if (i < 0 || path.size < 2) { message = "Couldn't follow what's under the mask — try a part with more detail"; return@launch }
             val track = path.map { it.copy(t = c.srcAtOffset(it.t)) }
@@ -1618,10 +1602,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     // ---- Planar tracking: the corner-pinned layer follows a flat surface from the playhead on
-    var pinTrackingId by remember { mutableStateOf<String?>(null) }
-    var pinStop by remember { mutableStateOf(false) }
     fun planarTrack(id: String) {
-        if (pinTrackingId != null) { pinStop = true; return }
+        if (wx.pinTrackingId != null) { wx.pinStop = true; return }
         val l0 = layers.firstOrNull { it.id == id } ?: return
         val q0 = l0.pinAt(globalMs) ?: return
         if (clips.isEmpty()) return
@@ -1631,17 +1613,17 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val ci = starts.indices.lastOrNull { starts[it] <= from } ?: 0
         val to = if (l0.wholeVideo) timelineLength(clips) else l0.endMs
         if (to - from < 300) { message = "Move the playhead to where tracking should start"; return }
-        pinTrackingId = id; pinStop = false; message = "Planar tracking… 0%"
+        wx.pinTrackingId = id; wx.pinStop = false; message = "Planar tracking… 0%"
         val snapshot = clips.toList()
         layerScope.launch {
             val path = withContext(Dispatchers.Default) {
                 try {
                     PlanarTracker.track(context, snapshot, ci, from, to, q0,
-                        progress = { p -> layerScope.launch { if (pinTrackingId != null) message = "Planar tracking… $p% — tap again to stop" } },
-                        cancelled = { pinStop })
+                        progress = { p -> layerScope.launch { if (wx.pinTrackingId != null) message = "Planar tracking… $p% — tap again to stop" } },
+                        cancelled = { wx.pinStop })
                 } catch (_: Throwable) { emptyList() }
             }
-            pinTrackingId = null
+            wx.pinTrackingId = null
             val i = layers.indexOfFirst { it.id == id }
             if (i < 0 || path.size < 2) { message = "Couldn't follow that surface — pick one with some detail, or move the corners onto it"; return@launch }
             val l = layers[i]
@@ -1828,22 +1810,20 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     // ---- Optical flow (on the phone): smooth slow motion and motion blur.
-    var flowProgress by remember { mutableStateOf(-1) }
-    var flowJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     fun flowRetime(i: Int, factor: Int, speed: Float?, shutter: Float) {
         if (videoLocked) { message = "The video track is locked"; return }
         val c = clips.getOrNull(i) ?: return
-        if (flowJob != null) return
+        if (wx.flowJob != null) return
         if (!MorphNative.available) { message = "Optical flow isn't available on this phone"; return }
         if (c.nested != null) { message = "Un-nest the clip first (or export it), then smooth it"; return }
         deck.cur.pause()
-        flowProgress = 0
-        flowJob = layerScope.launch {
+        wx.flowProgress = 0
+        wx.flowJob = layerScope.launch {
             val side = if (deliver.shortSide in 1..720) 1280 else 1920
             val f = withContext(Dispatchers.Default) {
-                try { FlowRetime.make(context, c, factor, shutter, side, { flowProgress = it }, { !isActive }) } catch (_: Throwable) { null }
+                try { FlowRetime.make(context, c, factor, shutter, side, { wx.flowProgress = it }, { !isActive }) } catch (_: Throwable) { null }
             }
-            flowProgress = -1; flowJob = null
+            wx.flowProgress = -1; wx.flowJob = null
             if (!isActive) return@launch
             val idx = clips.indexOfFirst { it.id == c.id }
             if (f == null || idx < 0) { message = "Couldn't process this clip"; return@launch }
@@ -1936,50 +1916,43 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     /** Detach audio: the clip's sound becomes its own audio track (move / trim it for J- and L-cuts). */
     /** Cuts the pauses out of one clip (or every clip), using the clip's sound. */
     // ---- Text-based editing: transcribe on the phone, cut the video by deleting words.
-    val tWords = remember { mutableStateListOf<TWord>() }
-    var tModel by remember { mutableStateOf(SpeechModel.BASE) }
-    var tLang by remember { mutableStateOf<String?>(null) }
-    var tStatus by remember { mutableStateOf<String?>(null) }
-    var tJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
-    var tDl by remember { mutableStateOf(-1) }
-    var tDlCancel by remember { mutableStateOf(false) }
     fun downloadModel() {
-        if (tDl >= 0) return
-        tDl = 0; tDlCancel = false
+        if (wx.tDl >= 0) return
+        wx.tDl = 0; wx.tDlCancel = false
         layerScope.launch {
-            val m = tModel
-            val err = withContext(Dispatchers.IO) { Transcriber.download(context, m, { p -> tDl = p }, { tDlCancel }) }
-            tDl = -1
+            val m = wx.tModel
+            val err = withContext(Dispatchers.IO) { Transcriber.download(context, m, { p -> wx.tDl = p }, { wx.tDlCancel }) }
+            wx.tDl = -1
             message = err ?: "${m.label} speech model ready"
         }
     }
     fun transcribeAll() {
-        if (tJob != null || clips.isEmpty()) return
+        if (wx.tJob != null || clips.isEmpty()) return
         if (!Transcriber.available) { message = "Transcription isn't available on this phone"; return }
-        if (!Transcriber.hasModel(context, tModel)) { downloadModel(); message = "Downloading the speech model first (${tModel.sizeMb} MB)…"; return }
-        tJob = layerScope.launch {
+        if (!Transcriber.hasModel(context, wx.tModel)) { downloadModel(); message = "Downloading the speech model first (${wx.tModel.sizeMb} MB)…"; return }
+        wx.tJob = layerScope.launch {
             val list = clips.toList()
             val all = mutableListOf<TWord>()
             for ((i, c) in list.withIndex()) {
                 if (c.muted) continue
-                tStatus = "Listening to clip ${i + 1} of ${list.size}…"
-                val poll = launch { while (true) { delay(400); tStatus = "Listening to clip ${i + 1} of ${list.size} · ${Transcriber.progress()}%" } }
-                val w = withContext(Dispatchers.Default) { try { Transcriber.transcribe(context, c, tModel, tLang) } catch (_: Throwable) { null } }
+                wx.tStatus = "Listening to clip ${i + 1} of ${list.size}…"
+                val poll = launch { while (true) { delay(400); wx.tStatus = "Listening to clip ${i + 1} of ${list.size} · ${Transcriber.progress()}%" } }
+                val w = withContext(Dispatchers.Default) { try { Transcriber.transcribe(context, c, wx.tModel, wx.tLang) } catch (_: Throwable) { null } }
                 poll.cancel()
                 if (Transcriber.stopped) break
                 if (w != null) all += w
             }
             if (!Transcriber.stopped) {
-                tWords.clear(); tWords.addAll(all)
+                wx.tWords.clear(); wx.tWords.addAll(all)
                 message = if (all.isEmpty()) "No speech found" else "Transcribed ${all.size} words — tap words to cut them"
             } else message = "Transcription stopped"
-            tStatus = null; tJob = null
+            wx.tStatus = null; wx.tJob = null
         }
     }
     /** Word-by-word caption layers from the transcript (style: 0 highlight, 1 box, 2 one word, 3 two lines). */
     var pendingWordCaps by remember { mutableStateOf<Int?>(null) }
     fun makeWordCaptions(style: Int) {
-        if (tWords.isEmpty()) {
+        if (wx.tWords.isEmpty()) {
             pendingWordCaps = style
             transcribeAll()
             return
@@ -1987,7 +1960,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val starts = clipStarts(clips)
         // Every kept word on the timeline, in order.
         val tl = ArrayList<Triple<Long, Long, String>>()
-        for ((ci, c) in clips.withIndex()) for (w in tWords.filter { it.clipId == c.id && !it.deleted }.sortedBy { it.startMs }) {
+        for ((ci, c) in clips.withIndex()) for (w in wx.tWords.filter { it.clipId == c.id && !it.deleted }.sortedBy { it.startMs }) {
             if (w.startMs < c.startMs || w.startMs >= c.endMs || w.text.isBlank()) continue
             val a = starts[ci] + c.tlOffsetOf(w.startMs); val b = starts[ci] + c.tlOffsetOf(w.endMs.coerceAtMost(c.endMs))
             tl += Triple(a, b.coerceAtLeast(a + 80), w.text.trim().replace(' ', '\u00A0'))
@@ -2022,18 +1995,18 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
         message = "${groups.size} word-by-word captions added — edit any of them like a text layer (run again to replace them)"
     }
-    LaunchedEffect(tJob) {
+    LaunchedEffect(wx.tJob) {
         val st = pendingWordCaps
-        if (tJob == null && st != null) { pendingWordCaps = null; if (tWords.isNotEmpty()) makeWordCaptions(st) }
+        if (wx.tJob == null && st != null) { pendingWordCaps = null; if (wx.tWords.isNotEmpty()) makeWordCaptions(st) }
     }
     fun applyTextCuts() {
         if (videoLocked) { message = "The video track is locked — tap its lock on the timeline to unlock"; return }
-        if (tWords.none { it.deleted }) { message = "Tap the words you want to cut first"; return }
+        if (wx.tWords.none { it.deleted }) { message = "Tap the words you want to cut first"; return }
         val out = mutableListOf<Clip>(); val newWords = mutableListOf<TWord>()
         var cutMs = 0L; var skipped = 0
         for (c in clips.toList()) {
-            val ranges = Transcriber.cutRanges(c, tWords).sortedBy { it.first }
-            val mine = tWords.filter { it.clipId == c.id }
+            val ranges = Transcriber.cutRanges(c, wx.tWords).sortedBy { it.first }
+            val mine = wx.tWords.filter { it.clipId == c.id }
             if (ranges.isEmpty()) { out += c; newWords += mine; continue }
             if (c.ramp != null) { skipped++; out += c; newWords += mine.map { it.copy(deleted = false) }; continue }
             val keeps = mutableListOf<LongRange>()
@@ -2055,7 +2028,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
         if (out.isEmpty()) { message = "That would cut everything — keep at least one word"; return }
         clips.clear(); clips.addAll(out)
-        tWords.clear(); tWords.addAll(newWords)
+        wx.tWords.clear(); wx.tWords.addAll(newWords)
         selected = selected.coerceIn(0, clips.lastIndex); current = current.coerceIn(0, clips.lastIndex)
         load(current, 0, false)
         message = "Cut %.1f s from the edit".format(cutMs / 1000f) + (if (skipped > 0) " · $skipped clip(s) with a speed ramp skipped" else "") + " — undo brings it back"
@@ -2396,7 +2369,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         hlJob = layerScope.launch {
             val src = clips.distinctBy { it.id }.toList()
             val out = withContext(Dispatchers.Default) {
-                try { Highlights.build(context, src, targetMs, tWords.toList(), { proxyFor(it) ?: it.uri }, { hlProgress = it }, { !isActive }) } catch (_: Throwable) { emptyList() }
+                try { Highlights.build(context, src, targetMs, wx.tWords.toList(), { proxyFor(it) ?: it.uri }, { hlProgress = it }, { !isActive }) } catch (_: Throwable) { emptyList() }
             }
             hlProgress = -1; hlJob = null
             if (!isActive) return@launch
@@ -2911,7 +2884,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             fun togglePlay() {
                 // Stuck loading? Play pressed again means "try again", not "do nothing".
                 if (deck.cur.playWhenReady && !deck.cur.isPlaying && deck.cur.playbackState == Player.STATE_BUFFERING) {
-                    stallTries = 0
+                    wx.stallTries = 0
                     load(current, deck.cur.currentPosition, true)
                     return
                 }
@@ -3231,23 +3204,23 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 },
                             )
                             Page.TEXT -> TextEditPage(
-                                words = tWords.toList(), clips = clips.toList(), currentClipId = clips.getOrNull(current)?.id, playSrcMs = clips.getOrNull(current)?.let { it.startMs + posMs } ?: 0L,
-                                model = tModel, onModel = { tModel = it }, hasModel = Transcriber.hasModel(context, tModel), downloading = tDl,
-                                onDownload = { downloadModel() }, onCancelDownload = { tDlCancel = true },
-                                lang = tLang, onLang = { tLang = it }, status = tStatus,
-                                onTranscribe = { transcribeAll() }, onStop = { Transcriber.stop(); tJob?.cancel(); tJob = null; tStatus = null },
+                                words = wx.tWords.toList(), clips = clips.toList(), currentClipId = clips.getOrNull(current)?.id, playSrcMs = clips.getOrNull(current)?.let { it.startMs + posMs } ?: 0L,
+                                model = wx.tModel, onModel = { wx.tModel = it }, hasModel = Transcriber.hasModel(context, wx.tModel), downloading = wx.tDl,
+                                onDownload = { downloadModel() }, onCancelDownload = { wx.tDlCancel = true },
+                                lang = wx.tLang, onLang = { wx.tLang = it }, status = wx.tStatus,
+                                onTranscribe = { transcribeAll() }, onStop = { Transcriber.stop(); wx.tJob?.cancel(); wx.tJob = null; wx.tStatus = null },
                                 onWordCaptions = { makeWordCaptions(it) },
-                                onToggle = { w -> val i = tWords.indexOf(w); if (i >= 0) tWords[i] = w.copy(deleted = !w.deleted) },
+                                onToggle = { w -> val i = wx.tWords.indexOf(w); if (i >= 0) wx.tWords[i] = w.copy(deleted = !w.deleted) },
                                 onSeekWord = { w ->
                                     val ci = clips.indexOfFirst { it.id == w.clipId }
                                     if (ci >= 0) seekGlobal((clipStarts(clips).getOrNull(ci) ?: 0L) + clips[ci].tlOffsetOf(w.startMs))
                                 },
                                 onFillers = { opt ->
                                     var n = 0
-                                    for (i in Transcriber.findFillers(tWords.toList(), opt)) if (!tWords[i].deleted) { tWords[i] = tWords[i].copy(deleted = true); n++ }
+                                    for (i in Transcriber.findFillers(wx.tWords.toList(), opt)) if (!wx.tWords[i].deleted) { wx.tWords[i] = wx.tWords[i].copy(deleted = true); n++ }
                                     message = if (n == 0) "No filler words found" else "$n filler word(s) marked in red — check them, then tap APPLY CUTS"
                                 },
-                                onRestore = { for (i in tWords.indices) if (tWords[i].deleted) tWords[i] = tWords[i].copy(deleted = false) },
+                                onRestore = { for (i in wx.tWords.indices) if (wx.tWords[i].deleted) wx.tWords[i] = wx.tWords[i].copy(deleted = false) },
                                 onApply = { applyTextCuts() },
                             )
                             Page.TRANSITIONS -> TransitionsPanel(
@@ -3274,7 +3247,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onDetach = { detachAudio(selected) },
                                 onRemoveSilence = { all, db, ms -> removeSilences(all, db, ms) },
                                 onSlowMo = { aiSlowMo(selected) },
-                                flowProgress = flowProgress, onFlow = { f, sp, sh -> flowRetime(selected, f, sp, sh) }, onStopFlow = { flowJob?.cancel(); flowJob = null; flowProgress = -1 },
+                                wx.flowProgress = wx.flowProgress, onFlow = { f, sp, sh -> flowRetime(selected, f, sp, sh) }, onStopFlow = { wx.flowJob?.cancel(); wx.flowJob = null; wx.flowProgress = -1 },
                                 onReframe = { a -> autoReframe(a) },
                                 onDuplicate = { if (videoLocked) message = "The video track is locked" else clips.add(selected + 1, sc.copy(id = java.util.UUID.randomUUID().toString())) },
                                 onDelete = {
@@ -3341,14 +3314,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 Text("For clips filmed with an anamorphic lens or adapter: stretches the picture back to its real shape (preview and export).", color = Pro.Dim, fontSize = 11.sp)
                             }
                             Page.COLOR -> if (sc != null) ColorPage(sc, colorTab, { colorTab = it }, maskTools = maskTools, onChange = { f -> update(selected, f) },
-                                onTrackPen = { m -> trackPen(selected, m.id) }, penTracking = penTrackingId,
+                                onTrackPen = { m -> trackPen(selected, m.id) }, penTracking = wx.penTrackingId,
                                 onErase = {
                                     val st = clipStarts(clips).getOrNull(selected) ?: 0L
                                     val src = if (globalMs in st until st + sc.lengthMs) sc.srcAtOffset(globalMs - st) else sc.startMs
                                     magicPick = MagicTarget(clipId = sc.id, uri = sc.uri, srcMs = src, initial = null, remove = true)
                                 },
                                 eraseProgress = eraseProgress, eraseStatus = eraseStatus, onStopErase = { eraseJob?.cancel(); eraseJob = null; eraseProgress = null; eraseStatus = null },
-                                onDepth = { analyseDepth(selected) }, depthProgress = depthProgress, depthStatus = depthStatus, onStopDepth = { depthJob?.cancel(); depthJob = null; depthProgress = null },
+                                onDepth = { analyseDepth(selected) }, depthProgress = wx.depthProgress, depthStatus = wx.depthStatus, onStopDepth = { wx.depthJob?.cancel(); wx.depthJob = null; wx.depthProgress = null },
                                 clipNames = clips.map { it.name }, selfIdx = selected, matchBusy = matchBusy, onMatch = { matchShot(it) },
                                 onMagic = {
                                     val st = clipStarts(clips).getOrNull(selected) ?: 0L
@@ -3386,7 +3359,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onTelemetry = { pickSrt.launch(arrayOf("*/*")) },
                                 onTrack = { trackLayer(it) }, trackingId = trackingId,
                                 onPin = { id, p -> val i = layers.indexOfFirst { it.id == id }; if (i >= 0) { if (layers[i].locked) message = "This layer is locked — tap its lock to edit" else layers[i] = layers[i].copy(pin = p) } },
-                                onPlanarTrack = { planarTrack(it) }, pinTrackingId = pinTrackingId,
+                                onPlanarTrack = { planarTrack(it) }, pinTrackingId = wx.pinTrackingId,
                                 frameAspect = outputSize(clips, deliver).let { (w, h) -> w.toFloat() / h.coerceAtLeast(1) },
                                 onSplit = { splitScreen(it) },
                                 onMagicLayer = { id ->
@@ -3409,7 +3382,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             Page.AUDIO -> Column {
                                 AudioPage(
                                 sc, deliver, music, playing,
-                                onTts = { t, v, sp -> makeTts(t, v, sp) }, ttsProgress = ttsProgress, ttsStatus = ttsStatus, onStopTts = { ttsJob?.cancel(); ttsJob = null; ttsProgress = null; ttsStatus = null },
+                                onTts = { t, v, sp -> makeTts(t, v, sp) }, ttsProgress = wx.ttsProgress, ttsStatus = wx.ttsStatus, onStopTts = { wx.ttsJob?.cancel(); wx.ttsJob = null; wx.ttsProgress = null; wx.ttsStatus = null },
                                 onChange = { f -> update(selected, f) },
                                 onPickMusic = { pickMusic.launch(arrayOf("audio/*")) },
                                 onMusic = { music = it; if (it == null) musicPlayer.stop() },
@@ -3419,8 +3392,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     if (i >= 0) { if (t == null) extraAudio.removeAt(i) else extraAudio[i] = t }
                                 },
                                 posInClip = if (selected == current) posMs else 0L,
-                                recording = voiceRec != null, recordMs = voiceMs,
-                                onVoice = { if (voiceRec == null) startVoice() else stopVoice() },
+                                recording = wx.voiceRec != null, recordMs = wx.voiceMs,
+                                onVoice = { if (wx.voiceRec == null) startVoice() else stopVoice() },
                                 onBeats = { t -> addBeatMarkers(t) },
                                 onSync = { t -> syncAudioTo(t) },
                             )
@@ -5941,3 +5914,34 @@ private fun DeleteClipDialog(index: Int, onClose: () -> Unit, onDelete: (leaveGa
     )
 }
 
+/** Less-used editor state, kept together (one slot in the editor's main function instead of many). */
+class WorkspaceExtra {
+    var ttsProgress by androidx.compose.runtime.mutableStateOf<Int?>(null)
+    var ttsStatus by androidx.compose.runtime.mutableStateOf<String?>(null)
+    var ttsJob by androidx.compose.runtime.mutableStateOf<kotlinx.coroutines.Job?>(null)
+    var voiceRec by androidx.compose.runtime.mutableStateOf<android.media.MediaRecorder?>(null)
+    var voiceFile by androidx.compose.runtime.mutableStateOf<java.io.File?>(null)
+    var voiceStart by androidx.compose.runtime.mutableStateOf<Long>(0L)
+    var voiceMs by androidx.compose.runtime.mutableStateOf<Long>(0L)
+    var mutedBeforeVoice by androidx.compose.runtime.mutableStateOf<Boolean>(false)
+    var depthProgress by androidx.compose.runtime.mutableStateOf<Int?>(null)
+    var depthStatus by androidx.compose.runtime.mutableStateOf<String?>(null)
+    var depthJob by androidx.compose.runtime.mutableStateOf<kotlinx.coroutines.Job?>(null)
+    var penTrackingId by androidx.compose.runtime.mutableStateOf<String?>(null)
+    var penStop by androidx.compose.runtime.mutableStateOf<Boolean>(false)
+    var pinTrackingId by androidx.compose.runtime.mutableStateOf<String?>(null)
+    var pinStop by androidx.compose.runtime.mutableStateOf<Boolean>(false)
+    var flowProgress by androidx.compose.runtime.mutableStateOf<Int>(-1)
+    var flowJob by androidx.compose.runtime.mutableStateOf<kotlinx.coroutines.Job?>(null)
+    var tModel by androidx.compose.runtime.mutableStateOf<SpeechModel>(SpeechModel.BASE)
+    var tLang by androidx.compose.runtime.mutableStateOf<String?>(null)
+    var tStatus by androidx.compose.runtime.mutableStateOf<String?>(null)
+    var tJob by androidx.compose.runtime.mutableStateOf<kotlinx.coroutines.Job?>(null)
+    var tDl by androidx.compose.runtime.mutableStateOf<Int>(-1)
+    var tDlCancel by androidx.compose.runtime.mutableStateOf<Boolean>(false)
+    var playSince by androidx.compose.runtime.mutableStateOf<Long>(0L)
+    var stallPos by androidx.compose.runtime.mutableStateOf<Long>(-1L)
+    var stallSince by androidx.compose.runtime.mutableStateOf<Long>(0L)
+    var stallTries by androidx.compose.runtime.mutableStateOf<Int>(0)
+    val tWords = androidx.compose.runtime.mutableStateListOf<TWord>()
+}

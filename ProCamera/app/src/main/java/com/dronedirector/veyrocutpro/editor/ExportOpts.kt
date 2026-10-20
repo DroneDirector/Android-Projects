@@ -39,6 +39,10 @@ object ExportOpts {
     /** Soft proof: shows on screen how a matte print will look (lower contrast, lifted blacks). */
     var proof by mutableStateOf(false)
     var presetName by mutableStateOf("")
+    /** Gamut warning: 0 off, 1 glossy print, 2 matte print — colours the print can't show are marked on screen. */
+    var gamut by mutableStateOf(0)
+    val GAMUT = listOf("Off", "Glossy print", "Matte print")
+
     /** Ultra HDR JPEG (Android 14+): 0 off, else how much brighter the highlights get on HDR screens ([HDR_LEVELS]). */
     var hdr by mutableStateOf(0)
     val HDR_LEVELS = listOf("Off", "Subtle", "Standard", "Strong")
@@ -114,6 +118,45 @@ object ExportOpts {
             out.gainmap = gm
             out
         } catch (_: Throwable) { bmp }
+    }
+
+    // Approximate printable colour range of photo paper: per hue (Lab degrees) the strongest colour (chroma) and the lightness where it sits.
+    private val GH = floatArrayOf(0f, 35f, 65f, 95f, 140f, 200f, 260f, 300f, 330f, 360f)
+    private val GC = floatArrayOf(72f, 78f, 82f, 92f, 70f, 50f, 56f, 62f, 72f, 72f)
+    private val GL = floatArrayOf(48f, 50f, 64f, 88f, 55f, 58f, 34f, 32f, 48f, 48f)
+
+    /**
+     * Gamut warning overlay for [bmp]: colours a print on glossy ([gamut] 1) or matte (2) paper
+     * can't reproduce are shown in bright cyan; everything else is clear.
+     */
+    fun gamutOverlay(bmp: Bitmap): Bitmap? {
+        if (gamut == 0) return null
+        val w = bmp.width; val h = bmp.height
+        val px = IntArray(w * h); bmp.getPixels(px, 0, w, 0, 0, w, h)
+        val matte = gamut == 2
+        val cScale = if (matte) 0.8f else 1f; val lMin = if (matte) 24f else 16f; val lMax = if (matte) 94f else 97f
+        fun lin(v: Int): Float { val c = v / 255f; return if (c <= 0.04045f) c / 12.92f else Math.pow(((c + 0.055f) / 1.055f).toDouble(), 2.4).toFloat() }
+        fun f(t: Float) = if (t > 0.008856f) Math.cbrt(t.toDouble()).toFloat() else 7.787f * t + 16f / 116f
+        val out = IntArray(w * h)
+        for (i in px.indices) {
+            val c = px[i]
+            val r = lin((c shr 16) and 255); val g = lin((c shr 8) and 255); val b = lin(c and 255)
+            val x = (0.4124f * r + 0.3576f * g + 0.1805f * b) / 0.95047f
+            val y = 0.2126f * r + 0.7152f * g + 0.0722f * b
+            val z = (0.0193f * r + 0.1192f * g + 0.9505f * b) / 1.08883f
+            val fx = f(x); val fy = f(y); val fz = f(z)
+            val l = 116f * fy - 16f; val aa = 500f * (fx - fy); val bb = 200f * (fy - fz)
+            val ch = kotlin.math.sqrt(aa * aa + bb * bb)
+            if (ch < 18f) continue
+            var hue = Math.toDegrees(kotlin.math.atan2(bb, aa).toDouble()).toFloat(); if (hue < 0) hue += 360f
+            var k = 0; while (k < GH.size - 2 && hue > GH[k + 1]) k++
+            val t = (hue - GH[k]) / (GH[k + 1] - GH[k])
+            val cPeak = (GC[k] + (GC[k + 1] - GC[k]) * t) * cScale; val lPeak = GL[k] + (GL[k + 1] - GL[k]) * t
+            val room = if (l >= lPeak) ((lMax - l) / (lMax - lPeak)) else ((l - lMin) / (lPeak - lMin))
+            val cMax = cPeak * room.coerceIn(0f, 1f)
+            if (ch > cMax + 2f) out[i] = 0xD000E5FF.toInt()
+        }
+        return Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
     }
 
     /** The file name (without extension) for an export of [source]. */

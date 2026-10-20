@@ -59,6 +59,8 @@ data class PhotoMask(
     /** Detail inside the mask, −1..1: Texture (fine detail; minus smooths skin) and Clarity (mid-size contrast). */
     val texture: Float = 0f,
     val clarity: Float = 0f,
+    /** Noise reduction inside the mask, 0..1 (e.g. only the sky or the shadows). */
+    val noise: Float = 0f,
 )
 
 /** A healed spot: centre and radius (share of the width) and where the patch is taken from (offset, same units). */
@@ -563,10 +565,10 @@ object PhotoLocal {
         // Range masks look at the picture before any mask changed it.
         val orig = if (masks.any { mk -> (listOf(mk) + mk.subs.orEmpty()).any { it.type == MaskType.COLOR_RANGE || it.type == MaskType.LUMA_RANGE } }) px.copyOf() else null
         for (m in masks) {
-            val detail = m.texture != 0f || m.clarity != 0f
+            val detail = m.texture != 0f || m.clarity != 0f || m.noise > 0f
             if (!m.visible || (m.grade.isIdentity && !detail)) continue
             val wt = weights(m, w, h, m.maskFile?.let { aiMasks[it] }, orig, aiMasks)
-            if (detail) localDetail(px, w, h, wt, m.texture, m.clarity)
+            if (detail) localDetail(px, w, h, wt, m.texture, m.clarity, m.noise)
             if (m.grade.isIdentity) continue
             val t = m.grade.tables()
             val one = IntArray(1)
@@ -588,7 +590,7 @@ object PhotoLocal {
      * Texture / Clarity inside a mask. Minus texture smooths skin: fine detail is softened but edges
      * (eyes, lips, hair lines) stay, as only small differences are evened out.
      */
-    private fun localDetail(px: IntArray, w: Int, h: Int, wt: FloatArray, texture: Float, clarity: Float) {
+    private fun localDetail(px: IntArray, w: Int, h: Int, wt: FloatArray, texture: Float, clarity: Float, noise: Float = 0f) {
         val scale = maxOf(w, h)
         fun pass(amount: Float, r: Int, smoothLimit: Int) {
             if (amount == 0f) return
@@ -608,6 +610,8 @@ object PhotoLocal {
                 px[i] = (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
             }
         }
+        // Noise reduction: edge-aware smoothing of small, low-contrast specks (twice, for grainy skies).
+        if (noise > 0f) { pass(-noise, maxOf(1, scale / 1000), 22 + (noise * 26).toInt()); pass(-noise * 0.7f, maxOf(2, scale / 500), 14 + (noise * 16).toInt()) }
         pass(texture, maxOf(1, scale / 700), 34)
         pass(clarity, maxOf(2, scale / 90), 60)
     }

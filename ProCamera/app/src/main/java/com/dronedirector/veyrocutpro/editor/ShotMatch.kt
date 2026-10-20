@@ -67,9 +67,24 @@ object ShotMatch {
         val tp0 = sample(context, target) ?: return null
         onProgress(50)
         // Fewer pixels for the search (every 3rd), all of them for the reference.
+        return matchPixels(rp, ref.grade, tp0, target.grade) { onProgress(50 + it / 2) }
+    }
+
+    /** Pixels (r, g, b triples, 0..1) of a picture, small. */
+    fun pixels(b: Bitmap): FloatArray {
+        val s = Bitmap.createScaledBitmap(b, W * 2, (W * 2 * b.height / b.width.coerceAtLeast(1)).coerceAtLeast(1), true)
+        val px = IntArray(s.width * s.height); s.getPixels(px, 0, s.width, 0, 0, s.width, s.height)
+        if (s !== b) s.recycle()
+        val out = FloatArray(px.size * 3)
+        for (i in px.indices) { val p = px[i]; out[i * 3] = ((p shr 16) and 255) / 255f; out[i * 3 + 1] = ((p shr 8) and 255) / 255f; out[i * 3 + 2] = (p and 255) / 255f }
+        return out
+    }
+
+    /** The grade (starting from [start]) that makes pixels [tp0] look like [rp] (graded by [refGrade]). */
+    fun matchPixels(rp: FloatArray, refGrade: ProGrade?, tp0: FloatArray, start: ProGrade, onProgress: (Int) -> Unit = {}): ProGrade {
         val tp = FloatArray((tp0.size / 9) * 3).also { for (i in 0 until it.size / 3) { it[i * 3] = tp0[i * 9]; it[i * 3 + 1] = tp0[i * 9 + 1]; it[i * 3 + 2] = tp0[i * 9 + 2] } }
-        val want = stats(rp, ref.grade)
-        var g = target.grade
+        val want = stats(rp, refGrade)
+        var g = start
         fun err(s: Stats, k: Int): Double = when (k) { 0 -> s.lum - want.lum; 1 -> s.by - want.by; 2 -> s.gm - want.gm; 3 -> ln(s.con / want.con); else -> ln(max(s.sat, 1e-3) / max(want.sat, 1e-3)) }
         fun get(x: ProGrade, k: Int) = when (k) { 0 -> x.exposure; 1 -> x.temperature; 2 -> x.tint; 3 -> x.contrast; else -> x.saturation }
         fun set(x: ProGrade, k: Int, v: Float) = when (k) {
@@ -92,7 +107,7 @@ object ShotMatch {
                 val step = (-e0 / slope).toFloat().coerceIn(-1f, 1f)
                 g = set(g, k, v0 + step)
             }
-            onProgress(50 + (round + 1) * 50 / rounds)
+            onProgress((round + 1) * 100 / rounds)
         }
         return g
     }

@@ -166,6 +166,12 @@ object PhotoSession {
     }
 }
 
+/** Reference view in the photo editor: a photo shown next to the one being edited, to match a set. */
+object RefView {
+    var uri by mutableStateOf<String?>(null)
+    var shown by mutableStateOf(false)
+}
+
 private val LABELS = listOf(0xFFFF3B30, 0xFFFFD60A, 0xFF34C759, 0xFF0A84FF, 0xFFBF5AF2).map { it.toInt() }
 
 /**
@@ -194,6 +200,22 @@ fun Filmstrip(
     var filter by remember { mutableStateOf(0) }   // 0 all, 1 ★3+, 2 picks, 3 edited, 4 not rejected
     var menuFor by remember { mutableStateOf<String?>(null) }
     var askCull by remember { mutableStateOf(false) }
+    var askRename by remember { mutableStateOf(false) }
+    var renameTemplate by remember { mutableStateOf("{date}_{seq}") }
+    var renameStart by remember { mutableStateOf(1) }
+    // Gallery photos waiting for Android's permission to change them: uri → new name.
+    var renameWaiting by remember { mutableStateOf<Map<Uri, String>>(emptyMap()) }
+    fun applyRenamed(old: Uri, now: Uri, name: String) {
+        for (i in PhotoSession.items.indices) if (PhotoSession.items[i].uri == old.toString()) PhotoSession.update(context, i) { it.copy(uri = now.toString(), name = name) }
+    }
+    val renamePermission = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartIntentSenderForResult()) { res ->
+        val todo = renameWaiting; renameWaiting = emptyMap()
+        if (res.resultCode == android.app.Activity.RESULT_OK) cullScope.launch {
+            var ok = 0
+            withContext(Dispatchers.IO) { for ((u, n) in todo) { val r = Rename.rename(context, u, n); if (r is Rename.Outcome.Done) { ok++; withContext(Dispatchers.Main) { applyRenamed(u, r.uri, n) } } } }
+            cullResult = "Renamed $ok more photo" + if (ok == 1) "" else "s"
+        } else cullResult = "Not renamed — Android's permission was declined"
+    }
     var cullResult by remember { mutableStateOf<String?>(null) }
     val cullScope = androidx.compose.runtime.rememberCoroutineScope()
     fun idx(key: String) = items.indexOfFirst { it.key == key }
@@ -232,11 +254,65 @@ fun Filmstrip(
                 Chip("★★★") { picked.toList().forEach { u -> upd(u) { it.copy(rating = 3) } } }
                 Chip("Pick") { picked.toList().forEach { u -> upd(u) { it.copy(flag = 1) } } }
                 Chip("Reject") { picked.toList().forEach { u -> upd(u) { it.copy(flag = -1) } } }
+                Chip("Rename") { askRename = true }
                 Chip("Remove") { val list = indices(picked); picked.clear(); PhotoSession.remove(context, list) }
             }
         }
         Cull.progress?.let { (d, t) -> Text("AI culling… $d / $t", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.padding(horizontal = 8.dp)) }
         cullResult?.let { Text(it, style = Pro.Label.copy(color = Color.White, fontSize = 10.sp), modifier = Modifier.padding(horizontal = 8.dp).combinedClickable(onClick = { cullResult = null })) }
+        if (askRename) {
+            val target = items.filter { it.key in picked && it.copyId == null }
+            val first = target.firstOrNull()
+            val preview by produceState("", renameTemplate, renameStart, first?.uri) { value = first?.let { withContext(Dispatchers.IO) { Rename.newName(context, Uri.parse(it.uri), renameTemplate, renameStart) } } ?: "" }
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { askRename = false },
+                containerColor = Pro.PanelSolid,
+                title = { Text("Rename ${target.size} photo" + (if (target.size == 1) "" else "s"), color = Color.White) },
+                text = {
+                    Column {
+                        androidx.compose.material3.OutlinedTextField(renameTemplate, { renameTemplate = it.take(80) }, singleLine = true, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 6.dp)) {
+                            Rename.TOKENS.forEach { t -> Chip(t) { renameTemplate += t } }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Numbers start at  ", color = Pro.Dim, fontSize = 12.sp)
+                            Chip("−") { renameStart = (renameStart - 1).coerceAtLeast(0) }
+                            Text("  $renameStart  ", color = Color.White, fontSize = 13.sp)
+                            Chip("+") { renameStart++ }
+                        }
+                        if (preview.isNotEmpty()) Text("First: $preview", color = Pro.Amber, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+                        Text("The files themselves get the new names (in the gallery too). Photos added with the gallery picker can't be renamed — open them from Browse files or the Library.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
+                    }
+                },
+                confirmButton = {
+                    Text("RENAME", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.combinedClickable(onClick = {
+                        askRename = false
+                        val tpl = renameTemplate; val start = renameStart
+                        cullScope.launch {
+                            var ok = 0; var cant = 0
+                            val wait = LinkedHashMap<Uri, String>()
+                            withContext(Dispatchers.IO) {
+                                target.forEachIndexed { n, p ->
+                                    val u = Uri.parse(p.uri)
+                                    val name = Rename.newName(context, u, tpl, start + n)
+                                    when (val r = Rename.rename(context, u, name)) {
+                                        is Rename.Outcome.Done -> { ok++; withContext(Dispatchers.Main) { applyRenamed(u, r.uri, name) } }
+                                        Rename.Outcome.NeedsPermission -> wait[u] = name
+                                        Rename.Outcome.CantRename -> cant++
+                                    }
+                                }
+                            }
+                            cullResult = "Renamed $ok" + (if (cant > 0) ", $cant couldn't be renamed" else "") + if (wait.isNotEmpty()) " — allow the rest in Android's question" else ""
+                            if (wait.isNotEmpty()) Rename.permissionRequest(context, wait.keys.toList())?.let { pi ->
+                                renameWaiting = wait
+                                try { renamePermission.launch(androidx.activity.result.IntentSenderRequest.Builder(pi.intentSender).build()) } catch (_: Throwable) { renameWaiting = emptyMap() }
+                            }
+                        }
+                    }).padding(10.dp))
+                },
+                dismissButton = { Text("CANCEL", style = Pro.Label.copy(color = Color.White), modifier = Modifier.combinedClickable(onClick = { askRename = false }).padding(10.dp)) },
+            )
+        }
         if (askCull) {
             var blurry by remember { mutableStateOf(true) }
             var closed by remember { mutableStateOf(true) }
@@ -313,6 +389,7 @@ fun Filmstrip(
                                 LABELS.forEach { c -> Box(Modifier.size(20.dp).clip(CircleShape).background(Color(c)).border(2.dp, if (p.label == c) Color.White else Color.Transparent, CircleShape).combinedClickable(onClick = { upd(u) { it.copy(label = c) } })) }
                             }
                             Chip("Make virtual copy") { menuFor = null; PhotoSession.addCopy(context, Uri.parse(p.uri)) }
+                            Chip("Use as reference") { menuFor = null; RefView.uri = p.key; RefView.shown = true }
                             Chip("Remove from strip") {
                                 // Close the menu first, then remove on the next frame (the menu must not outlive its photo).
                                 menuFor = null

@@ -471,6 +471,20 @@ private fun PhotoWorkspace(
     var panY by remember { mutableStateOf(0f) }
     var viewSize by remember { mutableStateOf(IntSize.Zero) }
     var clipImg by remember { mutableStateOf<Bitmap?>(null) }
+    var gamutImg by remember { mutableStateOf<Bitmap?>(null) }
+    // Reference view: the reference photo (its edited look when it has one), loaded when chosen.
+    var refImg by remember { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(RefView.uri) {
+        val k = RefView.uri
+        refImg = if (k == null) null else withContext(Dispatchers.IO) {
+            try {
+                val sp = PhotoSession.items.firstOrNull { it.key == k }
+                sp?.projectId?.let { id -> ProjectStore.thumbFile(context, id)?.let { f -> BitmapFactory.decodeFile(f.path) } }
+                    ?: GradeIO.decode(context, Uri.parse(k.substringBefore('#')), 1600)
+            } catch (_: Throwable) { null }
+        }
+    }
+    val pickRef = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { u -> if (u != null) { RefView.uri = u.toString(); RefView.shown = true } }
     var sharpImg by remember { mutableStateOf<Bitmap?>(null) }
     var loupe by remember { mutableStateOf<Bitmap?>(null) }
     // Before / after split view with a draggable divider.
@@ -577,6 +591,7 @@ private fun PhotoWorkspace(
 
     // The photo being edited: the original, or its AI-erased copy.
     fun sourceUri(e: PhotoEdit): Uri = e.baseFile?.let { Uri.fromFile(java.io.File(it)) } ?: uri
+    LaunchedEffect(ExportOpts.gamut, preview) { val pv = preview; gamutImg = if (ExportOpts.gamut != 0 && pv != null) withContext(Dispatchers.Default) { ExportOpts.gamutOverlay(pv) } else null }
     LaunchedEffect(clipWarn, preview) { val pv = preview; clipImg = if (clipWarn && pv != null) withContext(Dispatchers.Default) { Develop.clipOverlay(pv) } else null }
     LaunchedEffect(dustView, dustSens, preview, panel) { val pv = preview; dustImg = if (dustView && panel == PhotoPanel.HEAL && pv != null) withContext(Dispatchers.Default) { Upright.visualise(pv, dustSens) } else null }
     LaunchedEffect(ExportOpts.proof, preview) { val pv = preview; proofImg = if (ExportOpts.proof && pv != null) withContext(Dispatchers.Default) { ExportOpts.proofView(pv) } else null }
@@ -651,6 +666,17 @@ private fun PhotoWorkspace(
             val v = d * w[k]
             when (tatMode) { 0 -> b.copy(hue = (b.hue + v).coerceIn(-1f, 1f)); 1 -> b.copy(sat = (b.sat + v).coerceIn(-1f, 1f)); else -> b.copy(lum = (b.lum + v).coerceIn(-1f, 1f)) }
         }))
+    }
+    var refMatching by remember { mutableStateOf(false) }
+    /** Matches this photo's light and colour (exposure, white balance, contrast, saturation) to the reference. */
+    fun matchRef() {
+        val r = refImg ?: return; val b = base ?: return
+        refMatching = true
+        scope.launch {
+            val g = withContext(Dispatchers.Default) { try { ShotMatch.matchPixels(ShotMatch.pixels(r), null, ShotMatch.pixels(b), edit.grade) } catch (_: Throwable) { null } }
+            refMatching = false
+            if (g != null) { edit = edit.copy(grade = g); message = "Matched to the reference — undo goes back" } else message = "Couldn't match the reference"
+        }
     }
     // .xmp presets / sidecars: import (as your presets, the first one is applied) and export.
     val pickXmp = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { list ->
@@ -1416,6 +1442,16 @@ private fun PhotoWorkspace(
                                 Text("Browse files", color = Pro.Amber, fontWeight = FontWeight.SemiBold, modifier = Modifier.clip(RoundedCornerShape(50)).border(1.dp, Pro.Amber, RoundedCornerShape(50)).clickable(onClick = onAddFiles).padding(horizontal = 18.dp, vertical = 10.dp))
                             }
                         }
+                        RefView.shown && refImg != null && shown != null -> {
+                            val r = refImg!!
+                            val side = viewSize.width >= viewSize.height
+                            @Composable fun pane(b: Bitmap, label: String, mod: Modifier) = Box(mod) {
+                                Image(b.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(4.dp))
+                                Text(label, style = Pro.Label.copy(color = Color.White), modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 8.dp, vertical = 3.dp))
+                            }
+                            if (side) Row(Modifier.fillMaxSize()) { pane(r, "REFERENCE", Modifier.weight(1f).fillMaxHeight()); pane(shown, "EDITING", Modifier.weight(1f).fillMaxHeight()) }
+                            else Column(Modifier.fillMaxSize()) { pane(r, "REFERENCE", Modifier.weight(1f).fillMaxWidth()); pane(shown, "EDITING", Modifier.weight(1f).fillMaxWidth()) }
+                        }
                         split && before != null && shown != null -> {
                             Image(before.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(6.dp))
                             Image(
@@ -1442,6 +1478,7 @@ private fun PhotoWorkspace(
                             if (!comparing) {
                                 sharpImg?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
                                 clipImg?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
+                                gamutImg?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
                                 if (panel == PhotoPanel.HEAL) eraseTint?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
                             }
                         }
@@ -1478,7 +1515,20 @@ private fun PhotoWorkspace(
                         "RAW", style = Pro.Label.copy(color = Color.Black),
                         modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).padding(horizontal = 8.dp, vertical = 3.dp),
                     )
-                    if (showCompare || split) Row(Modifier.align(Alignment.TopStart).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (showCompare || split || RefView.shown) Row(Modifier.align(Alignment.TopStart).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            if (RefView.shown) "REFERENCE ✓" else "REFERENCE",
+                            style = Pro.Label.copy(color = if (RefView.shown) Color.Black else Color.White),
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(if (RefView.shown) Pro.Amber else Color.Black.copy(alpha = 0.5f))
+                                .clickable { if (RefView.shown) RefView.shown = false else if (RefView.uri != null) RefView.shown = true else try { pickRef.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } catch (_: Throwable) {} }
+                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                        )
+                        if (RefView.shown) {
+                            Text("CHANGE", style = Pro.Label.copy(color = Color.White), modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.5f))
+                                .clickable { try { pickRef.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } catch (_: Throwable) {} }.padding(horizontal = 8.dp, vertical = 3.dp))
+                            Text(if (refMatching) "MATCHING…" else "MATCH LOOK", style = Pro.Label.copy(color = Color.Black), modifier = Modifier.clip(RoundedCornerShape(50)).background(Pro.Amber)
+                                .clickable(enabled = !refMatching) { matchRef() }.padding(horizontal = 8.dp, vertical = 3.dp))
+                        }
                         if (!split) Text(
                             if (comparing) "BEFORE" else "HOLD FOR BEFORE",
                             style = Pro.Label.copy(color = Color.White),
@@ -1568,6 +1618,7 @@ private fun PhotoWorkspace(
                         }
                         k == android.view.KeyEvent.KEYCODE_ESCAPE -> { picking = 0; split = false; resetZoom(); true }
                         k == android.view.KeyEvent.KEYCODE_TAB -> { com.dronedirector.veyrocutpro.ui.Panels.set(context, "pe.controls", !showControls); true }
+                        k == android.view.KeyEvent.KEYCODE_R && shift -> { if (RefView.uri != null) RefView.shown = !RefView.shown else message = "Choose a reference first (REFERENCE on the photo)"; true }
                         k == android.view.KeyEvent.KEYCODE_R -> open(PhotoPanel.CROP)
                         k == android.view.KeyEvent.KEYCODE_Q -> open(PhotoPanel.HEAL)
                         k == android.view.KeyEvent.KEYCODE_M -> open(PhotoPanel.MASKS)
@@ -2240,6 +2291,9 @@ private fun PhotoPanelContent(
                     }
                     androidx.compose.material3.Switch(ExportOpts.proof, { ExportOpts.proof = it }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
                 }
+                Text("Gamut warning", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                Chips(ExportOpts.GAMUT, ExportOpts.gamut) { ExportOpts.gamut = it }
+                if (ExportOpts.gamut != 0) Text("Cyan marks colours that paper can't print — they'll come out duller. Lower their saturation (HSL Mixer) if they matter.", color = Pro.Dim, fontSize = 11.sp)
                 Text("Ultra HDR (JPEG)", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
                 if (ExportOpts.hdrSupported) {
                     Chips(ExportOpts.HDR_LEVELS, ExportOpts.hdr) { ExportOpts.hdr = it; ExportOpts.save(ctx) }
@@ -2415,6 +2469,7 @@ val PHOTO_SHORTCUTS = listOf(
     "L / C / D" to "Light / Color / Detail",
     "R / Q / M" to "Crop / Heal / Masks",
     "E / H" to "Export / History",
+    "Shift+R" to "Reference view on / off",
     "Tab" to "Hide / show the panels",
     "Esc" to "Cancel a pick, leave zoom and before / after",
     "Ctrl+Z / Ctrl+Shift+Z" to "Undo / redo",

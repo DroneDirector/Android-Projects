@@ -520,6 +520,7 @@ fun MasksPanel(
     if (!video) {
         EdSlider("Texture", m.texture) { v -> upd { it.copy(texture = v) } }
         EdSlider("Clarity", m.clarity) { v -> upd { it.copy(clarity = v) } }
+        EdSlider("Noise reduction", m.noise, 0f..1f, 0f, ::pct) { v -> upd { it.copy(noise = v) } }
     }
 }
 

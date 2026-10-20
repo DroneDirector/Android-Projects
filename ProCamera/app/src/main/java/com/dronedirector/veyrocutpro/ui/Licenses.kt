@@ -46,6 +46,7 @@ private val NOTICES = listOf(
     Notice("MobileSAM (Magic Mask object selection)", "Chaoning Zhang et al.", "Apache License 2.0", "https://github.com/ChaoningZhang/MobileSAM"),
     Notice("Segment Anything (mask decoder in MobileSAM)", "Meta Platforms, Inc.", "Apache License 2.0", "https://github.com/facebookresearch/segment-anything"),
     Notice("ONNX Runtime (runs the Magic Mask model)", "Microsoft Corporation", "MIT License", "https://github.com/microsoft/onnxruntime"),
+    Notice("Lottie for Android (animation layers)", "Airbnb, Inc.", "Apache License 2.0", "https://github.com/airbnb/lottie-android"),
 )
 
 /** Reads a bundled licence text (fetched at build time), or null if it isn't in this build. */

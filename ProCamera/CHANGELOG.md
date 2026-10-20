@@ -4,6 +4,14 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: **Optical-flow slow motion** (Edit → SMOOTH SLOW MOTION): ½, ¼ or ⅛ speed — or your own speed ramp — with new in-between frames drawn from the motion on the phone, like Optical Flow in DaVinci Resolve and Premiere. No more stutter.
+- Video editor: **Motion blur** (Edit → MOTION BLUR): natural camera-shutter blur on moving things (90°, 180° or 360°).
+- Video editor: **Corner pin & planar tracking** (Layers → selected layer): drag a layer's four corners onto a screen, sign or wall, then track it so it stays stuck there as the camera moves.
+- Video editor: **Shape layers** and **Lottie animation layers** (Layers → Shape / Lottie).
+- Video editor: **Shape (pen) masks** (Color → Masks → Shape): a smooth curve with a soft edge and its own grade, which can track what it covers.
+- Video editor: **Auto podcast switching** (Multicam → AUTO: WHO'S TALKING) — cuts to whoever is speaking, with an optional wide shot.
+- Video editor: **Auto highlights** (Edit → AUTO HIGHLIGHTS) — a 15 s to 2 min reel of the liveliest moments, cut between words.
+- Video editor: **Smarter filler removal** — finds um / uh, repeats and stutters, and (if you want) filler phrases like "you know"; the transcript now keeps what was really said.
 
 ## 1.0.323 — 2026-10-20
 - Video editor Settings: **Scroll wheel effects** now sits under APP COLOUR.

@@ -184,6 +184,14 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Generators**: black, colour, gradient, noise and colour-bars clips, and a film countdown leader (3–10).
 - **Split-screen templates** (2 side by side, 2 stacked, 3 columns, 2 × 2) and **picture in picture**; video layers get a frame shape (crop to fill), rounded corners, border and drop shadow.
 - **Morph cut** (like Premiere's Morph Cut / DaVinci's Smooth Cut): own optical-flow engine draws new in-between frames for jump cuts — the frames are rendered through each clip's own grade and effects at full size.
+- **Smarter filler removal**: um / uh, repeats & stutters, and optional filler phrases (you know, like) — the transcript now keeps what was really said.
+- **Auto podcast / interview switching** (Multicam → AUTO: WHO'S TALKING): cuts to whoever is speaking from each angle's own microphone, with an optional wide shot for cross-talk and pauses.
+- **Auto highlights**: a 15 s – 2 min reel of the liveliest moments (sound bursts, movement, lively talk), cut between words.
+- **Optical-flow slow motion** on the phone (own motion engine): ½ / ¼ / ⅛ speed or the clip's own ramp with new in-between frames — like Optical Flow in DaVinci Resolve / Premiere.
+- **Motion blur** from the motion (90° / 180° / 360° shutter).
+- **Corner pin & planar tracking**: put any layer in perspective on a screen, sign or wall and keep it stuck there as the camera moves (own tracker: Lucas–Kanade + RANSAC homography).
+- **Shape layers** (rectangle, rounded, ellipse, line, arrow, triangle, star, heart; filled or outline) and **Lottie animation layers** (.json / .zip; lottie-android, Apache 2.0).
+- **Shape (pen) masks** on clips: a smooth curve with a soft edge and its own grade, planar-tracked to follow what it covers.
 - **Word-by-word captions** from the on-phone transcript: Highlight, Box, One word or Two lines.
 - **Animated title templates**: lower third, big title, cinematic, location, chapter, subscribe, end card.
 - **Source viewer & three-point editing**: mark in / out, then INSERT, OVERWRITE or APPEND at the playhead.

@@ -168,6 +168,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "AI erase on a RAW makes a normal copy to work on; after that, the photo is edited like a JPEG.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Photo editor tips", Icons.Filled.Photo, null, listOf(
+            "Pick many photos at once: they go in the filmstrip under the photo. Tap to switch (each keeps its own edit), hold for stars / Pick / Reject / colour label, SELECT to sync the edit, export or remove several.",
             "Hold your finger on the photo to see the original.",
             "Leave the editor with your phone's back gesture or back button (the top bar has no back arrow, so EXPORT always fits).",
             "Masks → Subject (AI) / Sky (AI) select the subject or the sky for you (on the phone, or more precisely with Cloud AI).",

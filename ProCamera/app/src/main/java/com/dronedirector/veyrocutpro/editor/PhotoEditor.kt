@@ -126,8 +126,22 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
     var source by remember { mutableStateOf(initial) }
     var project by remember { mutableStateOf<PhotoProjectData?>(null) }
 
-    val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> if (uri != null) source = uri }
-    val browse = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) source = uri }
+    // Filmstrip: photos picked together stay in a working set, each with its own edit.
+    LaunchedEffect(Unit) { PhotoSession.load(context) }
+    fun openSession(i: Int) {
+        val sp = PhotoSession.items.getOrNull(i) ?: return
+        PhotoSession.current = i
+        project = sp.projectId?.let { ProjectStore.loadPhoto(context, it) }
+        source = Uri.parse(sp.uri)
+    }
+    fun addMany(list: List<Uri>) {
+        if (list.isEmpty()) return
+        val first = PhotoSession.add(context, list)
+        // From inside the editor (+ on the filmstrip) the photos are only added; the current edit stays open.
+        if (first >= 0 && (source == null || source == Uri.EMPTY)) openSession(first)
+    }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(100)) { addMany(it) }
+    val browse = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { addMany(it) }
     // Merge several photos (HDR, panorama, focus stack) into a new one, then edit it.
     val scope = rememberCoroutineScope()
     var mergeKind by remember { mutableStateOf<MergeKind?>(null) }
@@ -168,22 +182,36 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
             onBack = onExit,
             onGallery = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onFiles = { browse.launch(arrayOf("image/*")) },
-            onRecent = { project = null; source = it },
-            onSkip = { project = null; source = Uri.EMPTY },
+            onRecent = { project = null; addMany(listOf(it)) },
+            onSkip = { project = null; PhotoSession.current = -1; source = Uri.EMPTY },
+            banner = if (PhotoSession.items.isEmpty()) null else ({
+                Row(
+                    Modifier.padding(bottom = 10.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Ed.Raised)
+                        .clickable { openSession(PhotoSession.current.coerceIn(0, PhotoSession.items.lastIndex)) }.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Continue filmstrip (${PhotoSession.items.size} photos)", color = Pro.Amber, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Each photo keeps its own edit.", color = Pro.Dim, fontSize = 11.sp)
+                    }
+                    Text("Clear", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.clip(RoundedCornerShape(50)).clickable { PhotoSession.clear(context) }.padding(8.dp))
+                }
+            }),
             onOpenProject = { id ->
                 val p = ProjectStore.loadPhoto(context, id)
-                if (p != null && p.uri != Uri.EMPTY) { project = p; source = p.uri }
+                if (p != null && p.uri != Uri.EMPTY) { PhotoSession.current = -1; project = p; source = p.uri }
                 else android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Couldn't open that project"), android.widget.Toast.LENGTH_SHORT).show()
             },
         )
     } else {
         androidx.compose.runtime.key(src, project?.id) {
             PhotoWorkspace(src, project, onClose = { source = null; project = null },
+                onOpenSession = { openSession(it) },
                 onAddGallery = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                 onAddFiles = { browse.launch(arrayOf("image/*")) },
                 onLoad = { id ->
                 val p = ProjectStore.loadPhoto(context, id)
-                if (p != null && p.uri != Uri.EMPTY) { project = p; source = p.uri }
+                if (p != null && p.uri != Uri.EMPTY) { PhotoSession.current = -1; project = p; source = p.uri }
                 else android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Couldn't open that project"), android.widget.Toast.LENGTH_SHORT).show()
             })
         }
@@ -339,6 +367,8 @@ private fun PhotoWorkspace(
     uri: Uri, initial: PhotoProjectData?, onClose: () -> Unit, onLoad: (String) -> Unit,
     /** Opened with SKIP (no photo yet, uri = Uri.EMPTY): pick one from the gallery / files. */
     onAddGallery: () -> Unit = {}, onAddFiles: () -> Unit = {},
+    /** Switch to another photo of the filmstrip (index in [PhotoSession.items]). */
+    onOpenSession: (Int) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -351,7 +381,8 @@ private fun PhotoWorkspace(
             else PhotoEdit(watermark = WatermarkMemory.load(context, false))
         )
     }
-    var projectId by remember { mutableStateOf(initial?.id) }
+    // A filmstrip photo's hidden edit is not a named project: SAVE makes a separate one.
+    var projectId by remember { mutableStateOf(initial?.id?.takeIf { initial.session != true }) }
     var projectName by remember { mutableStateOf(initial?.name ?: "") }
     var askName by remember { mutableStateOf(false) }
     var showLoad by remember { mutableStateOf(false) }
@@ -415,7 +446,28 @@ private fun PhotoWorkspace(
     if (askName) ProjectNameDialog(ProjectStore.defaultName(false), onSave = { askName = false; saveProject(it) }, onDismiss = { askName = false })
     val sizes = listOf(4800, 4096, 2560, 1920, 1080, 2048, 3840)
 
-    BackHandler { if (!busy) onClose() }
+    // ---- Filmstrip: this photo's edit is kept automatically before switching or leaving.
+    val sessionIdx = PhotoSession.current.takeIf { i -> PhotoSession.items.getOrNull(i)?.uri == uri.toString() } ?: -1
+    fun sessionSave() {
+        val sp = PhotoSession.items.getOrNull(sessionIdx) ?: return
+        val changed = undo.size > 1 || sp.edited
+        if (!changed) return
+        val e = edit
+        val p = PhotoProjectData(
+            id = sp.projectId ?: java.util.UUID.randomUUID().toString(), name = sp.name, uri = uri,
+            grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark,
+            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw,
+            session = true,
+        )
+        try {
+            val saved = ProjectStore.savePhoto(context, p, preview)
+            PhotoSession.update(context, sessionIdx) { it.copy(projectId = saved.id, edited = true, version = System.currentTimeMillis()) }
+        } catch (_: Throwable) {}
+    }
+    fun switchTo(i: Int) { if (busy) return; sessionSave(); onOpenSession(i) }
+    fun closeEditor() { sessionSave(); onClose() }
+
+    BackHandler { if (!busy) closeEditor() }
     val pickLogo = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { u ->
         if (u != null) edit = edit.copy(watermark = Layer(kind = LayerKind.LOGO, imageUri = u, size = 0.1f, x = 0.86f, y = 0.9f, opacity = 0.85f, wholeVideo = true))
     }
@@ -826,6 +878,75 @@ private fun PhotoWorkspace(
         }
     }
 
+    /** The saved edit of a filmstrip photo, or a fresh one. */
+    fun sessionProject(i: Int): PhotoProjectData? {
+        val sp = PhotoSession.items.getOrNull(i) ?: return null
+        return sp.projectId?.let { ProjectStore.loadPhoto(context, it) } ?: PhotoProjectData(name = sp.name, uri = Uri.parse(sp.uri), session = true)
+    }
+    /** Copies this photo's look (colour, light, detail, lens, RAW develop) to the selected photos. Crop, masks and spots stay their own. */
+    fun syncTo(list: List<Int>) {
+        if (busy) return
+        sessionSave()
+        val e = edit
+        val targets = list.filter { it != sessionIdx }
+        if (targets.isEmpty()) return
+        busy = true
+        scope.launch {
+            for ((n, i) in targets.withIndex()) {
+                message = "Syncing ${n + 1} / ${targets.size}…"
+                withContext(Dispatchers.IO) {
+                    try {
+                        val p = sessionProject(i) ?: return@withContext
+                        val q = p.copy(grade = e.grade, detail = e.detail, lens = e.lens, raw = e.raw, session = true)
+                        val small = GradeIO.decode(context, q.uri, 320)
+                        val thumb = small?.let { b ->
+                            val tables = if (q.grade.isIdentity) null else q.grade.tables()
+                            ImageOps.renderPhoto(b, q.grade, q.detail.copy(aiDenoise = 0f), q.geometry, tables, q.lens, null, null).also { if (it !== b) b.recycle() }
+                        }
+                        val saved = ProjectStore.savePhoto(context, q, thumb)
+                        withContext(Dispatchers.Main) { PhotoSession.update(context, i) { it.copy(projectId = saved.id, edited = true, version = System.currentTimeMillis()) } }
+                    } catch (_: Throwable) {}
+                }
+            }
+            busy = false
+            message = "Edit synced to ${targets.size} photo" + (if (targets.size == 1) "" else "s")
+        }
+    }
+    /** Exports the selected filmstrip photos, each with its own edit, using the export settings here. */
+    fun exportSession(list: List<Int>) {
+        if (busy || list.isEmpty()) return
+        sessionSave()
+        busy = true
+        exportT0 = System.currentTimeMillis(); batchN = list.size; batchI = 0
+        scope.launch {
+            var done = 0
+            for ((n, i) in list.withIndex()) {
+                batchI = n
+                message = "Export ${n + 1} / ${list.size}…"
+                val ok = withContext(Dispatchers.IO) {
+                    try {
+                        val p = sessionProject(i) ?: return@withContext false
+                        val u = p.baseFile?.let { Uri.fromFile(java.io.File(it)) } ?: p.uri
+                        val developed = if (p.baseFile == null && RawDng.isDng(context, u)) {
+                            val g = p.grade
+                            try { RawDng.export(context, RawDng.open(context, u), p.raw ?: RawDng.Dev(), g.exposure, g.highlights, g.shadows, g.whites, g.blacks, g.temperature, g.tint, sizes[sizeIdx]) } catch (_: RawDng.UnsupportedRaw) { null }
+                        } else null
+                        val full = developed ?: GradeIO.decode(context, u, sizes[sizeIdx]) ?: return@withContext false
+                        val eg = if (developed != null) p.grade.rawRest() else p.grade
+                        val tables = if (eg.isIdentity) null else eg.tables()
+                        var out = ImageOps.renderPhoto(full, eg, p.detail.copy(aiDenoise = 0f), p.geometry, tables, p.lens, p.spots, p.masks.filter { it.maskFile == null })
+                        if (out !== full) full.recycle()
+                        p.watermark?.let { out = stampLayer(context, out, it) }
+                        savePhotoAs(context, out, format, (quality * 100).toInt(), if (keepExif) p.uri else null, stripGps) != null
+                    } catch (_: Throwable) { false }
+                }
+                if (ok) done++
+            }
+            busy = false
+            message = "Exported $done of ${list.size} photos"
+        }
+    }
+
     Box(Modifier.fillMaxSize().background(Ed.Bg)) {
         com.dronedirector.veyrocutpro.ui.AiBadgeHost(
             AiDenoiser.running, "AI NOISE REDUCTION", 1, AiDenoiser.progress, onStop = { AiDenoiser.stop() },
@@ -1120,15 +1241,27 @@ private fun PhotoWorkspace(
                         modifier = Modifier.padding(start = 4.dp, end = 4.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !busy) { panel = PhotoPanel.EXPORT; com.dronedirector.veyrocutpro.ui.Panels.set(context, "pe.controls", true) }.padding(horizontal = 10.dp, vertical = 7.dp),
                     )
                 }
+                val strip = PhotoSession.items.isNotEmpty() && com.dronedirector.veyrocutpro.ui.panelOn("pe.filmstrip")
+                val viewer = @Composable { mod: Modifier ->
+                    Column(mod) {
+                        previewBox(Modifier.fillMaxWidth().weight(1f))
+                        if (strip) Filmstrip(
+                            onOpen = { switchTo(it) },
+                            onAdd = onAddGallery,
+                            onSync = { syncTo(it) },
+                            onExport = { exportSession(it) },
+                        )
+                    }
+                }
                 // Resizable panels: hold the divider, then drag. Double-tap the divider to reset.
                 // With the tools panel hidden, the photo fills the screen; shown again, it returns to its saved size.
                 if (!showControls) {
-                    previewBox(Modifier.fillMaxWidth().weight(1f))
+                    viewer(Modifier.fillMaxWidth().weight(1f))
                 } else if (wide) {
                     val pane = rememberPane("pe_controls_w", paneVersion)
                     val maxW = boxW
                     Row(Modifier.fillMaxSize()) {
-                        previewBox(Modifier.weight(1f).fillMaxHeight())
+                        viewer(Modifier.weight(1f).fillMaxHeight())
                         ResizeHandle(false,
                             onDrag = { d -> pane.dp = ((if (pane.dp < 0f) 380f else pane.dp) - d).coerceIn(240f, maxW - 220f) },
                             onEnd = { pane.save() }, onReset = { pane.reset() })
@@ -1137,7 +1270,7 @@ private fun PhotoWorkspace(
                 } else {
                     val pane = rememberPane("pe_controls_h", paneVersion)
                     val maxH = boxH
-                    previewBox(Modifier.fillMaxWidth().weight(1f))
+                    viewer(Modifier.fillMaxWidth().weight(1f))
                     ResizeHandle(true,
                         onDrag = { d -> pane.dp = ((if (pane.dp < 0f) 330f else pane.dp) - d).coerceIn(150f, maxH - 220f) },
                         onEnd = { pane.save() }, onReset = { pane.reset() })
@@ -1484,6 +1617,7 @@ private fun PhotoPanelsButton(onTab: (PhotoPanel) -> Unit, onReset: () -> Unit) 
         com.dronedirector.veyrocutpro.ui.PanelDef("pe.copypaste", "Copy / paste bar", "Copy settings to other photos or video clips"),
         com.dronedirector.veyrocutpro.ui.PanelDef("pe.scope", "Histogram pull-out", "Show or hide the RGB histogram tab on the right edge of the photo"),
         com.dronedirector.veyrocutpro.ui.PanelDef("pe.compare", "Before / after buttons", "HOLD FOR BEFORE and SPLIT on the photo"),
+        com.dronedirector.veyrocutpro.ui.PanelDef("pe.filmstrip", "Filmstrip", "The row of imported photos under the photo"),
     )
     val all = panels.map { it.key }.toSet()
     com.dronedirector.veyrocutpro.ui.PanelsButton(

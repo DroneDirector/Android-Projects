@@ -61,6 +61,8 @@ data class PhotoProjectData(
     val baseFile: String? = null,
     /** RAW (DNG) develop choices. */
     val raw: RawDng.Dev? = null,
+    /** True for the hidden per-photo edits of the filmstrip (not shown in the project list). */
+    val session: Boolean? = null,
 )
 
 /** A saved project as shown in the list. */
@@ -201,6 +203,7 @@ object ProjectStore {
             val id = f.name.removeSuffix(".json")
             try {
                 val o = com.google.gson.JsonParser.parseString(f.readText()).asJsonObject
+                if (!video && o.get("session")?.asBoolean == true) return@mapNotNull null
                 val detail = if (video) {
                     val n = o.getAsJsonArray("clips")?.size() ?: 0
                     "$n clip" + (if (n == 1) "" else "s")
@@ -209,6 +212,9 @@ object ProjectStore {
             } catch (_: Throwable) { null }
         }.sortedByDescending { it.savedAt }
     }
+
+    /** A photo project's thumbnail, if one was saved. */
+    fun thumbFile(context: Context, id: String): File? = File(dir(context, false), "$id.jpg").takeIf { it.exists() }
 
     fun delete(context: Context, video: Boolean, id: String) {
         File(dir(context, video), "$id.json").delete()
@@ -220,7 +226,7 @@ object ProjectStore {
  * Projects saved by an older version may lack newer settings; the JSON reader leaves those empty.
  * This fills every missing value (recursively) from a default instance.
  */
-private object Defaults {
+internal object Defaults {
     fun fix(target: Any, template: Any) {
         var cls: Class<*>? = target.javaClass
         while (cls != null && cls != Any::class.java) {

@@ -176,7 +176,6 @@ fun Filmstrip(
         }
         if (selecting) Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("${picked.size} selected", style = Pro.Label.copy(color = Color.White, fontSize = 10.sp))
-            fun act(label: String, enabled: Boolean = picked.isNotEmpty(), f: () -> Unit) {}
             Chip("All") { picked.clear(); picked.addAll(shown) }
             if (picked.isNotEmpty()) {
                 Chip("Sync edit") { onSync(picked.toList()) }

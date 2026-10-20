@@ -76,6 +76,11 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Photo editor guide
+**Filmstrip (many photos)**
+- Gallery photos / Browse files: select several photos at once. They line up in the filmstrip under the photo; tap one to edit it. Your edit is kept automatically when you switch or leave.
+- Hold a thumbnail for stars, Pick / Reject and a colour label. The chips above the strip filter it (All, ★3+, Picks, Edited, No rejects).
+- SELECT → tick photos → Sync edit copies this photo's look (not crop, masks or spots) to them; Export saves each with its own edit using the Export settings; Remove takes them out of the strip.
+- + at the end of the strip adds more photos. The start page shows "Continue filmstrip" to carry on later, or Clear to start over.
 **AI noise reduction**
 - Export → CAPTION & KEYWORDS: a title, caption and keywords written into every exported JPEG / WebP (IPTC, with your name and copyright) for Lightroom, agencies and clients. Turn on the Lightroom .xmp sidecar to also save your edit as Camera Raw settings in Documents/VeyroCutPro/XMP — put it next to the original to keep editing in Lightroom.
 - Start page → SKIP — OPEN THE EDITOR (under Gallery photos / Browse files) opens the editor straight away without choosing a photo; add one from inside with Gallery or Browse files. It only happens when you tap it.

@@ -3,6 +3,7 @@ package com.dronedirector.veyrocutpro.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -411,6 +412,20 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 else "Click when taking photos, beeps when recording starts/stops and focus locks",
                 s.cameraSounds || s.shutterSoundRequired,
             ) { c.toggleCameraSounds() }
+            if ((s.cameraSounds || s.shutterSoundRequired) && !s.shutterSoundRequired) {
+                var style by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(com.dronedirector.veyrocutpro.camera.ShutterSounds.style(sctx)) }
+                Text("Shutter sound style — tap to hear it", style = Pro.Label.copy(color = Pro.Dim, fontSize = 11.sp), modifier = Modifier.padding(top = 4.dp))
+                androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()).padding(vertical = 6.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
+                    com.dronedirector.veyrocutpro.camera.ShutterSounds.NAMES.forEachIndexed { i, n ->
+                        Text(n, color = if (style == i) Color.Black else Color.White, fontSize = 12.sp,
+                            modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(50)).background(if (style == i) Pro.Amber else Color.White.copy(alpha = 0.08f))
+                                .clickable {
+                                    style = i; com.dronedirector.veyrocutpro.camera.ShutterSounds.setStyle(sctx, i)
+                                    if (i > 0) com.dronedirector.veyrocutpro.camera.ShutterSounds.play(i) else android.media.MediaActionSound().play(android.media.MediaActionSound.SHUTTER_CLICK)
+                                }.padding(horizontal = 12.dp, vertical = 7.dp))
+                    }
+                }
+            }
 
             Section("THIS LENS")
             val lens = s.lens

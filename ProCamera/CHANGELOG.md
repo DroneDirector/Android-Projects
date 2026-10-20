@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture: **shutter sound styles** (Settings → Shutter sound). Choose from Phone default, SLR, Rangefinder, Film camera (with the winder) and Digital, and tap a style to hear it. The app makes these sounds itself. Where the law requires a shutter sound, the phone's own sound is always used.
 - Video editor timeline: **keyframes now show on the ruler** in their own lane along its bottom edge. Clip keyframes are amber diamonds, layer keyframes light-blue diamonds and volume keyframes blue dots. Each has a dark outline so it stands out without being large. The selected clip's or layer's keyframes are full strength with a thin line down to their track, and the others are dimmer. The diamonds on the clips themselves are easier to see too.
 
 ## 1.0.363 — 2026-10-20

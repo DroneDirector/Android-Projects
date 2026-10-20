@@ -1451,7 +1451,11 @@ class ProCameraController(private val context: Context) {
 
     /** Plays a camera sound unless the user muted them (never muted where the law requires it). */
     private fun playSound(type: Int) {
-        if (st.cameraSounds || st.shutterSoundRequired) sound.play(type)
+        if (!(st.cameraSounds || st.shutterSoundRequired)) return
+        // The chosen shutter style (Settings → Shutter sound); the phone's own sound where the law requires it.
+        val style = ShutterSounds.style(context)
+        if (type == MediaActionSound.SHUTTER_CLICK && style > 0 && !st.shutterSoundRequired) ShutterSounds.play(style)
+        else sound.play(type)
     }
     fun toggleAudio() = set { it.copy(audio = !it.audio) }
 

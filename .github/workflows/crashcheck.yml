@@ -17,7 +17,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 110
     steps:
       - name: Get the APK
         env:
@@ -140,6 +140,17 @@ jobs:
           scrollTo "Magic Mask"; tapText "Magic Mask"; for i in $(seq 1 30); do sleep 4; seeText "Tap the object" && break; seeText "couldn" && break; done; shot 09b-magic-dialog
           tapBetween "MAGIC MASK" "Tap the object"; sleep 12; shot 09c-magic-picked
           tapText "TRACK THROUGH"; for i in $(seq 1 60); do sleep 6; seeText "Tracked through" && break; seeText "couldn" && break; done; shot 09d-magic-tracked
+          # Optical-flow slow motion on the selected clip (Edit → ½ speed), then play it.
+          tapText "Edit"; sleep 3; scrollTo "½ speed"; tapText "½ speed"; for i in $(seq 1 80); do sleep 6; seeText "Smooth slow motion" && break; seeText "process this clip" && break; done; shot 10a-smooth-slowmo
+          adb shell input keyevent KEYCODE_SPACE; sleep 5; shot 10b-slowmo-playing; adb shell input keyevent KEYCODE_SPACE
+          # Auto highlights (Edit → Reel 15 s).
+          scrollTo "Reel 15"; tapText "Reel 15"; for i in $(seq 1 60); do sleep 5; seeText "Highlight reel" && break; seeText "find highlights" && break; done; shot 10c-highlights
+          # Shape layer, corner pin and planar tracking.
+          tapText "Layers"; sleep 3; scrollTo "ADD LAYER"; tapText "Shape"; sleep 3; shot 11a-shape
+          scrollTo "PIN TO FOUR CORNERS"; tapText "PIN TO FOUR CORNERS"; sleep 3; shot 11b-pinned
+          scrollTo "PLANAR TRACK FROM"; tapText "PLANAR TRACK FROM"; for i in $(seq 1 60); do sleep 5; seeText "Planar tracked" && break; seeText "follow that surface" && break; seeText "Tracked to" && break; done; shot 11c-planar
+          adb shell input keyevent KEYCODE_SPACE; sleep 4; shot 11d-pin-playing; adb shell input keyevent KEYCODE_SPACE
+          adb logcat -d | grep -E "FlowRetime|Lottie|PlanarTracker|CornerPin|PenMask" | tail -40 > out/new.txt || true
           adb logcat -d | grep -E "FrameReader|onnxruntime|OrtSession|Magic|TransitionPreview|veyrocut_morph|AndroidRuntime" | tail -60 > out/ai.txt || true
           adb logcat -d | grep -i -E "veyrocut_native|veyrocut_whisper|UnsatisfiedLink|whisper" | tail -20 > out/native.txt || true
                     start_video; shot 05-recover-banner

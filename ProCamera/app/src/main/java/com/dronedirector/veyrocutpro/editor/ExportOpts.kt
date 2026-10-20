@@ -39,6 +39,11 @@ object ExportOpts {
     /** Soft proof: shows on screen how a matte print will look (lower contrast, lifted blacks). */
     var proof by mutableStateOf(false)
     var presetName by mutableStateOf("")
+    /** Ultra HDR JPEG (Android 14+): 0 off, else how much brighter the highlights get on HDR screens ([HDR_LEVELS]). */
+    var hdr by mutableStateOf(0)
+    val HDR_LEVELS = listOf("Off", "Subtle", "Standard", "Strong")
+    private val HDR_RATIO = listOf(1f, 2f, 3.2f, 5f)
+    val hdrSupported get() = Build.VERSION.SDK_INT >= 34
     private var loaded = false
 
     data class Preset(val name: String, val format: Int, val quality: Float, val sizeIdx: Int, val space: Int, val sharpenFor: Int, val sharpenAmount: Int, val template: String)
@@ -59,6 +64,7 @@ object ExportOpts {
         val p = c.getSharedPreferences("procam", Context.MODE_PRIVATE)
         space = p.getInt("ex_space", 0); sharpenFor = p.getInt("ex_sharp_for", 0); sharpenAmount = p.getInt("ex_sharp_amt", 1)
         template = p.getString("ex_template", DEFAULT_TEMPLATE) ?: DEFAULT_TEMPLATE; seq = p.getInt("ex_seq", 1)
+        hdr = p.getInt("ex_hdr", 0).coerceIn(0, HDR_LEVELS.lastIndex)
         try {
             val arr = ProjectStore.gson.fromJson(p.getString("ex_presets", "[]"), Array<Preset>::class.java)
             user.clear(); arr?.filterNotNull()?.let { user.addAll(it) }
@@ -68,8 +74,46 @@ object ExportOpts {
     fun save(c: Context) {
         c.getSharedPreferences("procam", Context.MODE_PRIVATE).edit()
             .putInt("ex_space", space).putInt("ex_sharp_for", sharpenFor).putInt("ex_sharp_amt", sharpenAmount)
-            .putString("ex_template", template).putInt("ex_seq", seq)
+            .putString("ex_template", template).putInt("ex_seq", seq).putInt("ex_hdr", hdr)
             .putString("ex_presets", ProjectStore.gson.toJson(user.toList())).apply()
+    }
+
+    /**
+     * Ultra HDR: adds a gain map to [bmp] (saved inside the JPEG). Normal screens show the photo
+     * exactly as edited; HDR screens (most newer phones) show the bright parts — sky, lights,
+     * reflections — brighter, the way they looked. Returns [bmp] unchanged when off or unsupported.
+     */
+    fun withGainmap(bmp: Bitmap): Bitmap {
+        if (hdr == 0 || Build.VERSION.SDK_INT < 34) return bmp
+        return try {
+            val ratio = HDR_RATIO[hdr.coerceIn(0, HDR_RATIO.lastIndex)]
+            // Quarter-size map, made from the picture's own brightness: only the highlights get a boost.
+            val gw = max(1, bmp.width / 4); val gh = max(1, bmp.height / 4)
+            val small = Bitmap.createScaledBitmap(bmp, gw, gh, true)
+            val px = IntArray(gw * gh); small.getPixels(px, 0, gw, 0, 0, gw, gh)
+            if (small !== bmp) small.recycle()
+            val lnR = kotlin.math.ln(ratio)
+            for (i in px.indices) {
+                val c = px[i]
+                val r = ((c shr 16) and 255) / 255f; val g = ((c shr 8) and 255) / 255f; val b = (c and 255) / 255f
+                val l = max(0.2126f * r + 0.7152f * g + 0.0722f * b, max(r, max(g, b)) * 0.8f)
+                val t = ((l - 0.62f) / 0.38f).coerceIn(0f, 1f)
+                val s = t * t * (3 - 2 * t)
+                val gain = 1f + (ratio - 1f) * s
+                val v = (kotlin.math.ln(gain) / lnR * 255f).toInt().coerceIn(0, 255)
+                px[i] = (0xFF shl 24) or (v shl 16) or (v shl 8) or v
+            }
+            val content = Bitmap.createBitmap(px, gw, gh, Bitmap.Config.ARGB_8888)
+            val gm = android.graphics.Gainmap(content)
+            gm.setRatioMin(1f, 1f, 1f); gm.setRatioMax(ratio, ratio, ratio)
+            gm.setGamma(1f, 1f, 1f)
+            gm.setEpsilonSdr(1 / 64f, 1 / 64f, 1 / 64f); gm.setEpsilonHdr(1 / 64f, 1 / 64f, 1 / 64f)
+            gm.minDisplayRatioForHdrTransition = 1f
+            gm.displayRatioForFullHdr = ratio
+            val out = if (bmp.isMutable) bmp else bmp.copy(Bitmap.Config.ARGB_8888, true)
+            out.gainmap = gm
+            out
+        } catch (_: Throwable) { bmp }
     }
 
     /** The file name (without extension) for an export of [source]. */

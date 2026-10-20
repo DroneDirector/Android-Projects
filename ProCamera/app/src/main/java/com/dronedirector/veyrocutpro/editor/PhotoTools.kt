@@ -452,7 +452,7 @@ fun MasksPanel(
             }
             SectionTitle("PORTRAIT LOOKS")
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
-                fun look(name: String, parts: List<Int>, f: (PhotoMask) -> PhotoMask) = PillChip(name, false, accentText = true) { onPeople?.invoke(m.id, parts, f) }
+                @Composable fun look(name: String, parts: List<Int>, f: (PhotoMask) -> PhotoMask) = PillChip(name, false, accentText = true) { onPeople?.invoke(m.id, parts, f) }
                 look("Smooth skin", listOf(1, 2)) { it.copy(texture = -0.6f, clarity = -0.15f, grade = ProGrade()) }
                 look("Whiten teeth", listOf(7)) { it.copy(grade = ProGrade(exposure = 0.25f, saturation = -0.55f), texture = 0f, clarity = 0f) }
                 look("Brighten eyes", listOf(3)) { it.copy(grade = ProGrade(exposure = 0.3f, saturation = -0.25f), texture = 0f, clarity = 0f) }
@@ -570,7 +570,8 @@ fun savePhotoAs(context: Context, bmp0: Bitmap, format: Int, quality: Int, exifF
                     2 -> if (Build.VERSION.SDK_INT >= 30) Bitmap.CompressFormat.WEBP_LOSSY else @Suppress("DEPRECATION") Bitmap.CompressFormat.WEBP
                     else -> Bitmap.CompressFormat.JPEG
                 }
-                bmp.compress(cf, quality, os)
+                // Ultra HDR (Export → OUTPUT): the gain map is written inside the JPEG.
+                (if (f == 0) ExportOpts.withGainmap(bmp) else bmp).compress(cf, quality, os)
             }
         }
         // Camera details (EXIF) for JPEG / WebP.

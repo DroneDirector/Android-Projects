@@ -52,6 +52,7 @@ import com.dronedirector.veyrocutpro.ui.Text
 import com.dronedirector.veyrocutpro.ui.mouseActions
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -69,6 +70,8 @@ data class SessionPhoto(
     val version: Long = 0L,
     /** Set for a virtual copy: the same photo with its own, separate edit. */
     val copyId: String? = null,
+    /** AI culling's note for this photo ("Blurry", "Best of 4"…), shown on the thumbnail. */
+    val cull: String? = null,
 ) {
     /** Unique in the filmstrip (a photo and its virtual copies share the uri). */
     val key: String get() = uri + (copyId?.let { "#$it" } ?: "")
@@ -190,6 +193,9 @@ fun Filmstrip(
     val picked = remember { mutableStateListOf<String>() }
     var filter by remember { mutableStateOf(0) }   // 0 all, 1 ★3+, 2 picks, 3 edited, 4 not rejected
     var menuFor by remember { mutableStateOf<String?>(null) }
+    var askCull by remember { mutableStateOf(false) }
+    var cullResult by remember { mutableStateOf<String?>(null) }
+    val cullScope = androidx.compose.runtime.rememberCoroutineScope()
     fun idx(key: String) = items.indexOfFirst { it.key == key }
     fun upd(uri: String, f: (SessionPhoto) -> SessionPhoto) { val k = idx(uri); if (k >= 0) PhotoSession.update(context, k, f) }
     fun indices(uris: Collection<String>) = uris.map { idx(it) }.filter { it >= 0 }
@@ -219,6 +225,7 @@ fun Filmstrip(
         if (selecting) Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("${picked.size} selected", style = Pro.Label.copy(color = Color.White, fontSize = 10.sp))
             Chip("Select all") { picked.clear(); picked.addAll(shown.map { it.key }) }
+            Chip("AI cull") { askCull = true }
             if (picked.isNotEmpty()) {
                 Chip("Sync edit") { onSync(indices(picked)) }
                 Chip("Export") { onExport(indices(picked)) }
@@ -227,6 +234,38 @@ fun Filmstrip(
                 Chip("Reject") { picked.toList().forEach { u -> upd(u) { it.copy(flag = -1) } } }
                 Chip("Remove") { val list = indices(picked); picked.clear(); PhotoSession.remove(context, list) }
             }
+        }
+        Cull.progress?.let { (d, t) -> Text("AI culling… $d / $t", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.padding(horizontal = 8.dp)) }
+        cullResult?.let { Text(it, style = Pro.Label.copy(color = Color.White, fontSize = 10.sp), modifier = Modifier.padding(horizontal = 8.dp).combinedClickable(onClick = { cullResult = null })) }
+        if (askCull) {
+            var blurry by remember { mutableStateOf(true) }
+            var closed by remember { mutableStateOf(true) }
+            var best by remember { mutableStateOf(true) }
+            val target = if (picked.isNotEmpty()) picked.toList() else shown.map { it.key }
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { askCull = false },
+                containerColor = Pro.PanelSolid,
+                title = { Text("AI cull ${target.size} photo" + (if (target.size == 1) "" else "s"), color = Color.White) },
+                text = {
+                    Column {
+                        Text("The AI looks at each photo (on the phone) and flags it. Nothing is deleted; flags can be changed any time.", color = Pro.Dim, fontSize = 12.sp)
+                        CullOption("Reject blurry and out-of-focus shots", blurry) { blurry = it }
+                        CullOption("Reject shots with closed eyes", closed) { closed = it }
+                        CullOption("Pick the best of similar shots (bursts)", best) { best = it }
+                    }
+                },
+                confirmButton = {
+                    Text("START", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.combinedClickable(onClick = {
+                        askCull = false
+                        if (Cull.progress == null) cullScope.launch {
+                            val r = withContext(Dispatchers.Default) { try { Cull.run(context, target, blurry, closed, best) { false } } catch (_: Throwable) { null } }
+                            cullResult = if (r == null) "AI cull couldn't read the photos" else
+                                "AI cull: ${r.rejected} rejected, ${r.picked} picked as the best of ${r.groups} group(s) of similar shots — use the Picks / No rejects filters (tap to hide)"
+                        }
+                    }).padding(10.dp))
+                },
+                dismissButton = { Text("CANCEL", style = Pro.Label.copy(color = Color.White), modifier = Modifier.combinedClickable(onClick = { askCull = false }).padding(10.dp)) },
+            )
         }
         if (items.isEmpty()) Text("No photos in the filmstrip — tap + to add some (you can pick many at once).", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), modifier = Modifier.padding(horizontal = 8.dp))
         val cell = @Composable { p: SessionPhoto ->
@@ -253,6 +292,11 @@ fun Filmstrip(
                         p.label?.let { Box(Modifier.padding(start = 2.dp).size(6.dp).clip(CircleShape).background(Color(it))) }
                     }
                     if (p.edited) Text("✎", color = Pro.Amber, fontSize = 9.sp, modifier = Modifier.align(Alignment.TopEnd).padding(2.dp))
+                    p.cull?.takeIf { it != "OK" && !selecting }?.let { note ->
+                        val bad = p.flag == -1 && (note.startsWith("Blurry") || note.startsWith("Eyes"))
+                        Text(note, color = if (bad) Pro.Red else if (note.startsWith("Best")) Pro.Amber else Color.White, fontSize = 7.sp, maxLines = 1,
+                            modifier = Modifier.align(Alignment.TopStart).padding(2.dp).clip(RoundedCornerShape(3.dp)).background(Color.Black.copy(alpha = 0.6f)).padding(horizontal = 2.dp))
+                    }
                     if (selecting) Text(if (sel) "☑" else "☐", color = Color.White, fontSize = 12.sp, modifier = Modifier.align(Alignment.TopStart).padding(2.dp))
                     DropdownMenu(expanded = menuFor == u, onDismissRequest = { menuFor = null }, containerColor = Pro.PanelSolid) {
                         Column(Modifier.padding(horizontal = 10.dp, vertical = 4.dp)) {
@@ -307,4 +351,13 @@ private fun Chip(text: String, on: Boolean = false, onClick: () -> Unit) {
         modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Pro.Amber else Color.White.copy(alpha = 0.08f))
             .combinedClickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 5.dp),
     )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun CullOption(label: String, v: Boolean, set: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().combinedClickable(onClick = { set(!v) })) {
+        androidx.compose.material3.Checkbox(v, set, colors = androidx.compose.material3.CheckboxDefaults.colors(checkedColor = Pro.Amber, checkmarkColor = Color.Black))
+        Text(label, color = Color.White, fontSize = 13.sp)
+    }
 }

@@ -63,6 +63,8 @@ import androidx.compose.material3.Icon
 import com.dronedirector.veyrocutpro.ui.Text
 import com.dronedirector.veyrocutpro.ui.mouseActions
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -445,6 +447,7 @@ private fun PhotoWorkspace(
     var projectId by remember { mutableStateOf(initial?.id?.takeIf { initial.session != true && initial.autosave != true }) }
     var projectName by remember { mutableStateOf(initial?.name ?: "") }
     var askName by remember { mutableStateOf(false) }
+    var showShortcuts by remember { mutableStateOf(false) }
     var showLoad by remember { mutableStateOf(false) }
     if (showLoad) LoadProjectDialog(false, onOpen = { showLoad = false; onLoad(it) }, onDismiss = { showLoad = false })
     var panel by remember { mutableStateOf(PhotoPanel.PRESETS) }
@@ -452,6 +455,10 @@ private fun PhotoWorkspace(
     // Develop tools: eyedropper (1 = white balance, 2 = Point Color), clipping warning, sharpening mask, zoom / 1:1 loupe.
     var picking by remember { mutableStateOf(0) }
     var pendingObject by remember { mutableStateOf<Pair<Float, Float>?>(null) }
+    var pendingErasePick by remember { mutableStateOf<Pair<Float, Float>?>(null) }
+    // Targeted adjustment (drag on the photo): 6 = tone curve, 7 = HSL mixer ([tatMode] hue / sat / lum).
+    var tatMode by remember { mutableStateOf(1) }
+    var tatWeights by remember { mutableStateOf<FloatArray?>(null) }
     var dustView by remember { mutableStateOf(false) }
     var dustSens by remember { mutableStateOf(0.5f) }
     var dustImg by remember { mutableStateOf<Bitmap?>(null) }
@@ -612,6 +619,38 @@ private fun PhotoWorkspace(
             message = "Colour picked — adjust it in POINT COLOR"
         }
         picking = 0
+    }
+    /** Targeted adjustment: what's under the finger decides which tones (curve) or colours (mixer) a drag changes. */
+    fun tatStart(o: androidx.compose.ui.geometry.Offset, padPx: Float) {
+        val img = preview ?: return
+        val (px, py) = tapToPixel(o, img, padPx) ?: return
+        val c = Develop.sample(img, px, py, (img.width / 300).coerceAtLeast(2))
+        if (picking == 6) {
+            val l = (0.2126f * c[0] + 0.7152f * c[1] + 0.0722f * c[2]) / 255f
+            // Shadows, darks, lights, highlights: soft quarters of the tonal range.
+            val w = FloatArray(4) { k -> (1f - kotlin.math.abs(l - (0.125f + 0.25f * k)) / 0.3f).coerceAtLeast(0f) }
+            val sum = w.sum().coerceAtLeast(1e-3f); tatWeights = FloatArray(4) { w[it] / sum }
+            message = "Drag up or down to brighten or darken these tones"
+        } else {
+            val hsv = FloatArray(3); android.graphics.Color.RGBToHSV(c[0].toInt(), c[1].toInt(), c[2].toInt(), hsv)
+            val w = FloatArray(8) { k -> val d = (kotlin.math.abs(hsv[0] - HSL_CENTERS[k]) % 360f).let { if (it > 180f) 360f - it else it }; (1f - d / 45f).coerceAtLeast(0f) }
+            val sum = w.sum()
+            tatWeights = if (sum < 1e-3f || hsv[1] < 0.06f) null else FloatArray(8) { w[it] / sum }
+            message = if (tatWeights == null) "That spot has almost no colour — try a more colourful one" else
+                "Drag up or down to change the " + listOf("hue", "saturation", "luminance")[tatMode] + " of " + HSL_NAMES[w.indices.maxBy { w[it] }].lowercase()
+        }
+    }
+    fun tatDrag(frac: Float) {
+        val w = tatWeights ?: return
+        val d = -frac * 1.6f
+        val g = edit.grade
+        edit = if (picking == 6) edit.copy(grade = g.copy(
+            curveShadows = (g.curveShadows + d * w[0]).coerceIn(-1f, 1f), curveDarks = (g.curveDarks + d * w[1]).coerceIn(-1f, 1f),
+            curveLights = (g.curveLights + d * w[2]).coerceIn(-1f, 1f), curveHighlights = (g.curveHighlights + d * w[3]).coerceIn(-1f, 1f),
+        )) else edit.copy(grade = g.copy(hsl = g.hsl.mapIndexed { k, b ->
+            val v = d * w[k]
+            when (tatMode) { 0 -> b.copy(hue = (b.hue + v).coerceIn(-1f, 1f)); 1 -> b.copy(sat = (b.sat + v).coerceIn(-1f, 1f)); else -> b.copy(lum = (b.lum + v).coerceIn(-1f, 1f)) }
+        }))
     }
     // .xmp presets / sidecars: import (as your presets, the first one is applied) and export.
     val pickXmp = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { list ->
@@ -1015,7 +1054,6 @@ private fun PhotoWorkspace(
             else { eraseObjects = eraseObjects + path; if (eraseMask == null) eraseMask = PhotoMask(type = MaskType.BRUSH); message = "Selected — tap more things, paint, or tap REMOVE" }
         }
     }
-    var pendingErasePick by remember { mutableStateOf<Pair<Float, Float>?>(null) }
     LaunchedEffect(pendingErasePick) { pendingErasePick?.let { (x, y) -> pendingErasePick = null; pickEraseObject(x, y) } }
     fun runErase() {
         val em = eraseMask ?: PhotoMask(type = MaskType.BRUSH)
@@ -1338,6 +1376,12 @@ private fun PhotoWorkspace(
                         if (split) {
                             // Drag anywhere to move the before / after divider.
                             detectHorizontalDragGestures { ch, _ -> splitX = (ch.position.x / size.width).coerceIn(0.02f, 0.98f) }
+                        } else if (picking == 6 || picking == 7) {
+                            // Targeted adjustment: put a finger on a tone or colour and drag up / down.
+                            detectDragGestures(
+                                onDragStart = { o -> tatStart(o, 6.dp.toPx()) },
+                                onDragEnd = { tatWeights = null }, onDragCancel = { tatWeights = null },
+                            ) { ch, d -> ch.consume(); tatDrag(d.y / size.height) }
                         } else if (picking != 0) {
                             // Eyedropper: tap the spot to sample.
                             detectTapGestures(onTap = { o -> pickAt(o, 6.dp.toPx()) })
@@ -1426,7 +1470,7 @@ private fun PhotoWorkspace(
                         modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.6f)).clickable { resetZoom() }.padding(horizontal = 8.dp, vertical = 3.dp),
                     )
                     if (picking != 0) Text(
-                        when (picking) { 1 -> "Tap something that should be neutral grey or white"; 3 -> "Tap the object to select"; 5 -> "Tap each thing to remove"; 4 -> "Tap where the focus should be"; else -> "Tap the colour you want to change" },
+                        when (picking) { 1 -> "Tap something that should be neutral grey or white"; 3 -> "Tap the object to select"; 5 -> "Tap each thing to remove"; 6 -> "Drag up / down on a tone"; 7 -> "Drag up / down on a colour"; 4 -> "Tap where the focus should be"; else -> "Tap the colour you want to change" },
                         style = Pro.Label.copy(color = Color.Black),
                         modifier = Modifier.align(Alignment.TopCenter).padding(top = 34.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable { picking = 0 }.padding(horizontal = 10.dp, vertical = 5.dp),
                     )
@@ -1468,6 +1512,79 @@ private fun PhotoWorkspace(
                     }
                 }
             }
+            // Keyboard shortcuts (Bluetooth / USB keyboard, Samsung DeX).
+            DisposableEffect(Unit) {
+                KeyBus.handler = handler@{ ev ->
+                    if (ev.action != android.view.KeyEvent.ACTION_DOWN || showLibrary || askName) return@handler false
+                    val ctrl = ev.isCtrlPressed || ev.isMetaPressed
+                    val shift = ev.isShiftPressed
+                    val si = sessionIdx
+                    fun rate(f: (SessionPhoto) -> SessionPhoto, msg: String): Boolean {
+                        if (si < 0) { message = "Open the photo from the filmstrip to rate it"; return true }
+                        PhotoSession.update(context, si, f); message = msg; return true
+                    }
+                    fun go(d: Int): Boolean { val n = PhotoSession.items.size; if (si < 0 || n < 2) return false; val to = (si + d).coerceIn(0, n - 1); if (to != si) switchTo(to); return true }
+                    fun open(pnl: PhotoPanel): Boolean { panel = if (panel == pnl && pnl != PhotoPanel.PRESETS) PhotoPanel.PRESETS else pnl; return true }
+                    val labels = listOf(0xFFFF3B30, 0xFFFFD60A, 0xFF34C759, 0xFF0A84FF).map { it.toInt() }
+                    val k = ev.keyCode
+                    when {
+                        ctrl && k == android.view.KeyEvent.KEYCODE_Z -> { if (shift) { if (undoPos < undo.lastIndex) { undoPos++; edit = undo[undoPos] } } else if (undoPos > 0) { undoPos--; edit = undo[undoPos] }; true }
+                        ctrl && k == android.view.KeyEvent.KEYCODE_Y -> { if (undoPos < undo.lastIndex) { undoPos++; edit = undo[undoPos] }; true }
+                        ctrl && k == android.view.KeyEvent.KEYCODE_C -> {
+                            val e = edit
+                            EditClipboard.copy(context, CopiedSettings(fromVideo = false, grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark))
+                            message = "Settings copied — Ctrl+V on another photo pastes the look"; true
+                        }
+                        ctrl && k == android.view.KeyEvent.KEYCODE_V -> {
+                            val c = EditClipboard.current
+                            if (c == null) message = "Nothing copied yet (Ctrl+C copies this photo's settings)"
+                            else {
+                                var e = edit
+                                c.grade?.let { e = e.copy(grade = it) }; c.detail?.let { e = e.copy(detail = it) }
+                                if (shift) { c.geometry?.let { e = e.copy(geometry = it) }; c.watermark?.let { e = e.copy(watermark = it) } }
+                                edit = e; message = if (shift) "All settings pasted" else "Look pasted (Ctrl+Shift+V also pastes crop and watermark)"
+                            }
+                            true
+                        }
+                        ctrl && k == android.view.KeyEvent.KEYCODE_S -> { if (projectId == null) askName = true else saveProject(projectName); true }
+                        ctrl && k == android.view.KeyEvent.KEYCODE_E -> { if (!busy) export(); true }
+                        ctrl -> false
+                        k in android.view.KeyEvent.KEYCODE_0..android.view.KeyEvent.KEYCODE_5 -> { val n = k - android.view.KeyEvent.KEYCODE_0; rate({ it.copy(rating = n) }, if (n == 0) "Rating cleared" else "★".repeat(n)) }
+                        k in android.view.KeyEvent.KEYCODE_6..android.view.KeyEvent.KEYCODE_9 -> {
+                            val c = labels[k - android.view.KeyEvent.KEYCODE_6]
+                            rate({ it.copy(label = if (it.label == c) null else c) }, "Colour label " + listOf("red", "yellow", "green", "blue")[k - android.view.KeyEvent.KEYCODE_6])
+                        }
+                        k == android.view.KeyEvent.KEYCODE_P -> rate({ it.copy(flag = 1) }, "Flagged as pick")
+                        k == android.view.KeyEvent.KEYCODE_X -> rate({ it.copy(flag = -1) }, "Flagged as reject")
+                        k == android.view.KeyEvent.KEYCODE_U -> rate({ it.copy(flag = 0) }, "Flag removed")
+                        k == android.view.KeyEvent.KEYCODE_DPAD_LEFT || k == android.view.KeyEvent.KEYCODE_PAGE_UP -> go(-1)
+                        k == android.view.KeyEvent.KEYCODE_DPAD_RIGHT || k == android.view.KeyEvent.KEYCODE_PAGE_DOWN -> go(1)
+                        k == android.view.KeyEvent.KEYCODE_MOVE_HOME -> go(-10_000)
+                        k == android.view.KeyEvent.KEYCODE_MOVE_END -> go(10_000)
+                        k == android.view.KeyEvent.KEYCODE_BACKSLASH || k == android.view.KeyEvent.KEYCODE_Y -> { split = !split; true }
+                        k == android.view.KeyEvent.KEYCODE_Z -> {
+                            if (zoomK > 1f) resetZoom() else { zoomK = 3f; panX = 0f; panY = 0f }
+                            true
+                        }
+                        k == android.view.KeyEvent.KEYCODE_ESCAPE -> { picking = 0; split = false; resetZoom(); true }
+                        k == android.view.KeyEvent.KEYCODE_TAB -> { com.dronedirector.veyrocutpro.ui.Panels.set(context, "pe.controls", !showControls); true }
+                        k == android.view.KeyEvent.KEYCODE_G -> { showLibrary = true; true }
+                        k == android.view.KeyEvent.KEYCODE_R -> open(PhotoPanel.CROP)
+                        k == android.view.KeyEvent.KEYCODE_Q -> open(PhotoPanel.HEAL)
+                        k == android.view.KeyEvent.KEYCODE_M -> open(PhotoPanel.MASKS)
+                        k == android.view.KeyEvent.KEYCODE_L -> open(PhotoPanel.LIGHT)
+                        k == android.view.KeyEvent.KEYCODE_C -> open(PhotoPanel.COLOR)
+                        k == android.view.KeyEvent.KEYCODE_D -> open(PhotoPanel.DETAIL)
+                        k == android.view.KeyEvent.KEYCODE_E -> open(PhotoPanel.EXPORT)
+                        k == android.view.KeyEvent.KEYCODE_H -> open(PhotoPanel.HISTORY)
+                        k == android.view.KeyEvent.KEYCODE_J -> { clipWarn = !clipWarn; message = if (clipWarn) "Clipping warning on" else "Clipping warning off"; true }
+                        k == android.view.KeyEvent.KEYCODE_SLASH || k == android.view.KeyEvent.KEYCODE_F1 -> { showShortcuts = true; true }
+                        else -> false
+                    }
+                }
+                onDispose { KeyBus.handler = null }
+            }
+            if (showShortcuts) PhotoShortcutsDialog { showShortcuts = false }
             val controls = @Composable { mod: Modifier ->
                 Column(mod.background(Ed.Panel)) {
                     PanelTabs(panel) { panel = it }
@@ -1612,6 +1729,7 @@ private fun PhotoWorkspace(
                                 thumbSrc = base,
                                 dev = DevUi(
                                     picking = picking, setPicking = { picking = if (picking == it) 0 else it },
+                                    tatMode = tatMode, setTatMode = { tatMode = it },
                                     clipWarn = clipWarn, setClipWarn = { clipWarn = it },
                                     sharpMask = sharpMaskView, setSharpMask = { sharpMaskView = it },
                                     autoTone = { base?.let { b -> edit = edit.copy(grade = Develop.autoTone(b, edit.grade)); message = "Auto tone applied" } },
@@ -1872,6 +1990,7 @@ private fun PhotoPanelContent(
                 grade { when (ch) { 1 -> it.copy(curveR = p); 2 -> it.copy(curveG = p); 3 -> it.copy(curveB = p); else -> it.copy(curveRgb = p) } }
             }, others = all)
             SectionTitle("PARAMETRIC TONE CURVE") { grade { it.copy(curveHighlights = 0f, curveLights = 0f, curveDarks = 0f, curveShadows = 0f) } }
+            if (dev != null) PillChip(if (dev.picking == 6) "◎ TARGETED — DRAG ON THE PHOTO" else "◎ TARGETED ADJUSTMENT", dev.picking == 6, accentText = true) { dev.setPicking(6) }
             EdSlider("Highlights", g.curveHighlights) { v -> grade { it.copy(curveHighlights = v) } }
             EdSlider("Lights", g.curveLights) { v -> grade { it.copy(curveLights = v) } }
             EdSlider("Darks", g.curveDarks) { v -> grade { it.copy(curveDarks = v) } }
@@ -1925,7 +2044,16 @@ private fun PhotoPanelContent(
             EdSlider("Blue primary · hue", cal.blueHue) { v -> calib { it.copy(blueHue = v) } }
             EdSlider("Blue primary · saturation", cal.blueSat) { v -> calib { it.copy(blueSat = v) } }
         }
-        PhotoPanel.MIXER -> HslMixer(g.hsl) { list -> grade { it.copy(hsl = list) } }
+        PhotoPanel.MIXER -> {
+            if (dev != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                    PillChip(if (dev.picking == 7) "◎ DRAG ON THE PHOTO" else "◎ TARGETED", dev.picking == 7, accentText = true) { dev.setPicking(7) }
+                    listOf("Hue", "Sat", "Lum").forEachIndexed { k, n -> PillChip(n, dev.tatMode == k) { dev.setTatMode(k); if (dev.picking != 7) dev.setPicking(7) } }
+                }
+                Text("Targeted: put a finger on a colour in the photo and drag up or down — the matching colour sliders move with it.", color = Pro.Dim, fontSize = 11.sp)
+            }
+            HslMixer(g.hsl) { list -> grade { it.copy(hsl = list) } }
+        }
         PhotoPanel.GRADING -> {
             SectionTitle("COLOR GRADING") { grade { it.copy(gradeShadows = Wheel(200f), gradeMids = Wheel(40f), gradeHighlights = Wheel(40f)) } }
             WheelControl("Shadows", g.gradeShadows, showLuma = false) { w -> grade { it.copy(gradeShadows = w) } }
@@ -2113,6 +2241,11 @@ private fun PhotoPanelContent(
                     }
                     androidx.compose.material3.Switch(ExportOpts.proof, { ExportOpts.proof = it }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
                 }
+                Text("Ultra HDR (JPEG)", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                if (ExportOpts.hdrSupported) {
+                    Chips(ExportOpts.HDR_LEVELS, ExportOpts.hdr) { ExportOpts.hdr = it; ExportOpts.save(ctx) }
+                    Text("On HDR screens the bright parts (sky, lights, reflections) glow brighter; everywhere else the photo looks exactly as edited. JPEG only.", color = Pro.Dim, fontSize = 11.sp)
+                } else Text("Needs Android 14 or newer.", color = Pro.Dim, fontSize = 11.sp)
                 SectionTitle("FILE NAME")
                 androidx.compose.material3.OutlinedTextField(
                     value = ExportOpts.template, onValueChange = { ExportOpts.template = it.take(80); ExportOpts.save(ctx) }, singleLine = true,
@@ -2269,3 +2402,48 @@ private fun exportMp(b: Bitmap?, longSide: Int): Float {
     val aspect = if (b != null && b.width > 0 && b.height > 0) minOf(b.width, b.height).toFloat() / maxOf(b.width, b.height) else 0.75f
     return longSide.toFloat() * longSide * aspect / 1e6f
 }
+
+/** The photo editor's keyboard shortcuts (shown with ? or F1). */
+val PHOTO_SHORTCUTS = listOf(
+    "← / →" to "Previous / next photo in the filmstrip",
+    "Home / End" to "First / last photo",
+    "0 – 5" to "Star rating (0 clears)",
+    "6 / 7 / 8 / 9" to "Colour label red / yellow / green / blue",
+    "P / X / U" to "Flag pick / reject / remove flag",
+    "\\ or Y" to "Before / after",
+    "Z" to "Zoom 1:1 (again to fit)",
+    "J" to "Clipping warning",
+    "L / C / D" to "Light / Color / Detail",
+    "R / Q / M" to "Crop / Heal / Masks",
+    "E / H" to "Export / History",
+    "G" to "Library",
+    "Tab" to "Hide / show the panels",
+    "Esc" to "Cancel a pick, leave zoom and before / after",
+    "Ctrl+Z / Ctrl+Shift+Z" to "Undo / redo",
+    "Ctrl+C / Ctrl+V" to "Copy / paste the look",
+    "Ctrl+Shift+V" to "Paste everything (with crop and watermark)",
+    "Ctrl+S" to "Save the project",
+    "Ctrl+E" to "Export",
+    "? or F1" to "This list",
+)
+
+@Composable
+private fun PhotoShortcutsDialog(onDismiss: () -> Unit) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Ed.Panel,
+        title = { Text("Keyboard shortcuts", color = Color.White) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                PHOTO_SHORTCUTS.forEach { (k, v) ->
+                    Row(Modifier.padding(vertical = 3.dp)) {
+                        Text(k, color = Pro.Amber, fontSize = 13.sp, modifier = Modifier.width(150.dp))
+                        Text(v, color = Color.White, fontSize = 13.sp)
+                    }
+                }
+            }
+        },
+        confirmButton = { Text("CLOSE", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.clickable(onClick = onDismiss).padding(10.dp)) },
+    )
+}
+

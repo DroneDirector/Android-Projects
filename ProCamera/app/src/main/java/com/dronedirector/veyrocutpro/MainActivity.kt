@@ -224,8 +224,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        // Keyboard shortcuts in the video editor (keys no text field has used).
-        if (screen.value == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR && com.dronedirector.veyrocutpro.editor.KeyBus.dispatch(event)) return true
+        // Keyboard shortcuts in the video and photo editors (keys no text field has used).
+        if (screen.value != com.dronedirector.veyrocutpro.ui.AppScreen.CAPTURE && com.dronedirector.veyrocutpro.editor.KeyBus.dispatch(event)) return true
         if (!::controller.isInitialized || screen.value != com.dronedirector.veyrocutpro.ui.AppScreen.CAPTURE) return super.onKeyDown(keyCode, event)
         val volume = keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP
         val liveMode = controller.state.value.mode == CaptureMode.LIVE

@@ -278,4 +278,6 @@ class DevUi(
     val analyseDepth: () -> Unit = {}, val depthBusy: Boolean = false,
     /** Upright (mode, or −1 to undo); busy while it works. */
     val upright: (Int) -> Unit = {}, val uprightBusy: Boolean = false,
+    /** Targeted adjustment in the HSL mixer: 0 hue, 1 saturation, 2 luminance. */
+    val tatMode: Int = 1, val setTatMode: (Int) -> Unit = {},
 )

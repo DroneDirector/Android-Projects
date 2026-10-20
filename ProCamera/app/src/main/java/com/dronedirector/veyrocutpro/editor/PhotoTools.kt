@@ -509,20 +509,24 @@ private val EXIF_GPS = listOf(
     androidx.exifinterface.media.ExifInterface.TAG_GPS_TIMESTAMP, androidx.exifinterface.media.ExifInterface.TAG_GPS_DATESTAMP,
 )
 
-val PHOTO_FORMATS = listOf("JPEG", "PNG", "WebP", "HEIC")
+val PHOTO_FORMATS = listOf("JPEG", "PNG", "WebP", "HEIC", "TIFF 16-bit", "TIFF 8-bit")
 
 /**
  * Saves an exported photo as JPEG, PNG, WebP or HEIC, optionally with the original's camera
  * details (and location unless [stripGps]), into the chosen folder or DCIM/VeyroCutPro.
  */
-fun savePhotoAs(context: Context, bmp: Bitmap, format: Int, quality: Int, exifFrom: Uri?, stripGps: Boolean): Uri? {
-    val f = if (format == 3 && Build.VERSION.SDK_INT < 28) 0 else format
-    val ext = listOf("jpg", "png", "webp", "heic")[f]
-    val mime = listOf("image/jpeg", "image/png", "image/webp", "image/heic")[f]
-    val name = "EDIT_" + java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date()) + ".$ext"
+fun savePhotoAs(context: Context, bmp0: Bitmap, format: Int, quality: Int, exifFrom: Uri?, stripGps: Boolean): Uri? {
+    val f = if (format == 3 && Build.VERSION.SDK_INT < 28) 0 else format.coerceIn(0, PHOTO_FORMATS.lastIndex)
+    val ext = listOf("jpg", "png", "webp", "heic", "tif", "tif")[f]
+    val mime = listOf("image/jpeg", "image/png", "image/webp", "image/heic", "image/tiff", "image/tiff")[f]
+    // File name from the template (Export → FILE NAME), output sharpening and colour space (Export → OUTPUT).
+    val name = ExportOpts.fileName(context, exifFrom) + ".$ext"
+    val sharp = ExportOpts.outputSharpen(bmp0)
+    val bmp = ExportOpts.toSpace(sharp)
     val tmp = File(context.cacheDir, "export_${System.currentTimeMillis()}.$ext")
     try {
         when (f) {
+            4, 5 -> ExportOpts.writeTiff(bmp, tmp, bits16 = f == 4)
             3 -> {
                 val w = androidx.heifwriter.HeifWriter.Builder(tmp.path, bmp.width, bmp.height, androidx.heifwriter.HeifWriter.INPUT_MODE_BITMAP)
                     .setQuality(quality.coerceIn(1, 100)).build()
@@ -575,6 +579,10 @@ fun savePhotoAs(context: Context, bmp: Bitmap, format: Int, quality: Int, exifFr
             com.dronedirector.veyrocutpro.camera.Storage.publish(context, target)
             target
         } catch (_: Throwable) { com.dronedirector.veyrocutpro.camera.Storage.discard(context, target); null }
-    } finally { tmp.delete() }
+    } finally {
+        tmp.delete()
+        if (bmp !== bmp0 && bmp !== sharp) bmp.recycle()
+        if (sharp !== bmp0) sharp.recycle()
+    }
 }
 

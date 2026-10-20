@@ -33,7 +33,13 @@ object Merge {
                 context.contentResolver.openInputStream(uris[0])?.use { androidx.exifinterface.media.ExifInterface(it).getAttributeInt(androidx.exifinterface.media.ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM, 0) } ?: 0
             } catch (_: Throwable) { 0 }
             val fov = if (f35 in 8..400) Math.toDegrees(2 * kotlin.math.atan(36.0 / (2 * f35))).toFloat() else 65f
-            return com.dronedirector.veyrocutpro.camera.Panorama.stitch(frames, null, fov, 1, Filter.NONE)
+            val o = PanoOpts
+            val edges = o.warp > 0f || o.fill
+            val raw = com.dronedirector.veyrocutpro.camera.Panorama.stitch(frames, null, fov, 1, Filter.NONE, keepEdges = edges) ?: return null
+            val f = (kotlin.math.max(frames[0].width, frames[0].height) / (2.0 * kotlin.math.tan(Math.toRadians(fov.toDouble()) / 2))).toFloat()
+            if (o.projection == 0 && !edges) return raw
+            onProgress("Finishing the panorama…")
+            return PanoOpts.finish(raw, f)
         }
         onProgress("Loading photos…")
         val maxPx = 2200
@@ -194,3 +200,94 @@ private fun decodeAny(context: android.content.Context, uri: android.net.Uri, ma
         if (RawDng.isDng(context, uri)) RawDng.export(context, RawDng.open(context, uri), RawDng.Dev(), 0f, 0f, 0f, 0f, 0f, 0f, 0f, maxPx)
         else GradeIO.decode(context, uri, maxPx)
     } catch (_: RawDng.UnsupportedRaw) { GradeIO.decode(context, uri, maxPx) } catch (_: OutOfMemoryError) { GradeIO.decode(context, uri, maxPx) }
+
+/** Panorama options: projection, boundary warp and AI fill of the empty edges. */
+object PanoOpts {
+    val PROJECTIONS = listOf("Cylindrical", "Spherical", "Perspective")
+    var projection = 0
+    var warp = 0f
+    var fill = false
+
+    private fun empty(c: Int) = (c ushr 24) < 128
+
+    /** Applies the projection, the boundary warp, then fills (AI) or trims whatever is still empty. */
+    fun finish(src: Bitmap, f: Float): Bitmap {
+        var b = project(src, f)
+        if (warp > 0f) b = boundaryWarp(b, warp)
+        val w = b.width; val h = b.height
+        val px = IntArray(w * h); b.getPixels(px, 0, w, 0, 0, w, h)
+        if (px.none { empty(it) }) return b
+        if (fill) {
+            val mask = Bitmap.createBitmap(IntArray(w * h) { if (empty(px[it])) -1 else 0xFF000000.toInt() }, w, h, Bitmap.Config.ARGB_8888)
+            for (i in px.indices) if (empty(px[i])) px[i] = 0xFF000000.toInt()
+            val solid = Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
+            return AiSegment.fill(solid, mask)
+        }
+        return trim(px, w, h) ?: b
+    }
+
+    private fun project(src: Bitmap, f: Float): Bitmap {
+        if (projection == 0) return src
+        val w = src.width; val h = src.height
+        val sp = IntArray(w * h); src.getPixels(sp, 0, w, 0, 0, w, h)
+        val cx = (w - 1) / 2f; val cy = (h - 1) / 2f
+        val ow: Int; val oh: Int
+        if (projection == 1) { ow = w; oh = (2 * f * kotlin.math.atan((h / 2f) / f)).toInt().coerceAtLeast(2) }
+        else {
+            val half = (w / 2f) / f
+            // Straight lines only work below ~140° across; wider stays cylindrical.
+            if (half > 1.2f) return src
+            ow = (2 * f * kotlin.math.tan(half)).toInt().coerceIn(2, w * 4); oh = (h / kotlin.math.cos(half)).toInt().coerceIn(2, h * 3)
+        }
+        val ocx = (ow - 1) / 2f; val ocy = (oh - 1) / 2f
+        val out = IntArray(ow * oh)
+        for (y in 0 until oh) for (x in 0 until ow) {
+            val xs: Float; val ys: Float
+            if (projection == 1) { xs = x.toFloat(); ys = cy + f * kotlin.math.tan((y - ocy) / f) }
+            else { val th = kotlin.math.atan((x - ocx) / f); xs = cx + f * th; ys = cy + (y - ocy) * kotlin.math.cos(th) }
+            if (xs < 0f || ys < 0f || xs > w - 1f || ys > h - 1f) continue
+            out[y * ow + x] = sp[ys.toInt() * w + xs.toInt()]
+        }
+        return Bitmap.createBitmap(out, ow, oh, Bitmap.Config.ARGB_8888)
+    }
+
+    /** Stretches each column so the picture reaches the top and bottom edges ([amount] 0..1). */
+    private fun boundaryWarp(src: Bitmap, amount: Float): Bitmap {
+        val w = src.width; val h = src.height
+        val sp = IntArray(w * h); src.getPixels(sp, 0, w, 0, 0, w, h)
+        val out = IntArray(w * h)
+        for (x in 0 until w) {
+            var t = 0; while (t < h && empty(sp[t * w + x])) t++
+            var b = h - 1; while (b > t && empty(sp[b * w + x])) b--
+            if (b - t < 4) continue
+            val tt = t * (1f - amount); val bb = b + (h - 1 - b) * amount
+            for (y in 0 until h) {
+                if (y < tt || y > bb) continue
+                val ys = t + (y - tt) * (b - t) / (bb - tt).coerceAtLeast(1f)
+                out[y * w + x] = sp[ys.toInt().coerceIn(0, h - 1) * w + x]
+            }
+        }
+        return Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
+    }
+
+    /** Biggest band without empty corners (like the normal stitch). */
+    private fun trim(px: IntArray, w: Int, h: Int): Bitmap? {
+        val tops = IntArray(w); val bottoms = IntArray(w)
+        for (x in 0 until w) {
+            var y = 0; while (y < h && empty(px[y * w + x])) y++; tops[x] = y
+            y = h - 1; while (y >= 0 && empty(px[y * w + x])) y--; bottoms[x] = y
+        }
+        val cov = (0 until w).filter { bottoms[it] - tops[it] > h / 3 }
+        if (cov.isEmpty()) return null
+        val ts = cov.map { tops[it] }.sorted(); val bs = cov.map { bottoms[it] }.sorted()
+        val top = ts[(ts.size * 0.97).toInt().coerceAtMost(ts.size - 1)]; val bottom = bs[(bs.size * 0.03).toInt()]
+        var l = cov.first(); var r = cov.last()
+        while (l < r && (tops[l] > top + 2 || bottoms[l] < bottom - 2)) l++
+        while (r > l && (tops[r] > top + 2 || bottoms[r] < bottom - 2)) r--
+        val cw = r - l + 1; val ch = bottom - top + 1
+        if (cw < 32 || ch < 32) return null
+        val b = Bitmap.createBitmap(cw, ch, Bitmap.Config.ARGB_8888)
+        b.setPixels(px, top * w + l, w, 0, 0, cw, ch)
+        return b
+    }
+}

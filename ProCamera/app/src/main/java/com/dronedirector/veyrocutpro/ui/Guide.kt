@@ -169,6 +169,8 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "AI erase on a RAW makes a normal copy to work on; after that, the photo is edited like a JPEG.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Photo editor tips", Icons.Filled.Photo, null, listOf(
+            "Crop & perspective → UPRIGHT straightens horizons and buildings for you. Heal → FIND DUST AUTOMATICALLY removes sensor dust.",
+            "Export → EXPORT PRESETS, TIFF, colour space (sRGB / P3 / Adobe RGB), output sharpening and file-name templates.",
             "Masks → Object (AI): tap an object to select it. COMBINE adds, subtracts or intersects colour, brightness, depth, subject or sky selections.",
             "Effects → LENS BLUR: ANALYSE DEPTH, then PICK FOCUS and tap — a shallow depth of field with the bokeh shape you choose.",
             "Presets: 60 built-in looks with live thumbnails and an Amount slider. Import .xmp presets, or export your look as one.",

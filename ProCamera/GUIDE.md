@@ -79,6 +79,10 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 ## Photo editor guide
 **Pro develop**
+- Crop & perspective → UPRIGHT: Auto (balanced), Level (horizon), Vertical (buildings upright too) or Full (both perspectives). Off undoes it.
+- Heal → DUST SPOTS: VISUALISE SPOTS shows dust as white specks; FIND DUST AUTOMATICALLY heals them (check and hold any wrong spot to delete it). Sensitivity finds fainter or only clear specks.
+- Start page → MERGE PHOTOS → Panorama asks for the projection, Boundary warp (stretch to fill the frame) and Fill edges (AI) before you pick the photos.
+- Export → EXPORT PRESETS (hold your own to delete), FORMAT (incl. TIFF), OUTPUT (colour space, output sharpening, soft proof) and FILE NAME (tap the tokens to build a template).
 - Masks → Object (AI): tap the thing you want to select. Depth (AI): selects by distance, with Near, Middle and Far presets or the Nearest / Farthest sliders. COMBINE: choose + Add, − Subtract or ∩ Intersect, then a colour range, brightness range, depth, subject or sky to refine the selected mask.
 - Effects → LENS BLUR: tap ANALYSE DEPTH (once per photo), then ⌖ PICK FOCUS and tap what should be sharp. Blur amount, Focus range, Bokeh shape and Bokeh boost set the look.
 - Presets: choose a group, then tap a thumbnail. The Amount slider fades the preset in or pushes it further (up to 200 %). KEEP accepts the preset; UNDO PRESET goes back to how the photo was before.

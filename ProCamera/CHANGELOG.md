@@ -4,6 +4,16 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor **Upright** (Crop & perspective): Auto, Level, Vertical and Full find the lines in the photo and straighten the horizon and the buildings.
+- **Dust spots** (Heal): VISUALISE SPOTS makes sensor dust easy to see, and FIND DUST AUTOMATICALLY heals small dark specks in smooth areas such as the sky.
+- **Panorama options**: Cylindrical, Spherical or Perspective projection, **Boundary warp** to fill the frame, and **Fill edges (AI)** for the empty corners.
+- **Export**:
+  - **TIFF** (16-bit or 8-bit, lossless).
+  - **Colour spaces** with the profile embedded: sRGB, Display P3 or Adobe RGB.
+  - **Output sharpening** for screen, matte paper or glossy paper.
+  - **File-name templates** with name, date, time, counter and preset.
+  - **Export presets**: Web, Social 1080, Full quality, Print (TIFF), Archive PNG and your own.
+  - **Soft proof** previews a matte print.
 - Photo editor masks:
   - **Object (AI)**: tap any object and the AI selects it.
   - **Depth range (AI)**: select by distance from the camera.

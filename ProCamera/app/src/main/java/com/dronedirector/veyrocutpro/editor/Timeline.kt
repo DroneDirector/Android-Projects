@@ -143,6 +143,8 @@ fun TimelineView(
     onAddVideoLayer: (() -> Unit)? = null,
     /** A V1 clip's in / out point changed by dragging its edge (source ms). */
     onClipTrim: (index: Int, startMs: Long, endMs: Long) -> Unit = { _, _, _ -> },
+    /** The bin on the selected clip: delete that clip. */
+    onDeleteClip: ((Int) -> Unit)? = null,
 ) {
     val density = LocalDensity.current
     val totalMs = timelineLength(clips).coerceAtLeast(1)
@@ -221,6 +223,8 @@ fun TimelineView(
     val curVideoLocked by rememberUpdatedState(videoLocked)
     val curTotal by rememberUpdatedState(totalMs)
     val curSelectClip by rememberUpdatedState(onSelectClip)
+    val curSelectedClip by rememberUpdatedState(selectedClip)
+    val curDeleteClip by rememberUpdatedState(onDeleteClip)
     val curSelectLayer by rememberUpdatedState(onSelectLayer)
     val curSelectTransition by rememberUpdatedState(onSelectTransition)
 
@@ -269,6 +273,22 @@ fun TimelineView(
                         var hitId: String? = null; var hitAudio = false; var hitEdge = 0   // -1 start, 0 body, 1 end
                         var hitStart = 0L; var hitEnd = 0L; var hitOffset = 0L; var hitRow = -1
                         var hitClip = -1; var clipEdge = 0
+                        // The bin on the selected clip (top middle): tap it to delete the clip.
+                        run {
+                            val del = curDeleteClip ?: return@run
+                            val si = curSelectedClip
+                            if (si !in curClips.indices || curVideoLocked) return@run
+                            val st = clipStarts(curClips)
+                            val xa = xOfMs(st[si]); val xb = xOfMs(st[si] + curClips[si].lengthMs)
+                            if (xb - xa < 64.dp.toPx()) return@run
+                            val c = androidx.compose.ui.geometry.Offset((max(xa, leftPad) + min(xb, size.width.toFloat())) / 2f, curClipTop + 15.dp.toPx())
+                            if ((down.position - c).getDistance() > 20.dp.toPx()) return@run
+                            down.consume()
+                            var up: androidx.compose.ui.input.pointer.PointerInputChange? = null
+                            do { val ev = awaitPointerEvent(); ev.changes.forEach { it.consume() }; if (ev.changes.none { it.pressed }) up = ev.changes.first() } while (up == null)
+                            if ((up!!.position - c).getDistance() < 30.dp.toPx()) del(si)
+                            return@awaitEachGesture
+                        }
                         run {
                             val y = down.position.y; val x = down.position.x
                             // V1: the start / end edge of a clip.
@@ -336,7 +356,8 @@ fun TimelineView(
                                     val ev = awaitPointerEvent()
                                     val c = ev.changes.first()
                                     val dSrc = ((c.position.x - down.position.x) / pxPerSec * 1000f * sp).toLong()
-                                    if (clipEdge < 0) curClipTrim(idx, (c0.startMs + dSrc).coerceIn(0, (c0.endMs - minSrc).coerceAtLeast(0)).coerceAtMost(c0.startMs.coerceAtLeast(c0.endMs - minSrc)), c0.endMs)
+                                    // A clip already shorter than the minimum (e.g. a tiny piece left by a split) can be lengthened, never shortened further.
+                                    if (clipEdge < 0) curClipTrim(idx, (c0.startMs + dSrc).coerceIn(0, maxOf(c0.endMs - minSrc, c0.startMs, 0)), c0.endMs)
                                     else curClipTrim(idx, c0.startMs, (c0.endMs + dSrc).coerceIn(minOf(c0.startMs + minSrc, c0.endMs), maxOf(c0.durationMs, c0.endMs)))
                                     ev.changes.forEach { it.consume() }
                                 } while (ev.changes.any { it.pressed })
@@ -609,6 +630,18 @@ fun TimelineView(
                     val x0 = xOf(starts[i]); val x1 = xOf(starts[i] + c.lengthMs)
                     if (x1 < 0 || x0 > size.width) return@forEachIndexed
                     trimHandles(x0, x1, top, clipRow * 0.55f, i == editingClip || i == selectedClip, accent)
+                    // Bin on the selected clip (tap to delete).
+                    if (i == selectedClip && onDeleteClip != null && x1 - x0 >= 64.dp.toPx()) {
+                        val bc = Offset((max(x0, leftPad) + min(x1, size.width)) / 2f, top + 15.dp.toPx())
+                        drawCircle(Color.Black.copy(alpha = 0.55f), 13.dp.toPx(), bc)
+                        drawCircle(Color(0xFFE5484D), 11.dp.toPx(), bc)
+                        val u = 1.dp.toPx(); val wcol = Color.White
+                        drawRect(wcol, Offset(bc.x - 5 * u, bc.y - 4 * u), Size(10 * u, 1.6f * u))           // lid
+                        drawRect(wcol, Offset(bc.x - 2 * u, bc.y - 5.6f * u), Size(4 * u, 1.6f * u))         // handle
+                        drawRoundRect(wcol, Offset(bc.x - 4 * u, bc.y - 2 * u), Size(8 * u, 7.5f * u), CornerRadius(1.2f * u), style = Stroke(1.5f * u))
+                        drawLine(wcol, Offset(bc.x - 1.4f * u, bc.y - 0.5f * u), Offset(bc.x - 1.4f * u, bc.y + 4 * u), 1.2f * u)
+                        drawLine(wcol, Offset(bc.x + 1.4f * u, bc.y - 0.5f * u), Offset(bc.x + 1.4f * u, bc.y + 4 * u), 1.2f * u)
+                    }
                     // Clip keyframes as diamonds along the top of the clip.
                     c.reframe.keys?.forEach { k ->
                         val kx = xOf(starts[i] + c.tlOffsetOf(c.startMs + k.t))

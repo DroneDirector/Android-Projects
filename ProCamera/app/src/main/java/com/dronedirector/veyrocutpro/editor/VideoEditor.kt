@@ -2104,6 +2104,52 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             message = "Clip ${i + 1} matched to clip ${ref + 1} — fine-tune in Primaries; undo brings the old grade back"
         }
     }
+    // ---- Deleting a clip (bin on the selected clip, or Delete in the clip tools): close the gap or leave one.
+    var deleteAsk by remember { mutableStateOf<Int?>(null) }
+    fun deleteClip(i: Int, leaveGap: Boolean) {
+        if (videoLocked) { message = "The video track is locked"; return }
+        if (i !in clips.indices) return
+        val c = clips[i]
+        if (!leaveGap) {
+            clips.removeAt(i)
+            selected = selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
+            current = current.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
+            if (clips.isNotEmpty()) load(current, 0, false)
+            message = "Clip deleted — undo brings it back"
+            return
+        }
+        // Leave a gap: the clip becomes black of the same length, so everything after it stays in place.
+        val len = c.lengthMs
+        val fps = if (deliver.fps > 0) deliver.fps else 30
+        val w = (c.width.takeIf { it > 0 } ?: 1920).coerceAtMost(1920); val h = (c.height.takeIf { it > 0 } ?: 1080).coerceAtMost(1920)
+        message = "Making the gap…"
+        Generators.make(context, GenSpec(GenKind.BLACK, seconds = ((len + 999) / 1000).toInt().coerceAtLeast(1), width = w, height = h, fps = fps), onProgress = {}) { uri, err ->
+            if (uri == null) { message = err ?: "Couldn't make the gap"; return@make }
+            layerScope.launch {
+                val nc = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }
+                val at = clips.indexOfFirst { it.id == c.id }
+                if (nc == null || at < 0) { message = "Couldn't make the gap"; return@launch }
+                clips[at] = nc.copy(name = "Gap", startMs = 0L, endMs = len.coerceAtMost(nc.durationMs.takeIf { it > 0 } ?: len))
+                if (current == at) load(at, 0, false)
+                message = "Clip deleted, gap left — undo brings it back"
+            }
+        }
+    }
+    deleteAsk?.let { di ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { deleteAsk = null },
+            containerColor = Pro.PanelSolid,
+            title = { Text("Delete clip ${di + 1}?", color = Color.White) },
+            text = { Text("Close the gap: the clips after it move left. Leave a gap: black of the same length takes its place, so everything after it stays where it is.", color = Pro.Dim, fontSize = 13.sp) },
+            confirmButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("LEAVE GAP", style = Pro.Label.copy(color = Color.White), modifier = Modifier.clickable { deleteAsk = null; deleteClip(di, leaveGap = true) }.padding(10.dp))
+                    Text("CLOSE GAP", style = Pro.Label.copy(color = Pro.Red), modifier = Modifier.clickable { deleteAsk = null; deleteClip(di, leaveGap = false) }.padding(10.dp))
+                }
+            },
+            dismissButton = { Text("CANCEL", style = Pro.Label.copy(color = Pro.Dim), modifier = Modifier.clickable { deleteAsk = null }.padding(10.dp)) },
+        )
+    }
     // ---- Generators (Media → GENERATORS)
     var genBusy by remember { mutableStateOf<Int?>(null) }
     var genCancel by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -2969,6 +3015,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
 
             val timeline = @Composable {
                 TimelineView(
+                    onDeleteClip = { i -> if (videoLocked) message = "The video track is locked" else deleteAsk = i },
                     clips = clips, layers = layers, music = music, strips = strips,
                     globalMs = globalMs, selectedClip = selected,
                     selectedLayerId = if (page == Page.LAYERS) selectedLayer else null,
@@ -3246,9 +3293,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onDuplicate = { if (videoLocked) message = "The video track is locked" else clips.add(selected + 1, sc.copy(id = java.util.UUID.randomUUID().toString())) },
                                 onDelete = {
                                     if (videoLocked) { message = "The video track is locked"; return@EditPage }
-                                    clips.removeAt(selected)
-                                    selected = selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
-
+                                    deleteAsk = selected
                                 },
                                 onMove = { dir ->
                                     if (videoLocked) { message = "The video track is locked"; return@EditPage }

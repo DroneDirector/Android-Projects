@@ -4,6 +4,8 @@ import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
 import android.content.Context
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import org.json.JSONObject
 import java.io.File
 import java.nio.ByteBuffer
@@ -31,6 +33,41 @@ object Voiceover {
     @Volatile var failed: String? = null; private set
 
     fun voiceFile(context: Context, v: Voice) = ModelStore.file(context, "kokoro_${v.id}.bin")
+
+    // ---- Voice preview: a short sample spoken when a voice is tapped (made once per voice, then instant).
+    private val samples = HashMap<String, FloatArray>()
+    private var player: android.media.AudioTrack? = null
+    var previewing by androidx.compose.runtime.mutableStateOf<String?>(null)
+
+    /** Speaks a short sample in [v] (downloads the voice the first time). Off the main thread. Returns an error or null. */
+    fun preview(context: Context, v: Voice, text: String?, stop: () -> Boolean): String? {
+        previewing = v.id
+        try {
+            val name = v.label.substringBefore(' ')
+            val line = text?.trim()?.takeIf { it.isNotEmpty() }?.let { t -> splitSentences(t).firstOrNull()?.take(120) } ?: "Hi, I'm $name. This is how I sound in your video."
+            val key = v.id + "|" + line
+            val a = samples[key] ?: run {
+                ensure(context, v, {}, stop)?.let { return it }
+                speak(context, line, v, 1f, {}, stop)?.also { if (samples.size > 24) samples.clear(); samples[key] = it }
+            } ?: return failed ?: "the voice couldn't be made"
+            if (stop()) return null
+            playPcm(a)
+            return null
+        } finally { previewing = null }
+    }
+
+    @Synchronized private fun playPcm(a: FloatArray) {
+        try { player?.stop(); player?.release() } catch (_: Throwable) {}
+        val pcm = ShortArray(a.size) { (a[it].coerceIn(-1f, 1f) * 32767f).toInt().toShort() }
+        val t = android.media.AudioTrack.Builder()
+            .setAudioAttributes(android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_MEDIA).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH).build())
+            .setAudioFormat(android.media.AudioFormat.Builder().setEncoding(android.media.AudioFormat.ENCODING_PCM_16BIT).setSampleRate(RATE).setChannelMask(android.media.AudioFormat.CHANNEL_OUT_MONO).build())
+            .setTransferMode(android.media.AudioTrack.MODE_STATIC).setBufferSizeInBytes(pcm.size * 2).build()
+        t.write(pcm, 0, pcm.size); t.play()
+        player = t
+    }
+
+    fun stopPreview() { try { player?.stop() } catch (_: Throwable) {} }
 
     /** Downloads the model, dictionaries and [v] (blocking). Null = ready. */
     fun ensure(context: Context, v: Voice, onProgress: (Int) -> Unit, cancelled: () -> Boolean): String? {

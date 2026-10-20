@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor, Audio → AI VOICEOVER FROM TEXT: **tap a voice to hear a sample**. It reads the first sentence of your text, or a short hello if the text box is empty. The first sample of each voice takes a moment, because the voice is downloaded; after that it plays straight away.
 - Video editor: the media strip is now the first tab of the tools panel on **both phones and tablets, in any rotation**. With the tools panel hidden it sits above the timeline, and external monitors keep their own layouts.
 
 ## 1.0.367 — 2026-10-20

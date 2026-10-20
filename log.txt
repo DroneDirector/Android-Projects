@@ -1,0 +1,142 @@
++ TAG=ai-models-v1
++ H=https://huggingface.co
++ mkdir -p m
++ cd m
++ get https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/main/onnx/model.onnx depth_anything_v2_small.onnx
++ curl -fsSL --retry 3 -o depth_anything_v2_small.onnx https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/main/onnx/model.onnx
++ ls -la depth_anything_v2_small.onnx
+-rw-r--r-- 1 runner runner 99060839 Oct 20 04:41 depth_anything_v2_small.onnx
++ get https://huggingface.co/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx lama_fp32.onnx
++ curl -fsSL --retry 3 -o lama_fp32.onnx https://huggingface.co/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx
++ ls -la lama_fp32.onnx
+-rw-r--r-- 1 runner runner 208044816 Oct 20 04:41 lama_fp32.onnx
++ get https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/onnx/model_quantized.onnx kokoro_v1_q8.onnx
++ curl -fsSL --retry 3 -o kokoro_v1_q8.onnx https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/onnx/model_quantized.onnx
++ ls -la kokoro_v1_q8.onnx
+-rw-r--r-- 1 runner runner 92361116 Oct 20 04:41 kokoro_v1_q8.onnx
++ get https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/tokenizer.json kokoro_tokenizer.json
++ curl -fsSL --retry 3 -o kokoro_tokenizer.json https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/tokenizer.json
++ ls -la kokoro_tokenizer.json
+-rw-r--r-- 1 runner runner 3497 Oct 20 04:41 kokoro_tokenizer.json
++ cp kokoro_tokenizer.json ../out/
++ for v in af_heart af_bella af_nicole af_sarah am_michael am_fenrir am_puck bf_emma bf_isabella bm_george bm_fable bm_lewis
++ get https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/af_heart.bin kokoro_af_heart.bin
++ curl -fsSL --retry 3 -o kokoro_af_heart.bin https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/af_heart.bin
++ ls -la kokoro_af_heart.bin
+-rw-r--r-- 1 runner runner 522240 Oct 20 04:42 kokoro_af_heart.bin
++ for v in af_heart af_bella af_nicole af_sarah am_michael am_fenrir am_puck bf_emma bf_isabella bm_george bm_fable bm_lewis
++ get https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/af_bella.bin kokoro_af_bella.bin
++ curl -fsSL --retry 3 -o kokoro_af_bella.bin https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/af_bella.bin
++ ls -la kokoro_af_bella.bin
+-rw-r--r-- 1 runner runner 522240 Oct 20 04:42 kokoro_af_bella.bin
++ for v in af_heart af_bella af_nicole af_sarah am_michael am_fenrir am_puck bf_emma bf_isabella bm_george bm_fable bm_lewis
++ get https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/af_nicole.bin kokoro_af_nicole.bin
++ curl -fsSL --retry 3 -o kokoro_af_nicole.bin https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/af_nicole.bin
++ ls -la kokoro_af_nicole.bin
+-rw-r--r-- 1 runner runner 522240 Oct 20 04:42 kokoro_af_nicole.bin
++ for v in af_heart af_bella af_nicole af_sarah am_michael am_fenrir am_puck bf_emma bf_isabella bm_george bm_fable bm_lewis
++ get https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/af_sarah.bin kokoro_af_sarah.bin
++ curl -fsSL --retry 3 -o kokoro_af_sarah.bin https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/af_sarah.bin
++ ls -la kokoro_af_sarah.bin
+-rw-r--r-- 1 runner runner 522240 Oct 20 04:42 kokoro_af_sarah.bin
++ for v in af_heart af_bella af_nicole af_sarah am_michael am_fenrir am_puck bf_emma bf_isabella bm_george bm_fable bm_lewis
++ get https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/am_michael.bin kokoro_am_michael.bin
++ curl -fsSL --retry 3 -o kokoro_am_michael.bin https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/am_michael.bin
++ ls -la kokoro_am_michael.bin
+-rw-r--r-- 1 runner runner 522240 Oct 20 04:42 kokoro_am_michael.bin
++ for v in af_heart af_bella af_nicole af_sarah am_michael am_fenrir am_puck bf_emma bf_isabella bm_george bm_fable bm_lewis
++ get https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/am_fenrir.bin kokoro_am_fenrir.bin
++ curl -fsSL --retry 3 -o kokoro_am_fenrir.bin https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/am_fenrir.bin
++ ls -la kokoro_am_fenrir.bin
+-rw-r--r-- 1 runner runner 522240 Oct 20 04:42 kokoro_am_fenrir.bin
++ for v in af_heart af_bella af_nicole af_sarah am_michael am_fenrir am_puck bf_emma bf_isabella bm_george bm_fable bm_lewis
++ get https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/am_puck.bin kokoro_am_puck.bin
++ curl -fsSL --retry 3 -o kokoro_am_puck.bin https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/am_puck.bin
++ ls -la kokoro_am_puck.bin
+-rw-r--r-- 1 runner runner 522240 Oct 20 04:42 kokoro_am_puck.bin
++ for v in af_heart af_bella af_nicole af_sarah am_michael am_fenrir am_puck bf_emma bf_isabella bm_george bm_fable bm_lewis
++ get https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/bf_emma.bin kokoro_bf_emma.bin
++ curl -fsSL --retry 3 -o kokoro_bf_emma.bin https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/bf_emma.bin
++ ls -la kokoro_bf_emma.bin
+-rw-r--r-- 1 runner runner 522240 Oct 20 04:42 kokoro_bf_emma.bin
++ for v in af_heart af_bella af_nicole af_sarah am_michael am_fenrir am_puck bf_emma bf_isabella bm_george bm_fable bm_lewis
++ get https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/bf_isabella.bin kokoro_bf_isabella.bin
++ curl -fsSL --retry 3 -o kokoro_bf_isabella.bin https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/bf_isabella.bin
++ ls -la kokoro_bf_isabella.bin
+-rw-r--r-- 1 runner runner 522240 Oct 20 04:42 kokoro_bf_isabella.bin
++ for v in af_heart af_bella af_nicole af_sarah am_michael am_fenrir am_puck bf_emma bf_isabella bm_george bm_fable bm_lewis
++ get https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/bm_george.bin kokoro_bm_george.bin
++ curl -fsSL --retry 3 -o kokoro_bm_george.bin https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/bm_george.bin
++ ls -la kokoro_bm_george.bin
+-rw-r--r-- 1 runner runner 522240 Oct 20 04:42 kokoro_bm_george.bin
++ for v in af_heart af_bella af_nicole af_sarah am_michael am_fenrir am_puck bf_emma bf_isabella bm_george bm_fable bm_lewis
++ get https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/bm_fable.bin kokoro_bm_fable.bin
++ curl -fsSL --retry 3 -o kokoro_bm_fable.bin https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/bm_fable.bin
++ ls -la kokoro_bm_fable.bin
+-rw-r--r-- 1 runner runner 522240 Oct 20 04:42 kokoro_bm_fable.bin
++ for v in af_heart af_bella af_nicole af_sarah am_michael am_fenrir am_puck bf_emma bf_isabella bm_george bm_fable bm_lewis
++ get https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/bm_lewis.bin kokoro_bm_lewis.bin
++ curl -fsSL --retry 3 -o kokoro_bm_lewis.bin https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/bm_lewis.bin
++ ls -la kokoro_bm_lewis.bin
+-rw-r--r-- 1 runner runner 522240 Oct 20 04:42 kokoro_bm_lewis.bin
++ for f in us_gold us_silver gb_gold gb_silver
++ get https://raw.githubusercontent.com/hexgrad/misaki/main/misaki/data/us_gold.json misaki_us_gold.json
++ curl -fsSL --retry 3 -o misaki_us_gold.json https://raw.githubusercontent.com/hexgrad/misaki/main/misaki/data/us_gold.json
++ ls -la misaki_us_gold.json
+-rw-r--r-- 1 runner runner 3000469 Oct 20 04:42 misaki_us_gold.json
++ for f in us_gold us_silver gb_gold gb_silver
++ get https://raw.githubusercontent.com/hexgrad/misaki/main/misaki/data/us_silver.json misaki_us_silver.json
++ curl -fsSL --retry 3 -o misaki_us_silver.json https://raw.githubusercontent.com/hexgrad/misaki/main/misaki/data/us_silver.json
++ ls -la misaki_us_silver.json
+-rw-r--r-- 1 runner runner 3099517 Oct 20 04:42 misaki_us_silver.json
++ for f in us_gold us_silver gb_gold gb_silver
++ get https://raw.githubusercontent.com/hexgrad/misaki/main/misaki/data/gb_gold.json misaki_gb_gold.json
++ curl -fsSL --retry 3 -o misaki_gb_gold.json https://raw.githubusercontent.com/hexgrad/misaki/main/misaki/data/gb_gold.json
++ ls -la misaki_gb_gold.json
+-rw-r--r-- 1 runner runner 2838552 Oct 20 04:42 misaki_gb_gold.json
++ for f in us_gold us_silver gb_gold gb_silver
++ get https://raw.githubusercontent.com/hexgrad/misaki/main/misaki/data/gb_silver.json misaki_gb_silver.json
++ curl -fsSL --retry 3 -o misaki_gb_silver.json https://raw.githubusercontent.com/hexgrad/misaki/main/misaki/data/gb_silver.json
++ ls -la misaki_gb_silver.json
+-rw-r--r-- 1 runner runner 3663898 Oct 20 04:42 misaki_gb_silver.json
++ get https://raw.githubusercontent.com/hexgrad/misaki/main/LICENSE misaki_LICENSE.txt
++ curl -fsSL --retry 3 -o misaki_LICENSE.txt https://raw.githubusercontent.com/hexgrad/misaki/main/LICENSE
++ ls -la misaki_LICENSE.txt
+-rw-r--r-- 1 runner runner 11357 Oct 20 04:42 misaki_LICENSE.txt
++ get https://huggingface.co/hexgrad/Kokoro-82M/raw/main/README.md kokoro_README.md
++ curl -fsSL --retry 3 -o kokoro_README.md https://huggingface.co/hexgrad/Kokoro-82M/raw/main/README.md
++ ls -la kokoro_README.md
+-rw-r--r-- 1 runner runner 6348 Oct 20 04:42 kokoro_README.md
++ cp kokoro_README.md ../out/
++ head -c 3000 misaki_us_gold.json
++ sha256sum depth_anything_v2_small.onnx kokoro_README.md kokoro_af_bella.bin kokoro_af_heart.bin kokoro_af_nicole.bin kokoro_af_sarah.bin kokoro_am_fenrir.bin kokoro_am_michael.bin kokoro_am_puck.bin kokoro_bf_emma.bin kokoro_bf_isabella.bin kokoro_bm_fable.bin kokoro_bm_george.bin kokoro_bm_lewis.bin kokoro_tokenizer.json kokoro_v1_q8.onnx lama_fp32.onnx misaki_LICENSE.txt misaki_gb_gold.json misaki_gb_silver.json misaki_us_gold.json misaki_us_silver.json
++ cp SHA256SUMS.txt ../out/
++ gh release view ai-models-v1 -R DroneDirector/Android-Projects
++ gh release create ai-models-v1 -R DroneDirector/Android-Projects --title 'AI models (downloaded by the app on first use)' --notes 'Model files the app downloads when a feature is first used. Not an app release.' --prerelease --latest=false
+https://github.com/DroneDirector/Android-Projects/releases/tag/ai-models-v1
++ gh release upload ai-models-v1 SHA256SUMS.txt depth_anything_v2_small.onnx kokoro_README.md kokoro_af_bella.bin kokoro_af_heart.bin kokoro_af_nicole.bin kokoro_af_sarah.bin kokoro_am_fenrir.bin kokoro_am_michael.bin kokoro_am_puck.bin kokoro_bf_emma.bin kokoro_bf_isabella.bin kokoro_bm_fable.bin kokoro_bm_george.bin kokoro_bm_lewis.bin kokoro_tokenizer.json kokoro_v1_q8.onnx lama_fp32.onnx misaki_LICENSE.txt misaki_gb_gold.json misaki_gb_silver.json misaki_us_gold.json misaki_us_silver.json -R DroneDirector/Android-Projects --clobber
++ gh release view ai-models-v1 -R DroneDirector/Android-Projects --json assets --jq '.assets[] | "\(.name) \(.size)"'
++ tee ../out/assets.txt
+depth_anything_v2_small.onnx 99060839
+kokoro_af_bella.bin 522240
+kokoro_af_heart.bin 522240
+kokoro_af_nicole.bin 522240
+kokoro_af_sarah.bin 522240
+kokoro_am_fenrir.bin 522240
+kokoro_am_michael.bin 522240
+kokoro_am_puck.bin 522240
+kokoro_bf_emma.bin 522240
+kokoro_bf_isabella.bin 522240
+kokoro_bm_fable.bin 522240
+kokoro_bm_george.bin 522240
+kokoro_bm_lewis.bin 522240
+kokoro_README.md 6348
+kokoro_tokenizer.json 3497
+kokoro_v1_q8.onnx 92361116
+lama_fp32.onnx 208044816
+misaki_gb_gold.json 2838552
+misaki_gb_silver.json 3663898
+misaki_LICENSE.txt 11357
+misaki_us_gold.json 3000469
+misaki_us_silver.json 3099517
+SHA256SUMS.txt 1902

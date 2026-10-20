@@ -376,6 +376,11 @@ object PhotoLocal {
     fun weights(m: PhotoMask, w: Int, h: Int, aiMask: Bitmap? = null, px: IntArray? = null): FloatArray {
         val out = FloatArray(w * h)
         when (m.type) {
+            MaskType.PEN -> {
+                val b = PenMask.raster(m, 0L, w, h)
+                val px2 = IntArray(w * h); b.getPixels(px2, 0, w, 0, 0, w, h); b.recycle()
+                for (i in px2.indices) out[i] = ((px2[i] shr 16) and 255) / 255f
+            }
             MaskType.LINEAR -> {
                 val ax = m.x0 * w; val ay = m.y0 * h; val bx = m.x1 * w; val by = m.y1 * h
                 val dx = bx - ax; val dy = by - ay

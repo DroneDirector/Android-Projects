@@ -517,12 +517,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             layers.add(l); selectedLayer = l.id
         }
     }
+    val addAtMs = remember { longArrayOf(0L) }
     val pickLottie = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) layerScope.launch {
             val u = withContext(Dispatchers.IO) { LottieRender.import(context, uri) }
             if (u == null) { message = "That isn't a Lottie animation (.json or .zip)"; return@launch }
             val dur = LottieRender.durationMs(context, Layer(kind = LayerKind.LOTTIE, imageUri = u))
-            val l = Layer(kind = LayerKind.LOTTIE, text = "Animation", imageUri = u, size = 0.35f, startMs = globalMs, endMs = globalMs + dur.coerceIn(1000L, 10_000L), shadow = false)
+            val l = Layer(kind = LayerKind.LOTTIE, text = "Animation", imageUri = u, size = 0.35f, startMs = addAtMs[0], endMs = addAtMs[0] + dur.coerceIn(1000L, 10_000L), shadow = false)
             layers.add(l); selectedLayer = l.id
             message = "Lottie animation added — it loops for the layer's length"
         }
@@ -1204,6 +1205,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val totalMs = timelineLength(clips)
     val beforeMs = clipStarts(clips).getOrNull(current) ?: 0L
     val globalMs = beforeMs + (cur?.tlOffsetOf(cur.startMs + posMs) ?: posMs)
+    addAtMs[0] = globalMs
     androidx.compose.runtime.SideEffect { adjNowMs = globalMs }
 
     fun seekGlobal(ms: Long) {

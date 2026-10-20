@@ -181,7 +181,7 @@ class PenMaskEffect(private val c: Clip, private val offsetMs: Long) : GlEffect 
 @OptIn(UnstableApi::class)
 private class PenMaskProgram(private val c: Clip, private val offsetMs: Long, useHdr: Boolean) : BaseGlShaderProgram(useHdr, 1) {
     private val masks = PenMask.active(c)
-    private val program = try { GlProgram(MaskGradeEffect.VERT, FRAG) } catch (e: GlUtil.GlException) { throw VideoFrameProcessingException(e) }
+    private val program = try { GlProgram(VERT, FRAG) } catch (e: GlUtil.GlException) { throw VideoFrameProcessingException(e) }
     private val lutTex = IntArray(3)
     private val maskTex = IntArray(3)
     private val tracked = masks.any { !it.ptrack.isNullOrEmpty() }
@@ -252,6 +252,14 @@ private class PenMaskProgram(private val c: Clip, private val offsetMs: Long, us
     }
 
     companion object {
+        const val VERT = """
+            attribute vec4 aFramePosition;
+            varying vec2 vTexSamplingCoord;
+            void main() {
+                gl_Position = aFramePosition;
+                vTexSamplingCoord = vec2(aFramePosition.x * 0.5 + 0.5, aFramePosition.y * 0.5 + 0.5);
+            }
+        """
         const val FRAG = """
             precision highp float;
             uniform sampler2D uTexSampler;

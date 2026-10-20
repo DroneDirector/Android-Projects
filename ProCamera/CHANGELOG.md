@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.369 — 2026-10-20
 - Video editor: the media strip is now the first tab of the tools panel on **both phones and tablets, in any rotation**. With the tools panel hidden it sits above the timeline, and external monitors keep their own layouts.
 
 ## 1.0.367 — 2026-10-20

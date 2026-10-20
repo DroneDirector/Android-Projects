@@ -5,6 +5,8 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 
 ## Unreleased
 
+## 1.0.338 — 2026-10-20
+
 ## 1.0.337 — 2026-10-20
 - After an app update, the first start quickly checks the download server for changed AI models or soundtracks and fetches only what changed (nothing, if nothing did).
 

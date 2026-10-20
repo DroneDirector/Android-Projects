@@ -1515,7 +1515,7 @@ private fun PhotoWorkspace(
             // Keyboard shortcuts (Bluetooth / USB keyboard, Samsung DeX).
             DisposableEffect(Unit) {
                 KeyBus.handler = handler@{ ev ->
-                    if (ev.action != android.view.KeyEvent.ACTION_DOWN || showLibrary || askName) return@handler false
+                    if (ev.action != android.view.KeyEvent.ACTION_DOWN || askName) return@handler false
                     val ctrl = ev.isCtrlPressed || ev.isMetaPressed
                     val shift = ev.isShiftPressed
                     val si = sessionIdx
@@ -1568,7 +1568,6 @@ private fun PhotoWorkspace(
                         }
                         k == android.view.KeyEvent.KEYCODE_ESCAPE -> { picking = 0; split = false; resetZoom(); true }
                         k == android.view.KeyEvent.KEYCODE_TAB -> { com.dronedirector.veyrocutpro.ui.Panels.set(context, "pe.controls", !showControls); true }
-                        k == android.view.KeyEvent.KEYCODE_G -> { showLibrary = true; true }
                         k == android.view.KeyEvent.KEYCODE_R -> open(PhotoPanel.CROP)
                         k == android.view.KeyEvent.KEYCODE_Q -> open(PhotoPanel.HEAL)
                         k == android.view.KeyEvent.KEYCODE_M -> open(PhotoPanel.MASKS)
@@ -2416,7 +2415,6 @@ val PHOTO_SHORTCUTS = listOf(
     "L / C / D" to "Light / Color / Detail",
     "R / Q / M" to "Crop / Heal / Masks",
     "E / H" to "Export / History",
-    "G" to "Library",
     "Tab" to "Hide / show the panels",
     "Esc" to "Cancel a pick, leave zoom and before / after",
     "Ctrl+Z / Ctrl+Shift+Z" to "Undo / redo",

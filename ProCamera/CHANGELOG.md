@@ -13,7 +13,7 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
   - Every mask now also has **Texture** (minus smooths skin) and **Clarity**.
 - Photo editor **keyboard shortcuts** (Bluetooth / USB keyboards, Samsung DeX):
   - ← → next photo, 0–5 stars, P / X / U flags, 6–9 colour labels, \ before / after, Z zoom.
-  - L / C / D / R / Q / M / E / H panels, G library.
+  - L / C / D / R / Q / M / E / H open the panels.
   - Ctrl+Z undo, Ctrl+C / Ctrl+V copy and paste the look, Ctrl+S save, Ctrl+E export.
   - Press ? or F1 for the list.
 - Photo editor, Export → OUTPUT → **Ultra HDR** (Android 14+): JPEGs whose bright parts (sky, lights, reflections) glow brighter on HDR screens, and look exactly as edited everywhere else. Choose Subtle, Standard or Strong.

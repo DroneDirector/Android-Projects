@@ -108,7 +108,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 **Keyboard (Bluetooth / USB keyboard, Samsung DeX)**
 - ← / → previous / next photo, Home / End first / last; 0–5 stars; 6 / 7 / 8 / 9 red / yellow / green / blue label; P pick, X reject, U unflag.
 - \ or Y before / after; Z zoom 1:1; J clipping warning; Tab hides the panels; Esc leaves zoom, before / after and picks.
-- L Light, C Color, D Detail, R Crop, Q Heal, M Masks, E Export, H History, G Library.
+- L Light, C Color, D Detail, R Crop, Q Heal, M Masks, E Export, H History.
 - Ctrl+Z / Ctrl+Shift+Z undo / redo; Ctrl+C / Ctrl+V copy / paste the look (Ctrl+Shift+V also crop and watermark); Ctrl+S save; Ctrl+E export. ? or F1 shows the list in the app.
 **Mouse**
 - Wheel over the photo = next / previous filmstrip photo, right-click = before / after split, double-click = hide or show the tools. Right-click a filmstrip thumbnail for stars, flags and labels.

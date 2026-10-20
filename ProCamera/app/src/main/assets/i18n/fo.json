@@ -2634,5 +2634,8 @@
 "Tap the middle of the first patch (brown)": "Trýst mitt á fyrsta puntið (brúnt)",
 "Tap the middle of the last patch (black)": "Trýst mitt á seinasta puntið (svart)",
 "Refine edge (hair)": "Fínstilla kant (hár)",
-"Makes the edge follow fine detail in the photo — hair, fur, leaves against the sky.": "Fær kantin at fylgja fínum smálutum á myndini — hár, feldi, bløð móti himli."
+"Makes the edge follow fine detail in the photo — hair, fur, leaves against the sky.": "Fær kantin at fylgja fínum smálutum á myndini — hár, feldi, bløð móti himli.",
+"AVIF: often half the size of JPEG at the same quality; opens on Android 12+, current browsers and most photo apps.": "AVIF: ofta helmingin so stór sum JPEG við somu góðsku; letur upp á Android 12+, í nýggjum kagum og flestum mynda-appum.",
+"AVIF needs an AV1 encoder — this phone doesn't have one (Android 14+ has it built in).": "AVIF krevur ein AV1-koðara — henda telefonin hevur ongan (Android 14+ hevur hann innbygdan).",
+"JPEG XL: high quality at small sizes, wide colour and HDR-ready; opens in newer photo software, Safari and on Apple devices. Few Android apps can show it yet.": "JPEG XL: høg góðska við lítlari stødd, víðir litir og klárt til HDR; letur upp í nýggjari myndaforritum, Safari og á Apple-tólum. Fá Android-appir kunnu vísa tað enn."
 }

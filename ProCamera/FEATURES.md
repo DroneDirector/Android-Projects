@@ -107,7 +107,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Pro develop**:
   - **Library**: all phone photos with stars, flags, colour labels, keywords, albums, smart albums, on-device AI content search, EXIF info, compare (2, linked zoom) and survey (up to 12) views, virtual copies, and multi-photo editing in the filmstrip.
   - **Upright** (Auto, Level, Vertical, Full), **dust spot** visualise and auto-heal, **panorama** projections (cylindrical / spherical / perspective), boundary warp and AI edge fill.
-  - **Export**: TIFF 16 / 8-bit, sRGB / Display P3 / Adobe RGB with embedded profile, output sharpening (screen / matte / glossy), file-name templates, export presets and a matte-print soft proof.
+  - **Export**: **AVIF** (phone's AV1 encoder, Android 14+) and **JPEG XL**, TIFF 16 / 8-bit, sRGB / Display P3 / Adobe RGB with embedded profile, output sharpening (screen / matte / glossy), file-name templates, export presets and a matte-print soft proof.
   - **Masks**: Object (AI) by tapping, Depth range (AI), and add / subtract / intersect combinations (colour, brightness, depth, subject, sky).
   - **Lens Blur** from AI depth: tap-to-focus, focus range, blur amount, bokeh shapes (circle, hexagon, octagon, ring, cat's eye) and bokeh boost.
   - **60 built-in presets** (Portrait, Landscape, B&W, Film, Cinematic, Vintage, Urban, Food, Travel, Moody) with live thumbnails and an **Amount** slider.

@@ -2580,5 +2580,8 @@
 "Tap the middle of the first patch (brown)": "Tryk midt på det første felt (brunt)",
 "Tap the middle of the last patch (black)": "Tryk midt på det sidste felt (sort)",
 "Refine edge (hair)": "Forfin kant (hår)",
-"Makes the edge follow fine detail in the photo — hair, fur, leaves against the sky.": "Får kanten til at følge fine detaljer i fotoet — hår, pels, blade mod himlen."
+"Makes the edge follow fine detail in the photo — hair, fur, leaves against the sky.": "Får kanten til at følge fine detaljer i fotoet — hår, pels, blade mod himlen.",
+"AVIF: often half the size of JPEG at the same quality; opens on Android 12+, current browsers and most photo apps.": "AVIF: ofte halvt så stor som JPEG ved samme kvalitet; åbner på Android 12+, i nye browsere og de fleste foto-apps.",
+"AVIF needs an AV1 encoder — this phone doesn't have one (Android 14+ has it built in).": "AVIF kræver en AV1-encoder — denne telefon har ingen (Android 14+ har den indbygget).",
+"JPEG XL: high quality at small sizes, wide colour and HDR-ready; opens in newer photo software, Safari and on Apple devices. Few Android apps can show it yet.": "JPEG XL: høj kvalitet ved små størrelser, brede farver og klar til HDR; åbner i nyere fotoprogrammer, Safari og på Apple-enheder. Få Android-apps kan vise det endnu."
 }

@@ -2141,7 +2141,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     var sourceClip by remember { mutableStateOf<Clip?>(null) }
     // Where the timeline is on screen (window coordinates), for dropping clips dragged with the mouse.
     var tlBounds by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
-    val tlLeftPad = with(androidx.compose.ui.platform.LocalDensity.current) { 56.dp.toPx() }
+    val tlLeftPad = with(androidx.compose.ui.platform.LocalDensity.current) { 50.dp.toPx() }
     /** Puts [src] on the timeline at the clip boundary nearest the time under the pointer. */
     fun dropAt(src: Clip, windowX: Float) {
         if (videoLocked) { message = "The video track is locked — tap its lock on the timeline to unlock"; return }

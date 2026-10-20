@@ -56,6 +56,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
@@ -158,7 +159,7 @@ fun TimelineView(
     val headMs = if (dragging) dragMs else globalMs
     // Track header column on the left (mute / show and lock per row); the edit starts right after it.
     val headerW = with(density) { 50.dp.toPx() }
-    val leftPad = headerW + with(density) { 6.dp.toPx() }
+    val leftPad = headerW   // clips start right at the track headers
     val totalNow by rememberUpdatedState(totalMs)
     val minPx = { viewportW * 0.9f / (totalNow / 1000f) }
 
@@ -556,7 +557,7 @@ fun TimelineView(
         ) {
             val w = constraints.maxWidth.toFloat()
             LaunchedEffect(w) { viewportW = w }
-            Canvas(Modifier.matchParentSize()) {
+            Canvas(Modifier.matchParentSize().clipToBounds()) {
                 val scroll = zoom.scrollMs
                 val pxPerMs = pxPerSec / 1000f
                 fun xOf(ms: Long) = leftPad + (ms - scroll) * pxPerMs
@@ -576,221 +577,224 @@ fun TimelineView(
                     t += step
                 }
 
-                // V1 clips
-                val top = clipTop
-                clips.forEachIndexed { i, c ->
-                    val x0 = xOf(starts[i]); val x1 = xOf(starts[i] + c.lengthMs)
-                    if (x1 < 0 || x0 > size.width) return@forEachIndexed
-                    val rectW = (x1 - x0).coerceAtLeast(2f)
-                    drawRoundRect(Ed.Raised, Offset(x0, top), Size(rectW, clipRow), CornerRadius(6f))
-                    // Filmstrip
-                    val strip = strips[c.uri.toString()]
-                    if (strip != null) {
-                        val tileW = clipRow * (if (c.height > 0) (c.width.toFloat() / c.height).coerceIn(0.5f, 2f) else 1.6f)
-                        clipRect(max(x0, 0f), top, min(x1, size.width), top + clipRow) {
-                            var tx = x0
-                            while (tx < x1) {
-                                if (tx + tileW >= 0 && tx <= size.width) {
-                                    val timelineOffset = ((tx - x0) / pxPerMs).toLong()
-                                    val src = c.srcAtOffset(timelineOffset)
-                                    strip.frameAt(src)?.let { bmp ->
-                                        drawImage(
-                                            bmp.asImageBitmap(),
-                                            dstOffset = IntOffset(tx.roundToInt(), top.roundToInt()),
-                                            dstSize = IntSize(tileW.roundToInt(), clipRow.roundToInt()),
-                                        )
-                                    }
-                                }
-                                tx += tileW
-                            }
-                        }
-                    }
-                    // The clip's own sound as a waveform along the bottom edge.
-                    waves[c.uri.toString()]?.let { pk ->
-                        val wh = clipRow * 0.32f
-                        val base = top + clipRow - 1f
-                        drawRect(Color.Black.copy(alpha = 0.35f), Offset(max(x0, 0f), base - wh), Size(min(x1, size.width) - max(x0, 0f), wh))
-                        var wx = max(x0, 0f) + 1f
-                        val col = if (c.muted || videoMuted) Color.White.copy(alpha = 0.25f) else Color(0xFF7FE0A8).copy(alpha = 0.85f)
-                        while (wx < min(x1, size.width)) {
-                            val src = c.srcAtOffset(((wx - x0) / pxPerMs).toLong())
-                            val h = wh * peakAt(pk, src, (3f / pxPerMs * c.speed).toLong())
-                            drawLine(col, Offset(wx, base), Offset(wx, base - h), 2f)
-                            wx += 3f
-                        }
-                    }
-                    val sel = i == selectedClip
-                    // Colour label: a stripe along the top of the clip.
-                    c.label?.let { lc -> drawRect(Color(lc), Offset(max(x0, 0f), top), Size((min(x1, size.width) - max(x0, 0f)).coerceAtLeast(0f), 5.dp.toPx())) }
-                    drawRoundRect(if (sel) accent else Color.White.copy(alpha = 0.35f), Offset(x0, top), Size(rectW, clipRow), CornerRadius(6f), style = Stroke(if (sel) 4f else 1.5f))
-                    // Label
-                    if (rectW > 50f) {
-                        drawRect(Color.Black.copy(alpha = 0.55f), Offset(max(x0, 0f) + 2f, top + clipRow - 16.dp.toPx()), Size(min(rectW - 4f, 220.dp.toPx()), 14.dp.toPx()))
-                        textPaint.textSize = 9.sp.toPx()
-                        val label = "${i + 1} ${c.name}" + (if (c.ramp != null) "  ⤳${c.rampName ?: "ramp"}" else if (c.speed != 1f) "  ${c.speed}x" else "") + (if (!c.grade.isIdentity || !c.detail.isZero) "  ●" else "")
-                        drawContext.canvas.nativeCanvas.drawText(label.take(40), max(x0, 0f) + 5f, top + clipRow - 5.dp.toPx(), textPaint)
-                    }
-                }
-
-                if (videoLocked) clips.forEachIndexed { i, c -> lockHatch(xOf(starts[i]), xOf(starts[i] + c.lengthMs), top, clipRow) }
-                else clips.forEachIndexed { i, c ->
-                    val x0 = xOf(starts[i]); val x1 = xOf(starts[i] + c.lengthMs)
-                    if (x1 < 0 || x0 > size.width) return@forEachIndexed
-                    trimHandles(x0, x1, top, clipRow * 0.55f, i == editingClip || i == selectedClip, accent)
-                    // Bin on the selected clip (tap to delete).
-                    if (i == selectedClip && onDeleteClip != null && x1 - x0 >= 64.dp.toPx()) {
-                        val bc = Offset((max(x0, leftPad) + min(x1, size.width)) / 2f, top + 15.dp.toPx())
-                        drawCircle(Color.Black.copy(alpha = 0.55f), 13.dp.toPx(), bc)
-                        drawCircle(Color(0xFFE5484D), 11.dp.toPx(), bc)
-                        val u = 1.dp.toPx(); val wcol = Color.White
-                        drawRect(wcol, Offset(bc.x - 5 * u, bc.y - 4 * u), Size(10 * u, 1.6f * u))           // lid
-                        drawRect(wcol, Offset(bc.x - 2 * u, bc.y - 5.6f * u), Size(4 * u, 1.6f * u))         // handle
-                        drawRoundRect(wcol, Offset(bc.x - 4 * u, bc.y - 2 * u), Size(8 * u, 7.5f * u), CornerRadius(1.2f * u), style = Stroke(1.5f * u))
-                        drawLine(wcol, Offset(bc.x - 1.4f * u, bc.y - 0.5f * u), Offset(bc.x - 1.4f * u, bc.y + 4 * u), 1.2f * u)
-                        drawLine(wcol, Offset(bc.x + 1.4f * u, bc.y - 0.5f * u), Offset(bc.x + 1.4f * u, bc.y + 4 * u), 1.2f * u)
-                    }
-                    // Clip keyframes as diamonds along the top of the clip.
-                    c.reframe.keys?.forEach { k ->
-                        val kx = xOf(starts[i] + c.tlOffsetOf(c.startMs + k.t))
-                        if (kx < x0 - 1f || kx > x1 + 1f) return@forEach
-                        val cy = top + 8.dp.toPx(); val rr = 5.dp.toPx()
-                        val d = androidx.compose.ui.graphics.Path().apply { moveTo(kx, cy - rr); lineTo(kx + rr, cy); lineTo(kx, cy + rr); lineTo(kx - rr, cy); close() }
-                        drawPath(d, Color.Black.copy(alpha = 0.55f), style = Stroke(4f)); drawPath(d, Color.White); drawPath(d, accent, style = Stroke(2f))
-                    }
-                    if (i == editingClip) lengthTag(x0, x1, top + 2f + 17.dp.toPx(), c.lengthMs, textPaint, accent)
-                }
-
-                // Transitions: a marker on every cut (tap to choose one).
-                for (i in 0 until clips.size - 1) {
-                    val ov = overlapMs(clips, i)
-                    val xs = xOf(starts[i + 1]); val xe = xOf(starts[i + 1] + ov)
-                    if (xe < -30 || xs > size.width + 30) continue
-                    val mh = clipRow * 0.4f
-                    val my = top + clipRow - mh - 2f
-                    if (ov > 0) {
-                        drawRoundRect(accent.copy(alpha = 0.85f), Offset(xs, my), Size((xe - xs).coerceAtLeast(10f), mh), CornerRadius(5f))
-                        // bow-tie
-                        val cx = (xs + xe) / 2f; val cy = my + mh / 2f; val r = mh * 0.32f
-                        val path = androidx.compose.ui.graphics.Path().apply {
-                            moveTo(cx - r, cy - r); lineTo(cx + r, cy + r); lineTo(cx + r, cy - r); lineTo(cx - r, cy + r); close()
-                        }
-                        drawPath(path, Color.Black.copy(alpha = 0.75f))
-                        if (xe - xs > 70f) {
-                            textPaint.textSize = 8.sp.toPx()
-                            textPaint.color = android.graphics.Color.BLACK
-                            drawContext.canvas.nativeCanvas.drawText(clips[i].transition.type.label.take(14), xs + 4f, my - 3f + mh, textPaint)
-                            textPaint.color = android.graphics.Color.WHITE
-                        }
-                    } else {
-                        drawCircle(Color.White.copy(alpha = 0.6f), mh * 0.3f, Offset(xs, my + mh / 2f))
-                        drawCircle(Color.Black.copy(alpha = 0.6f), mh * 0.3f, Offset(xs, my + mh / 2f), style = Stroke(2f))
-                    }
-                }
-
-                // Layer tracks (each at its own row: above or below V1)
-                var rowTop: Float
-                for (l in shownLayers) {
-                    rowTop = layerTops[l.id] ?: continue
-                    val s = if (l.wholeVideo) 0L else l.startMs
-                    val e = if (l.wholeVideo) totalMs else l.endMs
-                    val x0 = xOf(s); val x1 = xOf(e)
-                    val col = when (l.kind) {
-                        LayerKind.VIDEO -> Color(0xFF3D7BFF)
-                        LayerKind.IMAGE, LayerKind.LOGO -> Color(0xFF8E5CFF)
-                        LayerKind.STICKER -> Color(0xFFFF7EB6)
-                        LayerKind.WATERMARK -> Color(0xFF7A8899)
-                        LayerKind.TEXT -> Color(0xFF2EBD8F)
-                        LayerKind.ADJUST -> Color(0xFFFFB300)
-                        LayerKind.SHAPE -> Color(0xFFFF9500)
-                        LayerKind.LOTTIE -> Color(0xFF00C7BE)
-                    }.copy(alpha = if (l.visible) 0.85f else 0.3f)
-                    drawRoundRect(col, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), layerRow), CornerRadius(5f))
-                    if (l.locked) lockHatch(x0, x1, rowTop, layerRow)
-                    // Keyframes as small diamonds.
-                    l.keys?.forEach { k ->
-                        val kx = xOf(k.t); val cy = rowTop + layerRow / 2f; val r = layerRow * 0.28f
-                        val d = androidx.compose.ui.graphics.Path().apply { moveTo(kx, cy - r); lineTo(kx + r, cy); lineTo(kx, cy + r); lineTo(kx - r, cy); close() }
-                        drawPath(d, Color.White); drawPath(d, accent, style = Stroke(2f))
-                    }
-                    if (l.id == selectedLayerId || l.id == editingId) drawRoundRect(accent, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), layerRow), CornerRadius(5f), style = Stroke(if (l.id == editingId) 5f else 3f))
-                    // Trim handles on both ends (hold and drag to lengthen / shorten).
-                    if (!l.locked) trimHandles(x0, x1, rowTop, layerRow, l.id == editingId || l.id == selectedLayerId, accent)
-                    if (l.id == editingId) lengthTag(x0, x1, rowTop, e - s, textPaint, accent)
-                    textPaint.textSize = 9.sp.toPx()
-                    val name0 = l.name?.takeIf { it.isNotBlank() } ?: when (l.kind) { LayerKind.TEXT, LayerKind.WATERMARK, LayerKind.STICKER -> l.text.replace('\n', ' '); else -> l.kind.label + " " + l.text }
-                    val name = if (l.kind == LayerKind.VIDEO) (if (l.isBelow) "↓ " else "↑ ") + name0 else name0
-                    drawContext.canvas.nativeCanvas.drawText(name.take(30), max(x0, 0f) + 5f, rowTop + layerRow * 0.68f, textPaint)
-                    rowTop += layerRow + gap
-                }
-
-                // Audio tracks (music + extra audio), each at its own place on the timeline.
-                rowTop = audioTop
-                for (m in audioRows) {
-                    val x0 = xOf(m.startMs); val x1 = xOf(m.startMs + m.playLength(totalMs))
-                    val isMain = m.id == music?.id
-                    drawRoundRect((if (isMain) Color(0xFF1FA35A) else Color(0xFF0FA3A3)).copy(alpha = if (m.muted) 0.3f else 0.8f), Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), musicRow), CornerRadius(5f))
-                    if (m.locked) lockHatch(x0, x1, rowTop, musicRow)
-                    val peaks = waves[m.uri.toString()]
-                    var mx = max(x0, 0f) + 1f
-                    while (mx < min(x1, size.width)) {
-                        val hgt = if (peaks != null) {
-                            val srcMs = m.offsetMs + ((mx - x0) / pxPerMs).toLong()
-                            musicRow * (0.06f + 0.86f * peakAt(peaks, srcMs, (3f / pxPerMs).toLong()))
-                        } else musicRow * 0.12f
-                        drawLine(Color.Black.copy(alpha = 0.45f), Offset(mx, rowTop + (musicRow - hgt) / 2), Offset(mx, rowTop + (musicRow + hgt) / 2), 2f)
-                        mx += 3f
-                    }
-                    if (m.id == editingId) drawRoundRect(accent, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), musicRow), CornerRadius(5f), style = Stroke(5f))
-                    if (!m.locked) trimHandles(x0, x1, rowTop, musicRow, m.id == editingId, accent)
-                    if (m.id == editingId) lengthTag(x0, x1, rowTop, m.playLength(totalMs), textPaint, accent)
-                    textPaint.textSize = 9.sp.toPx()
-                    drawContext.canvas.nativeCanvas.drawText("♪ " + m.name.take(30), max(x0, 0f) + 5f, rowTop + musicRow * 0.68f, textPaint)
-                    rowTop += musicRow + gap
-                }
-
-                // End of edit
-                val endX = xOf(totalMs)
-                if (endX in 0f..size.width) drawLine(Color.White.copy(alpha = 0.3f), Offset(endX, ruler), Offset(endX, size.height), 2f)
-
-                // Markers: a flag on the ruler and a faint line through the tracks.
-                for (mk in markers) {
-                    val mx = xOf(mk)
-                    if (mx < leftPad - 4f || mx > size.width + 4f) continue
-                    drawLine(accent.copy(alpha = 0.35f), Offset(mx, ruler), Offset(mx, size.height), 1.5f)
-                    val tri = androidx.compose.ui.graphics.Path().apply { moveTo(mx - 6f, 0f); lineTo(mx + 6f, 0f); lineTo(mx, ruler * 0.6f); close() }
-                    drawPath(tri, accent)
-                }
-
-                // Keyframes on the ruler: one easy-to-see lane along its bottom edge for every keyframe on the
-                // timeline (clips: diamonds, layers: diamonds in the layer's colour, volume: dots). The selected
-                // clip's / layer's keyframes are full strength, the others dimmer; a hairline links each to its track.
-                run {
-                    val laneY = ruler - 5.5.dp.toPx()
-                    val dr = 4.5.dp.toPx()
-                    val outline = 1.2.dp.toPx()
-                    fun diamond(kx: Float, fill: Color, strong: Boolean, rowY: Float?) {
-                        if (kx < leftPad - dr || kx > size.width + dr) return
-                        if (strong && rowY != null) drawLine(fill.copy(alpha = 0.45f), Offset(kx, ruler), Offset(kx, rowY), 1.dp.toPx())
-                        val d = androidx.compose.ui.graphics.Path().apply { moveTo(kx, laneY - dr); lineTo(kx + dr, laneY); lineTo(kx, laneY + dr); lineTo(kx - dr, laneY); close() }
-                        drawPath(d, Color.Black.copy(alpha = 0.6f), style = Stroke(outline * 2.2f))
-                        drawPath(d, if (strong) fill else fill.copy(alpha = 0.5f))
-                        drawPath(d, Color.White.copy(alpha = if (strong) 0.95f else 0.5f), style = Stroke(outline))
-                    }
+                // Tracks: drawn only to the right of the track headers (never past them).
+                clipRect(left = headerW) {
+                    // V1 clips
+                    val top = clipTop
                     clips.forEachIndexed { i, c ->
-                        val strong = i == selectedClip
-                        c.reframe.keys?.forEach { k -> diamond(xOf(starts[i] + c.tlOffsetOf(c.startMs + k.t)), accent, strong, clipTop + 8.dp.toPx()) }
-                        c.volKeys?.forEach { k ->
-                            val kx = xOf(starts[i] + c.tlOffsetOf(c.startMs + k.t))
-                            if (kx >= leftPad - dr && kx <= size.width + dr) {
-                                drawCircle(Color.Black.copy(alpha = 0.6f), dr * 0.75f, Offset(kx, laneY))
-                                drawCircle(Color(0xFF4FC3F7).copy(alpha = if (strong) 1f else 0.5f), dr * 0.55f, Offset(kx, laneY))
+                        val x0 = xOf(starts[i]); val x1 = xOf(starts[i] + c.lengthMs)
+                        if (x1 < 0 || x0 > size.width) return@forEachIndexed
+                        val rectW = (x1 - x0).coerceAtLeast(2f)
+                        drawRoundRect(Ed.Raised, Offset(x0, top), Size(rectW, clipRow), CornerRadius(6f))
+                        // Filmstrip
+                        val strip = strips[c.uri.toString()]
+                        if (strip != null) {
+                            val tileW = clipRow * (if (c.height > 0) (c.width.toFloat() / c.height).coerceIn(0.5f, 2f) else 1.6f)
+                            clipRect(max(x0, 0f), top, min(x1, size.width), top + clipRow) {
+                                var tx = x0
+                                while (tx < x1) {
+                                    if (tx + tileW >= 0 && tx <= size.width) {
+                                        val timelineOffset = ((tx - x0) / pxPerMs).toLong()
+                                        val src = c.srcAtOffset(timelineOffset)
+                                        strip.frameAt(src)?.let { bmp ->
+                                            drawImage(
+                                                bmp.asImageBitmap(),
+                                                dstOffset = IntOffset(tx.roundToInt(), top.roundToInt()),
+                                                dstSize = IntSize(tileW.roundToInt(), clipRow.roundToInt()),
+                                            )
+                                        }
+                                    }
+                                    tx += tileW
+                                }
                             }
                         }
+                        // The clip's own sound as a waveform along the bottom edge.
+                        waves[c.uri.toString()]?.let { pk ->
+                            val wh = clipRow * 0.32f
+                            val base = top + clipRow - 1f
+                            drawRect(Color.Black.copy(alpha = 0.35f), Offset(max(x0, 0f), base - wh), Size(min(x1, size.width) - max(x0, 0f), wh))
+                            var wx = max(x0, 0f) + 1f
+                            val col = if (c.muted || videoMuted) Color.White.copy(alpha = 0.25f) else Color(0xFF7FE0A8).copy(alpha = 0.85f)
+                            while (wx < min(x1, size.width)) {
+                                val src = c.srcAtOffset(((wx - x0) / pxPerMs).toLong())
+                                val h = wh * peakAt(pk, src, (3f / pxPerMs * c.speed).toLong())
+                                drawLine(col, Offset(wx, base), Offset(wx, base - h), 2f)
+                                wx += 3f
+                            }
+                        }
+                        val sel = i == selectedClip
+                        // Colour label: a stripe along the top of the clip.
+                        c.label?.let { lc -> drawRect(Color(lc), Offset(max(x0, 0f), top), Size((min(x1, size.width) - max(x0, 0f)).coerceAtLeast(0f), 5.dp.toPx())) }
+                        drawRoundRect(if (sel) accent else Color.White.copy(alpha = 0.35f), Offset(x0, top), Size(rectW, clipRow), CornerRadius(6f), style = Stroke(if (sel) 4f else 1.5f))
+                        // Label
+                        if (rectW > 50f) {
+                            drawRect(Color.Black.copy(alpha = 0.55f), Offset(max(x0, 0f) + 2f, top + clipRow - 16.dp.toPx()), Size(min(rectW - 4f, 220.dp.toPx()), 14.dp.toPx()))
+                            textPaint.textSize = 9.sp.toPx()
+                            val label = "${i + 1} ${c.name}" + (if (c.ramp != null) "  ⤳${c.rampName ?: "ramp"}" else if (c.speed != 1f) "  ${c.speed}x" else "") + (if (!c.grade.isIdentity || !c.detail.isZero) "  ●" else "")
+                            drawContext.canvas.nativeCanvas.drawText(label.take(40), max(x0, 0f) + 5f, top + clipRow - 5.dp.toPx(), textPaint)
+                        }
                     }
-                    shownLayers.forEach { l ->
-                        val strong = l.id == selectedLayerId
-                        val rowY = layerTops[l.id]?.let { it + layerRow / 2f }
-                        l.keys?.forEach { k -> diamond(xOf(k.t), Color(0xFF7FDBFF), strong, rowY) }
+
+                    if (videoLocked) clips.forEachIndexed { i, c -> lockHatch(xOf(starts[i]), xOf(starts[i] + c.lengthMs), top, clipRow) }
+                    else clips.forEachIndexed { i, c ->
+                        val x0 = xOf(starts[i]); val x1 = xOf(starts[i] + c.lengthMs)
+                        if (x1 < 0 || x0 > size.width) return@forEachIndexed
+                        trimHandles(x0, x1, top, clipRow * 0.55f, i == editingClip || i == selectedClip, accent)
+                        // Bin on the selected clip (tap to delete).
+                        if (i == selectedClip && onDeleteClip != null && x1 - x0 >= 64.dp.toPx()) {
+                            val bc = Offset((max(x0, leftPad) + min(x1, size.width)) / 2f, top + 15.dp.toPx())
+                            drawCircle(Color.Black.copy(alpha = 0.55f), 13.dp.toPx(), bc)
+                            drawCircle(Color(0xFFE5484D), 11.dp.toPx(), bc)
+                            val u = 1.dp.toPx(); val wcol = Color.White
+                            drawRect(wcol, Offset(bc.x - 5 * u, bc.y - 4 * u), Size(10 * u, 1.6f * u))           // lid
+                            drawRect(wcol, Offset(bc.x - 2 * u, bc.y - 5.6f * u), Size(4 * u, 1.6f * u))         // handle
+                            drawRoundRect(wcol, Offset(bc.x - 4 * u, bc.y - 2 * u), Size(8 * u, 7.5f * u), CornerRadius(1.2f * u), style = Stroke(1.5f * u))
+                            drawLine(wcol, Offset(bc.x - 1.4f * u, bc.y - 0.5f * u), Offset(bc.x - 1.4f * u, bc.y + 4 * u), 1.2f * u)
+                            drawLine(wcol, Offset(bc.x + 1.4f * u, bc.y - 0.5f * u), Offset(bc.x + 1.4f * u, bc.y + 4 * u), 1.2f * u)
+                        }
+                        // Clip keyframes as diamonds along the top of the clip.
+                        c.reframe.keys?.forEach { k ->
+                            val kx = xOf(starts[i] + c.tlOffsetOf(c.startMs + k.t))
+                            if (kx < x0 - 1f || kx > x1 + 1f) return@forEach
+                            val cy = top + 8.dp.toPx(); val rr = 5.dp.toPx()
+                            val d = androidx.compose.ui.graphics.Path().apply { moveTo(kx, cy - rr); lineTo(kx + rr, cy); lineTo(kx, cy + rr); lineTo(kx - rr, cy); close() }
+                            drawPath(d, Color.Black.copy(alpha = 0.55f), style = Stroke(4f)); drawPath(d, Color.White); drawPath(d, accent, style = Stroke(2f))
+                        }
+                        if (i == editingClip) lengthTag(x0, x1, top + 2f + 17.dp.toPx(), c.lengthMs, textPaint, accent)
+                    }
+
+                    // Transitions: a marker on every cut (tap to choose one).
+                    for (i in 0 until clips.size - 1) {
+                        val ov = overlapMs(clips, i)
+                        val xs = xOf(starts[i + 1]); val xe = xOf(starts[i + 1] + ov)
+                        if (xe < -30 || xs > size.width + 30) continue
+                        val mh = clipRow * 0.4f
+                        val my = top + clipRow - mh - 2f
+                        if (ov > 0) {
+                            drawRoundRect(accent.copy(alpha = 0.85f), Offset(xs, my), Size((xe - xs).coerceAtLeast(10f), mh), CornerRadius(5f))
+                            // bow-tie
+                            val cx = (xs + xe) / 2f; val cy = my + mh / 2f; val r = mh * 0.32f
+                            val path = androidx.compose.ui.graphics.Path().apply {
+                                moveTo(cx - r, cy - r); lineTo(cx + r, cy + r); lineTo(cx + r, cy - r); lineTo(cx - r, cy + r); close()
+                            }
+                            drawPath(path, Color.Black.copy(alpha = 0.75f))
+                            if (xe - xs > 70f) {
+                                textPaint.textSize = 8.sp.toPx()
+                                textPaint.color = android.graphics.Color.BLACK
+                                drawContext.canvas.nativeCanvas.drawText(clips[i].transition.type.label.take(14), xs + 4f, my - 3f + mh, textPaint)
+                                textPaint.color = android.graphics.Color.WHITE
+                            }
+                        } else {
+                            drawCircle(Color.White.copy(alpha = 0.6f), mh * 0.3f, Offset(xs, my + mh / 2f))
+                            drawCircle(Color.Black.copy(alpha = 0.6f), mh * 0.3f, Offset(xs, my + mh / 2f), style = Stroke(2f))
+                        }
+                    }
+
+                    // Layer tracks (each at its own row: above or below V1)
+                    var rowTop: Float
+                    for (l in shownLayers) {
+                        rowTop = layerTops[l.id] ?: continue
+                        val s = if (l.wholeVideo) 0L else l.startMs
+                        val e = if (l.wholeVideo) totalMs else l.endMs
+                        val x0 = xOf(s); val x1 = xOf(e)
+                        val col = when (l.kind) {
+                            LayerKind.VIDEO -> Color(0xFF3D7BFF)
+                            LayerKind.IMAGE, LayerKind.LOGO -> Color(0xFF8E5CFF)
+                            LayerKind.STICKER -> Color(0xFFFF7EB6)
+                            LayerKind.WATERMARK -> Color(0xFF7A8899)
+                            LayerKind.TEXT -> Color(0xFF2EBD8F)
+                            LayerKind.ADJUST -> Color(0xFFFFB300)
+                            LayerKind.SHAPE -> Color(0xFFFF9500)
+                            LayerKind.LOTTIE -> Color(0xFF00C7BE)
+                        }.copy(alpha = if (l.visible) 0.85f else 0.3f)
+                        drawRoundRect(col, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), layerRow), CornerRadius(5f))
+                        if (l.locked) lockHatch(x0, x1, rowTop, layerRow)
+                        // Keyframes as small diamonds.
+                        l.keys?.forEach { k ->
+                            val kx = xOf(k.t); val cy = rowTop + layerRow / 2f; val r = layerRow * 0.28f
+                            val d = androidx.compose.ui.graphics.Path().apply { moveTo(kx, cy - r); lineTo(kx + r, cy); lineTo(kx, cy + r); lineTo(kx - r, cy); close() }
+                            drawPath(d, Color.White); drawPath(d, accent, style = Stroke(2f))
+                        }
+                        if (l.id == selectedLayerId || l.id == editingId) drawRoundRect(accent, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), layerRow), CornerRadius(5f), style = Stroke(if (l.id == editingId) 5f else 3f))
+                        // Trim handles on both ends (hold and drag to lengthen / shorten).
+                        if (!l.locked) trimHandles(x0, x1, rowTop, layerRow, l.id == editingId || l.id == selectedLayerId, accent)
+                        if (l.id == editingId) lengthTag(x0, x1, rowTop, e - s, textPaint, accent)
+                        textPaint.textSize = 9.sp.toPx()
+                        val name0 = l.name?.takeIf { it.isNotBlank() } ?: when (l.kind) { LayerKind.TEXT, LayerKind.WATERMARK, LayerKind.STICKER -> l.text.replace('\n', ' '); else -> l.kind.label + " " + l.text }
+                        val name = if (l.kind == LayerKind.VIDEO) (if (l.isBelow) "↓ " else "↑ ") + name0 else name0
+                        drawContext.canvas.nativeCanvas.drawText(name.take(30), max(x0, 0f) + 5f, rowTop + layerRow * 0.68f, textPaint)
+                        rowTop += layerRow + gap
+                    }
+
+                    // Audio tracks (music + extra audio), each at its own place on the timeline.
+                    rowTop = audioTop
+                    for (m in audioRows) {
+                        val x0 = xOf(m.startMs); val x1 = xOf(m.startMs + m.playLength(totalMs))
+                        val isMain = m.id == music?.id
+                        drawRoundRect((if (isMain) Color(0xFF1FA35A) else Color(0xFF0FA3A3)).copy(alpha = if (m.muted) 0.3f else 0.8f), Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), musicRow), CornerRadius(5f))
+                        if (m.locked) lockHatch(x0, x1, rowTop, musicRow)
+                        val peaks = waves[m.uri.toString()]
+                        var mx = max(x0, 0f) + 1f
+                        while (mx < min(x1, size.width)) {
+                            val hgt = if (peaks != null) {
+                                val srcMs = m.offsetMs + ((mx - x0) / pxPerMs).toLong()
+                                musicRow * (0.06f + 0.86f * peakAt(peaks, srcMs, (3f / pxPerMs).toLong()))
+                            } else musicRow * 0.12f
+                            drawLine(Color.Black.copy(alpha = 0.45f), Offset(mx, rowTop + (musicRow - hgt) / 2), Offset(mx, rowTop + (musicRow + hgt) / 2), 2f)
+                            mx += 3f
+                        }
+                        if (m.id == editingId) drawRoundRect(accent, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), musicRow), CornerRadius(5f), style = Stroke(5f))
+                        if (!m.locked) trimHandles(x0, x1, rowTop, musicRow, m.id == editingId, accent)
+                        if (m.id == editingId) lengthTag(x0, x1, rowTop, m.playLength(totalMs), textPaint, accent)
+                        textPaint.textSize = 9.sp.toPx()
+                        drawContext.canvas.nativeCanvas.drawText("♪ " + m.name.take(30), max(x0, 0f) + 5f, rowTop + musicRow * 0.68f, textPaint)
+                        rowTop += musicRow + gap
+                    }
+
+                    // End of edit
+                    val endX = xOf(totalMs)
+                    if (endX in 0f..size.width) drawLine(Color.White.copy(alpha = 0.3f), Offset(endX, ruler), Offset(endX, size.height), 2f)
+
+                    // Markers: a flag on the ruler and a faint line through the tracks.
+                    for (mk in markers) {
+                        val mx = xOf(mk)
+                        if (mx < leftPad - 4f || mx > size.width + 4f) continue
+                        drawLine(accent.copy(alpha = 0.35f), Offset(mx, ruler), Offset(mx, size.height), 1.5f)
+                        val tri = androidx.compose.ui.graphics.Path().apply { moveTo(mx - 6f, 0f); lineTo(mx + 6f, 0f); lineTo(mx, ruler * 0.6f); close() }
+                        drawPath(tri, accent)
+                    }
+
+                    // Keyframes on the ruler: one easy-to-see lane along its bottom edge for every keyframe on the
+                    // timeline (clips: diamonds, layers: diamonds in the layer's colour, volume: dots). The selected
+                    // clip's / layer's keyframes are full strength, the others dimmer; a hairline links each to its track.
+                    run {
+                        val laneY = ruler - 5.5.dp.toPx()
+                        val dr = 4.5.dp.toPx()
+                        val outline = 1.2.dp.toPx()
+                        fun diamond(kx: Float, fill: Color, strong: Boolean, rowY: Float?) {
+                            if (kx < leftPad - dr || kx > size.width + dr) return
+                            if (strong && rowY != null) drawLine(fill.copy(alpha = 0.45f), Offset(kx, ruler), Offset(kx, rowY), 1.dp.toPx())
+                            val d = androidx.compose.ui.graphics.Path().apply { moveTo(kx, laneY - dr); lineTo(kx + dr, laneY); lineTo(kx, laneY + dr); lineTo(kx - dr, laneY); close() }
+                            drawPath(d, Color.Black.copy(alpha = 0.6f), style = Stroke(outline * 2.2f))
+                            drawPath(d, if (strong) fill else fill.copy(alpha = 0.5f))
+                            drawPath(d, Color.White.copy(alpha = if (strong) 0.95f else 0.5f), style = Stroke(outline))
+                        }
+                        clips.forEachIndexed { i, c ->
+                            val strong = i == selectedClip
+                            c.reframe.keys?.forEach { k -> diamond(xOf(starts[i] + c.tlOffsetOf(c.startMs + k.t)), accent, strong, clipTop + 8.dp.toPx()) }
+                            c.volKeys?.forEach { k ->
+                                val kx = xOf(starts[i] + c.tlOffsetOf(c.startMs + k.t))
+                                if (kx >= leftPad - dr && kx <= size.width + dr) {
+                                    drawCircle(Color.Black.copy(alpha = 0.6f), dr * 0.75f, Offset(kx, laneY))
+                                    drawCircle(Color(0xFF4FC3F7).copy(alpha = if (strong) 1f else 0.5f), dr * 0.55f, Offset(kx, laneY))
+                                }
+                            }
+                        }
+                        shownLayers.forEach { l ->
+                            val strong = l.id == selectedLayerId
+                            val rowY = layerTops[l.id]?.let { it + layerRow / 2f }
+                            l.keys?.forEach { k -> diamond(xOf(k.t), Color(0xFF7FDBFF), strong, rowY) }
+                        }
                     }
                 }
 

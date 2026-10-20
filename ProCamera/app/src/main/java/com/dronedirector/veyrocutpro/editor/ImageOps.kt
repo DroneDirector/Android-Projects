@@ -155,30 +155,35 @@ object ImageOps {
         }
         if (d.clarity != 0f) unsharp(px, w, h, max(2, (18 * scale).toInt()), d.clarity * 0.6f, midtonesOnly = true)
         if (d.texture != 0f) unsharp(px, w, h, max(1, (4 * scale).toInt()), d.texture * 0.6f, midtonesOnly = false)
-        if (d.sharpen > 0f) unsharp(px, w, h, max(1, (1.2f * scale).toInt()), d.sharpen * 1.2f, midtonesOnly = false)
-
-        if (d.vignette != 0f) {
-            val cx = w / 2f; val cy = h / 2f
-            val maxD = sqrt(cx * cx + cy * cy)
-            for (y in 0 until h) for (x in 0 until w) {
-                val dx = (x - cx) / maxD; val dy = (y - cy) / maxD
-                val dist = sqrt(dx * dx + dy * dy)
-                val f = ((dist - 0.35f) / 0.65f).coerceIn(0f, 1f).let { it * it }
-                val k = 1f + d.vignette * f
-                val i = y * w + x
-                val p = px[i]
-                px[i] = (0xFF shl 24) or (clamp8(((p shr 16) and 0xFF) * k) shl 16) or (clamp8(((p shr 8) and 0xFF) * k) shl 8) or clamp8((p and 0xFF) * k)
-            }
+        if (d.sharpen > 0f) {
+            if (d.sharpenRadius == 1f && d.sharpenDetail == 0.25f && d.sharpenMasking == 0f) unsharp(px, w, h, max(1, (1.2f * scale).toInt()), d.sharpen * 1.2f, midtonesOnly = false)
+            else proSharpen(px, w, h, d, scale)
         }
-        if (d.grain > 0f) {
-            val amt = d.grain * 28f
-            var seed = 0x2545F491
-            for (i in px.indices) {
-                seed = seed xor (seed shl 13); seed = seed xor (seed ushr 17); seed = seed xor (seed shl 5)
-                val n = ((seed and 0xFFFF) / 65535f - 0.5f) * amt
-                val p = px[i]
-                px[i] = (0xFF shl 24) or (clamp8(((p shr 16) and 0xFF) + n) shl 16) or (clamp8(((p shr 8) and 0xFF) + n) shl 8) or clamp8((p and 0xFF) + n)
+        Develop.defringe(px, w, h, d.defringePurple, d.defringeGreen)
+        // Vignette after the crop (post-crop vignette), with Lightroom's shape controls.
+        Develop.vignette(px, w, h, d.vignette, d.vignetteMid, d.vignetteRound, d.vignetteFeather, d.vignetteHighlights)
+        Develop.grain(px, w, h, d.grain, d.grainSize, d.grainRough)
+    }
+
+    /** Sharpening with Radius, Detail (halo control) and edge Masking. */
+    private fun proSharpen(px: IntArray, w: Int, h: Int, d: Detail, scale: Float) {
+        val radius = max(1, (d.sharpenRadius * 1.2f * scale).toInt())
+        val blur = boxBlur(px, w, h, radius)
+        val mask = Develop.edgeMask(px, w, h, d.sharpenMasking)
+        val amount = d.sharpen * 1.2f * (0.6f + d.sharpenDetail * 0.8f)
+        // Low Detail damps big differences (halos); high Detail lets fine texture through fully.
+        val limit = 18f + d.sharpenDetail * 120f
+        for (i in px.indices) {
+            val k = amount * mask[i]
+            if (k <= 0f) continue
+            val a = px[i]; val b = blur[i]
+            fun ch(sh: Int): Int {
+                val av = (a shr sh) and 0xFF
+                var diff = (av - ((b shr sh) and 0xFF)).toFloat()
+                if (abs(diff) > limit) diff = limit * (if (diff > 0) 1f else -1f) + (diff - limit * (if (diff > 0) 1f else -1f)) * 0.3f
+                return clamp8(av + diff * k)
             }
+            px[i] = (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
         }
     }
 

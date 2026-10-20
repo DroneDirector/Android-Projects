@@ -15,7 +15,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /** Kinds of local-adjustment masks. */
-enum class MaskType(val label: String) { LINEAR("Linear gradient"), RADIAL("Radial"), BRUSH("Brush"), SUBJECT("Subject (AI)"), SKY("Sky (AI)"), COLOR_RANGE("Colour range"), LUMA_RANGE("Brightness range"), PEN("Shape (pen)"), OBJECT("Object (AI)"), DEPTH("Depth range (AI)") }
+enum class MaskType(val label: String) { LINEAR("Linear gradient"), RADIAL("Radial"), BRUSH("Brush"), SUBJECT("Subject (AI)"), SKY("Sky (AI)"), COLOR_RANGE("Colour range"), LUMA_RANGE("Brightness range"), PEN("Shape (pen)"), OBJECT("Object (AI)"), DEPTH("Depth range (AI)"), PEOPLE("People (AI)") }
 
 /** One brush stroke: points (x, y pairs, 0..1 of the picture), size (share of the width), add or erase. */
 data class BrushStroke(val points: List<Float>, val size: Float, val erase: Boolean = false, val soft: Float = 0.5f)
@@ -54,6 +54,11 @@ data class PhotoMask(
     /** Combined with more selections: each sub-mask adds (1), subtracts (2) or intersects (3) — its [combine]. */
     val subs: List<PhotoMask>? = null,
     val combine: Int = 0,
+    /** People masks: which parts ([PeopleMask.PARTS] indices). */
+    val parts: List<Int>? = null,
+    /** Detail inside the mask, −1..1: Texture (fine detail; minus smooths skin) and Clarity (mid-size contrast). */
+    val texture: Float = 0f,
+    val clarity: Float = 0f,
 )
 
 /** A healed spot: centre and radius (share of the width) and where the patch is taken from (offset, same units). */
@@ -433,7 +438,7 @@ object PhotoLocal {
                 fillFrom(mb, out, w, h)
                 mb.recycle()
             }
-            MaskType.SUBJECT, MaskType.SKY, MaskType.OBJECT -> if (aiMask != null) fillFrom(aiMask, out, w, h)
+            MaskType.SUBJECT, MaskType.SKY, MaskType.OBJECT, MaskType.PEOPLE -> if (aiMask != null) fillFrom(aiMask, out, w, h)
             MaskType.DEPTH -> if (aiMask != null) {
                 // The depth map (white = near) selected by range, like a brightness range.
                 fillFrom(aiMask, out, w, h)
@@ -558,8 +563,11 @@ object PhotoLocal {
         // Range masks look at the picture before any mask changed it.
         val orig = if (masks.any { mk -> (listOf(mk) + mk.subs.orEmpty()).any { it.type == MaskType.COLOR_RANGE || it.type == MaskType.LUMA_RANGE } }) px.copyOf() else null
         for (m in masks) {
-            if (!m.visible || m.grade.isIdentity) continue
+            val detail = m.texture != 0f || m.clarity != 0f
+            if (!m.visible || (m.grade.isIdentity && !detail)) continue
             val wt = weights(m, w, h, m.maskFile?.let { aiMasks[it] }, orig, aiMasks)
+            if (detail) localDetail(px, w, h, wt, m.texture, m.clarity)
+            if (m.grade.isIdentity) continue
             val t = m.grade.tables()
             val one = IntArray(1)
             for (i in px.indices) {
@@ -574,5 +582,33 @@ object PhotoLocal {
                 px[i] = (0xFF shl 24) or (r shl 16) or (gg shl 8) or b
             }
         }
+    }
+
+    /**
+     * Texture / Clarity inside a mask. Minus texture smooths skin: fine detail is softened but edges
+     * (eyes, lips, hair lines) stay, as only small differences are evened out.
+     */
+    private fun localDetail(px: IntArray, w: Int, h: Int, wt: FloatArray, texture: Float, clarity: Float) {
+        val scale = maxOf(w, h)
+        fun pass(amount: Float, r: Int, smoothLimit: Int) {
+            if (amount == 0f) return
+            val bl = boxBlur(px, w, h, r)
+            for (i in px.indices) {
+                val a = wt[i]; if (a < 0.003f) continue
+                val o = px[i]; val b = bl[i]
+                fun ch(s: Int): Int {
+                    val ov = (o shr s) and 255; val bv = (b shr s) and 255; val d = ov - bv
+                    val v = if (amount < 0f) {
+                        // Edge-aware smoothing: big jumps (real edges) are kept.
+                        val keep = (kotlin.math.abs(d).toFloat() / smoothLimit).coerceIn(0f, 1f)
+                        ov - d * (-amount) * (1f - keep * keep)
+                    } else ov + d * amount * 1.6f
+                    return (ov + (v - ov) * a).toInt().coerceIn(0, 255)
+                }
+                px[i] = (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
+            }
+        }
+        pass(texture, maxOf(1, scale / 700), 34)
+        pass(clarity, maxOf(2, scale / 90), 60)
     }
 }

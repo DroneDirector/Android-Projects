@@ -36,7 +36,7 @@ object ObjectRemoval {
     private var lama: OrtSession? = null
     @Volatile var failed: String? = null; private set
 
-    @Synchronized private fun ready(context: Context): Boolean {
+    @Synchronized internal fun ready(context: Context): Boolean {
         if (lama != null) return true
         if (!ModelStore.has(context, AiModel.INPAINT)) return false
         return try {
@@ -294,6 +294,20 @@ object ObjectRemoval {
             }
         }
         return res[p]
+    }
+
+    /** Runs LaMa once: [img] 3×512×512 (0..1 RGB planes), [msk] 512×512 (1 = paint). Returns 3×512×512 in 0..255, or null. */
+    @Synchronized internal fun lama512(img: FloatArray, msk: FloatArray): FloatArray? {
+        val e = env ?: return null; val s = lama ?: return null
+        val out = try {
+            val ti = OnnxTensor.createTensor(e, FloatBuffer.wrap(img), longArrayOf(1, 3, 512, 512))
+            val tm = OnnxTensor.createTensor(e, FloatBuffer.wrap(msk), longArrayOf(1, 1, 512, 512))
+            try {
+                s.run(mapOf("image" to ti, "mask" to tm)).use { r -> val fb = (r[0] as OnnxTensor).floatBuffer; FloatArray(fb.remaining()).also { fb.get(it) } }
+            } finally { ti.close(); tm.close() }
+        } catch (t: Throwable) { failed = t.message; return null }
+        if ((out.maxOrNull() ?: 0f) <= 2f) for (i in out.indices) out[i] *= 255f
+        return out
     }
 
     /** LaMa on a square round the hole (scaled to 512 × 512). Returns the whole working picture with the hole painted. */

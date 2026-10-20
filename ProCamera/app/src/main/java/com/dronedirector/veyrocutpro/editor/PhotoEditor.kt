@@ -599,6 +599,9 @@ private fun PhotoWorkspace(
             // Masks are made on the uncropped photo; with no crop the tap maps straight across.
             pendingObject = px.toFloat() / img.width to py.toFloat() / img.height
             if (!edit.geometry.isIdentity) message = "Tip: the object pick works best before cropping"
+        } else if (picking == 5) {
+            pendingErasePick = px.toFloat() / img.width to py.toFloat() / img.height
+            return
         } else if (picking == 4) {
             val lb = edit.lensBlur
             val d = lb?.depthFile?.let { aiMasks[it] }
@@ -914,6 +917,31 @@ private fun PhotoWorkspace(
             }
         }
     }
+    /** People masks: finds the chosen parts of everyone in the photo (on the phone) and makes / updates the mask. */
+    var peopleBusy by remember { mutableStateOf(false) }
+    val peopleAction: (String?, List<Int>, (PhotoMask) -> PhotoMask) -> Unit = { id, parts, setup ->
+        val b = base
+        if (b != null && !peopleBusy) {
+            peopleBusy = true
+            message = "Finding " + parts.joinToString(", ") { PeopleMask.PARTS[it].lowercase() } + "…"
+            scope.launch {
+                val path = withContext(Dispatchers.Default) {
+                    try { PeopleMask.make(context, b, parts)?.let { AiSegment.saveMask(context, it) } } catch (_: Throwable) { null }
+                }
+                peopleBusy = false
+                if (path == null) message = if (PeopleMask.lastFaces == 0) "No people or faces found in this photo" else "Couldn't find that part in this photo"
+                else {
+                    message = null
+                    val old = id?.let { k -> edit.masks.firstOrNull { it.id == k } }
+                    if (old != null) edit = edit.copy(masks = edit.masks.map { if (it.id == old.id) setup(it.copy(parts = parts, maskFile = path)) else it })
+                    else {
+                        val pm = setup(PhotoMask(type = MaskType.PEOPLE, maskFile = path, parts = parts))
+                        edit = edit.copy(masks = edit.masks + pm); tools.selected = pm.id
+                    }
+                }
+            }
+        }
+    }
     /** Adds an AI selection to a mask as add / subtract / intersect. */
     val aiSubAction: (MaskType, Int, String) -> Unit = { type, combine, parent ->
         fun add(path: String) {
@@ -948,56 +976,136 @@ private fun PhotoWorkspace(
     }
     LaunchedEffect(pendingObject) { pendingObject?.let { (x, y) -> pendingObject = null; selectObjectAt(x, y) } }
     var eraseMask by remember { mutableStateOf<PhotoMask?>(null) }
+    // Things picked with a tap (AI selection) for AI Remove: their mask files, and a red view of them.
+    var eraseObjects by remember { mutableStateOf<List<String>>(emptyList()) }
+    var eraseTint by remember { mutableStateOf<Bitmap?>(null) }
+    var eraseStatus by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(eraseObjects) {
+        val list = eraseObjects
+        eraseTint = if (list.isEmpty()) null else withContext(Dispatchers.IO) {
+            try {
+                var tw = 0; var th = 0; var px: IntArray? = null
+                for (f in list) {
+                    val mb = BitmapFactory.decodeFile(f) ?: continue
+                    if (px == null) { tw = mb.width; th = mb.height; px = IntArray(tw * th) }
+                    val s2 = if (mb.width == tw && mb.height == th) mb else Bitmap.createScaledBitmap(mb, tw, th, true)
+                    val mp = IntArray(tw * th); s2.getPixels(mp, 0, tw, 0, 0, tw, th)
+                    for (i in mp.indices) if (((mp[i] shr 16) and 255) > 100) px[i] = 0x99FF3030.toInt()
+                }
+                px?.let { Bitmap.createBitmap(it, tw, th, Bitmap.Config.ARGB_8888) }
+            } catch (_: Throwable) { null }
+        }
+    }
+    fun pickEraseObject(nx: Float, ny: Float) {
+        val b = base ?: return
+        eraseStatus = "Selecting…"
+        scope.launch {
+            val path = withContext(Dispatchers.Default) {
+                try {
+                    val emb = samCache?.takeIf { it.first === b }?.second ?: (Sam.encode(context, b) ?: return@withContext null).also { samCache = b to it }
+                    val pts = listOf(MaskPoint(nx, ny, 1))
+                    val ans = Sam.decode(emb, pts) ?: return@withContext null
+                    val bytes = Sam.toMask(ans.mask(Sam.pick(ans, pts, 0)), emb, b.width, b.height)
+                    val px = IntArray(bytes.size) { k -> val v = bytes[k].toInt() and 255; (0xFF shl 24) or (v shl 16) or (v shl 8) or v }
+                    AiSegment.saveMask(context, Bitmap.createBitmap(px, b.width, b.height, Bitmap.Config.ARGB_8888))
+                } catch (_: Throwable) { null }
+            }
+            eraseStatus = null
+            if (path == null) message = "Couldn't select that" + (Sam.failed?.let { " ($it)" } ?: "")
+            else { eraseObjects = eraseObjects + path; if (eraseMask == null) eraseMask = PhotoMask(type = MaskType.BRUSH); message = "Selected — tap more things, paint, or tap REMOVE" }
+        }
+    }
+    var pendingErasePick by remember { mutableStateOf<Pair<Float, Float>?>(null) }
+    LaunchedEffect(pendingErasePick) { pendingErasePick?.let { (x, y) -> pendingErasePick = null; pickEraseObject(x, y) } }
     fun runErase() {
-        val em = eraseMask ?: return
-        if (em.strokes.isEmpty() || busy) return
+        val em = eraseMask ?: PhotoMask(type = MaskType.BRUSH)
+        val objs = eraseObjects
+        if ((em.strokes.isEmpty() && objs.isEmpty()) || busy) return
         busy = true
+        picking = 0
         val e = edit
         scope.launch {
+            // The painting model is downloaded once (on the phone; not needed with Cloud AI).
+            if (!useCloud && !ModelStore.has(context, AiModel.INPAINT)) {
+                eraseStatus = "Downloading the AI model (${AiModel.INPAINT.sizeMb} MB, once)…"
+                val err = withContext(Dispatchers.IO) { ModelStore.ensure(context, AiModel.INPAINT, { p -> eraseStatus = "Downloading the AI model… $p%" }, { false }) }
+                if (err != null) message = "$err — using the simpler fill"
+            }
+            eraseStatus = "Removing…"
             val path = withContext(Dispatchers.IO) {
                 try {
-                    val full = (if (rawOn(e)) rawExport(e, 2400, sliders = false) else GradeIO.decode(context, sourceUri(e), 2400)) ?: return@withContext null
-                    val wt = PhotoLocal.weights(em.copy(amount = 1f), full.width, full.height)
-                    val mask = Bitmap.createBitmap(IntArray(wt.size) { if (wt[it] > 0.25f) -1 else 0xFF000000.toInt() }, full.width, full.height, Bitmap.Config.ARGB_8888)
+                    // Full size (up to 4800 px on the long side) so the photo keeps its detail; only the removed parts change.
+                    val full = (if (rawOn(e)) rawExport(e, 4000, sliders = false) else GradeIO.decode(context, sourceUri(e), 4800)) ?: return@withContext null
+                    val fw = full.width; val fh = full.height
+                    val wt = if (em.strokes.isEmpty()) FloatArray(fw * fh) else PhotoLocal.weights(em.copy(amount = 1f), fw, fh)
+                    for (f in objs) {
+                        val mb = BitmapFactory.decodeFile(f) ?: continue
+                        val sc = Bitmap.createScaledBitmap(mb, fw, fh, true)
+                        val mp = IntArray(fw * fh); sc.getPixels(mp, 0, fw, 0, 0, fw, fh)
+                        if (sc !== mb) sc.recycle(); mb.recycle()
+                        for (i in mp.indices) if (((mp[i] shr 16) and 255) > 100) wt[i] = 1f
+                    }
                     var result: Bitmap? = null
                     if (useCloud) try {
+                        val mask = Bitmap.createBitmap(IntArray(wt.size) { if (wt[it] > 0.25f) -1 else 0xFF000000.toInt() }, fw, fh, Bitmap.Config.ARGB_8888)
                         val jpeg = java.io.ByteArrayOutputStream().also { full.compress(Bitmap.CompressFormat.JPEG, 95, it) }.toByteArray()
                         val png = java.io.ByteArrayOutputStream().also { mask.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
                         val res = com.dronedirector.veyrocutpro.camera.CloudAi.erase(context, jpeg, png)
-                        result = BitmapFactory.decodeByteArray(res, 0, res.size)?.let { if (it.width == full.width && it.height == full.height) it else Bitmap.createScaledBitmap(it, full.width, full.height, true) }
+                        result = BitmapFactory.decodeByteArray(res, 0, res.size)?.let { if (it.width == fw && it.height == fh) it else Bitmap.createScaledBitmap(it, fw, fh, true) }
                     } catch (_: com.dronedirector.veyrocutpro.camera.CloudAi.Stopped) { return@withContext "stopped" } catch (_: Throwable) {}
-                    if (result == null) result = AiSegment.fill(full, mask)
+                    if (result == null) result = try { PhotoErase.fill(context, full, wt) { p -> eraseStatus = "Removing… $p%" } } catch (_: OutOfMemoryError) { null }
+                    if (result == null) {
+                        // No AI model: the simpler fill, at a size the phone can manage.
+                        val k = minOf(1f, 2400f / maxOf(fw, fh))
+                        val sw = (fw * k).toInt(); val sh = (fh * k).toInt()
+                        val small = Bitmap.createScaledBitmap(full, sw, sh, true)
+                        val mask = Bitmap.createBitmap(IntArray(wt.size) { if (wt[it] > 0.25f) -1 else 0xFF000000.toInt() }, fw, fh, Bitmap.Config.ARGB_8888)
+                        result = AiSegment.fill(small, Bitmap.createScaledBitmap(mask, sw, sh, true))
+                    }
                     val dir = java.io.File(context.filesDir, "erased").apply { mkdirs() }
                     val f = java.io.File(dir, "erased_${System.currentTimeMillis()}.jpg")
-                    f.outputStream().use { result.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+                    f.outputStream().use { result.compress(Bitmap.CompressFormat.JPEG, 96, it) }
                     f.path
                 } catch (_: Throwable) { null }
             }
-            busy = false
+            busy = false; eraseStatus = null
             when (path) {
-                null -> message = "Couldn't erase"
-                "stopped" -> message = "AI erase stopped"
-                else -> { edit = edit.copy(baseFile = path); eraseMask = null; message = "Erased" + if (!useCloud) " (on the phone — Cloud AI gives better results on big objects)" else "" }
+                null -> message = "Couldn't remove that"
+                "stopped" -> message = "AI Remove stopped"
+                else -> { edit = edit.copy(baseFile = path); eraseMask = null; eraseObjects = emptyList(); message = "Removed — tap REMOVE again for more, or RESET to go back" }
             }
         }
     }
     val aiEraseSection: @Composable () -> Unit = {
-        SectionTitle("AI ERASE") { if (edit.baseFile != null) edit = edit.copy(baseFile = null) }
+        SectionTitle("AI REMOVE") { if (edit.baseFile != null) edit = edit.copy(baseFile = null) }
         if (eraseMask == null) {
-            Text("Remove bigger things — a person, a sign, a power line: paint over them, then tap ERASE.", color = Pro.Dim, fontSize = 11.sp)
-            Text(
-                "PAINT WHAT TO REMOVE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
-                modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { eraseMask = PhotoMask(type = MaskType.BRUSH) }.padding(10.dp),
-            )
-            if (edit.baseFile != null) Text("The photo has AI-erased parts. Tap RESET above to go back to the original.", color = Pro.Dim, fontSize = 11.sp)
-        } else {
-            EdSlider("Brush size", tools.brushSize, 0.01f..0.3f, 0.08f, ::pct) { tools.brushSize = it }
+            Text("Remove bigger things — a person, a car, a sign, a power line. Tap them (the AI selects each one) or paint over them, then tap REMOVE. The AI paints in what was behind them, at the photo's full size.", color = Pro.Dim, fontSize = 11.sp)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(if (busy) "ERASING…" else "ERASE", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp),
-                    modifier = Modifier.clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !busy) { runErase() }.padding(horizontal = 16.dp, vertical = 8.dp))
-                Text("CANCEL", style = Pro.Label.copy(color = Color.White, fontSize = 11.sp), modifier = Modifier.clickable { eraseMask = null }.padding(8.dp))
+                Text(
+                    "TAP TO SELECT", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                    modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { eraseMask = PhotoMask(type = MaskType.BRUSH); picking = 5 }.padding(10.dp),
+                )
+                Text(
+                    "PAINT", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                    modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { eraseMask = PhotoMask(type = MaskType.BRUSH); picking = 0 }.padding(10.dp),
+                )
             }
-            Text(if (useCloud) "Uses Bria Eraser in the cloud (your fal.ai account)." else "Runs on the phone. For big objects, turn on Cloud AI for photos (Bria Eraser).", color = Pro.Dim, fontSize = 11.sp)
+            if (edit.baseFile != null) Text("The photo has removed parts. Tap RESET above to go back to the original.", color = Pro.Dim, fontSize = 11.sp)
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PillChip("TAP TO SELECT", picking == 5) { picking = if (picking == 5) 0 else 5 }
+                PillChip("PAINT", picking != 5) { picking = 0 }
+            }
+            if (picking != 5) EdSlider("Brush size", tools.brushSize, 0.01f..0.3f, 0.08f, ::pct) { tools.brushSize = it }
+            if (eraseObjects.isNotEmpty()) Text("${eraseObjects.size} thing(s) selected (shown in red)", style = Pro.Label)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(if (busy) "REMOVING…" else "REMOVE", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp),
+                    modifier = Modifier.clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !busy) { runErase() }.padding(horizontal = 16.dp, vertical = 8.dp))
+                if (eraseObjects.isNotEmpty()) Text("UNDO TAP", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clickable { eraseObjects = eraseObjects.dropLast(1) }.padding(8.dp))
+                Text("CANCEL", style = Pro.Label.copy(color = Color.White, fontSize = 11.sp), modifier = Modifier.clickable { eraseMask = null; eraseObjects = emptyList(); picking = 0 }.padding(8.dp))
+            }
+            eraseStatus?.let { Text(it, color = Pro.Amber, fontSize = 11.sp) }
+            Text(if (useCloud) "Uses Bria Eraser in the cloud (your fal.ai account)." else "Runs on the phone with the LaMa AI (downloaded once, ${AiModel.INPAINT.sizeMb} MB).", color = Pro.Dim, fontSize = 11.sp)
         }
     }
     // Sky replacement: your own sky picture is copied into the app.
@@ -1290,6 +1398,7 @@ private fun PhotoWorkspace(
                             if (!comparing) {
                                 sharpImg?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
                                 clipImg?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
+                                if (panel == PhotoPanel.HEAL) eraseTint?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
                             }
                         }
                         else -> CircularProgressIndicator(color = Pro.Amber)
@@ -1302,7 +1411,8 @@ private fun PhotoWorkspace(
                             edit = edit.copy(masks = edit.masks.map { if (it.id == m.id) m else it })
                         }
                         val em = eraseMask
-                        if (panel == PhotoPanel.HEAL && em != null) MaskEditOverlay(em, shownNow.width, shownNow.height, tools) { m -> eraseMask = m }
+                        if (panel == PhotoPanel.HEAL && em != null && picking == 5) Unit
+                        else if (panel == PhotoPanel.HEAL && em != null) MaskEditOverlay(em, shownNow.width, shownNow.height, tools) { m -> eraseMask = m }
                         else if (panel == PhotoPanel.HEAL) HealOverlay(
                             edit.spots, shownNow.width, shownNow.height, tools.healSize,
                             onMove = { i, sp -> if (i in edit.spots.indices) edit = edit.copy(spots = edit.spots.toMutableList().also { it[i] = sp }) },
@@ -1316,7 +1426,7 @@ private fun PhotoWorkspace(
                         modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.6f)).clickable { resetZoom() }.padding(horizontal = 8.dp, vertical = 3.dp),
                     )
                     if (picking != 0) Text(
-                        when (picking) { 1 -> "Tap something that should be neutral grey or white"; 3 -> "Tap the object to select"; 4 -> "Tap where the focus should be"; else -> "Tap the colour you want to change" },
+                        when (picking) { 1 -> "Tap something that should be neutral grey or white"; 3 -> "Tap the object to select"; 5 -> "Tap each thing to remove"; 4 -> "Tap where the focus should be"; else -> "Tap the colour you want to change" },
                         style = Pro.Label.copy(color = Color.Black),
                         modifier = Modifier.align(Alignment.TopCenter).padding(top = 34.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable { picking = 0 }.padding(horizontal = 10.dp, vertical = 5.dp),
                     )
@@ -1383,7 +1493,7 @@ private fun PhotoWorkspace(
                     )
                     Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 4.dp)) {
                         when (panel) {
-                            PhotoPanel.MASKS -> MasksPanel(edit.masks, tools, { edit = edit.copy(masks = it) }, onAi = aiMaskAction, onAiSub = aiSubAction)
+                            PhotoPanel.MASKS -> MasksPanel(edit.masks, tools, { edit = edit.copy(masks = it) }, onAi = aiMaskAction, onAiSub = aiSubAction, onPeople = peopleAction)
                             PhotoPanel.HEAL -> {
                                 SectionTitle("HEAL / CLONE") { edit = edit.copy(spots = emptyList()) }
                                 Chips(listOf("Heal", "Clone stamp"), if (cloneMode) 1 else 0) { cloneMode = it == 1; cloneSrc = null; cloneOff = null }

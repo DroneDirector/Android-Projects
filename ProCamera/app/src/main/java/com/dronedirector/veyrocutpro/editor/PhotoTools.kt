@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import com.dronedirector.veyrocutpro.ui.Text
@@ -331,6 +332,8 @@ fun MasksPanel(
     onTrackPen: ((PhotoMask) -> Unit)? = null, penTracking: String? = null,
     /** Photo: add an AI selection (Subject / Sky / Depth) to mask [parentId] with combine mode 1 add, 2 subtract, 3 intersect. */
     onAiSub: ((type: MaskType, combine: Int, parentId: String) -> Unit)? = null,
+    /** Photo: (re)make a People mask — mask id (null = new), the parts, and settings to give it. */
+    onPeople: ((id: String?, parts: List<Int>, setup: (PhotoMask) -> PhotoMask) -> Unit)? = null,
 ) {
     SectionTitle("ADD A MASK")
     val full = video && masks.size >= MAX_VIDEO_MASKS
@@ -348,6 +351,7 @@ fun MasksPanel(
             if (!video) {
                 SmallAction(Icons.Filled.TouchApp, "Object (AI)") { onAi(MaskType.OBJECT) }
                 SmallAction(Icons.Filled.Layers, "Depth (AI)") { onAi(MaskType.DEPTH) }
+                if (onPeople != null) SmallAction(Icons.Filled.Face, "People (AI)") { onPeople(null, listOf(1), { it }) }
             }
         }
     }
@@ -366,7 +370,7 @@ fun MasksPanel(
                 .clickable { ui.selected = m.id }.padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("${i + 1}. ${m.type.label}" + if (m.invert) " (inverted)" else "", color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
+            Text("${i + 1}. ${m.type.label}" + (if (m.type == MaskType.PEOPLE) " · " + m.parts.orEmpty().joinToString(", ") { PeopleMask.PARTS.getOrElse(it) { "" } } else "") + if (m.invert) " (inverted)" else "", color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
             Icon(if (m.visible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, contentDescription = "Show", tint = Color.White,
                 modifier = Modifier.size(20.dp).clickable { onMasks(masks.map { if (it.id == m.id) it.copy(visible = !it.visible) else it }) })
             Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = Color.White,
@@ -435,6 +439,30 @@ fun MasksPanel(
             EdSlider("Nearest", m.lumHigh, 0f..1f, 1f, ::pct) { v -> upd { it.copy(lumHigh = v.coerceAtLeast(it.lumLow)) } }
             EdSlider("Softness", m.rangeSoft, 0f..1f, 0.4f, ::pct) { v -> upd { it.copy(rangeSoft = v) } }
         }
+        MaskType.PEOPLE -> {
+            Text("Parts of every person in the photo, found by the AI. Tap parts to add or remove them.", color = Pro.Dim, fontSize = 11.sp)
+            val cur = m.parts.orEmpty()
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+                PeopleMask.PARTS.forEachIndexed { k, name ->
+                    PillChip(name, k in cur) {
+                        val next = if (k in cur) cur - k else (cur + k).sorted()
+                        if (next.isNotEmpty() && onPeople != null) onPeople(m.id, next, { it })
+                    }
+                }
+            }
+            SectionTitle("PORTRAIT LOOKS")
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+                fun look(name: String, parts: List<Int>, f: (PhotoMask) -> PhotoMask) = PillChip(name, false, accentText = true) { onPeople?.invoke(m.id, parts, f) }
+                look("Smooth skin", listOf(1, 2)) { it.copy(texture = -0.6f, clarity = -0.15f, grade = ProGrade()) }
+                look("Whiten teeth", listOf(7)) { it.copy(grade = ProGrade(exposure = 0.25f, saturation = -0.55f), texture = 0f, clarity = 0f) }
+                look("Brighten eyes", listOf(3)) { it.copy(grade = ProGrade(exposure = 0.3f, saturation = -0.25f), texture = 0f, clarity = 0f) }
+                look("Iris enhance", listOf(4)) { it.copy(grade = ProGrade(exposure = 0.2f, saturation = 0.25f), clarity = 0.5f, texture = 0.3f) }
+                look("Lip colour", listOf(6)) { it.copy(grade = ProGrade(saturation = 0.25f, vibrance = 0.15f), texture = 0f, clarity = 0f) }
+                look("Hair shine", listOf(8)) { it.copy(grade = ProGrade(contrast = 0.15f), texture = 0.35f, clarity = 0.3f) }
+                look("Brows define", listOf(5)) { it.copy(grade = ProGrade(exposure = -0.15f, contrast = 0.15f), texture = 0.3f, clarity = 0f) }
+            }
+            Text("Each look picks the parts and sets the adjustments below — fine-tune them to taste.", color = Pro.Dim, fontSize = 11.sp)
+        }
         else -> Text("Selected by the AI.", color = Pro.Dim, fontSize = 11.sp)
     }
     // ---- Add / subtract / intersect more selections (photo).
@@ -489,6 +517,10 @@ fun MasksPanel(
     EdSlider("Tint", gr.tint) { v -> g { it.copy(tint = v) } }
     EdSlider("Saturation", gr.saturation) { v -> g { it.copy(saturation = v) } }
     EdSlider("Dehaze", gr.dehaze) { v -> g { it.copy(dehaze = v) } }
+    if (!video) {
+        EdSlider("Texture", m.texture) { v -> upd { it.copy(texture = v) } }
+        EdSlider("Clarity", m.clarity) { v -> upd { it.copy(clarity = v) } }
+    }
 }
 
 /** Camera details copied from the original into an exported photo. */

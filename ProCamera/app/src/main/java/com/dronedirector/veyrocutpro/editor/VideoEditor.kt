@@ -585,6 +585,18 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     var pendingRestore by remember { mutableStateOf<java.io.File?>(null) }
     if (showSettings) EditorSettingsDialog(
         "Video editor", com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR,
+        colourExtra = {
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Scroll wheel effects", color = Color.White, fontSize = 15.sp)
+                    Text("Glow, pixel and scan-line animation on the timeline's scroll wheels. Off = plain colours, no animation.", color = Pro.Dim, fontSize = 12.sp)
+                }
+                androidx.compose.material3.Switch(wheelFx, {
+                    wheelFx = it
+                    context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("tl_wheel_fx", it).apply()
+                }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
+            }
+        },
         extra = {
             Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -594,16 +606,6 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 androidx.compose.material3.Switch(showInfo, {
                     showInfo = it
                     context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("ve_info", it).apply()
-                }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
-            }
-            Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Scroll wheel effects", color = Color.White, fontSize = 15.sp)
-                    Text("Glow, pixel and scan-line animation on the timeline's scroll wheels. Off = plain colours, no animation.", color = Pro.Dim, fontSize = 12.sp)
-                }
-                androidx.compose.material3.Switch(wheelFx, {
-                    wheelFx = it
-                    context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("tl_wheel_fx", it).apply()
                 }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
             }
             Text("PROXY MEDIA", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))

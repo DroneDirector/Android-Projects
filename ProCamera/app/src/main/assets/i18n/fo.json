@@ -2096,5 +2096,5 @@
 "The glowing wheel along the bottom of the timeline moves through the edit left and right (drag it like a wheel, or tap to jump); the one on the right moves the tracks up and down. Each sits in its own window, so neither covers a track.": "Tað glógvandi hjólið niðast á tíðarlinjuni flytur gjøgnum klippingina til vinstru og høgru (drag tað sum eitt hjól, ella trýst fyri at loypa); hjólið til høgru flytur sporini upp og niður. Hvørt liggur í sínum egna vindeyga, so einki teirra fjalir eitt spor.",
 "Scroll wheel effects": "Effektir á rullihjóli",
 "Glow, pixel and scan-line animation on the timeline's scroll wheels. Off = plain colours, no animation.": "Glóð-, pixel- og skannlinju-animatión á rullihjólunum á tíðarlinjuni. Av = einlitt, eingin animatión.",
-"Settings (⚙) → Scroll wheel effects: switch off for plain-coloured scroll wheels with no animation; on for the glowing upscale look.": "Stillingar (⚙) → Effektir á rullihjóli: slá av fyri einlit rullihjól uttan animatión; á fyri tann glógvandi uppskalerings-útsjóndina."
+"Settings (⚙) → App colour → Scroll wheel effects: switch off for plain-coloured scroll wheels with no animation; on for the glowing upscale look.": "Stillingar (⚙) → App-litur → Effektir á rullihjóli: slá av fyri einlit rullihjól uttan animatión; á fyri tann glógvandi uppskalerings-útsjóndina."
 }

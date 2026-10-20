@@ -2040,5 +2040,5 @@
 "The glowing wheel along the bottom of the timeline moves through the edit left and right (drag it like a wheel, or tap to jump); the one on the right moves the tracks up and down. Each sits in its own window, so neither covers a track.": "Det glødende hjul langs bunden af tidslinjen flytter gennem redigeringen til venstre og højre (træk i det som et hjul, eller tryk for at hoppe); hjulet til højre flytter sporene op og ned. Hvert ligger i sit eget vindue, så ingen af dem dækker et spor.",
 "Scroll wheel effects": "Effekter på rullehjul",
 "Glow, pixel and scan-line animation on the timeline's scroll wheels. Off = plain colours, no animation.": "Glød-, pixel- og scanlinje-animation på tidslinjens rullehjul. Fra = ensfarvet, ingen animation.",
-"Settings (⚙) → Scroll wheel effects: switch off for plain-coloured scroll wheels with no animation; on for the glowing upscale look.": "Indstillinger (⚙) → Effekter på rullehjul: slå fra for ensfarvede rullehjul uden animation; til for det glødende opskalerings-look."
+"Settings (⚙) → App colour → Scroll wheel effects: switch off for plain-coloured scroll wheels with no animation; on for the glowing upscale look.": "Indstillinger (⚙) → Appfarve → Effekter på rullehjul: slå fra for ensfarvede rullehjul uden animation; til for det glødende opskalerings-look."
 }

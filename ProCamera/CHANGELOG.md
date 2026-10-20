@@ -4,6 +4,11 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor masks:
+  - **Object (AI)**: tap any object and the AI selects it.
+  - **Depth range (AI)**: select by distance from the camera.
+  - **Combine** a mask with more selections: add, subtract or intersect a colour range, a brightness range, a depth range, the subject or the sky.
+- Photo editor **Lens Blur**: a shallow depth of field from the AI depth map. Tap the photo to set the focus, then choose the blur amount, the focus range and the bokeh shape (circle, hexagon, octagon, ring, cat's eye). Bokeh boost makes highlights glow.
 
 ## 1.0.349 — 2026-10-20
 - Fixed: the photo filmstrip and the video media strip disappeared when they were empty (for example after removing every photo). They now stay on screen with their + buttons until you hide them in the Panels menu.

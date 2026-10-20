@@ -36,6 +36,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Gradient
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import com.dronedirector.veyrocutpro.ui.Text
@@ -324,7 +326,12 @@ fun HealOverlay(
 
 /** The Masks panel: add, pick, show / hide, delete masks; edit the selected mask's settings. */
 @Composable
-fun MasksPanel(masks: List<PhotoMask>, ui: LocalToolsState, onMasks: (List<PhotoMask>) -> Unit, onAi: ((MaskType) -> Unit)? = null, video: Boolean = false, onTrackPen: ((PhotoMask) -> Unit)? = null, penTracking: String? = null) {
+fun MasksPanel(
+    masks: List<PhotoMask>, ui: LocalToolsState, onMasks: (List<PhotoMask>) -> Unit, onAi: ((MaskType) -> Unit)? = null, video: Boolean = false,
+    onTrackPen: ((PhotoMask) -> Unit)? = null, penTracking: String? = null,
+    /** Photo: add an AI selection (Subject / Sky / Depth) to mask [parentId] with combine mode 1 add, 2 subtract, 3 intersect. */
+    onAiSub: ((type: MaskType, combine: Int, parentId: String) -> Unit)? = null,
+) {
     SectionTitle("ADD A MASK")
     val full = video && masks.size >= MAX_VIDEO_MASKS
     if (full) Text("This clip has the most masks it can have ($MAX_VIDEO_MASKS). Delete one to add another.", color = Pro.Dim, fontSize = 11.sp)
@@ -338,6 +345,10 @@ fun MasksPanel(masks: List<PhotoMask>, ui: LocalToolsState, onMasks: (List<Photo
         if (onAi != null) {
             SmallAction(Icons.Filled.Visibility, "Subject (AI)") { onAi(MaskType.SUBJECT) }
             SmallAction(Icons.Filled.Visibility, "Sky (AI)") { onAi(MaskType.SKY) }
+            if (!video) {
+                SmallAction(Icons.Filled.TouchApp, "Object (AI)") { onAi(MaskType.OBJECT) }
+                SmallAction(Icons.Filled.Layers, "Depth (AI)") { onAi(MaskType.DEPTH) }
+            }
         }
     }
     if (masks.isEmpty() && !video) {
@@ -414,7 +425,56 @@ fun MasksPanel(masks: List<PhotoMask>, ui: LocalToolsState, onMasks: (List<Photo
                 Text("Planar tracking: the mask follows the surface it covers (a face, a sign, a car) as it moves.", color = Pro.Dim, fontSize = 11.sp)
             }
         }
+        MaskType.DEPTH -> {
+            Text("Selects by distance from the camera (AI depth): white in the mask = near. Set the range below.", color = Pro.Dim, fontSize = 11.sp)
+            Chips(listOf("Near", "Middle", "Far"), -1) { i ->
+                val (a, b) = listOf(0.65f to 1f, 0.35f to 0.65f, 0f to 0.35f)[i]
+                upd { it.copy(lumLow = a, lumHigh = b) }
+            }
+            EdSlider("Farthest", m.lumLow, 0f..1f, 0.7f, ::pct) { v -> upd { it.copy(lumLow = v.coerceAtMost(it.lumHigh)) } }
+            EdSlider("Nearest", m.lumHigh, 0f..1f, 1f, ::pct) { v -> upd { it.copy(lumHigh = v.coerceAtLeast(it.lumLow)) } }
+            EdSlider("Softness", m.rangeSoft, 0f..1f, 0.4f, ::pct) { v -> upd { it.copy(rangeSoft = v) } }
+        }
         else -> Text("Selected by the AI.", color = Pro.Dim, fontSize = 11.sp)
+    }
+    // ---- Add / subtract / intersect more selections (photo).
+    if (!video) {
+        SectionTitle("COMBINE") { upd { it.copy(subs = null) } }
+        var mode by remember { mutableStateOf(1) }
+        Chips(listOf("+ Add", "− Subtract", "∩ Intersect"), mode - 1) { mode = it + 1 }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+            fun addSub(t: MaskType) = upd { it.copy(subs = it.subs.orEmpty() + PhotoMask(type = t, combine = mode, lumLow = if (t == MaskType.LUMA_RANGE) 0.7f else 0.6f)) }
+            PillChip("Colour range", false) { addSub(MaskType.COLOR_RANGE) }
+            PillChip("Brightness range", false) { addSub(MaskType.LUMA_RANGE) }
+            if (onAiSub != null) {
+                PillChip("Depth (AI)", false) { onAiSub(MaskType.DEPTH, mode, m.id) }
+                PillChip("Subject (AI)", false) { onAiSub(MaskType.SUBJECT, mode, m.id) }
+                PillChip("Sky (AI)", false) { onAiSub(MaskType.SKY, mode, m.id) }
+            }
+        }
+        Text("Refine this mask: e.g. a brush or gradient minus a brightness range, or the sky intersected with a colour range.", color = Pro.Dim, fontSize = 11.sp)
+        m.subs.orEmpty().forEachIndexed { k, sub ->
+            fun us(f: (PhotoMask) -> PhotoMask) = upd { it.copy(subs = it.subs.orEmpty().mapIndexed { j, x -> if (j == k) f(x) else x }) }
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(listOf("+", "+", "−", "∩")[sub.combine.coerceIn(0, 3)] + " " + sub.type.label + if (sub.invert) " (inverted)" else "", color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = Color.White, modifier = Modifier.size(20.dp).clickable { upd { it.copy(subs = it.subs.orEmpty().filterIndexed { j, _ -> j != k }.ifEmpty { null }) } })
+            }
+            when (sub.type) {
+                MaskType.COLOR_RANGE -> {
+                    EdSlider("  Colour", sub.hue, 0f..360f, 210f, { "${it.toInt()}°" }) { v -> us { it.copy(hue = v) } }
+                    EdSlider("  Range", sub.hueWidth, 4f..160f, 40f, { "${it.toInt()}°" }) { v -> us { it.copy(hueWidth = v) } }
+                }
+                MaskType.LUMA_RANGE, MaskType.DEPTH -> {
+                    EdSlider(if (sub.type == MaskType.DEPTH) "  Farthest" else "  From", sub.lumLow, 0f..1f, 0.7f, ::pct) { v -> us { it.copy(lumLow = v.coerceAtMost(it.lumHigh)) } }
+                    EdSlider(if (sub.type == MaskType.DEPTH) "  Nearest" else "  To", sub.lumHigh, 0f..1f, 1f, ::pct) { v -> us { it.copy(lumHigh = v.coerceAtLeast(it.lumLow)) } }
+                }
+                else -> {}
+            }
+            if (sub.type == MaskType.COLOR_RANGE || sub.type == MaskType.LUMA_RANGE || sub.type == MaskType.DEPTH)
+                EdSlider("  Softness", sub.rangeSoft, 0f..1f, 0.4f, ::pct) { v -> us { it.copy(rangeSoft = v) } }
+            Chips(listOf("Normal", "Inverted"), if (sub.invert) 1 else 0) { i -> us { it.copy(invert = i == 1) } }
+            EdSlider("  Strength", sub.amount, 0f..1f, 1f, ::pct) { v -> us { it.copy(amount = v) } }
+        }
     }
     Chips(listOf("Normal", "Inverted"), if (m.invert) 1 else 0) { i -> upd { it.copy(invert = i == 1) } }
     Chips(listOf("Show mask", "Hide mask"), if (ui.showOverlay) 0 else 1) { ui.showOverlay = it == 0 }

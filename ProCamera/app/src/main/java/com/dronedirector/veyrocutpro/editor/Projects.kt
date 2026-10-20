@@ -67,6 +67,8 @@ data class PhotoProjectData(
     val raw: RawDng.Dev? = null,
     /** True for the hidden per-photo edits of the filmstrip (not shown in the project list). */
     val session: Boolean? = null,
+    /** Lens Blur (depth of field from the AI depth map). */
+    val lensBlur: LensBlur? = null,
 )
 
 /** A saved project as shown in the list. */

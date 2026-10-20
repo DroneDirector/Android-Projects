@@ -274,4 +274,6 @@ class DevUi(
     val sharpMask: Boolean, val setSharpMask: (Boolean) -> Unit,
     val autoTone: () -> Unit, val autoWb: () -> Unit,
     val importXmp: () -> Unit, val exportXmp: () -> Unit,
+    /** Lens Blur: work out the depth map (busy text while it runs, or null). */
+    val analyseDepth: () -> Unit = {}, val depthBusy: Boolean = false,
 )

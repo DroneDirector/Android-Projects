@@ -255,6 +255,7 @@ object ImageOps {
         lens: LensFix?, spots: List<Spot>?, masks: List<PhotoMask>?, aiMasks: Map<String, Bitmap> = emptyMap(),
         bg: PhotoBackground? = null,
         sky: SkySwap? = null,
+        lensBlur: LensBlur? = null,
     ): Bitmap {
         var b = src
         val srcW = src.width; val srcH = src.height
@@ -269,7 +270,8 @@ object ImageOps {
         if (tables != null) applyLut(px, tables)
         detail(px, w, h, detail)
         // AI selections are made on the uncropped photo: give them the same crop / rotation.
-        val used = (masks.orEmpty().filter { it.visible }.mapNotNull { it.maskFile } + listOfNotNull(bg?.takeIf { it.active }?.maskFile, sky?.takeIf { it.active }?.maskFile)).distinct()
+        val used = (masks.orEmpty().filter { it.visible }.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } +
+            listOfNotNull(bg?.takeIf { it.active }?.maskFile, sky?.takeIf { it.active }?.maskFile, lensBlur?.takeIf { it.active }?.depthFile)).distinct()
         val placed = HashMap<String, Bitmap>()
         for (f in used) aiMasks[f]?.let { m ->
             val s = Bitmap.createScaledBitmap(m, srcW, srcH, true)
@@ -277,6 +279,8 @@ object ImageOps {
             if (gm !== s) s.recycle()
             placed[f] = gm
         }
+        // Lens blur (depth of field from the AI depth map), before the local masks.
+        if (lensBlur != null && lensBlur.active) placed[lensBlur.depthFile]?.let { d -> LensBlurFx.apply(px, w, h, d, lensBlur) }
         if (!masks.isNullOrEmpty()) PhotoLocal.applyMasks(px, w, h, masks, placed)
         // Sky replacement.
         if (sky != null && sky.active) placed[sky.maskFile]?.let { m ->

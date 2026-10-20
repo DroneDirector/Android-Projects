@@ -79,6 +79,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 ## Photo editor guide
 **Pro develop**
+- Masks → Object (AI): tap the thing you want to select. Depth (AI): selects by distance, with Near, Middle and Far presets or the Nearest / Farthest sliders. COMBINE: choose + Add, − Subtract or ∩ Intersect, then a colour range, brightness range, depth, subject or sky to refine the selected mask.
+- Effects → LENS BLUR: tap ANALYSE DEPTH (once per photo), then ⌖ PICK FOCUS and tap what should be sharp. Blur amount, Focus range, Bokeh shape and Bokeh boost set the look.
 - Presets: choose a group, then tap a thumbnail. The Amount slider fades the preset in or pushes it further (up to 200 %). KEEP accepts the preset; UNDO PRESET goes back to how the photo was before.
 - IMPORT .XMP PRESETS reads .xmp presets or sidecars (Camera Raw settings) into MY PRESETS. EXPORT AS .XMP saves your look as an .xmp preset in Documents/VeyroCutPro/Presets.
 - Light → AUTO sets exposure, contrast and the tone sliders. CLIPPING ⚠ shows blown-out highlights in red and crushed shadows in blue.

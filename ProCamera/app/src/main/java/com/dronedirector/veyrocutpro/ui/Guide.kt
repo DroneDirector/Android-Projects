@@ -169,6 +169,8 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "AI erase on a RAW makes a normal copy to work on; after that, the photo is edited like a JPEG.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Photo editor tips", Icons.Filled.Photo, null, listOf(
+            "Masks → Object (AI): tap an object to select it. COMBINE adds, subtracts or intersects colour, brightness, depth, subject or sky selections.",
+            "Effects → LENS BLUR: ANALYSE DEPTH, then PICK FOCUS and tap — a shallow depth of field with the bokeh shape you choose.",
             "Presets: 60 built-in looks with live thumbnails and an Amount slider. Import .xmp presets, or export your look as one.",
             "Color → EYEDROPPER sets white balance from a tap. POINT COLOR changes just one colour. Light → CLIPPING ⚠ shows blown highlights and crushed shadows.",
             "Pinch or double-tap the photo for a 1:1 zoom.",

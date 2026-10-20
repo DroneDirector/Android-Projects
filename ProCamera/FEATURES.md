@@ -103,6 +103,8 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - Open from the gallery, files or recent VeyroCut Pro photos; **saved projects** row on the start page.
 - **Skip to the editor** from the start page: open the editor without picking a photo first, then add one from inside (manual, every time).
 - **Pro develop**:
+  - **Masks**: Object (AI) by tapping, Depth range (AI), and add / subtract / intersect combinations (colour, brightness, depth, subject, sky).
+  - **Lens Blur** from AI depth: tap-to-focus, focus range, blur amount, bokeh shapes (circle, hexagon, octagon, ring, cat's eye) and bokeh boost.
   - **60 built-in presets** (Portrait, Landscape, B&W, Film, Cinematic, Vintage, Urban, Food, Travel, Moody) with live thumbnails and an **Amount** slider.
   - **.xmp** preset and sidecar import, and .xmp preset export.
   - **Auto tone**, **Auto white balance**, a **WB eyedropper** and **clipping warnings**.

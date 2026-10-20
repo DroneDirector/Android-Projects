@@ -114,6 +114,8 @@ private data class PhotoEdit(
     val sky: SkySwap = SkySwap(),
     /** RAW (DNG) develop choices: profile and white balance preset. */
     val raw: RawDng.Dev = RawDng.Dev(),
+    /** Lens Blur from the AI depth map. */
+    val lensBlur: LensBlur? = null,
 )
 
 /** RAW develop does exposure, white balance and the tonal ranges itself; the 8-bit grade skips them. */
@@ -382,7 +384,7 @@ private fun PhotoWorkspace(
     var edit by remember {
         mutableStateOf(
             @Suppress("USELESS_ELVIS")
-            if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix(), initial.bg ?: PhotoBackground(), initial.baseFile, initial.texts ?: emptyList(), initial.sky ?: SkySwap(), initial.raw ?: RawDng.Dev())
+            if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix(), initial.bg ?: PhotoBackground(), initial.baseFile, initial.texts ?: emptyList(), initial.sky ?: SkySwap(), initial.raw ?: RawDng.Dev(), initial.lensBlur)
             else PhotoEdit(watermark = WatermarkMemory.load(context, false))
         )
     }
@@ -396,6 +398,7 @@ private fun PhotoWorkspace(
     var comparing by remember { mutableStateOf(false) }
     // Develop tools: eyedropper (1 = white balance, 2 = Point Color), clipping warning, sharpening mask, zoom / 1:1 loupe.
     var picking by remember { mutableStateOf(0) }
+    var pendingObject by remember { mutableStateOf<Pair<Float, Float>?>(null) }
     var clipWarn by remember { mutableStateOf(false) }
     var sharpMaskView by remember { mutableStateOf(false) }
     var zoomK by remember { mutableStateOf(1f) }
@@ -442,15 +445,15 @@ private fun PhotoWorkspace(
     val tools = remember { LocalToolsState() }
     // AI masks (subject / sky) are kept as grey pictures in the app's files.
     val aiMasks = remember { mutableStateMapOf<String, Bitmap>() }
-    LaunchedEffect(edit.masks.mapNotNull { it.maskFile } + listOfNotNull(edit.bg.maskFile, edit.sky.maskFile, edit.sky.imagePath)) {
-        for (f in edit.masks.mapNotNull { it.maskFile } + listOfNotNull(edit.bg.maskFile, edit.sky.maskFile, edit.sky.imagePath)) if (aiMasks[f] == null) withContext(Dispatchers.IO) { BitmapFactory.decodeFile(f) }?.let { aiMasks[f] = it }
+    LaunchedEffect((edit.masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(edit.bg.maskFile, edit.sky.maskFile, edit.sky.imagePath, edit.lensBlur?.depthFile))) {
+        for (f in (edit.masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(edit.bg.maskFile, edit.sky.maskFile, edit.sky.imagePath, edit.lensBlur?.depthFile))) if (aiMasks[f] == null) withContext(Dispatchers.IO) { BitmapFactory.decodeFile(f) }?.let { aiMasks[f] = it }
     }
     fun saveProject(name: String) {
         val e = edit
         val p = PhotoProjectData(
             id = projectId ?: java.util.UUID.randomUUID().toString(), name = name, uri = uri,
             grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark,
-            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw,
+            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw, lensBlur = e.lensBlur,
         )
         val thumb = preview
         scope.launch {
@@ -472,7 +475,7 @@ private fun PhotoWorkspace(
         val p = PhotoProjectData(
             id = sp.projectId ?: java.util.UUID.randomUUID().toString(), name = sp.name, uri = uri,
             grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark,
-            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw,
+            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw, lensBlur = e.lensBlur,
             session = true,
         )
         try {
@@ -493,7 +496,7 @@ private fun PhotoWorkspace(
     LaunchedEffect(clipWarn, preview) { val pv = preview; clipImg = if (clipWarn && pv != null) withContext(Dispatchers.Default) { Develop.clipOverlay(pv) } else null }
     LaunchedEffect(sharpMaskView, preview, edit.detail.sharpenMasking) { val pv = preview; sharpImg = if (sharpMaskView && pv != null) withContext(Dispatchers.Default) { Develop.sharpenMaskPreview(pv, edit.detail) } else null }
     fun resetZoom() { zoomK = 1f; panX = 0f; panY = 0f }
-    LaunchedEffect(panel, split) { if (panel == PhotoPanel.MASKS || panel == PhotoPanel.HEAL || split) resetZoom(); if (panel != PhotoPanel.COLOR) picking = 0 }
+    LaunchedEffect(panel, split) { if (panel == PhotoPanel.MASKS || panel == PhotoPanel.HEAL || split) resetZoom(); if (panel != PhotoPanel.COLOR && panel != PhotoPanel.MASKS && panel != PhotoPanel.EFFECTS) picking = 0 }
     /** A tap on the photo (box coordinates) → pixel of the shown picture, undoing padding, fit and zoom. */
     fun tapToPixel(o: androidx.compose.ui.geometry.Offset, img: Bitmap, padPx: Float): Pair<Int, Int>? {
         val bw = viewSize.width.toFloat(); val bh = viewSize.height.toFloat()
@@ -512,6 +515,14 @@ private fun PhotoWorkspace(
         if (picking == 1) {
             val (t, ti) = Develop.wbFromSample(c[0], c[1], c[2], edit.grade.temperature, edit.grade.tint)
             edit = edit.copy(grade = edit.grade.copy(temperature = t, tint = ti)); message = "White balance set from the picked spot"
+        } else if (picking == 3) {
+            // Masks are made on the uncropped photo; with no crop the tap maps straight across.
+            pendingObject = px.toFloat() / img.width to py.toFloat() / img.height
+            if (!edit.geometry.isIdentity) message = "Tip: the object pick works best before cropping"
+        } else if (picking == 4) {
+            val lb = edit.lensBlur
+            val d = lb?.depthFile?.let { aiMasks[it] }
+            if (lb != null && d != null) { edit = edit.copy(lensBlur = lb.copy(focus = LensBlurFx.depthAt(d, px.toFloat() / img.width, py.toFloat() / img.height))); message = "Focus set" }
         } else if (picking == 2) {
             val hsv = FloatArray(3); android.graphics.Color.RGBToHSV(c[0].toInt(), c[1].toInt(), c[2].toInt(), hsv)
             edit = edit.copy(grade = edit.grade.copy(pointColors = (edit.grade.pointColors ?: emptyList()) + PointColor(hsv[0], hsv[1], hsv[2])))
@@ -574,7 +585,7 @@ private fun PhotoWorkspace(
             try {
                 val hi = loupeSrc?.takeIf { it.first == key }?.second ?: (GradeIO.decode(context, sourceUri(e), 3600) ?: return@withContext null).also { loupeSrc = key to it }
                 val tables = if (e.grade.isIdentity) null else e.grade.tables()
-                var o = ImageOps.renderPhoto(hi, e.grade, e.detail.copy(aiDenoise = 0f), e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg, e.sky)
+                var o = ImageOps.renderPhoto(hi, e.grade, e.detail.copy(aiDenoise = 0f), e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg, e.sky, e.lensBlur)
                 for (t in e.texts) o = stampLayer(context, o, t)
                 e.watermark?.let { o = stampLayer(context, o, it) }
                 o
@@ -656,7 +667,7 @@ private fun PhotoWorkspace(
             val eg = if (raw) e.grade.rawRest() else e.grade
             val tables = if (eg.isIdentity) null else eg.tables()
             val healNow = healMode.value
-            val r = ImageOps.renderPhoto(s0, eg, e.detail, if (healNow) Geometry() else e.geometry, tables, e.lens, e.spots, if (healNow) null else e.masks, aiMasks.toMap(), if (healNow) null else e.bg, if (healNow) null else e.sky)
+            val r = ImageOps.renderPhoto(s0, eg, e.detail, if (healNow) Geometry() else e.geometry, tables, e.lens, e.spots, if (healNow) null else e.masks, aiMasks.toMap(), if (healNow) null else e.bg, if (healNow) null else e.sky, if (healNow) null else e.lensBlur)
             if (healNow) return r
             var o = r
             for (t in e.texts) o = stampLayer(context, o, t)
@@ -733,7 +744,7 @@ private fun PhotoWorkspace(
                     }
                     val eg = if (raw) e.grade.rawRest() else e.grade
                     val tables = if (eg.isIdentity) null else eg.tables()
-                    var out = ImageOps.renderPhoto(full, eg, e.detail, e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg, e.sky)
+                    var out = ImageOps.renderPhoto(full, eg, e.detail, e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg, e.sky, e.lensBlur)
                     full.recycle()
                     // AI upscale (×2 / ×4, at most 24 MP).
                     if (aiScale > 1) {
@@ -794,13 +805,68 @@ private fun PhotoWorkspace(
             else { message = null; done(path) }
         }
     }
-    val aiMaskAction: ((MaskType) -> Unit)? = { type ->
-        findMask(type) { path ->
-            val pm = PhotoMask(type = type, maskFile = path)
-            edit = edit.copy(masks = edit.masks + pm)
-            tools.selected = pm.id
+    /** The photo's AI depth map (made once, reused by depth masks and Lens Blur). */
+    var depthBusy by remember { mutableStateOf(false) }
+    fun withDepth(done: (String) -> Unit) {
+        val have = edit.lensBlur?.depthFile ?: edit.masks.flatMap { listOf(it) + it.subs.orEmpty() }.firstOrNull { it.type == MaskType.DEPTH }?.maskFile
+        if (have != null && java.io.File(have).exists()) { done(have); return }
+        val b = base ?: return
+        if (depthBusy) return
+        depthBusy = true; message = "Working out the depth…"
+        scope.launch {
+            val path = withContext(Dispatchers.Default) { try { LensBlurFx.analyse(context, b) } catch (_: Throwable) { null } }
+            depthBusy = false
+            if (path == null) message = "Couldn't work out the depth" + (DepthModel.failed?.let { " ($it)" } ?: " — the AI model may still be downloading")
+            else { message = null; done(path) }
         }
     }
+    val aiMaskAction: ((MaskType) -> Unit)? = { type ->
+        when (type) {
+            MaskType.OBJECT -> { picking = 3; message = "Tap the object you want to select" }
+            MaskType.DEPTH -> withDepth { path ->
+                val pm = PhotoMask(type = MaskType.DEPTH, maskFile = path, lumLow = 0.6f, lumHigh = 1f)
+                edit = edit.copy(masks = edit.masks + pm); tools.selected = pm.id
+            }
+            else -> findMask(type) { path ->
+                val pm = PhotoMask(type = type, maskFile = path)
+                edit = edit.copy(masks = edit.masks + pm)
+                tools.selected = pm.id
+            }
+        }
+    }
+    /** Adds an AI selection to a mask as add / subtract / intersect. */
+    val aiSubAction: (MaskType, Int, String) -> Unit = { type, combine, parent ->
+        fun add(path: String) {
+            val sub = PhotoMask(type = type, maskFile = path, combine = combine, lumLow = if (type == MaskType.DEPTH) 0.6f else 0.7f)
+            edit = edit.copy(masks = edit.masks.map { if (it.id == parent) it.copy(subs = it.subs.orEmpty() + sub) else it })
+        }
+        if (type == MaskType.DEPTH) withDepth { add(it) } else findMask(type) { add(it) }
+    }
+    // Select Objects: the AI's features of the photo, made once per photo.
+    var samCache by remember { mutableStateOf<Pair<Bitmap, Sam.Embedding>?>(null) }
+    fun selectObjectAt(nx: Float, ny: Float) {
+        val b = base ?: return
+        message = "Selecting the object…"
+        scope.launch {
+            val path = withContext(Dispatchers.Default) {
+                try {
+                    val emb = samCache?.takeIf { it.first === b }?.second ?: (Sam.encode(context, b) ?: return@withContext null).also { samCache = b to it }
+                    val pts = listOf(MaskPoint(nx, ny, 1))
+                    val ans = Sam.decode(emb, pts) ?: return@withContext null
+                    val i = Sam.pick(ans, pts, 0)
+                    val bytes = Sam.toMask(ans.mask(i), emb, b.width, b.height)
+                    val px = IntArray(bytes.size) { k -> val v = bytes[k].toInt() and 255; (0xFF shl 24) or (v shl 16) or (v shl 8) or v }
+                    AiSegment.saveMask(context, Bitmap.createBitmap(px, b.width, b.height, Bitmap.Config.ARGB_8888))
+                } catch (_: Throwable) { null }
+            }
+            if (path == null) message = "Couldn't select that" + (Sam.failed?.let { " ($it)" } ?: "")
+            else {
+                val pm = PhotoMask(type = MaskType.OBJECT, maskFile = path)
+                edit = edit.copy(masks = edit.masks + pm); tools.selected = pm.id; message = "Object selected"
+            }
+        }
+    }
+    LaunchedEffect(pendingObject) { pendingObject?.let { (x, y) -> pendingObject = null; selectObjectAt(x, y) } }
     var eraseMask by remember { mutableStateOf<PhotoMask?>(null) }
     fun runErase() {
         val em = eraseMask ?: return
@@ -1152,7 +1218,7 @@ private fun PhotoWorkspace(
                     val shownNow = if (comparing) base else preview ?: base
                     if (!split && !comparing && shownNow != null) {
                         val selMask = edit.masks.firstOrNull { it.id == tools.selected }
-                        if (panel == PhotoPanel.MASKS && selMask != null) MaskEditOverlay(selMask, shownNow.width, shownNow.height, tools, image = shownNow) { m ->
+                        if (panel == PhotoPanel.MASKS && selMask != null && picking == 0) MaskEditOverlay(selMask, shownNow.width, shownNow.height, tools, image = shownNow) { m ->
                             edit = edit.copy(masks = edit.masks.map { if (it.id == m.id) m else it })
                         }
                         val em = eraseMask
@@ -1170,7 +1236,7 @@ private fun PhotoWorkspace(
                         modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.6f)).clickable { resetZoom() }.padding(horizontal = 8.dp, vertical = 3.dp),
                     )
                     if (picking != 0) Text(
-                        if (picking == 1) "Tap something that should be neutral grey or white" else "Tap the colour you want to change",
+                        when (picking) { 1 -> "Tap something that should be neutral grey or white"; 3 -> "Tap the object to select"; 4 -> "Tap where the focus should be"; else -> "Tap the colour you want to change" },
                         style = Pro.Label.copy(color = Color.Black),
                         modifier = Modifier.align(Alignment.TopCenter).padding(top = 34.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable { picking = 0 }.padding(horizontal = 10.dp, vertical = 5.dp),
                     )
@@ -1237,7 +1303,7 @@ private fun PhotoWorkspace(
                     )
                     Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 4.dp)) {
                         when (panel) {
-                            PhotoPanel.MASKS -> MasksPanel(edit.masks, tools, { edit = edit.copy(masks = it) }, onAi = aiMaskAction)
+                            PhotoPanel.MASKS -> MasksPanel(edit.masks, tools, { edit = edit.copy(masks = it) }, onAi = aiMaskAction, onAiSub = aiSubAction)
                             PhotoPanel.HEAL -> {
                                 SectionTitle("HEAL / CLONE") { edit = edit.copy(spots = emptyList()) }
                                 Chips(listOf("Heal", "Clone stamp"), if (cloneMode) 1 else 0) { cloneMode = it == 1; cloneSrc = null; cloneOff = null }
@@ -1345,6 +1411,8 @@ private fun PhotoWorkspace(
                                     autoWb = { base?.let { b -> edit = edit.copy(grade = Develop.autoWb(b, edit.grade)); message = "Auto white balance applied" } },
                                     importXmp = { try { pickXmp.launch(arrayOf("*/*")) } catch (_: Throwable) {} },
                                     exportXmp = { exportXmp() },
+                                    analyseDepth = { withDepth { p -> edit = edit.copy(lensBlur = (edit.lensBlur ?: LensBlur()).copy(depthFile = p, on = true)) } },
+                                    depthBusy = depthBusy,
                                 ),
                             )
                         }
@@ -1652,6 +1720,29 @@ private fun PhotoPanelContent(
                 EdSlider("  Roughness", e.detail.grainRg, 0f..1f, 0.5f, ::pct) { v -> detail { it.copy(grainRough = v - 0.5f) } }
             }
             EdSlider("Fade", g.fade, 0f..1f, format = ::pct) { v -> grade { it.copy(fade = v) } }
+            // ---- Lens Blur
+            val lb = e.lensBlur
+            SectionTitle("LENS BLUR (AI DEPTH)") { set(e.copy(lensBlur = null)) }
+            if (lb?.depthFile == null) {
+                Text(
+                    if (dev?.depthBusy == true) "Working out the depth…" else "ANALYSE DEPTH", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                    modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable(enabled = dev?.depthBusy != true) { dev?.analyseDepth?.invoke() }.padding(10.dp),
+                )
+                Text("A shallow depth of field like a fast lens: the AI works out how far everything is, then you pick the focus and how strong the blur is.", color = Pro.Dim, fontSize = 11.sp)
+            } else {
+                fun lbs(f: (LensBlur) -> LensBlur) = set(e.copy(lensBlur = f(lb)))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Lens blur", color = Color.White, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                    androidx.compose.material3.Switch(lb.on, { v -> lbs { it.copy(on = v) } }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
+                }
+                EdSlider("Blur amount", lb.amount, 0f..1f, 0.5f, ::pct) { v -> lbs { it.copy(amount = v) } }
+                if (dev != null) PillChip(if (dev.picking == 4) "TAP THE PHOTO TO FOCUS" else "⌖ PICK FOCUS", dev.picking == 4, accentText = true) { dev.setPicking(4) }
+                EdSlider("Focus distance", lb.focus, 0f..1f, 0.8f, { if (it > 0.66f) "Near ${pct(it)}" else if (it < 0.33f) "Far ${pct(it)}" else pct(it) }) { v -> lbs { it.copy(focus = v) } }
+                EdSlider("Focus range", lb.range, 0f..0.5f, 0.12f, ::pct) { v -> lbs { it.copy(range = v) } }
+                Text("Bokeh", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+                Chips(BOKEH_SHAPES, lb.shape) { i -> lbs { it.copy(shape = i) } }
+                EdSlider("Bokeh boost", lb.boost, 0f..1f, 0.4f, ::pct) { v -> lbs { it.copy(boost = v) } }
+            }
         }
         PhotoPanel.CROP -> {
             val geom = e.geometry

@@ -4,6 +4,9 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- **External monitor layouts**. These are used only when the app is shown on a monitor through Samsung DeX or HDMI / USB-C desktop mode. On the phone's or tablet's own screen nothing changes, and unplugging switches back straight away without losing your edit.
+  - **Normal wide monitors (16:9 / 16:10):** the side-by-side layout with the media strip above the timeline.
+  - **Ultra-wide (21:9) and super ultra-wide (32:9):** the video editor gets three columns: media (a tall grid of clips) | viewer | tools, with the timeline across the whole width. The photo editor gets filmstrip | photo | tools. Capture keeps the camera in the middle with a large histogram and the exposure read-out at the sides. Every column can be resized with its divider.
 
 ## 1.0.361 — 2026-10-20
 - Photo editor **Library** (start page → Library): every photo on your phone in one place.

@@ -22,7 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -155,18 +155,24 @@ fun Filmstrip(
     val context = LocalContext.current
     val items = PhotoSession.items
     var selecting by remember { mutableStateOf(false) }
-    val picked = remember { mutableStateListOf<Int>() }
+    // Everything here works by the photo's file (uri), never by its position: positions change when photos are removed.
+    val picked = remember { mutableStateListOf<String>() }
     var filter by remember { mutableStateOf(0) }   // 0 all, 1 ★3+, 2 picks, 3 edited, 4 not rejected
-    var menuFor by remember { mutableStateOf(-1) }
-    val shown = items.indices.filter { i ->
-        val p = items[i]
+    var menuFor by remember { mutableStateOf<String?>(null) }
+    fun idx(uri: String) = items.indexOfFirst { it.uri == uri }
+    fun upd(uri: String, f: (SessionPhoto) -> SessionPhoto) { val k = idx(uri); if (k >= 0) PhotoSession.update(context, k, f) }
+    fun indices(uris: Collection<String>) = uris.map { idx(it) }.filter { it >= 0 }
+    val shown = items.toList().filter { p ->
         when (filter) { 1 -> p.rating >= 3; 2 -> p.flag == 1; 3 -> p.edited; 4 -> p.flag != -1; else -> true }
     }
+    val curUri = items.getOrNull(PhotoSession.current)?.uri
+    // Drop selections of photos that are gone.
+    LaunchedEffect(items.size) { picked.retainAll(items.map { it.uri }.toSet()); if (menuFor != null && idx(menuFor!!) < 0) menuFor = null }
     val state = rememberLazyListState()
-    LaunchedEffect(PhotoSession.current) { val k = shown.indexOf(PhotoSession.current); if (k >= 0) state.animateScrollToItem((k - 2).coerceAtLeast(0)) }
+    LaunchedEffect(curUri, filter) { val k = shown.indexOfFirst { it.uri == curUri }; if (k >= 0) state.animateScrollToItem((k - 2).coerceAtLeast(0)) }
     Column(modifier.fillMaxWidth().background(Color(0xFF0B0D12))) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("${PhotoSession.current + 1} / ${items.size}", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), modifier = Modifier.padding(end = 8.dp))
+            Text(if (PhotoSession.current >= 0) "${PhotoSession.current + 1} / ${items.size}" else "${items.size}", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), modifier = Modifier.padding(end = 8.dp))
             listOf("All", "★3+", "Picks", "Edited", "No rejects").forEachIndexed { i, n ->
                 Text(n, style = Pro.Label.copy(color = if (filter == i) Pro.Amber else Pro.Dim, fontSize = 10.sp),
                     modifier = Modifier.clip(RoundedCornerShape(6.dp)).combinedClickable(onClick = { filter = i }).padding(horizontal = 6.dp, vertical = 3.dp))
@@ -177,29 +183,29 @@ fun Filmstrip(
         }
         if (selecting) Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("${picked.size} selected", style = Pro.Label.copy(color = Color.White, fontSize = 10.sp))
-            Chip("All") { picked.clear(); picked.addAll(shown) }
+            Chip("Select all") { picked.clear(); picked.addAll(shown.map { it.uri }) }
             if (picked.isNotEmpty()) {
-                Chip("Sync edit") { onSync(picked.toList()) }
-                Chip("Export") { onExport(picked.toList()) }
-                Chip("★★★") { picked.forEach { i -> PhotoSession.update(context, i) { it.copy(rating = 3) } } }
-                Chip("Pick") { picked.forEach { i -> PhotoSession.update(context, i) { it.copy(flag = 1) } } }
-                Chip("Reject") { picked.forEach { i -> PhotoSession.update(context, i) { it.copy(flag = -1) } } }
-                Chip("Remove") { PhotoSession.remove(context, picked.toList()); picked.clear() }
+                Chip("Sync edit") { onSync(indices(picked)) }
+                Chip("Export") { onExport(indices(picked)) }
+                Chip("★★★") { picked.toList().forEach { u -> upd(u) { it.copy(rating = 3) } } }
+                Chip("Pick") { picked.toList().forEach { u -> upd(u) { it.copy(flag = 1) } } }
+                Chip("Reject") { picked.toList().forEach { u -> upd(u) { it.copy(flag = -1) } } }
+                Chip("Remove") { val list = indices(picked); picked.clear(); PhotoSession.remove(context, list) }
             }
         }
         LazyRow(state = state, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            itemsIndexed(shown, key = { _, i -> items[i].uri }) { _, i ->
-                val p = items[i]
-                val cur = i == PhotoSession.current
-                val sel = i in picked
+            items(shown, key = { it.uri }) { p ->
+                val u = p.uri
+                val cur = u == curUri
+                val sel = u in picked
                 val bmp by produceState<Bitmap?>(null, p.uri, p.projectId, p.version) { value = withContext(Dispatchers.IO) { PhotoSession.thumb(context, p) } }
                 Box(
                     Modifier.size(64.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFF1A1E26))
                         .border(if (cur || sel) 2.dp else 1.dp, if (sel) Color.White else if (cur) Pro.Amber else Color.White.copy(alpha = 0.1f), RoundedCornerShape(6.dp))
-                        .mouseActions(onRightClick = { menuFor = i })
+                        .mouseActions(onRightClick = { menuFor = u })
                         .combinedClickable(
-                            onClick = { if (selecting) { if (sel) picked.remove(i) else picked.add(i) } else if (!cur) onOpen(i) },
-                            onLongClick = { menuFor = i },
+                            onClick = { if (selecting) { if (sel) picked.remove(u) else picked.add(u) } else if (!cur) { val k = idx(u); if (k >= 0) onOpen(k) } },
+                            onLongClick = { menuFor = u },
                         ),
                 ) {
                     bmp?.let { b -> val img = remember(b) { b.asImageBitmap() }; Image(img, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
@@ -213,21 +219,26 @@ fun Filmstrip(
                     }
                     if (p.edited) Text("✎", color = Pro.Amber, fontSize = 9.sp, modifier = Modifier.align(Alignment.TopEnd).padding(2.dp))
                     if (selecting) Text(if (sel) "☑" else "☐", color = Color.White, fontSize = 12.sp, modifier = Modifier.align(Alignment.TopStart).padding(2.dp))
-                    DropdownMenu(expanded = menuFor == i, onDismissRequest = { menuFor = -1 }, containerColor = Pro.PanelSolid) {
+                    DropdownMenu(expanded = menuFor == u, onDismissRequest = { menuFor = null }, containerColor = Pro.PanelSolid) {
                         Column(Modifier.padding(horizontal = 10.dp, vertical = 4.dp)) {
                             Text(p.name, style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), maxLines = 1)
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(vertical = 4.dp)) {
-                                (0..5).forEach { r -> Chip(if (r == 0) "☆" else "★$r", p.rating == r) { PhotoSession.update(context, i) { it.copy(rating = r) } } }
+                                (0..5).forEach { r -> Chip(if (r == 0) "☆" else "★$r", p.rating == r) { upd(u) { it.copy(rating = r) } } }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(vertical = 4.dp)) {
-                                Chip("⚑ Pick", p.flag == 1) { PhotoSession.update(context, i) { it.copy(flag = if (it.flag == 1) 0 else 1) } }
-                                Chip("✕ Reject", p.flag == -1) { PhotoSession.update(context, i) { it.copy(flag = if (it.flag == -1) 0 else -1) } }
+                                Chip("⚑ Pick", p.flag == 1) { upd(u) { it.copy(flag = if (it.flag == 1) 0 else 1) } }
+                                Chip("✕ Reject", p.flag == -1) { upd(u) { it.copy(flag = if (it.flag == -1) 0 else -1) } }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(20.dp).clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.4f), CircleShape).combinedClickable(onClick = { PhotoSession.update(context, i) { it.copy(label = null) } }))
-                                LABELS.forEach { c -> Box(Modifier.size(20.dp).clip(CircleShape).background(Color(c)).border(2.dp, if (p.label == c) Color.White else Color.Transparent, CircleShape).combinedClickable(onClick = { PhotoSession.update(context, i) { it.copy(label = c) } })) }
+                                Box(Modifier.size(20.dp).clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.4f), CircleShape).combinedClickable(onClick = { upd(u) { it.copy(label = null) } }))
+                                LABELS.forEach { c -> Box(Modifier.size(20.dp).clip(CircleShape).background(Color(c)).border(2.dp, if (p.label == c) Color.White else Color.Transparent, CircleShape).combinedClickable(onClick = { upd(u) { it.copy(label = c) } })) }
                             }
-                            Chip("Remove from strip") { menuFor = -1; PhotoSession.remove(context, listOf(i)) }
+                            Chip("Remove from strip") {
+                                // Close the menu first, then remove on the next frame (the menu must not outlive its photo).
+                                menuFor = null
+                                val k = idx(u)
+                                if (k >= 0) PhotoSession.remove(context, listOf(k))
+                            }
                         }
                     }
                 }

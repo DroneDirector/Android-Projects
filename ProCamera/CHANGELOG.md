@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Fixed: removing a photo from the photo editor's filmstrip (hold → Remove from strip) closed the app.
 
 ## 1.0.342 — 2026-10-20
 - Video editor: a **media strip** above the timeline shows every imported clip, whether it is on the timeline or not. Hover with a mouse, or hold and slide a finger, to skim through a clip. Tap a clip to pick it and double-tap to add it to the end. Clips already on the timeline get an amber USED mark. You can give clips 1–5 stars or reject them, filter by All / Unused / Used / ★3+ / No rejects or by bin, and use SELECT to append, rate or remove several clips at once. **+ Clips** imports up to 100 clips at a time; **+ Folder** imports every video in a folder (including two levels of sub-folders).

@@ -283,9 +283,11 @@ jobs:
           adb shell input mouse scroll 540 700 --axis VSCROLL,-1 || true; sleep 6
           adb shell input mouse tap 540 700; sleep 1; adb shell input mouse tap 540 700; sleep 3; shot 14g-double-click
           adb shell input mouse tap 540 700; sleep 1; adb shell input mouse tap 540 700; sleep 2
-          tapExact "SELECT"; sleep 1; tapExact "All"; sleep 1; tapExact "★★★"; sleep 1; tapExact "Sync edit"; sleep 10; shot 14h-synced
+          tapExact "SELECT"; sleep 1; tapExact "Select all"; sleep 1; tapExact "★★★"; sleep 1; tapExact "Sync edit"; sleep 10; shot 14h-synced
           tapExact "Export"; for i in $(seq 1 30); do sleep 4; seeText "Exported" && break; done; shot 14i-exported
           tapExact "DONE"; sleep 1; tapExact "Picks"; sleep 1; tapExact "All"; sleep 1
+          # Remove a photo from the strip (hold its thumbnail → Remove from strip); this used to crash.
+          XY=$(xyOf "/ 2"); if [ -n "$XY" ]; then set -- $XY; adb shell input swipe $(( $1 + 40 )) $(( $2 + 110 )) $(( $1 + 40 )) $(( $2 + 110 )) 900; sleep 2; shot 14i2-menu; tapText "Remove from strip"; sleep 3; shot 14i3-removed; fi
           adb shell input keyevent KEYCODE_BACK; sleep 4; shot 14j-start-continue
           seeText "Continue filmstrip" && echo "continue banner" >> out/filmstrip.txt
           tapText "Continue filmstrip"; sleep 8; shot 14k-continued

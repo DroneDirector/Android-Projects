@@ -2290,5 +2290,6 @@
 "Pointer colour": "Markørfarve",
 "SCROLL WHEELS": "RULLEHJUL",
 "Scroll wheel colour (timeline wheels), kept separate from the pointer and the rest of the app": "Rullehjulenes farve (tidslinjehjul), adskilt fra markøren og resten af appen",
-"{0} placed on the timeline": "{0} placeret på tidslinjen"
+"{0} placed on the timeline": "{0} placeret på tidslinjen",
+"Select all": "Vælg alle"
 }

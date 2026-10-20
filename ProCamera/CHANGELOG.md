@@ -4,6 +4,14 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor **Library** (start page → Library): every photo on your phone in one place.
+  - Star ratings, Pick / Reject flags, colour labels and keywords.
+  - **Albums**, and **smart albums** that save a set of filters and a search.
+  - **AI search**: find photos by what's in them, such as dog, beach, sunset or food. Your photos are labelled on the phone in the background.
+  - **Info** shows the camera, lens, focal length, aperture, shutter speed, ISO, date and location.
+  - **Compare** two photos side by side with linked zoom, or **Survey** up to 12 and drop the ones you don't want.
+  - Edit many photos together in the filmstrip.
+- **Virtual copies**: the same photo with a separate edit, from the library or the filmstrip ("Make virtual copy").
 - **Autosave** in the photo and video editors (gear → AUTOSAVE). Choose how often (Off, or every 1, 2, 5, 10, 15 or 30 minutes) and how many autosaves to keep (1–5). Each save is a separate copy, and the oldest is removed only when there are more than you chose to keep. A copy is saved only when something changed. Open them from LOAD → AUTOSAVES; your own saved projects are never touched.
 
 ## 1.0.357 — 2026-10-20

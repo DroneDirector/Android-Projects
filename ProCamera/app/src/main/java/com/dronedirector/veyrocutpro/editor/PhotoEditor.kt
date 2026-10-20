@@ -171,6 +171,15 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
     }
 
     val src = source
+    var showLibrary by remember { mutableStateOf(false) }
+    if (src == null && showLibrary) {
+        LibraryScreen(
+            onBack = { showLibrary = false },
+            onEdit = { list -> showLibrary = false; val first = PhotoSession.add(context, list); if (first >= 0) openSession(first) },
+            onVirtualCopy = { u -> showLibrary = false; openSession(PhotoSession.addCopy(context, u)) },
+        )
+        return
+    }
     if (src == null) {
         BackHandler { onExit() }
         merging?.let { msg ->
@@ -221,7 +230,20 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
             onFiles = { browse.launch(arrayOf("image/*")) },
             onRecent = { project = null; addMany(listOf(it)) },
             onSkip = { project = null; PhotoSession.current = -1; source = Uri.EMPTY },
-            banner = if (PhotoSession.items.isEmpty()) null else ({
+            banner = {
+                Row(
+                    Modifier.padding(bottom = 10.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Ed.Raised)
+                        .clickable { showLibrary = true }.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Filled.PhotoLibrary, contentDescription = null, tint = Pro.Amber)
+                    Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                        Text("Library", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        Text("All your photos: stars, flags, albums, keywords, AI search, compare", color = Pro.Dim, fontSize = 11.sp)
+                    }
+                    Text("→", color = Pro.Amber, fontSize = 20.sp)
+                }
+                if (PhotoSession.items.isNotEmpty()) {
                 Row(
                     Modifier.padding(bottom = 10.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Ed.Raised)
                         .clickable { openSession(PhotoSession.current.coerceIn(0, PhotoSession.items.lastIndex)) }.padding(horizontal = 14.dp, vertical = 12.dp),
@@ -233,7 +255,8 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
                     }
                     Text("Clear", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.clip(RoundedCornerShape(50)).clickable { PhotoSession.clear(context) }.padding(8.dp))
                 }
-            }),
+                }
+            },
             onOpenProject = { id ->
                 val p = ProjectStore.loadPhoto(context, id)
                 if (p != null && p.uri != Uri.EMPTY) { PhotoSession.current = -1; project = p; source = p.uri }

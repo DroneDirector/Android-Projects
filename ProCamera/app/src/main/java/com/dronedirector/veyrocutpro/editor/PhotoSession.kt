@@ -64,7 +64,12 @@ data class SessionPhoto(
     val edited: Boolean = false,
     /** Bumped when the edit is saved, so the thumbnail is drawn again. */
     val version: Long = 0L,
-)
+    /** Set for a virtual copy: the same photo with its own, separate edit. */
+    val copyId: String? = null,
+) {
+    /** Unique in the filmstrip (a photo and its virtual copies share the uri). */
+    val key: String get() = uri + (copyId?.let { "#$it" } ?: "")
+}
 
 /**
  * The photo editor's working set, like a desktop filmstrip: many photos imported at once, each with
@@ -100,7 +105,7 @@ object PhotoSession {
         for (u in uris) {
             try { context.contentResolver.takePersistableUriPermission(u, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
             val s = u.toString()
-            val at = items.indexOfFirst { it.uri == s }
+            val at = items.indexOfFirst { it.uri == s && it.copyId == null }
             if (at >= 0) { if (first < 0) first = at; continue }
             items.add(SessionPhoto(s, displayName(context, u)))
             if (first < 0) first = items.lastIndex
@@ -109,9 +114,27 @@ object PhotoSession {
         return first
     }
 
+    /** A virtual copy of [uri]: same photo, its own edit (starting from the original's edit). Returns its index. */
+    fun addCopy(context: Context, uri: Uri): Int {
+        load(context)
+        val src = items.firstOrNull { it.uri == uri.toString() && it.copyId == null } ?: SessionPhoto(uri.toString(), displayName(context, uri)).also { items.add(it) }
+        val n = items.count { it.uri == src.uri }
+        // The copy starts with the original's edit, saved as its own project.
+        val pid = src.projectId?.let { id -> ProjectStore.loadPhoto(context, id)?.let { p -> ProjectStore.savePhoto(context, p.copy(id = java.util.UUID.randomUUID().toString(), session = true), null).id } }
+        items.add(SessionPhoto(src.uri, "${src.name} (copy $n)", pid, src.rating, src.flag, src.label, pid != null, copyId = java.util.UUID.randomUUID().toString().take(8)))
+        save(context)
+        return items.lastIndex
+    }
+
     fun update(context: Context, i: Int, f: (SessionPhoto) -> SessionPhoto) {
         if (i !in items.indices) return
         items[i] = f(items[i]); save(context)
+        // Stars, flags and labels of the photo itself (not virtual copies) show in the library too.
+        val p = items[i]
+        if (p.copyId == null) try {
+            LibraryStore.load(context)
+            LibraryStore.update(context, listOf(p.uri)) { it.copy(rating = p.rating, flag = p.flag, label = p.label) }
+        } catch (_: Throwable) {}
     }
 
     fun remove(context: Context, idx: Collection<Int>) {
@@ -120,7 +143,7 @@ object PhotoSession {
         // The hidden per-photo edits go too.
         idx.mapNotNull { items.getOrNull(it)?.projectId }.forEach { ProjectStore.delete(context, false, it) }
         items.clear(); items.addAll(keep)
-        current = cur?.let { c -> items.indexOfFirst { it.uri == c.uri } } ?: -1
+        current = cur?.let { c -> items.indexOfFirst { it.key == c.key } } ?: -1
         save(context)
     }
 
@@ -162,17 +185,17 @@ fun Filmstrip(
     val picked = remember { mutableStateListOf<String>() }
     var filter by remember { mutableStateOf(0) }   // 0 all, 1 ★3+, 2 picks, 3 edited, 4 not rejected
     var menuFor by remember { mutableStateOf<String?>(null) }
-    fun idx(uri: String) = items.indexOfFirst { it.uri == uri }
+    fun idx(key: String) = items.indexOfFirst { it.key == key }
     fun upd(uri: String, f: (SessionPhoto) -> SessionPhoto) { val k = idx(uri); if (k >= 0) PhotoSession.update(context, k, f) }
     fun indices(uris: Collection<String>) = uris.map { idx(it) }.filter { it >= 0 }
     val shown = items.toList().filter { p ->
         when (filter) { 1 -> p.rating >= 3; 2 -> p.flag == 1; 3 -> p.edited; 4 -> p.flag != -1; else -> true }
     }
-    val curUri = items.getOrNull(PhotoSession.current)?.uri
+    val curUri = items.getOrNull(PhotoSession.current)?.key
     // Drop selections of photos that are gone.
-    LaunchedEffect(items.size) { picked.retainAll(items.map { it.uri }.toSet()); if (menuFor != null && idx(menuFor!!) < 0) menuFor = null }
+    LaunchedEffect(items.size) { picked.retainAll(items.map { it.key }.toSet()); if (menuFor != null && idx(menuFor!!) < 0) menuFor = null }
     val state = rememberLazyListState()
-    LaunchedEffect(curUri, filter) { val k = shown.indexOfFirst { it.uri == curUri }; if (k >= 0) state.animateScrollToItem((k - 2).coerceAtLeast(0)) }
+    LaunchedEffect(curUri, filter) { val k = shown.indexOfFirst { it.key == curUri }; if (k >= 0) state.animateScrollToItem((k - 2).coerceAtLeast(0)) }
     Column(modifier.fillMaxWidth().background(Color(0xFF0B0D12))) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(if (PhotoSession.current >= 0) "${PhotoSession.current + 1} / ${items.size}" else "${items.size}", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), modifier = Modifier.padding(end = 8.dp))
@@ -190,7 +213,7 @@ fun Filmstrip(
         }
         if (selecting) Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("${picked.size} selected", style = Pro.Label.copy(color = Color.White, fontSize = 10.sp))
-            Chip("Select all") { picked.clear(); picked.addAll(shown.map { it.uri }) }
+            Chip("Select all") { picked.clear(); picked.addAll(shown.map { it.key }) }
             if (picked.isNotEmpty()) {
                 Chip("Sync edit") { onSync(indices(picked)) }
                 Chip("Export") { onExport(indices(picked)) }
@@ -202,8 +225,8 @@ fun Filmstrip(
         }
         if (items.isEmpty()) Text("No photos in the filmstrip — tap + to add some (you can pick many at once).", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), modifier = Modifier.padding(horizontal = 8.dp))
         LazyRow(state = state, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            items(shown, key = { it.uri }) { p ->
-                val u = p.uri
+            items(shown, key = { it.key }) { p ->
+                val u = p.key
                 val cur = u == curUri
                 val sel = u in picked
                 val bmp by produceState<Bitmap?>(null, p.uri, p.projectId, p.version) { value = withContext(Dispatchers.IO) { PhotoSession.thumb(context, p) } }
@@ -241,6 +264,7 @@ fun Filmstrip(
                                 Box(Modifier.size(20.dp).clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.4f), CircleShape).combinedClickable(onClick = { upd(u) { it.copy(label = null) } }))
                                 LABELS.forEach { c -> Box(Modifier.size(20.dp).clip(CircleShape).background(Color(c)).border(2.dp, if (p.label == c) Color.White else Color.Transparent, CircleShape).combinedClickable(onClick = { upd(u) { it.copy(label = c) } })) }
                             }
+                            Chip("Make virtual copy") { menuFor = null; PhotoSession.addCopy(context, Uri.parse(p.uri)) }
                             Chip("Remove from strip") {
                                 // Close the menu first, then remove on the next frame (the menu must not outlive its photo).
                                 menuFor = null

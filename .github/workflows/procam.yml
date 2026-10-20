@@ -84,6 +84,9 @@ jobs:
           fi
           ls -l "$OUT" || echo "no native symbols found"
 
+      - name: Check method sizes (Android verifier limit)
+        run: python3 "$GITHUB_WORKSPACE/.github/scripts/dexcheck.py" $(ls VeyroCutPro-ARM-*.apk | head -1)
+
       - name: Report compile errors
         if: failure()
         run: |

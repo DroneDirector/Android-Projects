@@ -152,6 +152,8 @@ fun Filmstrip(
     onExport: (List<Int>) -> Unit,
     modifier: Modifier = Modifier,
     thumbSize: androidx.compose.ui.unit.Dp = 64.dp,
+    /** Smaller (−) / bigger (+) thumbnails: the change in dp. */
+    onZoom: ((Float) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val items = PhotoSession.items
@@ -179,6 +181,10 @@ fun Filmstrip(
                     modifier = Modifier.clip(RoundedCornerShape(6.dp)).combinedClickable(onClick = { filter = i }).padding(horizontal = 6.dp, vertical = 3.dp))
             }
             Box(Modifier.weight(1f))
+            if (onZoom != null) {
+                Text("−", style = Pro.Label.copy(color = Color.White, fontSize = 13.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).combinedClickable(onClick = { onZoom(-12f) }).padding(horizontal = 8.dp, vertical = 2.dp))
+                Text("+", style = Pro.Label.copy(color = Color.White, fontSize = 13.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).combinedClickable(onClick = { onZoom(12f) }).padding(horizontal = 8.dp, vertical = 2.dp))
+            }
             Text(if (selecting) "DONE" else "SELECT", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp),
                 modifier = Modifier.clip(RoundedCornerShape(6.dp)).combinedClickable(onClick = { selecting = !selecting; picked.clear() }).padding(horizontal = 6.dp, vertical = 3.dp))
         }

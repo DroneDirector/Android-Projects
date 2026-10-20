@@ -151,6 +151,8 @@ fun MediaStrip(
     onDrop: (Clip, Offset) -> Unit = { _, _ -> },
     /** Thumbnail height (the strip can be made taller or shorter with its dividers). */
     thumbHeight: androidx.compose.ui.unit.Dp = 70.dp,
+    /** Smaller (−) / bigger (+) thumbnails: the change in dp. */
+    onZoom: ((Float) -> Unit)? = null,
 ) {
     var filter by remember { mutableStateOf(0) }       // 0 all, 1 unused, 2 used, 3 ★3+, 4 no rejects
     var bin by remember { mutableStateOf<String?>(null) }
@@ -166,6 +168,12 @@ fun MediaStrip(
     Column(modifier.fillMaxWidth().background(Color(0xFF0B0D12))) {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("MEDIA ${library.size}", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.padding(end = 6.dp))
+            if (onZoom != null) {
+                // Thumbnail size: zoom out / in.
+                StripChip("−") { onZoom(-15f) }
+                StripChip("+") { onZoom(15f) }
+                Text("·", color = Pro.Dim, modifier = Modifier.padding(horizontal = 4.dp))
+            }
             listOf("All", "Unused", "Used", "★3+", "No rejects").forEachIndexed { i, n -> StripChip(n, filter == i) { filter = i } }
             if (binNames.isNotEmpty()) {
                 Text("·", color = Pro.Dim, modifier = Modifier.padding(horizontal = 4.dp))

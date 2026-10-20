@@ -155,7 +155,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 ## Video editor guide
 **Media strip and mouse**
-- Phone held upright: the media strip is above the timeline. Landscape and tablets: it is the first tab of the tools panel, "Media strip" (hide the tools panel and it moves above the timeline).
+- Phones: the media strip is the first tab of the tools panel ("Media strip"), in any rotation. Tablets: above the timeline in landscape, the first tools tab when upright. With the tools panel hidden it is above the timeline. − / + change the thumbnail size.
 - Hold the divider above or below the media strip, then drag it to make the strip bigger or smaller. The viewer or the timeline gives up the space. Double-tap the divider to reset it.
 - The media strip above the timeline holds every clip you've imported. With a mouse, hover over a clip to skim it; on a touch screen, hold and slide. Tap a clip to pick it, then use Append, Insert at playhead, Overwrite or Source ›. Double-tap a clip to add it to the end of the timeline.
 - An amber bar and USED ×n show clips that are already on the timeline. Use the stars or ✕ Reject to sort your clips, and the chips at the top to filter them. SELECT works on several clips at once.

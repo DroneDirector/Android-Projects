@@ -4,7 +4,11 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
-- Video editor: the media strip sits above the timeline when a phone is held upright. In landscape and on tablets it is the first tab, on the left, of the tools panel ("Media strip"), with its own resize divider.
+- Video editor media strip placement:
+  - **Phones:** always the first tab, on the left, of the tools panel ("Media strip"), whichever way the phone is turned.
+  - **Tablets:** above the timeline in landscape, and the first tab of the tools panel when upright.
+  - With the tools panel hidden, it sits above the timeline.
+- **− / +** buttons on the media strip and the photo filmstrip make the thumbnails smaller or bigger. You can also drag their dividers.
 - Photo editor **Upright** (Crop & perspective): Auto, Level, Vertical and Full find the lines in the photo and straighten the horizon and the buildings.
 - **Dust spots** (Heal): VISUALISE SPOTS makes sensor dust easy to see, and FIND DUST AUTOMATICALLY heals small dark specks in smooth areas such as the sky.
 - **Panorama options**: Cylindrical, Spherical or Perspective projection, **Boundary warp** to fill the frame, and **Fill edges (AI)** for the empty corners.

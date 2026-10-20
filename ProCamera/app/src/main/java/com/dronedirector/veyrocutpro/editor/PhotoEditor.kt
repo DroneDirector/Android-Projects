@@ -1544,6 +1544,7 @@ private fun PhotoWorkspace(
                             onEnd = { stripPane.save() }, onReset = { stripPane.reset() })
                         if (strip) Filmstrip(
                             thumbSize = stripSz.dp,
+                            onZoom = { step -> stripPane.dp = (stripSz + step).coerceIn(40f, 200f); stripPane.save() },
                             onOpen = { switchTo(it) },
                             onAdd = onAddGallery,
                             onSync = { syncTo(it) },

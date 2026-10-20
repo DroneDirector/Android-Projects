@@ -107,6 +107,22 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
     var compare by remember { mutableStateOf<List<LibPhoto>?>(null) }
     var survey by remember { mutableStateOf<List<LibPhoto>?>(null) }
     var dialog by remember { mutableStateOf<String?>(null) }   // "album", "keywords", "newAlbum", "newSmart"
+    // Views: 0 grid, 1 stacks (bursts together), 2 people, 3 map.
+    var view by remember { mutableStateOf(0) }
+    var peopleF by remember { mutableStateOf(-1) }   // -1 all, 0 no people, 1 one person, 2 two, 3 groups
+    var mapPick by remember { mutableStateOf<Set<String>?>(null) }
+    val expanded = remember { mutableStateListOf<String>() }
+    val locPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { reload++ }
+    LaunchedEffect(view, all) {
+        if (all.isEmpty()) return@LaunchedEffect
+        if (view == 2) withContext(Dispatchers.Default) { LibraryStore.indexFaces(context, all) { stopIndex } }
+        if (view == 3) {
+            if (Build.VERSION.SDK_INT >= 29 && ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_MEDIA_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                try { locPerm.launch(Manifest.permission.ACCESS_MEDIA_LOCATION) } catch (_: Throwable) {}
+            }
+            withContext(Dispatchers.IO) { LibraryStore.indexPlaces(context, all) { stopIndex } }
+        }
+    }
 
     val shown = all.filter { p ->
         val m = LibraryStore.get(p.uri.toString())
@@ -116,7 +132,15 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
             m.rating >= minRating &&
             when (flagF) { 1 -> m.flag == 1; 2 -> m.flag != -1; 3 -> m.flag == -1; else -> true } &&
             (labelF == null || m.label == labelF) &&
+            (view != 2 || peopleF == -1 || when (peopleF) { 0 -> m.faces == 0; 1 -> m.faces == 1; 2 -> m.faces == 2; else -> (m.faces ?: 0) >= 3 }) &&
+            (mapPick == null || p.uri.toString() in mapPick!!) &&
             LibraryStore.matches(p, text)
+    }
+    // Stacks: bursts shown as one photo with a count, until tapped open.
+    val gridList: List<Pair<LibPhoto, Int>> = if (view != 1) shown.map { it to 0 } else LibraryStore.stacks(shown).flatMap { g ->
+        if (g.size == 1) listOf(g[0] to 0)
+        else if (g[0].uri.toString() in expanded) g.mapIndexed { i, p -> p to (if (i == 0) -g.size else -1) }
+        else listOf(g[0] to g.size)
     }
     val sel = all.filter { it.uri.toString() in picked }
 
@@ -153,6 +177,13 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
             PillChip("+ Album", false, accentText = true) { dialog = "newAlbum" }
             PillChip("+ Smart album", false, accentText = true) { dialog = "newSmart" }
         }
+        Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            listOf("Grid", "Stacks", "People", "Map").forEachIndexed { i, n -> PillChip(n, view == i) { view = i; if (i != 3) mapPick = null } }
+            if (view == 2) listOf("Everyone", "No people", "1 person", "2 people", "Groups").forEachIndexed { i, n -> PillChip(n, peopleF == i - 1) { peopleF = i - 1 } }
+            if (mapPick != null) PillChip("📍 ${mapPick!!.size} here ✕", true) { mapPick = null }
+            LibraryStore.scanning?.let { (d, t) -> Text(if (view == 3) "Reading locations $d / $t" else "Finding people $d / $t", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp)) }
+        }
+        if (view == 2) Text("Groups photos by how many people are in them (faces found on the phone). It doesn't recognise who they are.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(bottom = 4.dp))
         if (selecting) Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("${picked.size} selected", style = Pro.Label.copy(color = Color.White, fontSize = 11.sp))
             PillChip("Select all", false) { picked.clear(); picked.addAll(shown.map { it.uri.toString() }) }
@@ -169,8 +200,12 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
             }
         }
         Text("${shown.size} photo" + (if (shown.size == 1) "" else "s"), style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), modifier = Modifier.padding(bottom = 4.dp))
-        LazyVerticalGrid(GridCells.Adaptive(104.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
-            items(shown, key = { it.uri.toString() }) { p ->
+        if (view == 3 && mapPick == null) LibraryMap(
+            shown.mapNotNull { p -> LibraryStore.get(p.uri.toString()).place?.takeIf { it.size == 2 }?.let { p.uri.toString() to it } },
+            onPick = { mapPick = it.toSet() },
+            modifier = Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(8.dp)),
+        ) else LazyVerticalGrid(GridCells.Adaptive(104.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
+            items(gridList, key = { it.first.uri.toString() }) { (p, stack) ->
                 val k = p.uri.toString()
                 val m = LibraryStore.get(k)
                 val on = k in picked
@@ -178,7 +213,7 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
                     Modifier.aspectRatio(1f).clip(RoundedCornerShape(6.dp)).background(Ed.Raised)
                         .border(if (on) 2.dp else 0.dp, if (on) Pro.Amber else Color.Transparent, RoundedCornerShape(6.dp))
                         .combinedClickable(
-                            onClick = { if (selecting) { if (on) picked.remove(k) else picked.add(k) } else detail = p },
+                            onClick = { if (selecting) { if (on) picked.remove(k) else picked.add(k) } else if (stack > 1) expanded.add(k) else detail = p },
                             onLongClick = { selecting = true; if (!on) picked.add(k) },
                         ),
                 ) {
@@ -191,6 +226,9 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
                         m.label?.let { Box(Modifier.padding(start = 2.dp).size(7.dp).clip(CircleShape).background(Color(it))) }
                     }
                     if (selecting) Text(if (on) "☑" else "☐", color = Color.White, fontSize = 13.sp, modifier = Modifier.align(Alignment.TopStart).padding(3.dp))
+                    if (stack > 1) Text("▣ $stack", style = Pro.Label.copy(color = Color.Black, fontSize = 10.sp), modifier = Modifier.align(Alignment.TopEnd).padding(3.dp).clip(RoundedCornerShape(4.dp)).background(Pro.Amber).padding(horizontal = 4.dp, vertical = 1.dp))
+                    if (stack < -1) Text("▣ ${-stack} ▾", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.align(Alignment.TopEnd).padding(3.dp).clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.6f)).clickable { expanded.remove(k) }.padding(horizontal = 6.dp, vertical = 3.dp))
+                    if (stack == -1) Box(Modifier.align(Alignment.TopEnd).padding(4.dp).size(6.dp).clip(CircleShape).background(Pro.Amber))
                 }
             }
         }

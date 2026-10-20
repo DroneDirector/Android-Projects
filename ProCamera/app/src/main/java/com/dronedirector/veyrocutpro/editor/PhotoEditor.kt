@@ -472,6 +472,8 @@ private fun PhotoWorkspace(
     var viewSize by remember { mutableStateOf(IntSize.Zero) }
     var clipImg by remember { mutableStateOf<Bitmap?>(null) }
     var gamutImg by remember { mutableStateOf<Bitmap?>(null) }
+    var lensBusy by remember { mutableStateOf(false) }
+    var chartFirst by remember { mutableStateOf<Pair<Float, Float>?>(null) }
     // Reference view: the reference photo (its edited look when it has one), loaded when chosen.
     var refImg by remember { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(RefView.uri) {
@@ -621,6 +623,22 @@ private fun PhotoWorkspace(
             // Masks are made on the uncropped photo; with no crop the tap maps straight across.
             pendingObject = px.toFloat() / img.width to py.toFloat() / img.height
             if (!edit.geometry.isIdentity) message = "Tip: the object pick works best before cropping"
+        } else if (picking == 8) {
+            chartFirst = px.toFloat() / img.width to py.toFloat() / img.height
+            picking = 9; message = "Now tap the middle of the last patch (black)"
+            return
+        } else if (picking == 9) {
+            val f = chartFirst; val b = base
+            picking = 0
+            if (f != null && b != null) {
+                val res = ColorChart.solve(b, f.first, f.second, px.toFloat() / img.width, py.toFloat() / img.height)
+                if (res == null) message = "Couldn't read the chart — tap the middle of the brown patch first, then the black one"
+                else {
+                    edit = edit.copy(grade = edit.grade.copy(chart = res.matrix, exposure = 0f, temperature = 0f, tint = 0f))
+                    message = "Calibrated: colour error %.1f → %.1f. Save it as a preset (Presets → MY PRESETS) to use it for other photos in this light.".format(res.errBefore, res.errAfter)
+                }
+            }
+            return
         } else if (picking == 5) {
             pendingErasePick = px.toFloat() / img.width to py.toFloat() / img.height
             return
@@ -1507,7 +1525,7 @@ private fun PhotoWorkspace(
                         modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.6f)).clickable { resetZoom() }.padding(horizontal = 8.dp, vertical = 3.dp),
                     )
                     if (picking != 0) Text(
-                        when (picking) { 1 -> "Tap something that should be neutral grey or white"; 3 -> "Tap the object to select"; 5 -> "Tap each thing to remove"; 6 -> "Drag up / down on a tone"; 7 -> "Drag up / down on a colour"; 4 -> "Tap where the focus should be"; else -> "Tap the colour you want to change" },
+                        when (picking) { 1 -> "Tap something that should be neutral grey or white"; 3 -> "Tap the object to select"; 5 -> "Tap each thing to remove"; 8 -> "Tap the middle of the first patch (brown)"; 9 -> "Tap the middle of the last patch (black)"; 6 -> "Drag up / down on a tone"; 7 -> "Drag up / down on a colour"; 4 -> "Tap where the focus should be"; else -> "Tap the colour you want to change" },
                         style = Pro.Label.copy(color = Color.Black),
                         modifier = Modifier.align(Alignment.TopCenter).padding(top = 34.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable { picking = 0 }.padding(horizontal = 10.dp, vertical = 5.dp),
                     )
@@ -1766,6 +1784,29 @@ private fun PhotoWorkspace(
                                 EdSlider("Vignetting", l.vignette, 0f..1f, 0f, ::pct) { v -> edit = edit.copy(lens = l.copy(vignette = v)) }
                                 EdSlider("Colour fringes", l.fringe) { v -> edit = edit.copy(lens = l.copy(fringe = v)) }
                                 Text("Colour fringes lines up red and blue at the edges of the picture (purple / green outlines).", color = Pro.Dim, fontSize = 11.sp)
+                                SectionTitle("AUTO")
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    PillChip(if (lensBusy) "MEASURING…" else "AUTO COLOUR FRINGES", l.caR != 0f || l.caB != 0f, accentText = true) {
+                                        val b = base
+                                        if (b != null && !lensBusy) { lensBusy = true; scope.launch {
+                                            val (r, bl) = withContext(Dispatchers.Default) { try { PhotoLocal.measureCa(b) } catch (_: Throwable) { 0f to 0f } }
+                                            lensBusy = false
+                                            edit = edit.copy(lens = edit.lens.copy(caR = r, caB = bl))
+                                            message = if (r == 0f && bl == 0f) "No colour fringing found (or too few edges to measure)" else "Colour fringes fixed: red %+.2f %%, blue %+.2f %%".format(r * 100, bl * 100)
+                                        } }
+                                    }
+                                    PillChip("LENS PROFILE", l.profile != null, accentText = true) {
+                                        scope.launch {
+                                            val f35 = withContext(Dispatchers.IO) { try { context.contentResolver.openInputStream(sourceUri(edit))?.use { androidx.exifinterface.media.ExifInterface(it).getAttributeInt(androidx.exifinterface.media.ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM, 0) } ?: 0 } catch (_: Throwable) { 0 } }
+                                            val p = PhotoLocal.genericProfile(f35)
+                                            if (p == null) message = "This photo doesn't say which lens it was taken with — set the sliders by eye"
+                                            else { edit = edit.copy(lens = edit.lens.copy(distortion = p.second.distortion, vignette = p.second.vignette, profile = p.first)); message = "Lens profile: ${p.first}" }
+                                        }
+                                    }
+                                }
+                                if (l.caR != 0f || l.caB != 0f) Text("Measured fix: red %+.2f %%, blue %+.2f %% (tap again to measure again; RESET above clears it).".format(l.caR * 100, l.caB * 100), color = Pro.Dim, fontSize = 11.sp)
+                                l.profile?.let { Text("Profile: $it — a generic profile for this kind of lens, chosen from the photo's camera details. Fine-tune with the sliders.", color = Pro.Dim, fontSize = 11.sp) }
+                                Text("AUTO COLOUR FRINGES measures how far red and blue are off towards the corners and lines them up. LENS PROFILE sets distortion and corner shading for the lens the photo was taken with.", color = Pro.Dim, fontSize = 11.sp)
                             }
                             else -> PhotoPanelContent(
                                 panel, edit, { edit = it },
@@ -2086,6 +2127,14 @@ private fun PhotoPanelContent(
             val cal = g.calib ?: Calibration()
             fun calib(f: (Calibration) -> Calibration) = grade { it.copy(calib = f(cal).takeIf { c -> !c.isZero }) }
             SectionTitle("CALIBRATION") { grade { it.copy(calib = null) } }
+            if (dev != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    PillChip(if (dev.picking == 8 || dev.picking == 9) "TAP THE CHART…" else "FROM A COLOUR CHART", dev.picking == 8 || dev.picking == 9, accentText = true) { dev.setPicking(8) }
+                    if (g.chart != null) Text("CLEAR CHART", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { grade { it.copy(chart = null) } }.padding(6.dp))
+                }
+                Text(if (g.chart != null) "Calibrated from a colour chart. Save the look in MY PRESETS to use it on other photos taken in the same light." else
+                    "Photograph a 24-patch colour chart (4 rows × 6) in your light, open that photo, tap FROM A COLOUR CHART, then tap the middle of the brown first patch and of the black last patch. Do it before cropping.", color = Pro.Dim, fontSize = 11.sp)
+            }
             EdSlider("Shadows tint", cal.shadowTint) { v -> calib { it.copy(shadowTint = v) } }
             EdSlider("Red primary · hue", cal.redHue) { v -> calib { it.copy(redHue = v) } }
             EdSlider("Red primary · saturation", cal.redSat) { v -> calib { it.copy(redSat = v) } }

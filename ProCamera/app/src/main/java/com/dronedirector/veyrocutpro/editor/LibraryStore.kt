@@ -23,6 +23,10 @@ data class LibMeta(
     val albums: List<String> = emptyList(),
     /** What the AI saw in the photo (for search). */
     val ai: List<String>? = null,
+    /** People: faces found (null = not looked yet). */
+    val faces: Int? = null,
+    /** Where it was taken: [lat, lon], empty = no location, null = not looked yet. */
+    val place: List<Double>? = null,
 )
 
 /** A saved search: shows every photo that matches. */
@@ -58,7 +62,7 @@ object LibraryStore {
         try {
             val f = file(c); if (!f.exists()) return
             val s: Saved = ProjectStore.gson.fromJson(f.readText(), Saved::class.java) ?: return
-            s.meta?.forEach { (k, v) -> meta[k] = LibMeta(v.rating, v.flag, v.label, v.keywords ?: emptyList(), v.albums ?: emptyList(), v.ai) }
+            s.meta?.forEach { (k, v) -> meta[k] = LibMeta(v.rating, v.flag, v.label, v.keywords ?: emptyList(), v.albums ?: emptyList(), v.ai, v.faces, v.place) }
             s.albums?.let { albums.addAll(it) }
             s.smart?.let { smart.addAll(it) }
         } catch (_: Throwable) {}
@@ -137,6 +141,64 @@ object LibraryStore {
             indexing = null
             save(c)
         }
+    }
+
+    /** Progress of the people / places scan (done / total) while it runs. */
+    var scanning by mutableStateOf<Pair<Int, Int>?>(null)
+
+    /** Counts the faces in photos not looked at yet (for the People view). On the phone. */
+    fun indexFaces(c: Context, list: List<LibPhoto>, stop: () -> Boolean) {
+        val todo = list.filter { meta[it.uri.toString()]?.faces == null }
+        if (todo.isEmpty()) return
+        val det = try { com.google.mlkit.vision.face.FaceDetection.getClient(com.google.mlkit.vision.face.FaceDetectorOptions.Builder()
+            .setPerformanceMode(com.google.mlkit.vision.face.FaceDetectorOptions.PERFORMANCE_MODE_FAST).setMinFaceSize(0.05f).build()) } catch (_: Throwable) { return }
+        try {
+            scanning = 0 to todo.size
+            for ((n, p) in todo.withIndex()) {
+                if (stop()) break
+                val b = try { com.dronedirector.veyrocutpro.camera.GradeIO.decode(c, p.uri, 640) } catch (_: Throwable) { null }
+                val count = if (b == null) 0 else try {
+                    com.google.android.gms.tasks.Tasks.await(det.process(com.google.mlkit.vision.common.InputImage.fromBitmap(b, 0)), 15, java.util.concurrent.TimeUnit.SECONDS)
+                        .count { it.boundingBox.width() >= b.width * 0.04f }
+                } catch (_: Throwable) { 0 } finally { b?.recycle() }
+                val k = p.uri.toString(); meta[k] = get(k).copy(faces = count)
+                scanning = n + 1 to todo.size
+                if (n % 25 == 24) save(c)
+            }
+        } finally { try { det.close() } catch (_: Throwable) {}; scanning = null; save(c) }
+    }
+
+    /** Reads where each photo was taken (GPS in its camera details) for the Map view. */
+    fun indexPlaces(c: Context, list: List<LibPhoto>, stop: () -> Boolean) {
+        val todo = list.filter { meta[it.uri.toString()]?.place == null }
+        if (todo.isEmpty()) return
+        try {
+            scanning = 0 to todo.size
+            for ((n, p) in todo.withIndex()) {
+                if (stop()) break
+                var ll: DoubleArray? = null
+                // Android hides photo locations unless the app asks for the original file (needs the "media location" permission).
+                val uris = if (Build.VERSION.SDK_INT >= 29) listOf(try { MediaStore.setRequireOriginal(p.uri) } catch (_: Throwable) { p.uri }, p.uri) else listOf(p.uri)
+                for (u in uris) {
+                    ll = try { c.contentResolver.openInputStream(u)?.use { androidx.exifinterface.media.ExifInterface(it).latLong } } catch (_: Throwable) { null }
+                    if (ll != null) break
+                }
+                val k = p.uri.toString()
+                meta[k] = get(k).copy(place = ll?.takeIf { !(it[0] == 0.0 && it[1] == 0.0) }?.toList() ?: emptyList())
+                scanning = n + 1 to todo.size
+                if (n % 50 == 49) save(c)
+            }
+        } finally { scanning = null; save(c) }
+    }
+
+    /** Groups photos taken within [gapMs] of each other (bursts) — newest first, as [list] is. */
+    fun stacks(list: List<LibPhoto>, gapMs: Long = 2500): List<List<LibPhoto>> {
+        val out = ArrayList<MutableList<LibPhoto>>()
+        for (p in list) {
+            val g = out.lastOrNull()
+            if (g != null && kotlin.math.abs(g.last().date - p.date) <= gapMs) g += p else out += mutableListOf(p)
+        }
+        return out
     }
 
     /** Camera details for the info panel. */

@@ -61,6 +61,8 @@ data class PhotoMask(
     val clarity: Float = 0f,
     /** Noise reduction inside the mask, 0..1 (e.g. only the sky or the shadows). */
     val noise: Float = 0f,
+    /** AI masks: Refine edge 0..1 — the edge follows fine detail such as hair and fur in the photo. */
+    val refine: Float = 0f,
 )
 
 /** A healed spot: centre and radius (share of the width) and where the patch is taken from (offset, same units). */
@@ -138,6 +140,11 @@ data class LensFix(
     val vignette: Float = 0f,
     /** Lines up the red and blue channels (colour fringes at the edges). */
     val fringe: Float = 0f,
+    /** Measured colour-fringe fix (AUTO): how much red / blue are scaled from the centre (e.g. 0.001 = 0.1 %). */
+    val caR: Float = 0f,
+    val caB: Float = 0f,
+    /** Name of the lens profile used (shown in the panel), or null. */
+    val profile: String? = null,
 ) {
     val isIdentity get() = this == LensFix()
 }
@@ -150,20 +157,21 @@ object PhotoLocal {
         if (l.isIdentity) return src
         var b = src
         if (l.distortion != 0f) b = distort(b, l.distortion)
-        if (l.vignette != 0f || l.fringe != 0f) {
+        val ca = l.fringe != 0f || l.caR != 0f || l.caB != 0f
+        if (l.vignette != 0f || ca) {
             val w = b.width; val h = b.height
             val px = IntArray(w * h); b.getPixels(px, 0, w, 0, 0, w, h)
             val out = IntArray(w * h)
             val cx = w / 2f; val cy = h / 2f
             val maxR2 = cx * cx + cy * cy
-            val kr = 1f + l.fringe * 0.004f; val kb = 1f - l.fringe * 0.004f
+            val kr = 1f + l.fringe * 0.004f + l.caR; val kb = 1f - l.fringe * 0.004f + l.caB
             val vig = l.vignette * 0.7f
             for (y in 0 until h) for (x in 0 until w) {
                 val i = y * w + x
                 var r: Int; var g: Int; var bl: Int
                 val c = px[i]
                 g = (c shr 8) and 0xFF
-                if (l.fringe != 0f) {
+                if (ca) {
                     r = (sample(px, w, h, cx + (x - cx) * kr, cy + (y - cy) * kr) shr 16) and 0xFF
                     bl = sample(px, w, h, cx + (x - cx) * kb, cy + (y - cy) * kb) and 0xFF
                 } else { r = (c shr 16) and 0xFF; bl = c and 0xFF }
@@ -179,6 +187,63 @@ object PhotoLocal {
             b = nb
         }
         return b
+    }
+
+    /**
+     * Measures lateral colour fringing: finds how much the red and the blue picture must be scaled
+     * from the centre to line up with green on the strong edges towards the corners.
+     */
+    fun measureCa(src: Bitmap): Pair<Float, Float> {
+        val k = min(1f, 1400f / maxOf(src.width, src.height))
+        val b = if (k < 1f) Bitmap.createScaledBitmap(src, (src.width * k).toInt().coerceAtLeast(8), (src.height * k).toInt().coerceAtLeast(8), true) else src
+        val w = b.width; val h = b.height
+        val px = IntArray(w * h); b.getPixels(px, 0, w, 0, 0, w, h)
+        if (b !== src) b.recycle()
+        val cx = w / 2f; val cy = h / 2f; val maxR = sqrt(cx * cx + cy * cy)
+        // Edge points in the outer part of the picture where green changes strongly along the radius.
+        val pts = ArrayList<Int>()
+        fun gAt(x: Int, y: Int) = (px[y * w + x] shr 8) and 0xFF
+        for (y in 2 until h - 2 step 2) for (x in 2 until w - 2 step 2) {
+            val dx = x - cx; val dy = y - cy; val r = sqrt(dx * dx + dy * dy)
+            if (r < maxR * 0.45f) continue
+            val ux = dx / r; val uy = dy / r
+            val g1 = gAt((x + ux * 2).toInt().coerceIn(0, w - 1), (y + uy * 2).toInt().coerceIn(0, h - 1))
+            val g0 = gAt((x - ux * 2).toInt().coerceIn(0, w - 1), (y - uy * 2).toInt().coerceIn(0, h - 1))
+            if (abs(g1 - g0) > 40) pts += y * w + x
+        }
+        if (pts.size < 200) return 0f to 0f
+        val use = if (pts.size > 30000) pts.shuffled(java.util.Random(7)).take(30000) else pts
+        fun cost(shift: Int, s: Float): Double {
+            var e = 0.0
+            for (i in use) {
+                val x = i % w; val y = i / w
+                val v = (sample(px, w, h, cx + (x - cx) * (1f + s), cy + (y - cy) * (1f + s)) shr shift) and 0xFF
+                val g = (px[i] shr 8) and 0xFF
+                val d = (v - g).toDouble(); e += d * d
+            }
+            return e
+        }
+        fun best(shift: Int): Float {
+            var bs = 0f; var be = cost(shift, 0f)
+            var s = -0.005f
+            while (s <= 0.005f) { val c = cost(shift, s); if (c < be) { be = c; bs = s }; s += 0.00025f }
+            return bs
+        }
+        return best(16) to best(0)
+    }
+
+    /**
+     * Generic lens profiles by the lens's 35 mm-equivalent focal length (from the photo's camera
+     * details): typical distortion and corner shading for that kind of lens. A starting point —
+     * fine-tune with the sliders.
+     */
+    fun genericProfile(focal35: Int): Pair<String, LensFix>? = when {
+        focal35 <= 0 -> null
+        focal35 <= 16 -> "Ultra-wide (${focal35} mm)" to LensFix(distortion = 0.35f, vignette = 0.35f)
+        focal35 <= 20 -> "Wide (${focal35} mm)" to LensFix(distortion = 0.22f, vignette = 0.28f)
+        focal35 <= 28 -> "Standard wide (${focal35} mm)" to LensFix(distortion = 0.08f, vignette = 0.2f)
+        focal35 <= 55 -> "Normal (${focal35} mm)" to LensFix(distortion = 0.03f, vignette = 0.12f)
+        else -> "Telephoto (${focal35} mm)" to LensFix(distortion = -0.04f, vignette = 0.08f)
     }
 
     /** Bilinear sample (clamped). */
@@ -440,7 +505,10 @@ object PhotoLocal {
                 fillFrom(mb, out, w, h)
                 mb.recycle()
             }
-            MaskType.SUBJECT, MaskType.SKY, MaskType.OBJECT, MaskType.PEOPLE -> if (aiMask != null) fillFrom(aiMask, out, w, h)
+            MaskType.SUBJECT, MaskType.SKY, MaskType.OBJECT, MaskType.PEOPLE -> if (aiMask != null) {
+                fillFrom(aiMask, out, w, h)
+                if (m.refine > 0f && px != null && px.size >= w * h) refineEdge(out, px, w, h, m.refine)
+            }
             MaskType.DEPTH -> if (aiMask != null) {
                 // The depth map (white = near) selected by range, like a brightness range.
                 fillFrom(aiMask, out, w, h)
@@ -563,7 +631,7 @@ object PhotoLocal {
     /** Applies every visible mask's own grade where the mask is. */
     fun applyMasks(px: IntArray, w: Int, h: Int, masks: List<PhotoMask>, aiMasks: Map<String, Bitmap>) {
         // Range masks look at the picture before any mask changed it.
-        val orig = if (masks.any { mk -> (listOf(mk) + mk.subs.orEmpty()).any { it.type == MaskType.COLOR_RANGE || it.type == MaskType.LUMA_RANGE } }) px.copyOf() else null
+        val orig = if (masks.any { mk -> (listOf(mk) + mk.subs.orEmpty()).any { it.type == MaskType.COLOR_RANGE || it.type == MaskType.LUMA_RANGE || it.refine > 0f } }) px.copyOf() else null
         for (m in masks) {
             val detail = m.texture != 0f || m.clarity != 0f || m.noise > 0f
             if (!m.visible || (m.grade.isIdentity && !detail)) continue
@@ -615,4 +683,48 @@ object PhotoLocal {
         pass(texture, maxOf(1, scale / 700), 34)
         pass(clarity, maxOf(2, scale / 90), 60)
     }
+
+    /**
+     * Refine edge: a guided filter that lets the mask's edge follow the photo's own edges, so hair,
+     * fur and leaves are picked out strand by strand instead of a smooth outline. Only the border
+     * area changes; [k] 0..1 is how far it may move.
+     */
+    private fun refineEdge(m: FloatArray, px: IntArray, w: Int, h: Int, k: Float) {
+        val n = w * h
+        val g = FloatArray(n) { val c = px[it]; (0.299f * ((c shr 16) and 255) + 0.587f * ((c shr 8) and 255) + 0.114f * (c and 255)) / 255f }
+        val r = maxOf(2, (maxOf(w, h) / 220f * (0.6f + k)).toInt())
+        val eps = 0.0004f + (1f - k) * 0.004f
+        fun box(a: FloatArray): FloatArray {
+            val t = FloatArray(n); val o = FloatArray(n)
+            for (y in 0 until h) {
+                var s = 0f; val row = y * w
+                for (x in -r..r) s += a[row + x.coerceIn(0, w - 1)]
+                for (x in 0 until w) { t[row + x] = s; s += a[row + (x + r + 1).coerceAtMost(w - 1)] - a[row + (x - r).coerceAtLeast(0)] }
+            }
+            val d = (2f * r + 1) * (2f * r + 1)
+            for (x in 0 until w) {
+                var s = 0f
+                for (y in -r..r) s += t[y.coerceIn(0, h - 1) * w + x]
+                for (y in 0 until h) { o[y * w + x] = s / d; s += t[(y + r + 1).coerceAtMost(h - 1) * w + x] - t[(y - r).coerceAtLeast(0) * w + x] }
+            }
+            return o
+        }
+        val mI = box(g); val mP = box(m)
+        val ip = FloatArray(n) { g[it] * m[it] }; val ii = FloatArray(n) { g[it] * g[it] }
+        val cIp = box(ip); val cII = box(ii)
+        val a = FloatArray(n); val b = FloatArray(n)
+        for (i in 0 until n) {
+            val varI = cII[i] - mI[i] * mI[i]; val cov = cIp[i] - mI[i] * mP[i]
+            a[i] = cov / (varI + eps); b[i] = mP[i] - a[i] * mI[i]
+        }
+        val ma = box(a); val mb = box(b)
+        for (i in 0 until n) {
+            val q = (ma[i] * g[i] + mb[i]).coerceIn(0f, 1f)
+            // Only near the border (where the original mask is in between).
+            val border = 1f - kotlin.math.abs(mP[i] * 2f - 1f)
+            val t = (border * 1.5f).coerceAtMost(1f) * k
+            m[i] = m[i] + (q - m[i]) * t
+        }
+    }
 }
+

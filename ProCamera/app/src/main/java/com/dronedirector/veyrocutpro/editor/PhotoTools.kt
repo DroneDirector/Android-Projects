@@ -504,6 +504,10 @@ fun MasksPanel(
             EdSlider("  Strength", sub.amount, 0f..1f, 1f, ::pct) { v -> us { it.copy(amount = v) } }
         }
     }
+    if (!video && m.type in listOf(MaskType.SUBJECT, MaskType.SKY, MaskType.OBJECT, MaskType.PEOPLE)) {
+        EdSlider("Refine edge (hair)", m.refine, 0f..1f, 0f, ::pct) { v -> upd { it.copy(refine = v) } }
+        Text("Makes the edge follow fine detail in the photo — hair, fur, leaves against the sky.", color = Pro.Dim, fontSize = 11.sp)
+    }
     Chips(listOf("Normal", "Inverted"), if (m.invert) 1 else 0) { i -> upd { it.copy(invert = i == 1) } }
     Chips(listOf("Show mask", "Hide mask"), if (ui.showOverlay) 0 else 1) { ui.showOverlay = it == 0 }
     EdSlider("Mask strength", m.amount, 0f..1f, 1f, ::pct) { v -> upd { it.copy(amount = v) } }

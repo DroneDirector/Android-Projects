@@ -109,6 +109,8 @@ data class ProGrade(
     val pointColors: List<PointColor>? = null,
     /** Camera calibration (primaries and shadow tint). */
     val calib: Calibration? = null,
+    /** Colour chart calibration: a 3 × 3 matrix (linear light, row by row) measured from a photographed 24-patch chart. */
+    val chart: List<Float>? = null,
 ) {
     val isIdentity: Boolean get() = this == ProGrade()
 
@@ -127,6 +129,11 @@ data class ProGrade(
 
         // 2. Exposure and white balance in linear light.
         var lr = lin(r); var lg = lin(g); var lb = lin(b)
+        val cm = chart
+        if (cm != null && cm.size == 9) {
+            val nr = cm[0] * lr + cm[1] * lg + cm[2] * lb; val ng = cm[3] * lr + cm[4] * lg + cm[5] * lb; val nb = cm[6] * lr + cm[7] * lg + cm[8] * lb
+            lr = nr.coerceAtLeast(0f); lg = ng.coerceAtLeast(0f); lb = nb.coerceAtLeast(0f)
+        }
         if (exposure != 0f) { val k = 2f.pow(exposure); lr *= k; lg *= k; lb *= k }
         if (temperature != 0f || tint != 0f) {
             lr *= 1f + temperature * 0.25f

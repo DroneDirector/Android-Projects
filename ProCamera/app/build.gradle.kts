@@ -21,6 +21,8 @@ android {
         }
     }
     compileSdk = 36
+    // Automatic RAW sample tests (app/src/test): run on the computer, with Robolectric standing in for Android.
+    testOptions { unitTests { isIncludeAndroidResources = true; isReturnDefaultValues = true; all { it.maxHeapSize = "4g"; it.systemProperty("rawSamples", System.getenv("RAW_SAMPLES") ?: ""); it.systemProperty("rawReport", System.getenv("RAW_REPORT") ?: "") } } }
     // Several native libraries ship the same C++ runtime; one copy is enough.
     packaging { jniLibs { pickFirsts += listOf("**/libc++_shared.so") } }
 
@@ -118,6 +120,9 @@ dependencies {
     implementation("com.google.android.gms:play-services-mlkit-image-labeling:16.0.8")
     // JPEG XL export (Apache 2.0 / BSD-3; libjxl BSD-3, Brotli MIT).
     implementation("io.github.awxkee:jxl-coder:2.6.1")
+    // Tests only (not in the app): JUnit (EPL) and Robolectric (MIT) for the automatic RAW sample tests.
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.14.1")
     // Video colour grading (export with a LUT).
     implementation("androidx.media3:media3-transformer:1.11.1")
     implementation("androidx.media3:media3-effect:1.11.1")

@@ -1,0 +1,63 @@
+name: RAW sample test
+# Develops real camera / drone RAW files (raw.pixls.us, CC0) with the app's own RAW code and
+# compares each with the camera's own preview. Runs when the RAW code or the sample list changes,
+# or by hand. The report is pushed to the "rawtest-report" branch.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/RawDng.kt
+      - ProCamera/app/src/test/**
+      - .github/raw-samples.txt
+      - .github/workflows/rawtest.yml
+permissions:
+  contents: write
+concurrency: { group: rawtest, cancel-in-progress: true }
+jobs:
+  raw:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults: { run: { working-directory: ProCamera } }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with: { distribution: temurin, java-version: "17" }
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/raw-samples
+          key: raw-samples-${{ hashFiles('.github/raw-samples.txt') }}
+          restore-keys: raw-samples-
+      - name: Download samples
+        run: |
+          mkdir -p ~/raw-samples
+          grep -v '^#' "$GITHUB_WORKSPACE/.github/raw-samples.txt" | while IFS= read -r p; do
+            [ -z "$p" ] && continue
+            out="$HOME/raw-samples/$p"
+            [ -s "$out" ] && continue
+            mkdir -p "$(dirname "$out")"
+            url="https://raw.pixls.us/data/$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1]))' "$p")"
+            curl -fsSL --retry 3 -o "$out" "$url" || { echo "::warning::could not download $p"; rm -f "$out"; }
+          done
+          du -sh ~/raw-samples
+      - name: Run RAW test
+        env:
+          RAW_SAMPLES: /home/runner/raw-samples
+          RAW_REPORT: /home/runner/raw-report
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew :app:testDebugUnitTest --tests "*RawSamplesTest*" --no-daemon --stacktrace 2>&1 | tee test.log
+      - name: Publish report
+        if: always()
+        working-directory: /home/runner
+        run: |
+          mkdir -p raw-report
+          cp "$GITHUB_WORKSPACE/ProCamera/test.log" raw-report/ 2>/dev/null || true
+          cp -r "$GITHUB_WORKSPACE/ProCamera/app/build/test-results" raw-report/ 2>/dev/null || true
+          cd raw-report
+          git init -q -b rawtest-report
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add -A && git commit -qm "RAW test report ${{ github.sha }}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" rawtest-report

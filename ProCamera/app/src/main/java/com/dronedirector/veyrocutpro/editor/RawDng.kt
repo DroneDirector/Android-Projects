@@ -63,9 +63,11 @@ object RawDng {
     // ------------------------------------------------------------------ file access
 
     private class Src(context: Context, uri: Uri) : AutoCloseable {
-        private val pfd = context.contentResolver.openFileDescriptor(uri, "r") ?: throw java.io.IOException("can't open")
-        private val fis = FileInputStream(pfd.fileDescriptor)
-        val ch: FileChannel = fis.channel
+        // Plain files (file://) are read directly — also what the automatic RAW sample tests use.
+        private val raf = if (uri.scheme == "file") java.io.RandomAccessFile(uri.path ?: "", "r") else null
+        private val pfd = if (raf != null) null else (context.contentResolver.openFileDescriptor(uri, "r") ?: throw java.io.IOException("can't open"))
+        private val fis = pfd?.let { FileInputStream(it.fileDescriptor) }
+        val ch: FileChannel = raf?.channel ?: fis!!.channel
         val size: Long = ch.size()
         fun bytes(pos: Long, n: Int): ByteArray {
             val b = ByteBuffer.allocate(n)
@@ -73,7 +75,7 @@ object RawDng {
             while (b.hasRemaining()) { val r = ch.read(b, p); if (r <= 0) break; p += r }
             return b.array()
         }
-        override fun close() { try { fis.close() } catch (_: Throwable) {}; try { pfd.close() } catch (_: Throwable) {} }
+        override fun close() { try { raf?.close() } catch (_: Throwable) {}; try { fis?.close() } catch (_: Throwable) {}; try { pfd?.close() } catch (_: Throwable) {} }
     }
 
     private class Entry(val type: Int, val count: Int, val data: ByteArray)

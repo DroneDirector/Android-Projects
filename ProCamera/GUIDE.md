@@ -124,6 +124,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 **Filmstrip (many photos)**
 - Hold the divider above the filmstrip, then drag it up or down to change the thumbnail size. Double-tap the divider to reset it.
 - Gallery photos / Browse files: select several photos at once. They line up in the filmstrip under the photo; tap one to edit it. Your edit is kept automatically when you switch or leave.
+- Switching is instant: a RAW shows straight away (its last render, or the camera's preview matched to the editor's colours) and the full RAW render fades in a moment later. The photos either side are prepared ahead.
 - Hold a thumbnail for stars, Pick / Reject and a colour label. The chips above the strip filter it (All, ★3+, Picks, Edited, No rejects).
 - SELECT → AI cull (the ticked photos, or all shown): rejects blurry and out-of-focus shots and closed eyes, finds similar shots (bursts) and flags the best of each as a pick. A small note on each thumbnail says why (Blurry, Eyes closed, Best of 4, Similar). Nothing is deleted; use the Picks / No rejects filters, and change any flag yourself.
 - SELECT → tick photos → Sync edit copies this photo's look (not crop, masks or spots) to them; Export saves each with its own edit using the Export settings; Remove takes them out of the strip.

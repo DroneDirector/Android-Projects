@@ -424,6 +424,68 @@ fun BigButton(icon: ImageVector, label: String, modifier: Modifier = Modifier, o
     }
 }
 
+/** The edit a photo opens with: its saved project, or a fresh edit (with the remembered watermark). */
+private fun editOf(context: Context, initial: PhotoProjectData?): PhotoEdit =
+    @Suppress("USELESS_ELVIS")
+    if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix(), initial.bg ?: PhotoBackground(), initial.baseFile, initial.texts ?: emptyList(), initial.sky ?: SkySwap(), initial.raw ?: RawDng.Dev(), initial.lensBlur)
+    else PhotoEdit(watermark = WatermarkMemory.load(context, false))
+
+/** AI masks, sky and depth pictures an edit draws from (file → picture). */
+private fun PhotoEdit.aiFiles(): List<String> = masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(bg.maskFile, sky.maskFile, sky.imagePath, lensBlur?.depthFile)
+
+/**
+ * Reads ahead the filmstrip photos next to [idx]: decodes them and renders them with their own
+ * edit, so switching to them shows the finished picture at once. Edits using AI noise reduction
+ * are only decoded (the AI runs when the photo is opened).
+ */
+private fun prefetchAround(context: Context, idx: Int) {
+    val app = context.applicationContext
+    val items = PhotoSession.items.toList()
+    val order = listOf(idx + 1, idx - 1).filter { it in items.indices && items[it].uri != items[idx].uri }
+    if (order.isEmpty()) return
+    PhotoViewer.prefetch {
+        for (i in order) {
+            kotlinx.coroutines.yield()
+            val sp = items[i]
+            val p = sp.projectId?.let { ProjectStore.loadPhoto(app, it) }
+            val e = editOf(app, p)
+            val sig = PhotoViewer.signature(e)
+            val src = e.baseFile?.let { Uri.fromFile(java.io.File(it)) } ?: Uri.parse(sp.uri)
+            val raw = if (e.baseFile == null) try { PhotoViewer.loadRaw(app, src).await() } catch (_: Throwable) { null } else null
+            if (PhotoViewer.hasRendered(app, sp.key, sig) || e.detail.aiDenoise > 0f) continue
+            kotlinx.coroutines.yield()
+            val base = raw?.base ?: GradeIO.decode(app, src, 1400) ?: continue
+            val ai = e.aiFiles().mapNotNull { f -> BitmapFactory.decodeFile(f)?.let { f to it } }.toMap()
+            val g = e.grade
+            val s0 = if (raw != null) RawDng.develop(raw.lin, raw.meta, e.raw, g.exposure, g.highlights, g.shadows, g.whites, g.blacks, g.temperature, g.tint).let { d -> if (d.width != base.width || d.height != base.height) Bitmap.createScaledBitmap(d, base.width, base.height, true) else d } else base
+            val eg = if (raw != null) g.rawRest() else g
+            var o = ImageOps.renderPhoto(s0, eg, e.detail, e.geometry, if (eg.isIdentity) null else eg.tables(), e.lens, e.spots, e.masks, ai, e.bg, e.sky, e.lensBlur)
+            for (t in e.texts) o = stampLayer(app, o, t)
+            e.watermark?.let { o = stampLayer(app, o, it) }
+            PhotoViewer.store(app, sp.key, sig, o)
+        }
+    }
+}
+
+/** The viewer's stand-in while a photo loads (see [PhotoViewer]) and its fade to the real render. */
+private class ViewerState(val key: String, val sig: Int) {
+    var placeholder by mutableStateOf<Bitmap?>(null)
+    val fade = androidx.compose.animation.core.Animatable(0f)
+    var readAhead = false
+
+    /** Last render of this photo and edit, else its project thumbnail, else the camera's colour-matched embedded preview. */
+    fun standIn(context: Context, uri: Uri, projectId: String?, rawOk: Boolean): Bitmap? = try {
+        PhotoViewer.renderedFromDisk(context, key, sig)
+            ?: projectId?.let { id -> ProjectStore.thumbFile(context, id)?.let { f -> BitmapFactory.decodeFile(f.path) } }
+            ?: if (rawOk && PhotoViewer.raw(uri.toString()) == null && RawDng.isDng(context, uri)) RawDng.embedded(context, uri)?.let { PhotoViewer.matched(context, it) } else null
+    } catch (_: Throwable) { null }
+
+    suspend fun reveal() {
+        if (placeholder != null) { fade.snapTo(0f); fade.animateTo(1f, androidx.compose.animation.core.tween(180)) }
+        placeholder = null
+    }
+}
+
 @Composable
 private fun PhotoWorkspace(
     uri: Uri, initial: PhotoProjectData?, onClose: () -> Unit, onLoad: (String) -> Unit,
@@ -437,11 +499,7 @@ private fun PhotoWorkspace(
     var base by remember { mutableStateOf<Bitmap?>(null) }
     var preview by remember { mutableStateOf<Bitmap?>(null) }
     var edit by remember {
-        mutableStateOf(
-            @Suppress("USELESS_ELVIS")
-            if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix(), initial.bg ?: PhotoBackground(), initial.baseFile, initial.texts ?: emptyList(), initial.sky ?: SkySwap(), initial.raw ?: RawDng.Dev(), initial.lensBlur)
-            else PhotoEdit(watermark = WatermarkMemory.load(context, false))
-        )
+        mutableStateOf(editOf(context, initial))
     }
     // A filmstrip photo's hidden edit is not a named project: SAVE makes a separate one.
     var projectId by remember { mutableStateOf(initial?.id?.takeIf { initial.session != true && initial.autosave != true }) }
@@ -717,6 +775,17 @@ private fun PhotoWorkspace(
             message = where?.let { "Preset saved: $it" } ?: "Couldn't save the preset"
         }
     }
+    // Never a black viewer while a photo loads: show the last render of this photo and edit, its
+    // project thumbnail, or the camera's colour-matched embedded preview, then fade to the real render.
+    val vw = remember { ViewerState(PhotoSession.items.getOrNull(sessionIdx)?.key ?: initial?.id?.let { "p:$it" } ?: uri.toString(), PhotoViewer.signature(edit)).also { v -> if (uri != Uri.EMPTY) v.placeholder = PhotoViewer.rendered(v.key, v.sig) } }
+    LaunchedEffect(Unit) {
+        if (vw.placeholder != null || uri == Uri.EMPTY) return@LaunchedEffect
+        val e0 = edit
+        val ph = withContext(Dispatchers.IO) { vw.standIn(context, uri, initial?.id, e0.baseFile == null) }
+        if (preview == null && ph != null) vw.placeholder = ph
+    }
+    // Fade the finished render in over the stand-in, then drop the stand-in.
+    LaunchedEffect(preview != null) { if (preview != null) vw.reveal() }
     // RAW (DNG): the sensor data, developed by the editor itself (see RawDng). Null for other photos.
     var rawMeta by remember { mutableStateOf<RawDng.Meta?>(null) }
     var rawLin by remember { mutableStateOf<RawDng.Linear?>(null) }
@@ -724,17 +793,14 @@ private fun PhotoWorkspace(
         if (uri == Uri.EMPTY && edit.baseFile == null) return@LaunchedEffect   // empty editor (SKIP)
         val src = sourceUri(edit)
         var note: String? = null
-        val r = if (edit.baseFile != null) null else withContext(Dispatchers.IO) {
-            try {
-                if (RawDng.isDng(context, src)) RawDng.open(context, src).let { m -> m to RawDng.preview(context, m, 1400) } else null
-            } catch (t: RawDng.UnsupportedRaw) { note = "${t.message} — opened as a normal photo"; null }
+        // Shared with the filmstrip read-ahead: a neighbour read ahead is ready (or finishing) already.
+        val r = if (edit.baseFile != null) null else try { PhotoViewer.loadRaw(context, src).await() }
+            catch (t: RawDng.UnsupportedRaw) { note = "${t.message} — opened as a normal photo"; null }
             catch (_: OutOfMemoryError) { note = "This RAW is too big for the phone's memory — opened as a normal photo"; null }
-            catch (_: Throwable) { null }
-        }
-        rawMeta = r?.first; rawLin = r?.second
+            catch (t: Throwable) { if (t is kotlinx.coroutines.CancellationException) throw t; null }
+        rawMeta = r?.meta; rawLin = r?.lin
         note?.let { message = it }
-        val b = if (r != null) withContext(Dispatchers.Default) { RawDng.develop(r.second, r.first, RawDng.Dev(), 0f, 0f, 0f, 0f, 0f, 0f, 0f) }
-            else withContext(Dispatchers.IO) { GradeIO.decode(context, src, 1400) }
+        val b = r?.base ?: withContext(Dispatchers.IO) { GradeIO.decode(context, src, 1400) }
         if (b == null) failed = true else base = b
     }
     /** True while the edit works on the RAW data (not after AI erase, which makes a normal copy). */
@@ -841,15 +907,23 @@ private fun PhotoWorkspace(
         }
         renderReq.trySend(edit)
         var next: PhotoEdit? = null
+        var first = true
         while (true) {
             val e = next ?: renderReq.receive()
             next = null
-            preview = withContext(Dispatchers.Default) { draw(small, e) }
-            // Still dragging? Keep going with the newest value.
-            val newer = kotlinx.coroutines.withTimeoutOrNull(140) { renderReq.receive() }
-            if (newer != null) { next = newer; continue }
+            // Opening with a stand-in on screen: go straight to the sharp render (no soft quick pass in between).
+            val skipQuick = first && vw.placeholder != null && preview == null
+            first = false
+            if (!skipQuick) {
+                preview = withContext(Dispatchers.Default) { draw(small, e) }
+                // Still dragging? Keep going with the newest value.
+                val newer = kotlinx.coroutines.withTimeoutOrNull(140) { renderReq.receive() }
+                if (newer != null) { next = newer; continue }
+            }
             val full = withContext(Dispatchers.Default) { draw(b, e) }
             preview = full
+            if (!healMode.value && e.baseFile == edit.baseFile) PhotoViewer.store(context, vw.key, PhotoViewer.signature(e), full)
+            if (!vw.readAhead) { vw.readAhead = true; if (sessionIdx >= 0) prefetchAround(context, sessionIdx) }
             hist = withContext(Dispatchers.Default) { ImageOps.histogram(full) }
         }
     }
@@ -1444,7 +1518,9 @@ private fun PhotoWorkspace(
                     },
                     contentAlignment = Alignment.Center,
                 ) {
-                    val shown = if (comparing) base else preview ?: base
+                    val ph = vw.placeholder
+                    // While a stand-in shows, the neutral develop isn't flashed in between.
+                    val shown = if (comparing) base else preview ?: (if (ph != null) null else base)
                     val before = beforeImg
                     when {
                         failed -> Text("This file can't be opened.", color = Pro.Dim)
@@ -1487,13 +1563,16 @@ private fun PhotoWorkspace(
                             Text("BEFORE", style = Pro.Label.copy(color = Color.White), modifier = Modifier.align(Alignment.BottomStart).padding(10.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 8.dp, vertical = 3.dp))
                             Text("AFTER", style = Pro.Label.copy(color = Color.White), modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 8.dp, vertical = 3.dp))
                         }
-                        shown != null -> Box(
+                        shown != null || ph != null -> Box(
                             Modifier.fillMaxSize().padding(6.dp).onSizeChanged { viewSize = it }
                                 .graphicsLayer(scaleX = zoomK, scaleY = zoomK, translationX = panX, translationY = panY),
                         ) {
+                            if (ph != null) Image(ph.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+                            if (shown != null) {
                             val img = if (comparing) shown else dustImg ?: (if (zoomK > 1.6f) loupe else null) ?: proofImg ?: shown
-                            Image(img.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
-                            if (!comparing) {
+                            Image(img.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize(), alpha = if (ph != null) vw.fade.value else 1f)
+                            }
+                            if (shown != null && !comparing) {
                                 sharpImg?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
                                 clipImg?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
                                 gamutImg?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }

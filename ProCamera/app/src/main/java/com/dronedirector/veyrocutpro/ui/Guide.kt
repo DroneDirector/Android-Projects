@@ -178,6 +178,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Pinch or double-tap the photo for a 1:1 zoom.",
             "With a mouse: the wheel over the photo goes to the next / previous filmstrip photo, right-click shows the before / after split, and double-click hides the tools.",
             "Pick many photos at once: they go in the filmstrip under the photo. Tap to switch (each keeps its own edit), hold for stars / Pick / Reject / colour label, SELECT to sync the edit, export or remove several.",
+            "Switching photos is instant: a RAW shows straight away (its last render, or the camera's preview matched to the editor's colours) and the full RAW render fades in a moment later. The photos either side are prepared ahead.",
             "Hold your finger on the photo to see the original.",
             "Leave the editor with your phone's back gesture or back button (the top bar has no back arrow, so EXPORT always fits).",
             "Masks → Subject (AI) / Sky (AI) select the subject or the sky for you (on the phone, or more precisely with Cloud AI).",

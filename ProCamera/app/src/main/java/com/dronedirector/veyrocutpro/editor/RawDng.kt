@@ -1502,4 +1502,97 @@ object RawDng {
         }
     }
 
+    // ------------------------------------------------------------------ embedded preview
+
+    /** The camera's own JPEG preview inside the DNG, already cropped and turned like the developed picture. */
+    class Embedded(val bitmap: Bitmap, /** Camera model, for learning how its previews differ from our develop. */ val camera: String)
+
+    /**
+     * Pulls the largest preview the camera stored in the DNG (a few ms — no sensor data is read),
+     * so the editor can show the photo at once while the RAW itself is still being developed.
+     */
+    fun embedded(context: Context, uri: Uri, minSide: Int = 1400): Embedded? = try {
+        Src(context, uri).use { s ->
+            val h = s.bytes(0, 8)
+            val order = when { h[0] == 'I'.code.toByte() && h[1] == 'I'.code.toByte() -> ByteOrder.LITTLE_ENDIAN; h[0] == 'M'.code.toByte() && h[1] == 'M'.code.toByte() -> ByteOrder.BIG_ENDIAN; else -> return@use null }
+            val first = ByteBuffer.wrap(h).order(order).getInt(4).toLong() and 0xFFFFFFFFL
+            val all = ArrayList<Ifd>()
+            fun walk(pos: Long, depth: Int) {
+                var p = pos; var guard = 0
+                while (p > 0 && guard++ < 16) {
+                    val (ifd, next) = readIfd(s, p, order) ?: return
+                    all += ifd
+                    if (depth < 3) ifd.nums(330)?.forEach { walk(it.toLong(), depth + 1) }
+                    p = next
+                }
+            }
+            walk(first, 0)
+            val ifd0 = all.firstOrNull() ?: return@use null
+            // Candidates: JPEG strips (not the raw), old-style JPEG thumbnails, then 8-bit RGB thumbnails.
+            class Cand(val px: Double, val load: () -> Bitmap?)
+            val cands = ArrayList<Cand>()
+            for (ifd in all) {
+                val pi = ifd.num(262, 6.0).toInt()
+                if (pi == 32803 || pi == 34892) continue
+                val comp = ifd.num(259, 1.0).toInt()
+                val px = ifd.num(256) * ifd.num(257)
+                if (comp == 6 || comp == 7) {
+                    val off = ifd.nums(273); val cnt = ifd.nums(279)
+                    if (off != null && cnt != null && off.size == 1 && cnt.size == 1 && cnt[0] > 0 && cnt[0] < 64e6)
+                        cands += Cand(px.takeIf { it > 0 } ?: cnt[0], { jpeg(s.bytes(off[0].toLong(), cnt[0].toInt()), minSide) })
+                }
+                val jo = ifd.num(513); val jl = ifd.num(514)
+                if (jo > 0 && jl > 0 && jl < 64e6) cands += Cand(px.takeIf { it > 0 } ?: jl, { jpeg(s.bytes(jo.toLong(), jl.toInt()), minSide) })
+                if (comp == 1 && pi == 2 && ifd.num(277, 1.0).toInt() == 3 && ifd.num(258, 8.0).toInt() == 8 && px in 1.0..4e6) {
+                    val w = ifd.num(256).toInt(); val ht = ifd.num(257).toInt()
+                    val off = ifd.nums(273); val cnt = ifd.nums(279)
+                    if (off != null && cnt != null) cands += Cand(px * 0.5, {
+                        val buf = ByteArray(w * ht * 3); var at = 0
+                        for (k in off.indices) { val b = s.bytes(off[k].toLong(), min(cnt.getOrElse(k) { 0.0 }.toInt(), buf.size - at)); System.arraycopy(b, 0, buf, at, b.size); at += b.size; if (at >= buf.size) break }
+                        if (at < buf.size) null else Bitmap.createBitmap(IntArray(w * ht) { i -> (0xFF shl 24) or ((buf[i * 3].toInt() and 0xFF) shl 16) or ((buf[i * 3 + 1].toInt() and 0xFF) shl 8) or (buf[i * 3 + 2].toInt() and 0xFF) }, w, ht, Bitmap.Config.ARGB_8888)
+                    })
+                }
+            }
+            val bmp = cands.sortedByDescending { it.px }.firstNotNullOfOrNull { c -> try { c.load() } catch (_: Throwable) { null } } ?: return@use null
+            val camera = ifd0.text(50708) ?: listOfNotNull(ifd0.text(271), ifd0.text(272)).joinToString(" ").ifEmpty { "camera" }
+            val o = ifd0.num(274, 1.0).toInt()
+            Embedded(bmp, camera) to o
+        }?.let { (e, o) ->
+            // Same framing as the developed picture: its crop's shape, then the file's orientation.
+            val m = try { open(context, uri) } catch (_: Throwable) { null }
+            var b = e.bitmap
+            if (m != null && m.cropW > 0 && m.cropH > 0) {
+                val want = m.cropW.toFloat() / m.cropH; val have = b.width.toFloat() / b.height
+                if (kotlin.math.abs(want / have - 1f) > 0.015f) b = if (have > want) {
+                    val nw = (b.height * want).roundToInt().coerceIn(1, b.width); Bitmap.createBitmap(b, (b.width - nw) / 2, 0, nw, b.height)
+                } else {
+                    val nh = (b.width / want).roundToInt().coerceIn(1, b.height); Bitmap.createBitmap(b, 0, (b.height - nh) / 2, b.width, nh)
+                }
+            }
+            Embedded(orientBitmap(b, o), e.camera)
+        }
+    } catch (_: Throwable) { null }
+
+    private fun jpeg(b: ByteArray, minSide: Int): Bitmap? {
+        if (b.size < 4 || (b[0].toInt() and 0xFF) != 0xFF || (b[1].toInt() and 0xFF) != 0xD8) return null
+        val o = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeByteArray(b, 0, b.size, o)
+        if (o.outWidth <= 0) return null
+        var sample = 1
+        while (max(o.outWidth, o.outHeight) / (sample * 2) >= minSide) sample *= 2
+        return android.graphics.BitmapFactory.decodeByteArray(b, 0, b.size, android.graphics.BitmapFactory.Options().apply { inSampleSize = sample })
+    }
+
+    /** Turns a stored picture by the TIFF orientation, exactly as the RAW develop does. */
+    private fun orientBitmap(src: Bitmap, o: Int): Bitmap {
+        if (o <= 1 || o > 8) return src
+        val sw = src.width; val sh = src.height
+        val swap = o >= 5
+        val w = if (swap) sh else sw; val h = if (swap) sw else sh
+        val inPx = IntArray(sw * sh).also { src.getPixels(it, 0, sw, 0, 0, sw, sh) }
+        val out = IntArray(w * h)
+        for (y in 0 until h) for (x in 0 until w) { val (sx, sy) = orientXy(o, x, y, sw, sh); out[y * w + x] = inPx[sy * sw + sx] }
+        return Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
+    }
+
 }

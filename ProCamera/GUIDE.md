@@ -128,7 +128,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Hold a thumbnail for stars, Pick / Reject and a colour label. The chips above the strip filter it (All, ★3+, Picks, Edited, No rejects).
 - SELECT → AI cull (the ticked photos, or all shown): rejects blurry and out-of-focus shots and closed eyes, finds similar shots (bursts) and flags the best of each as a pick. A small note on each thumbnail says why (Blurry, Eyes closed, Best of 4, Similar). Nothing is deleted; use the Picks / No rejects filters, and change any flag yourself.
 - SELECT → tick photos → Sync edit copies this photo's look (not crop, masks or spots) to them; Export saves each with its own edit using the Export settings; Remove takes them out of the strip.
-- Exports keep running if you leave the app or turn the screen off; the notification shows the progress and tells you when they're done.
+- Exports keep running if you leave the app or turn the screen off. Pull down the notification shade to see every background task (exports, syncing, AI tools, downloads) with its progress; you get a note when an export is done.
 - + at the end of the strip adds more photos. The start page shows "Continue filmstrip" to carry on later, or Clear to start over.
 **AI noise reduction**
 - Export → CAPTION & KEYWORDS: a title, caption and keywords written into every exported JPEG / WebP (IPTC, with your name and copyright) for photo-management software, agencies and clients. Turn on the .xmp sidecar to also save your edit as Camera Raw settings in Documents/VeyroCutPro/XMP — put it next to the original to keep editing in other photo software.

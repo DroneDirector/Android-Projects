@@ -2679,6 +2679,15 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     LaunchedEffect(progress, exporting) { if (exporting) com.dronedirector.veyrocutpro.ExportService.progress(context, progress) }
+    // Proxy generation also shows in the background-tasks notification.
+    val proxyNow = proxyQueue.firstOrNull()?.let { id -> proxyProgress[id] }
+    val proxyLeft = proxyQueue.size
+    LaunchedEffect(proxyNow, proxyLeft) {
+        if (proxyNow != null) com.dronedirector.veyrocutpro.ExportService.update(context, "proxy", proxyNow,
+            "Making proxies" + (if (proxyLeft > 1) " · $proxyLeft left" else ""))
+        else if (proxyLeft == 0) com.dronedirector.veyrocutpro.ExportService.end(context, "proxy")
+    }
+    DisposableEffect(Unit) { onDispose { com.dronedirector.veyrocutpro.ExportService.end(context, "proxy") } }
 
     Box(Modifier.fillMaxSize().background(Ed.Bg)) {
         com.dronedirector.veyrocutpro.ui.AiBadgeHost(

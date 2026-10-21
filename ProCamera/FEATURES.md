@@ -302,6 +302,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 
 ### Deliver
 - **Background export**: keeps running in other apps or with the screen off (foreground service, progress notification, "finished" notification).
+- **Background tasks notification**: one notification in the pull-down shade lists every background task with its progress — photo and video exports, edit sync, proxies, AI noise reduction, AI upscale, AI cull, Cloud AI and first-launch downloads.
 - **Render queue**: several export settings of the same edit rendered one after another (✓ per finished job, stop any time).
 - **Audio only** export to Music/VeyroCutPro as AAC .m4a, WAV (16 / 24-bit, 32-bit float), AIFF 24-bit, FLAC (lossless) or Opus .ogg — all licence-free formats; WAV / AIFF / FLAC are written by the app's own encoder from the finished mix (lossless).
 - **Track switches & trim handles**: per-row mute, eye (hide a layer from the feed and the export) and lock; bracket-style trim handles on both ends of every V1 clip, layer and audio bar — hold and drag to lengthen or shorten within the video, with a live length read-out.

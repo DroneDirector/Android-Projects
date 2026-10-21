@@ -1392,9 +1392,11 @@ private fun PhotoWorkspace(
         val targets = list.filter { it != sessionIdx }
         if (targets.isEmpty()) return
         busy = true
+        com.dronedirector.veyrocutpro.ExportService.begin(context, "photo-sync", "Syncing edit to ${targets.size} photos", 0)
         scope.launch {
             for ((n, i) in targets.withIndex()) {
                 message = "Syncing ${n + 1} / ${targets.size}…"
+                com.dronedirector.veyrocutpro.ExportService.update(context, "photo-sync", n * 100 / targets.size, "Syncing edit · ${n + 1} of ${targets.size}")
                 withContext(Dispatchers.IO) {
                     try {
                         val p = sessionProject(i) ?: return@withContext
@@ -1411,6 +1413,7 @@ private fun PhotoWorkspace(
             }
             busy = false
             message = "Edit synced to ${targets.size} photo" + (if (targets.size == 1) "" else "s")
+            com.dronedirector.veyrocutpro.ExportService.end(context, "photo-sync")
         }
     }
     /** Exports the selected filmstrip photos, each with its own edit, using the export settings here. */
@@ -2084,20 +2087,21 @@ internal object PhotoExportJob {
     val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main)
     var active by mutableStateOf(false)
         private set
+    private const val KEY = "photo-export"
     private var what = "Exporting"
 
     fun begin(context: Context, title: String) {
         active = true; what = title
-        com.dronedirector.veyrocutpro.ExportService.start(context.applicationContext, title)
+        com.dronedirector.veyrocutpro.ExportService.begin(context, KEY, title, 0)
     }
     /** [done] photos finished out of [total]. */
     fun progress(context: Context, done: Int, total: Int) {
         val p = if (total > 0) done * 100 / total else 0
-        com.dronedirector.veyrocutpro.ExportService.progress(context.applicationContext, p, if (total > 1) "$what · ${done + 1} of $total" else what)
+        com.dronedirector.veyrocutpro.ExportService.update(context, KEY, p, if (total > 1) "$what · ${done + 1} of $total" else what)
     }
     fun end(context: Context, result: String?) {
         active = false
-        com.dronedirector.veyrocutpro.ExportService.finish(context.applicationContext, result)
+        com.dronedirector.veyrocutpro.ExportService.end(context, KEY, result)
     }
 }
 

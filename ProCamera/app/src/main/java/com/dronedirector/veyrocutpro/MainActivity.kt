@@ -94,6 +94,16 @@ class MainActivity : ComponentActivity() {
         Thread { com.dronedirector.veyrocutpro.editor.VoiceIsolator.prepare(applicationContext) }.start()
         super.onCreate(savedInstanceState)
         com.dronedirector.veyrocutpro.ui.CrashReport.install(this)
+        BackgroundWatch.start(this)
+        // Android 13+: background tasks show their progress in the notification shade only with this permission.
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            val prefs = getSharedPreferences("procam", MODE_PRIVATE)
+            if (!prefs.getBoolean("asked_notify_bg", false)) {
+                prefs.edit().putBoolean("asked_notify_bg", true).apply()
+                try { requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 7301) } catch (_: Throwable) {}
+            }
+        }
         com.dronedirector.veyrocutpro.editor.LutLibrary.init(this)
         com.dronedirector.veyrocutpro.editor.UserPresets.init(this)
         com.dronedirector.veyrocutpro.camera.CaptureExtras.load(this)

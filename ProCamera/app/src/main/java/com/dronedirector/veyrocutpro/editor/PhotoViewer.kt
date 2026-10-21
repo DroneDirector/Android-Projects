@@ -70,7 +70,7 @@ object PhotoViewer {
             inflight[k]?.let { return it }
             val d = scope.async(Dispatchers.IO) {
                 try {
-                    if (!RawDng.isDng(app, uri)) return@async null
+                    if (!RawDng.isRaw(app, uri)) return@async null
                     val m = RawDng.open(app, uri)
                     val lin = RawDng.preview(app, m, viewerPx(app, raw = true))
                     val base = RawDng.develop(lin, m, RawDng.Dev(), 0f, 0f, 0f, 0f, 0f, 0f, 0f)

@@ -9,6 +9,7 @@ on:
     paths:
       - ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/RawDng.kt
       - ProCamera/app/src/test/**
+      - ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/LibRawBridge.kt
       - .github/raw-samples.txt
       - .github/workflows/rawtest.yml
 permissions:
@@ -43,8 +44,15 @@ jobs:
             curl -fsSL --retry 3 -o "$out" "$url" || { echo "::warning::could not download $p"; rm -f "$out"; }
           done
           du -sh ~/raw-samples
+      - name: Get LibRaw (for the other cameras' RAW formats)
+        run: |
+          git fetch -q --depth 1 origin models
+          mkdir -p /home/runner/libraw
+          for l in libraw libveyroraw; do git show FETCH_HEAD:libraw/linux-x86_64/$l.so > /home/runner/libraw/$l.so || rm -f /home/runner/libraw/$l.so; done
+          ls -l /home/runner/libraw
       - name: Run RAW test
         env:
+          LIBRAW_HOST: /home/runner/libraw
           RAW_SAMPLES: /home/runner/raw-samples
           RAW_REPORT: /home/runner/raw-report
         run: |

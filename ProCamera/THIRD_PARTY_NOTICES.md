@@ -17,10 +17,13 @@ also shown in the app: **Settings (gear) → © Open-source licences**.
 | [jxl-coder](https://github.com/awxkee/jxl-coder) (JPEG XL export) | Radzivon Bartoshyk | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) / BSD-3-Clause |
 | [libjxl](https://github.com/libjxl/libjxl) (inside jxl-coder) | The JPEG XL Project Authors | BSD-3-Clause |
 | [Brotli](https://github.com/google/brotli) (inside jxl-coder) | Google LLC | MIT |
+| [LibRaw](https://github.com/LibRaw/LibRaw/tree/0.22.2) 0.22.2 (other cameras' RAW files) — unmodified, shipped as its own replaceable `libraw.so`, used only through its public C API. Includes code from dcraw (Dave Coffin), DCB / FBDD (Jacek Gozdz, BSD-3-Clause), X3F tools (Roland Karlsson, BSD) and Adobe DNG SDK (MIT). | LibRaw LLC | [LGPL 2.1](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html) (chosen from LibRaw's LGPL 2.1 / CDDL 1.0 dual licence) |
 | [Natural Earth](https://www.naturalearthdata.com/) 1:110m land outlines (Library map) | Natural Earth | Public domain |
 | [SIDD dataset](https://www.eecs.yorku.ca/~kamel/sidd/) (training data of the noise-reduction model) | Abdelhamed, Lin, Brown | MIT |
 
-The full Apache 2.0 and NAFNet MIT licence texts are bundled with every build of the app.
+The full Apache 2.0, NAFNet MIT and LibRaw LGPL 2.1 licence texts are bundled with every build of the app.
+
+**LibRaw source code.** LibRaw is used unmodified. Its exact source code (version 0.22.2) is at https://github.com/LibRaw/LibRaw/tree/0.22.2, and a copy is kept with this project's build files (`libraw/LibRaw-0.22.2-source.tar.gz` on the `models` branch) together with the build script (`ProCamera/native/veyroraw/build.sh`). Anyone may replace `libraw.so` inside the app with their own build of LibRaw; on request we provide the source code for at least three years.
 
 ## Trademarks
 

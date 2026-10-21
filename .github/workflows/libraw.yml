@@ -1,0 +1,48 @@
+name: LibRaw build
+# Builds LibRaw (unmodified, LGPL 2.1 — the version below) and VeyroCut Pro's small bridge to it
+# (ProCamera/native/veyroraw) for phones and for the RAW test, and stores them with LibRaw's exact
+# source code on the "models" branch, where the APK build picks them up.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ProCamera/native/veyroraw/**
+      - .github/workflows/libraw.yml
+permissions:
+  contents: write
+concurrency: { group: libraw, cancel-in-progress: false }
+env:
+  LIBRAW_VERSION: "0.22.2"
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Get LibRaw ${{ env.LIBRAW_VERSION }}
+        run: |
+          git clone -q --depth 1 -b "$LIBRAW_VERSION" https://github.com/LibRaw/LibRaw.git /tmp/LibRaw
+          tar -czf /tmp/LibRaw-$LIBRAW_VERSION-source.tar.gz -C /tmp --exclude=.git LibRaw
+      - name: Build
+        run: |
+          B=ProCamera/native/veyroraw/build.sh; chmod +x $B
+          T=$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
+          J=$JAVA_HOME/include
+          $B /tmp/LibRaw /tmp/out/arm64-v8a   $T/aarch64-linux-android26-clang   $T/aarch64-linux-android26-clang++   "-Wl,-z,max-page-size=16384"
+          $B /tmp/LibRaw /tmp/out/armeabi-v7a $T/armv7a-linux-androideabi26-clang $T/armv7a-linux-androideabi26-clang++
+          $B /tmp/LibRaw /tmp/out/x86_64      $T/x86_64-linux-android26-clang    $T/x86_64-linux-android26-clang++    "-Wl,-z,max-page-size=16384"
+          JNI_INC="-I$J -I$J/linux" $B /tmp/LibRaw /tmp/out/linux-x86_64 gcc g++
+          for a in arm64-v8a armeabi-v7a x86_64; do $T/llvm-strip --strip-unneeded /tmp/out/$a/*.so; done
+          ls -lR /tmp/out
+      - name: Store on the models branch
+        run: |
+          git fetch -q origin models
+          git worktree add -q /tmp/models FETCH_HEAD
+          cd /tmp/models
+          rm -rf libraw && mkdir -p libraw
+          cp -r /tmp/out/* libraw/
+          cp /tmp/LibRaw-$LIBRAW_VERSION-source.tar.gz /tmp/LibRaw/LICENSE.LGPL /tmp/LibRaw/COPYRIGHT libraw/
+          echo "$LIBRAW_VERSION" > libraw/VERSION
+          git add -A libraw
+          git -c user.name="github-actions" -c user.email="actions@github.com" commit -qm "LibRaw $LIBRAW_VERSION + bridge (${GITHUB_SHA::7})" || exit 0
+          git push -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:models

@@ -22,7 +22,7 @@ android {
     }
     compileSdk = 36
     // Automatic RAW sample tests (app/src/test): run on the computer, with Robolectric standing in for Android.
-    testOptions { unitTests { isIncludeAndroidResources = true; isReturnDefaultValues = true; all { it.maxHeapSize = "4g"; it.systemProperty("rawSamples", System.getenv("RAW_SAMPLES") ?: ""); it.systemProperty("rawReport", System.getenv("RAW_REPORT") ?: "") } } }
+    testOptions { unitTests { isIncludeAndroidResources = true; isReturnDefaultValues = true; all { it.maxHeapSize = "4g"; it.systemProperty("rawSamples", System.getenv("RAW_SAMPLES") ?: ""); it.systemProperty("rawReport", System.getenv("RAW_REPORT") ?: ""); System.getenv("LIBRAW_HOST")?.let { p -> it.systemProperty("java.library.path", p) } } } }
     // Several native libraries ship the same C++ runtime; one copy is enough.
     packaging { jniLibs { pickFirsts += listOf("**/libc++_shared.so") } }
 

@@ -477,7 +477,7 @@ private class ViewerState(val key: String, val sig: Int) {
     fun standIn(context: Context, uri: Uri, projectId: String?, rawOk: Boolean): Bitmap? = try {
         PhotoViewer.renderedFromDisk(context, key, sig)
             ?: projectId?.let { id -> ProjectStore.thumbFile(context, id)?.let { f -> BitmapFactory.decodeFile(f.path) } }
-            ?: if (rawOk && PhotoViewer.raw(uri.toString()) == null && RawDng.isDng(context, uri)) RawDng.embedded(context, uri)?.let { PhotoViewer.matched(context, it) } else null
+            ?: if (rawOk && PhotoViewer.raw(uri.toString()) == null && RawDng.isRaw(context, uri)) RawDng.embedded(context, uri)?.let { PhotoViewer.matched(context, it) } else null
     } catch (_: Throwable) { null }
 
     suspend fun reveal() {
@@ -1364,7 +1364,7 @@ private fun PhotoWorkspace(
                 val ok = withContext(Dispatchers.IO) {
                     try {
                         // RAW files in the batch are developed with the same settings.
-                        val developed = if (RawDng.isDng(context, u)) {
+                        val developed = if (RawDng.isRaw(context, u)) {
                             val g = e.grade
                             try { RawDng.export(context, RawDng.open(context, u), e.raw, g.exposure, g.highlights, g.shadows, g.whites, g.blacks, g.temperature, g.tint, sizes[sizeIdx]) } catch (_: RawDng.UnsupportedRaw) { null }
                         } else null
@@ -1439,7 +1439,7 @@ private fun PhotoWorkspace(
                     try {
                         val p = sessionProject(i) ?: return@withContext false
                         val u = p.baseFile?.let { Uri.fromFile(java.io.File(it)) } ?: p.uri
-                        val developed = if (p.baseFile == null && RawDng.isDng(context, u)) {
+                        val developed = if (p.baseFile == null && RawDng.isRaw(context, u)) {
                             val g = p.grade
                             try { RawDng.export(context, RawDng.open(context, u), p.raw ?: RawDng.Dev(), g.exposure, g.highlights, g.shadows, g.whites, g.blacks, g.temperature, g.tint, sizes[sizeIdx]) } catch (_: RawDng.UnsupportedRaw) { null }
                         } else null

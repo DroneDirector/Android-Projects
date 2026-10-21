@@ -197,7 +197,7 @@ object Merge {
 /** A photo for merging; DNGs (e.g. drone AEB brackets) are developed from the RAW data, not their small preview. */
 private fun decodeAny(context: android.content.Context, uri: android.net.Uri, maxPx: Int): android.graphics.Bitmap? =
     try {
-        if (RawDng.isDng(context, uri)) RawDng.export(context, RawDng.open(context, uri), RawDng.Dev(), 0f, 0f, 0f, 0f, 0f, 0f, 0f, maxPx)
+        if (RawDng.isRaw(context, uri)) RawDng.export(context, RawDng.open(context, uri), RawDng.Dev(), 0f, 0f, 0f, 0f, 0f, 0f, 0f, maxPx)
         else GradeIO.decode(context, uri, maxPx)
     } catch (_: RawDng.UnsupportedRaw) { GradeIO.decode(context, uri, maxPx) } catch (_: OutOfMemoryError) { GradeIO.decode(context, uri, maxPx) }
 

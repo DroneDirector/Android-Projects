@@ -56,6 +56,7 @@ private val NOTICES = listOf(
     Notice("jxl-coder — JPEG XL export", "Radzivon Bartoshyk", "Apache License 2.0 / BSD-3-Clause", "https://github.com/awxkee/jxl-coder"),
     Notice("libjxl — JPEG XL reference library (inside jxl-coder)", "The JPEG XL Project Authors", "BSD-3-Clause", "https://github.com/libjxl/libjxl"),
     Notice("Brotli compression (inside jxl-coder)", "Google LLC", "MIT License", "https://github.com/google/brotli"),
+    Notice("LibRaw 0.22.2 — reading Sony, Canon, Nikon, Fujifilm and other cameras' RAW files (unmodified, its own replaceable libraw.so; source code: github.com/LibRaw/LibRaw, tag 0.22.2)", "LibRaw LLC; includes code from dcraw (Dave Coffin), DCB / FBDD (Jacek Gozdz, BSD), X3F tools (Roland Karlsson, BSD) and Adobe DNG SDK pieces (MIT)", "GNU LGPL 2.1 (full text bundled with the app)", "https://github.com/LibRaw/LibRaw/tree/0.22.2"),
     Notice("Natural Earth 1:110m land outlines (Library map view)", "Natural Earth (naturalearthdata.com)", "Public domain", "https://www.naturalearthdata.com/about/terms-of-use/"),
     Notice("Google ML Kit on-device translation and language identification (caption translation)", "Google LLC", "ML Kit Terms of Service", "https://developers.google.com/ml-kit/terms"),
 )
@@ -85,7 +86,7 @@ fun LicensesDialog(onDismiss: () -> Unit) {
                             Text(n.url, color = Pro.Amber, fontSize = 11.sp)
                         }
                     }
-                    for ((label, file) in listOf("Apache License 2.0" to "apache-2.0.txt", "MIT License (NAFNet)" to "nafnet-mit.txt", "BSD 3-Clause (RNNoise)" to "rnnoise-bsd.txt", "MIT License (whisper.cpp)" to "whispercpp-mit.txt")) {
+                    for ((label, file) in listOf("Apache License 2.0" to "apache-2.0.txt", "MIT License (NAFNet)" to "nafnet-mit.txt", "BSD 3-Clause (RNNoise)" to "rnnoise-bsd.txt", "MIT License (whisper.cpp)" to "whispercpp-mit.txt", "GNU LGPL 2.1 (LibRaw)" to "libraw-lgpl-2.1.txt", "LibRaw copyright notice" to "libraw-copyright.txt")) {
                         Text(
                             "READ THE $label".uppercase(), style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
                             modifier = Modifier.padding(top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.06f))
@@ -96,7 +97,8 @@ fun LicensesDialog(onDismiss: () -> Unit) {
                 } else {
                     val file = s.substringAfter('\u0000')
                     val text = asset(context, file)
-                        ?: if (file.startsWith("apache")) "Apache License, Version 2.0 — https://www.apache.org/licenses/LICENSE-2.0"
+                        ?: if (file.startsWith("libraw")) "GNU Lesser General Public License 2.1 — https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html (LibRaw source: https://github.com/LibRaw/LibRaw/tree/0.22.2)"
+                        else if (file.startsWith("apache")) "Apache License, Version 2.0 — https://www.apache.org/licenses/LICENSE-2.0"
                         else "MIT License — https://github.com/megvii-research/NAFNet/blob/main/LICENSE"
                     Text(text, color = Color.White, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
                 }

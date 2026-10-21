@@ -18,8 +18,9 @@ data class MediaItem(
     val durationMs: Long,
     val mime: String,
 ) {
-    /** RAW (DNG) photo. */
-    val isRaw: Boolean get() = !isVideo && (mime.contains("dng", ignoreCase = true) || mime.contains("raw", ignoreCase = true) || name.endsWith(".dng", ignoreCase = true))
+    /** RAW photo (DNG, or another camera's RAW format). */
+    val isRaw: Boolean get() = !isVideo && (mime.contains("dng", ignoreCase = true) || mime.contains("raw", ignoreCase = true) || name.endsWith(".dng", ignoreCase = true) ||
+        name.substringAfterLast('.', "").lowercase() in com.dronedirector.veyrocutpro.editor.RawDng.OTHER_RAW_EXTENSIONS)
 }
 
 /** Reads the photos and videos VeyroCut Pro saved (DCIM/VeyroCutPro on internal storage and SD cards). */
@@ -74,7 +75,7 @@ object MediaLibrary {
                     val mime = c.getString(2) ?: continue
                     val name = c.getString(1) ?: ""
                     val video = mime.startsWith("video/")
-                    val image = mime.startsWith("image/") || name.endsWith(".dng", true)
+                    val image = mime.startsWith("image/") || name.endsWith(".dng", true) || name.substringAfterLast('.', "").lowercase() in com.dronedirector.veyrocutpro.editor.RawDng.OTHER_RAW_EXTENSIONS
                     if (!video && !image) continue
                     val uri = android.provider.DocumentsContract.buildDocumentUriUsingTree(tree, c.getString(0))
                     var w = 0; var h = 0; var dur = 0L

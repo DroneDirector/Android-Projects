@@ -49,6 +49,10 @@ jobs:
           # Studio voice (DeepFilterNet3, MIT / Apache 2.0): native libraries built by the "AI model prep" workflow, and the model.
           for abi in arm64-v8a armeabi-v7a x86_64; do mkdir -p app/src/main/jniLibs/$abi; git show FETCH_HEAD:dfn/$abi/libdf.so > app/src/main/jniLibs/$abi/libdf.so || rm -f app/src/main/jniLibs/$abi/libdf.so; done
           git show FETCH_HEAD:dfn/DeepFilterNet-LICENSE-MIT > app/src/main/assets/licenses/deepfilternet-mit.txt 2>/dev/null || true
+          # Other cameras' RAW formats: LibRaw (LGPL 2.1, its own replaceable libraw.so) and the app's bridge to it — built by the "LibRaw build" workflow.
+          for abi in arm64-v8a armeabi-v7a x86_64; do for l in libraw libveyroraw; do git show FETCH_HEAD:libraw/$abi/$l.so > app/src/main/jniLibs/$abi/$l.so || rm -f app/src/main/jniLibs/$abi/$l.so; done; done
+          git show FETCH_HEAD:libraw/LICENSE.LGPL > app/src/main/assets/licenses/libraw-lgpl-2.1.txt 2>/dev/null || true
+          git show FETCH_HEAD:libraw/COPYRIGHT > app/src/main/assets/licenses/libraw-copyright.txt 2>/dev/null || true
           # Licence texts shown in the app (Settings → Open-source licences).
           mkdir -p app/src/main/assets/licenses
           curl -fsSL --retry 3 -o app/src/main/assets/licenses/apache-2.0.txt https://www.apache.org/licenses/LICENSE-2.0.txt \

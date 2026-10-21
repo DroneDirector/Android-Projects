@@ -192,7 +192,7 @@ object PhotoSession {
         p.projectId?.let { id -> ProjectStore.thumbFile(context, id)?.let { f -> BitmapFactory.decodeFile(f.path)?.let { return it } } }
         val u = Uri.parse(p.uri)
         return try {
-            (if (RawDng.isDng(context, u)) RawDng.embedded(context, u, 240)?.let { e -> small(PhotoViewer.matched(context, e), 320) } else null)
+            (if (RawDng.isRaw(context, u)) RawDng.embedded(context, u, 240)?.let { e -> small(PhotoViewer.matched(context, e), 320) } else null)
                 ?: com.dronedirector.veyrocutpro.camera.GradeIO.decode(context, u, 240)
         } catch (_: Throwable) { null }
     }

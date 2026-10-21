@@ -175,6 +175,8 @@ object RawDng {
         internal val gains3: List<GainMap> = emptyList(),
         /** Camera maker (EXIF Make). */
         val make: String = "",
+        /** Not a DNG: read through LibRaw (Sony, Canon, Nikon, Fujifilm… RAW files). */
+        internal val libraw: Boolean = false,
     ) {
         /**
          * Phone RAWs saved without the camera's lens-shading data (e.g. by apps that don't ask the
@@ -232,7 +234,111 @@ object RawDng {
 
     private fun Ifd.text(t: Int): String? = raw(t)?.let { b -> String(b, Charsets.ISO_8859_1).trim('\u0000', ' ').takeIf { it.isNotEmpty() } }
 
-    fun open(context: Context, uri: Uri): Meta = Src(context, uri).use { s ->
+    /** File name endings of camera RAW formats other than DNG (read through LibRaw). */
+    val OTHER_RAW_EXTENSIONS: Set<String> get() = LibRawBridge.EXTENSIONS
+
+    /** A RAW photo the app can develop: DNG, or another camera RAW format when LibRaw is available. */
+    fun isRaw(context: Context, uri: Uri): Boolean = isDng(context, uri) || isOtherRaw(context, uri)
+
+    /** Sony / Canon / Nikon / Fujifilm… RAW (by file name or type), read through LibRaw. */
+    fun isOtherRaw(context: Context, uri: Uri): Boolean = try {
+        LibRawBridge.available && run {
+            val type = (context.contentResolver.getType(uri) ?: "").lowercase()
+            val names = listOfNotNull(uri.lastPathSegment, if (uri.scheme == "file") null else Rename.displayName(context, uri))
+            names.any { it.substringAfterLast('.', "").lowercase() in LibRawBridge.EXTENSIONS } ||
+                LibRawBridge.EXTENSIONS.any { type.endsWith("-$it") }
+        }
+    } catch (_: Throwable) { false }
+
+    private fun <T> withLibRaw(context: Context, uri: Uri, block: (Long) -> T): T {
+        if (!LibRawBridge.available) throw UnsupportedRaw("This RAW format needs the RAW library, which couldn't be loaded")
+        val pfd = if (uri.scheme == "file") null else (context.contentResolver.openFileDescriptor(uri, "r") ?: throw java.io.IOException("can't open"))
+        try {
+            val h = LibRawBridge.nOpen(if (pfd == null) uri.path ?: "" else "/proc/self/fd/${pfd.fd}")
+            if (h == 0L) throw UnsupportedRaw("This RAW file couldn't be read")
+            try { return block(h) } finally { LibRawBridge.nClose(h) }
+        } finally { try { pfd?.close() } catch (_: Throwable) {} }
+    }
+
+    private fun libRawCamera(s: Array<String>): String {
+        val make = s[0].trim(); val model = s[1].trim()
+        return if (model.startsWith(make, true)) model else "$make $model".trim()
+    }
+
+    /** LibRaw's orientation → TIFF orientation. */
+    private fun libRawOrientation(flip: Int): Int = when (flip) { 3 -> 3; 5 -> 8; 6 -> 6; else -> 1 }
+
+    private fun openOther(context: Context, uri: Uri): Meta = withLibRaw(context, uri) { h ->
+        val v = LibRawBridge.nInfo(h); val s = LibRawBridge.nStrings(h)
+        val w = v[0].toInt(); val ht = v[1].toInt(); val filters = v[2].toLong(); val colors = v[3].toInt()
+        if (w <= 0 || ht <= 0) throw UnsupportedRaw("This RAW file couldn't be read")
+        if (v[29] != 0.0) throw UnsupportedRaw("Sigma Foveon RAW files aren't supported yet")
+        var cfa: IntArray? = null; var cw = 2; var ch = 2
+        if (filters != 0L) {
+            if (colors != 3 && s[3] != "RGBG") throw UnsupportedRaw("This camera's colour filter (${s[3]}) isn't supported")
+            val p = LibRawBridge.nPattern(h, 16).map { if (it == 3) 1 else it }
+            if (p.any { it !in 0..2 }) throw UnsupportedRaw("This camera's colour filter isn't supported")
+            if (filters == 9L) { cw = 6; ch = 6; cfa = IntArray(36) { p[(it / 6) * 16 + it % 6] } }
+            else if ((0 until 16).all { y -> (0 until 16).all { x -> p[y * 16 + x] == p[(y % 2) * 16 + x % 2] } }) cfa = IntArray(4) { p[(it / 2) * 16 + it % 2] }
+            else { ch = 16; cfa = IntArray(32) { p[(it / 2) * 16 + it % 2] } }
+        }
+        val cm = DoubleArray(9) { v[18 + it] }.takeIf { m -> m.any { it != 0.0 } }
+        fun neutral(o: Int): DoubleArray? { val r = v[o]; val g = v[o + 1]; val b = v[o + 2]; return if (r > 0 && g > 0 && b > 0) doubleArrayOf(g / r, 1.0, g / b) else null }
+        val asShot = neutral(10) ?: neutral(14) ?: doubleArrayOf(1.0, 1.0, 1.0)
+        val info = ArrayList<Pair<String, String>>()
+        info += "Camera" to libRawCamera(s)
+        s[2].trim().takeIf { it.isNotEmpty() }?.let { info += "Lens" to it }
+        v[7].takeIf { it > 0 }?.let { info += "Shutter" to (if (it < 1) "1/${(1 / it).roundToInt()} s" else "%.1f s".format(it)) }
+        v[8].takeIf { it > 0 }?.let { info += "Aperture" to "f/%.1f".format(it) }
+        v[6].takeIf { it > 0 }?.let { info += "ISO" to it.roundToInt().toString() }
+        v[9].takeIf { it > 0 }?.let { info += "Focal length" to "%.1f mm".format(it) }
+        info += "Sensor" to "${w}×${ht}, ${if (cfa == null) "linear RGB" else if (cw == 6) "X-Trans 6×6" else "Bayer"}"
+        info += "Read by" to "LibRaw ${try { LibRawBridge.nVersion() } catch (_: Throwable) { "" }}".trim()
+        Meta(
+            uri, ByteOrder.LITTLE_ENDIAN, w, ht, if (cfa == null) 3 else 1, 16, 1,
+            0, 0, LongArray(0), LongArray(0), ht,
+            cfa, cw, ch,
+            intArrayOf(1, 1), doubleArrayOf(0.0), null, null,
+            doubleArrayOf(ONE.toDouble()), null,
+            0, 0, 0, 0, w, ht,
+            emptyList(), cm, asShot, 0f, libRawOrientation(v[4].toInt()),
+            cm1 = cm, info = info, make = s[0].trim(), libraw = true,
+        )
+    }
+
+    private fun decodeOther(context: Context, m: Meta): Sensor = withLibRaw(context, m.uri) { h ->
+        val r = LibRawBridge.nUnpack(h)
+        if (r != 0) throw UnsupportedRaw("This RAW file couldn't be read (LibRaw error $r)")
+        var d = LibRawBridge.nRaw(h, ONE.toInt()) ?: throw UnsupportedRaw("This RAW file's sensor data couldn't be read")
+        val n = m.width * m.height
+        if (m.cfa == null && d.size == n) { val g = d; d = ShortArray(n * 3) { g[it / 3] } } // monochrome sensor
+        if (d.size != n * m.spp) throw UnsupportedRaw("This RAW file's sensor data couldn't be read")
+        Sensor(m.width, m.height, m.spp, d, m.cfa, m.cfaW, m.cfaH)
+    }
+
+    private fun embeddedOther(context: Context, uri: Uri, minSide: Int): Embedded? = try {
+        withLibRaw(context, uri) { h ->
+            val t = LibRawBridge.nThumb(h) ?: return@withLibRaw null
+            val bmp = when (t[0].toInt()) {
+                1 -> jpeg(t.copyOfRange(1, t.size), minSide)
+                2 -> {
+                    val bb = ByteBuffer.wrap(t, 1, 8); val w = bb.int; val ht = bb.int
+                    if (w <= 0 || ht <= 0 || t.size < 9 + w * ht * 3) null
+                    else Bitmap.createBitmap(IntArray(w * ht) { i -> (0xFF shl 24) or ((t[9 + i * 3].toInt() and 0xFF) shl 16) or ((t[10 + i * 3].toInt() and 0xFF) shl 8) or (t[11 + i * 3].toInt() and 0xFF) }, w, ht, Bitmap.Config.ARGB_8888)
+                }
+                else -> null
+            } ?: return@withLibRaw null
+            val v = LibRawBridge.nInfo(h)
+            // Previews stored the sensor's way up are turned like the RAW; ones already upright are kept.
+            val o = libRawOrientation(v[4].toInt())
+            val b = if (o != 1 && (bmp.width > bmp.height) == (v[0] > v[1])) orientBitmap(bmp, o) else bmp
+            Embedded(b, libRawCamera(LibRawBridge.nStrings(h)))
+        }
+    } catch (_: Throwable) { null }
+
+    fun open(context: Context, uri: Uri): Meta = if (!isDng(context, uri) && isOtherRaw(context, uri)) openOther(context, uri) else openDng(context, uri)
+
+    private fun openDng(context: Context, uri: Uri): Meta = Src(context, uri).use { s ->
         val h = s.bytes(0, 8)
         val order = if (h[0] == 'M'.code.toByte()) ByteOrder.BIG_ENDIAN else ByteOrder.LITTLE_ENDIAN
         val first = ByteBuffer.wrap(h).order(order).getInt(4).toLong() and 0xFFFFFFFFL
@@ -567,7 +673,7 @@ object RawDng {
         }
     }
 
-    internal fun decode(context: Context, m: Meta): Sensor = Src(context, m.uri).use { s ->
+    internal fun decode(context: Context, m: Meta): Sensor = if (m.libraw) decodeOther(context, m) else Src(context, m.uri).use { s ->
         val w = m.width; val h = m.height; val spp = m.spp
         val raw = ShortArray(w * h * spp)
         val isFloat = m.sampleFormat == 3
@@ -1610,7 +1716,10 @@ object RawDng {
      * Pulls the largest preview the camera stored in the DNG (a few ms — no sensor data is read),
      * so the editor can show the photo at once while the RAW itself is still being developed.
      */
-    fun embedded(context: Context, uri: Uri, minSide: Int = 1400): Embedded? = try {
+    fun embedded(context: Context, uri: Uri, minSide: Int = 1400): Embedded? =
+        if (!isDng(context, uri) && isOtherRaw(context, uri)) embeddedOther(context, uri, minSide) else embeddedDng(context, uri, minSide)
+
+    private fun embeddedDng(context: Context, uri: Uri, minSide: Int): Embedded? = try {
         Src(context, uri).use { s ->
             val h = s.bytes(0, 8)
             val order = when { h[0] == 'I'.code.toByte() && h[1] == 'I'.code.toByte() -> ByteOrder.LITTLE_ENDIAN; h[0] == 'M'.code.toByte() && h[1] == 'M'.code.toByte() -> ByteOrder.BIG_ENDIAN; else -> return@use null }

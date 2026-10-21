@@ -35,3 +35,30 @@ Hasselblad/L2D-20c/DJI_0023.DNG
 Samsung/Galaxy S21 Ultra/20230712_115041.dng
 Samsung/Galaxy S22 Ulra/20221225_114402.dng
 Samsung/Galaxy S22 Ultra/20230531_111518.dng
+# Other cameras' own RAW formats (read through LibRaw)
+Sony/ILCE-7M3/UNCOMPRESSED_14bit.ARW
+Sony/ILCE-7M4/ILCE-7M4_DSC06673_FullFrame-Raw-Uncompressed.ARW
+Sony/ILCE-7RM5/7RM5-LosslessCompressedLarge.ARW
+Sony/ILCE-6400/DSC00087.ARW
+Sony/ZV-E10/DSC00002.ARW
+Sony/ILCE-1/A1_full_compressed.ARW
+Canon/EOS 5D Mark IV/B13A0729.CR2
+Canon/EOS 80D/IMG_0096.CR2
+Canon/EOS 90D/Canon-90D-cRAW-ISO-100.CR3
+Canon/EOS R5/Canon_EOS_R5_CRAW_ISO_100_crop_dual.CR3
+Canon/EOS R6/Canon_EOS_R6_CRAW_ISO_100_crop_nodual.CR3
+Canon/EOS R7/443A0157.CR3
+Nikon/D750/compressed_12_bit.NEF
+Nikon/D850/Nikon-D850-12bit-compressed.NEF
+Nikon/Z 8/Nikon_Z8_high_efficiency_low.NEF
+Nikon/Z f/DSC_0040.NEF
+Nikon/Z 50/DSC_0441.NEF
+Fujifilm/X-T4/DSCF0266.RAF
+Fujifilm/X-T5/DSCF0021.RAF
+Fujifilm/X100V/DSCF0733.RAF
+Fujifilm/X-S10/Fujifilm-X-S10-compressed.RAF
+Olympus/E-M1MarkII/Olympus_EM1mk2_Standard_20MP.ORF
+OM System/OM-1/OM_Systems_OM1_RAW_Image_20mpx_P1010025.ORF
+Panasonic/DC-GH5/_T012010.RW2
+Panasonic/DC-S5/dc-s5_6k4k.RW2
+Panasonic/DC-G9/P1000475.RW2

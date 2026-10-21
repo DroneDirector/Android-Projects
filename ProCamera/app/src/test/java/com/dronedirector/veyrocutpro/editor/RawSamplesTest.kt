@@ -68,7 +68,8 @@ class RawSamplesTest {
         Assume.assumeTrue("No samples folder (set RAW_SAMPLES)", dir.isNotBlank() && File(dir).isDirectory)
         val reportDir = File(System.getProperty("rawReport").orEmpty().ifBlank { "build/raw-report" }).apply { mkdirs() }
         val ctx = RuntimeEnvironment.getApplication()
-        val files = File(dir).walkTopDown().filter { it.isFile && it.extension.lowercase() == "dng" }.sortedBy { it.path }.toList()
+        println("LibRaw available: ${LibRawBridge.available}")
+        val files = File(dir).walkTopDown().filter { it.isFile && (it.extension.lowercase() == "dng" || it.extension.lowercase() in LibRawBridge.EXTENSIONS) }.sortedBy { it.path }.toList()
         val rows = ArrayList<String>(); val fails = ArrayList<String>()
         for (f in files) {
             val name = f.relativeTo(File(dir)).path

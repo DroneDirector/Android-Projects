@@ -30,3 +30,8 @@ Pentax/K-1 Mark II/_IMG2387.DNG
 Ricoh/GR III/R0000357.DNG
 Sigma/fp L/SDIM0915.DNG
 Xiaomi/MI 8/IMG_20200101_174326.dng
+Hasselblad/L1D-20c/DJI_0017.DNG
+Hasselblad/L2D-20c/DJI_0023.DNG
+Samsung/Galaxy S21 Ultra/20230712_115041.dng
+Samsung/Galaxy S22 Ulra/20221225_114402.dng
+Samsung/Galaxy S22 Ultra/20230531_111518.dng

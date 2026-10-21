@@ -163,7 +163,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - Export **JPEG or PNG**, quality and size choice; choose the **save folder** (default DCIM/VeyroCutPro).
 - Also **WebP** and **HEIC**; Instagram / web / 4K sizes; **AI upscale** 2× / 4× in the export; keep or remove **camera info and location**.
 - **IPTC title, caption & keywords** in every export, and an optional **.xmp sidecar** (Camera Raw settings) with the edit.
-- **Batch export**: apply the current edit to up to 50 photos at once.
+- **Batch export**: apply the current edit to up to 50 photos at once; photo exports (single, batch and export selected) keep running in other apps or with the screen off, with a progress notification.
 - **Resizable panels** (hold the divider, then drag; double-tap to reset).
 - **Panels menu** (icon next to the gear): show / hide the tools panel, copy / paste bar, histogram and before / after buttons — the photo fills freed space and returns to its saved size; presets **Full / View / Edit / Color**; **triple-tap** the icon to restore the original layout. The histogram button (bar-chart icon) choice is now remembered.
 

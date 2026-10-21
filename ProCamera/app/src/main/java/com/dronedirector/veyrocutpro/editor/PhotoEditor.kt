@@ -558,7 +558,8 @@ private fun PhotoWorkspace(
     val showCompare = com.dronedirector.veyrocutpro.ui.panelOn("pe.compare")
     var paneVersion by remember { mutableStateOf(0) }
     var hist by remember { mutableStateOf<Array<FloatArray>?>(null) }
-    var busy by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(PhotoExportJob.active) }
+    LaunchedEffect(PhotoExportJob.active) { if (!PhotoExportJob.active) busy = false }
     var exportT0 by remember { mutableStateOf(0L) }
     var exportEstMs by remember { mutableStateOf(0L) }
     var batchN by remember { mutableStateOf(0) }
@@ -945,15 +946,16 @@ private fun PhotoWorkspace(
     LaunchedEffect(message) { if (message != null) { delay(2600); message = null } }
 
     fun export() {
-        if (busy) return
+        if (busy || PhotoExportJob.active) return
         busy = true
+        PhotoExportJob.begin(context, "Exporting photo")
         exportT0 = System.currentTimeMillis(); batchN = 0; batchI = 0
         // Time estimate from earlier exports (ms per megapixel), or a first guess.
         val mp = exportMp(base, sizes[sizeIdx])
         val per = context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getFloat("pe_ms_per_mp", 250f)
         exportEstMs = (mp * per * (if (aiScale > 1) 4 else 1)).toLong()
         val e = edit
-        scope.launch {
+        PhotoExportJob.scope.launch {
             val ok = withContext(Dispatchers.IO) {
                 try {
                     val raw = rawOn(e)
@@ -1025,6 +1027,7 @@ private fun PhotoWorkspace(
                 ok != null -> "Saved"
                 else -> PhotoExportError.last?.let { "Couldn't export — $it" } ?: "Couldn't export — try a smaller size"
             }
+            PhotoExportJob.end(context, message)
         }
     }
 
@@ -1341,15 +1344,17 @@ private fun PhotoWorkspace(
     /** Batch: the current look (and optionally crop, masks and watermark) applied to many photos. */
     var batchWithCrop by remember { mutableStateOf(false) }
     val batchPick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(50)) { list ->
-        if (list.isEmpty() || busy) return@rememberLauncherForActivityResult
+        if (list.isEmpty() || busy || PhotoExportJob.active) return@rememberLauncherForActivityResult
         busy = true
         val e = edit
         exportT0 = System.currentTimeMillis(); batchN = list.size; batchI = 0
-        scope.launch {
+        PhotoExportJob.begin(context, "Exporting ${list.size} photos")
+        PhotoExportJob.scope.launch {
             var done = 0
             for ((i, u) in list.withIndex()) {
                 batchI = i
                 message = "Batch ${i + 1} / ${list.size}…"
+                PhotoExportJob.progress(context, i, list.size)
                 val ok = withContext(Dispatchers.IO) {
                     try {
                         // RAW files in the batch are developed with the same settings.
@@ -1370,6 +1375,7 @@ private fun PhotoWorkspace(
             }
             busy = false
             message = "Batch done: $done of ${list.size} photos saved"
+            PhotoExportJob.end(context, message)
         }
     }
 
@@ -1409,15 +1415,17 @@ private fun PhotoWorkspace(
     }
     /** Exports the selected filmstrip photos, each with its own edit, using the export settings here. */
     fun exportSession(list: List<Int>) {
-        if (busy || list.isEmpty()) return
+        if (busy || PhotoExportJob.active || list.isEmpty()) return
         sessionSave()
         busy = true
         exportT0 = System.currentTimeMillis(); batchN = list.size; batchI = 0
-        scope.launch {
+        PhotoExportJob.begin(context, "Exporting ${list.size} photos")
+        PhotoExportJob.scope.launch {
             var done = 0
             for ((n, i) in list.withIndex()) {
                 batchI = n
                 message = "Export ${n + 1} / ${list.size}…"
+                PhotoExportJob.progress(context, n, list.size)
                 val ok = withContext(Dispatchers.IO) {
                     try {
                         val p = sessionProject(i) ?: return@withContext false
@@ -1439,6 +1447,7 @@ private fun PhotoWorkspace(
             }
             busy = false
             message = "Exported $done of ${list.size} photos"
+            PhotoExportJob.end(context, message)
         }
     }
 
@@ -2064,6 +2073,32 @@ private fun PanelTabs(selected: PhotoPanel, onSelect: (PhotoPanel) -> Unit) {
         listOf(PhotoPanel.PRESETS, PhotoPanel.LIGHT, PhotoPanel.COLOR, PhotoPanel.HEAL, PhotoPanel.CROP, PhotoPanel.TEXT, PhotoPanel.EXPORT)
     else PhotoPanel.entries.toList()
     Chips(shown.map { it.label }, shown.indexOf(selected)) { onSelect(shown[it]) }
+}
+
+/**
+ * Photo exports (single, batch and filmstrip selection) run in this app-wide scope instead of the editor's own,
+ * and hold the export service (progress notification + wake lock) while they run, so leaving the app, turning the
+ * screen off or the editor being rebuilt doesn't stop them or get the app closed by Android.
+ */
+internal object PhotoExportJob {
+    val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main)
+    var active by mutableStateOf(false)
+        private set
+    private var what = "Exporting"
+
+    fun begin(context: Context, title: String) {
+        active = true; what = title
+        com.dronedirector.veyrocutpro.ExportService.start(context.applicationContext, title)
+    }
+    /** [done] photos finished out of [total]. */
+    fun progress(context: Context, done: Int, total: Int) {
+        val p = if (total > 0) done * 100 / total else 0
+        com.dronedirector.veyrocutpro.ExportService.progress(context.applicationContext, p, if (total > 1) "$what · ${done + 1} of $total" else what)
+    }
+    fun end(context: Context, result: String?) {
+        active = false
+        com.dronedirector.veyrocutpro.ExportService.finish(context.applicationContext, result)
+    }
 }
 
 private data class ExportState(val format: Int, val quality: Float, val sizeIdx: Int)

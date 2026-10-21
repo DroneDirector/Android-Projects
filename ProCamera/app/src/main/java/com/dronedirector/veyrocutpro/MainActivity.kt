@@ -53,6 +53,7 @@ import com.dronedirector.veyrocutpro.ui.CameraScreen
 import com.dronedirector.veyrocutpro.ui.Pro
 import com.dronedirector.veyrocutpro.ui.ProCamTheme
 
+private const val KEY_SCREEN = "screen"
 private val TEST_KEYS = setOf(
     "mode", "param", "grid", "filter", "filters", "guide", "profile", "live", "nosetup", "peaking", "zebras",
     "settings", "gallery", "accent", "aspect", "falsecolor", "clean", "screenanalysis", "zebralevel",
@@ -83,6 +84,11 @@ class MainActivity : ComponentActivity() {
         }
     }
     private val screen = androidx.compose.runtime.mutableStateOf(com.dronedirector.veyrocutpro.ui.AppScreen.HOME)
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(KEY_SCREEN, screen.value.name)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         Thread { com.dronedirector.veyrocutpro.editor.VoiceIsolator.prepare(applicationContext) }.start()
@@ -127,6 +133,11 @@ class MainActivity : ComponentActivity() {
             "photo" -> com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR
             "video" -> com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR
             else -> if (direct) com.dronedirector.veyrocutpro.ui.AppScreen.CAPTURE else com.dronedirector.veyrocutpro.ui.StartScreen.get(applicationContext)
+        }
+        // Android closed and rebuilt the app while it was in the background: come back to the screen you were on,
+        // not the start screen.
+        if (shared.isEmpty()) savedInstanceState?.getString(KEY_SCREEN)?.let { n ->
+            com.dronedirector.veyrocutpro.ui.AppScreen.entries.firstOrNull { it.name == n }?.let { screen.value = it }
         }
         setContent {
             ProCamTheme {

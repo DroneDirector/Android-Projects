@@ -66,7 +66,7 @@ class ExportService : Service() {
             if (Build.VERSION.SDK_INT >= 26) {
                 val nm = context.getSystemService(NotificationManager::class.java)
                 if (nm.getNotificationChannel(CHANNEL) == null)
-                    nm.createNotificationChannel(NotificationChannel(CHANNEL, "Exports", NotificationManager.IMPORTANCE_LOW).apply { description = "Progress of video exports" })
+                    nm.createNotificationChannel(NotificationChannel(CHANNEL, "Exports", NotificationManager.IMPORTANCE_LOW).apply { description = "Progress of photo and video exports" })
             }
         }
 

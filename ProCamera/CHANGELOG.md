@@ -6,6 +6,8 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 ## Unreleased
 
 ## 1.0.425 — 2026-10-21
+
+## 1.0.425 — 2026-10-21
 - **RAW files from other cameras now open in the photo editor**: Sony ARW, Canon CR2 / CR3, Nikon NEF, Fujifilm RAF, Olympus / OM System ORF, Panasonic RW2, Pentax PEF and more. They're read by LibRaw (credited in Settings → Open-source licences) and developed by the same RAW engine as DNGs, starting at about the brightness of the camera's own picture. The gallery and Library recognise them as RAW too.
 - Behind the scenes: an automatic RAW test now develops 60+ drone, camera and phone RAW files every time the RAW code changes, so a fix for one camera can't quietly break another.
 

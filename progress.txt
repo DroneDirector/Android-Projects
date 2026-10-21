@@ -1,6 +1,6 @@
-done=1
+done=2
 total=3
-percent=33
-now=photo
-elapsed_s=138
-updated=2026-10-21T08:54:43Z
+percent=66
+now=saving the results
+elapsed_s=154
+updated=2026-10-21T08:54:59Z

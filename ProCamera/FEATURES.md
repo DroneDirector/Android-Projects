@@ -85,12 +85,14 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - Stream to **YouTube, TikTok, Twitch, Facebook** or any **RTMP / RTMPS / SRT** server; **H.264 or H.265**.
 
 ### Gallery
+- **Select several** (hold one): share, delete (to the trash), favourite, pick or reject them together.
 - **Trash** (Android 11+): deleted items are kept 30 days and can be restored; empty trash.
 - **Culling**: 1–5 stars, pick / reject, rating filters and delete-all-rejects.
 - Full-screen in-app gallery for photos and videos; **Favourites**; separate **RAW** tab with badges.
 - **Colour grading** for photos and videos straight from the gallery.
 
 ### Settings
+- **Side buttons**: volume up / down as shutter / record, zoom, or off (normal volume).
 - **External monitor layouts** (DeX / HDMI desktop only): 16:9 / 16:10, 21:9 and 32:9 layouts with media / filmstrip, viewer and tools columns; phones and tablets keep their own layouts and switch back when unplugged.
 - **Autosave** (photo and video editors): interval Off / 1 / 2 / 5 / 10 / 15 / 30 min and 1–5 kept copies, listed under LOAD → AUTOSAVES.
 - **Samsung DeX ready**: resizable windows, wide layouts, mouse and keyboard; the app keeps your edit when you connect a keyboard / mouse or move between the phone and a monitor.
@@ -157,9 +159,9 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Before / after split view** with a draggable divider.
 - **My LUTs**: import .cube LUTs, blend by strength.
 - **My presets**: save your look and reuse it (also in the video editor).
-- **Real-time preview** while dragging sliders.
+- **Real-time preview** while dragging sliders; the viewer shows the photo at full screen resolution (full size when zoomed in).
 - **Copy / Paste settings** (choose what to paste) — also between photos and video clips.
-- **LOAD / SAVE projects** next to Export.
+- **LOAD / SAVE projects** next to Export; SAVE lists your saved projects to overwrite one, or save as new.
 - Export **JPEG or PNG**, quality and size choice; choose the **save folder** (default DCIM/VeyroCutPro).
 - Also **WebP** and **HEIC**; Instagram / web / 4K sizes; **AI upscale** 2× / 4× in the export; keep or remove **camera info and location**.
 - **IPTC title, caption & keywords** in every export, and an optional **.xmp sidecar** (Camera Raw settings) with the edit.

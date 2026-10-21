@@ -4,6 +4,14 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture gallery: **select several photos and videos**. Hold one to start, then tap more; the ✓ shows which are selected. Then share them all at once, delete them (to the trash, restorable for 30 days), favourite them, or mark them pick or reject.
+- Capture settings → **Side buttons (volume up / down)**: choose Off (they just change the volume), Shutter / record (take a photo or start / stop recording, whichever mode is on) or Zoom.
+- Photo editor: **the viewer now shows the photo at your screen's full resolution** instead of a small preview, and zooming in shows the photo at its full size. Thumbnails stay small and fast.
+- Photo editor: **very large RAW photos open as RAW** instead of failing with "too big for the phone's memory". The preview is made straight from the sensor data, without a full-size copy in between.
+- Photo editor → Presets: **the preset thumbnails appear much faster**. Each one is made small and directly, and they're kept, so they show at once next time.
+- Photo and video editor → **SAVE shows your saved projects**. Tap one and choose Overwrite (it asks first), or type a name and choose Save as new. The project that's open is marked.
+- **Samsung DeX:** the app's own mouse pointer (the same look and colours as your pointer settings) now shows on the monitor, and the normal pointer stays until the app's pointer appears.
+- **Samsung DeX:** on a wide monitor, Capture takes photos and videos wide (landscape) instead of upright.
 
 ## 1.0.410 — 2026-10-21
 - **Background tasks show in the notification shade**: one "Background tasks" notification lists everything VeyroCut Pro is doing in the background, each with its progress — photo and video exports, edit sync, proxy generation, AI noise reduction, AI upscale, AI cull, Cloud AI and the first-launch downloads — and a short note when an export is done. On Android 13+ the app asks once for permission to show notifications.

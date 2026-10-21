@@ -20,6 +20,9 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 ## Capture guide
 **Mouse**
+- Gallery: hold a photo or video to select it, then tap more. Share, Delete (to the trash for 30 days), ♥ Favourite, ✓ Pick or ✕ Reject them together; Done ends the selection.
+- Settings → Side buttons: Off (normal volume), Shutter / record, or Zoom (volume up zooms in, down zooms out).
+- Samsung DeX on a wide monitor: photos and videos are taken wide (landscape).
 - Wheel = zoom, right-click = lock / unlock exposure and focus at that spot, middle-click = take the shot. Gear → MOUSE POINTER sets the pointer's look and colour.
 **AI upscale**
 - Settings → AI UPSCALE → turn on "AI upscale sizes".
@@ -79,6 +82,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 ## Photo editor guide
 **Autosave**
+- SAVE: type a name and tap Save as new, or tap one of your saved projects and choose Overwrite (it asks first). The project that's open now is marked.
 - Gear → AUTOSAVE: pick how often a copy of your project is saved, and how many copies (1–5) to keep. LOAD → AUTOSAVES opens one; SAVE then asks for a name, so the autosave stays as it was.
 **Library**
 - Start page → Library shows every photo on your phone (allow photo access the first time). Search finds file names, keywords, albums and what's in the photo (the AI labels your photos in the background — the counter at the top shows how far it is).

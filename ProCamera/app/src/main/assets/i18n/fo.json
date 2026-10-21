@@ -2644,5 +2644,19 @@
 "Clip deleted — undo brings it back": "Brot strikað — angra fær tað aftur",
 "Making the gap…": "Gerir holið…",
 "Couldn't make the gap": "Kundi ikki gera holið",
-"Clip deleted, gap left — undo brings it back": "Brot strikað, hol eftir — angra fær tað aftur"
+"Clip deleted, gap left — undo brings it back": "Brot strikað, hol eftir — angra fær tað aftur",
+"♥ Favourite": "♥ Yndis",
+"✓ Pick": "✓ Valt",
+"They go to the trash (Trash tab) for 30 days, where you can restore them.": "Tey fara í ruskspannina (Ruskspann-teigurin) í 30 dagar, har tú kanst endurskapa tey.",
+"They will be permanently removed from your device.": "Tey verða strikað fyri altíð úr tínum tóli.",
+"Side buttons (volume up / down)": "Síðuknøttar (ljóðstyrki upp / niður)",
+"Off (volume)": "Av (ljóðstyrki)",
+"Shutter / record": "Lukari / upptak",
+"Zoom": "Súm",
+"They just change the volume.": "Teir broyta bara ljóðstyrkin.",
+"Volume up zooms in, volume down zooms out.": "Ljóðstyrki upp súmar inn, ljóðstyrki niður súmar út.",
+"Take a photo, or start / stop recording — whichever mode is on.": "Tak eina mynd, ella byrja / steðga upptøku — alt eftir hvør støða er vald.",
+"OR OVERWRITE A SAVED PROJECT": "ELLA SKRIVA YVIR EINA GOYMDA VERKÆTLAN",
+"Save as new": "Goym sum nýggja",
+"The saved project is replaced with this edit. This can't be undone.": "Goymda verkætlanin verður skift út við hesa tillaging. Tað kann ikki angrast."
 }

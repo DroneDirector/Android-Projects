@@ -2590,5 +2590,19 @@
 "Clip deleted — undo brings it back": "Klip slettet — fortryd henter det tilbage",
 "Making the gap…": "Laver hullet…",
 "Couldn't make the gap": "Kunne ikke lave hullet",
-"Clip deleted, gap left — undo brings it back": "Klip slettet, hul efterladt — fortryd henter det tilbage"
+"Clip deleted, gap left — undo brings it back": "Klip slettet, hul efterladt — fortryd henter det tilbage",
+"♥ Favourite": "♥ Favorit",
+"✓ Pick": "✓ Valgt",
+"They go to the trash (Trash tab) for 30 days, where you can restore them.": "De lægges i papirkurven (fanen Papirkurv) i 30 dage, hvor du kan gendanne dem.",
+"They will be permanently removed from your device.": "De fjernes permanent fra din enhed.",
+"Side buttons (volume up / down)": "Sideknapper (lydstyrke op / ned)",
+"Off (volume)": "Fra (lydstyrke)",
+"Shutter / record": "Udløser / optag",
+"Zoom": "Zoom",
+"They just change the volume.": "De ændrer bare lydstyrken.",
+"Volume up zooms in, volume down zooms out.": "Lydstyrke op zoomer ind, lydstyrke ned zoomer ud.",
+"Take a photo, or start / stop recording — whichever mode is on.": "Tag et foto, eller start / stop optagelse — alt efter hvilken tilstand der er valgt.",
+"OR OVERWRITE A SAVED PROJECT": "ELLER OVERSKRIV ET GEMT PROJEKT",
+"Save as new": "Gem som ny",
+"The saved project is replaced with this edit. This can't be undone.": "Det gemte projekt erstattes med denne redigering. Det kan ikke fortrydes."
 }

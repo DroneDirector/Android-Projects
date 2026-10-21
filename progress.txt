@@ -1,6 +1,6 @@
-done=2
+done=3
 total=3
-percent=66
-now=saving the results
-elapsed_s=154
-updated=2026-10-21T08:54:59Z
+percent=100
+now=finished
+elapsed_s=156
+updated=2026-10-21T08:55:01Z

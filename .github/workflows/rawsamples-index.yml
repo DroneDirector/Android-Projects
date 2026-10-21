@@ -10,7 +10,7 @@ jobs:
       - name: Look up the free RAW sample collection (raw.pixls.us, CC0)
         run: |
           mkdir -p out
-          for u in "https://raw.pixls.us/" "https://raw.pixls.us/data/" "https://raw.pixls.us/data/DJI/" "https://raw.pixls.us/json/getrepository.json" "https://raw.pixls.us/repo.json"; do
+          for u in "https://raw.pixls.us/data/filelist.sha256" "https://raw.pixls.us/data/timestamp.txt"; do
             n=$(echo "$u" | tr -c 'a-zA-Z0-9' '_')
             curl -sSL -m 60 -o "out/$n" -w "%{http_code} %{size_download} $u\n" "$u" >> out/status.txt || echo "fail $u" >> out/status.txt
           done

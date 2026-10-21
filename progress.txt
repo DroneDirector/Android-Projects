@@ -1,6 +1,6 @@
-done=0
+done=1
 total=3
-percent=0
-now=installing the app
-elapsed_s=0
-updated=2026-10-21T07:20:14Z
+percent=33
+now=filmstrip
+elapsed_s=135
+updated=2026-10-21T07:22:29Z

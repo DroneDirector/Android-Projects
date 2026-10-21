@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.417 — 2026-10-21
 - Photo editor, RAW → Lens corrections from the file: **Dark corners** and **Lens shape** can now be turned off separately, so you can keep the part that works for your camera or drone.
 
 ## 1.0.415 — 2026-10-21

@@ -969,6 +969,14 @@ class ProCameraController(private val context: Context) {
             .setJpegQuality(96)
             .setFlashMode(flashModeFor(s))
             .setTargetRotation(capRot())
+            .apply {
+                // RAW: ask the camera for its lens-shading map, so the DNG carries the data that removes
+                // the lens's dark corners (otherwise every RAW edit shows dark edges and a bright centre).
+                if (format != ImageCapture.OUTPUT_FORMAT_JPEG) Camera2Interop.Extender(this).setCaptureRequestOption(
+                    android.hardware.camera2.CaptureRequest.STATISTICS_LENS_SHADING_MAP_MODE,
+                    android.hardware.camera2.CameraMetadata.STATISTICS_LENS_SHADING_MAP_MODE_ON,
+                )
+            }
             .build()
         if (s.aspect == AspectMode.R1_1 && s.mode != CaptureMode.PANORAMA) ic.setCropAspectRatio(Rational(1, 1))
         return ic

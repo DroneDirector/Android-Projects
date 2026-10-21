@@ -805,6 +805,7 @@ private fun PhotoWorkspace(
             catch (_: OutOfMemoryError) { note = "This RAW is too big for the phone's memory — opened as a normal photo"; null }
             catch (t: Throwable) { if (t is kotlinx.coroutines.CancellationException) throw t; null }
         rawMeta = r?.meta; rawLin = r?.lin
+        if (r?.meta?.shadingEstimated == true && note == null) note = "This RAW has no lens-shading data — its dark corners were evened out automatically (Light → Lens corrections from the file turns it off)"
         note?.let { message = it }
         val b = r?.base ?: withContext(Dispatchers.IO) { GradeIO.decode(context, src, PhotoViewer.viewerPx(context)) }
         if (b == null) failed = true else base = b

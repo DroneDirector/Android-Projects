@@ -164,7 +164,19 @@ object RawDng {
         val drone: Map<String, String> = emptyMap(),
         /** GainMaps from OpcodeList3 (after demosaic, per colour) — DJI drones use this for lens shading. */
         internal val gains3: List<GainMap> = emptyList(),
+        /** Camera maker (EXIF Make). */
+        val make: String = "",
     ) {
+        /**
+         * Phone RAWs saved without the camera's lens-shading data (e.g. by apps that don't ask the
+         * camera for it): the dark corners are estimated from the picture and evened out the same way
+         * as a file's own vignetting correction. Null when the file has its own data.
+         */
+        @Volatile internal var estVignette: DoubleArray? = null
+        /** The dark-corner correction was estimated (the file had none). */
+        val shadingEstimated: Boolean get() = estVignette != null
+        /** The file has lens-shading data of its own. */
+        val hasShading: Boolean get() = gainMaps.isNotEmpty() || vignette != null || gains3.isNotEmpty()
         /** Grey-world white balance from the preview, filled in by [preview]. */
         @Volatile internal var autoMul: FloatArray? = null
         /** Long side of the developed picture at full size. */
@@ -172,7 +184,7 @@ object RawDng {
         /** The file has its own camera profile (tone curve / colour tables). */
         val hasCameraProfile: Boolean get() = hueSat != null || look != null || toneCurve != null
         /** The file carries lens corrections (distortion, colour fringing, vignetting). */
-        val hasLensOps: Boolean get() = warp != null || vignette != null || dewarp != null || gains3.isNotEmpty()
+        val hasLensOps: Boolean get() = warp != null || vignette != null || dewarp != null || gains3.isNotEmpty() || estVignette != null
         val isDji: Boolean get() = drone.isNotEmpty()
     }
 
@@ -380,7 +392,7 @@ object RawDng {
             look = hsv(50981, 50982, 51108), toneCurve = curve,
             baselineOffset = tag(51109)?.firstOrNull()?.toFloat() ?: 0f,
             profileName = ifd0.text(50936),
-            ops1 = ops1, ops2 = ops2.filter { it.id != 9 }, warp = warp, vignette = vig, info = info,
+            ops1 = ops1, ops2 = ops2.filter { it.id != 9 }, warp = warp, vignette = vig, info = info, make = ifd0.text(271)?.trim() ?: "",
             dewarp = dewarp, drone = drone, gains3 = gains3,
         )
     }
@@ -1041,6 +1053,39 @@ object RawDng {
     class Linear(val w: Int, val h: Int, val rgb: FloatArray, internal val vig: FloatArray? = null, internal val g3: FloatArray? = null)
 
     /** Vignetting gain from FixVignetteRadial at (x, y) of a w×h stored image. */
+    private val PHONE_MAKERS = listOf("samsung", "google", "xiaomi", "redmi", "poco", "oneplus", "oppo", "vivo", "realme", "motorola", "huawei", "honor", "nothing", "asus", "sony", "nokia", "hmd", "fairphone", "zte", "nubia", "tecno", "infinix", "lenovo", "meizu", "sharp", "apple")
+    private fun isPhone(make: String): Boolean = make.lowercase().let { mk -> PHONE_MAKERS.any { mk.startsWith(it) } }
+
+    /**
+     * Dark corners of a phone RAW without lens-shading data: brightness by distance from the centre
+     * (median of each ring, so the scene itself matters little), turned into a gain like a DNG
+     * FixVignetteRadial (k0, k1 for r², r⁴; centre in the middle). Kept within what phone lenses do.
+     */
+    private fun estimateShading(d: Linear): DoubleArray {
+        val rings = 12
+        val buckets = Array(rings) { ArrayList<Float>() }
+        val cx = d.w / 2f; val cy = d.h / 2f; val m = kotlin.math.sqrt(cx * cx + cy * cy)
+        val step = max(1, (d.w * d.h) / 120_000)
+        var i = 0
+        while (i < d.w * d.h) {
+            val x = i % d.w; val y = i / d.w
+            val r = kotlin.math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) / m
+            val l = 0.25f * d.rgb[i * 3] + 0.5f * d.rgb[i * 3 + 1] + 0.25f * d.rgb[i * 3 + 2]
+            if (l in 0.004f..0.9f) buckets[(r * rings).toInt().coerceIn(0, rings - 1)] += l
+            i += step
+        }
+        val med = FloatArray(rings) { k -> buckets[k].let { b -> if (b.size < 20) Float.NaN else b.sorted()[b.size / 2] } }
+        val c0 = (med[0].takeIf { !it.isNaN() } ?: med.firstOrNull { !it.isNaN() }) ?: return doubleArrayOf(0.48, 0.32, 0.0, 0.0, 0.0, 0.5, 0.5)
+        val outer = listOf(med[rings - 1], med[rings - 2], med[rings - 3]).filter { !it.isNaN() }
+        // Corner gain needed: measured when it looks like lens fall-off, else a typical phone value.
+        // Blended with a typical phone value, so photos of the same set get about the same correction.
+        val measured = if (outer.isEmpty()) 2.0f else (c0 / outer.average().toFloat()).coerceIn(1.15f, 2.8f)
+        var g = (0.4f * measured + 0.6f * 2.0f).coerceIn(1.3f, 2.5f)
+        if (g.isNaN()) g = 2.0f
+        val k = (g - 1).toDouble()
+        return doubleArrayOf(k * 0.6, k * 0.4, 0.0, 0.0, 0.0, 0.5, 0.5)
+    }
+
     private fun vigGain(v: DoubleArray, x: Float, y: Float, w: Int, h: Int): Float {
         val cx = v[5] * w; val cy = v[6] * h
         val mx = max(max(cx, w - cx), 1.0); val my = max(max(cy, h - cy), 1.0)
@@ -1081,7 +1126,8 @@ object RawDng {
         // Big sensors: bin straight from the sensor data to the preview size (no full-size copy in between, so
         // even very large RAWs fit in the phone's memory).
         var down = binned(s, maxSide) ?: boxDown(superpixel(s), maxSide)
-        m.vignette?.let { v -> down = Linear(down.w, down.h, down.rgb, FloatArray(down.w * down.h) { i -> vigGain(v, (i % down.w + 0.5f) / down.w * s.w, (i / down.w + 0.5f) / down.h * s.h, s.w, s.h) }) }
+        if (!m.hasShading && s.cfa != null && m.estVignette == null && isPhone(m.make)) m.estVignette = estimateShading(down)
+        (m.vignette ?: m.estVignette)?.let { v -> down = Linear(down.w, down.h, down.rgb, FloatArray(down.w * down.h) { i -> vigGain(v, (i % down.w + 0.5f) / down.w * s.w, (i / down.w + 0.5f) / down.h * s.h, s.w, s.h) }) }
         if (m.gains3.isNotEmpty()) {
             val g3 = FloatArray(down.w * down.h * 3); val t = FloatArray(3)
             for (i in 0 until down.w * down.h) {
@@ -1429,7 +1475,7 @@ object RawDng {
         val s = decode(context, m)
         if (dev.wb == 1 && m.autoMul == null) { preview(context, m, 512) } // fills autoMul
         val p = Pipe(m, dev, exposure, highlights, shadows, whites, blacks, temp, tint)
-        val vig = if (dev.lensOff) null else m.vignette
+        val vig = if (dev.lensOff) null else (m.vignette ?: m.estVignette)
         val lens3 = !dev.lensOff && m.gains3.isNotEmpty()
         val full = max(s.w, s.h)
         var bmp: Bitmap = if (s.cfa == null || maxSide * 1.0f <= full / 2f) {

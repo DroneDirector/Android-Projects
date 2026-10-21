@@ -4,6 +4,9 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- RAW photos: **no more dark edges and a bright centre.**
+  - Capture now asks the camera for its lens-shading data and saves it inside every RAW (DNG), as the phone's own camera app does, so editors can even out the lens's dark corners.
+  - RAWs already taken without that data (from phones) get their dark corners evened out automatically in the photo editor. A note says so, and **Light → Lens corrections from the file** turns it off.
 
 ## 1.0.413 — 2026-10-21
 - Capture gallery: **select several photos and videos**. Hold one to start, then tap more; the ✓ shows which are selected. Then share them all at once, delete them (to the trash, restorable for 30 days), favourite them, or mark them pick or reject.

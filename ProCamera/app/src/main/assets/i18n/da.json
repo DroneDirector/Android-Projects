@@ -2604,5 +2604,6 @@
 "Take a photo, or start / stop recording — whichever mode is on.": "Tag et foto, eller start / stop optagelse — alt efter hvilken tilstand der er valgt.",
 "OR OVERWRITE A SAVED PROJECT": "ELLER OVERSKRIV ET GEMT PROJEKT",
 "Save as new": "Gem som ny",
-"The saved project is replaced with this edit. This can't be undone.": "Det gemte projekt erstattes med denne redigering. Det kan ikke fortrydes."
+"The saved project is replaced with this edit. This can't be undone.": "Det gemte projekt erstattes med denne redigering. Det kan ikke fortrydes.",
+"This RAW has no lens-shading data — its dark corners were evened out automatically (Light → Lens corrections from the file turns it off)": "Denne RAW har ingen objektivskyggedata — de mørke hjørner er udjævnet automatisk (Lys → Objektivkorrektioner fra filen slår det fra)"
 }

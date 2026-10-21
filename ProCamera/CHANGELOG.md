@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.410 — 2026-10-21
 - **Background tasks show in the notification shade**: one "Background tasks" notification lists everything VeyroCut Pro is doing in the background, each with its progress — photo and video exports, edit sync, proxy generation, AI noise reduction, AI upscale, AI cull, Cloud AI and the first-launch downloads — and a short note when an export is done. On Android 13+ the app asks once for permission to show notifications.
 
 ## 1.0.408 — 2026-10-21

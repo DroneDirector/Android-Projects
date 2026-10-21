@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.413 — 2026-10-21
 - Capture gallery: **select several photos and videos**. Hold one to start, then tap more; the ✓ shows which are selected. Then share them all at once, delete them (to the trash, restorable for 30 days), favourite them, or mark them pick or reject.
 - Capture settings → **Side buttons (volume up / down)**: choose Off (they just change the volume), Shutter / record (take a photo or start / stop recording, whichever mode is on) or Zoom.
 - Photo editor: **the viewer now shows the photo at your screen's full resolution** instead of a small preview, and zooming in shows the photo at its full size. Thumbnails stay small and fast.

@@ -98,6 +98,9 @@ class RawSamplesTest {
                 if (status == "OK" && notes.any { !it.startsWith("no camera") && !it.startsWith("shape") }) status = "WARN"
                 if (status == "FAIL") fails += name
                 rows += "| $status | $name | ${m.info.firstOrNull { it.first == "Camera" || it.first == "Drone" }?.second ?: ""} | ${dev.width}×${dev.height} | $ms ms | ${notes.joinToString("; ")} |"
+            } catch (t: RawDng.UnsupportedRaw) {
+                // A clear "not supported" message for the user is the expected result for formats nobody can read yet.
+                rows += "| NOT SUPPORTED | $name |  |  |  | ${t.message.orEmpty().replace('|', '/')} |"
             } catch (t: Throwable) {
                 fails += name
                 rows += "| FAIL | $name |  |  |  | ${(t.javaClass.simpleName + ": " + (t.message ?: "")).replace('|', '/').take(200)} |"
@@ -107,7 +110,7 @@ class RawSamplesTest {
         File(reportDir, "README.md").writeText(buildString {
             appendLine("# RAW sample test")
             appendLine()
-            appendLine("${files.size} files: $ok OK, $warn to look at, ${fails.size} failed. Side-by-side pictures: camera's own preview (left) and VeyroCut Pro's develop (right).")
+            appendLine("${files.size} files: $ok OK, $warn to look at, ${rows.count { it.startsWith("| NOT SUPPORTED") }} not supported (clear message), ${fails.size} failed. Side-by-side pictures: camera's own preview (left) and VeyroCut Pro's develop (right).")
             appendLine()
             appendLine("| Result | File | Camera | Size | Time | Notes |")
             appendLine("|---|---|---|---|---|---|")

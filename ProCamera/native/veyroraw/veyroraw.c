@@ -21,10 +21,10 @@
 JNIEXPORT jlong JNICALL FN(nOpen)(JNIEnv *e, jclass c, jstring path) {
     const char *p = (*e)->GetStringUTFChars(e, path, 0);
     libraw_data_t *d = libraw_init(LIBRAW_OPIONS_NO_DATAERR_CALLBACK);
-    if (!d) { (*e)->ReleaseStringUTFChars(e, path, p); return 0; }
+    if (!d) { (*e)->ReleaseStringUTFChars(e, path, p); return -1; }
     int r = libraw_open_file(d, p);
     (*e)->ReleaseStringUTFChars(e, path, p);
-    if (r != LIBRAW_SUCCESS) { libraw_close(d); return 0; }
+    if (r != LIBRAW_SUCCESS) { libraw_close(d); return r < 0 ? r : -1; } /* negative: LibRaw's error code */
     return (jlong)(intptr_t)d;
 }
 

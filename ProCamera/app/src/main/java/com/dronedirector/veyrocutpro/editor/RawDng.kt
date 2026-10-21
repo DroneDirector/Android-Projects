@@ -184,6 +184,11 @@ object RawDng {
          * as a file's own vignetting correction. Null when the file has its own data.
          */
         @Volatile internal var estVignette: DoubleArray? = null
+        /**
+         * Non-DNG RAWs carry no baseline exposure (DNGs do): the brightness lift that makes the
+         * develop about as bright as the camera's own picture, measured once from its preview.
+         */
+        @Volatile internal var autoBaseline: Float = Float.NaN
         /** The dark-corner correction was estimated (the file had none). */
         val shadingEstimated: Boolean get() = estVignette != null
         /** The file has lens-shading data of its own. */
@@ -255,7 +260,11 @@ object RawDng {
         val pfd = if (uri.scheme == "file") null else (context.contentResolver.openFileDescriptor(uri, "r") ?: throw java.io.IOException("can't open"))
         try {
             val h = LibRawBridge.nOpen(if (pfd == null) uri.path ?: "" else "/proc/self/fd/${pfd.fd}")
-            if (h == 0L) throw UnsupportedRaw("This RAW file couldn't be read")
+            if (h == -2L) throw UnsupportedRaw(
+                if (uri.lastPathSegment.orEmpty().endsWith(".nef", true)) "This Nikon RAW type isn't supported yet (High Efficiency RAW) — Lossless compressed RAW works"
+                else "This camera's RAW format isn't supported yet",
+            )
+            if (h <= 0L) throw UnsupportedRaw("This RAW file couldn't be read")
             try { return block(h) } finally { LibRawBridge.nClose(h) }
         } finally { try { pfd?.close() } catch (_: Throwable) {} }
     }
@@ -1263,7 +1272,26 @@ object RawDng {
             i += 3
         }
         if (sr > 0 && sb > 0) m.autoMul = floatArrayOf((sg / sr).toFloat(), 1f, (sg / sb).toFloat())
-        return orient(down, m.orientation)
+        val out = orient(down, m.orientation)
+        if (m.libraw && m.autoBaseline.isNaN()) m.autoBaseline = try { matchCameraBrightness(context, m, out) } catch (_: Throwable) { 0f }
+        return out
+    }
+
+    /** Median brightness (linear light) of a picture. */
+    private fun medianLum(b: Bitmap): Float {
+        val px = IntArray(b.width * b.height); b.getPixels(px, 0, b.width, 0, 0, b.width, b.height)
+        val l = FloatArray(px.size) { i -> val c = px[i]; 0.2126f * dec(((c shr 16) and 255) / 255f) + 0.7152f * dec(((c shr 8) and 255) / 255f) + 0.0722f * dec((c and 255) / 255f) }
+        l.sort(); return l[l.size / 2]
+    }
+
+    /** Exposure lift (stops, 0…1.5) that brings the neutral develop to the brightness of the camera's own preview. */
+    private fun matchCameraBrightness(context: Context, m: Meta, lin: Linear): Float {
+        val cam = embedded(context, m.uri, 200)?.bitmap ?: return 0f
+        m.autoBaseline = 0f
+        val ours = develop(shrink(lin, 256), m, Dev(), 0f, 0f, 0f, 0f, 0f, 0f, 0f)
+        val a = medianLum(ours); val b = medianLum(cam)
+        if (a < 1e-4f || b < 1e-4f) return 0f
+        return (ln(b / a) / ln(2f)).coerceIn(0f, 1.5f)
     }
 
     /** Bayer or RGB sensor data averaged straight down to about [maxSide] px, or null for other patterns / small sensors. */
@@ -1489,7 +1517,7 @@ object RawDng {
         val mtx = col.mtx
         val prof = PROFILES[dev.profile.coerceIn(0, PROFILES.size - 1)]
         val camera = prof.camera && m.hasCameraProfile
-        val k = 2f.pow(exposure + m.baselineExposure + if (camera) m.baselineOffset else 0f)
+        val k = 2f.pow(exposure + m.baselineExposure + (m.autoBaseline.takeIf { !it.isNaN() } ?: 0f) + if (camera) m.baselineOffset else 0f)
         val hs = if (camera) m.hueSat else null
         val hs2 = if (camera) m.hueSat2 else null
         val look = if (camera) m.look else null

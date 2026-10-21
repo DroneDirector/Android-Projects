@@ -1,6 +1,7 @@
 package com.dronedirector.veyrocutpro.editor
 
 import android.content.Context
+import kotlinx.coroutines.sync.withPermit
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -159,10 +160,46 @@ object PhotoSession {
         context.contentResolver.query(u, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
     } catch (_: Throwable) { null } ?: u.lastPathSegment ?: "Photo"
 
-    /** The edited look (if saved) or the photo itself, small. */
-    fun thumb(context: Context, p: SessionPhoto): Bitmap? {
+    // Thumbnails: kept in memory (so switching photos never blanks the filmstrip) and on disk
+    // (so they're there at once next time), made at most three at a time so they don't fight the viewer.
+    private val thumbs = object : android.util.LruCache<String, Bitmap>(32 * 1024 * 1024) {
+        override fun sizeOf(key: String, value: Bitmap) = value.allocationByteCount
+    }
+    private val thumbGate = kotlinx.coroutines.sync.Semaphore(3)
+    private fun thumbKey(p: SessionPhoto) = "${p.key}|${p.projectId}|${p.version}"
+    private fun thumbFile(context: Context, k: String) = File(File(context.cacheDir, "strip").apply { mkdirs() }, Integer.toHexString(k.hashCode()) + "_" + Integer.toHexString(k.length) + ".jpg")
+
+    /** The thumbnail if it's already in memory (no waiting). */
+    fun cachedThumb(p: SessionPhoto): Bitmap? = thumbs.get(thumbKey(p))
+
+    /** The edited look (if saved) or the photo itself, small. RAWs use the camera's preview inside the DNG (no full decode). */
+    suspend fun thumb(context: Context, p: SessionPhoto): Bitmap? {
+        val k = thumbKey(p)
+        thumbs.get(k)?.let { return it }
+        return thumbGate.withPermit {
+            thumbs.get(k)?.let { return@withPermit it }
+            withContext(Dispatchers.IO) {
+                val f = thumbFile(context, k)
+                val b = (if (f.exists()) BitmapFactory.decodeFile(f.path) else null) ?: make(context, p)?.also { bmp ->
+                    try { f.outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 88, it) } } catch (_: Throwable) {}
+                }
+                b?.also { thumbs.put(k, it) }
+            }
+        }
+    }
+
+    private fun make(context: Context, p: SessionPhoto): Bitmap? {
         p.projectId?.let { id -> ProjectStore.thumbFile(context, id)?.let { f -> BitmapFactory.decodeFile(f.path)?.let { return it } } }
-        return try { com.dronedirector.veyrocutpro.camera.GradeIO.decode(context, Uri.parse(p.uri), 240) } catch (_: Throwable) { null }
+        val u = Uri.parse(p.uri)
+        return try {
+            (if (RawDng.isDng(context, u)) RawDng.embedded(context, u, 240)?.let { e -> small(PhotoViewer.matched(context, e), 320) } else null)
+                ?: com.dronedirector.veyrocutpro.camera.GradeIO.decode(context, u, 240)
+        } catch (_: Throwable) { null }
+    }
+
+    private fun small(b: Bitmap, side: Int): Bitmap {
+        val k = side.toFloat() / maxOf(b.width, b.height)
+        return if (k < 1f) Bitmap.createScaledBitmap(b, (b.width * k).toInt().coerceAtLeast(1), (b.height * k).toInt().coerceAtLeast(1), true) else b
     }
 }
 
@@ -348,7 +385,7 @@ fun Filmstrip(
                 val u = p.key
                 val cur = u == curUri
                 val sel = u in picked
-                val bmp by produceState<Bitmap?>(null, p.uri, p.projectId, p.version) { value = withContext(Dispatchers.IO) { PhotoSession.thumb(context, p) } }
+                val bmp by produceState(PhotoSession.cachedThumb(p), p.uri, p.projectId, p.version) { value = PhotoSession.thumb(context, p) }
                 Box(
                     Modifier.size(thumbSize).clip(RoundedCornerShape(6.dp)).background(Color(0xFF1A1E26))
                         .border(if (cur || sel) 2.dp else 1.dp, if (sel) Color.White else if (cur) Pro.Amber else Color.White.copy(alpha = 0.1f), RoundedCornerShape(6.dp))

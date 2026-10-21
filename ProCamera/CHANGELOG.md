@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor filmstrip: **thumbnails show at once and stay put**. RAW thumbnails now come from the camera's preview inside the DNG (colour-matched to the editor) instead of developing the whole RAW, they're kept in memory and on disk so switching photos no longer blanks the strip, and at most three are made at a time so they don't slow the main viewer.
 
 ## 1.0.404 — 2026-10-21
 - Photo editor: **no more black viewer when switching RAW photos**. The photo shows at once — the last finished render of that photo and edit when there is one, otherwise the camera's own preview from inside the DNG, colour-matched to how the editor develops that camera's files — and the full RAW render fades in over it.

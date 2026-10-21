@@ -1,0 +1,6 @@
+done=0
+total=3
+percent=0
+now=installing the app
+elapsed_s=0
+updated=2026-10-21T07:20:14Z

@@ -1,6 +1,6 @@
-done=0
+done=1
 total=3
-percent=0
-now=installing the app
-elapsed_s=0
-updated=2026-10-21T08:52:25Z
+percent=33
+now=photo
+elapsed_s=138
+updated=2026-10-21T08:54:43Z

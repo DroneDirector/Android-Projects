@@ -35,7 +35,14 @@ object RawDng {
         val wb: Int = 0,
         /** Turn off the lens corrections stored in the file (distortion, colour fringing, vignetting). */
         val lensOff: Boolean = false,
-    )
+        /** Only the file's dark-corner (vignetting / shading) correction off. */
+        val vigOff: Boolean = false,
+        /** Only the file's lens-shape (distortion / fringe) correction off. */
+        val shapeOff: Boolean = false,
+    ) {
+        val vigOn: Boolean get() = !lensOff && !vigOff
+        val shapeOn: Boolean get() = !lensOff && !shapeOff
+    }
 
     class Profile(val label: String, val contrast: Float, val sat: Float, val knee: Float, val mono: Boolean = false, val camera: Boolean = false)
     val PROFILES = listOf(
@@ -1450,17 +1457,17 @@ object RawDng {
         val n = src.w * src.h
         var out = IntArray(n)
         val f = src.rgb
-        val vg = if (dev.lensOff) null else src.vig
-        val g3 = if (dev.lensOff) null else src.g3
+        val vg = if (!dev.vigOn) null else src.vig
+        val g3 = if (!dev.vigOn) null else src.g3
         for (i in 0 until n) out[i] = if (g3 == null) p.px(f[i * 3], f[i * 3 + 1], f[i * 3 + 2], vg?.get(i) ?: 1f)
             else p.px(f[i * 3] * g3[i * 3], f[i * 3 + 1] * g3[i * 3 + 1], f[i * 3 + 2] * g3[i * 3 + 2], vg?.get(i) ?: 1f)
         val wp = m.warp
-        if (wp != null && !dev.lensOff) try {
+        if (wp != null && dev.shapeOn) try {
             val (cx, cy) = orientCentre(m.orientation, wp.cx, wp.cy)
             out = warp(out, src.w, src.h, wp, cx, cy)
         } catch (_: OutOfMemoryError) {}
         val dw = m.dewarp
-        if (dw != null && !dev.lensOff && m.orientation <= 1) try {
+        if (dw != null && dev.shapeOn && m.orientation <= 1) try {
             out = dewarp(out, src.w, src.h, dw, m.cropW, m.cropH)
         } catch (_: OutOfMemoryError) {}
         return Bitmap.createBitmap(out, src.w, src.h, Bitmap.Config.ARGB_8888)
@@ -1475,8 +1482,8 @@ object RawDng {
         val s = decode(context, m)
         if (dev.wb == 1 && m.autoMul == null) { preview(context, m, 512) } // fills autoMul
         val p = Pipe(m, dev, exposure, highlights, shadows, whites, blacks, temp, tint)
-        val vig = if (dev.lensOff) null else (m.vignette ?: m.estVignette)
-        val lens3 = !dev.lensOff && m.gains3.isNotEmpty()
+        val vig = if (!dev.vigOn) null else (m.vignette ?: m.estVignette)
+        val lens3 = dev.vigOn && m.gains3.isNotEmpty()
         val full = max(s.w, s.h)
         var bmp: Bitmap = if (s.cfa == null || maxSide * 1.0f <= full / 2f) {
             val half = superpixel(s)
@@ -1509,7 +1516,7 @@ object RawDng {
         }
         // Lens distortion / colour fringing from the file (in the stored orientation).
         val wp = m.warp
-        if (wp != null && !dev.lensOff) try {
+        if (wp != null && dev.shapeOn) try {
             val w = bmp.width; val h = bmp.height
             val px = IntArray(w * h); bmp.getPixels(px, 0, w, 0, 0, w, h)
             bmp.recycle()
@@ -1518,7 +1525,7 @@ object RawDng {
         } catch (_: OutOfMemoryError) {}
         // DJI drones: the lens calibration from the file.
         val dw = m.dewarp
-        if (dw != null && !dev.lensOff) try {
+        if (dw != null && dev.shapeOn) try {
             val w = bmp.width; val h = bmp.height
             val px = IntArray(w * h); bmp.getPixels(px, 0, w, 0, 0, w, h)
             bmp.recycle()

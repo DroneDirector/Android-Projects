@@ -2659,5 +2659,9 @@
 "OR OVERWRITE A SAVED PROJECT": "ELLA SKRIVA YVIR EINA GOYMDA VERKÆTLAN",
 "Save as new": "Goym sum nýggja",
 "The saved project is replaced with this edit. This can't be undone.": "Goymda verkætlanin verður skift út við hesa tillaging. Tað kann ikki angrast.",
-"This RAW has no lens-shading data — its dark corners were evened out automatically (Light → Lens corrections from the file turns it off)": "Hesin RAW hevur ongar linsuskuggadátur — myrku hornini eru javnað sjálvvirkið (Ljós → Linsurættingar úr fíluni slær tað frá)"
+"This RAW has no lens-shading data — its dark corners were evened out automatically (Light → Lens corrections from the file turns it off)": "Hesin RAW hevur ongar linsuskuggadátur — myrku hornini eru javnað sjálvvirkið (Ljós → Linsurættingar úr fíluni slær tað frá)",
+"Dark corners: OFF": "Myrk horn: AV",
+"Dark corners ✓": "Myrk horn ✓",
+"Lens shape: OFF": "Linsuskap: AV",
+"Lens shape ✓": "Linsuskap ✓"
 }

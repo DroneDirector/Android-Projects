@@ -2173,6 +2173,10 @@ private fun PhotoPanelContent(
                         androidx.compose.material3.Switch(checked = !e.raw.lensOff, onCheckedChange = { set(e.copy(raw = e.raw.copy(lensOff = !it))) },
                             colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber))
                     }
+                    if (!e.raw.lensOff) Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PillChip(if (e.raw.vigOff) "Dark corners: OFF" else "Dark corners ✓", !e.raw.vigOff) { set(e.copy(raw = e.raw.copy(vigOff = !e.raw.vigOff))) }
+                        PillChip(if (e.raw.shapeOff) "Lens shape: OFF" else "Lens shape ✓", !e.raw.shapeOff) { set(e.copy(raw = e.raw.copy(shapeOff = !e.raw.shapeOff))) }
+                    }
                 }
                 rawMeta?.info?.takeIf { it.isNotEmpty() }?.let { info ->
                     SectionTitle("RAW INFO")

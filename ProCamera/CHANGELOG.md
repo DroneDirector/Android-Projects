@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.408 — 2026-10-21
 - Photo editor: **exports keep going when you leave the app**. Single exports, batch exports and filmstrip "export selected" now run in the background with a progress notification (and a "finished" notification), like video exports — minimising the app or turning the screen off no longer stops them. If Android does close the app in the background, it now reopens on the screen you were on instead of the start screen.
 
 ## 1.0.406 — 2026-10-21

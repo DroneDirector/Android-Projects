@@ -1241,6 +1241,9 @@ object RawDng {
         val w = (src.w / k).toInt().coerceAtLeast(1); val h = (src.h / k).toInt().coerceAtLeast(1)
         val out = FloatArray(w * h * 3)
         val vg = src.vig?.let { FloatArray(w * h) }
+        // The per-colour lens-shading gains (DJI and others) must come along too, or the small live
+        // preview shows the lens's dark corners while a slider moves.
+        val g3 = src.g3?.let { FloatArray(w * h * 3) }
         for (y in 0 until h) {
             val y0 = (y * k).toInt(); val y1 = min(src.h, ((y + 1) * k).toInt().coerceAtLeast(y0 + 1))
             for (x in 0 until w) {
@@ -1249,10 +1252,12 @@ object RawDng {
                 for (yy in y0 until y1) for (xx in x0 until x1) { val i = (yy * src.w + xx) * 3; r += src.rgb[i]; g += src.rgb[i + 1]; b += src.rgb[i + 2]; n++ }
                 val o = (y * w + x) * 3
                 out[o] = r / n; out[o + 1] = g / n; out[o + 2] = b / n
-                if (vg != null) vg[y * w + x] = src.vig!![((y0 + y1) / 2).coerceAtMost(src.h - 1) * src.w + ((x0 + x1) / 2).coerceAtMost(src.w - 1)]
+                val mid = ((y0 + y1) / 2).coerceAtMost(src.h - 1) * src.w + ((x0 + x1) / 2).coerceAtMost(src.w - 1)
+                if (vg != null) vg[y * w + x] = src.vig!![mid]
+                if (g3 != null) { g3[o] = src.g3!![mid * 3]; g3[o + 1] = src.g3[mid * 3 + 1]; g3[o + 2] = src.g3[mid * 3 + 2] }
             }
         }
-        return Linear(w, h, out, vg)
+        return Linear(w, h, out, vg, g3)
     }
 
     /** Smaller copy of a preview (for the fast live preview while dragging). */

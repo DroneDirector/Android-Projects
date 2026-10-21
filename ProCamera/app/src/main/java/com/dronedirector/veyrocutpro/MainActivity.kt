@@ -250,7 +250,14 @@ class MainActivity : ComponentActivity() {
         if (!::controller.isInitialized || screen.value != com.dronedirector.veyrocutpro.ui.AppScreen.CAPTURE) return super.onKeyDown(keyCode, event)
         val volume = keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP
         val liveMode = controller.state.value.mode == CaptureMode.LIVE
-        if (!liveMode && ((volume && controller.state.value.volumeShutter) || keyCode == KeyEvent.KEYCODE_CAMERA)) {
+        // The side (volume) buttons: shutter / record, zoom, or just volume (Settings → Side buttons).
+        val side = com.dronedirector.veyrocutpro.camera.SideKeys.get(this)
+        if (volume && side == 2) {
+            val z = controller.state.value.zoom
+            controller.setZoom(if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) z * 1.15f else z / 1.15f)
+            return true
+        }
+        if (!liveMode && ((volume && side == 1) || keyCode == KeyEvent.KEYCODE_CAMERA)) {
             if (event.repeatCount == 0) controller.shutter()
             return true
         }

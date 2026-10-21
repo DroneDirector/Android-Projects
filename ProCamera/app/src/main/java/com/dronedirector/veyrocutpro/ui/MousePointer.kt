@@ -121,7 +121,9 @@ fun MousePointerHost(content: @Composable () -> Unit) {
     var pressed by remember { mutableStateOf(false) }
     var now by remember { mutableLongStateOf(0L) }
     val active = CursorStyle.custom && pos != null
-    val icon = if (CursorStyle.custom) NullIcon else null
+    val onMonitor = androidx.compose.runtime.rememberUpdatedState(onExternalMonitor())
+    // The system arrow is hidden only once our own pointer is actually being drawn, so there's always a pointer.
+    val icon = if (active) NullIcon else null
     Box(
         Modifier.fillMaxSize()
             .then(if (icon != null) Modifier.pointerHoverIcon(icon, overrideDescendants = true) else Modifier)
@@ -131,7 +133,12 @@ fun MousePointerHost(content: @Composable () -> Unit) {
                         // Watch only (never consume), before the screens get the event.
                         val e = awaitPointerEvent(PointerEventPass.Initial)
                         val ch = e.changes.firstOrNull() ?: continue
-                        if (ch.type != PointerType.Mouse) { if (ch.type == PointerType.Touch) pos = null; continue }
+                        // A hover can only come from a pointer (mouse, DeX touchpad, stylus hover). Samsung DeX may report
+                        // its touchpad pointer as a finger: treat any hover as the mouse, and a real touch as touch.
+                        val hover = (e.type == PointerEventType.Move || e.type == PointerEventType.Enter) && !ch.pressed
+                        // On a monitor (Samsung DeX, desktop mode) there is no touch screen: everything there is the pointer.
+                        val mouseLike = ch.type == PointerType.Mouse || hover || onMonitor.value
+                        if (!mouseLike) { if (ch.type == PointerType.Touch) pos = null; continue }
                         val t = System.currentTimeMillis()
                         when (e.type) {
                             PointerEventType.Exit -> pos = null

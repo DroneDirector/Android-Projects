@@ -309,8 +309,10 @@ fun BuiltInPresetSection(
     Chips(groups, groups.indexOf(group).coerceAtLeast(0)) { group = groups[it] }
     Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         DevPresets.all.filter { it.group == group }.forEach { pr ->
-            val thumb by produceState<Bitmap?>(null, small, pr) {
-                value = small?.let { s -> withContext(Dispatchers.Default) { try { val g = pr.grade(ProGrade()); ImageOps.render(s, g, pr.detail(Detail()).copy(aiDenoise = 0f), Geometry(), if (g.isIdentity) null else g.tables()) } catch (_: Throwable) { null } } }
+            val key = "${System.identityHashCode(small)}/${pr.group}/${pr.name}"
+            val thumb by produceState(PresetThumbs.cache.get(key), small, pr) {
+                if (value != null) return@produceState
+                value = small?.let { s -> withContext(Dispatchers.Default) { try { PresetThumbs.render(s, pr).also { PresetThumbs.cache.put(key, it) } } catch (_: Throwable) { null } } }
             }
             val on = chosen === pr
             Column(
@@ -340,6 +342,31 @@ fun BuiltInPresetSection(
             Text("KEEP", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { chosen = null; before = null }.padding(8.dp))
             Text("UNDO PRESET", style = Pro.Label.copy(color = Pro.Red, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { onSet(b.first, b.second); chosen = null; before = null }.padding(8.dp))
         }
+    }
+}
+
+/**
+ * Preset thumbnails: small (120 px) and quick — the look is applied straight to the few thousand
+ * pixels instead of first building a full colour table for each preset — and kept, so they show at
+ * once the next time.
+ */
+object PresetThumbs {
+    val cache = android.util.LruCache<String, Bitmap>(240)
+    fun render(s: Bitmap, pr: BuiltInPreset): Bitmap {
+        val g = pr.grade(ProGrade())
+        val w = s.width; val h = s.height
+        val px = IntArray(w * h); s.getPixels(px, 0, w, 0, 0, w, h)
+        if (!g.isIdentity) {
+            val c = FloatArray(3)
+            for (i in px.indices) {
+                val p = px[i]
+                c[0] = ((p shr 16) and 255) / 255f; c[1] = ((p shr 8) and 255) / 255f; c[2] = (p and 255) / 255f
+                g.apply(c)
+                px[i] = (0xFF shl 24) or ((c[0].coerceIn(0f, 1f) * 255f + 0.5f).toInt() shl 16) or ((c[1].coerceIn(0f, 1f) * 255f + 0.5f).toInt() shl 8) or (c[2].coerceIn(0f, 1f) * 255f + 0.5f).toInt()
+            }
+        }
+        val graded = Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
+        return ImageOps.render(graded, ProGrade(), pr.detail(Detail()).copy(aiDenoise = 0f), Geometry(), null)
     }
 }
 

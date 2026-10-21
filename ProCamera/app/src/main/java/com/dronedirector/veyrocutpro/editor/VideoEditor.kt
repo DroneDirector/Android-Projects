@@ -1397,9 +1397,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     if (askName) ProjectNameDialog(
-        ProjectStore.defaultName(true),
-        onSave = { askName = false; saveProject(it); if (leaveAfterSave) onExit() },
+        projectName.ifBlank { ProjectStore.defaultName(true) },
+        onSave = { askName = false; projectId = null; saveProject(it); if (leaveAfterSave) onExit() },
         onDismiss = { askName = false; leaveAfterSave = false },
+        video = true, currentId = projectId,
+        onOverwrite = { id, n -> askName = false; projectId = id; saveProject(n); if (leaveAfterSave) onExit() },
     )
 
     /** Blade: cut the clip under the playhead at the exact frame shown. */
@@ -3498,7 +3500,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     )
                     TopIcon(Icons.Filled.Settings, "Settings") { showSettings = true }
                     BarButton("LOAD", enabled = !exporting) { showLoad = true }
-                    BarButton("SAVE", enabled = !exporting) { if (projectId == null) askName = true else saveProject(projectName) }
+                    BarButton("SAVE", enabled = !exporting) { askName = true }
                     Text(
                         "EXPORT", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp),
                         modifier = Modifier.padding(horizontal = 6.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !exporting) { page = Page.DELIVER; com.dronedirector.veyrocutpro.ui.Panels.set(context, "ve.inspector", true) }.padding(horizontal = 14.dp, vertical = 7.dp),

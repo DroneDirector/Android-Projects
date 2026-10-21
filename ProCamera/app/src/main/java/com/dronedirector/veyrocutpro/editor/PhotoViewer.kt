@@ -51,6 +51,17 @@ object PhotoViewer {
      * read-ahead (a photo already being read ahead is simply awaited). Null for files that aren't DNGs.
      * Throws [RawDng.UnsupportedRaw] / [OutOfMemoryError] like the decoder.
      */
+    /**
+     * Size of the photo editor's viewer picture: the screen's own resolution (long side), so the photo
+     * shows at full screen quality — never the small preview. RAWs a little smaller (their data is 3×
+     * bigger in memory).
+     */
+    fun viewerPx(context: Context, raw: Boolean = false): Int {
+        val dm = context.resources.displayMetrics
+        val side = maxOf(dm.widthPixels, dm.heightPixels)
+        return if (raw) side.coerceIn(1600, 2600) else side.coerceIn(1800, 3200)
+    }
+
     fun loadRaw(context: Context, uri: Uri): Deferred<RawEntry?> {
         val k = uri.toString()
         val app = context.applicationContext
@@ -61,7 +72,7 @@ object PhotoViewer {
                 try {
                     if (!RawDng.isDng(app, uri)) return@async null
                     val m = RawDng.open(app, uri)
-                    val lin = RawDng.preview(app, m, 1400)
+                    val lin = RawDng.preview(app, m, viewerPx(app, raw = true))
                     val base = RawDng.develop(lin, m, RawDng.Dev(), 0f, 0f, 0f, 0f, 0f, 0f, 0f)
                     RawEntry(m, lin, base).also { putRaw(k, it); learn(app, uri, base) }
                 } finally { synchronized(inflight) { inflight.remove(k) } }

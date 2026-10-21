@@ -29,6 +29,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -140,6 +141,10 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
     var marks by remember { mutableStateOf(com.dronedirector.veyrocutpro.camera.Ratings.all(context)) }
     var rateFilter by remember { mutableIntStateOf(0) }
     var confirmRejects by remember { mutableStateOf(false) }
+    // Selecting several photos / videos (hold one to start): share, delete, favourite or mark them together.
+    var selecting by remember { mutableStateOf(false) }
+    val picked = remember { androidx.compose.runtime.mutableStateListOf<String>() }
+    var confirmPicked by remember { mutableStateOf(false) }
     fun mark(item: MediaItem, m: com.dronedirector.veyrocutpro.camera.Ratings.Mark) {
         com.dronedirector.veyrocutpro.camera.Ratings.set(context, item.uri, m)
         marks = com.dronedirector.veyrocutpro.camera.Ratings.all(context)
@@ -278,12 +283,43 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
                     modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { confirmRejects = true }.padding(8.dp),
                 )
             }
+            if (selecting) {
+                val sel = shown.filter { it.uri.toString() in picked }
+                Row(
+                    Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("${picked.size} selected", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    @Composable fun act(label: String, color: Color = Color.White, onClick: () -> Unit) = Text(
+                        label, color = color, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.08f)).clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 5.dp),
+                    )
+                    act("Select all") { picked.clear(); picked.addAll(shown.map { it.uri.toString() }) }
+                    if (sel.isNotEmpty()) {
+                        act("Share") { shareMany(context, sel) }
+                        act("♥ Favourite") {
+                            sel.forEach { com.dronedirector.veyrocutpro.camera.Favorites.toggle(context, it.uri) }
+                            favorites = com.dronedirector.veyrocutpro.camera.Favorites.all(context)
+                        }
+                        act("✓ Pick") { sel.forEach { mark(it, (marks[it.uri.toString()] ?: com.dronedirector.veyrocutpro.camera.Ratings.Mark()).copy(flag = 1)) } }
+                        act("✕ Reject") { sel.forEach { mark(it, (marks[it.uri.toString()] ?: com.dronedirector.veyrocutpro.camera.Ratings.Mark()).copy(flag = -1)) } }
+                        act("Delete", Pro.Red) { confirmPicked = true }
+                    }
+                    act("Done", Pro.Amber) { selecting = false; picked.clear() }
+                }
+            }
             when {
                 items == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = Pro.Amber)
                 }
                 shown.isEmpty() -> EmptyGallery(tab)
-                else -> MediaGrid(shown, favorites, marks) { if (tab == GalleryTab.TRASH) trashPick = shown.getOrNull(it) else viewing = it }
+                else -> MediaGrid(shown, favorites, marks, if (selecting) picked.toSet() else null,
+                    onLongPress = { i -> if (tab != GalleryTab.TRASH) shown.getOrNull(i)?.let { selecting = true; val k = it.uri.toString(); if (k !in picked) picked.add(k) } },
+                ) { i ->
+                    val it0 = shown.getOrNull(i)
+                    if (selecting && it0 != null) { val k = it0.uri.toString(); if (k in picked) picked.remove(k) else picked.add(k); if (picked.isEmpty()) selecting = false }
+                    else if (tab == GalleryTab.TRASH) trashPick = it0 else viewing = i
+                }
             }
         }
 
@@ -310,6 +346,32 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
                 item = g,
                 onClose = { grading = null },
                 onSaved = { reload(); onChanged() },
+            )
+        }
+
+        if (confirmPicked) {
+            val del = shown.filter { it.uri.toString() in picked }
+            AlertDialog(
+                onDismissRequest = { confirmPicked = false },
+                containerColor = Pro.PanelSolid,
+                title = { Text("Delete ${del.size} item" + (if (del.size == 1) "" else "s") + "?", color = Color.White) },
+                text = { Text(if (Build.VERSION.SDK_INT >= 30) "They go to the trash (Trash tab) for 30 days, where you can restore them." else "They will be permanently removed from your device.", color = Pro.Dim) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmPicked = false; selecting = false; picked.clear()
+                        scope.launch {
+                            val media = del.filter { it.uri.authority == MediaStore.AUTHORITY }.map { it.uri }
+                            withContext(Dispatchers.IO) { for (r in del) if (r.uri.authority != MediaStore.AUTHORITY) try { com.dronedirector.veyrocutpro.camera.Storage.discard(context, r.uri) } catch (_: Throwable) {} }
+                            if (media.isNotEmpty() && Build.VERSION.SDK_INT >= 30) {
+                                deleteLauncher.launch(IntentSenderRequest.Builder(MediaStore.createTrashRequest(context.contentResolver, media, true).intentSender).build())
+                            } else {
+                                withContext(Dispatchers.IO) { for (u in media) try { context.contentResolver.delete(u, null, null) } catch (_: Throwable) {} }
+                                onChanged(); reload()
+                            }
+                        }
+                    }) { Text("Delete", color = Pro.Red, fontWeight = FontWeight.Bold) }
+                },
+                dismissButton = { TextButton(onClick = { confirmPicked = false }) { Text("Cancel", color = Color.White) } },
             )
         }
 
@@ -485,7 +547,7 @@ private fun EmptyGallery(tab: GalleryTab) {
 }
 
 @Composable
-private fun MediaGrid(items: List<MediaItem>, favorites: Set<String>, marks: Map<String, com.dronedirector.veyrocutpro.camera.Ratings.Mark>, onOpen: (Int) -> Unit) {
+private fun MediaGrid(items: List<MediaItem>, favorites: Set<String>, marks: Map<String, com.dronedirector.veyrocutpro.camera.Ratings.Mark>, picked: Set<String>? = null, onLongPress: (Int) -> Unit = {}, onOpen: (Int) -> Unit) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(112.dp),
         modifier = Modifier.fillMaxSize(),
@@ -502,13 +564,14 @@ private fun MediaGrid(items: List<MediaItem>, favorites: Set<String>, marks: Map
                     Text(day, style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(start = 4.dp, top = 10.dp, bottom = 2.dp))
                 }
             }
-            item(key = item.uri.toString()) { GridCell(item, item.uri.toString() in favorites, marks[item.uri.toString()]) { onOpen(index) } }
+            item(key = item.uri.toString()) { GridCell(item, item.uri.toString() in favorites, marks[item.uri.toString()], picked?.let { item.uri.toString() in it }, onLongClick = { onLongPress(index) }) { onOpen(index) } }
         }
     }
 }
 
 @Composable
-private fun GridCell(item: MediaItem, favorite: Boolean, mark: com.dronedirector.veyrocutpro.camera.Ratings.Mark? = null, onClick: () -> Unit) {
+@OptIn(ExperimentalFoundationApi::class)
+private fun GridCell(item: MediaItem, favorite: Boolean, mark: com.dronedirector.veyrocutpro.camera.Ratings.Mark? = null, selected: Boolean? = null, onLongClick: () -> Unit = {}, onClick: () -> Unit) {
     val context = LocalContext.current
     val thumb by produceThumb(context, item.uri, 320)
     Box(
@@ -516,7 +579,8 @@ private fun GridCell(item: MediaItem, favorite: Boolean, mark: com.dronedirector
             .aspectRatio(1f)
             .clip(RoundedCornerShape(6.dp))
             .background(Color.White.copy(alpha = 0.06f))
-            .clickable(onClick = onClick),
+            .then(if (selected == true) Modifier.border(3.dp, Pro.Amber, RoundedCornerShape(6.dp)) else Modifier)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         val t = thumb
         if (t != null) Image(t, contentDescription = item.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
@@ -562,6 +626,12 @@ private fun GridCell(item: MediaItem, favorite: Boolean, mark: com.dronedirector
                 Text(duration(item.durationMs), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             }
         }
+        if (selected != null) Text(
+            if (selected) "✓" else "", color = Color.Black, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.align(Alignment.TopEnd).padding(5.dp).size(22.dp).clip(CircleShape)
+                .background(if (selected) Pro.Amber else Color.Black.copy(alpha = 0.45f)).border(1.5.dp, Color.White, CircleShape).padding(top = 1.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
     }
 }
 
@@ -843,6 +913,16 @@ private fun share(context: Context, item: MediaItem) {
     runCatching {
         context.startActivity(Intent.createChooser(send, "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
+}
+
+private fun shareMany(context: Context, items: List<MediaItem>) {
+    if (items.size == 1) { share(context, items[0]); return }
+    val mime = items.map { it.mime.substringBefore('/') }.distinct().singleOrNull()?.let { "$it/*" } ?: "*/*"
+    val send = Intent(Intent.ACTION_SEND_MULTIPLE)
+        .setType(mime)
+        .putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(items.map { it.uri }))
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    runCatching { context.startActivity(Intent.createChooser(send, "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
 }
 
 private fun openWith(context: Context, item: MediaItem) {

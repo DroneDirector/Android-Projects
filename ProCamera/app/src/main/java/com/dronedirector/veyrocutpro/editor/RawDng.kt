@@ -1078,8 +1078,9 @@ object RawDng {
     /** Decodes and makes the preview-size linear picture (half-size superpixels, then averaged down). */
     fun preview(context: Context, m: Meta, maxSide: Int): Linear {
         val s = decode(context, m)
-        val half = superpixel(s)
-        var down = boxDown(half, maxSide)
+        // Big sensors: bin straight from the sensor data to the preview size (no full-size copy in between, so
+        // even very large RAWs fit in the phone's memory).
+        var down = binned(s, maxSide) ?: boxDown(superpixel(s), maxSide)
         m.vignette?.let { v -> down = Linear(down.w, down.h, down.rgb, FloatArray(down.w * down.h) { i -> vigGain(v, (i % down.w + 0.5f) / down.w * s.w, (i / down.w + 0.5f) / down.h * s.h, s.w, s.h) }) }
         if (m.gains3.isNotEmpty()) {
             val g3 = FloatArray(down.w * down.h * 3); val t = FloatArray(3)
@@ -1102,6 +1103,44 @@ object RawDng {
         }
         if (sr > 0 && sb > 0) m.autoMul = floatArrayOf((sg / sr).toFloat(), 1f, (sg / sb).toFloat())
         return orient(down, m.orientation)
+    }
+
+    /** Bayer or RGB sensor data averaged straight down to about [maxSide] px, or null for other patterns / small sensors. */
+    private fun binned(s: Sensor, maxSide: Int): Linear? {
+        val bayer = s.bayer
+        if (!bayer && s.cfa != null) return null
+        val sw = if (bayer) s.w / 2 else s.w; val sh = if (bayer) s.h / 2 else s.h
+        val k = max(sw, sh).toFloat() / maxSide
+        if (k <= 1.5f) return null
+        val w = (sw / k).toInt().coerceAtLeast(1); val h = (sh / k).toInt().coerceAtLeast(1)
+        val out = FloatArray(w * h * 3)
+        for (y in 0 until h) {
+            val y0 = (y * k).toInt(); val y1 = min(sh, ((y + 1) * k).toInt().coerceAtLeast(y0 + 1))
+            for (x in 0 until w) {
+                val x0 = (x * k).toInt(); val x1 = min(sw, ((x + 1) * k).toInt().coerceAtLeast(x0 + 1))
+                var r = 0f; var g = 0f; var b = 0f; var n = 0
+                if (bayer) {
+                    for (cy in y0 until y1) for (cx in x0 until x1) {
+                        var gg = 0f
+                        for (dy in 0..1) for (dx in 0..1) {
+                            val xx = cx * 2 + dx; val yy = cy * 2 + dy
+                            val v = s.v(yy * s.w + xx)
+                            when (s.color(xx, yy)) { 0 -> r += v; 1 -> gg += v * 0.5f; else -> b += v }
+                        }
+                        g += gg; n++
+                    }
+                } else {
+                    val spp = s.spp
+                    for (yy in y0 until y1) for (xx in x0 until x1) {
+                        val i = (yy * s.w + xx) * spp
+                        r += s.v(i); g += s.v(i + min(1, spp - 1)); b += s.v(i + min(2, spp - 1)); n++
+                    }
+                }
+                val o = (y * w + x) * 3
+                out[o] = r / n; out[o + 1] = g / n; out[o + 2] = b / n
+            }
+        }
+        return Linear(w, h, out)
     }
 
     private fun superpixel(s: Sensor): Linear {

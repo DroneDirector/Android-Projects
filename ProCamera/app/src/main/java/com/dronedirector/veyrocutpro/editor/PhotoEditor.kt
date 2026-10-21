@@ -454,7 +454,7 @@ private fun prefetchAround(context: Context, idx: Int) {
             val raw = if (e.baseFile == null) try { PhotoViewer.loadRaw(app, src).await() } catch (_: Throwable) { null } else null
             if (PhotoViewer.hasRendered(app, sp.key, sig) || e.detail.aiDenoise > 0f) continue
             kotlinx.coroutines.yield()
-            val base = raw?.base ?: GradeIO.decode(app, src, 1400) ?: continue
+            val base = raw?.base ?: GradeIO.decode(app, src, PhotoViewer.viewerPx(app)) ?: continue
             val ai = e.aiFiles().mapNotNull { f -> BitmapFactory.decodeFile(f)?.let { f to it } }.toMap()
             val g = e.grade
             val s0 = if (raw != null) RawDng.develop(raw.lin, raw.meta, e.raw, g.exposure, g.highlights, g.shadows, g.whites, g.blacks, g.temperature, g.tint).let { d -> if (d.width != base.width || d.height != base.height) Bitmap.createScaledBitmap(d, base.width, base.height, true) else d } else base
@@ -602,7 +602,12 @@ private fun PhotoWorkspace(
             else message = "Couldn't save the project"
         }
     }
-    if (askName) ProjectNameDialog(ProjectStore.defaultName(false), onSave = { askName = false; saveProject(it) }, onDismiss = { askName = false })
+    if (askName) ProjectNameDialog(
+        projectName.ifBlank { ProjectStore.defaultName(false) },
+        onSave = { askName = false; projectId = null; saveProject(it) }, onDismiss = { askName = false },
+        video = false, currentId = projectId,
+        onOverwrite = { id, n -> askName = false; projectId = id; saveProject(n) },
+    )
     // Timed autosave (gear → AUTOSAVE): a full project copy every few minutes when something changed.
     val asMinutes = remember(AutoSave.changes) { AutoSave.minutes(context, false) }
     LaunchedEffect(asMinutes, uri) {
@@ -801,12 +806,12 @@ private fun PhotoWorkspace(
             catch (t: Throwable) { if (t is kotlinx.coroutines.CancellationException) throw t; null }
         rawMeta = r?.meta; rawLin = r?.lin
         note?.let { message = it }
-        val b = r?.base ?: withContext(Dispatchers.IO) { GradeIO.decode(context, src, 1400) }
+        val b = r?.base ?: withContext(Dispatchers.IO) { GradeIO.decode(context, src, PhotoViewer.viewerPx(context)) }
         if (b == null) failed = true else base = b
     }
     /** True while the edit works on the RAW data (not after AI erase, which makes a normal copy). */
     fun rawOn(e: PhotoEdit) = rawMeta != null && rawLin != null && e.baseFile == null
-    // 1:1 loupe: when zoomed in, a sharper render of the whole photo (up to 3600 px) replaces the preview.
+    // 1:1 loupe: when zoomed in, a render of the photo at its full size (up to 6000 px) replaces the preview.
     var loupeSrc by remember { mutableStateOf<Pair<String, Bitmap>?>(null) }
     LaunchedEffect(zoomK > 1.6f, edit, aiMasks.size) {
         if (zoomK <= 1.6f) { loupe = null; return@LaunchedEffect }
@@ -816,7 +821,7 @@ private fun PhotoWorkspace(
         val key = sourceUri(e).toString()
         loupe = withContext(Dispatchers.Default) {
             try {
-                val hi = loupeSrc?.takeIf { it.first == key }?.second ?: (GradeIO.decode(context, sourceUri(e), 3600) ?: return@withContext null).also { loupeSrc = key to it }
+                val hi = loupeSrc?.takeIf { it.first == key }?.second ?: (GradeIO.decode(context, sourceUri(e), 6000) ?: return@withContext null).also { loupeSrc = key to it }
                 val tables = if (e.grade.isIdentity) null else e.grade.tables()
                 var o = ImageOps.renderPhoto(hi, e.grade, e.detail.copy(aiDenoise = 0f), e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg, e.sky, e.lensBlur)
                 for (t in e.texts) o = stampLayer(context, o, t)
@@ -1977,7 +1982,7 @@ private fun PhotoWorkspace(
                     )
                     BarIcon(Icons.Filled.Settings, "Settings") { showSettings = true }
                     BarButton("LOAD", enabled = !busy) { showLoad = true }
-                    BarButton("SAVE", enabled = !busy) { if (projectId == null) askName = true else saveProject(projectName) }
+                    BarButton("SAVE", enabled = !busy) { askName = true }
                     Text(
                         "EXPORT", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp), maxLines = 1, softWrap = false,
                         modifier = Modifier.padding(start = 4.dp, end = 4.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !busy) { panel = PhotoPanel.EXPORT; com.dronedirector.veyrocutpro.ui.Panels.set(context, "pe.controls", true) }.padding(horizontal = 10.dp, vertical = 7.dp),

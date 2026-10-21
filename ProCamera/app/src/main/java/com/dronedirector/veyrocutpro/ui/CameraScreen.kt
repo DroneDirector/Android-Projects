@@ -118,6 +118,14 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
         onDispose { dm.unregisterDisplayListener(listener) }
     }
 
+    // Samsung DeX / desktop mode on a wide monitor: take photos and videos wide, not upright.
+    run {
+        val mon = onExternalMonitor()
+        val conf = androidx.compose.ui.platform.LocalConfiguration.current
+        val wide = conf.screenWidthDp > conf.screenHeightDp
+        LaunchedEffect(mon, wide) { controller.setMonitorLandscape(mon && wide) }
+    }
+
     // Live audio levels in the video modes (the recorder takes over while recording).
     val resumed = lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
     // With headphone monitoring on (and headphones connected) the mic keeps playing while recording.

@@ -102,3 +102,14 @@ object ShutterSounds {
         return ShortArray(n) { (out[it] * k * 32767f).toInt().coerceIn(-32768, 32767).toShort() }
     }
 }
+
+/**
+ * What the phone's side (volume) buttons do in Capture: nothing (normal volume), the shutter —
+ * take a photo or start / stop recording, whichever mode is on — or zoom in / out.
+ */
+object SideKeys {
+    val NAMES = listOf("Off (volume)", "Shutter / record", "Zoom")
+    fun get(c: Context): Int = c.getSharedPreferences("procam", Context.MODE_PRIVATE).getInt("side_keys", 1).coerceIn(0, NAMES.lastIndex)
+    fun set(c: Context, v: Int) = c.getSharedPreferences("procam", Context.MODE_PRIVATE).edit().putInt("side_keys", v).apply()
+}
+

@@ -129,14 +129,35 @@ fun ProjectNameDialog(
     title: String = "Save project",
     info: String = "Saves your edit so you can open it again later and continue where you left off. Your original media is not copied.",
     fieldLabel: String = "Project name",
+    /** Show the saved projects of this editor (true video, false photo) so one can be overwritten; null = name only. */
+    video: Boolean? = null,
+    /** The project open now (preselected), if it was saved before. */
+    currentId: String? = null,
+    /** Overwrite saved project [id] with this edit, named [name]. */
+    onOverwrite: ((id: String, name: String) -> Unit)? = null,
 ) {
+    val context = LocalContext.current
     var name by remember { mutableStateOf(initial) }
+    val saved by produceState(emptyList<ProjectEntry>(), video) { value = if (video == null) emptyList() else withContext(Dispatchers.IO) { ProjectStore.list(context, video) } }
+    var pick by remember { mutableStateOf(currentId) }
+    var confirm by remember { mutableStateOf<ProjectEntry?>(null) }
+    confirm?.let { p ->
+        AlertDialog(
+            onDismissRequest = { confirm = null },
+            containerColor = Pro.PanelSolid,
+            title = { Text("Overwrite \"${p.name}\"?", color = Color.White) },
+            text = { Text("The saved project is replaced with this edit. This can't be undone.", color = Pro.Dim) },
+            confirmButton = { TextButton(onClick = { confirm = null; onOverwrite?.invoke(p.id, name.ifBlank { p.name }) }) { Text("Overwrite", color = Pro.Red) } },
+            dismissButton = { TextButton(onClick = { confirm = null }) { Text("Cancel", color = Color.White) } },
+        )
+    }
+    val chosen = saved.firstOrNull { it.id == pick }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Pro.PanelSolid,
         title = { Text(title, color = Color.White) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(info, color = Pro.Dim, fontSize = 12.sp)
                 OutlinedTextField(
                     value = name, onValueChange = { name = it.take(60) }, singleLine = true,
@@ -146,9 +167,38 @@ fun ProjectNameDialog(
                         focusedBorderColor = Pro.Amber, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,
                     ),
                 )
+                if (onOverwrite != null && saved.isNotEmpty()) {
+                    Text("OR OVERWRITE A SAVED PROJECT", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp, bottom = 6.dp))
+                    saved.forEach { p ->
+                        val thumb by produceState<ImageBitmap?>(null, p.thumb, p.savedAt) {
+                            value = withContext(Dispatchers.IO) { p.thumb?.let { f -> BitmapFactory.decodeFile(f.path, BitmapFactory.Options().apply { inSampleSize = 4 })?.asImageBitmap() } }
+                        }
+                        val on = p.id == pick
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(8.dp))
+                                .background(if (on) Pro.Amber.copy(alpha = 0.18f) else Ed.Raised)
+                                .clickable { if (on) pick = null else { pick = p.id; name = p.name } }.padding(6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(Modifier.size(56.dp, 38.dp).clip(RoundedCornerShape(6.dp)).background(Color.Black)) {
+                                thumb?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+                            }
+                            Column(Modifier.padding(start = 10.dp).weight(1f)) {
+                                Text(p.name + if (p.id == currentId) "  (open now)" else "", color = if (on) Pro.Amber else Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(p.detail + " · " + SimpleDateFormat("d MMM HH:mm", Locale.getDefault()).format(Date(p.savedAt)), style = Pro.Label.copy(fontSize = 10.sp), maxLines = 1)
+                            }
+                            if (on) Text("✓", color = Pro.Amber, fontSize = 16.sp)
+                        }
+                    }
+                }
             }
         },
-        confirmButton = { TextButton(onClick = { onSave(name.ifBlank { initial }) }) { Text("Save", color = Pro.Amber) } },
+        confirmButton = {
+            Row {
+                if (chosen != null && onOverwrite != null) TextButton(onClick = { confirm = chosen }) { Text("Overwrite", color = Pro.Red) }
+                TextButton(onClick = { onSave(name.ifBlank { initial }) }) { Text(if (onOverwrite != null) "Save as new" else "Save", color = Pro.Amber) }
+            }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = Color.White) } },
     )
 }

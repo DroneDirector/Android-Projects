@@ -328,15 +328,28 @@ class ProCameraController(private val context: Context) {
         sound.release()
     }
 
+    /**
+     * Samsung DeX / desktop mode: the app is on a (landscape) monitor while the phone itself stays
+     * upright, so the camera would take tall pictures. Then photos and videos are taken wide.
+     */
+    private var monitorWide = false
+    private fun capRot(): Int = if (monitorWide) Surface.ROTATION_90 else rotation
+    fun setMonitorLandscape(on: Boolean) {
+        if (on == monitorWide) return
+        monitorWide = on
+        imageCapture?.setTargetRotation(capRot())
+        if (!st.recording) videoCapture?.setTargetRotation(capRot())
+    }
+
     fun setDisplayRotation(r: Int) {
         if (r == rotation) return
         val turned90 = (r % 2) != (rotation % 2)
         rotation = r
         // The preview must follow the screen too, or it shows up sideways and stretched.
         previewUseCase?.setTargetRotation(r)
-        imageCapture?.setTargetRotation(r)
+        imageCapture?.setTargetRotation(capRot())
         imageAnalysis?.setTargetRotation(r)
-        if (!st.recording) videoCapture?.setTargetRotation(r)
+        if (!st.recording) videoCapture?.setTargetRotation(capRot())
         // After a portrait <-> landscape turn, rebuild the camera streams so the viewfinder is set
         // up for the new shape (otherwise it can show sideways and stretched). Skipped mid-recording,
         // which would stop the clip; the preview still follows the turn via its target rotation.
@@ -828,7 +841,7 @@ class ProCameraController(private val context: Context) {
                         delay(300)
                         startPreBuffer()
                     }
-                    videoCapture?.setTargetRotation(rotation)
+                    videoCapture?.setTargetRotation(capRot())
                 } else {
                     file?.delete()
                     if (preAllowed(st)) scope.launch { delay(300); startPreBuffer() }
@@ -955,7 +968,7 @@ class ProCameraController(private val context: Context) {
             .setOutputFormat(format)
             .setJpegQuality(96)
             .setFlashMode(flashModeFor(s))
-            .setTargetRotation(rotation)
+            .setTargetRotation(capRot())
             .build()
         if (s.aspect == AspectMode.R1_1 && s.mode != CaptureMode.PANORAMA) ic.setCropAspectRatio(Rational(1, 1))
         return ic
@@ -977,7 +990,7 @@ class ProCameraController(private val context: Context) {
 
         val builder = VideoCapture.Builder(recorder)
             .setTargetFrameRate(Range(s.fps, s.fps))
-            .setTargetRotation(rotation)
+            .setTargetRotation(capRot())
         if (s.stabilizationSupported) builder.setVideoStabilizationEnabled(s.stabilization)
         if (s.isPro && s.profile == VideoProfile.HLG && s.hlgSupported) builder.setDynamicRange(DynamicRange.HLG_10_BIT)
         return builder.build()
@@ -2070,7 +2083,7 @@ class ProCameraController(private val context: Context) {
                 val recorder = Recorder.Builder()
                     .setQualitySelector(QualitySelector.from(Quality.FHD, FallbackStrategy.lowerQualityOrHigherThan(Quality.FHD)))
                     .build()
-                vc = VideoCapture.Builder(recorder).setTargetFrameRate(Range(fps, fps)).setTargetRotation(rotation).build()
+                vc = VideoCapture.Builder(recorder).setTargetFrameRate(Range(fps, fps)).setTargetRotation(capRot()).build()
                 p.unbindAll()
                 bound = p.bindToLifecycle(owner, selector, preview, vc)
             } else {
@@ -2519,7 +2532,7 @@ class ProCameraController(private val context: Context) {
                         set { it.copy(processing = false, lastMedia = out ?: it.lastMedia) }
                         toast(if (out != null) "Slow-motion video saved (%.0f× slower)".format(factor) else "Couldn't save the slow-motion video")
                     }
-                    videoCapture?.setTargetRotation(rotation)
+                    videoCapture?.setTargetRotation(capRot())
                     return
                 }
                 val doc = recordDoc
@@ -2575,7 +2588,7 @@ class ProCameraController(private val context: Context) {
                     }
                 }
                 // Apply any rotation change that happened while recording.
-                videoCapture?.setTargetRotation(rotation)
+                videoCapture?.setTargetRotation(capRot())
             }
         }
     }

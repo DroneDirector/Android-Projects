@@ -31,6 +31,7 @@ import androidx.compose.material3.SwitchDefaults
 import com.dronedirector.veyrocutpro.ui.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -405,7 +406,19 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             }
 
             Section("CONTROLS")
-            ToggleRow("Volume keys shutter", "Press volume up or down to take a shot", s.volumeShutter) { c.toggleVolumeShutter() }
+            run {
+                var side by remember { mutableStateOf(com.dronedirector.veyrocutpro.camera.SideKeys.get(sctx)) }
+                Text("Side buttons (volume up / down)", color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp))
+                Text(when (side) { 0 -> "They just change the volume."; 2 -> "Volume up zooms in, volume down zooms out."; else -> "Take a photo, or start / stop recording — whichever mode is on." }, color = Pro.Dim, fontSize = 12.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 6.dp)) {
+                    com.dronedirector.veyrocutpro.camera.SideKeys.NAMES.forEachIndexed { i, n ->
+                        val on = side == i
+                        Text(n, color = if (on) Color.Black else Color.White, fontSize = 12.sp,
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Pro.Amber else Color.White.copy(alpha = 0.08f))
+                                .clickable { side = i; com.dronedirector.veyrocutpro.camera.SideKeys.set(sctx, i) }.padding(horizontal = 12.dp, vertical = 6.dp))
+                    }
+                }
+            }
             ToggleRow(
                 "Shutter sound",
                 if (s.shutterSoundRequired) "Required by law in this region and can't be turned off"

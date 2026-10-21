@@ -260,14 +260,16 @@ object RawDng {
         val pfd = if (uri.scheme == "file") null else (context.contentResolver.openFileDescriptor(uri, "r") ?: throw java.io.IOException("can't open"))
         try {
             val h = LibRawBridge.nOpen(if (pfd == null) uri.path ?: "" else "/proc/self/fd/${pfd.fd}")
-            if (h == -2L) throw UnsupportedRaw(
-                if (uri.lastPathSegment.orEmpty().endsWith(".nef", true)) "This Nikon RAW type isn't supported yet (High Efficiency RAW) — Lossless compressed RAW works"
-                else "This camera's RAW format isn't supported yet",
-            )
+            if (h == -2L) throw notSupported(uri)
             if (h <= 0L) throw UnsupportedRaw("This RAW file couldn't be read")
             try { return block(h) } finally { LibRawBridge.nClose(h) }
         } finally { try { pfd?.close() } catch (_: Throwable) {} }
     }
+
+    private fun notSupported(uri: Uri) = UnsupportedRaw(
+        if (uri.lastPathSegment.orEmpty().endsWith(".nef", true)) "This Nikon RAW type isn't supported yet (High Efficiency RAW) — Lossless compressed RAW works"
+        else "This camera's RAW format isn't supported yet",
+    )
 
     private fun libRawCamera(s: Array<String>): String {
         val make = s[0].trim(); val model = s[1].trim()
@@ -317,7 +319,8 @@ object RawDng {
 
     private fun decodeOther(context: Context, m: Meta): Sensor = withLibRaw(context, m.uri) { h ->
         val r = LibRawBridge.nUnpack(h)
-        if (r != 0) throw UnsupportedRaw("This RAW file couldn't be read (LibRaw error $r)")
+        if (r == -2) throw notSupported(m.uri)
+        if (r != 0) throw UnsupportedRaw("This RAW file couldn't be read")
         var d = LibRawBridge.nRaw(h, ONE.toInt()) ?: throw UnsupportedRaw("This RAW file's sensor data couldn't be read")
         val n = m.width * m.height
         if (m.cfa == null && d.size == n) { val g = d; d = ShortArray(n * 3) { g[it / 3] } } // monochrome sensor

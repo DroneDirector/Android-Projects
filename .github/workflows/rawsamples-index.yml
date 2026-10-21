@@ -1,0 +1,22 @@
+name: RAW samples index (lookup)
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Look up the free RAW sample collection (raw.pixls.us, CC0)
+        run: |
+          mkdir -p out
+          for u in "https://raw.pixls.us/" "https://raw.pixls.us/data/" "https://raw.pixls.us/data/DJI/" "https://raw.pixls.us/json/getrepository.json" "https://raw.pixls.us/repo.json"; do
+            n=$(echo "$u" | tr -c 'a-zA-Z0-9' '_')
+            curl -sSL -m 60 -o "out/$n" -w "%{http_code} %{size_download} $u\n" "$u" >> out/status.txt || echo "fail $u" >> out/status.txt
+          done
+          ls -la out
+      - name: Save to branch rawsamples-index
+        run: |
+          cd out && git init -q -b rawsamples-index && git add -A
+          git -c user.name="github-actions" -c user.email="actions@github.com" commit -qm "RAW samples index"
+          git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" rawsamples-index

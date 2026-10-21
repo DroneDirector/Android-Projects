@@ -2609,5 +2609,12 @@
 "Dark corners: OFF": "Mørke hjørner: FRA",
 "Dark corners ✓": "Mørke hjørner ✓",
 "Lens shape: OFF": "Objektivform: FRA",
-"Lens shape ✓": "Objektivform ✓"
+"Lens shape ✓": "Objektivform ✓",
+"Other cameras' RAW files open too: Sony ARW, Canon CR2 / CR3, Nikon NEF, Fujifilm RAF, Olympus / OM System ORF, Panasonic RW2, Pentax PEF and more (read by LibRaw). The same RAW engine as for DNGs develops them, starting at about the brightness of the camera's own picture.": "RAW-filer fra andre kameraer kan også åbnes: Sony ARW, Canon CR2 / CR3, Nikon NEF, Fujifilm RAF, Olympus / OM System ORF, Panasonic RW2, Pentax PEF og flere (læst af LibRaw). Den samme RAW-motor som til DNG fremkalder dem og starter med omtrent samme lysstyrke som kameraets eget billede.",
+"This Nikon RAW type isn't supported yet (High Efficiency RAW) — Lossless compressed RAW works": "Denne Nikon RAW-type understøttes ikke endnu (High Efficiency RAW) — Lossless compressed RAW virker",
+"This camera's RAW format isn't supported yet": "Dette kameras RAW-format understøttes ikke endnu",
+"This RAW file couldn't be read": "Denne RAW-fil kunne ikke læses",
+"This RAW format needs the RAW library, which couldn't be loaded": "Dette RAW-format kræver RAW-biblioteket, som ikke kunne indlæses",
+"Sigma Foveon RAW files aren't supported yet": "Sigma Foveon RAW-filer understøttes ikke endnu",
+"This RAW file's sensor data couldn't be read": "Sensordataene i denne RAW-fil kunne ikke læses"
 }

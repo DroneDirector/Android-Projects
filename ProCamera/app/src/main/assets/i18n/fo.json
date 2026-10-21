@@ -2663,5 +2663,12 @@
 "Dark corners: OFF": "Myrk horn: AV",
 "Dark corners ✓": "Myrk horn ✓",
 "Lens shape: OFF": "Linsuskap: AV",
-"Lens shape ✓": "Linsuskap ✓"
+"Lens shape ✓": "Linsuskap ✓",
+"Other cameras' RAW files open too: Sony ARW, Canon CR2 / CR3, Nikon NEF, Fujifilm RAF, Olympus / OM System ORF, Panasonic RW2, Pentax PEF and more (read by LibRaw). The same RAW engine as for DNGs develops them, starting at about the brightness of the camera's own picture.": "RAW-fílur frá øðrum myndatólum kunnu eisini latast upp: Sony ARW, Canon CR2 / CR3, Nikon NEF, Fujifilm RAF, Olympus / OM System ORF, Panasonic RW2, Pentax PEF og fleiri (lisnar av LibRaw). Sami RAW-motorur sum til DNG framkallar tær og byrjar við umleið somu ljósstyrki sum myndatólsins egna mynd.",
+"This Nikon RAW type isn't supported yet (High Efficiency RAW) — Lossless compressed RAW works": "Hetta Nikon RAW-slagið er ikki stuðlað enn (High Efficiency RAW) — Lossless compressed RAW virkar",
+"This camera's RAW format isn't supported yet": "RAW-sniðið hjá hesum myndatóli er ikki stuðlað enn",
+"This RAW file couldn't be read": "Hendan RAW-fílan kundi ikki lesast",
+"This RAW format needs the RAW library, which couldn't be loaded": "Hetta RAW-sniðið krevur RAW-savnið, sum ikki kundi lesast inn",
+"Sigma Foveon RAW files aren't supported yet": "Sigma Foveon RAW-fílur eru ikki stuðlaðar enn",
+"This RAW file's sensor data couldn't be read": "Sensordátan í hesi RAW-fíluni kundi ikki lesast"
 }

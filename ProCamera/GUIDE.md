@@ -173,6 +173,11 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - History panel: tap any step to go back to it; + SAVE SNAPSHOT keeps a version you can return to while the photo is open.
 - Masks → Colour range / Brightness range: tap the photo to pick a colour or brightness; only those parts are changed (e.g. only the blue sky, only the highlights). Range and Softness fine-tune it.
 - Panels icon (next to the settings gear): hide or show the tools panel, copy / paste bar, histogram and before / after buttons — the photo grows into the space and shrinks back when a panel returns. Presets: Full, View, Edit, Color. Triple-tap the icon to reset the whole layout.
+- Retouch → Liquify: drag on the photo with Push, Pinch, Bloat, Twirl or Restore; Brush size and Strength set the brush. UNDO LAST takes back one stroke.
+- Retouch → Skin (frequency separation): Smooth tone evens out blotchy skin, Texture keeps the pores (100% = as photographed). Pick Whole photo, Face skin or All skin (AI finds the skin).
+- Retouch → Relight (AI): WORK OUT THE DEPTH once, then place the light in the square; Light brightens what faces it, Shadows darkens the rest, Warmth colours the light.
+- Library → select photos → Print layout: a PDF at exact print sizes (A4, A3, Letter, 10×15, 13×18 paper; 1–6 per page or fixed 10×15 / 13×18 / 9×13 / wallet prints), borders, fill or whole photo, crop marks.
+- Library → select 2–9 photos → Collage: Grid, Big + small, Rows, Columns or Mosaic; shape (1:1, 4:5, 9:16, 16:9, 3:2), spacing, rounded corners and background — saved as a photo.
 - Light → CAMERA PROFILE (.dcp): IMPORT .DCP to use a DNG camera profile (e.g. one made with a colour chart) instead of the RAW file's own colour. Only profiles for this camera are listed; File's own goes back.
 - Export → Printer profile (.icc): import the ICC profile for your printer and paper to soft-proof — the screen shows the photo as it will print. Perceptual or Relative colorimetric; Paper white & ink black shows the paper's own white.
 - Merge photos → Noise stack (2–8 shots averaged for a clean picture), Remove passers-by (3–8 shots from the same spot; what moves is taken out) and Super resolution (4–8 hand-held shots → twice the width and height).

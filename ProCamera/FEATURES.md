@@ -121,11 +121,12 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - Open from the gallery, files or recent VeyroCut Pro photos; **saved projects** row on the start page.
 - **Skip to the editor** from the start page: open the editor without picking a photo first, then add one from inside (manual, every time).
 - **Pro develop**:
-  - **Library**: all phone photos with stars, flags, colour labels, keywords, albums, smart albums, on-device AI content search, EXIF info, compare (2, linked zoom) and survey (up to 12) views, virtual copies, **contact sheet PDF** (A4 / Letter, 3–6 per row, names and stars), and multi-photo editing in the filmstrip.
+  - **Library**: all phone photos with stars, flags, colour labels, keywords, albums, smart albums, on-device AI content search, EXIF info, compare (2, linked zoom) and survey (up to 12) views, virtual copies, **contact sheet PDF** (A4 / Letter, 3–6 per row, names and stars), **print layout PDF** (exact print sizes, borders, crop marks), **collage** (5 templates, 2–9 photos), and multi-photo editing in the filmstrip.
   - **Upright** (Auto, Level, Vertical, Full), **dust spot** visualise and auto-heal, **panorama** projections (cylindrical / spherical / perspective), boundary warp and AI edge fill.
   - **Export**: **AVIF** (phone's AV1 encoder, Android 14+) and **JPEG XL**, TIFF 16 / 8-bit, sRGB / Display P3 / Adobe RGB with embedded profile, output sharpening (screen / matte / glossy), file-name templates, export presets, **export recipes** (several presets in one go), a matte-print soft proof and **soft proof with a printer / paper ICC profile** (own colour engine: lut8 / lut16 / lutAtoB / lutBtoA, perceptual or relative colorimetric, paper white).
   - **DNG camera profiles (.dcp)**: import and use instead of the RAW file's own colour (matrices, forward matrices, hue / sat maps, look table, tone curve).
   - **Merges**: HDR, panorama, focus stack, **noise stack**, **remove passers-by** (median of 3–8 shots) and **super resolution** (sub-pixel aligned hand-held shots → 2× size).
+  - **Retouch**: **Liquify** (push, pinch, bloat, twirl, restore), **frequency separation** (tone smoothing + texture, whole photo or AI face / body skin) and **AI Relight** (light direction, shadows, warmth from the depth map).
   - **Crop guides**: thirds, golden ratio, golden spiral, golden triangles, diagonals, grid (turnable).
   - **Masks**: Object (AI) by tapping, Depth range (AI), and add / subtract / intersect combinations (colour, brightness, depth, subject, sky).
   - **Lens Blur** from AI depth: tap-to-focus, focus range, blur amount, bokeh shapes (circle, hexagon, octagon, ring, cat's eye) and bokeh boost.

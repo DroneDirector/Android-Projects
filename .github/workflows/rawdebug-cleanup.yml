@@ -1,0 +1,12 @@
+name: RAW debug cleanup
+# Deletes the "rawdebug" branch (temporary sample files used while fixing RAW problems).
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          git init -q x && cd x
+          git push -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" --delete rawdebug || echo "already gone"

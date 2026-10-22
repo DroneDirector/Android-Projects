@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -83,6 +84,8 @@ object Prompter {
     var withRecording by mutableStateOf(true)
     /** Mirror the text (for teleprompter glass that reflects it). */
     var mirror by mutableStateOf(false)
+    /** Scroll sideways as one line (like a news ticker) instead of upwards. */
+    var horizontal by mutableStateOf(false)
     /** Open by itself when the selfie (front) camera is chosen. */
     var autoSelfie by mutableStateOf(true)
     /** Position (top-left, 0–1 of the screen) and size (0–1 of the screen). */
@@ -103,14 +106,14 @@ object Prompter {
         underline = p.getBoolean("tp_underline", false); narrow = p.getBoolean("tp_narrow", false); align = p.getInt("tp_align", 1)
         textColor = p.getInt("tp_fg", 0xFFFFFFFF.toInt()); bgColor = p.getInt("tp_bg", 0xFF000000.toInt()); bgAlpha = p.getFloat("tp_bga", 0.6f)
         speed = p.getFloat("tp_speed", 30f); withRecording = p.getBoolean("tp_with_rec", true); mirror = p.getBoolean("tp_mirror", false)
-        autoSelfie = p.getBoolean("tp_auto_selfie", true)
+        autoSelfie = p.getBoolean("tp_auto_selfie", true); horizontal = p.getBoolean("tp_horizontal", false)
         x = p.getFloat("tp_x", 0.1f); y = p.getFloat("tp_y", 0.04f); w = p.getFloat("tp_w", 0.8f); h = p.getFloat("tp_h", 0.3f)
     }
     fun save(c: Context) {
         prefs(c).edit().putString("tp_text", text).putFloat("tp_size", sizeSp).putBoolean("tp_bold", bold).putBoolean("tp_italic", italic)
             .putBoolean("tp_underline", underline).putBoolean("tp_narrow", narrow).putInt("tp_align", align)
             .putInt("tp_fg", textColor).putInt("tp_bg", bgColor).putFloat("tp_bga", bgAlpha).putFloat("tp_speed", speed)
-            .putBoolean("tp_with_rec", withRecording).putBoolean("tp_mirror", mirror).putBoolean("tp_auto_selfie", autoSelfie)
+            .putBoolean("tp_with_rec", withRecording).putBoolean("tp_mirror", mirror).putBoolean("tp_auto_selfie", autoSelfie).putBoolean("tp_horizontal", horizontal)
             .putFloat("tp_x", x).putFloat("tp_y", y).putFloat("tp_w", w).putFloat("tp_h", h).apply()
     }
 }
@@ -163,6 +166,7 @@ fun TeleprompterOverlay(recording: Boolean, isFront: Boolean) {
                 Text("TELEPROMPTER", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp, letterSpacing = 1.sp), modifier = Modifier.weight(1f).padding(start = 4.dp))
                 HeaderButton(if (Prompter.playing) "❚❚" else "▶") { Prompter.playing = !Prompter.playing }
                 HeaderButton("↺") { Prompter.restart++; Prompter.playing = false }
+                HeaderButton(if (Prompter.horizontal) "⇆" else "⇅") { Prompter.horizontal = !Prompter.horizontal; Prompter.save(ctx) }
                 HeaderButton("✎") { editing = true; Prompter.playing = false }
                 HeaderButton("—") { Prompter.minimized = true }
                 HeaderButton("✕") { Prompter.open = false; Prompter.playing = false }
@@ -213,7 +217,7 @@ private fun HeaderButton(label: String, onClick: () -> Unit) {
 @Composable
 private fun PromptText(modifier: Modifier) {
     val scroll: ScrollState = rememberScrollState()
-    LaunchedEffect(Prompter.restart) { scroll.scrollTo(0) }
+    LaunchedEffect(Prompter.restart, Prompter.horizontal) { scroll.scrollTo(0) }
     val d = LocalDensity.current
     // Scrolls smoothly at the chosen speed while playing.
     LaunchedEffect(Prompter.playing, Prompter.speed) {
@@ -226,6 +230,21 @@ private fun PromptText(modifier: Modifier) {
             scroll.scrollBy(px)
             if (scroll.value >= scroll.maxValue) Prompter.playing = false
         }
+    }
+    if (Prompter.horizontal) {
+        // Sideways: one line running right to left, like a news ticker.
+        Box(modifier.graphicsLayer { if (Prompter.mirror) scaleX = -1f }, contentAlignment = Alignment.CenterStart) {
+            Row(Modifier.horizontalScroll(scroll).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.width(40.dp))
+                Text(
+                    Prompter.text.ifBlank { "Tap ✎ to type what you want to say." }.replace(Regex("\\s*\\n\\s*"), "   ·   "),
+                    style = promptStyle().copy(textAlign = TextAlign.Start), maxLines = 1, softWrap = false,
+                )
+                // Room to run the last word out of view.
+                Spacer(Modifier.width(400.dp))
+            }
+        }
+        return
     }
     Column(modifier.verticalScroll(scroll).graphicsLayer { if (Prompter.mirror) scaleX = -1f }.padding(horizontal = 14.dp, vertical = 10.dp)) {
         Text(
@@ -281,6 +300,11 @@ private fun PrompterEditor(onClose: () -> Unit) {
                 StyleChip("RIGHT", Prompter.align == 2) { Prompter.align = 2 }
             }
             LabeledSlider("Text size", Prompter.sizeSp, 14f..72f, "${Prompter.sizeSp.roundToInt()}") { Prompter.sizeSp = it }
+            Text("Scrolling", color = Color.White, fontSize = 13.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                StyleChip("UP (VERTICAL)", !Prompter.horizontal) { Prompter.horizontal = false }
+                StyleChip("SIDEWAYS (HORIZONTAL)", Prompter.horizontal) { Prompter.horizontal = true }
+            }
             LabeledSlider("Scroll speed", Prompter.speed, 0f..120f, if (Prompter.speed < 1f) "OFF" else "${Prompter.speed.roundToInt()}") { Prompter.speed = it }
             Text("Text colour", color = Color.White, fontSize = 13.sp)
             Swatches(Prompter.textColor) { Prompter.textColor = it }

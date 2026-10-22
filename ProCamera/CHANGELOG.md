@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.463 — 2026-10-22
 - Video editor: internal clean-up — the editor's screen state is organised so the code stays well within Android's size limits and new features fit in. No change to how it works.
 
 ## 1.0.461 — 2026-10-22

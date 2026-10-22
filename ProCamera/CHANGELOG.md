@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.455 — 2026-10-22
 - Photo editor → Light: **camera profiles (.dcp)** — import DNG camera profiles and use one instead of the RAW file's own colour.
 - Photo editor → Export: **soft proof with your printer's ICC profile** (perceptual / relative colorimetric, paper white), and **export recipes** — several presets in one go.
 - Photo editor → Merge photos: **Noise stack**, **Remove passers-by** and **Super resolution** (2× from hand-held shots).

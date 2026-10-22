@@ -1,0 +1,25 @@
+name: RAW debug samples
+# Copies a few public-domain (CC0) raw.pixls.us samples to the "rawdebug" branch so they can be inspected.
+on:
+  workflow_dispatch:
+    inputs:
+      files: { description: "Paths under raw.pixls.us/data, separated by ;", required: true }
+permissions:
+  contents: write
+jobs:
+  get:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download
+        env: { FILES: "${{ inputs.files }}" }
+        run: |
+          mkdir -p /tmp/d && cd /tmp/d
+          IFS=';' read -ra P <<< "$FILES"
+          for p in "${P[@]}"; do
+            out=$(echo "$p" | tr '/ ' '__')
+            curl -fsSL --retry 3 -o "$out" "https://raw.pixls.us/data/$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1]))' "$p")" || echo "failed $p"
+          done
+          ls -l
+          git init -q -b rawdebug && git add -A
+          git -c user.name=github-actions -c user.email=actions@github.com commit -qm "RAW debug samples"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" rawdebug

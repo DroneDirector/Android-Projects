@@ -273,6 +273,10 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
     QuickItem("PROMPTER", if (!Prompter.open) "OFF" else if (Prompter.minimized) "SMALL" else "ON", active = Prompter.open) {
         if (!Prompter.open) { Prompter.open = true; Prompter.minimized = false } else Prompter.minimized = !Prompter.minimized
     }
+    // Stop motion (photo modes): onion skin + frame strip.
+    if (!s.isVideo && s.mode != CaptureMode.PANORAMA) QuickItem("STOP MOTION", if (StopMotion.active) "ON" else "OFF", active = StopMotion.active) {
+        StopMotion.active = !StopMotion.active
+    }
     // Custom set-ups C1 / C2 / C3 (can be hidden in the Panels menu).
     if (panelOn("cap.presets") && mode != CaptureMode.LIVE) {
         for (slot in 1..3) PresetItem(slot, c, enabled = !s.recording)

@@ -44,6 +44,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dronedirector.veyrocutpro.ui.Pro
 import com.dronedirector.veyrocutpro.ui.hintedScroll
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.pointerInput
 
 /** Transition browser for the cut after clip [index]. */
@@ -462,8 +464,8 @@ fun KeyCurveEditor(bez: List<Float>, onChange: (List<Float>) -> Unit) {
                     val pad = 18f
                     return androidx.compose.ui.geometry.Offset(pad + x * (size.width - 2 * pad), pad + (1.5f - y) / 2f * (size.height - 2 * pad))
                 }
-                androidx.compose.foundation.gestures.awaitEachGesture {
-                    val d = androidx.compose.foundation.gestures.awaitFirstDown()
+                awaitEachGesture {
+                    val d = awaitFirstDown()
                     val b = cur
                     val h1 = fromXY(b[0], b[1]); val h2 = fromXY(b[2], b[3])
                     val which = if ((d.position - h1).getDistance() <= (d.position - h2).getDistance()) 0 else 1

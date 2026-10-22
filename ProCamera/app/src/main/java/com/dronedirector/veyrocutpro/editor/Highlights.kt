@@ -18,7 +18,7 @@ import kotlin.math.sqrt
 object Highlights {
     private const val BIN_MS = 500L
 
-    private class Bin(val clip: Int, val srcMs: Long, var motion: Float = 0f, var loud: Float = 0f, var burst: Float = 0f, var speech: Float = 0f, var score: Float = 0f)
+    private class Bin(val clip: Int, val srcMs: Long, var motion: Float = 0f, var loud: Float = 0f, var burst: Float = 0f, var speech: Float = 0f, var score: Float = 0f, var sharp: Float = 0f, var face: Float = 0f)
 
     /**
      * A highlight reel about [targetMs] long from [clips] (in time order). [uriFor] = the file to read
@@ -62,9 +62,30 @@ object Highlights {
                 for (k in first until bins.size) {
                     if (stop()) return emptyList()
                     val at = bins[k].srcMs + BIN_MS / 2
-                    val bmp: Bitmap? = if (android.os.Build.VERSION.SDK_INT >= 27)
-                        mmr.getScaledFrameAtTime(at * 1000, MediaMetadataRetriever.OPTION_CLOSEST, 48, 27)
-                    else mmr.getFrameAtTime(at * 1000, MediaMetadataRetriever.OPTION_CLOSEST)?.let { Bitmap.createScaledBitmap(it, 48, 27, true) }
+                    val big: Bitmap? = if (android.os.Build.VERSION.SDK_INT >= 27)
+                        mmr.getScaledFrameAtTime(at * 1000, MediaMetadataRetriever.OPTION_CLOSEST, 320, 180)
+                    else mmr.getFrameAtTime(at * 1000, MediaMetadataRetriever.OPTION_CLOSEST)?.let { Bitmap.createScaledBitmap(it, 320, 180, true) }
+                    val bmp = big?.let { Bitmap.createScaledBitmap(it, 48, 27, true) }
+                    if (big != null) {
+                        // Sharpness: how much fine detail (Laplacian energy) — blurry, shaky moments score low.
+                        val sm = Bitmap.createScaledBitmap(big, 96, 54, true)
+                        val q = IntArray(96 * 54); sm.getPixels(q, 0, 96, 0, 0, 96, 54)
+                        var e = 0f
+                        for (y in 1 until 53) for (x in 1 until 95) {
+                            fun g(i: Int) = ((q[i] shr 8) and 255)
+                            val i = y * 96 + x
+                            e += abs(4 * g(i) - g(i - 1) - g(i + 1) - g(i - 96) - g(i + 96)).toFloat()
+                        }
+                        bins[k].sharp = e / (94 * 52)
+                        // People: faces in the picture (every other bin; the phone's own face finder).
+                        if ((k - first) % 2 == 0) try {
+                            val f565 = big.copy(Bitmap.Config.RGB_565, false)
+                            val found = arrayOfNulls<android.media.FaceDetector.Face>(4)
+                            val n = android.media.FaceDetector(f565.width, f565.height, 4).findFaces(f565, found)
+                            bins[k].face = n.coerceAtMost(3).toFloat()
+                            if (k + 1 < bins.size) bins[k + 1].face = bins[k].face
+                        } catch (_: Throwable) {}
+                    }
                     if (bmp != null) {
                         val px = IntArray(bmp.width * bmp.height)
                         bmp.getPixels(px, 0, bmp.width, 0, 0, bmp.width, bmp.height)
@@ -101,7 +122,8 @@ object Highlights {
         val zE = z(excite); val zM = z(FloatArray(bins.size) { bins[it].motion }); val zL = z(FloatArray(bins.size) { bins[it].loud })
         val hasWords = words.isNotEmpty()
         val zS = z(FloatArray(bins.size) { bins[it].speech })
-        for (k in bins.indices) bins[k].score = 0.45f * zE[k] + 0.3f * zM[k] + 0.15f * zL[k] + (if (hasWords) 0.2f * zS[k] else 0f)
+        val zSh = z(FloatArray(bins.size) { bins[it].sharp }); val zF = z(FloatArray(bins.size) { bins[it].face })
+        for (k in bins.indices) bins[k].score = 0.4f * zE[k] + 0.25f * zM[k] + 0.1f * zL[k] + 0.15f * zSh[k] + 0.15f * zF[k] + (if (hasWords) 0.2f * zS[k] else 0f)
 
         // Pick the best non-overlapping windows until the reel is long enough.
         val segMs = when { targetMs <= 15_000 -> 3000L; targetMs <= 30_000 -> 4000L; targetMs <= 60_000 -> 5000L; else -> 6000L }
@@ -152,5 +174,30 @@ object Highlights {
             if (e - s < 800) null
             else c.copy(id = UUID.randomUUID().toString(), startMs = s, endMs = e, transition = Transition(), volKeys = null, reframe = c.reframe.copy(keys = null))
         }
+    }
+
+    /**
+     * Lines the reel's cuts up with the music: each moment is lengthened or shortened (within its
+     * clip) so the next cut lands on a beat. [beats] are timeline times (ms); [every] = beats per cut at least.
+     */
+    fun snapToBeats(reel: List<Clip>, beats: List<Long>, every: Int = 2): List<Clip> {
+        if (beats.size < 4 || reel.isEmpty()) return reel
+        val out = ArrayList<Clip>()
+        var t = 0L
+        var bi = beats.indexOfFirst { it > 0 }.coerceAtLeast(0)
+        for (c in reel) {
+            val want = t + c.lengthMs
+            // The beat nearest to where this moment would end, at least [every] beats on.
+            var j = bi + every
+            while (j + 1 < beats.size && abs(beats[j + 1] - want) < abs(beats[j] - want)) j++
+            if (j >= beats.size) { out += c; t += c.lengthMs; continue }
+            val len = beats[j] - t
+            val newEnd = (c.startMs + (len * c.speed).toLong()).coerceIn(c.startMs + 400, c.durationMs)
+            val nc = c.copy(endMs = newEnd)
+            out += nc
+            t += nc.lengthMs
+            bi = j
+        }
+        return out
     }
 }

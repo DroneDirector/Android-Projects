@@ -162,6 +162,9 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
         UpscaleBadge(Modifier.align(Alignment.TopCenter).zIndex(10f))
         // Teleprompter: floats over everything, draggable.
         Box(Modifier.fillMaxSize().zIndex(20f)) { TeleprompterOverlay(s.recording, s.isFront) }
+        // Stop motion: each new photo is the next frame.
+        LaunchedEffect(s.lastMedia) { val u = s.lastMedia; if (StopMotion.active && u != null && !s.isVideo) StopMotion.add(u) }
+        if (StopMotion.active && !s.isVideo) StopMotionBar(Modifier.align(Alignment.TopCenter).padding(top = 52.dp).zIndex(15f))
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
@@ -319,6 +322,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                                 )
                             }
                         }
+                        if (!s.isVideo) OnionSkin()
                         if (!clean) {
                             if (!s.isVideo && s.mode != CaptureMode.PANORAMA && s.aspect == AspectMode.R1_1) SquareMask()
                             if (s.mode == CaptureMode.PRO_VIDEO) FrameGuideOverlay(s.guide)

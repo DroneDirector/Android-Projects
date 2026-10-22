@@ -616,8 +616,33 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     // Timeline scroll wheels: animated "upscale" look, or plain colours without animation.
     var wheelFx by remember { mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_wheel_fx", true)) }
     var infoText by remember { mutableStateOf("") }
+    // Render cache: heavy effects baked into a preview file (key → file).
+    val cacheReady = remember { mutableStateMapOf<String, Uri>() }
+    val cacheProgress = remember { mutableStateMapOf<String, Int>() }
+    var cacheCancel by remember { mutableStateOf<(() -> Unit)?>(null) }
+    LaunchedEffect(clips.map { if (RenderCache.heavy(it)) RenderCache.key(it) else "" }.distinct()) {
+        for (c in clips.toList()) if (RenderCache.heavy(c)) {
+            val k = RenderCache.key(c)
+            if (k !in cacheReady) withContext(Dispatchers.IO) { RenderCache.existing(context, c) }?.let { cacheReady[k] = it }
+        }
+    }
+    fun cachedFor(c: Clip): Uri? = if (RenderCache.heavy(c)) cacheReady[RenderCache.key(c)] else null
+    /** The clip as the preview should treat it: with a render cache, its baked effects aren't drawn again. */
+    fun pvc(c: Clip): Clip = if (cachedFor(c) != null) c.copy(bg = null, depth = null) else c
+    fun renderCacheNext() {
+        if (cacheCancel != null) return
+        val c = clips.firstOrNull { RenderCache.heavy(it) && RenderCache.key(it) !in cacheReady && RenderCache.key(it) in cacheProgress } ?: return
+        val k = RenderCache.key(c)
+        cacheCancel = RenderCache.make(context, c, { p -> cacheProgress[k] = p }) { u, err ->
+            cacheCancel = null
+            cacheProgress.remove(k)
+            if (u != null) cacheReady[k] = u else { message = err; cacheProgress.keys.toList().forEach { cacheProgress.remove(it) } }
+            if (u != null) renderCacheNext()
+        }
+    }
     /** The proxy this clip plays from right now, or null (= the original). */
     fun proxyFor(c: Clip): Uri? {
+        cachedFor(c)?.let { return it }
         if (!proxySettings.enabled || c.nested != null) return null
         val id = MediaId.of(c)
         if (id !in proxyMedia || id in proxyBad) return null
@@ -751,7 +776,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val pi = players.indexOf(p).coerceAtLeast(0)
         if (gpuGrade) {
             // Android 13+: the grade is drawn on the view; the player only decodes plain video.
-            texViews[pi]?.let { if (effectsOk) GradePreview.apply(it, adjOf(c), 0f, ClipPreviewFx.extra(context, it, c, c.startMs + startMs)) else GradePreview.clear(it) }
+            texViews[pi]?.let { if (effectsOk) GradePreview.apply(it, adjOf(c), 0f, ClipPreviewFx.extra(context, it, pvc(c), c.startMs + startMs)) else GradePreview.clear(it) }
             // Film / lens / deflicker need the frame itself: they run in the player (only when used).
             val ff = if (effectsOk) liveEffects(c) else emptyList()
             if (ff.isNotEmpty() || filmOn[pi]) {
@@ -942,7 +967,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         for (c in gradeReq) {
             if (gpuGrade) {
                 if (effectsOk && c.id == loadedId) {
-                    texViews[deck.active]?.let { GradePreview.apply(it, adjOf(c), 0f, ClipPreviewFx.extra(context, it, c, c.startMs + deck.cur.currentPosition)) }
+                    texViews[deck.active]?.let { GradePreview.apply(it, adjOf(c), 0f, ClipPreviewFx.extra(context, it, pvc(c), c.startMs + deck.cur.currentPosition)) }
                     val a = deck.active
                     val want = liveKey(c)
                     if (want != filmShown[a] && (want != null || filmOn[a])) {
@@ -1081,7 +1106,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             if (c.id == loadedId) texViews[a]?.let {
                 ClipXform.applyToView(it, ClipXform.at(c, c.startMs + deck.cur.currentPosition, motionFor(c)))
                 it.alpha = c.reframe.opacityAt(deck.cur.currentPosition)
-                if (gpuGrade) { if (effectsOk) GradePreview.apply(it, adjOf(c), System.nanoTime() / 1e9f, ClipPreviewFx.extra(context, it, c, c.startMs + deck.cur.currentPosition)) else GradePreview.clear(it) }
+                if (gpuGrade) { if (effectsOk) GradePreview.apply(it, adjOf(c), System.nanoTime() / 1e9f, ClipPreviewFx.extra(context, it, pvc(c), c.startMs + deck.cur.currentPosition)) else GradePreview.clear(it) }
             }
             val n = clips.getOrNull(i + 1)
             val ov = overlapMs(clips, i)
@@ -1139,7 +1164,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 texViews[1 - a]?.let {
                     ClipXform.applyToView(it, ClipXform.at(n, n.startMs + deck.spare.currentPosition, motionFor(n)))
                     it.alpha = n.reframe.opacityAt(deck.spare.currentPosition)
-                    if (gpuGrade && effectsOk) GradePreview.apply(it, adjOf(n), System.nanoTime() / 1e9f, ClipPreviewFx.extra(context, it, n, n.startMs + deck.spare.currentPosition))
+                    if (gpuGrade && effectsOk) GradePreview.apply(it, adjOf(n), System.nanoTime() / 1e9f, ClipPreviewFx.extra(context, it, pvc(n), n.startMs + deck.spare.currentPosition))
                 }
                 frameViews[a]?.let { TransitionPreview.apply(it, c.transition.type, p, false) }
                 frameViews[1 - a]?.let { TransitionPreview.apply(it, c.transition.type, p, true) }
@@ -1582,6 +1607,39 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
 
     // ---- Caption translation (ML Kit, on the phone)
     var translateStatus by remember { mutableStateOf<String?>(null) }
+    // ---- AI dubbing: the captions spoken in another voice / language as one audio track.
+    var dubStatus by remember { mutableStateOf<String?>(null) }
+    var dubJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    fun dubCaptions(lang: String, man: Boolean, mute: Boolean) {
+        if (dubJob != null) { dubJob?.cancel(); dubJob = null; dubStatus = null; message = "Dubbing stopped"; return }
+        val caps = layers.filter { it.kind == LayerKind.TEXT && (it.name == "Caption" || it.name == "Word caption") && !it.wholeVideo && it.text.isNotBlank() }.sortedBy { it.startMs }
+        if (caps.isEmpty()) { message = "Make captions first (AI CAPTIONS), and translate them if you want another language"; return }
+        if (lang != "en" && !com.dronedirector.veyrocutpro.camera.CloudAi.useVideo(context) && !com.dronedirector.veyrocutpro.camera.CloudAi.usePhotos(context)) {
+            message = "Dubbing in that language uses Cloud AI — add your fal.ai key in Cloud AI settings (English works on the phone)"; return
+        }
+        dubStatus = "Starting…"
+        dubJob = layerScope.launch {
+            if (lang == "en") {
+                val v = Voiceover.voices.first { it.id == if (man) "am_michael" else "af_heart" }
+                val err = withContext(Dispatchers.IO) { Voiceover.ensure(context, v, { p -> dubStatus = "Getting the voice $p%" }, { !isActive }) }
+                if (err != null) { dubStatus = null; dubJob = null; message = err; return@launch }
+            }
+            val lines = caps.map { Triple(it.startMs, it.endMs, it.text.replace('\n', ' ')) }
+            val audio = withContext(Dispatchers.IO) {
+                try { Dubbing.build(context, lines, lang, man, { p -> dubStatus = "Speaking $p%" }, { !isActive }) }
+                catch (t: Throwable) { layerScope.launch { message = t.message ?: "Dubbing failed" }; null }
+            }
+            dubStatus = null; dubJob = null
+            if (!isActive || audio == null) return@launch
+            val dir = java.io.File(context.filesDir, "voiceovers").apply { mkdirs() }
+            val f = java.io.File(dir, "dub_${System.currentTimeMillis()}.wav")
+            withContext(Dispatchers.IO) { Voiceover.writeWav(f, audio) }
+            val label = Dubbing.LANGS.firstOrNull { it.second == lang }?.first?.substringBefore(" (") ?: lang
+            extraAudio.add(MusicTrack(uri = android.net.Uri.fromFile(f), name = "AI dub · $label", durationMs = audio.size * 1000L / Dubbing.RATE, volume = 1f, fadeInMs = 0, fadeOutMs = 100, duck = 0f, startMs = 0L))
+            deliver = deliver.copy(videoGain = if (mute) 0f else 0.18f)
+            message = "AI dub added (${lines.size} lines) — the original voice is " + (if (mute) "muted" else "turned down") + " in the mixer (Audio page)"
+        }
+    }
     fun translateCaptions(to: String) {
         if (translateStatus != null) return
         val caps = layers.filter { it.kind == LayerKind.TEXT && (it.name == "Caption" || it.name == "Word caption") }
@@ -2397,8 +2455,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
     magicPick?.let { t -> MagicMaskDialog(t, onDismiss = { magicPick = null }) { sel -> magicPick = null; startMagic(t, sel) } }
     var hlProgress by remember { mutableStateOf(-1) }
+    var hlBeat by remember { mutableStateOf(false) }
     var hlJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
-    fun makeHighlights(targetMs: Long) {
+    fun makeHighlights(targetMs: Long, toBeat: Boolean = false) {
         if (videoLocked) { message = "The video track is locked"; return }
         if (clips.isEmpty() || hlJob != null) return
         hlProgress = 0
@@ -2410,7 +2469,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             hlProgress = -1; hlJob = null
             if (!isActive) return@launch
             if (out.isEmpty()) { message = "Couldn't find highlights — the clips may be too short"; return@launch }
-            clips.clear(); clips.addAll(out)
+            var reel = out
+            val m = music
+            if (toBeat && m != null) {
+                val peaks = waves[m.uri.toString()] ?: withContext(Dispatchers.IO) { Waveforms.load(context, m.uri) }
+                if (peaks != null) reel = withContext(Dispatchers.Default) { Highlights.snapToBeats(out, ProTools.beatsOnTimeline(m, peaks)) }
+            } else if (toBeat) message = "Add a music track to cut on its beat"
+            clips.clear(); clips.addAll(reel)
             selected = 0; current = 0
             load(0, 0, false)
             message = "Highlight reel: ${out.size} moments, ${tc(out.sumOf { it.lengthMs })} — undo brings your clips back"
@@ -2917,6 +2982,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     clips.getOrNull(current)?.let { cc ->
                         val pu = proxyFor(cc)
                         val badge = when {
+                            cachedFor(cc) != null -> "CACHED"
                             pu != null -> "PROXY " + (ProxyMaker.qualityOf(pu)?.label ?: "")
                             proxySettings.enabled && MediaId.of(cc) in proxyMedia -> "ORIGINAL"
                             else -> null
@@ -3294,7 +3360,20 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     message = "Proxy files deleted (${freed / 1_000_000} MB) — tap GENERATE to make them again"
                                     proxyMedia.forEach { if (it !in proxyCancelled) proxyCancelled.add(it) }
                                 },
-                            )
+                            ).also {
+                                val heavy = clips.filter { RenderCache.heavy(it) }.distinctBy { RenderCache.key(it) }
+                                RenderCacheSection(
+                                    heavy.map { c -> Triple(c.name, cachedFor(c) != null, cacheProgress[RenderCache.key(c)]) },
+                                    running = cacheCancel != null || cacheProgress.isNotEmpty(),
+                                    onRenderAll = {
+                                        heavy.filter { RenderCache.key(it) !in cacheReady }.forEach { cacheProgress[RenderCache.key(it)] = 0 }
+                                        renderCacheNext()
+                                        if (cacheProgress.isEmpty()) message = "Nothing to render — every heavy clip is cached"
+                                    },
+                                    onStop = { cacheCancel?.invoke(); cacheCancel = null; cacheProgress.clear(); message = "Render cache stopped" },
+                                    onClear = { cacheCancel?.invoke(); cacheCancel = null; cacheProgress.clear(); cacheReady.clear(); val n = RenderCache.clearAll(context); message = "Render cache deleted (${n / 1_000_000} MB)" },
+                                )
+                            }
                             Page.TEXT -> TextEditPage(
                                 words = wx.tWords.toList(), clips = clips.toList(), currentClipId = clips.getOrNull(current)?.id, playSrcMs = clips.getOrNull(current)?.let { it.startMs + posMs } ?: 0L,
                                 model = wx.tModel, onModel = { wx.tModel = it }, hasModel = Transcriber.hasModel(context, wx.tModel), downloading = wx.tDl,
@@ -3360,7 +3439,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 ProEditTools(
                                     clips = clips.toList(), selectedIdx = selected, sceneProgress = sceneProgress,
                                     onDetectScenes = { detectScenes() }, onStopScenes = { sceneJob?.cancel(); sceneJob = null; sceneProgress = -1 },
-                                    hlProgress = hlProgress, onHighlights = { makeHighlights(it) }, onStopHighlights = { hlJob?.cancel(); hlJob = null; hlProgress = -1 },
+                                    hlProgress = hlProgress, onHighlights = { makeHighlights(it, hlBeat) }, hlBeat = hlBeat, onHlBeat = { hlBeat = it }, onStopHighlights = { hlJob?.cancel(); hlJob = null; hlProgress = -1 },
                                     picked = multi.toList(),
                                     onPick = { id -> if (id in multi) multi.remove(id) else multi.add(id) },
                                     onPickAll = { if (multi.size == clips.size) multi.clear() else { multi.clear(); multi.addAll(clips.map { it.id }) } },
@@ -3447,6 +3526,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onCaptions = { lang, clipsOnly, style -> makeCaptions(lang, clipsOnly, style) },
                                 onImportSubs = { pickSubs.launch(arrayOf("*/*")) },
                                 onTranslate = { to -> translateCaptions(to) }, translateStatus = translateStatus,
+                                onDub = { l, m, mu -> dubCaptions(l, m, mu) }, dubStatus = dubStatus,
                                 telemetryShow = telemetryShow,
                                 onTelemetryShow = { telemetryShow = it },
                                 onTelemetry = { pickSrt.launch(arrayOf("*/*")) },
@@ -4901,6 +4981,7 @@ private fun LayersPage(
     onCaptions: (String?, Boolean, Int) -> Unit = { _, _, _ -> },
     onImportSubs: () -> Unit = {},
     onTranslate: (String) -> Unit = {}, translateStatus: String? = null,
+    onDub: (String, Boolean, Boolean) -> Unit = { _, _, _ -> }, dubStatus: String? = null,
     onTrack: (String) -> Unit = {}, trackingId: String? = null,
     onPin: (String, List<PinQuad>?) -> Unit = { _, _ -> }, onPlanarTrack: (String) -> Unit = {}, pinTrackingId: String? = null, frameAspect: Float = 16f / 9f,
     telemetryShow: TelemetryShow = TelemetryShow(), onTelemetryShow: (TelemetryShow) -> Unit = {}, onTelemetry: () -> Unit = {},
@@ -4927,6 +5008,18 @@ private fun LayersPage(
         modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable(onClick = onImportSubs).padding(10.dp),
     )
     Text("Turns a subtitle file into caption layers (in the style chosen above), timed from the start of the timeline.", color = Pro.Dim, fontSize = 11.sp)
+    SectionTitle("AI DUBBING")
+    var dubLang by remember { mutableStateOf(0) }
+    var dubMan by remember { mutableStateOf(false) }
+    var dubMute by remember { mutableStateOf(false) }
+    Chips(Dubbing.LANGS.map { it.first }, dubLang) { dubLang = it }
+    Chips(listOf("Woman's voice", "Man's voice"), if (dubMan) 1 else 0) { dubMan = it == 1 }
+    Chips(listOf("Original voice quiet underneath", "Mute the original"), if (dubMute) 1 else 0) { dubMute = it == 1 }
+    Text(
+        dubStatus?.let { "$it · tap to stop" } ?: "DUB THE CAPTIONS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onDub(Dubbing.LANGS[dubLang].second, dubMan, dubMute) }.padding(10.dp),
+    )
+    Text("Speaks the captions at their times as a new audio track. Translate the captions first (below) for another language — pick the same language here. English is made on the phone; other languages use Cloud AI (ElevenLabs via your fal.ai account, about \$0.10 per 1,000 characters).", color = Pro.Dim, fontSize = 11.sp)
     SectionTitle("TRANSLATE CAPTIONS")
     var trTo by remember { mutableStateOf(0) }
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
@@ -5886,6 +5979,7 @@ private fun ProEditTools(
     clips: List<Clip>, selectedIdx: Int, sceneProgress: Int,
     onDetectScenes: () -> Unit, onStopScenes: () -> Unit,
     hlProgress: Int, onHighlights: (Long) -> Unit, onStopHighlights: () -> Unit,
+    hlBeat: Boolean = false, onHlBeat: (Boolean) -> Unit = {},
     picked: List<String>, onPick: (String) -> Unit, onPickAll: () -> Unit, onBatch: (String) -> Unit,
 ) {
     SectionTitle("SCENE DETECTION")
@@ -5899,7 +5993,8 @@ private fun ProEditTools(
         modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable(enabled = clips.isNotEmpty()) { onDetectScenes() }.padding(10.dp),
     )
     SectionTitle("AUTO HIGHLIGHTS")
-    Text("Finds the liveliest moments of your clips — laughter, cheering, a raised voice, movement, lively talk — and makes a short reel of them, cut between words. Transcribe first (Text page) for the cleanest cuts. Undo brings your clips back.", color = Pro.Dim, fontSize = 11.sp)
+    Chips(listOf("Cut between words", "Cut on the music's beat"), if (hlBeat) 1 else 0) { onHlBeat(it == 1) }
+    Text("Finds the liveliest moments of your clips — laughter, cheering, a raised voice, movement, lively talk, sharp shots and faces — and makes a short reel of them, cut between words or on the music's beat (add a music track first). Transcribe first (Text page) for the cleanest cuts. Undo brings your clips back.", color = Pro.Dim, fontSize = 11.sp)
     if (hlProgress >= 0) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
         androidx.compose.material3.LinearProgressIndicator(progress = { hlProgress / 100f }, color = Pro.Amber, modifier = Modifier.weight(1f).height(4.dp))
         Text("$hlProgress%", style = Pro.Label, modifier = Modifier.padding(horizontal = 8.dp))
@@ -6183,4 +6278,24 @@ private fun TimelinesSection(
         Text("DUPLICATE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(onClick = onDuplicate).padding(10.dp))
     }
     Text("Keep several cuts in one project — a long and a short version, or one per platform. Tap a timeline to open it; the media strip is shared. Saved with the project (an archive .zip holds the open timeline only).", color = Pro.Dim, fontSize = 11.sp)
+}
+
+/** Proxy page → RENDER CACHE: clips with heavy effects, rendered once for smooth playback. */
+@Composable
+private fun RenderCacheSection(items: List<Triple<String, Boolean, Int?>>, running: Boolean, onRenderAll: () -> Unit, onStop: () -> Unit, onClear: () -> Unit) {
+    SectionTitle("RENDER CACHE")
+    Text("AI noise reduction, background cut-out and AI depth effects are heavy to play live. RENDER CACHE draws them once into a preview file so those clips play smoothly. The grade and everything else stay live; the export always uses the originals.", color = Pro.Dim, fontSize = 11.sp)
+    if (items.isEmpty()) { Text("No clips with heavy effects in this edit.", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(vertical = 4.dp)); return }
+    items.forEach { (name, ready, prog) ->
+        Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(name.take(36), color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            Text(when { ready -> "CACHED ✓"; prog != null -> "$prog%"; else -> "live" }, style = Pro.Label.copy(color = if (ready) Pro.Amber else Pro.Dim, fontSize = 10.sp))
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+        if (running) Text("STOP", style = Pro.Label.copy(color = Pro.Red, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(onClick = onStop).padding(10.dp))
+        else Text("RENDER CACHE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(onClick = onRenderAll).padding(10.dp))
+        Text("DELETE CACHE", style = Pro.Label.copy(color = Pro.Dim, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(onClick = onClear).padding(10.dp))
+    }
+    Text("Changing one of those effects makes the clip play live again until you render it again.", color = Pro.Dim, fontSize = 11.sp)
 }

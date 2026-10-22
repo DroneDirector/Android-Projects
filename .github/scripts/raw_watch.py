@@ -1,8 +1,8 @@
 """Daily check of raw.pixls.us for new RAW sample files (run by raw-samples-watch.yml).
 
-- New model from a camera / phone / drone maker already in .github/raw-samples.txt -> one file of it is
-  added to the list (to download, mirror and test).
-- New maker -> not added; listed in new-makers.txt so the owner can decide first.
+- New model from a maker already in .github/raw-samples.txt -> proposed (one file per model).
+- New maker -> proposed separately.
+Nothing is added here: the owner is asked first (an issue); "RAW samples add" adds what was approved.
 Everything already seen is remembered in .github/raw-samples-seen.txt.
 """
 import os, sys

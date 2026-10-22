@@ -1,53 +1,38 @@
 name: RAW samples watch
-# Every day: looks for new RAW samples on raw.pixls.us (public domain, CC0). New models from makers we
-# already test are added to the RAW test list, copied to our own "raw-samples-v1" release and tested.
-# New makers are NOT added — an issue (label raw-watch) asks the owner first.
+# Every day: looks for new RAW samples on raw.pixls.us (public domain, CC0). Nothing is added
+# automatically: new models (from makers we already test) and new makers are listed in an issue
+# (label raw-watch) that asks the owner. Approved files are added by the "RAW samples add" workflow.
 on:
   schedule: [{ cron: "17 5 * * *" }]
   workflow_dispatch:
 permissions:
   contents: write
   issues: write
-  actions: write
 concurrency: { group: raw-watch, cancel-in-progress: false }
 jobs:
   watch:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - name: Compare with raw.pixls.us
         run: |
           curl -fsSL --retry 3 -o /tmp/filelist.txt https://raw.pixls.us/data/filelist.sha256
           python3 .github/scripts/raw_watch.py /tmp/filelist.txt .github/raw-samples.txt .github/raw-samples-seen.txt /tmp/added.txt /tmp/new-makers.txt
-          echo "--- added"; cat /tmp/added.txt; echo "--- new makers"; cat /tmp/new-makers.txt
-      - name: Copy new samples to our release
+          echo "--- new models"; cat /tmp/added.txt; echo "--- new makers"; cat /tmp/new-makers.txt
+      - name: Ask the owner
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
-          [ -s /tmp/added.txt ] || exit 0
-          mkdir -p /tmp/add && cd /tmp/add
-          while IFS= read -r p; do
-            mkdir -p "$(dirname "$p")"
-            curl -fsSL --retry 3 -o "$p" "https://raw.pixls.us/data/$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1]))' "$p")" || { echo "::warning::could not download $p"; rm -f "$p"; sed -i "\|^$p\$|d" /tmp/added.txt; }
-          done < /tmp/added.txt
-          [ -s /tmp/added.txt ] || exit 0
-          T=raw-samples-add-$(date -u +%Y%m%d).tar
-          tar -cf /tmp/$T .
-          gh release upload raw-samples-v1 /tmp/$T --clobber -R "$GITHUB_REPOSITORY"
-          { echo "# Added automatically $(date -u +%Y-%m-%d) (new models on raw.pixls.us)"; cat /tmp/added.txt; } >> "$GITHUB_WORKSPACE/.github/raw-samples.txt"
-      - name: Save and test
-        env: { GH_TOKEN: "${{ github.token }}" }
-        run: |
+          if [ -s /tmp/added.txt ] || [ -s /tmp/new-makers.txt ]; then
+            { echo "New RAW samples appeared on raw.pixls.us (public domain). **Do you want to add these new models and their RAW data to your app's RAW test (and our own copy of the samples)?** Nothing is added until you say yes."
+              echo
+              if [ -s /tmp/added.txt ]; then echo "### New models from makers already in the test"; echo '```'; cat /tmp/added.txt; echo '```'; fi
+              if [ -s /tmp/new-makers.txt ]; then echo "### New makers (not in the test yet)"; sed 's/^/- /' /tmp/new-makers.txt; fi
+              echo
+              echo "To add: tell Claude \"add them\", or run the **RAW samples add** workflow (Actions tab) with this issue's number."
+            } > /tmp/body.md
+            gh label create raw-watch -R "$GITHUB_REPOSITORY" -c FFB300 -d "RAW samples watch" 2>/dev/null || true
+            gh issue create -R "$GITHUB_REPOSITORY" -l raw-watch -t "New RAW samples on raw.pixls.us — add them to the app?" -F /tmp/body.md
+          fi
           git config user.name github-actions; git config user.email actions@github.com
-          git add .github/raw-samples.txt .github/raw-samples-seen.txt
-          git diff --cached --quiet && exit 0
-          git commit -qm "RAW samples watch: $(wc -l < /tmp/added.txt) new model(s) from raw.pixls.us"
-          git pull -q --rebase && git push -q
-          if [ -s /tmp/added.txt ]; then gh workflow run rawtest.yml -R "$GITHUB_REPOSITORY" --ref main; fi
-      - name: Ask about new makers
-        env: { GH_TOKEN: "${{ github.token }}" }
-        run: |
-          [ -s /tmp/new-makers.txt ] || exit 0
-          gh label create raw-watch -R "$GITHUB_REPOSITORY" -c FFB300 -d "RAW samples watch" 2>/dev/null || true
-          { echo "New camera / phone / drone makers appeared on raw.pixls.us. They are **not** added to the RAW test until you say so:"; echo; sed 's/^/- /' /tmp/new-makers.txt; } > /tmp/body.md
-          gh issue create -R "$GITHUB_REPOSITORY" -l raw-watch -t "New RAW maker(s) on raw.pixls.us — add them?" -F /tmp/body.md
+          git add .github/raw-samples-seen.txt
+          git diff --cached --quiet || { git commit -qm "RAW samples watch: remember what raw.pixls.us has"; git pull -q --rebase && git push -q; }

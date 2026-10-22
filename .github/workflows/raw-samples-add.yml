@@ -1,0 +1,51 @@
+name: RAW samples add
+# Adds the RAW samples the owner approved (listed in a raw-watch issue, or given directly): copies them
+# to our own "raw-samples-v1" release, adds them to the RAW test list, runs the RAW test and closes the issue.
+on:
+  workflow_dispatch:
+    inputs:
+      issue: { description: "raw-watch issue number (adds the files listed in it)", required: false }
+      files: { description: "Or: paths under raw.pixls.us/data, separated by ;", required: false }
+permissions:
+  contents: write
+  issues: write
+  actions: write
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - name: Collect the approved files
+        env: { GH_TOKEN: "${{ github.token }}", ISSUE: "${{ inputs.issue }}", FILES: "${{ inputs.files }}" }
+        run: |
+          : > /tmp/added.txt
+          if [ -n "$ISSUE" ]; then gh issue view "$ISSUE" -R "$GITHUB_REPOSITORY" --json body -q .body | awk '/^```/{f=!f;next} f' >> /tmp/added.txt; fi
+          if [ -n "$FILES" ]; then echo "$FILES" | tr ';' '\n' >> /tmp/added.txt; fi
+          sed -i '/^\s*$/d' /tmp/added.txt
+          grep -v '^#' .github/raw-samples.txt > /tmp/listed.txt
+          grep -vxF -f /tmp/listed.txt /tmp/added.txt > /tmp/new.txt || true
+          mv /tmp/new.txt /tmp/added.txt; cat /tmp/added.txt
+      - name: Copy to our release and add to the test
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          [ -s /tmp/added.txt ] || { echo "nothing new to add"; exit 0; }
+          mkdir -p /tmp/add && cd /tmp/add
+          : > /tmp/ok.txt
+          while IFS= read -r p; do
+            mkdir -p "$(dirname "$p")"
+            if curl -fsSL --retry 3 -o "$p" "https://raw.pixls.us/data/$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1]))' "$p")"; then echo "$p" >> /tmp/ok.txt; else echo "::warning::could not download $p"; rm -f "$p"; fi
+          done < /tmp/added.txt
+          [ -s /tmp/ok.txt ] || exit 0
+          T=raw-samples-add-$(date -u +%Y%m%d-%H%M).tar
+          tar -cf /tmp/$T .
+          gh release upload raw-samples-v1 /tmp/$T -R "$GITHUB_REPOSITORY"
+          cd "$GITHUB_WORKSPACE"
+          { echo "# Added $(date -u +%Y-%m-%d) (approved new samples from raw.pixls.us)"; cat /tmp/ok.txt; } >> .github/raw-samples.txt
+          git config user.name github-actions; git config user.email actions@github.com
+          git add .github/raw-samples.txt && git commit -qm "RAW test: $(wc -l < /tmp/ok.txt) approved new sample(s)" && git pull -q --rebase && git push -q
+          gh workflow run rawtest.yml -R "$GITHUB_REPOSITORY" --ref main
+      - name: Close the question
+        if: inputs.issue != ''
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: gh issue close "${{ inputs.issue }}" -R "$GITHUB_REPOSITORY" -c "Added to the RAW test and our own copy of the samples; the RAW test is running." || true

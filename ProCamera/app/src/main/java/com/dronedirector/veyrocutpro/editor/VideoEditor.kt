@@ -4657,7 +4657,10 @@ class MixerHooks(
 @Composable
 private fun LoudnessMeter(playing: Boolean) {
     var m by remember { mutableStateOf(-70f) }; var st by remember { mutableStateOf(-70f) }; var i by remember { mutableStateOf(-70f) }
-    LaunchedEffect(playing) { while (true) { m = AudioMeter.momentary; st = AudioMeter.shortTerm; i = AudioMeter.integrated; if (!playing) { AudioMeter.momentary = -70f } ; delay(200) } }
+    LaunchedEffect(playing) {
+        while (playing) { m = AudioMeter.momentary; st = AudioMeter.shortTerm; i = AudioMeter.integrated; delay(200) }
+        AudioMeter.momentary = -70f; m = -70f; st = AudioMeter.shortTerm; i = AudioMeter.integrated
+    }
     fun f(v: Float) = if (v <= -69f) "—" else "%.1f".format(v)
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("LUFS", style = Pro.Label, modifier = Modifier.width(40.dp))
@@ -4676,7 +4679,8 @@ private fun LoudnessMeter(playing: Boolean) {
 @Composable
 private fun MixerSection(mx: MixerHooks, music: MusicTrack?, onMusic: (MusicTrack?) -> Unit, extra: List<MusicTrack>, onExtra: (String, MusicTrack?) -> Unit, playing: Boolean) {
     var tick by remember { mutableStateOf(0) }
-    LaunchedEffect(playing) { while (true) { tick++; delay(80) } }
+    // Meters move only while playing; when stopped they settle once (no constant redraws).
+    LaunchedEffect(playing) { while (playing) { tick++; delay(80) }; repeat(6) { tick++; delay(80) } }
     SectionTitle("MIXER", onReset = { mx.onDeliver(mx.deliver.copy(videoGain = 1f, videoPan = 0f, masterGain = 1f)); mx.onSolo(null) })
     @Composable
     fun Strip(id: String, name: String, level: Float, pan: Float, muted: Boolean, peak: Float, onLevel: (Float) -> Unit, onPan: (Float) -> Unit, onMute: (Boolean) -> Unit) {
@@ -4714,12 +4718,13 @@ private fun LevelMeter(playing: Boolean) {
     var l by remember { mutableStateOf(-60f) }
     var r by remember { mutableStateOf(-60f) }
     LaunchedEffect(playing) {
-        while (true) {
-            if (!playing) { AudioMeter.left *= 0.5f; AudioMeter.right *= 0.5f }
+        while (playing) {
             l = dbfs(AudioMeter.left); r = dbfs(AudioMeter.right)
             AudioMeter.left *= 0.8f; AudioMeter.right *= 0.8f
             delay(60)
         }
+        // Stopped: let the bars fall to silence, then stop redrawing.
+        repeat(12) { AudioMeter.left *= 0.5f; AudioMeter.right *= 0.5f; l = dbfs(AudioMeter.left); r = dbfs(AudioMeter.right); delay(60) }
     }
     SectionTitle("LEVELS")
     listOf("L" to l, "R" to r).forEach { (name, v) ->

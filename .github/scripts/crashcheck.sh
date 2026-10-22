@@ -48,6 +48,8 @@ adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:
 adb shell content call --uri content://media/external/file --method scan_volume --arg external_primary >/dev/null 2>&1 || true
 sleep 5
 adb logcat -c
+# Live log on the runner: kept even if the emulator dies.
+(adb logcat -v time > out/live-logcat.txt 2>&1 &)
 tapText() {  # tap the centre of the first on-screen element whose text contains $1
   adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
   adb shell cat /sdcard/ui.xml > ui.xml

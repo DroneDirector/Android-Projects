@@ -37,6 +37,8 @@ data class AudioFx(
     /** Repair on export: remove clicks / crackle, and take room echo down (0..1). */
     val declick: Boolean = false,
     val dereverb: Float = 0f,
+    /** Dialogue leveller (0..1): rides the level so quiet and loud speech come out even. */
+    val leveler: Float = 0f,
 ) {
     val isNeutral get() = this == AudioFx() || this == AudioFx(limiter = false)
 }
@@ -53,10 +55,39 @@ enum class AudioPreset(val label: String, val fx: AudioFx) {
     LOUD("Loud & punchy", AudioFx(low = 2f, high = 1.5f, compressor = 0.85f)),
 }
 
-/** Live peak levels (0..1) from the preview, for the meter. */
+/** Live peak levels (0..1) from the preview, for the meter, and loudness (LUFS, ITU-R BS.1770). */
 object AudioMeter {
     @Volatile var left = 0f
     @Volatile var right = 0f
+    /** Momentary (400 ms) and short-term (3 s) loudness, LUFS. */
+    @Volatile var momentary = -70f
+    @Volatile var shortTerm = -70f
+    /** Integrated loudness of what has played since [resetIntegrated] (gated as in EBU R128). */
+    @Volatile var integrated = -70f
+    private val blocks = java.util.ArrayList<Double>()
+    @Volatile private var resetAsked = false
+    fun resetIntegrated() { resetAsked = true }
+
+    /** Called with each 100 ms of K-weighted mean square (all channels summed). */
+    @Synchronized internal fun push(ms100: Double, history: ArrayDeque<Double>) {
+        if (resetAsked) { blocks.clear(); resetAsked = false }
+        history.addLast(ms100); while (history.size > 30) history.removeFirst()
+        fun l(z: Double) = (-0.691 + 10.0 * log10(z.coerceAtLeast(1e-12))).toFloat()
+        if (history.size >= 4) {
+            val m = history.takeLast(4).average()
+            momentary = l(m)
+            if (m > 1e-7) blocks += m
+        }
+        shortTerm = l(history.takeLast(30).average())
+        if (blocks.isNotEmpty()) {
+            val abs = blocks.filter { l(it) > -70f }
+            if (abs.isNotEmpty()) {
+                val rel = l(abs.average()) - 10f
+                val g = abs.filter { l(it) > rel }
+                if (g.isNotEmpty()) integrated = l(g.average())
+            }
+        }
+    }
 }
 
 private class Biquad {
@@ -126,6 +157,16 @@ class AudioFxProcessor(
     private val xIn: FadeIn? = null,
 ) : BaseAudioProcessor() {
     @Volatile var fx: AudioFx = initial
+    /** Mixer (preview): track × master gain and track pan, set from the mixer page. */
+    @Volatile var liveGain = 1f
+    @Volatile var livePan = 0f
+    /** This processor's own last peak level (0..1), for the mixer's track meters. */
+    @Volatile var peak = 0f
+    private var lev = 1.0; private var levRms = 0.0
+    // Loudness meter (K-weighting, two stages per channel) and its 100 ms accumulator.
+    private val kShelf = Biquad(); private val kHp = Biquad()
+    private var kSum = 0.0; private var kN = 0
+    private val kHist = ArrayDeque<Double>()
     private var built: AudioFx? = null
     private var builtRate = 0
     private val hp = Biquad(); private val ls = Biquad(); private val pk = Biquad(); private val hs = Biquad(); private val pres = Biquad()
@@ -145,6 +186,7 @@ class AudioFxProcessor(
         pk.peak(1000.0, r, f.mid.toDouble())
         hs.highShelf(8000.0, r, f.high.toDouble())
         pres.peak(3200.0, r, if (f.voice) 4.0 else 0.0, 1.2)
+        kShelf.highShelf(1500.0, r, 4.0); kHp.highPass(38.0, r, 0.5)
         built = f; builtRate = rate
     }
 
@@ -196,8 +238,16 @@ class AudioFxProcessor(
         val gateThr = 10.0.pow((-62.0 + f.gate * 30.0) / 20.0)
         val gateStep = 1.0 / (0.01 * rate)
         val duckStep = 1.0 / (0.25 * rate)
-        val panL = if (f.pan > 0) 1.0 - f.pan else 1.0
-        val panR = if (f.pan < 0) 1.0 + f.pan else 1.0
+        val pan = (f.pan + livePan).coerceIn(-1f, 1f)
+        val panL = if (pan > 0) 1.0 - pan else 1.0
+        val panR = if (pan < 0) 1.0 + pan else 1.0
+        val levOn = f.leveler > 0f
+        val levTarget = 10.0.pow(-20.0 / 20.0)            // speech at about −20 dBFS RMS
+        val levMax = 10.0.pow(12.0 * f.leveler / 20.0)    // up to +12 dB for quiet speech
+        val levMin = 10.0.pow(-9.0 * f.leveler / 20.0)    // down to −9 dB for loud parts
+        val rmsK = exp(-1.0 / (0.4 * rate))
+        val levK = exp(-1.0 / (0.6 * rate))
+        val block = (rate / 10).coerceAtLeast(1)
         var peakL = 0.0; var peakR = 0.0
         while (inputBuffer.remaining() >= 2 * ch) {
             for (c in 0 until ch) frame[c] = inputBuffer.short / 32768.0
@@ -212,7 +262,7 @@ class AudioFxProcessor(
                     AudioChannels.SWAP -> { frame[0] = r; frame[1] = l }
                 }
                 frame[0] *= panL; frame[1] *= panR
-            }
+            } else if (livePan != 0f && ch == 1) { /* mono: pan has no effect */ }
             // EQ
             for (c in 0 until ch) {
                 var x = frame[c]
@@ -227,7 +277,16 @@ class AudioFxProcessor(
             var lvl = 0.0
             for (c in 0 until ch) lvl = maxOf(lvl, abs(frame[c]))
             env = if (lvl > env) atk * env + (1 - atk) * lvl else rel * env + (1 - rel) * lvl
-            var g = gain.toDouble()
+            var g = gain.toDouble() * liveGain
+            // Dialogue leveller: slow RMS of the speech, gain towards the target (silence is left alone).
+            if (levOn) {
+                var sq = 0.0; for (c in 0 until ch) sq += frame[c] * frame[c]
+                levRms = rmsK * levRms + (1 - rmsK) * (sq / ch)
+                val rms = sqrt(levRms)
+                val want = if (rms < 0.003) 1.0 else (levTarget / rms).coerceIn(levMin, levMax)
+                lev = levK * lev + (1 - levK) * want
+                g *= lev
+            }
             if (f.gate > 0f) {
                 gateGain = if (env < gateThr) (gateGain - gateStep).coerceAtLeast(0.0) else (gateGain + gateStep * 4).coerceAtMost(1.0)
                 g *= gateGain
@@ -251,19 +310,22 @@ class AudioFxProcessor(
                 var y = frame[c] * g
                 if (f.limiter && abs(y) > 0.9) y = (if (y > 0) 1 else -1) * (0.9 + 0.1 * tanh((abs(y) - 0.9) / 0.1))
                 if (c == 0) peakL = maxOf(peakL, abs(y)) else if (c == 1) peakR = maxOf(peakR, abs(y))
+                if (meter && c < 2) { val k = kHp.process(kShelf.process(y, c), c); kSum += k * k }
                 out.putShort((y * 32767.0).toInt().coerceIn(-32768, 32767).toShort())
             }
+            if (meter) { kN++; if (kN >= block) { AudioMeter.push(kSum / kN, kHist); kSum = 0.0; kN = 0 } }
             frames++
         }
         while (inputBuffer.hasRemaining()) out.put(inputBuffer.get())
         out.flip()
+        peak = maxOf(peakL, peakR).toFloat().coerceAtMost(1f).let { maxOf(it, peak * 0.85f) }
         if (meter) {
             AudioMeter.left = maxOf(peakL.toFloat(), AudioMeter.left * 0.85f)
             AudioMeter.right = maxOf((if (ch >= 2) peakR else peakL).toFloat(), AudioMeter.right * 0.85f)
         }
     }
 
-    private fun clear() { frames = 0; env = 0.0; gateGain = 1.0; duck = 1.0; nr = null; vi?.release(); vi = null; dc = null; dr = null; nrDrop = 0; held = 0; flushing = false; listOf(hp, ls, pk, hs, pres).forEach { it.reset() } }
+    private fun clear() { lev = 1.0; levRms = 0.0; kSum = 0.0; kN = 0; kHist.clear(); kShelf.reset(); kHp.reset(); frames = 0; env = 0.0; gateGain = 1.0; duck = 1.0; nr = null; vi?.release(); vi = null; dc = null; dr = null; nrDrop = 0; held = 0; flushing = false; listOf(hp, ls, pk, hs, pres).forEach { it.reset() } }
     override fun onQueueEndOfStream() {
         // Push silence through so the last moment of sound comes out of the processors' delay.
         if (held > 0 && !flushing) {

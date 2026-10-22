@@ -284,6 +284,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     var trackingId by remember { mutableStateOf<String?>(null) }
     var trackStop by remember { mutableStateOf(false) }
     var deliver by remember { mutableStateOf(initial?.deliver ?: DeliverSettings()) }
+    /** Mixer: the one track being listened to alone (preview only), or null. */
+    var soloTrack by remember { mutableStateOf<String?>(null) }
     // An opened autosave is a copy: SAVE asks for a name instead of overwriting it.
     var projectId by remember { mutableStateOf(initial?.id?.takeIf { initial.autosave != true }) }
     var projectName by remember { mutableStateOf(initial?.name ?: "") }
@@ -386,6 +388,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     val audioPlayers = remember { HashMap<String, ExoPlayer>() }
+    /** Each extra audio track's live processor (its EQ / dynamics, mixer level and meter). */
+    val extraFx = remember { HashMap<String, AudioFxProcessor>() }
     // Real waveforms for clips and audio tracks (decoded once in the background).
     val waves = remember { mutableStateMapOf<String, FloatArray>() }
     LaunchedEffect(clips.map { it.uri }.distinct(), music?.uri, extraAudio.map { it.uri }) {
@@ -1161,14 +1165,23 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             delay(500)
         }
     }
+    // Mixer → preview: track and master levels, track pan, solo.
+    LaunchedEffect(deliver.videoGain, deliver.videoPan, deliver.masterGain, soloTrack, extraAudio.toList(), music) {
+        fun solo(id: String) = if (soloTrack != null && soloTrack != id) 0f else 1f
+        audioFx.forEach { it.liveGain = deliver.videoGain * deliver.masterGain * solo("video"); it.livePan = deliver.videoPan }
+        musicFxProc.liveGain = deliver.masterGain * solo("music")
+        extraFx.forEach { (id, p) -> p.liveGain = deliver.masterGain * solo(id) }
+    }
     // Extra audio tracks follow the timeline too.
     LaunchedEffect(playing, extraAudio.toList(), previewMuted) {
         // Players for new tracks; drop players of removed tracks.
         val ids = extraAudio.map { it.id }.toSet()
-        audioPlayers.keys.filter { it !in ids }.forEach { audioPlayers.remove(it)?.release() }
+        audioPlayers.keys.filter { it !in ids }.forEach { audioPlayers.remove(it)?.release(); extraFx.remove(it) }
         for (t in extraAudio) audioPlayers.getOrPut(t.id) {
-            ExoPlayer.Builder(context).build().apply { setMediaItem(MediaItem.fromUri(t.uri)); prepare() }
+            val fx = AudioFxProcessor(t.fx, live = true).also { extraFx[t.id] = it }
+            fxPlayer(context, fx).apply { setMediaItem(MediaItem.fromUri(t.uri)); prepare() }
         }
+        for (t in extraAudio) extraFx[t.id]?.fx = t.fx
         if (!playing) { audioPlayers.values.forEach { it.pause() }; return@LaunchedEffect }
         while (true) {
             val before = clipStarts(clips).getOrNull(current) ?: 0L
@@ -3393,6 +3406,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             Page.AUDIO -> Column {
                                 AudioPage(
                                 sc, deliver, music, playing,
+                                mixer = MixerHooks(
+                                    deliver, { deliver = it }, videoMuted, { videoMuted = it }, soloTrack, { soloTrack = it },
+                                    { audioFx.maxOf { it.peak } }, { musicFxProc.peak }, { id -> extraFx[id]?.peak ?: 0f },
+                                ),
                                 onTts = { t, v, sp -> makeTts(t, v, sp) }, ttsProgress = wx.ttsProgress, ttsStatus = wx.ttsStatus, onStopTts = { wx.ttsJob?.cancel(); wx.ttsJob = null; wx.ttsProgress = null; wx.ttsStatus = null },
                                 onChange = { f -> update(selected, f) },
                                 onPickMusic = { pickMusic.launch(arrayOf("audio/*")) },
@@ -4350,8 +4367,11 @@ private fun AudioPage(
     posInClip: Long = 0L, recording: Boolean = false, recordMs: Long = 0L, onVoice: () -> Unit = {}, onBeats: (MusicTrack) -> Unit = {},
     onSync: (MusicTrack) -> Unit = {},
     onTts: (String, Voiceover.Voice, Float) -> Unit = { _, _, _ -> }, ttsProgress: Int? = null, ttsStatus: String? = null, onStopTts: () -> Unit = {},
+    mixer: MixerHooks? = null,
 ) {
     LevelMeter(playing)
+    LoudnessMeter(playing)
+    if (mixer != null) MixerSection(mixer, music, onMusic, extra, onExtra, playing)
     SectionTitle("AI VOICEOVER FROM TEXT")
     val previewScope = androidx.compose.runtime.rememberCoroutineScope()
     val previewCtx = androidx.compose.ui.platform.LocalContext.current
@@ -4502,7 +4522,9 @@ private fun AudioPage(
         AudioSwitch("Low cut (80 Hz)", "Removes wind rumble and handling noise", fx.lowCut) { b -> setFx { it.copy(lowCut = b) } }
         AudioSwitch("Voice enhance", "Clearer speech: trims boom, lifts presence", fx.voice) { b -> setFx { it.copy(voice = b) } }
 
-        SectionTitle("DYNAMICS", onReset = { setFx { it.copy(compressor = 0f, gate = 0f, limiter = true) } })
+        SectionTitle("DYNAMICS", onReset = { setFx { it.copy(compressor = 0f, gate = 0f, limiter = true, leveler = 0f) } })
+        EdSlider("Dialogue leveller", fx.leveler, 0f..1f, 0f, ::pct) { v -> setFx { it.copy(leveler = v) } }
+        Text("Rides the level of speech: quiet words come up, loud ones go down, so the whole clip sounds even. Pauses are left alone.", color = Pro.Dim, fontSize = 11.sp)
         EdSlider("Compressor", fx.compressor, 0f..1f, 0f, ::pct) { v -> setFx { it.copy(compressor = v) } }
         Text("Evens out loud and quiet parts and adds make-up gain.", color = Pro.Dim, fontSize = 11.sp)
         EdSlider("Noise gate", fx.gate, 0f..1f, 0f, { if (it <= 0f) "Off" else "%.0f dB".format(-62f + it * 30f) }) { v -> setFx { it.copy(gate = v) } }
@@ -4551,6 +4573,69 @@ private fun AudioSwitch(title: String, detail: String, on: Boolean, onChange: (B
             colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
         )
     }
+}
+
+/** What the mixer needs from the editor. */
+class MixerHooks(
+    val deliver: DeliverSettings, val onDeliver: (DeliverSettings) -> Unit,
+    val videoMuted: Boolean, val onVideoMuted: (Boolean) -> Unit,
+    val solo: String?, val onSolo: (String?) -> Unit,
+    val videoPeak: () -> Float, val musicPeak: () -> Float, val extraPeak: (String) -> Float,
+)
+
+/** Live loudness (LUFS) of the preview: momentary, short-term and integrated since RESET. */
+@Composable
+private fun LoudnessMeter(playing: Boolean) {
+    var m by remember { mutableStateOf(-70f) }; var st by remember { mutableStateOf(-70f) }; var i by remember { mutableStateOf(-70f) }
+    LaunchedEffect(playing) { while (true) { m = AudioMeter.momentary; st = AudioMeter.shortTerm; i = AudioMeter.integrated; if (!playing) { AudioMeter.momentary = -70f } ; delay(200) } }
+    fun f(v: Float) = if (v <= -69f) "—" else "%.1f".format(v)
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("LUFS", style = Pro.Label, modifier = Modifier.width(40.dp))
+        listOf("M" to m, "S" to st, "I" to i).forEach { (k, v) ->
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(k, style = Pro.Label.copy(color = Pro.Dim))
+                Text(f(v), style = Pro.Value.copy(fontSize = 13.sp, color = if (v > -9f) Color(0xFFFF3B30) else if (v in -16f..-12f) Color(0xFF34C759) else Color.White))
+            }
+        }
+        Text("RESET", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { AudioMeter.resetIntegrated(); AudioMeter.integrated = -70f }.padding(6.dp))
+    }
+    Text("Momentary, short-term and integrated loudness of what plays (play the whole edit for the integrated value). Targets: YouTube / Spotify −14, Apple −16, broadcast −23 — Deliver → LOUDNESS sets the export to one.", color = Pro.Dim, fontSize = 11.sp)
+}
+
+/** Mixer: every track with a live meter, level, pan, mute and solo, and the master level. */
+@Composable
+private fun MixerSection(mx: MixerHooks, music: MusicTrack?, onMusic: (MusicTrack?) -> Unit, extra: List<MusicTrack>, onExtra: (String, MusicTrack?) -> Unit, playing: Boolean) {
+    var tick by remember { mutableStateOf(0) }
+    LaunchedEffect(playing) { while (true) { tick++; delay(80) } }
+    SectionTitle("MIXER", onReset = { mx.onDeliver(mx.deliver.copy(videoGain = 1f, videoPan = 0f, masterGain = 1f)); mx.onSolo(null) })
+    @Composable
+    fun Strip(id: String, name: String, level: Float, pan: Float, muted: Boolean, peak: Float, onLevel: (Float) -> Unit, onPan: (Float) -> Unit, onMute: (Boolean) -> Unit) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(10.dp)).background(Ed.Raised).padding(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(name, color = Color.White, fontSize = 13.sp, maxLines = 1, modifier = Modifier.weight(1f))
+                val solo = mx.solo == id
+                Text("S", style = Pro.Label.copy(color = if (solo) Color.Black else Color.White), modifier = Modifier.padding(start = 6.dp).clip(RoundedCornerShape(6.dp)).background(if (solo) Color(0xFFFFCC00) else Color.White.copy(alpha = 0.1f)).clickable { mx.onSolo(if (solo) null else id) }.padding(horizontal = 10.dp, vertical = 5.dp))
+                Text("M", style = Pro.Label.copy(color = if (muted) Color.Black else Color.White), modifier = Modifier.padding(start = 6.dp).clip(RoundedCornerShape(6.dp)).background(if (muted) Color(0xFFFF3B30) else Color.White.copy(alpha = 0.1f)).clickable { onMute(!muted) }.padding(horizontal = 10.dp, vertical = 5.dp))
+            }
+            // Live meter of this track.
+            androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color.White.copy(alpha = 0.08f))) {
+                @Suppress("UNUSED_EXPRESSION") tick
+                val k = ((dbfs(peak) + 60f) / 60f).coerceIn(0f, 1f)
+                drawRect(androidx.compose.ui.graphics.Brush.horizontalGradient(0f to Color(0xFF34C759), 0.75f to Color(0xFFFFCC00), 0.95f to Color(0xFFFF3B30)), size = androidx.compose.ui.geometry.Size(size.width * k, size.height))
+            }
+            EdSlider("Level", level, 0f..2f, 1f, { if (it <= 0.001f) "−∞" else "%+.1f dB".format(20 * kotlin.math.log10(it)) }, onLevel)
+            EdSlider("Pan", pan, -1f..1f, 0f, { if (it < -0.01f) "L ${(-it * 100).toInt()}" else if (it > 0.01f) "R ${(it * 100).toInt()}" else "Centre" }, onPan)
+        }
+    }
+    val d = mx.deliver
+    Strip("video", "Video track (clip sound)", d.videoGain, d.videoPan, mx.videoMuted, mx.videoPeak(), { mx.onDeliver(d.copy(videoGain = it)) }, { mx.onDeliver(d.copy(videoPan = it)) }, mx.onVideoMuted)
+    music?.let { m -> Strip("music", "Music · ${m.name}", m.volume / 0.8f, m.fx.pan, m.muted, mx.musicPeak(), { onMusic(m.copy(volume = it * 0.8f)) }, { onMusic(m.copy(fx = m.fx.copy(pan = it))) }, { onMusic(m.copy(muted = it)) }) }
+    extra.forEach { t -> Strip(t.id, t.name, t.volume / 0.8f, t.fx.pan, t.muted, mx.extraPeak(t.id), { onExtra(t.id, t.copy(volume = it * 0.8f)) }, { onExtra(t.id, t.copy(fx = t.fx.copy(pan = it))) }, { onExtra(t.id, t.copy(muted = it)) }) }
+    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(10.dp)).background(Pro.Amber.copy(alpha = 0.12f)).padding(8.dp)) {
+        Text("MASTER", style = Pro.Label.copy(color = Pro.Amber))
+        EdSlider("Master level", d.masterGain, 0f..2f, 1f, { if (it <= 0.001f) "−∞" else "%+.1f dB".format(20 * kotlin.math.log10(it)) }) { mx.onDeliver(d.copy(masterGain = it)) }
+    }
+    Text("Levels, pan and mute go into the export; solo (S) is for listening only. Level 0 dB = as recorded; the limiter keeps boosted tracks from clipping.", color = Pro.Dim, fontSize = 11.sp)
 }
 
 /** Live L/R peak meter of the preview (after the clip's audio processing). */

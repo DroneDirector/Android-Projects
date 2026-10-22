@@ -155,6 +155,10 @@ data class DeliverSettings(
     val keepHdr: Boolean = false,
     /** Audio-only file format (null = AAC .m4a). */
     val audioFormat: AudioExportFormat? = null,
+    /** Mixer: the video track's level and pan, and the master level (1 = unchanged). */
+    val videoGain: Float = 1f,
+    val videoPan: Float = 0f,
+    val masterGain: Float = 1f,
 ) {
     val audioFmt: AudioExportFormat get() = audioFormat?.takeIf { it.available } ?: AudioExportFormat.M4A
 }
@@ -304,13 +308,13 @@ class TimelineExport(
                 )
                 .build()
             val audio = mutableListOf<AudioProcessor>()
-            val gain = if (c.muted) 0f else c.volume
+            val gain = if (c.muted) 0f else c.volume * settings.videoGain * settings.masterGain
             // Audio transitions (Transitions → Audio) shape the sound at each cut.
             val inMs = if (i > 0) overlaps[i - 1] else 0L
             val outMs = overlaps[i]
             val xIn = if (i > 0) AudioXfade.forCut(clips, i - 1).second?.scaled(c.speed) else null
             val xOut = AudioXfade.forCut(clips, i).first?.scaled(c.speed)
-            val afx = c.audio
+            val afx = if (settings.videoPan != 0f) c.audio.copy(pan = (c.audio.pan + settings.videoPan).coerceIn(-1f, 1f)) else c.audio
             if (gain != 1f || !afx.isNeutral || !c.volKeys.isNullOrEmpty() || xIn != null || xOut != null) {
                 audio += AudioFxProcessor(afx, gain, c.endMs - c.startMs, envelope = c.volKeys, xOut = xOut, xIn = xIn)
             }
@@ -472,7 +476,7 @@ class TimelineExport(
                 .setRemoveVideo(true)
                 .setEffects(Effects(listOf(
                     AudioFxProcessor(
-                        m.fx.copy(fadeInMs = m.fadeInMs, fadeOutMs = m.fadeOutMs), m.volume, len,
+                        m.fx.copy(fadeInMs = m.fadeInMs, fadeOutMs = m.fadeOutMs), m.volume * settings.masterGain, len,
                         duckRanges = ducks, duckGain = 1f - m.duck,
                     )
                 ), emptyList()))
@@ -498,7 +502,7 @@ class TimelineExport(
                     .build()
             )
                 .setRemoveVideo(true)
-                .setEffects(Effects(listOf(AudioFxProcessor(AudioFx(), snd.volume, len)), emptyList()))
+                .setEffects(Effects(listOf(AudioFxProcessor(AudioFx(), snd.volume * settings.masterGain, len)), emptyList()))
                 .build()
             val seq = EditedMediaItemSequence.Builder(setOf(androidx.media3.common.C.TRACK_TYPE_AUDIO))
             if (at > 0) seq.addGap(at * 1000)

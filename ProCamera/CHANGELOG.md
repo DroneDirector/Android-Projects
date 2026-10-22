@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.445 — 2026-10-22
 - Capture: **24-bit audio** and **Extreme bitrate** are only offered on phones strong enough for them (memory, processor, graphics and video encoder are checked); on others they're greyed out with a short note.
 - Capture: **teleprompter** — type your text, style it (bold, italic, underline, narrow, alignment, size, text and background colours), let it scroll by itself (**AUTO-SCROLL** button and **speed slider** right on the teleprompter) or start scrolling with the recording — upwards by default, or sideways as one line (⇅ / ⇆); drag it anywhere, resize it, shrink it to a small bar or close it. Opens by itself with the selfie camera, and works with the back camera too (PROMPTER in the quick bar).
 

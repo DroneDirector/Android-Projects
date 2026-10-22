@@ -13,6 +13,9 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
 import kotlin.math.abs
+import kotlin.math.exp
+import kotlin.math.ln
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /**
@@ -62,6 +65,22 @@ class RawSamplesTest {
         out.outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 85, it) }
     }
 
+    private fun group(make: String, path: String): String {
+        val mk = make.lowercase().ifBlank { path.substringBefore('/').lowercase() }
+        return when {
+            mk.startsWith("google") -> "Pixel"
+            mk.startsWith("samsung") -> "Galaxy"
+            mk.startsWith("apple") -> "iPhone"
+            mk.startsWith("huawei") -> "Huawei"
+            mk.startsWith("xiaomi") -> "Xiaomi"
+            mk.startsWith("oneplus") -> "OnePlus"
+            mk.startsWith("lg") -> "LG"
+            mk.startsWith("motorola") || mk.startsWith("moto") -> "Motorola"
+            mk.startsWith("dji") || path.startsWith("DJI/") || path.startsWith("Hasselblad/L") -> "DJI"
+            else -> mk.substringBefore(' ').replaceFirstChar { it.uppercase() }
+        }
+    }
+
     @Test
     fun developEverySample() {
         val dir = System.getProperty("rawSamples").orEmpty()
@@ -71,6 +90,7 @@ class RawSamplesTest {
         println("LibRaw available: ${LibRawBridge.available}")
         val files = File(dir).walkTopDown().filter { it.isFile && (it.extension.lowercase() == "dng" || it.extension.lowercase() in LibRawBridge.EXTENSIONS) }.sortedBy { it.path }.toList()
         val rows = ArrayList<String>(); val fails = ArrayList<String>()
+        val fits = LinkedHashMap<String, MutableList<Pair<IntArray, Float>>>()
         for (f in files) {
             val name = f.relativeTo(File(dir)).path
             val t0 = System.currentTimeMillis()
@@ -95,6 +115,11 @@ class RawSamplesTest {
                     if (abs(a.lum - b.lum) > 0.18) notes += "brightness %.2f vs camera %.2f".format(a.lum, b.lum)
                     if (abs(a.rg - b.rg) > 0.18 || abs(a.bg - b.bg) > 0.18) notes += "colour cast r/g %.2f vs %.2f, b/g %.2f vs %.2f".format(a.rg, b.rg, a.bg, b.bg)
                     sideBySide(emb, dev, File(reportDir, name.replace('/', '_').replace(' ', '_') + ".jpg"))
+                    // How this camera renders its own picture, compared with the app's default develop.
+                    try {
+                        val (lut, sat) = RawDng.fitTone(dev, emb)
+                        fits.getOrPut(group(m.make, name)) { ArrayList() } += lut to sat
+                    } catch (_: Throwable) {}
                 } else notes += "no camera preview to compare with"
                 if (status == "OK" && notes.any { !it.startsWith("no camera") && !it.startsWith("shape") }) status = "WARN"
                 if (status == "FAIL") fails += name
@@ -116,6 +141,15 @@ class RawSamplesTest {
             appendLine("| Result | File | Camera | Size | Time | Notes |")
             appendLine("|---|---|---|---|---|---|")
             rows.forEach { appendLine(it) }
+        })
+        // Average look per maker: 17-point tone curve (input 0, 16 … 256) and colour strength.
+        File(reportDir, "looks.tsv").writeText(buildString {
+            appendLine("group\tfiles\tsat\tcurve(0,16..255)")
+            for ((g, l) in fits.toSortedMap()) {
+                val pts = (0..16).map { k -> val v = (k * 16).coerceAtMost(255); l.map { it.first[v] }.average().roundToInt() }
+                val sat = exp(l.map { ln(it.second.toDouble()) }.average())
+                appendLine("$g\t${l.size}\t${"%.3f".format(sat)}\t${pts.joinToString(",")}")
+            }
         })
         println(File(reportDir, "README.md").readText())
         assert(fails.isEmpty()) { "RAW files that failed: " + fails.joinToString() }

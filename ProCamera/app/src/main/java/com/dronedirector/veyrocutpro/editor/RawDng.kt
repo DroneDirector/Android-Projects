@@ -1335,6 +1335,17 @@ object RawDng {
         val lin = m.matchLin ?: try { preview(ctx, m, 512); m.matchLin } catch (_: Throwable) { null } ?: return ident
         val cam = embedded(ctx, m.uri, 200)?.bitmap ?: return ident.also { m.camLut = it }
         val ours = develop(lin, m, Dev(), 0f, 0f, 0f, 0f, 0f, 0f, 0f)
+        val (lut, sat) = fitTone(ours, cam)
+        m.camSat = sat
+        m.camLut = lut
+        return lut
+    }
+
+    /**
+     * The tone curve (8-bit in → out, from luminance histogram matching) and colour strength that
+     * turn [ours] into the look of [cam] — the camera's own picture of the same scene.
+     */
+    internal fun fitTone(ours: Bitmap, cam: Bitmap): Pair<IntArray, Float> {
         fun stats(b: Bitmap): Pair<DoubleArray, Double> {
             val px = IntArray(b.width * b.height); b.getPixels(px, 0, b.width, 0, 0, b.width, b.height)
             val hist = DoubleArray(256); var chroma = 0.0; var n = 0
@@ -1361,9 +1372,8 @@ object RawDng {
             if (v == 255) x = max(x, 250.0)
             lut[v] = x.roundToInt().coerceIn(0, 255); prev = x
         }
-        m.camSat = if (co > 1e-3 && cc > 1e-3) (cc / co).toFloat().coerceIn(0.7f, 1.6f) else 1f
-        m.camLut = lut
-        return lut
+        val sat = if (co > 1e-3 && cc > 1e-3) (cc / co).toFloat().coerceIn(0.7f, 1.6f) else 1f
+        return lut to sat
     }
 
     /** Median brightness (linear light) of a picture. */

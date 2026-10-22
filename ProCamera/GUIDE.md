@@ -173,6 +173,12 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - History panel: tap any step to go back to it; + SAVE SNAPSHOT keeps a version you can return to while the photo is open.
 - Masks → Colour range / Brightness range: tap the photo to pick a colour or brightness; only those parts are changed (e.g. only the blue sky, only the highlights). Range and Softness fine-tune it.
 - Panels icon (next to the settings gear): hide or show the tools panel, copy / paste bar, histogram and before / after buttons — the photo grows into the space and shrinks back when a panel returns. Presets: Full, View, Edit, Color. Triple-tap the icon to reset the whole layout.
+- Light → CAMERA PROFILE (.dcp): IMPORT .DCP to use a DNG camera profile (e.g. one made with a colour chart) instead of the RAW file's own colour. Only profiles for this camera are listed; File's own goes back.
+- Export → Printer profile (.icc): import the ICC profile for your printer and paper to soft-proof — the screen shows the photo as it will print. Perceptual or Relative colorimetric; Paper white & ink black shows the paper's own white.
+- Merge photos → Noise stack (2–8 shots averaged for a clean picture), Remove passers-by (3–8 shots from the same spot; what moves is taken out) and Super resolution (4–8 hand-held shots → twice the width and height).
+- Export → Export recipe: tick several presets (e.g. Web + Print + Archive), then EXPORT WITH N PRESETS saves the photo once per preset, each with its own size, format and file name.
+- Crop → GUIDES: Thirds, Golden ratio, Golden spiral, Golden triangles, Diagonals or Grid over the photo while cropping; TURN ↻ flips the spiral and triangles. Only on screen.
+- Library → select photos → Contact sheet PDF: the photos as a grid on A4 or Letter pages (3–6 per row) with file names, stars and flags — for print or to send.
 - Hold your finger on the photo to see the original.
 - Masks → Subject (AI) / Sky (AI) select the subject or the sky for you (on the phone, or more precisely with Cloud AI).
 - Effects → BACKGROUND (AI): FIND SUBJECT, then blur the background (portrait look), remove it (transparent PNG) or fill it with a colour.

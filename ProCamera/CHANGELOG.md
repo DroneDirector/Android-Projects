@@ -4,6 +4,11 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor → Light: **camera profiles (.dcp)** — import DNG camera profiles and use one instead of the RAW file's own colour.
+- Photo editor → Export: **soft proof with your printer's ICC profile** (perceptual / relative colorimetric, paper white), and **export recipes** — several presets in one go.
+- Photo editor → Merge photos: **Noise stack**, **Remove passers-by** and **Super resolution** (2× from hand-held shots).
+- Photo editor → Crop: **composition guides** — thirds, golden ratio, golden spiral, golden triangles, diagonals, grid.
+- Library: **contact sheet PDF** of the selected photos.
 
 ## 1.0.453 — 2026-10-22
 - Video editor → Audio: **mixer** — a strip per track (clip sound, music, extra tracks) with live meter, level, pan, mute and solo, plus a master level; levels, pan and mute go into the export.

@@ -158,3 +158,135 @@ XIAOYI/YI 4K/YDXJ0026.DNG
 XIAOYI/YIAC 3/YIAC0075.DNG
 XIAOYI/YDXJ 2/ydxj0065.dng
 YI TECHNOLOGY/M1/PC070001.DNG
+# Older cameras and phones (before about 2015) and extra files of models already tested
+Adobe DNG Converter/Canon EOS 5D Mark III/5G4A9395-compressed-lossless.DNG
+Adobe DNG Converter/Canon EOS 5D Mark III/5G4A9395-compressed-lossy.DNG
+Adobe DNG Converter/Canon EOS 5D Mark III/5G4A9395-uncompressed.DNG
+Apple/iPhone 6s Plus/IMG_0853.DNG
+Blackmagic/Blackmagic Pocket Cinema Camera 4k/BMPCC_4k_DCI_3-1.dng
+Blackmagic/Blackmagic Pocket Cinema Camera 4k/BMPCC_4k_DCI_4-1.dng
+Blackmagic/Blackmagic Pocket Cinema Camera 4k/BMPCC_4k_DCI_lossless.dng
+Blackmagic/Blackmagic Pocket Cinema Camera 4k/BMPCC_4k_DCI_uncompressed.dng
+Blackmagic/Micro Cinema Camera/CAM1_2000-01-01_1707_C0003_000100.dng
+Blackmagic/Pocket Cinema Camera/Blackmagic_Pocket_Cinema_Camera_1_2016-09-17_0053_C0022_000007.dng
+Blackmagic/URSA 4K/Blackmagic URSA_1_1999-12-31_2153_C0003_000001.dng
+Canon/Canon DIGITAL IXUS 60/CRW_2069.DNG
+Canon/Canon DIGITAL IXUS 95 IS/CRW_2593_01.DNG
+Canon/Canon PowerShot A410/CANON_A410_CHDK_CRW_0741.DNG
+Canon/Canon PowerShot A480/CRW_0010.DNG
+Canon/Canon PowerShot A540/CANON_A540_CHDK_CRW_0010.DNG
+Canon/Canon PowerShot A550/CRW_0006.DNG
+Canon/Canon PowerShot A560/IMG_2641.DNG
+Canon/Canon PowerShot A570 IS/CRW_1918.DNG
+Canon/Canon PowerShot A640/CRW_0440.DNG
+Canon/Canon PowerShot A3100 IS/CRW_3338.DNG
+Canon/Canon PowerShot A3300 IS/CRW_1140.DNG
+Canon/Canon PowerShot D10/CANON_D10_CHDK_CRW_0626.DNG
+Canon/Canon PowerShot ELPH 130 IS/CANON_IXUS140_ELPH130_CHDK_CRW_5645.DNG
+Canon/Canon PowerShot ELPH 160/RAW_CANON_POWERSHOT_IXUS160_CHDK.DNG
+Canon/Canon PowerShot ELPH 180/CRW_0334.DNG
+Canon/Canon PowerShot ELPH 310 HS/CRW_9720.DNG
+Canon/Canon PowerShot S2 IS/IMG_1739.DNG
+Canon/Canon PowerShot S3IS/CRW_8531.DNG
+Canon/EOS-1D X/CROPGX2R4019-topaz-denoiseraw.dng
+Canon/EOS 5D Mark III/compress.dng
+Canon/EOS 5D Mark III/hdrmerge-bayer-fp16-uncompressed.dng
+Canon/EOS 5D Mark III/hdrmerge-bayer-fp16-w-pred-deflate.dng
+Canon/EOS 5D Mark III/hdrmerge-bayer-fp24-uncompressed.dng
+Canon/EOS 5D Mark III/hdrmerge-bayer-fp24-w-pred-deflate.dng
+Canon/EOS 5D Mark III/hdrmerge-bayer-fp32-uncompressed.dng
+Canon/EOS 5D Mark III/hdrmerge-bayer-fp32-w-pred-deflate.dng
+Canon/EOS 5D Mark III/M24-1221_000202.dng
+Canon/EOS 60D/M14-1451_000085_cDNG_compressed.dng
+Canon/IXY 220F/canon_ixy_220f.DNG
+Canon/PowerShot A720 IS/IMG_8329.DNG
+Canon/PowerShot A3200 IS/RAW_CANON_POWERSHOT_A3200IS_CHDK.DNG
+Canon/PowerShot G1 X/CRW_0004.DNG
+Canon/PowerShot S100/CRW_1369.DNG
+Canon/PowerShot SD450/RAW_CANON_POWERSHOT_SD450_CHDK_V0.9.7-725.DNG
+Canon/PowerShot SX10 IS/CRW_1627.DNG
+Canon/PowerShot SX20 IS/CRW_6489.DNG
+Canon/PowerShot SX30 IS/CRW_0763.DNG
+Canon/PowerShot SX40 HS/CRW_6037.DNG
+Canon/PowerShot SX50 HS/CRW_4061.DNG
+Canon/PowerShot SX100 IS/CRW_0964_01.DNG
+Canon/PowerShot SX130 IS/CRW_8815.DNG
+Canon/PowerShot SX160 IS/CANON_SX160IS_CHDK_CRW_5152.DNG
+Canon/PowerShot SX220 HS/CRW_7733.DNG
+Canon/PowerShot SX230 HS/CRW_5894.DNG
+Canon/PowerShot SX240 HS/CRW_5797.DNG
+Canon/PowerShot SX260 HS/CRW_3027.DNG
+Canon/PowerShot SX510 HS/RAW_CANON_POWERSHOT_SX510HS.DNG
+Canon/PowerShot SX530 HS/CRW_4494.DNG
+Eyedeas/E1/EYED0651.DNG
+Fujifilm/X100S/fujifilm-x100s-daylight-DSCF9505.dng
+HUAWEI/EML-L29/IMG_20190507_233457.dng
+HUAWEI/EVA-AL00/IMG_20171015_200142.dng
+KanDao/QooCam/KDRaw_Q360_20190310_125715_000001.dng
+KanDao/QooCam/Q360_20190310_123437_000001.DNG
+Leica/M (Typ 240)/ADG_RPUsubmit_uncompressed_L1006374.DNG
+Leica/M8/L1030132.DNG
+Leica/M9 Digital Camera/L1049391.DNG
+Leica/M9/L1049390.DNG
+Leica/M Monochrom/L1000622.DNG
+Leica/X2/L1021324.DNG
+LG/D855/IMG_2017_07_16_13_10_47.dng
+LG/LG-F800K/20171028_174609.dng
+LG/VS995/0313171232.dng
+motorola/Nexus 6/DSC_0017.DNG
+Nikon/D80/DSC_0143.dng
+Nikon/LS-5000/F014-07.dng
+Nokia/Lumia 930/WP_20180612_19_16_03_Raw__highres.dng
+Nokia/Lumia 1020/RAW_NOKIA_LUMIA_1020.DNG
+OnePlus/One/IMG_20150729_201116.dng
+Panasonic/DMC-LX1/P1080763.dng
+Pentax/645D/645D2839.DNG
+Pentax/K-01/_IGP2068.DNG
+Pentax/K-1 Mark II/_IMG2390.DNG
+Pentax/K-1 Mark II/_K1I9779.DNG
+Pentax/K-1 Mark II/_K1I9783.DNG
+Pentax/K-1 Mark II/_K1I9784.DNG
+Pentax/K-1 Mark II/_K1I9786.DNG
+Pentax/K-1/IMGP8555.DNG
+Pentax/K-3 II/IMGP0668.DNG
+Pentax/K-3/IMGP6916.DNG
+Pentax/K-5 II/IMGP2032.DNG
+Pentax/K-5 II s/_JAK3776.DNG
+Pentax/K-5/_MAR0543.DNG
+Pentax/K-7/IMGP6297.DNG
+Pentax/K-30/_IGP4042.DNG
+Pentax/K-50/IMGP1385.DNG
+Pentax/K-70/IMGP6855.DNG
+Pentax/K-500/Pentax_-_K-500.DNG
+Pentax/K-S1/IMGP4743.DNG
+Pentax/K-x/IMGP6431.DNG
+Pentax/K10D/IMGP5398.DNG
+Pentax/K20D/RAW_Pentax_K20.DNG
+Pentax/K200D/IMGP2292.DNG
+Pentax/MX-1/pentax_mx1_raw2.dng
+PENTAX/PENTAX K-r/IMGP4425.DNG
+Pentax/Q/IMGP0647.DNG
+Pentax/Q7/IMGP1691.DNG
+Plustek/OpticFilm 8100/SF8_processed_-_Mon_Jun_17_19-45-39_2019.dng
+Plustek/OpticFilm 8200i SE/AristaUltra_400_Test1.dng
+RaspberryPi/RP_imx477/pi_hq_picamera.dng
+RaspberryPi/RP_imx477/pi_hq_raspistill.dng
+Ricoh/GR/R0003611.DNG
+Ricoh/GR DIGITAL 2/RAW_RICOH_GR2.DNG
+RICOH/GXR/R0017428.DNG
+RICOH/RICOH GX200/R0014336-20180515-ss620-ap4.6-fl5-iso64.DNG
+Samsung/Galaxy S23 Ultra/20231214_130645.dng
+Samsung/Galaxy S23/20230715_154550.dng
+Samsung/GX10/_G107701.DNG
+Samsung/GX20/_G205027.DNG
+Samsung/SAMSUNG-SM-G930A/20180105_103031.dng
+Samsung/SM-G930T/20180602_132834.dng
+Samsung/SM-G950U/20170828_141409.dng
+Samsung/SM-G973U/20200402_181931.dng
+Sigma/fp/A002_648_20240229_000001_4k_10bit.DNG
+Sigma/fp/A002_650_20240229_000001_4k_8bit.DNG
+Sigma/fp/A002_651_20240229_000001_2k_12bit.DNG
+Sigma/fp/A002_652_20240229_000001_2k_10bit.DNG
+Sigma/fp/A002_653_20240229_000001_2k_8bit.DNG
+Sigma/fp/SDIM4591.DNG
+Xiaomi/HM NOTE 1LTE/IMG_2016.07.31_15.48.08.dng

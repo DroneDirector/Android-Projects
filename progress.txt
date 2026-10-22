@@ -1,6 +1,6 @@
-done=3
+done=4
 total=6
-percent=50
-now=stop motion
-elapsed_s=775
-updated=2026-10-22T18:49:14Z
+percent=66
+now=camera RAW (LibRaw)
+elapsed_s=939
+updated=2026-10-22T18:51:58Z

@@ -1,6 +1,6 @@
-done=1
+done=2
 total=6
-percent=16
-now=retouch
-elapsed_s=139
-updated=2026-10-22T18:38:38Z
+percent=33
+now=merges
+elapsed_s=533
+updated=2026-10-22T18:45:12Z

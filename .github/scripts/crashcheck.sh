@@ -6,7 +6,7 @@ mkdir -p out
 
 # ---- Live progress: a small note on the 'crashcheck-progress' branch after every section,
 # so the percentage and the part being tested can be read while the test runs.
-SECTIONS="setup mediastrip layers transcribe morph magic slowmo highlights planar tts depth erase recover filmstrip develop develop2 photo"
+SECTIONS="setup mediastrip layers transcribe morph magic slowmo highlights planar tts depth erase recover filmstrip develop develop2 photo vpages retouch merges stopmotion libraw"
 TOTAL=2; for s in $SECTIONS; do want $s && TOTAL=$((TOTAL+1)); done
 DONE=0; T0=$(date +%s)
 step() {
@@ -42,7 +42,8 @@ adb shell mkdir -p /sdcard/DCIM/VeyroCutPro
 adb push test_clip.mp4 /sdcard/DCIM/VeyroCutPro/VID_TEST.mp4
 adb push test_a.jpg /sdcard/DCIM/VeyroCutPro/IMG_TEST_A.jpg
 adb push test_b.jpg /sdcard/DCIM/VeyroCutPro/IMG_TEST_B.jpg
-for f in IMG_TEST_A.jpg IMG_TEST_B.jpg; do adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/DCIM/VeyroCutPro/$f >/dev/null 2>&1 || true; done
+[ -f test_c.jpg ] && adb push test_c.jpg /sdcard/DCIM/VeyroCutPro/IMG_TEST_C.jpg
+for f in IMG_TEST_A.jpg IMG_TEST_B.jpg IMG_TEST_C.jpg; do adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/DCIM/VeyroCutPro/$f >/dev/null 2>&1 || true; done
 adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/DCIM/VeyroCutPro/VID_TEST.mp4 || true
 adb shell content call --uri content://media/external/file --method scan_volume --arg external_primary >/dev/null 2>&1 || true
 sleep 5
@@ -339,6 +340,117 @@ if want photo; then
 step "photo"
 adb shell am force-stop com.dronedirector.veyrocutpro
 adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen photo; sleep 10; shot 07-photo
+fi
+
+# ---------------------------------------------------------------- 1.0.463 checks
+vtab() {  # video editor page tabs scroll sideways: swipe until "$1" shows, then tap it
+  for k in 1 2 3 4 5 6; do
+    seeText "text=\"$1\"" && break
+    Y=$(adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml | python3 -c "
+import re,sys
+t=sys.stdin.read()
+for lab in ('Media strip','Media','Proxy','Edit','Text','Transitions','Color','Layers','Audio','Deliver'):
+    m=re.search(r'text=\"'+lab+r'\"[^>]*bounds=\"\[(\d+),(\d+)\]\[(\d+),(\d+)\]\"',t)
+    if m: print((int(m.group(2))+int(m.group(4)))//2); break
+")
+    [ -n "$Y" ] && { [ $k -le 3 ] && adb shell input swipe 900 $Y 200 $Y 300 || adb shell input swipe 200 $Y 900 $Y 300; }; sleep 1
+  done
+  tapExact "$1"; sleep 2
+}
+ptab() {  # photo editor tabs
+  for k in 1 2 3 4 5 6 7 8; do
+    seeText "text=\"$1\"" && break
+    Y=$(adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml | python3 -c "
+import re,sys
+t=sys.stdin.read()
+for lab in ('Presets','Light','Curve','Color','HSL Mixer','Grading','Detail','Effects','Masks','Heal','Retouch','Lens','Crop & perspective','Watermark','Text','History','Export'):
+    m=re.search(r'text=\"'+re.escape(lab)+r'\"[^>]*bounds=\"\[(\d+),(\d+)\]\[(\d+),(\d+)\]\"',t)
+    if m: print((int(m.group(2))+int(m.group(4)))//2); break
+")
+    [ -n "$Y" ] && { [ $k -le 4 ] && adb shell input swipe 900 $Y 200 $Y 300 || adb shell input swipe 200 $Y 900 $Y 300; }; sleep 1
+  done
+  tapExact "$1"; sleep 2
+}
+pickN() {  # photo picker: tap items 0..$1-1, then Add / Done
+  adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml > out/pickerN.xml
+  python3 - "$1" <<'PY' > picks.txt
+import re,sys
+t=open('out/pickerN.xml',encoding='utf-8',errors='ignore').read()
+k=0
+for m in re.finditer(r'<node [^>]*>', t):
+    n=m.group(0); d=re.search(r'content-desc="([^"]*)"',n); b=re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"',n)
+    if d and b and re.search(r'photo|taken|IMG_', d.group(1), re.I):
+        x1,y1,x2,y2=map(int,b.groups()); print((x1+x2)//2,(y1+y2)//2); k+=1
+        if k>=int(sys.argv[1]): break
+PY
+  while read X Y; do adb shell input tap $X $Y; sleep 1; done < picks.txt
+  sleep 1; seeText '"Add' && tapText "Add"; seeText '"Done' && tapText "Done"; true
+}
+if want vpages; then
+step "video pages"
+start_video; tapText "MP4"; sleep 25; dismiss; shot 20a-workspace
+for P in "Media" "Proxy" "Edit" "Text" "Transitions" "Color" "Layers" "Audio" "Deliver" "Media strip"; do vtab "$P"; sleep 2; shot "20b-page-${P// /_}"; done
+adb shell input keyevent KEYCODE_SPACE; sleep 3; adb shell input keyevent KEYCODE_SPACE; sleep 1
+vtab "Media"; scrollTo "TIMELINES"; tapText "NEW TIMELINE"; sleep 3; shot 20c-new-timeline; scrollTo "Timeline 1"; tapExact "Timeline 1"; sleep 5; shot 20d-back-timeline1
+vtab "Proxy"; scrollTo "RENDER CACHE"; shot 20e-render-cache
+vtab "Audio"; scrollTo "PARAMETRIC EQ"; tapText "+ BAND"; sleep 1; tapText "+ BAND"; sleep 1; shot 20f-eq; scrollTo "DE-ESSER"; shot 20g-deess
+adb shell input keyevent KEYCODE_SPACE; sleep 4; adb shell input keyevent KEYCODE_SPACE
+vtab "Layers"; scrollTo "AI DUBBING"; shot 20h-dubbing
+vtab "Edit"; scrollTo "AUTO HIGHLIGHTS"; tapText "Cut on the music"; sleep 1; shot 20i-highlights
+vtab "Deliver"; scrollTo "SAFE ZONES"; tapExact "TikTok"; sleep 2; shot 20j-safe; scrollTo "REVIEW COPY"; tapExact "Review copy"; sleep 1; scrollTo "SMART RENDER"; tapText "Fast copy"; sleep 1; shot 20k-deliver
+scrollTo "OTIO (.otio)"; shot 20l-interchange
+tapExact "EXPORT"; for i in $(seq 1 40); do sleep 4; seeText "Exported to" && break; done; shot 20m-export
+fi
+if want retouch; then
+step "retouch"
+adb shell am force-stop com.dronedirector.veyrocutpro
+adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen photo --ez bgsetup true; sleep 10; dismiss
+seeText "Continue filmstrip" && tapText "Continue filmstrip" || tapText "JPEG"; sleep 10; dismiss; shot 21a-open
+ptab "Retouch"; sleep 3; shot 21b-retouch
+adb shell input swipe 400 650 650 700 600; sleep 6; tapExact "Bloat"; adb shell input swipe 540 600 545 605 500; sleep 6; shot 21c-liquify
+tapText "UNDO LAST"; sleep 4
+tapText "Skin (frequency"; sleep 2; tapText "Face skin"; sleep 15; shot 21d-skin; tapExact "Whole photo"; sleep 4
+tapText "Relight"; sleep 2; tapText "WORK OUT THE DEPTH"; for i in $(seq 1 60); do sleep 5; seeText '"Light"' && break; seeText "Couldn't work out" && break; done; shot 21e-relight
+XY=$(xyOf "Tap or drag in the square"); [ -n "$XY" ] && { set -- $XY; adb shell input tap 200 $(( $2 - 200 )); sleep 6; }; shot 21f-relight-moved
+ptab "Crop & perspective"; scrollTo "GUIDES"; tapExact "Golden spiral"; sleep 2; tapText "TURN"; sleep 2; shot 21g-guides
+scrollTo "EXPAND (CLOUD AI)"; tapExact "EXPAND"; sleep 3; shot 21h-expand-no-key
+ptab "Export"; scrollTo "Printer profile"; shot 21i-icc; scrollTo "Export recipe"; tapText "Web"; sleep 1; shot 21j-recipe
+fi
+if want merges; then
+step "merges"
+for KIND in "Noise stack" "Remove passers-by" "Super resolution" "Star stack"; do
+  adb shell am force-stop com.dronedirector.veyrocutpro
+  adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen photo --ez bgsetup true; sleep 10; dismiss
+  scrollTo "MERGE PHOTOS"; for k in 1 2 3 4; do seeText "$KIND" && break; Y=$(xyOf "HDR merge" | cut -d' ' -f2); [ -n "$Y" ] && adb shell input swipe 900 $Y 150 $Y 300; sleep 1; done
+  tapText "$KIND"; sleep 5; pickN 3; for i in $(seq 1 60); do sleep 4; seeText "…" || break; done; sleep 6; shot "22-merge-${KIND// /_}"
+done
+fi
+if want stopmotion; then
+step "stop motion"
+adb shell am force-stop com.dronedirector.veyrocutpro
+adb shell am start -W -n com.dronedirector.veyrocutpro/.MainActivity --es screen capture; sleep 12; dismiss; tapText "Allow"; sleep 2; tapText "While using"; sleep 2; shot 23a-capture
+for k in 1 2 3 4 5 6; do seeText "STOP MOTION" && break; Y=$(xyOf "GRID" | cut -d' ' -f2); [ -n "$Y" ] && adb shell input swipe 900 $Y 150 $Y 300; sleep 1; done
+tapText "STOP MOTION"; sleep 2
+for n in 1 2 3; do adb shell input keyevent KEYCODE_CAMERA; sleep 6; done; shot 23b-onion
+tapText "ONION"; sleep 1; tapExact "FRAMES"; sleep 4; shot 23c-frames
+tapExact "PLAY"; sleep 3; tapExact "STOP"; tapText "HOLD +1"; sleep 1; tapExact "DELETE"; sleep 2; tapExact "12"; shot 23d-edited
+tapText "MAKE VIDEO"; for i in $(seq 1 30); do sleep 3; seeText "MAKING" || break; done; sleep 2; shot 23e-made
+tapExact "CLOSE"; sleep 2
+fi
+if want libraw; then
+step "camera RAW (LibRaw)"
+if [ -f raw_test.arw ]; then
+  adb push raw_test.arw /sdcard/DCIM/VeyroCutPro/RAW_TEST.ARW
+  adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/DCIM/VeyroCutPro/RAW_TEST.ARW >/dev/null 2>&1 || true
+  adb shell content call --uri content://media/external/file --method scan_volume --arg external_primary >/dev/null 2>&1 || true; sleep 5
+  ID=$(adb shell "content query --uri content://media/external/file --projection _id --where \"_display_name='RAW_TEST.ARW'\"" | grep -o "_id=[0-9]*" | head -1 | cut -d= -f2)
+  echo "raw id: $ID" > out/libraw.txt
+  adb shell am force-stop com.dronedirector.veyrocutpro
+  adb shell am start -W -a android.intent.action.SEND -t image/x-sony-arw --eu android.intent.extra.STREAM content://media/external/file/$ID -n com.dronedirector.veyrocutpro/.MainActivity --grant-read-uri-permission
+  for i in $(seq 1 30); do sleep 4; seeText '"Light"' && break; done; sleep 8; dismiss; shot 24a-raw-open
+  ptab "Light"; sleep 3; shot 24b-light; scrollTo "CAMERA PROFILE"; shot 24c-dcp
+  XY=$(xyOf "Exposure"); [ -n "$XY" ] && { set -- $XY; adb shell input swipe 540 $(( $2 + 40 )) 760 $(( $2 + 40 )) 600; sleep 10; }; shot 24d-slider
+else echo "no raw sample downloaded" > out/libraw.txt; fi
 fi
 step "saving the results"; DONE=$TOTAL; step "finished"
 adb logcat -d -b crash > out/crash.txt || true

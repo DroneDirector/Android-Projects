@@ -43,6 +43,8 @@ jobs:
           ls -la test_clip.mp4
           ffmpeg -loglevel error -f lavfi -i testsrc2=size=1600x1200 -frames:v 1 -q:v 3 test_a.jpg
           ffmpeg -loglevel error -f lavfi -i "smptehdbars=size=1600x1200" -frames:v 1 -q:v 3 test_b.jpg
+          ffmpeg -loglevel error -f lavfi -i "mandelbrot=size=1600x1200" -frames:v 1 -q:v 3 test_c.jpg
+          case " ${{ inputs.tests }} " in *" libraw "*|*" all "*) curl -fsSL -o raw_test.arw "https://raw.pixls.us/data/Sony/ILCE-6400/DSC00087.ARW" || echo "raw sample download failed";; esac
           echo "${{ inputs.tests }}" > tests.txt
           curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/.github/scripts/crashcheck.sh" -o crash.sh || { echo "could not fetch the test script"; exit 1; }
       - name: Enable KVM

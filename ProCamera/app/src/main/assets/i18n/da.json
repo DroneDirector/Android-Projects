@@ -2619,5 +2619,15 @@
 "This RAW file's sensor data couldn't be read": "Sensordataene i denne RAW-fil kunne ikke læses",
 "RAW goes further: DNGs from other cameras and apps open too — Fujifilm X-Trans and Quad Bayer sensors, black-and-white cameras, lossy, Deflate and JPEG XL compressed DNGs (newer Galaxy phones), and 16 / 24 / 32-bit floating-point HDR DNGs (e.g. HDR merges from desktop photo software).": "RAW går videre: DNG-filer fra andre kameraer og apps kan også åbnes — Fujifilm X-Trans- og Quad Bayer-sensorer, sort-hvid-kameraer, lossy-, Deflate- og JPEG XL-komprimerede DNG-filer (nyere Galaxy-telefoner) og 16 / 24 / 32-bit flydende komma HDR-DNG-filer (f.eks. HDR-sammenfletninger fra fotoprogrammer på computeren).",
 "JPEG XL DNG (newer Galaxy / iPhone RAW) can't be decoded on this phone yet": "JPEG XL DNG (nyere Galaxy / iPhone RAW) kan ikke afkodes på denne telefon endnu",
-"This JPEG XL DNG couldn't be decoded": "Denne JPEG XL DNG kunne ikke afkodes"
+"This JPEG XL DNG couldn't be decoded": "Denne JPEG XL DNG kunne ikke afkodes",
+"RAW LOOK": "RAW-LOOK",
+"Default": "Standard",
+"Natural phone": "Naturlig telefon",
+"Vivid phone": "Livlig telefon",
+"HDR phone": "HDR-telefon",
+"Warm phone": "Varm telefon",
+"Cool & crisp": "Kølig & skarp",
+"Match camera picture": "Som kameraets billede",
+"Default is the app's own RAW look. The phone looks are brighter, with lifted shadows, softer highlights and more colour — closer to how phones show their pictures. Match camera picture copies the brightness and colour of the preview the camera stored in the file.": "Standard er appens eget RAW-look. Telefon-lookene er lysere, med løftede skygger, blødere højlys og mere farve — tættere på, hvordan telefoner viser deres billeder. Som kameraets billede kopierer lysstyrken og farverne fra den forhåndsvisning, kameraet har gemt i filen.",
+"Light → RAW LOOK: Default keeps the app's own RAW look. Natural phone, Vivid phone, HDR phone, Warm phone and Cool & crisp are brighter, with lifted shadows, softer highlights and more colour — closer to how phones show their pictures. Match camera picture copies the brightness and colour of the preview the camera or drone stored in the RAW file.": "Lys → RAW-LOOK: Standard beholder appens eget RAW-look. Naturlig telefon, Livlig telefon, HDR-telefon, Varm telefon og Kølig & skarp er lysere, med løftede skygger, blødere højlys og mere farve — tættere på, hvordan telefoner viser deres billeder. Som kameraets billede kopierer lysstyrken og farverne fra den forhåndsvisning, kameraet eller dronen har gemt i RAW-filen."
 }

@@ -2163,6 +2163,9 @@ private fun PhotoPanelContent(
                 Chips(profs.map { p -> if (p.value.camera) "Camera" + (rawMeta?.profileName?.let { " · " + it.take(18) } ?: "") else p.value.label },
                     profs.indexOfFirst { it.index == e.raw.profile }.coerceAtLeast(0)) { i -> set(e.copy(raw = e.raw.copy(profile = profs[i].index))) }
                 Text("RAW (DNG): exposure, highlights, shadows, whites, blacks and white balance work on the sensor data, with headroom above white.", color = Pro.Dim, fontSize = 11.sp)
+                SectionTitle("RAW LOOK") { set(e.copy(raw = e.raw.copy(look = 0))) }
+                Chips(RawDng.LOOKS.map { it.label }, e.raw.look.coerceIn(0, RawDng.LOOKS.size - 1)) { i -> set(e.copy(raw = e.raw.copy(look = i))) }
+                Text("Default is the app's own RAW look. The phone looks are brighter, with lifted shadows, softer highlights and more colour — closer to how phones show their pictures. Match camera picture copies the brightness and colour of the preview the camera stored in the file.", color = Pro.Dim, fontSize = 11.sp)
                 if (rawMeta?.hasLensOps == true) {
                     Row(Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(10.dp)).background(Ed.Raised)
                         .clickable { set(e.copy(raw = e.raw.copy(lensOff = !e.raw.lensOff))) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {

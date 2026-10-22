@@ -39,6 +39,8 @@ object RawDng {
         val vigOff: Boolean = false,
         /** Only the file's lens-shape (distortion / fringe) correction off. */
         val shapeOff: Boolean = false,
+        /** Index into [LOOKS]; 0 = the default look. */
+        val look: Int = 0,
     ) {
         val vigOn: Boolean get() = !lensOff && !vigOff
         val shapeOn: Boolean get() = !lensOff && !shapeOff
@@ -55,6 +57,23 @@ object RawDng {
         /** The camera maker's own profile stored in the DNG (tone curve and colour tables). */
         Profile("Camera", 0f, 1f, 0.92f, camera = true),
     )
+    /**
+     * RAW looks on top of the profile: 0 is the app's own look (unchanged); the others get closer to
+     * how phones render their pictures — brighter, lifted shadows, held-back highlights, more colour.
+     * [ev] stops, [sh] / [hi] like the Shadows / Highlights sliders, [contrast] added to the profile's,
+     * [sat] × the profile's, [warm] added to Temperature; [match] = fitted to the camera's own preview.
+     */
+    class Look(val label: String, val ev: Float, val sh: Float, val hi: Float, val contrast: Float, val sat: Float, val warm: Float = 0f, val match: Boolean = false)
+    val LOOKS = listOf(
+        Look("Default", 0f, 0f, 0f, 0f, 1f),
+        Look("Natural phone", 0.25f, 0.25f, -0.15f, 0.06f, 1.10f),
+        Look("Vivid phone", 0.20f, 0.30f, -0.20f, 0.14f, 1.30f),
+        Look("HDR phone", 0.15f, 0.55f, -0.45f, 0.05f, 1.18f),
+        Look("Warm phone", 0.20f, 0.25f, -0.15f, 0.10f, 1.18f, warm = 0.12f),
+        Look("Cool & crisp", 0.10f, 0.20f, -0.20f, 0.16f, 1.12f, warm = -0.08f),
+        Look("Match camera picture", 0f, 0f, 0f, 0f, 1f, match = true),
+    )
+
     /** White balance presets; 0 = as shot, 1 = auto, others a colour temperature in Kelvin. */
     val WB_PRESETS = listOf("As shot" to 0, "Auto" to 0, "Daylight" to 5500, "Cloudy" to 6500, "Shade" to 7500, "Tungsten" to 2850, "Fluorescent" to 3800)
 
@@ -191,6 +210,10 @@ object RawDng {
          * develop about as bright as the camera's own picture, measured once from its preview.
          */
         @Volatile internal var autoBaseline: Float = Float.NaN
+        /** "Match camera picture": small develop to compare with the camera's preview, and the fitted tone curve / colour. */
+        @Volatile internal var matchLin: Linear? = null
+        @Volatile internal var camLut: IntArray? = null
+        @Volatile internal var camSat: Float = 1f
         /** The dark-corner correction was estimated (the file had none). */
         val shadingEstimated: Boolean get() = estVignette != null
         /** The file has lens-shading data of its own. */
@@ -350,7 +373,9 @@ object RawDng {
         }
     } catch (_: Throwable) { null }
 
-    fun open(context: Context, uri: Uri): Meta = if (!isDng(context, uri) && isOtherRaw(context, uri)) openOther(context, uri) else openDng(context, uri)
+    fun open(context: Context, uri: Uri): Meta = run { appContext = context.applicationContext ?: context }.let { openAny(context, uri) }
+
+    private fun openAny(context: Context, uri: Uri): Meta = if (!isDng(context, uri) && isOtherRaw(context, uri)) openOther(context, uri) else openDng(context, uri)
 
     private fun openDng(context: Context, uri: Uri): Meta = Src(context, uri).use { s ->
         val h = s.bytes(0, 8)
@@ -1289,8 +1314,53 @@ object RawDng {
         }
         if (sr > 0 && sb > 0) m.autoMul = floatArrayOf((sg / sr).toFloat(), 1f, (sg / sb).toFloat())
         val out = orient(down, m.orientation)
+        if (m.matchLin == null) m.matchLin = try { shrink(out, 256) } catch (_: Throwable) { null }
         if (m.libraw && m.autoBaseline.isNaN()) m.autoBaseline = try { matchCameraBrightness(context, m, out) } catch (_: Throwable) { 0f }
         return out
+    }
+
+    /** Set by [open], so "Match camera picture" can read the camera's preview while developing. */
+    @Volatile private var appContext: Context? = null
+
+    /**
+     * Fits a tone curve (luminance histogram matching) and a colour strength that bring the default
+     * develop to the look of the camera's own preview stored in the file. Identity when there's none.
+     */
+    private fun matchCamera(m: Meta): IntArray {
+        val ident = IntArray(256) { it }
+        val ctx = appContext ?: return ident.also { m.camLut = it }
+        val lin = m.matchLin ?: try { preview(ctx, m, 512); m.matchLin } catch (_: Throwable) { null } ?: return ident
+        val cam = embedded(ctx, m.uri, 200)?.bitmap ?: return ident.also { m.camLut = it }
+        val ours = develop(lin, m, Dev(), 0f, 0f, 0f, 0f, 0f, 0f, 0f)
+        fun stats(b: Bitmap): Pair<DoubleArray, Double> {
+            val px = IntArray(b.width * b.height); b.getPixels(px, 0, b.width, 0, 0, b.width, b.height)
+            val hist = DoubleArray(256); var chroma = 0.0; var n = 0
+            for (c in px) {
+                val r = (c shr 16) and 255; val g = (c shr 8) and 255; val bl = c and 255
+                val y = ((r * 0.2126 + g * 0.7152 + bl * 0.0722) + 0.5).toInt().coerceIn(0, 255)
+                hist[y]++
+                if (y in 30..225) { chroma += (max(r, max(g, bl)) - min(r, min(g, bl))).toDouble() / y; n++ }
+            }
+            for (i in 1 until 256) hist[i] += hist[i - 1]
+            val t = hist[255].coerceAtLeast(1.0); for (i in 0 until 256) hist[i] /= t
+            return hist to (if (n > 0) chroma / n else 0.0)
+        }
+        val (ho, co) = stats(ours); val (hc, cc) = stats(cam)
+        val raw = DoubleArray(256) { v -> var u = 0; while (u < 255 && hc[u] < ho[v]) u++; u.toDouble() }
+        // Smooth, keep it rising and not too steep, so it never posterises.
+        val lut = IntArray(256)
+        var prev = 0.0
+        for (v in 0 until 256) {
+            var s = 0.0; var w = 0.0
+            for (d in -6..6) { val i = (v + d).coerceIn(0, 255); s += raw[i]; w++ }
+            var x = s / w
+            x = x.coerceIn(prev, prev + 3.0)
+            if (v == 255) x = max(x, 250.0)
+            lut[v] = x.roundToInt().coerceIn(0, 255); prev = x
+        }
+        m.camSat = if (co > 1e-3 && cc > 1e-3) (cc / co).toFloat().coerceIn(0.7f, 1.6f) else 1f
+        m.camLut = lut
+        return lut
     }
 
     /** Median brightness (linear light) of a picture. */
@@ -1527,28 +1597,32 @@ object RawDng {
 
     /** Pre-computed develop: white balance, colour matrix, camera profile, exposure and tone. */
     private class Pipe(val m: Meta, dev: Dev, exposure: Float, highlights: Float, shadows: Float, whites: Float, blacks: Float, temp: Float, tint: Float) {
-        val col = colour(m, dev, temp, tint)
+        val lk = LOOKS[dev.look.coerceIn(0, LOOKS.size - 1)]
+        val lut = if (lk.match) (m.camLut ?: matchCamera(m)) else null
+        val col = colour(m, dev, temp + lk.warm, tint)
         val mul = col.mul
         val clip = min(mul[0], min(mul[1], mul[2]))
         val mtx = col.mtx
         val prof = PROFILES[dev.profile.coerceIn(0, PROFILES.size - 1)]
         val camera = prof.camera && m.hasCameraProfile
-        val k = 2f.pow(exposure + m.baselineExposure + (m.autoBaseline.takeIf { !it.isNaN() } ?: 0f) + if (camera) m.baselineOffset else 0f)
+        val k = 2f.pow(exposure + lk.ev + m.baselineExposure + (m.autoBaseline.takeIf { !it.isNaN() } ?: 0f) + if (camera) m.baselineOffset else 0f)
         val hs = if (camera) m.hueSat else null
         val hs2 = if (camera) m.hueSat2 else null
         val look = if (camera) m.look else null
         val w1 = col.weight.toFloat()
         val toPP = SRGB_TO_PP.map { it.toFloat() }.toFloatArray()
         val fromPP = PP_TO_SRGB.map { it.toFloat() }.toFloatArray()
-        val sh = shadows; val hi = highlights; val wh = whites; val bl = blacks
+        val sh = shadows + lk.sh; val hi = highlights + lk.hi; val wh = whites; val bl = blacks
+        val sat = prof.sat * lk.sat * (if (lut != null) m.camSat else 1f)
         // Display LUT: linear 0..1 → (camera tone curve, or the profile's contrast) → sRGB → 8-bit.
         val curve = if (camera) m.toneCurve else null
         val disp = IntArray(DISP + 1) { i ->
             var lv = i / DISP.toFloat()
             if (curve != null) lv = curveAt(curve, lv)
             var v = if (lv <= 0.0031308f) lv * 12.92f else 1.055f * lv.pow(1f / 2.4f) - 0.055f
-            if (curve == null) { val s = v * v * (3f - 2f * v); v += (s - v) * prof.contrast }
-            (v.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
+            if (curve == null) { val s = v * v * (3f - 2f * v); v += (s - v) * (prof.contrast + lk.contrast) }
+            val d = (v.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
+            lut?.get(d) ?: d
         }
         private val tmp = FloatArray(3)
 
@@ -1588,7 +1662,7 @@ object RawDng {
             val y2 = tone(y)
             val gn = y2 / y
             if (prof.mono) { val d = disp[(y2.coerceIn(0f, 1f) * DISP).toInt()]; return (0xFF shl 24) or (d shl 16) or (d shl 8) or d }
-            r = y2 + (r * gn - y2) * prof.sat; g = y2 + (g * gn - y2) * prof.sat; b = y2 + (b * gn - y2) * prof.sat
+            r = y2 + (r * gn - y2) * sat; g = y2 + (g * gn - y2) * sat; b = y2 + (b * gn - y2) * sat
             val mx = max(r, max(g, b))
             if (mx > 1f && y2 < 1f) { val t = (1f - y2) / (mx - y2); r = y2 + (r - y2) * t; g = y2 + (g - y2) * t; b = y2 + (b - y2) * t }
             val ri = disp[(r.coerceIn(0f, 1f) * DISP).toInt()]

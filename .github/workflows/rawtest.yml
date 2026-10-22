@@ -33,8 +33,14 @@ jobs:
           key: raw-samples-${{ hashFiles('.github/raw-samples.txt') }}
           restore-keys: raw-samples-
       - name: Download samples
+        env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           mkdir -p ~/raw-samples
+          # Nothing cached yet: start from our own copy (the "raw-samples-v1" release), if there is one.
+          if [ -z "$(ls -A ~/raw-samples)" ] && gh release view raw-samples-v1 -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release download raw-samples-v1 -R "$GITHUB_REPOSITORY" -p 'raw-samples.tar.part*' -D /tmp/mirror && cat /tmp/mirror/raw-samples.tar.part* | tar -xf - -C ~/raw-samples && rm -rf /tmp/mirror || echo "::warning::couldn't use the samples release"
+          fi
+          # Anything still missing (e.g. newly listed samples) comes from raw.pixls.us.
           grep -v '^#' "$GITHUB_WORKSPACE/.github/raw-samples.txt" | while IFS= read -r p; do
             [ -z "$p" ] && continue
             out="$HOME/raw-samples/$p"

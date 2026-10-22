@@ -1,0 +1,42 @@
+name: RAW samples mirror
+# Keeps our own copy of the RAW test samples (public domain / CC0, from raw.pixls.us) as a GitHub
+# release ("raw-samples-v1"), in case raw.pixls.us is ever unavailable. Not part of the app.
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/cache@v4
+        with:
+          path: ~/raw-samples
+          key: raw-samples-${{ hashFiles('.github/raw-samples.txt') }}
+          restore-keys: raw-samples-
+      - name: Download any missing samples
+        run: |
+          mkdir -p ~/raw-samples
+          grep -v '^#' .github/raw-samples.txt | while IFS= read -r p; do
+            [ -z "$p" ] && continue
+            out="$HOME/raw-samples/$p"; [ -s "$out" ] && continue
+            mkdir -p "$(dirname "$out")"
+            curl -fsSL --retry 3 -o "$out" "https://raw.pixls.us/data/$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1]))' "$p")" || { echo "::warning::could not download $p"; rm -f "$out"; }
+          done
+          du -sh ~/raw-samples
+      - name: Pack and publish
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          mkdir -p /tmp/rel && cd ~/raw-samples
+          tar -cf - . | split -b 1900m -d -a 2 - /tmp/rel/raw-samples.tar.part
+          cp "$GITHUB_WORKSPACE/.github/raw-samples.txt" /tmp/rel/raw-samples.txt
+          ls -l /tmp/rel
+          cat > /tmp/rel/notes.md <<'N'
+          RAW sample files used only by VeyroCut Pro's automatic RAW test — **not part of the app**.
+          Copied from [raw.pixls.us](https://raw.pixls.us/), where contributors released them into the public domain (CC0).
+          To unpack: `cat raw-samples.tar.part* | tar -xf -`
+          N
+          gh release delete raw-samples-v1 -y --cleanup-tag 2>/dev/null || true
+          gh release create raw-samples-v1 /tmp/rel/raw-samples.tar.part* /tmp/rel/raw-samples.txt \
+            --title "RAW test samples (not the app)" --notes-file /tmp/rel/notes.md --prerelease --latest=false

@@ -160,6 +160,8 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
     }
     Box(Modifier.fillMaxSize()) {
         UpscaleBadge(Modifier.align(Alignment.TopCenter).zIndex(10f))
+        // Teleprompter: floats over everything, draggable.
+        Box(Modifier.fillMaxSize().zIndex(20f)) { TeleprompterOverlay(s.recording, s.isFront) }
     BoxWithConstraints(
         Modifier
             .fillMaxSize()

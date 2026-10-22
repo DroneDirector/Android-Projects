@@ -54,6 +54,9 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 ### Remote monitor
 - **Remote monitor & control** from any browser on the same Wi-Fi or hotspot (PIN-protected address): live picture, shutter / record, zoom, Photo / Video / Pro Video, autofocus, AE lock, recording time and exposure read-out.
 
+### Teleprompter
+- **Teleprompter** over the camera (selfie or back camera): your own text, scrolling at your speed or starting with the recording; bold, italic, underline, narrow, alignment, size, text and background colours with opacity, mirror for teleprompter glass; drag to move, drag the corner to resize, shrink to a small bar, close with ✕; opens by itself with the selfie camera.
+
 ### Pro controls
 - **Pro read-out bar**: live ISO, shutter, focus, white balance, EV and zoom — tap any to change it — plus the exposure mode (**auto, shutter priority, ISO priority, manual**; Android 15+ uses the camera's own priority modes, older phones are metered continuously by the app) and, in video, resolution · frame rate · bitrate.
 - **Fn button**: one assignable button (tap to run, hold to choose) — zebras, peaking, false colour, next scope, AE / AWB lock, split focus / exposure, pull to A / B, frame guide, safe areas, log assist, flip, torch, next lens, focus magnifier, clean feed.

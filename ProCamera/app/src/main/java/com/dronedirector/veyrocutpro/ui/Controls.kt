@@ -269,6 +269,10 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
     if (s.mode != CaptureMode.PANORAMA) {
         QuickItem("GRID", s.grid.label, active = s.grid != GridMode.OFF) { c.setGrid(GridMode.entries.next(s.grid)) }
     }
+    // Teleprompter: opens it; a second tap shrinks / opens the small bar.
+    QuickItem("PROMPTER", if (!Prompter.open) "OFF" else if (Prompter.minimized) "SMALL" else "ON", active = Prompter.open) {
+        if (!Prompter.open) { Prompter.open = true; Prompter.minimized = false } else Prompter.minimized = !Prompter.minimized
+    }
     // Custom set-ups C1 / C2 / C3 (can be hidden in the Panels menu).
     if (panelOn("cap.presets") && mode != CaptureMode.LIVE) {
         for (slot in 1..3) PresetItem(slot, c, enabled = !s.recording)

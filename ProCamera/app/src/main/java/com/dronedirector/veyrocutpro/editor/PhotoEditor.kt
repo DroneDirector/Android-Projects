@@ -2688,28 +2688,66 @@ private fun PhotoShortcutsDialog(onDismiss: () -> Unit) {
 private object RawLookThumbs { val cache = android.util.LruCache<String, Bitmap>(48) }
 
 /**
- * RAW LOOK: one compact row of small previews — the photo in each look — to scroll through and tap,
- * like the transitions list. Default (the app's own RAW look) comes first.
+ * RAW LOOK, folded into one line. Unfolded: Default and Match camera picture, then a fold-out
+ * sub-menu per kind of camera (Phones, Drones, Cameras, Action & 360°), each a scrollable row of
+ * small previews of this photo in that look — like the transitions list.
  */
 @Composable
 internal fun RawLookStrip(meta: RawDng.Meta?, dev: RawDng.Dev, onPick: (Int) -> Unit) {
     val sel = dev.look.coerceIn(0, RawDng.LOOKS.size - 1)
     val lin = meta?.let { RawDng.lookSource(it) }
     var open by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
-    // Folded: one line with the chosen look; tap to unfold the previews.
+    var group by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(RawDng.LOOKS[sel].group) }
+    FoldRow(
+        "RAW LOOK · " + RawDng.LOOKS[sel].label + (RawDng.LOOKS[sel].group.takeIf { it.isNotEmpty() }?.let { " ($it)" } ?: ""),
+        if (open) "Tap a look to use it · tap here to fold" else "Tap here to see different DNG looks",
+        open, highlight = sel != 0, big = true,
+    ) { open = !open }
+    if (!open) return
+    Column(Modifier.fillMaxWidth().padding(start = 8.dp)) {
+        // Default and "Match camera picture" first, always in view.
+        LookTiles(meta, lin, dev, sel, RawDng.LOOKS.indices.filter { RawDng.LOOKS[it].group.isEmpty() }, onPick)
+        for (g in RawDng.LOOK_GROUPS) {
+            val idx = RawDng.LOOKS.indices.filter { RawDng.LOOKS[it].group == g }
+            if (idx.isEmpty()) continue
+            val gOpen = group == g
+            FoldRow(g, idx.joinToString(", ") { RawDng.LOOKS[it].label }, gOpen, highlight = RawDng.LOOKS[sel].group == g) { group = if (gOpen) "" else g }
+            if (gOpen) LookTiles(meta, lin, dev, sel, idx, onPick)
+        }
+        Text(
+            "FOLD ▲", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+            modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { open = false }.padding(horizontal = 8.dp, vertical = 6.dp),
+        )
+        Text(when {
+            sel == 0 -> "Default is the app's own RAW look."
+            RawDng.LOOKS[sel].match -> "Copies the brightness and colour of the preview the camera stored in the file."
+            else -> "Tone and colour measured from how these cameras render their own pictures of their RAW files."
+        }, color = Pro.Dim, fontSize = 11.sp)
+    }
+}
+
+/** A tappable fold / unfold line in the editor's style. */
+@Composable
+private fun FoldRow(title: String, sub: String, open: Boolean, highlight: Boolean, big: Boolean = false, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(10.dp)).background(Ed.Raised).clickable { open = !open }.padding(horizontal = 12.dp, vertical = 10.dp),
+        Modifier.fillMaxWidth().padding(top = if (big) 6.dp else 4.dp).clip(RoundedCornerShape(10.dp)).background(Ed.Raised).clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = if (big) 10.dp else 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text("RAW LOOK · " + RawDng.LOOKS[sel].label, color = if (sel == 0) Color.White else Pro.Amber, fontSize = 13.sp)
-            Text(if (open) "Tap a look to use it · tap here to fold" else "Tap here to see different DNG looks", color = Pro.Dim, fontSize = 11.sp)
+            Text(title, color = if (highlight) Pro.Amber else Color.White, fontSize = if (big) 13.sp else 12.sp, maxLines = 1)
+            Text(sub, color = Pro.Dim, fontSize = 10.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
         androidx.compose.material3.Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, tint = Pro.Dim)
     }
-    if (!open) return
+}
+
+/** A scrollable row of small previews of this photo in each of the looks [idx]. */
+@Composable
+private fun LookTiles(meta: RawDng.Meta?, lin: RawDng.Linear?, dev: RawDng.Dev, sel: Int, idx: List<Int>, onPick: (Int) -> Unit) {
     Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        RawDng.LOOKS.forEachIndexed { i, look ->
+        idx.forEach { i ->
+            val look = RawDng.LOOKS[i]
             val key = "${System.identityHashCode(lin)}/$i/${dev.profile}/${dev.wb}/${dev.vigOn}"
             val thumb by produceState(RawLookThumbs.cache.get(key), key) {
                 if (value != null || meta == null || lin == null) return@produceState
@@ -2730,12 +2768,4 @@ internal fun RawLookStrip(meta: RawDng.Meta?, dev: RawDng.Dev, onPick: (Int) -> 
             }
         }
     }
-    Text(
-        "FOLD ▲", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
-        modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { open = false }.padding(horizontal = 8.dp, vertical = 6.dp),
-    )
-    Text(if (sel == 0) "Default is the app's own RAW look. Scroll for phone-style looks, or Match camera picture." else when {
-        RawDng.LOOKS[sel].match -> "Copies the brightness and colour of the preview the camera stored in the file."
-        else -> "Brighter, with lifted shadows, softer highlights and more colour — closer to how phones show their pictures."
-    }, color = Pro.Dim, fontSize = 11.sp)
 }

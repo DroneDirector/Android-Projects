@@ -58,21 +58,24 @@ object RawDng {
         Profile("Camera", 0f, 1f, 0.92f, camera = true),
     )
     /**
-     * RAW looks on top of the profile: 0 is the app's own look (unchanged); the others get closer to
-     * how phones render their pictures — brighter, lifted shadows, held-back highlights, more colour.
-     * [ev] stops, [sh] / [hi] like the Shadows / Highlights sliders, [contrast] added to the profile's,
-     * [sat] × the profile's, [warm] added to Temperature; [match] = fitted to the camera's own preview.
+     * RAW looks on top of the profile. 0 is the app's own look (unchanged). The others are measured:
+     * the RAW sample test develops each camera's RAW files with the default look and fits the tone
+     * curve ([curve]: output at inputs 0, 16 … 240, 255) and colour strength ([sat]) that turn it into
+     * that camera's own picture, averaged per maker. [match] = fitted to this file's own preview.
      */
-    class Look(val label: String, val ev: Float, val sh: Float, val hi: Float, val contrast: Float, val sat: Float, val warm: Float = 0f, val match: Boolean = false)
-    val LOOKS = listOf(
-        Look("Default", 0f, 0f, 0f, 0f, 1f),
-        Look("Natural phone", 0.25f, 0.25f, -0.15f, 0.06f, 1.10f),
-        Look("Vivid phone", 0.20f, 0.30f, -0.20f, 0.14f, 1.30f),
-        Look("HDR phone", 0.15f, 0.55f, -0.45f, 0.05f, 1.18f),
-        Look("Warm phone", 0.20f, 0.25f, -0.15f, 0.10f, 1.18f, warm = 0.12f),
-        Look("Cool & crisp", 0.10f, 0.20f, -0.20f, 0.16f, 1.12f, warm = -0.08f),
-        Look("Match camera picture", 0f, 0f, 0f, 0f, 1f, match = true),
-    )
+    class Look(val label: String, val group: String, val curve: IntArray? = null, val sat: Float = 1f, val match: Boolean = false,
+               val ev: Float = 0f, val sh: Float = 0f, val hi: Float = 0f, val contrast: Float = 0f, val warm: Float = 0f)
+    val LOOK_GROUPS = listOf("Phones", "Drones", "Cameras", "Action & 360°")
+    val LOOKS: List<Look> = listOf(
+        Look("Default", ""),
+        Look("Match camera picture", "", match = true),
+    ) + MeasuredLooks.ALL
+
+    private fun expandCurve(c: IntArray): IntArray = IntArray(256) { v ->
+        val f = v / 16f; val k = f.toInt().coerceAtMost(15); val t = f - k
+        val a = c[k]; val b = c[(k + 1).coerceAtMost(16)]
+        (a + (b - a) * t).roundToInt().coerceIn(0, 255)
+    }
 
     /** White balance presets; 0 = as shot, 1 = auto, others a colour temperature in Kelvin. */
     val WB_PRESETS = listOf("As shot" to 0, "Auto" to 0, "Daylight" to 5500, "Cloudy" to 6500, "Shade" to 7500, "Tungsten" to 2850, "Fluorescent" to 3800)
@@ -1611,7 +1614,7 @@ object RawDng {
     /** Pre-computed develop: white balance, colour matrix, camera profile, exposure and tone. */
     private class Pipe(val m: Meta, dev: Dev, exposure: Float, highlights: Float, shadows: Float, whites: Float, blacks: Float, temp: Float, tint: Float) {
         val lk = LOOKS[dev.look.coerceIn(0, LOOKS.size - 1)]
-        val lut = if (lk.match) (m.camLut ?: matchCamera(m)) else null
+        val lut = if (lk.match) (m.camLut ?: matchCamera(m)) else lk.curve?.let { expandCurve(it) }
         val col = colour(m, dev, temp + lk.warm, tint)
         val mul = col.mul
         val clip = min(mul[0], min(mul[1], mul[2]))
@@ -1626,7 +1629,7 @@ object RawDng {
         val toPP = SRGB_TO_PP.map { it.toFloat() }.toFloatArray()
         val fromPP = PP_TO_SRGB.map { it.toFloat() }.toFloatArray()
         val sh = shadows + lk.sh; val hi = highlights + lk.hi; val wh = whites; val bl = blacks
-        val sat = prof.sat * lk.sat * (if (lut != null) m.camSat else 1f)
+        val sat = prof.sat * lk.sat * (if (lk.match) m.camSat else 1f)
         // Display LUT: linear 0..1 → (camera tone curve, or the profile's contrast) → sRGB → 8-bit.
         val curve = if (camera) m.toneCurve else null
         val disp = IntArray(DISP + 1) { i ->

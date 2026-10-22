@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture gallery: **RAW (DNG) photos taken upright now show upright** — the viewer now follows the file's orientation, as the JPEGs and your phone's gallery already did.
 
 ## 1.0.465 — 2026-10-22
 - Video editor → Audio: the level, loudness and mixer meters now only redraw while the edit plays, instead of all the time — smoother and easier on the battery.

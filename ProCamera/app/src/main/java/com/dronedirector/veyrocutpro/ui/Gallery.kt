@@ -765,7 +765,7 @@ private fun PhotoPage(item: MediaItem, onToggleChrome: () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         val target = maxOf(constraints.maxWidth, constraints.maxHeight).coerceAtMost(3072)
         val bitmap by androidx.compose.runtime.produceState<ImageBitmap?>(null, item.uri) {
-            value = withContext(Dispatchers.IO) { decodeImage(context, item.uri, target)?.asImageBitmap() }
+            value = withContext(Dispatchers.IO) { decodeImage(context, item.uri, target, raw = item.isRaw)?.asImageBitmap() }
         }
         val w = constraints.maxWidth.toFloat()
         val h = constraints.maxHeight.toFloat()
@@ -877,10 +877,10 @@ private fun VideoPage(item: MediaItem, active: Boolean, onToggleChrome: () -> Un
 
 // ---- helpers ----
 
-private fun decodeImage(context: Context, uri: Uri, maxPx: Int): Bitmap? = try {
+private fun decodeImage(context: Context, uri: Uri, maxPx: Int, raw: Boolean = false): Bitmap? = try {
     if (Build.VERSION.SDK_INT >= 28) {
         val src = ImageDecoder.createSource(context.contentResolver, uri)
-        ImageDecoder.decodeBitmap(src) { decoder, info, _ ->
+        val bmp = ImageDecoder.decodeBitmap(src) { decoder, info, _ ->
             val longest = maxOf(info.size.width, info.size.height)
             if (longest > maxPx) {
                 val f = maxPx.toFloat() / longest
@@ -888,6 +888,9 @@ private fun decodeImage(context: Context, uri: Uri, maxPx: Int): Bitmap? = try {
             }
             decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
         }
+        // RAW (DNG etc.): the decoder doesn't turn the picture by the file's orientation tag (it does for JPEG).
+        val rot = if (raw) context.contentResolver.openInputStream(uri)?.use { ExifInterface(it).rotationDegrees } ?: 0 else 0
+        if (rot != 0) Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, Matrix().apply { postRotate(rot.toFloat()) }, true) else bmp
     } else {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }

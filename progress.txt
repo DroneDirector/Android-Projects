@@ -1,6 +1,6 @@
-done=0
+done=1
 total=6
-percent=0
-now=installing the app
-elapsed_s=0
-updated=2026-10-22T18:36:19Z
+percent=16
+now=retouch
+elapsed_s=139
+updated=2026-10-22T18:38:38Z

@@ -22,7 +22,6 @@ jobs:
           python3 .github/scripts/raw_watch.py /tmp/filelist.txt .github/raw-samples.txt .github/raw-samples-seen.txt /tmp/added.txt /tmp/new-makers.txt
           echo "--- added"; cat /tmp/added.txt; echo "--- new makers"; cat /tmp/new-makers.txt
       - name: Copy new samples to our release
-        if: hashFiles('/tmp/added.txt') != ''
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           [ -s /tmp/added.txt ] || exit 0

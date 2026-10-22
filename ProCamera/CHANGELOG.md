@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.479 — 2026-10-22
 - Photo editor → Detail → NOISE REDUCTION: new **Colour noise** slider — removes blotchy colour specks such as blue patches in the shadows of photos taken in dim, warm light, keeping the detail (RAW and JPEG).
 
 ## 1.0.477 — 2026-10-22

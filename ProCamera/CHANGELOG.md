@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.450 — 2026-10-22
 - App icon long-press menu: **Video** is now **Pro video** and opens Pro Video mode.
 
 ## 1.0.448 — 2026-10-22

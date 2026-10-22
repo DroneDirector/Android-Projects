@@ -2745,7 +2745,7 @@ private fun FoldRow(title: String, sub: String, open: Boolean, highlight: Boolea
 /** A scrollable row of small previews of this photo in each of the looks [idx]. */
 @Composable
 private fun LookTiles(meta: RawDng.Meta?, lin: RawDng.Linear?, dev: RawDng.Dev, sel: Int, idx: List<Int>, onPick: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         idx.forEach { i ->
             val look = RawDng.LOOKS[i]
             val key = "${System.identityHashCode(lin)}/$i/${dev.profile}/${dev.wb}/${dev.vigOn}"
@@ -2757,14 +2757,14 @@ private fun LookTiles(meta: RawDng.Meta?, lin: RawDng.Linear?, dev: RawDng.Dev, 
             }
             val on = i == sel
             Column(
-                Modifier.width(66.dp).clip(RoundedCornerShape(8.dp)).border(if (on) 2.dp else 0.dp, if (on) Pro.Amber else Color.Transparent, RoundedCornerShape(8.dp))
+                Modifier.width(126.dp).clip(RoundedCornerShape(8.dp)).border(if (on) 2.dp else 0.dp, if (on) Pro.Amber else Color.Transparent, RoundedCornerShape(8.dp))
                     .clickable { onPick(i) }.padding(3.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Box(Modifier.size(60.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFF1A1E26))) {
-                    thumb?.let { t -> val img = remember(t) { t.asImageBitmap() }; Image(img, null, Modifier.size(60.dp), contentScale = ContentScale.Crop) }
+                Box(Modifier.size(120.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF1A1E26))) {
+                    thumb?.let { t -> val img = remember(t) { t.asImageBitmap() }; Image(img, null, Modifier.size(120.dp), contentScale = ContentScale.Crop) }
                 }
-                Text(look.label, color = if (on) Pro.Amber else Color.White, fontSize = 9.sp, maxLines = 2, lineHeight = 10.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Text(look.label, color = if (on) Pro.Amber else Color.White, fontSize = 14.sp, maxLines = 2, lineHeight = 17.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
         }
     }

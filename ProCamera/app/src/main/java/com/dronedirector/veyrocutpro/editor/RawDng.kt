@@ -1317,7 +1317,7 @@ object RawDng {
         }
         if (sr > 0 && sb > 0) m.autoMul = floatArrayOf((sg / sr).toFloat(), 1f, (sg / sb).toFloat())
         val out = orient(down, m.orientation)
-        if (m.matchLin == null) m.matchLin = try { shrink(out, 256) } catch (_: Throwable) { null }
+        if (m.matchLin == null) m.matchLin = try { shrink(out, 400) } catch (_: Throwable) { null }
         if (m.libraw && m.autoBaseline.isNaN()) m.autoBaseline = try { matchCameraBrightness(context, m, out) } catch (_: Throwable) { 0f }
         return out
     }

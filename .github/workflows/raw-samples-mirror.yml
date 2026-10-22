@@ -28,15 +28,14 @@ jobs:
       - name: Pack and publish
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
-          mkdir -p /tmp/rel && cd ~/raw-samples
-          tar -cf - . | split -b 1900m -d -a 2 - /tmp/rel/raw-samples.tar.part
-          cp "$GITHUB_WORKSPACE/.github/raw-samples.txt" /tmp/rel/raw-samples.txt
-          ls -l /tmp/rel
-          cat > /tmp/rel/notes.md <<'N'
-          RAW sample files used only by VeyroCut Pro's automatic RAW test — **not part of the app**.
-          Copied from [raw.pixls.us](https://raw.pixls.us/), where contributors released them into the public domain (CC0).
-          To unpack: `cat raw-samples.tar.part* | tar -xf -`
-          N
+          df -h / | tail -1
+          printf '%s\n' "RAW sample files used only by VeyroCut Pro's automatic RAW test - NOT part of the app." \
+            "Copied from https://raw.pixls.us/ where contributors released them into the public domain (CC0)." \
+            "To unpack: cat raw-samples.tar.part* | tar -xf -" > /tmp/notes.md
           gh release delete raw-samples-v1 -y --cleanup-tag 2>/dev/null || true
-          gh release create raw-samples-v1 /tmp/rel/raw-samples.tar.part* /tmp/rel/raw-samples.txt \
-            --title "RAW test samples (not the app)" --notes-file /tmp/rel/notes.md --prerelease --latest=false
+          cp .github/raw-samples.txt /tmp/raw-samples.txt
+          gh release create raw-samples-v1 /tmp/raw-samples.txt --title "RAW test samples (not the app)" --notes-file /tmp/notes.md --prerelease --latest=false
+          # Pack and upload one part at a time, so the disk never holds a second full copy.
+          mkdir -p /tmp/rel && cd ~/raw-samples
+          tar -cf - . | split -b 1900m -d -a 2 --filter='cat > "$FILE" && gh release upload raw-samples-v1 "$FILE" -R "$GITHUB_REPOSITORY" && rm -f "$FILE"' - /tmp/rel/raw-samples.tar.part
+          gh release view raw-samples-v1 --json assets -q '.assets[].name'

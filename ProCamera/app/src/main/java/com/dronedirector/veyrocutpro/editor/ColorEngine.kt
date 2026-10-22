@@ -376,6 +376,8 @@ data class Detail(
     /** Defringe (0..1). */
     val defringePurple: Float = 0f,
     val defringeGreen: Float = 0f,
+    /** Colour noise reduction (0..1): smooths blotchy colour specks (e.g. blue patches in dim, warm light). */
+    val colorNoise: Float = 0f,
 ) {
     val sharpRadius get() = 1f + sharpenRadius
     val sharpDetail get() = 0.25f + sharpenDetail

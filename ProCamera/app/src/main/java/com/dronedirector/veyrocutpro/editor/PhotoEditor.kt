@@ -2447,6 +2447,8 @@ private fun PhotoPanelContent(
             Text("Built-in AI (NAFNet, trained on real phone-camera noise). Runs on the phone; cleaning the full photo takes a little longer when exporting.", color = Pro.Dim, fontSize = 11.sp)
             SectionTitle("NOISE REDUCTION")
             EdSlider("Luminance & colour", e.detail.denoise, 0f..1f, format = ::pct) { v -> detail { it.copy(denoise = v) } }
+            EdSlider("Colour noise", e.detail.colorNoise, 0f..1f, 0f, ::pct) { v -> detail { it.copy(colorNoise = v) } }
+            Text("Colour noise smooths blotchy colour specks — like blue patches in the dark parts of photos taken in dim, warm light — and keeps the fine detail.", color = Pro.Dim, fontSize = 11.sp)
             SectionTitle("PRESENCE")
             EdSlider("Texture", e.detail.texture) { v -> detail { it.copy(texture = v) } }
             EdSlider("Clarity", e.detail.clarity) { v -> detail { it.copy(clarity = v) } }

@@ -137,10 +137,49 @@ object ImageOps {
      * Spatial adjustments. Radii scale with the picture so the preview and the full-size export
      * look the same.
      */
+    /**
+     * Colour noise reduction: the colour (chroma) is smoothed over a wide area while the brightness
+     * keeps all its detail, strongest in the shadows where colour blotches show. Real colour edges
+     * are kept (big chroma differences aren't smoothed).
+     */
+    private fun colourNoise(px: IntArray, w: Int, h: Int, amount: Float, scale: Float) {
+        val n = w * h
+        val y = FloatArray(n); val cb = FloatArray(n); val cr = FloatArray(n)
+        for (i in 0 until n) {
+            val c = px[i]; val r = ((c shr 16) and 255).toFloat(); val g = ((c shr 8) and 255).toFloat(); val b = (c and 255).toFloat()
+            val l = 0.299f * r + 0.587f * g + 0.114f * b
+            y[i] = l; cb[i] = b - l; cr[i] = r - l
+        }
+        val rad = max(2, ((3f + 7f * amount) * scale).toInt())
+        fun blur(a: FloatArray): FloatArray {
+            val t = FloatArray(n); val o = FloatArray(n)
+            for (yy in 0 until h) { var acc = 0f; val off = yy * w
+                for (x in -rad..rad) acc += a[off + x.coerceIn(0, w - 1)]
+                for (x in 0 until w) { t[off + x] = acc / (2 * rad + 1); acc += a[off + min(x + rad + 1, w - 1)] - a[off + max(x - rad, 0)] } }
+            for (x in 0 until w) { var acc = 0f
+                for (yy in -rad..rad) acc += t[yy.coerceIn(0, h - 1) * w + x]
+                for (yy in 0 until h) { o[yy * w + x] = acc / (2 * rad + 1); acc += t[min(yy + rad + 1, h - 1) * w + x] - t[max(yy - rad, 0) * w + x] } }
+            return o
+        }
+        val bb = blur(blur(cb)); val rr = blur(blur(cr))
+        val th = 14f + 46f * amount
+        for (i in 0 until n) {
+            val diff = abs(cb[i] - bb[i]) + abs(cr[i] - rr[i])
+            val edge = (1f - diff / (th * 2f)).coerceIn(0f, 1f)
+            val dark = 1f - (y[i] / 255f) * 0.45f
+            val k = (amount * 1.15f * edge * dark).coerceIn(0f, 1f)
+            val ncb = cb[i] + (bb[i] - cb[i]) * k; val ncr = cr[i] + (rr[i] - cr[i]) * k
+            val l = y[i]
+            val r = l + ncr; val b = l + ncb; val g = (l - 0.299f * r - 0.114f * b) / 0.587f
+            px[i] = (px[i] and (0xFF shl 24)) or (r.toInt().coerceIn(0, 255) shl 16) or (g.toInt().coerceIn(0, 255) shl 8) or b.toInt().coerceIn(0, 255)
+        }
+    }
+
     fun detail(px: IntArray, w: Int, h: Int, d: Detail) {
         if (d.isZero) return
         val scale = max(w, h) / 1080f
 
+        if (d.colorNoise > 0f) colourNoise(px, w, h, d.colorNoise, scale)
         if (d.denoise > 0f) {
             // Edge-aware smoothing: blend towards a blur only where the difference is small.
             val r = max(1, (2 * scale).toInt())

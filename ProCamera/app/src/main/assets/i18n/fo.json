@@ -3041,5 +3041,8 @@
 "Always RAW only": "Altíð bara RAW",
 "Pro photo mode · remembered next time": "Pro-myndastøða · verður minst til næstu ferð",
 "Not available with this lens / phone": "Ikki tøkt við hesi linsuni / telefonini",
-"Settings → PHOTO → Always JPEG / Always RAW + JPEG / Always RAW only: the file format for Pro photo mode. Only one can be on, and the app remembers it.": "Stillingar → PHOTO → Always JPEG / Always RAW + JPEG / Always RAW only: fílusniðið í Pro-myndastøðu. Bara eitt kann vera tendrað, og appin minnist tað."
+"Settings → PHOTO → Always JPEG / Always RAW + JPEG / Always RAW only: the file format for Pro photo mode. Only one can be on, and the app remembers it.": "Stillingar → PHOTO → Always JPEG / Always RAW + JPEG / Always RAW only: fílusniðið í Pro-myndastøðu. Bara eitt kann vera tendrað, og appin minnist tað.",
+"Colour noise": "Litstoyggj",
+"Colour noise smooths blotchy colour specks — like blue patches in the dark parts of photos taken in dim, warm light — and keeps the fine detail.": "Litstoyggj javnar flekkutt litprikkar — sum bláar flekkir í myrku pørtunum á myndum tiknum í veikum, heitum ljósi — og varðveitir fínu smálutirnar.",
+"Detail → NOISE REDUCTION → Colour noise: removes blotchy colour specks (e.g. blue patches in the shadows of photos taken in dim, warm light) while keeping detail. Works on RAW and JPEG.": "Detail → NOISE REDUCTION → Colour noise: tekur burtur flekkutt litprikkar (t.d. bláar flekkir í skugganum á myndum tiknum í veikum, heitum ljósi) og varðveitir smálutirnar. Virkar á RAW og JPEG."
 }

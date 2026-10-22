@@ -175,6 +175,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Leave the editor with your phone's back gesture or back button (the top bar has no back arrow, so EXPORT always fits).
 - History panel: tap any step to go back to it; + SAVE SNAPSHOT keeps a version you can return to while the photo is open.
 - Masks → Colour range / Brightness range: tap the photo to pick a colour or brightness; only those parts are changed (e.g. only the blue sky, only the highlights). Range and Softness fine-tune it.
+- Detail → NOISE REDUCTION → Colour noise: removes blotchy colour specks (e.g. blue patches in the shadows of photos taken in dim, warm light) while keeping detail. Works on RAW and JPEG.
 - Panels icon (next to the settings gear): hide or show the tools panel, copy / paste bar, histogram and before / after buttons — the photo grows into the space and shrinks back when a panel returns. Presets: Full, View, Edit, Color. Triple-tap the icon to reset the whole layout.
 - Merge photos → Star stack: 2–8 night-sky shots from a tripod are lined up on the stars (shift and turn) and averaged for a clean, detailed sky.
 - Crop → EXPAND (CLOUD AI): pick a shape (16:9, 3:2, 4:3, 1:1, 4:5, 9:16 or wider all round) and where the photo sits; the empty parts are painted in (Bria Expand via your fal.ai account). Optional: describe what to add.

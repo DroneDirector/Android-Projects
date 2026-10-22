@@ -2987,5 +2987,8 @@
 "Always RAW only": "Altid kun RAW",
 "Pro photo mode · remembered next time": "Pro-fototilstand · huskes til næste gang",
 "Not available with this lens / phone": "Ikke tilgængelig med dette objektiv / denne telefon",
-"Settings → PHOTO → Always JPEG / Always RAW + JPEG / Always RAW only: the file format for Pro photo mode. Only one can be on, and the app remembers it.": "Indstillinger → PHOTO → Always JPEG / Always RAW + JPEG / Always RAW only: filformatet i Pro-fototilstand. Kun én kan være slået til, og appen husker det."
+"Settings → PHOTO → Always JPEG / Always RAW + JPEG / Always RAW only: the file format for Pro photo mode. Only one can be on, and the app remembers it.": "Indstillinger → PHOTO → Always JPEG / Always RAW + JPEG / Always RAW only: filformatet i Pro-fototilstand. Kun én kan være slået til, og appen husker det.",
+"Colour noise": "Farvestøj",
+"Colour noise smooths blotchy colour specks — like blue patches in the dark parts of photos taken in dim, warm light — and keeps the fine detail.": "Farvestøj udglatter plettede farveprikker — som blå pletter i de mørke dele af billeder taget i svagt, varmt lys — og bevarer de fine detaljer.",
+"Detail → NOISE REDUCTION → Colour noise: removes blotchy colour specks (e.g. blue patches in the shadows of photos taken in dim, warm light) while keeping detail. Works on RAW and JPEG.": "Detail → NOISE REDUCTION → Colour noise: fjerner plettede farveprikker (f.eks. blå pletter i skyggerne på billeder taget i svagt, varmt lys) og bevarer detaljerne. Virker på RAW og JPEG."
 }

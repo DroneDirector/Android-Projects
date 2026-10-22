@@ -142,6 +142,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
   - **Point Color** and **Calibration** (shadows tint, red / green / blue primaries).
   - Colour grading with **Global, Blending and Balance**.
   - Pro sharpening (**Radius, Detail, Masking** + mask preview) and **Defringe** (purple / green).
+  - **Colour noise** reduction (chroma smoothing, strongest in the shadows; keeps real colour edges).
   - **Post-crop vignette** (Midpoint, Roundness, Feather, Highlights) and **grain** (Size, Roughness).
   - **Zoom / 1:1 loupe** (pinch, double-tap, Ctrl + wheel).
   - **AI Remove**: tap people, cars or signs (the AI selects each), or paint over wires, and the AI (LaMa on the phone, or Bria Eraser with Cloud AI) paints in what was behind them at the photo's full size.

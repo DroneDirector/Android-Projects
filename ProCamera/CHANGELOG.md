@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.457 — 2026-10-22
 - Photo editor: new **Retouch** panel — **Liquify** (push, pinch, bloat, twirl, restore), **frequency separation** for skin (whole photo, face skin or all skin via AI) and **Relight** (move or add light using the AI depth map).
 - Library: **Print layout** — PDF at exact print sizes (A4, A3, Letter, 10×15, 13×18 paper; 1–6 per page or fixed print sizes) with borders and crop marks.
 - Library: **Collage** of 2–9 photos — five templates, five shapes, spacing, rounded corners and background colour.

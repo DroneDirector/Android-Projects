@@ -349,7 +349,7 @@ private fun LibThumb(uri: Uri, size: Int, crop: Boolean = true) {
     val img by produceState<ImageBitmap?>(null, uri, size) {
         value = withContext(Dispatchers.IO) {
             try {
-                if (Build.VERSION.SDK_INT >= 29 && size <= 512) context.contentResolver.loadThumbnail(uri, android.util.Size(size, size), null).asImageBitmap()
+                if (Build.VERSION.SDK_INT >= 29 && size <= 512) com.dronedirector.veyrocutpro.ui.UprightThumb.fix(context, uri, context.contentResolver.loadThumbnail(uri, android.util.Size(size, size), null))!!.asImageBitmap()
                 else GradeIO.decode(context, uri, size)?.asImageBitmap()
             } catch (_: Throwable) { null }
         }

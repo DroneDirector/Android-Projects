@@ -369,7 +369,7 @@ fun MediaChooser(
                     val thumb by produceState<ImageBitmap?>(null, item.uri) {
                         value = withContext(Dispatchers.IO) {
                             try {
-                                if (Build.VERSION.SDK_INT >= 29) context.contentResolver.loadThumbnail(item.uri, android.util.Size(256, 256), null).asImageBitmap()
+                                if (Build.VERSION.SDK_INT >= 29) com.dronedirector.veyrocutpro.ui.UprightThumb.fix(context, item.uri, context.contentResolver.loadThumbnail(item.uri, android.util.Size(256, 256), null))!!.asImageBitmap()
                                 else GradeIO.decode(context, item.uri, 256)?.asImageBitmap()
                             } catch (_: Throwable) { null }
                         }

@@ -747,7 +747,7 @@ fun GalleryThumb(uri: Uri?, size: Dp, onOpen: () -> Unit) {
         thumb = if (uri != null && Build.VERSION.SDK_INT >= 29) {
             withContext(Dispatchers.IO) {
                 try {
-                    context.contentResolver.loadThumbnail(uri, Size(256, 256), null).asImageBitmap()
+                    UprightThumb.fix(context, uri, context.contentResolver.loadThumbnail(uri, Size(256, 256), null))!!.asImageBitmap()
                 } catch (_: Throwable) {
                     null
                 }

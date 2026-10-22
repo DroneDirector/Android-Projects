@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- **DNG thumbnails are upright too**: in the Capture gallery, the last-photo button, the photo editor's recent photos and the Library (the phone's own thumbnails don't turn DNGs).
 
 ## 1.0.469 — 2026-10-22
 - Capture gallery: the upright fix now applies to DNG RAW files only; other RAW formats are shown as before.

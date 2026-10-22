@@ -573,7 +573,7 @@ private fun MediaGrid(items: List<MediaItem>, favorites: Set<String>, marks: Map
 @OptIn(ExperimentalFoundationApi::class)
 private fun GridCell(item: MediaItem, favorite: Boolean, mark: com.dronedirector.veyrocutpro.camera.Ratings.Mark? = null, selected: Boolean? = null, onLongClick: () -> Unit = {}, onClick: () -> Unit) {
     val context = LocalContext.current
-    val thumb by produceThumb(context, item.uri, 320)
+    val thumb by produceThumb(context, item.uri, 320, dng = item.isRaw && (item.name.endsWith(".dng", true) || item.mime.contains("dng", true)))
     Box(
         Modifier
             .aspectRatio(1f)
@@ -636,14 +636,20 @@ private fun GridCell(item: MediaItem, favorite: Boolean, mark: com.dronedirector
 }
 
 @Composable
-private fun produceThumb(context: Context, uri: Uri, px: Int) =
+private fun produceThumb(context: Context, uri: Uri, px: Int, dng: Boolean = false) =
     androidx.compose.runtime.produceState<ImageBitmap?>(null, uri) {
         value = withContext(Dispatchers.IO) {
             try {
                 val sys = if (Build.VERSION.SDK_INT >= 29) {
                     try { context.contentResolver.loadThumbnail(uri, Size(px, px), null) } catch (_: Throwable) { null }
                 } else null
-                (sys ?: decodeImage(context, uri, px))?.asImageBitmap()
+                var b = sys ?: decodeImage(context, uri, px)
+                // DNG: neither the system thumbnail nor the decoder turns it by the file's orientation tag.
+                if (dng && b != null) {
+                    val rot = context.contentResolver.openInputStream(uri)?.use { ExifInterface(it).rotationDegrees } ?: 0
+                    if (rot != 0) b = Bitmap.createBitmap(b, 0, 0, b.width, b.height, Matrix().apply { postRotate(rot.toFloat()) }, true)
+                }
+                b?.asImageBitmap()
             } catch (_: Throwable) {
                 null
             }

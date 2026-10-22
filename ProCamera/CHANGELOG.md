@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.469 — 2026-10-22
 - Capture gallery: the upright fix now applies to DNG RAW files only; other RAW formats are shown as before.
 
 ## 1.0.467 — 2026-10-22

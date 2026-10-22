@@ -145,8 +145,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class Page(val label: String) { STRIP("Media strip"), MEDIA("Media"), PROXY("Proxy"), EDIT("Edit"), TEXT("Text"), TRANSITIONS("Transitions"), COLOR("Color"), LAYERS("Layers"), AUDIO("Audio"), DELIVER("Deliver") }
-private enum class ColorTab(val label: String) { INPUT("Input"), LUTS("LUTs"), WHEELS("Wheels"), PRIMARIES("Primaries"), CURVES("Curves"), HSL("HSL"), MASKS("Masks"), DETAIL("Detail"), FILM("Film & lens"), EFFECTS("Effects"), LOOKS("Looks") }
+internal enum class Page(val label: String) { STRIP("Media strip"), MEDIA("Media"), PROXY("Proxy"), EDIT("Edit"), TEXT("Text"), TRANSITIONS("Transitions"), COLOR("Color"), LAYERS("Layers"), AUDIO("Audio"), DELIVER("Deliver") }
+internal enum class ColorTab(val label: String) { INPUT("Input"), LUTS("LUTs"), WHEELS("Wheels"), PRIMARIES("Primaries"), CURVES("Curves"), HSL("HSL"), MASKS("Masks"), DETAIL("Detail"), FILM("Film & lens"), EFFECTS("Effects"), LOOKS("Looks") }
 
 @Composable
 fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) {
@@ -271,38 +271,12 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
 private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAddGallery: () -> Unit, onAddFiles: () -> Unit, onExit: () -> Unit, onLoad: (String) -> Unit) {
     val wx = remember { WorkspaceExtra() }
     val context = LocalContext.current
-    var page by remember { mutableStateOf(Page.EDIT) }
-    var colorTab by remember { mutableStateOf(ColorTab.INPUT) }
+    val es = remember { EditorState(initial, context) }
     val maskTools = remember { LocalToolsState() }
-    var selected by remember { mutableStateOf(0) }
-    var playing by remember { mutableStateOf(false) }
-    var posMs by remember { mutableStateOf(0L) }      // position inside the current clip (source time)
-    var current by remember { mutableStateOf(0) }
-    var exporting by remember { mutableStateOf(false) }
-    var progress by remember { mutableStateOf(0) }
-    var message by remember { mutableStateOf<String?>(null) }
-    var trackingId by remember { mutableStateOf<String?>(null) }
-    var trackStop by remember { mutableStateOf(false) }
-    var deliver by remember { mutableStateOf(initial?.deliver ?: DeliverSettings()) }
     /** Mixer: the one track being listened to alone (preview only), or null. */
-    var soloTrack by remember { mutableStateOf<String?>(null) }
     // An opened autosave is a copy: SAVE asks for a name instead of overwriting it.
-    var projectId by remember { mutableStateOf(initial?.id?.takeIf { initial.autosave != true }) }
-    var projectName by remember { mutableStateOf(initial?.name ?: "") }
-    var askName by remember { mutableStateOf(false) }
-    var leaveAfterSave by remember { mutableStateOf(false) }
-    var showLoad by remember { mutableStateOf(false) }
-    if (showLoad) LoadProjectDialog(true, onOpen = { showLoad = false; onLoad(it) }, onDismiss = { showLoad = false })
-    var export by remember { mutableStateOf<TimelineExport?>(null) }
-    var confirmExit by remember { mutableStateOf(false) }
-    var fullscreen by remember { mutableStateOf(false) }
-    var showSettings by remember { mutableStateOf(false) }
-    var cloudExport by remember { mutableStateOf(false) }
-    var cloudJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
-    var previewMuted by remember { mutableStateOf(false) }
+    if (es.showLoad) LoadProjectDialog(true, onOpen = { es.showLoad = false; onLoad(it) }, onDismiss = { es.showLoad = false })
     // Timeline track switches for the main video track (clips).
-    var videoMuted by remember { mutableStateOf(initial?.videoMuted ?: false) }
-    var videoLocked by remember { mutableStateOf(initial?.videoLocked ?: false) }
     // Timeline markers and snapping.
     val markers = remember { mutableStateListOf<Long>().apply { initial?.markers?.let { addAll(it) } } }
     val markerNotes = remember { mutableStateMapOf<Long, String>().apply { initial?.markerNotes?.forEach { (k, v) -> k.toLongOrNull()?.let { put(it, v) } } } }
@@ -312,31 +286,21 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val bins = remember { mutableStateMapOf<String, String>().apply { initial?.bins?.let { putAll(it) } } }
     val binNames = remember { mutableStateListOf<String>().apply { initial?.binNames?.let { addAll(it.distinct()) } } }
     // Settings → PROJECT ARCHIVE: 1 = save a .zip, 2 = open one (handled once the pickers exist).
-    var archiveAction by remember { mutableStateOf(0) }
-    var archiveBusy by remember { mutableStateOf<Int?>(null) }
-    var snapping by remember { mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_snap", true)) }
     val thumbs = remember { mutableStateMapOf<String, Bitmap>() }
     val strips = remember { mutableStateMapOf<String, Filmstrip>() }
-    var scopeHist by remember { mutableStateOf<Array<FloatArray>?>(null) }
-    var scopeFrame by remember { mutableStateOf<Bitmap?>(null) }
-    var scopeOpen by remember { mutableStateOf(scopeDrawerOpen(context)) }
-    var exportStartAt by remember { mutableStateOf(0L) }
     // Panels menu (layout icon next to the settings gear): which parts of the editor are shown.
-    var paneVersion by remember { mutableStateOf(0) }
     val showInspector = com.dronedirector.veyrocutpro.ui.panelOn("ve.inspector")
     val showTransport = com.dronedirector.veyrocutpro.ui.panelOn("ve.transport")
     val showScope = com.dronedirector.veyrocutpro.ui.panelOn("ve.scope")
     val showTimecode = com.dronedirector.veyrocutpro.ui.panelOn("ve.timecode")
     val showWaves = com.dronedirector.veyrocutpro.ui.panelOn("ve.waves")
-    LaunchedEffect(showScope) { if (!showScope) scopeOpen = false }
+    LaunchedEffect(showScope) { if (!showScope) es.scopeOpen = false }
     val layers = remember { mutableStateListOf<Layer>().apply { initial?.layers?.let { addAll(it) } } }
     // Adjustment layers in the preview: their grade is added to the clip being shown.
-    var adjNowMs by remember { mutableStateOf(0L) }
     fun adjOf(c: Clip): Clip {
-        val a = adjustMasks(layers, adjNowMs)
+        val a = adjustMasks(layers, es.adjNowMs)
         return if (a.isEmpty()) c else c.copy(masks = a + (c.masks ?: emptyList()))
     }
-    var selectedLayer by remember { mutableStateOf<String?>(null) }
     // Remembered watermark: added to every new project; kept up to date while the option is on.
     LaunchedEffect(Unit) {
         if (initial == null && layers.none { it.kind == LayerKind.WATERMARK || (it.kind == LayerKind.LOGO && it.wholeVideo) }) {
@@ -346,12 +310,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val wmLayer = layers.firstOrNull { it.kind == LayerKind.WATERMARK } ?: layers.firstOrNull { it.kind == LayerKind.LOGO }
     val wmOn = WatermarkMemory.isOn(context, true)
     LaunchedEffect(wmLayer, wmOn) { if (wmOn && wmLayer != null) WatermarkMemory.save(context, true, wmLayer) }
-    var music by remember { mutableStateOf(initial?.music) }
     // Extra audio tracks on the timeline, and audio files in the media pool.
     val extraAudio = remember { mutableStateListOf<MusicTrack>().apply { initial?.extraAudio?.let { addAll(it) } } }
     // Several timelines in one project: the open one lives in the normal state, the others here.
     val otherTimelines = remember { mutableStateListOf<SavedTimeline>().apply { initial?.timelines?.let { addAll(it) } } }
-    var timelineName by remember { mutableStateOf(initial?.timelineName ?: "Timeline 1") }
     val audioPool = remember { mutableStateListOf<PoolAudio>().apply { initial?.audioPool?.let { addAll(it) } } }
     // Media strip: all imported clips (on the timeline or not), with ratings.
     val library = remember { mutableStateListOf<Clip>().apply { initial?.library?.let { addAll(it.distinctBy { c -> c.uri.toString() }) } } }
@@ -362,22 +324,21 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             library.add(c.copy(id = java.util.UUID.randomUUID().toString(), startMs = 0, endMs = c.durationMs, speed = 1f, ramp = null, rampName = null, volKeys = null, transition = Transition()))
     }
     val libScope = rememberCoroutineScope()
-    var libLoading by remember { mutableStateOf(0) }
     fun importToLibrary(uris: List<Uri>) {
         if (uris.isEmpty()) return
-        libLoading += uris.size
+        es.libLoading += uris.size
         libScope.launch {
             var added = 0
             for (u in uris) {
-                if (library.any { it.uri == u }) { libLoading--; continue }
+                if (library.any { it.uri == u }) { es.libLoading--; continue }
                 val c = withContext(Dispatchers.IO) {
                     try { context.contentResolver.takePersistableUriPermission(u, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
                     ClipLoader.load(context, u)
                 }
-                libLoading--
+                es.libLoading--
                 if (c != null) { library.add(c); added++ }
             }
-            message = "$added clip(s) added to the media strip"
+            es.message = "$added clip(s) added to the media strip"
         }
     }
     val libPick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(100)) { importToLibrary(it) }
@@ -386,7 +347,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             try { context.contentResolver.takePersistableUriPermission(tree, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
             libScope.launch {
                 val list = withContext(Dispatchers.IO) { SkimFrames.folderVideos(context, tree) }
-                if (list.isEmpty()) message = "No videos in that folder" else importToLibrary(list)
+                if (list.isEmpty()) es.message = "No videos in that folder" else importToLibrary(list)
             }
         }
     }
@@ -395,8 +356,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val extraFx = remember { HashMap<String, AudioFxProcessor>() }
     // Real waveforms for clips and audio tracks (decoded once in the background).
     val waves = remember { mutableStateMapOf<String, FloatArray>() }
-    LaunchedEffect(clips.map { it.uri }.distinct(), music?.uri, extraAudio.map { it.uri }) {
-        val uris = (clips.map { it.uri } + listOfNotNull(music?.uri) + extraAudio.map { it.uri }).distinct()
+    LaunchedEffect(clips.map { it.uri }.distinct(), es.music?.uri, extraAudio.map { it.uri }) {
+        val uris = (clips.map { it.uri } + listOfNotNull(es.music?.uri) + extraAudio.map { it.uri }).distinct()
         for (u in uris) {
             if (waves[u.toString()] != null) continue
             withContext(Dispatchers.IO) { Waveforms.load(context, u) }?.let { waves[u.toString()] = it }
@@ -423,7 +384,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val dur = try { mmr.setDataSource(context, uri); mmr.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L } catch (_: Throwable) { 0L } finally { try { mmr.release() } catch (_: Throwable) {} }
             val name = context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null } ?: "Music"
             if (dur > 0) {
-                music = MusicTrack(uri, name, dur)
+                es.music = MusicTrack(uri, name, dur)
                 if (audioPool.none { it.uri == uri }) audioPool.add(PoolAudio(uri, name, dur))
                 musicPlayer.setMediaItem(MediaItem.fromUri(uri))
                 musicPlayer.prepare()
@@ -431,38 +392,36 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     val layerScope = rememberCoroutineScope()
-    var showMulticam by remember { mutableStateOf(false) }
-    if (showMulticam) MulticamDialog(
+    if (es.showMulticam) MulticamDialog(
         pool = clips.distinctBy { it.uri.toString() },
         onDone = { cut ->
-            showMulticam = false
-            if (cut.isNotEmpty()) { clips.addAll(cut); message = "Multicam edit added: ${cut.size} shots at the end of the timeline" }
+            es.showMulticam = false
+            if (cut.isNotEmpty()) { clips.addAll(cut); es.message = "Multicam edit added: ${cut.size} shots at the end of the timeline" }
         },
-        onDismiss = { showMulticam = false },
+        onDismiss = { es.showMulticam = false },
     )
     /** Lines an audio track up with the selected clip by matching their sound (external recorder, second camera…). */
     fun syncAudioTo(t: MusicTrack) {
-        val c = clips.getOrNull(selected) ?: run { message = "Select the clip to sync to on the timeline"; return }
-        message = "Matching the sound…"
+        val c = clips.getOrNull(es.selected) ?: run { es.message = "Select the clip to sync to on the timeline"; return }
+        es.message = "Matching the sound…"
         layerScope.launch {
             val pa = withContext(Dispatchers.IO) { Waveforms.load(context, c.uri) }
             val pb = withContext(Dispatchers.IO) { Waveforms.load(context, t.uri) }
-            if (pa == null || pb == null) { message = "Couldn't read the sound of the clip or the track"; return@launch }
+            if (pa == null || pb == null) { es.message = "Couldn't read the sound of the clip or the track"; return@launch }
             val m = withContext(Dispatchers.Default) { AudioSync.match(pa, pb) }
             if (m == null || m.confidence < 0.15f) {
-                message = "No clear match — both need to have recorded the same sound (a clap at the start helps)"
+                es.message = "No clear match — both need to have recorded the same sound (a clap at the start helps)"
                 return@launch
             }
-            val base = clipStarts(clips).getOrNull(selected) ?: 0L
+            val base = clipStarts(clips).getOrNull(es.selected) ?: 0L
             val a0 = c.startMs + m.lagMs
             val nt = if (a0 >= 0) t.copy(startMs = base, offsetMs = a0) else t.copy(startMs = base - a0, offsetMs = 0L)
-            if (music?.id == t.id) music = nt
+            if (es.music?.id == t.id) es.music = nt
             else { val i = extraAudio.indexOfFirst { it.id == t.id }; if (i >= 0) extraAudio[i] = nt }
-            message = "Synced to clip ${selected + 1} (match ${(m.confidence * 100).toInt()}%). Turn the clip's own volume down in Audio to hear only the track."
+            es.message = "Synced to clip ${es.selected + 1} (match ${(m.confidence * 100).toInt()}%). Turn the clip's own volume down in Audio to hear only the track."
         }
     }
     // Drone flight data (DJI .SRT) → timed overlay text on the selected clip.
-    var telemetryShow by remember { mutableStateOf(TelemetryShow()) }
     // Subtitle import (.srt / .vtt) → caption layers.
     val pickSubs = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -475,7 +434,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     startMs = a, endMs = b.coerceAtMost(total), name = "Caption"))
                 n++
             }
-            message = if (cues == null) "Couldn't read that file" else if (n == 0) "No subtitles found in that file" else "$n captions imported"
+            es.message = if (cues == null) "Couldn't read that file" else if (n == 0) "No subtitles found in that file" else "$n captions imported"
         }
     }
     val pickSrt = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -484,11 +443,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 try { context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } } catch (_: Throwable) { null }
             }
             val samples = text?.let { withContext(Dispatchers.Default) { Telemetry.parse(it) } }.orEmpty()
-            if (samples.isEmpty()) { message = "No flight data found in that file — pick the .SRT saved next to the drone video"; return@launch }
-            val c = clips.getOrNull(current) ?: run { message = "Select the drone clip on the timeline first"; return@launch }
-            val base = clipStarts(clips).getOrNull(current) ?: 0L
-            val segs = Telemetry.segments(samples, telemetryShow, c.startMs, c.endMs)
-            if (segs.isEmpty()) { message = "The flight data has none of the chosen values"; return@launch }
+            if (samples.isEmpty()) { es.message = "No flight data found in that file — pick the .SRT saved next to the drone video"; return@launch }
+            val c = clips.getOrNull(es.current) ?: run { es.message = "Select the drone clip on the timeline first"; return@launch }
+            val base = clipStarts(clips).getOrNull(es.current) ?: 0L
+            val segs = Telemetry.segments(samples, es.telemetryShow, c.startMs, c.endMs)
+            if (segs.isEmpty()) { es.message = "The flight data has none of the chosen values"; return@launch }
             layers.removeAll { it.name == "Telemetry" && it.startMs >= base && it.startMs < base + c.lengthMs }
             var n = 0
             for ((a, b, txt) in segs) {
@@ -501,13 +460,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 ))
                 n++
             }
-            message = "Flight data added to clip ${current + 1} ($n overlays) — tap one on the timeline to restyle it"
+            es.message = "Flight data added to clip ${es.current + 1} ($n overlays) — tap one on the timeline to restyle it"
         }
     }
     // Render queue (Deliver → RENDER QUEUE): settings to export one after another.
     val exportQueue = remember { mutableStateListOf<DeliverSettings>() }
-    var queueAt by remember { mutableStateOf(-1) }          // next job to start; -1 = not running
-    var queueBase by remember { mutableStateOf<DeliverSettings?>(null) }
     // Android 13+: ask once to show the export progress notification.
     val askNotify = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     LaunchedEffect(Unit) {
@@ -520,15 +477,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     // New video layer: you choose first whether it goes above or below the main video.
-    var askVideoLayer by remember { mutableStateOf(false) }
-    var videoLayerBelow by remember { mutableStateOf(false) }
     val pickLayerVideo = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) layerScope.launch {
             val c = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }
-            if (c == null) { message = "Can't open that video"; return@launch }
+            if (c == null) { es.message = "Can't open that video"; return@launch }
             val total = timelineLength(clips)
-            val start = ((clipStarts(clips).getOrNull(current) ?: 0L) + (clips.getOrNull(current)?.let { it.tlOffsetOf(it.startMs + posMs) } ?: posMs)).coerceIn(0, total)
-            val below = videoLayerBelow
+            val start = ((clipStarts(clips).getOrNull(es.current) ?: 0L) + (clips.getOrNull(es.current)?.let { it.tlOffsetOf(it.startMs + es.posMs) } ?: es.posMs)).coerceIn(0, total)
+            val below = es.videoLayerBelow
             val l = Layer(
                 kind = LayerKind.VIDEO, text = c.name, videoUri = uri, videoDurationMs = c.durationMs,
                 mediaAspect = if (c.height > 0) c.width.toFloat() / c.height else 16f / 9f,
@@ -538,14 +493,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 below = below,
             )
             // New layers go on top of the other layers in their group.
-            layers.add(l); selectedLayer = l.id
+            layers.add(l); es.selectedLayer = l.id
             val n = layers.count { it.kind == LayerKind.VIDEO && it.visible }
-            message = "Video layer added ${if (below) "below" else "above"} the main video" +
+            es.message = "Video layer added ${if (below) "below" else "above"} the main video" +
                 if (n > 3) " — $n video layers play at once; if the preview stutters, use the Proxy tab or hide some with the eye" else ""
         }
     }
-    if (askVideoLayer) androidx.compose.material3.AlertDialog(
-        onDismissRequest = { askVideoLayer = false },
+    if (es.askVideoLayer) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { es.askVideoLayer = false },
         containerColor = Pro.PanelSolid,
         title = { Text("Add a video layer", color = Color.White) },
         text = {
@@ -556,7 +511,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Ed.Raised)
                             .border(1.dp, Pro.Amber.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                             .clickable {
-                                askVideoLayer = false; videoLayerBelow = below
+                                es.askVideoLayer = false; es.videoLayerBelow = below
                                 pickLayerVideo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly))
                             }.padding(12.dp),
                     ) {
@@ -572,36 +527,34 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
         },
         confirmButton = {},
-        dismissButton = { androidx.compose.material3.TextButton(onClick = { askVideoLayer = false }) { Text("Cancel", color = Pro.Dim) } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = { es.askVideoLayer = false }) { Text("Cancel", color = Pro.Dim) } },
     )
     val pickLayerImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             val total = timelineLength(clips)
             val l = Layer(kind = LayerKind.IMAGE, text = "Image", imageUri = uri, size = 0.3f, x = 0.5f, y = 0.5f, startMs = 0, endMs = total.coerceAtLeast(1000), wholeVideo = true)
-            layers.add(l); selectedLayer = l.id
+            layers.add(l); es.selectedLayer = l.id
         }
     }
     val addAtMs = remember { longArrayOf(0L) }
     val pickLottie = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) layerScope.launch {
             val u = withContext(Dispatchers.IO) { LottieRender.import(context, uri) }
-            if (u == null) { message = "That isn't a Lottie animation (.json or .zip)"; return@launch }
+            if (u == null) { es.message = "That isn't a Lottie animation (.json or .zip)"; return@launch }
             val dur = LottieRender.durationMs(context, Layer(kind = LayerKind.LOTTIE, imageUri = u))
             val l = Layer(kind = LayerKind.LOTTIE, text = "Animation", imageUri = u, size = 0.35f, startMs = addAtMs[0], endMs = addAtMs[0] + dur.coerceIn(1000L, 10_000L), shadow = false)
-            layers.add(l); selectedLayer = l.id
-            message = "Lottie animation added — it loops for the layer's length"
+            layers.add(l); es.selectedLayer = l.id
+            es.message = "Lottie animation added — it loops for the layer's length"
         }
     }
     val pickLogo = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             val l = Layer(kind = LayerKind.LOGO, imageUri = uri, size = 0.12f, x = 0.85f, y = 0.88f, opacity = 0.85f, wholeVideo = true)
-            layers.add(l); selectedLayer = l.id
+            layers.add(l); es.selectedLayer = l.id
         }
     }
 
-    var effectsOk by remember { mutableStateOf(true) }
     // Proxy media, keyed by stable media ID (MediaId.of(clip)): only media in the Proxy section.
-    var proxySettings by remember { mutableStateOf(ProxySettings.load(context)) }
     val proxies = remember { mutableStateMapOf<String, Uri>() }       // ready proxy (current quality, or an older one while updating)
     val proxyStale = remember { mutableStateListOf<String>() }        // using an older quality while the new one is made
     val proxyBad = remember { mutableStateListOf<String>() }          // failed to play this session → the original is used
@@ -609,13 +562,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val proxyCancelled = remember { mutableStateListOf<String>() }
     val proxyQueue = remember { mutableStateListOf<String>() }
     val proxyProgress = remember { mutableStateMapOf<String, Int>() }
-    var proxyCancel by remember { mutableStateOf<(() -> Unit)?>(null) }
-    var proxyRun by remember { mutableStateOf(0) }                   // bumps to restart the worker
     val renderedFor = remember { mutableStateListOf<String?>(null, null) }
-    var showInfo by remember { mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("ve_info", false)) }
     // Timeline scroll wheels: animated "upscale" look, or plain colours without animation.
-    var wheelFx by remember { mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_wheel_fx", true)) }
-    var infoText by remember { mutableStateOf("") }
     // Render cache: heavy effects baked into a preview file (key → file).
     val cacheReady = wx.cacheReady
     val cacheProgress = wx.cacheProgress
@@ -634,14 +582,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         wx.cacheCancel = RenderCache.make(context, c, { p -> cacheProgress[k] = p }) { u, err ->
             wx.cacheCancel = null
             cacheProgress.remove(k)
-            if (u != null) cacheReady[k] = u else { message = err; cacheProgress.keys.toList().forEach { cacheProgress.remove(it) } }
+            if (u != null) cacheReady[k] = u else { es.message = err; cacheProgress.keys.toList().forEach { cacheProgress.remove(it) } }
             if (u != null) renderCacheNext()
         }
     }
     /** The proxy this clip plays from right now, or null (= the original). */
     fun proxyFor(c: Clip): Uri? {
         cachedFor(c)?.let { return it }
-        if (!proxySettings.enabled || c.nested != null) return null
+        if (!es.proxySettings.enabled || c.nested != null) return null
         val id = MediaId.of(c)
         if (id !in proxyMedia || id in proxyBad) return null
         return proxies[id]
@@ -654,10 +602,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
     fun cancelProxy(id: String) {
         val running = proxyQueue.firstOrNull() == id && proxyProgress[id] != null
-        if (running) { proxyCancel?.invoke(); proxyCancel = null }
+        if (running) { es.proxyCancel?.invoke(); es.proxyCancel = null }
         proxyProgress.remove(id)
         if (proxyQueue.remove(id) && id !in proxyCancelled) proxyCancelled.add(id)
-        if (running) proxyRun++
+        if (running) es.proxyRun++
     }
     fun removeFromProxy(id: String) {
         cancelProxy(id)
@@ -666,7 +614,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     /** Short status of a media file in the Proxy section. */
     fun proxyStatus(c: Clip): String {
         val id = MediaId.of(c)
-        val q = proxySettings.quality.label
+        val q = es.proxySettings.quality.label
         val have = proxies[id]?.let { ProxyMaker.qualityOf(it)?.label } ?: ""
         return when {
             id !in proxyMedia -> "NOT IN PROXY"
@@ -680,8 +628,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             else -> "WAITING"
         }
     }
-    var pendingRestore by remember { mutableStateOf<java.io.File?>(null) }
-    if (showSettings) EditorSettingsDialog(
+    if (es.showSettings) EditorSettingsDialog(
         "Video editor", com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR,
         colourExtra = {
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -689,8 +636,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     Text("Scroll wheel effects", color = Color.White, fontSize = 15.sp)
                     Text("Glow, pixel and scan-line animation on the timeline's scroll wheels. Off = plain colours, no animation.", color = Pro.Dim, fontSize = 12.sp)
                 }
-                androidx.compose.material3.Switch(wheelFx, {
-                    wheelFx = it
+                androidx.compose.material3.Switch(es.wheelFx, {
+                    es.wheelFx = it
                     context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("tl_wheel_fx", it).apply()
                 }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
             }
@@ -701,8 +648,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     Text("Show playback info", color = Color.White, fontSize = 15.sp)
                     Text("Small read-out on the player for troubleshooting", color = Pro.Dim, fontSize = 12.sp)
                 }
-                androidx.compose.material3.Switch(showInfo, {
-                    showInfo = it
+                androidx.compose.material3.Switch(es.showInfo, {
+                    es.showInfo = it
                     context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("ve_info", it).apply()
                 }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
             }
@@ -710,25 +657,24 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             Text("Proxies are set up in the Proxy tab next to Media: add the clips you want, switch proxies on or off and pick the quality there. Exports always use your original files.", color = Pro.Dim, fontSize = 12.sp)
             Text("PROJECT ARCHIVE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
             Text("One .zip with this edit and every file it uses — to move it to another phone or keep it safe. OPEN ARCHIVE brings one back as a new project.", color = Pro.Dim, fontSize = 12.sp)
-            if (archiveBusy != null) Text("Working… $archiveBusy%", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.padding(vertical = 6.dp))
+            if (es.archiveBusy != null) Text("Working… ${es.archiveBusy}%", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.padding(vertical = 6.dp))
             else Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
-                Text("SAVE ARCHIVE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { archiveAction = 1; showSettings = false }.padding(8.dp))
-                Text("OPEN ARCHIVE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { archiveAction = 2; showSettings = false }.padding(8.dp))
+                Text("SAVE ARCHIVE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { es.archiveAction = 1; es.showSettings = false }.padding(8.dp))
+                Text("OPEN ARCHIVE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { es.archiveAction = 2; es.showSettings = false }.padding(8.dp))
             }
             Text("VERSION HISTORY", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
-            val pid = projectId
-            val vers = remember(pid, showSettings) { if (pid != null) ProTools.versions(context, pid) else emptyList() }
+            val pid = es.projectId
+            val vers = remember(pid, es.showSettings) { if (pid != null) ProTools.versions(context, pid) else emptyList() }
             if (pid == null) Text("Save the project once; every save (and every 10 minutes of editing) then keeps a version you can go back to.", color = Pro.Dim, fontSize = 12.sp)
             else if (vers.isEmpty()) Text("No earlier versions yet — they're kept every time you save and every 10 minutes while you edit.", color = Pro.Dim, fontSize = 12.sp)
             else vers.take(30).forEach { (t, f) ->
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
                     Text(java.text.SimpleDateFormat("EEE d MMM · HH:mm", java.util.Locale.getDefault()).format(java.util.Date(t)), color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                    Text("RESTORE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { pendingRestore = f; showSettings = false }.padding(6.dp))
+                    Text("RESTORE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { es.pendingRestore = f; es.showSettings = false }.padding(6.dp))
                 }
             }
         },
-    ) { showSettings = false }
-    var loadedId by remember { mutableStateOf<String?>(null) }
+    ) { es.showSettings = false }
     var videoAspect by remember { mutableStateOf(16f / 9f) }
     // Two players take turns: while one plays, the next clip is loaded and paused on its first
     // frame in the other, so the cut to the next clip is seamless.
@@ -739,8 +685,6 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
     val zoom = remember { TimelineZoom() }
     // Crop / zoom on the player, stabilisation and transitions in the preview.
-    var cropMode by remember { mutableStateOf(false) }
-    var cropEditEnd by remember { mutableStateOf(false) }
     val motions = remember { mutableStateMapOf<String, Motion>() }
     val stabProgress = remember { mutableStateMapOf<String, Int>() }
     val stabCancels = remember { HashMap<String, () -> Unit>() }
@@ -750,7 +694,6 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val gpuGrade = remember { GradePreview.supported }
     val filmOn = remember { booleanArrayOf(false, false) }
     val filmShown = remember { arrayOfNulls<Any>(2) }
-    var errorRetries by remember { mutableStateOf(0) }
     fun motionFor(c: Clip): Motion? = if (c.stab.enabled) motions[Stabilizer.keyOf(c)] else null
     fun analyze(c: Clip) {
         val k = Stabilizer.keyOf(c)
@@ -758,12 +701,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         stabProgress[k] = 0
         stabCancels[k] = Stabilizer.analyze(context, c, onProgress = { stabProgress[k] = it }) { m, err ->
             stabProgress.remove(k); stabCancels.remove(k)
-            if (m != null) { motions[k] = m; message = "Stabilisation ready for ${c.name}" } else message = err
+            if (m != null) { motions[k] = m; es.message = "Stabilisation ready for ${c.name}" } else es.message = err
         }
     }
     val deck = remember { Deck(players) }
     val aspects = remember { mutableStateListOf(16f / 9f, 16f / 9f) }
-    var preloadedId by remember { mutableStateOf<String?>(null) }
 
     fun mediaItemFor(c: Clip) = MediaItem.Builder().setUri(sourceFor(c)).setMediaId(c.id)
         .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(c.startMs).setEndPositionMs(c.endMs).build())
@@ -774,18 +716,18 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val pi = players.indexOf(p).coerceAtLeast(0)
         if (gpuGrade) {
             // Android 13+: the grade is drawn on the view; the player only decodes plain video.
-            texViews[pi]?.let { if (effectsOk) GradePreview.apply(it, adjOf(c), 0f, ClipPreviewFx.extra(context, it, pvc(c), c.startMs + startMs)) else GradePreview.clear(it) }
+            texViews[pi]?.let { if (es.effectsOk) GradePreview.apply(it, adjOf(c), 0f, ClipPreviewFx.extra(context, it, pvc(c), c.startMs + startMs)) else GradePreview.clear(it) }
             // Film / lens / deflicker need the frame itself: they run in the player (only when used).
-            val ff = if (effectsOk) liveEffects(c) else emptyList()
+            val ff = if (es.effectsOk) liveEffects(c) else emptyList()
             if (ff.isNotEmpty() || filmOn[pi]) {
                 try { p.setVideoEffects(ff); filmOn[pi] = ff.isNotEmpty(); filmShown[pi] = liveKey(c) } catch (_: Throwable) { filmOn[pi] = false }
             }
         } else {
-            try { p.setVideoEffects(if (effectsOk) olderPreviewEffects(adjOf(c)) else emptyList()) } catch (_: Throwable) { effectsOk = false }
+            try { p.setVideoEffects(if (es.effectsOk) olderPreviewEffects(adjOf(c)) else emptyList()) } catch (_: Throwable) { es.effectsOk = false }
         }
         p.setMediaItem(mediaItemFor(c), startMs.coerceAtLeast(0))
         p.playbackParameters = PlaybackParameters(c.speedAtSrc(c.startMs + startMs))
-        p.volume = if (c.muted || previewMuted || videoMuted) 0f else c.volume.coerceAtMost(1f)
+        p.volume = if (c.muted || es.previewMuted || es.videoMuted) 0f else c.volume.coerceAtMost(1f)
         audioFx[players.indexOf(p).coerceAtLeast(0)].fx = c.audio
         p.playWhenReady = play
         p.prepare()
@@ -794,15 +736,15 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     /** Loads the clip after [index] into the spare player, paused on its first frame. */
     fun preloadAfter(index: Int) {
         val n = clips.getOrNull(index + 1)
-        if (n == null) { deck.spare.stop(); preloadedId = null; return }
+        if (n == null) { deck.spare.stop(); es.preloadedId = null; return }
         prepareOn(deck.spare, n, 0, false)
-        preloadedId = n.id
+        es.preloadedId = n.id
     }
 
     fun load(index: Int, startMs: Long, play: Boolean) {
         val c = clips.getOrNull(index) ?: return
-        current = index
-        loadedId = c.id
+        es.current = index
+        es.loadedId = c.id
         prepareOn(deck.cur, c, startMs, play)
         videoAspect = aspects[deck.active]
         preloadAfter(index)
@@ -810,17 +752,17 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
 
     /** End of a clip: switch to the preloaded next clip instantly. */
     fun advance() {
-        val next = current + 1
+        val next = es.current + 1
         val n = clips.getOrNull(next)
         if (n == null) { deck.cur.playWhenReady = false; return }
-        if (preloadedId == n.id && deck.spare.playbackState != Player.STATE_IDLE) {
+        if (es.preloadedId == n.id && deck.spare.playbackState != Player.STATE_IDLE) {
             val old = deck.cur
             deck.active = 1 - deck.active
-            current = next
-            loadedId = n.id
+            es.current = next
+            es.loadedId = n.id
             videoAspect = aspects[deck.active]
             deck.cur.playbackParameters = PlaybackParameters(n.speedAtSrc(n.startMs))
-            deck.cur.volume = if (n.muted || previewMuted || videoMuted) 0f else n.volume.coerceAtMost(1f)
+            deck.cur.volume = if (n.muted || es.previewMuted || es.videoMuted) 0f else n.volume.coerceAtMost(1f)
             deck.cur.play()
             old.pause()
             // Get the following clip ready in the player we just left.
@@ -849,70 +791,70 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 }
 
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                    if (idx != deck.active) { preloadedId = null; return }
+                    if (idx != deck.active) { es.preloadedId = null; return }
                     val pos = p.currentPosition
                     // A proxy that fails to decode: fall back to the original at the same point.
-                    clips.getOrNull(current)?.let { c ->
+                    clips.getOrNull(es.current)?.let { c ->
                         val pu = proxyFor(c)
                         if (pu != null && p.currentMediaItem?.localConfiguration?.uri == pu) {
                             proxyBad.add(MediaId.of(c))
-                            message = "The proxy for ${c.name} couldn't be played — using the original"
+                            es.message = "The proxy for ${c.name} couldn't be played — using the original"
                             return
                         }
                     }
                     if (gpuGrade) {
                         // No effects pipeline in the player: just retry a couple of times.
-                        if (errorRetries < 2) { errorRetries++; load(current, pos, p.playWhenReady) }
-                        else message = "Can't play this clip on this phone (${error.errorCodeName})"
+                        if (es.errorRetries < 2) { es.errorRetries++; load(es.current, pos, p.playWhenReady) }
+                        else es.message = "Can't play this clip on this phone (${error.errorCodeName})"
                         return
                     }
-                    if (effectsOk) {
+                    if (es.effectsOk) {
                         // The phone's GPU preview pipeline failed: keep previewing without the live grade.
-                        effectsOk = false
-                        message = "Live grade preview isn't supported here — the grade is still applied on export"
-                        load(current, pos, p.playWhenReady)
+                        es.effectsOk = false
+                        es.message = "Live grade preview isn't supported here — the grade is still applied on export"
+                        load(es.current, pos, p.playWhenReady)
                     } else {
-                        message = "Can't play this clip on this phone (${error.errorCodeName})"
+                        es.message = "Can't play this clip on this phone (${error.errorCodeName})"
                     }
                 }
             }.also { p.addListener(it) }
         }
         onDispose {
             players.forEachIndexed { i, p -> p.removeListener(listeners[i]); p.release() }
-            export?.cancel()
-            proxyCancel?.invoke()
+            es.export?.cancel()
+            es.proxyCancel?.invoke()
             stabCancels.values.forEach { it() }
         }
     }
 
-    BackHandler { if (!exporting) confirmExit = true }
+    BackHandler { if (!es.exporting) es.confirmExit = true }
 
     // Reload when the clip under the playhead changes (added, removed, trimmed, reordered).
     val structure = clips.map { listOf(it.id, it.startMs, it.endMs, sourceFor(it).toString()) }
     LaunchedEffect(structure) {
-        if (clips.isEmpty()) { players.forEach { it.stop(); it.clearMediaItems() }; loadedId = null; preloadedId = null; return@LaunchedEffect }
-        val idx = clips.indexOfFirst { it.id == loadedId }.takeIf { it >= 0 } ?: current.coerceIn(0, clips.lastIndex)
-        load(idx, if (clips[idx].id == loadedId) deck.cur.currentPosition else 0L, deck.cur.playWhenReady && deck.cur.isPlaying)
+        if (clips.isEmpty()) { players.forEach { it.stop(); it.clearMediaItems() }; es.loadedId = null; es.preloadedId = null; return@LaunchedEffect }
+        val idx = clips.indexOfFirst { it.id == es.loadedId }.takeIf { it >= 0 } ?: es.current.coerceIn(0, clips.lastIndex)
+        load(idx, if (clips[idx].id == es.loadedId) deck.cur.currentPosition else 0L, deck.cur.playWhenReady && deck.cur.isPlaying)
     }
     LaunchedEffect(clips.mapNotNull { it.decoder }.toSet()) { liveDecoders.addAll(clips.mapNotNull { it.decoder }) }
     // Proxy section: find ready proxies, use an older quality while a new one is made, queue the rest.
-    LaunchedEffect(proxyMedia.toList(), clips.map { MediaId.of(it) }.distinct(), proxySettings.quality, proxySettings.hevc) {
+    LaunchedEffect(proxyMedia.toList(), clips.map { MediaId.of(it) }.distinct(), es.proxySettings.quality, es.proxySettings.hevc) {
         val ids = proxyMedia.toSet()
         val onTimeline = clips.map { MediaId.of(it) }.toSet()
         // Stop work for media no longer in the section (or no longer in the project).
         for (id in proxyQueue.toList()) if (id !in ids || id !in onTimeline) {
-            if (proxyQueue.firstOrNull() == id && proxyProgress[id] != null) { proxyCancel?.invoke(); proxyCancel = null; proxyRun++ }
+            if (proxyQueue.firstOrNull() == id && proxyProgress[id] != null) { es.proxyCancel?.invoke(); es.proxyCancel = null; es.proxyRun++ }
             proxyProgress.remove(id); proxyQueue.remove(id)
         }
         for (id in ids) {
             val c = clips.firstOrNull { MediaId.of(it) == id && it.nested == null } ?: continue
-            val ready = withContext(Dispatchers.IO) { ProxyMaker.existing(context, c, proxySettings.quality, proxySettings.hevc) }
+            val ready = withContext(Dispatchers.IO) { ProxyMaker.existing(context, c, es.proxySettings.quality, es.proxySettings.hevc) }
             if (ready != null) {
                 proxies[id] = ready; proxyStale.remove(id)
-                if (proxyQueue.firstOrNull() == id && proxyProgress[id] != null) { proxyCancel?.invoke(); proxyCancel = null; proxyRun++ }
+                if (proxyQueue.firstOrNull() == id && proxyProgress[id] != null) { es.proxyCancel?.invoke(); es.proxyCancel = null; es.proxyRun++ }
                 proxyProgress.remove(id); proxyQueue.remove(id); continue
             }
-            val old = withContext(Dispatchers.IO) { ProxyMaker.anyExisting(context, c, proxySettings.hevc) }
+            val old = withContext(Dispatchers.IO) { ProxyMaker.anyExisting(context, c, es.proxySettings.hevc) }
             if (old != null) { proxies[id] = old.second; if (id !in proxyStale) proxyStale.add(id) } else proxies.remove(id)
             if (id !in proxyCancelled && proxyFail[id] == null && id !in proxyQueue) proxyQueue.add(id)
         }
@@ -920,12 +862,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     // Make proxies one at a time, in the background — playback and the timeline keep working
     // (the original plays until the proxy is ready). A quality change restarts the job.
     val nextProxy = proxyQueue.firstOrNull()
-    LaunchedEffect(nextProxy, proxySettings.quality, proxySettings.hevc, proxyRun) {
-        if (proxyCancel != null) { proxyCancel?.invoke(); proxyCancel = null; proxyProgress.clear() }
+    LaunchedEffect(nextProxy, es.proxySettings.quality, es.proxySettings.hevc, es.proxyRun) {
+        if (es.proxyCancel != null) { es.proxyCancel?.invoke(); es.proxyCancel = null; proxyProgress.clear() }
         val id = nextProxy ?: return@LaunchedEffect
         val c = clips.firstOrNull { MediaId.of(it) == id && it.nested == null }
         if (c == null) { proxyQueue.remove(id); return@LaunchedEffect }
-        val q = proxySettings.quality; val hv = proxySettings.hevc
+        val q = es.proxySettings.quality; val hv = es.proxySettings.hevc
         // Already there (e.g. made at this quality earlier)?
         val have = withContext(Dispatchers.IO) { ProxyMaker.existing(context, c, q, hv) }
         if (have != null) { proxies[id] = have; proxyStale.remove(id); proxyQueue.remove(id); return@LaunchedEffect }
@@ -933,38 +875,37 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         var cancel: (() -> Unit)? = null
         cancel = ProxyMaker.make(
             context, c, q, hv,
-            onProgress = { if (proxyCancel === cancel) proxyProgress[id] = it },
+            onProgress = { if (es.proxyCancel === cancel) proxyProgress[id] = it },
             onDone = { uri, err ->
-                if (proxyCancel === cancel || cancel == null) {
+                if (es.proxyCancel === cancel || cancel == null) {
                     proxyProgress.remove(id)
                     proxyQueue.remove(id)
-                    proxyCancel = null
+                    es.proxyCancel = null
                     if (uri != null) {
                         proxies[id] = uri; proxyStale.remove(id); proxyBad.remove(id); proxyFail.remove(id)
-                        message = "Proxy ${q.label} ready — ${c.name}"
+                        es.message = "Proxy ${q.label} ready — ${c.name}"
                     } else {
                         proxyFail[id] = err ?: "Couldn't make the proxy"
-                        message = (err ?: "Couldn't make the proxy") + " — ${c.name} plays from the original"
+                        es.message = (err ?: "Couldn't make the proxy") + " — ${c.name} plays from the original"
                     }
                 }
             },
         )
-        proxyCancel = cancel
+        es.proxyCancel = cancel
     }
 
     // Before / after split view on the player (Color page).
-    var abSplit by remember { mutableStateOf(0f) }
-    LaunchedEffect(abSplit, page) { GradePreview.split = if (page == Page.COLOR) abSplit else 0f }
+    LaunchedEffect(es.abSplit, es.page) { GradePreview.split = if (es.page == Page.COLOR) es.abSplit else 0f }
     // Live grade on the clip being shown.
-    val cur = clips.getOrNull(current)
+    val cur = clips.getOrNull(es.current)
     // Live grade while dragging: the newest value is applied every ~80 ms (not only after letting go),
     // the colour table is built off the main thread, and a paused frame is redrawn.
     val gradeReq = remember { kotlinx.coroutines.channels.Channel<Clip>(kotlinx.coroutines.channels.Channel.CONFLATED) }
-    LaunchedEffect(cur?.grade, cur?.detail, cur?.masks, cur?.film, cur?.bg, cur?.depth, effectsOk) { cur?.let { gradeReq.trySend(it) } }
+    LaunchedEffect(cur?.grade, cur?.detail, cur?.masks, cur?.film, cur?.bg, cur?.depth, es.effectsOk) { cur?.let { gradeReq.trySend(it) } }
     LaunchedEffect(Unit) {
         for (c in gradeReq) {
             if (gpuGrade) {
-                if (effectsOk && c.id == loadedId) {
+                if (es.effectsOk && c.id == es.loadedId) {
                     texViews[deck.active]?.let { GradePreview.apply(it, adjOf(c), 0f, ClipPreviewFx.extra(context, it, pvc(c), c.startMs + deck.cur.currentPosition)) }
                     val a = deck.active
                     val want = liveKey(c)
@@ -979,45 +920,45 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 }
                 continue
             }
-            if (!effectsOk || c.id != loadedId) continue
+            if (!es.effectsOk || c.id != es.loadedId) continue
             val fx = withContext(Dispatchers.Default) { try { olderPreviewEffects(adjOf(c)) } catch (_: Throwable) { null } } ?: continue
-            if (c.id != loadedId) continue
+            if (c.id != es.loadedId) continue
             try {
                 deck.cur.setVideoEffects(fx)
                 // Redraw a paused frame (never while loading or playing).
                 if (!deck.cur.playWhenReady && deck.cur.playbackState == Player.STATE_READY) deck.cur.seekTo(deck.cur.currentPosition)
-            } catch (_: Throwable) { effectsOk = false }
+            } catch (_: Throwable) { es.effectsOk = false }
             delay(80)
         }
     }
-    val nextClip = clips.getOrNull(current + 1)
+    val nextClip = clips.getOrNull(es.current + 1)
     LaunchedEffect(nextClip?.id, nextClip?.grade, nextClip?.detail, nextClip?.startMs, nextClip?.endMs) {
         delay(150)
-        if (clips.isNotEmpty()) preloadAfter(current)
+        if (clips.isNotEmpty()) preloadAfter(es.current)
     }
     LaunchedEffect(cur?.audio) { cur?.let { audioFx[deck.active].fx = it.audio } }
-    LaunchedEffect(cur?.speed, cur?.volume, cur?.muted, previewMuted, videoMuted) {
+    LaunchedEffect(cur?.speed, cur?.volume, cur?.muted, es.previewMuted, es.videoMuted) {
         cur?.let {
             deck.cur.playbackParameters = PlaybackParameters(it.speedAtSrc(it.startMs + deck.cur.currentPosition))
-            deck.cur.volume = if (it.muted || previewMuted || videoMuted) 0f else it.volume.coerceAtMost(1f)
+            deck.cur.volume = if (it.muted || es.previewMuted || es.videoMuted) 0f else it.volume.coerceAtMost(1f)
         }
     }
     LaunchedEffect(Unit) {
         while (true) {
-            posMs = deck.cur.currentPosition
-            val c0 = clips.getOrNull(current)
-            if (showInfo) {
+            es.posMs = deck.cur.currentPosition
+            val c0 = clips.getOrNull(es.current)
+            if (es.showInfo) {
                 fun st(p: ExoPlayer) = when (p.playbackState) { Player.STATE_IDLE -> "IDLE"; Player.STATE_BUFFERING -> "LOAD"; Player.STATE_READY -> "READY"; else -> "END" } +
                     (if (p.playWhenReady) "▶" else "‖") + " " + (p.currentPosition / 100) / 10f + "s" + (p.playerError?.let { " ERR ${it.errorCodeName}" } ?: "")
-                infoText = "clip ${current + 1}/${clips.size} · player ${deck.active + 1}\n" +
+                es.infoText = "clip ${es.current + 1}/${clips.size} · player ${deck.active + 1}\n" +
                     "A: ${st(players[0])}  B: ${st(players[1])}\n" +
-                    "src ${if (c0 != null && proxyFor(c0) != null) "proxy " + (proxyFor(c0)?.let { ProxyMaker.qualityOf(it)?.label } ?: "") else "original"} · fx ${if (effectsOk) "on" else "off"} · frame ${if (renderedFor[deck.active] == c0?.id) "ok" else "none"} · stalls ${wx.stallTries}"
+                    "src ${if (c0 != null && proxyFor(c0) != null) "proxy " + (proxyFor(c0)?.let { ProxyMaker.qualityOf(it)?.label } ?: "") else "original"} · fx ${if (es.effectsOk) "on" else "off"} · frame ${if (renderedFor[deck.active] == c0?.id) "ok" else "none"} · stalls ${wx.stallTries}"
             }
             val nowPlaying = deck.cur.isPlaying
-            if (nowPlaying && !playing) wx.playSince = System.currentTimeMillis()
-            playing = nowPlaying
+            if (nowPlaying && !es.playing) wx.playSince = System.currentTimeMillis()
+            es.playing = nowPlaying
             // Frozen (playing but the position stopped moving): reload the clip where it stopped.
-            if (deck.cur.playWhenReady && deck.cur.playbackState != Player.STATE_ENDED && c0 != null && c0.id == loadedId) {
+            if (deck.cur.playWhenReady && deck.cur.playbackState != Player.STATE_ENDED && c0 != null && c0.id == es.loadedId) {
                 val p = deck.cur.currentPosition
                 if (p != wx.stallPos) { wx.stallPos = p; wx.stallSince = System.currentTimeMillis() }
                 else if (System.currentTimeMillis() - wx.stallSince > 2500 && wx.stallTries < 3) {
@@ -1025,31 +966,31 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     wx.stallTries++
                     // Escalate: reload → reload without live effects → use a preview copy.
                     when (wx.stallTries) {
-                        1 -> load(current, p, true)
-                        2 -> { if (effectsOk && !gpuGrade) { effectsOk = false; message = "Live effects paused in the preview to keep playback smooth (the export keeps them)" }; load(current, p, true) }
+                        1 -> load(es.current, p, true)
+                        2 -> { if (es.effectsOk && !gpuGrade) { es.effectsOk = false; es.message = "Live effects paused in the preview to keep playback smooth (the export keeps them)" }; load(es.current, p, true) }
                         else -> {
                             if (proxyFor(c0) != null) {
-                                proxyBad.add(MediaId.of(c0)); message = "The proxy stalled — playing the original"
-                            } else if (MediaId.of(c0) !in proxyMedia) message = "This clip is heavy for live playback — add it in the Proxy tab for smooth editing"
-                            else message = "Playback stalled — tap play to retry"
+                                proxyBad.add(MediaId.of(c0)); es.message = "The proxy stalled — playing the original"
+                            } else if (MediaId.of(c0) !in proxyMedia) es.message = "This clip is heavy for live playback — add it in the Proxy tab for smooth editing"
+                            else es.message = "Playback stalled — tap play to retry"
                             deck.cur.pause()
                         }
                     }
                 }
             } else wx.stallSince = System.currentTimeMillis()
-            if (deck.cur.isPlaying && deck.cur.currentPosition != wx.stallPos) { wx.stallTries = 0; errorRetries = 0 }
+            if (deck.cur.isPlaying && deck.cur.currentPosition != wx.stallPos) { wx.stallTries = 0; es.errorRetries = 0 }
             // Safety net: playing but no picture for a while → make a preview copy, or drop the live effects.
-            val c = clips.getOrNull(current)
+            val c = clips.getOrNull(es.current)
             if (c != null && nowPlaying && renderedFor[deck.active] != c.id && System.currentTimeMillis() - wx.playSince > 2500) {
                 wx.playSince = System.currentTimeMillis() + 60_000
                 if (proxyFor(c) != null) {
                     // The proxy gives no picture: never show a blank frame — use the original.
                     proxyBad.add(MediaId.of(c))
-                    message = "The proxy for ${c.name} shows no picture — playing the original"
-                } else if (effectsOk) {
-                    effectsOk = false
-                    message = "Live effects turned off for the preview; the export still uses them"
-                    load(current, deck.cur.currentPosition, true)
+                    es.message = "The proxy for ${c.name} shows no picture — playing the original"
+                } else if (es.effectsOk) {
+                    es.effectsOk = false
+                    es.message = "Live effects turned off for the preview; the export still uses them"
+                    load(es.current, deck.cur.currentPosition, true)
                 }
             }
             delay(100)
@@ -1072,8 +1013,6 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
     // Morph cuts: in-between frames drawn ahead of time for the preview (the export draws its own at full size).
     val morphCache = remember { mutableStateMapOf<String, MorphPreviewFrames>() }
-    var morphFrame by remember { mutableStateOf<Bitmap?>(null) }
-    var morphBusy by remember { mutableStateOf(false) }
     val morphKeys = clips.indices.filter { it + 1 < clips.size && clips[it].transition.type == TransitionType.SMOOTH_CUT && overlapMs(clips, it) > 0 }
         .map { Triple(it, clips[it] to clips[it + 1], overlapMs(clips, it)) }
     LaunchedEffect(morphKeys.map { (_, p, ov) -> MorphPreview.keyOf(p.first, p.second, ov) }) {
@@ -1083,11 +1022,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         for ((k, v) in want) {
             if (morphCache.containsKey(k)) continue
             val (_, p, ov) = v
-            morphBusy = true
+            es.morphBusy = true
             val f = withContext(Dispatchers.Default) { try { MorphPreview.build(context, p.first, p.second, ov, motionFor(p.first), motionFor(p.second)) } catch (_: Throwable) { null } }
             if (f != null) morphCache[k] = f
         }
-        morphBusy = false
+        es.morphBusy = false
     }
     // Every frame: crop/zoom/stabilise the picture and play transitions between clips.
     LaunchedEffect(Unit) {
@@ -1095,27 +1034,27 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         var cutFaded = false
         var lastG = -1L
         var startedFor: String? = null
-        fun vol(c: Clip) = if (c.muted || previewMuted || videoMuted) 0f else c.volume.coerceAtMost(1f)
+        fun vol(c: Clip) = if (c.muted || es.previewMuted || es.videoMuted) 0f else c.volume.coerceAtMost(1f)
         while (true) {
             androidx.compose.runtime.withFrameNanos { }
-            val i = current
+            val i = es.current
             val c = clips.getOrNull(i) ?: continue
             val a = deck.active
-            if (c.id == loadedId) texViews[a]?.let {
+            if (c.id == es.loadedId) texViews[a]?.let {
                 ClipXform.applyToView(it, ClipXform.at(c, c.startMs + deck.cur.currentPosition, motionFor(c)))
                 it.alpha = c.reframe.opacityAt(deck.cur.currentPosition)
-                if (gpuGrade) { if (effectsOk) GradePreview.apply(it, adjOf(c), System.nanoTime() / 1e9f, ClipPreviewFx.extra(context, it, pvc(c), c.startMs + deck.cur.currentPosition)) else GradePreview.clear(it) }
+                if (gpuGrade) { if (es.effectsOk) GradePreview.apply(it, adjOf(c), System.nanoTime() / 1e9f, ClipPreviewFx.extra(context, it, pvc(c), c.startMs + deck.cur.currentPosition)) else GradePreview.clear(it) }
             }
             val n = clips.getOrNull(i + 1)
             val ov = overlapMs(clips, i)
             val local = c.tlOffsetOf(c.startMs + deck.cur.currentPosition)
             // Speed ramps: follow the curve while playing.
-            if (c.ramp != null && c.id == loadedId) {
+            if (c.ramp != null && c.id == es.loadedId) {
                 val sp = c.speedAtSrc(c.startMs + deck.cur.currentPosition)
                 if (kotlin.math.abs(deck.cur.playbackParameters.speed - sp) > 0.04f) deck.cur.playbackParameters = PlaybackParameters(sp)
             }
             // Volume keyframes, and audio transitions on plain cuts (fade out / in around the cut).
-            if (c.id == loadedId && !transitionOn[0]) {
+            if (c.id == es.loadedId && !transitionOn[0]) {
                 var m = 1f
                 if (ov == 0L) AudioXfade.forCut(clips, i).first?.let { m *= it.gain(c.lengthMs - local) }
                 if (i > 0 && overlapMs(clips, i - 1) == 0L) AudioXfade.forCut(clips, i - 1).second?.let { m *= it.gain(local) }
@@ -1126,7 +1065,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 }
             }
             // Sound effects on cuts: start each one as the playhead passes its start.
-            if (playing && !previewMuted && c.id == loadedId) {
+            if (es.playing && !es.previewMuted && c.id == es.loadedId) {
                 val st = clipStarts(clips)
                 val gNow = (st.getOrNull(i) ?: 0L) + local
                 if (lastG >= 0 && gNow > lastG && gNow - lastG < 400) {
@@ -1146,7 +1085,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 lastG = gNow
             } else lastG = -1L
             val startT = c.lengthMs - ov
-            if (ov > 0 && n != null && preloadedId == n.id && local >= startT && deck.cur.playbackState == Player.STATE_READY) {
+            if (ov > 0 && n != null && es.preloadedId == n.id && local >= startT && deck.cur.playbackState == Player.STATE_READY) {
                 val p = ((local - startT).toFloat() / ov).coerceIn(0f, 1f)
                 // Start the incoming clip once (seeking again while it loads would stall it).
                 if (deck.cur.playWhenReady && !deck.spare.playWhenReady) {
@@ -1162,12 +1101,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 texViews[1 - a]?.let {
                     ClipXform.applyToView(it, ClipXform.at(n, n.startMs + deck.spare.currentPosition, motionFor(n)))
                     it.alpha = n.reframe.opacityAt(deck.spare.currentPosition)
-                    if (gpuGrade && effectsOk) GradePreview.apply(it, adjOf(n), System.nanoTime() / 1e9f, ClipPreviewFx.extra(context, it, pvc(n), n.startMs + deck.spare.currentPosition))
+                    if (gpuGrade && es.effectsOk) GradePreview.apply(it, adjOf(n), System.nanoTime() / 1e9f, ClipPreviewFx.extra(context, it, pvc(n), n.startMs + deck.spare.currentPosition))
                 }
                 frameViews[a]?.let { TransitionPreview.apply(it, c.transition.type, p, false) }
                 frameViews[1 - a]?.let { TransitionPreview.apply(it, c.transition.type, p, true) }
                 // Morph cut: show the analysed in-between frame on top.
-                morphFrame = if (c.transition.type == TransitionType.SMOOTH_CUT) morphCache[MorphPreview.keyOf(c, n, ov)]?.frames?.let { fr -> fr[((p * (fr.size - 1)) + 0.5f).toInt().coerceIn(0, fr.lastIndex)] } else null
+                es.morphFrame = if (c.transition.type == TransitionType.SMOOTH_CUT) morphCache[MorphPreview.keyOf(c, n, ov)]?.frames?.let { fr -> fr[((p * (fr.size - 1)) + 0.5f).toInt().coerceIn(0, fr.lastIndex)] } else null
                 // Audio transition over the overlap.
                 val (fo, fi) = AudioXfade.forCut(clips, i)
                 deck.cur.volume = (vol(c) * (fo?.gain(((1f - p) * ov).toLong()) ?: (1f - p))).coerceIn(0f, 1f)
@@ -1175,7 +1114,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 was = true
             } else if (was) {
                 was = false
-                morphFrame = null
+                es.morphFrame = null
                 transitionOn[0] = false
                 frameViews[a]?.let { TransitionPreview.reset(it, true) }
                 frameViews[1 - a]?.let { TransitionPreview.reset(it, false) }
@@ -1186,17 +1125,17 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     // Music follows the timeline while previewing.
-    LaunchedEffect(playing, music, previewMuted) {
-        val m = music
+    LaunchedEffect(es.playing, es.music, es.previewMuted) {
+        val m = es.music
         if (m == null) { musicPlayer.pause(); return@LaunchedEffect }
         musicFxProc.fx = m.fx
-        musicPlayer.volume = if (previewMuted || m.muted) 0f else m.volume.coerceIn(0f, 1f)
-        if (!playing) { musicPlayer.pause(); return@LaunchedEffect }
+        musicPlayer.volume = if (es.previewMuted || m.muted) 0f else m.volume.coerceIn(0f, 1f)
+        if (!es.playing) { musicPlayer.pause(); return@LaunchedEffect }
         while (true) {
-            val ducked = clips.getOrNull(current)?.let { it.audio.duckMusic && !it.muted && it.volume > 0f } == true
-            musicPlayer.volume = if (previewMuted || m.muted) 0f else (m.volume * (if (ducked) 1f - m.duck else 1f)).coerceIn(0f, 1f)
-            val before = clipStarts(clips).getOrNull(current) ?: 0L
-            val g = before + (clips.getOrNull(current)?.let { it.tlOffsetOf(it.startMs + deck.cur.currentPosition) } ?: deck.cur.currentPosition)
+            val ducked = clips.getOrNull(es.current)?.let { it.audio.duckMusic && !it.muted && it.volume > 0f } == true
+            musicPlayer.volume = if (es.previewMuted || m.muted) 0f else (m.volume * (if (ducked) 1f - m.duck else 1f)).coerceIn(0f, 1f)
+            val before = clipStarts(clips).getOrNull(es.current) ?: 0L
+            val g = before + (clips.getOrNull(es.current)?.let { it.tlOffsetOf(it.startMs + deck.cur.currentPosition) } ?: deck.cur.currentPosition)
             val len = m.playLength(timelineLength(clips))
             val want = m.offsetMs + (g - m.startMs)
             if (g < m.startMs || g >= m.startMs + len) { musicPlayer.pause() } else {
@@ -1207,14 +1146,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     // Mixer → preview: track and master levels, track pan, solo.
-    LaunchedEffect(deliver.videoGain, deliver.videoPan, deliver.masterGain, soloTrack, extraAudio.toList(), music) {
-        fun solo(id: String) = if (soloTrack != null && soloTrack != id) 0f else 1f
-        audioFx.forEach { it.liveGain = deliver.videoGain * deliver.masterGain * solo("video"); it.livePan = deliver.videoPan }
-        musicFxProc.liveGain = deliver.masterGain * solo("music")
-        extraFx.forEach { (id, p) -> p.liveGain = deliver.masterGain * solo(id) }
+    LaunchedEffect(es.deliver.videoGain, es.deliver.videoPan, es.deliver.masterGain, es.soloTrack, extraAudio.toList(), es.music) {
+        fun solo(id: String) = if (es.soloTrack != null && es.soloTrack != id) 0f else 1f
+        audioFx.forEach { it.liveGain = es.deliver.videoGain * es.deliver.masterGain * solo("video"); it.livePan = es.deliver.videoPan }
+        musicFxProc.liveGain = es.deliver.masterGain * solo("music")
+        extraFx.forEach { (id, p) -> p.liveGain = es.deliver.masterGain * solo(id) }
     }
     // Extra audio tracks follow the timeline too.
-    LaunchedEffect(playing, extraAudio.toList(), previewMuted) {
+    LaunchedEffect(es.playing, extraAudio.toList(), es.previewMuted) {
         // Players for new tracks; drop players of removed tracks.
         val ids = extraAudio.map { it.id }.toSet()
         audioPlayers.keys.filter { it !in ids }.forEach { audioPlayers.remove(it)?.release(); extraFx.remove(it) }
@@ -1223,14 +1162,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             fxPlayer(context, fx).apply { setMediaItem(MediaItem.fromUri(t.uri)); prepare() }
         }
         for (t in extraAudio) extraFx[t.id]?.fx = t.fx
-        if (!playing) { audioPlayers.values.forEach { it.pause() }; return@LaunchedEffect }
+        if (!es.playing) { audioPlayers.values.forEach { it.pause() }; return@LaunchedEffect }
         while (true) {
-            val before = clipStarts(clips).getOrNull(current) ?: 0L
-            val g = before + (clips.getOrNull(current)?.let { it.tlOffsetOf(it.startMs + deck.cur.currentPosition) } ?: deck.cur.currentPosition)
+            val before = clipStarts(clips).getOrNull(es.current) ?: 0L
+            val g = before + (clips.getOrNull(es.current)?.let { it.tlOffsetOf(it.startMs + deck.cur.currentPosition) } ?: deck.cur.currentPosition)
             val total = timelineLength(clips)
             for (t in extraAudio) {
                 val p = audioPlayers[t.id] ?: continue
-                p.volume = if (previewMuted || t.muted) 0f else t.volume.coerceIn(0f, 1f)
+                p.volume = if (es.previewMuted || t.muted) 0f else t.volume.coerceIn(0f, 1f)
                 val len = t.playLength(total)
                 if (g < t.startMs || g >= t.startMs + len) { if (p.isPlaying) p.pause(); continue }
                 val want = t.offsetMs + (g - t.startMs)
@@ -1240,7 +1179,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             delay(400)
         }
     }
-    LaunchedEffect(current) { if (page != Page.MEDIA) selected = current.coerceIn(0, (clips.size - 1).coerceAtLeast(0)) }
+    LaunchedEffect(es.current) { if (es.page != Page.MEDIA) es.selected = es.current.coerceIn(0, (clips.size - 1).coerceAtLeast(0)) }
     // Timeline thumbnails.
     LaunchedEffect(clips.map { it.id to it.startMs }) {
         for (c in clips.toList()) {
@@ -1281,31 +1220,31 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     // Scope: graded still of the paused frame.
-    LaunchedEffect(scopeOpen, fullscreen, playing, current, posMs / 500, cur?.grade) {
-        if (!scopeOpen || fullscreen || playing) return@LaunchedEffect
+    LaunchedEffect(es.scopeOpen, es.fullscreen, es.playing, es.current, es.posMs / 500, cur?.grade) {
+        if (!es.scopeOpen || es.fullscreen || es.playing) return@LaunchedEffect
         val c = cur ?: return@LaunchedEffect
         delay(250)
-        scopeHist = withContext(Dispatchers.Default) {
-            val frame = GradeIO.videoFrame(context, c.uri, (c.startMs + posMs) * 1000, 360) ?: return@withContext null
+        es.scopeHist = withContext(Dispatchers.Default) {
+            val frame = GradeIO.videoFrame(context, c.uri, (c.startMs + es.posMs) * 1000, 360) ?: return@withContext null
             val out = ImageOps.render(frame, c.grade, Detail(), Geometry(), if (c.grade.isIdentity) null else c.grade.tables())
-            scopeFrame = out
+            es.scopeFrame = out
             ImageOps.histogram(out)
         }
     }
-    LaunchedEffect(message) { if (message != null) { delay(3000); message = null } }
+    LaunchedEffect(es.message) { if (es.message != null) { delay(3000); es.message = null } }
 
     val totalMs = timelineLength(clips)
-    val beforeMs = clipStarts(clips).getOrNull(current) ?: 0L
-    val globalMs = beforeMs + (cur?.tlOffsetOf(cur.startMs + posMs) ?: posMs)
+    val beforeMs = clipStarts(clips).getOrNull(es.current) ?: 0L
+    val globalMs = beforeMs + (cur?.tlOffsetOf(cur.startMs + es.posMs) ?: es.posMs)
     addAtMs[0] = globalMs
-    androidx.compose.runtime.SideEffect { adjNowMs = globalMs }
+    androidx.compose.runtime.SideEffect { es.adjNowMs = globalMs }
 
     fun seekGlobal(ms: Long) {
         if (clips.isEmpty()) return
         val (i, local) = clipAt(clips, ms)
         val c = clips[i]
         val off = c.srcAtOffset(local) - c.startMs
-        if (i == current && loadedId == c.id) deck.cur.seekTo(off) else load(i, off, deck.cur.isPlaying)
+        if (i == es.current && es.loadedId == c.id) deck.cur.seekTo(off) else load(i, off, deck.cur.isPlaying)
     }
 
     fun update(i: Int, f: (Clip) -> Clip) { if (i in clips.indices) clips[i] = f(clips[i]) }
@@ -1313,19 +1252,19 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     // ---- Pro trim tools (the main track is magnetic, so a normal trim is a ripple trim).
     /** Roll / slip / slide on clip [i] by [d] ms of source time. */
     fun trimTool(mode: Int, i: Int, d: Long) {
-        if (videoLocked) { message = "The video track is locked"; return }
+        if (es.videoLocked) { es.message = "The video track is locked"; return }
         val c = clips.getOrNull(i) ?: return
         val min = 100L
         when (mode) {
             // SLIP: same place and length, different part of the clip.
             0 -> {
                 val dd = d.safeIn(-c.startMs, c.durationMs - c.endMs)
-                if (dd == 0L) { message = "Nothing more of the clip to slip to"; return }
+                if (dd == 0L) { es.message = "Nothing more of the clip to slip to"; return }
                 clips[i] = c.copy(startMs = c.startMs + dd, endMs = c.endMs + dd)
             }
             // ROLL: move the cut between this clip and the next; total length stays the same.
             1 -> {
-                val n = clips.getOrNull(i + 1) ?: run { message = "Roll moves the cut after this clip — select a clip that has one after it"; return }
+                val n = clips.getOrNull(i + 1) ?: run { es.message = "Roll moves the cut after this clip — select a clip that has one after it"; return }
                 val dd = d.safeIn(maxOf(-(c.endMs - c.startMs - min), -n.startMs), minOf(c.durationMs - c.endMs, n.endMs - n.startMs - min))
                 if (dd == 0L) return
                 clips[i] = c.copy(endMs = c.endMs + dd)
@@ -1334,7 +1273,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             // SLIDE: the clip itself stays the same and moves along; its neighbours give and take.
             2 -> {
                 val p = clips.getOrNull(i - 1); val n = clips.getOrNull(i + 1)
-                if (p == null || n == null) { message = "Slide needs a clip before and after this one"; return }
+                if (p == null || n == null) { es.message = "Slide needs a clip before and after this one"; return }
                 val dd = d.safeIn(maxOf(-(p.endMs - p.startMs - min), -n.startMs), minOf(p.durationMs - p.endMs, n.endMs - n.startMs - min))
                 if (dd == 0L) return
                 clips[i - 1] = p.copy(endMs = p.endMs + dd)
@@ -1344,64 +1283,63 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     // ---- Nested (compound) clips: several clips rendered into one, which can be opened up again.
-    var nesting by remember { mutableStateOf(false) }
     fun nestClips(from: Int, count: Int) {
-        if (videoLocked) { message = "The video track is locked"; return }
-        if (nesting || exporting) return
+        if (es.videoLocked) { es.message = "The video track is locked"; return }
+        if (es.nesting || es.exporting) return
         val to = (from + count).coerceAtMost(clips.size)
-        if (to - from < 2) { message = "Choose at least 2 clips to nest"; return }
+        if (to - from < 2) { es.message = "Choose at least 2 clips to nest"; return }
         val group = clips.subList(from, to).toList()
         val dir = java.io.File(context.filesDir, "nested").apply { mkdirs() }
         val file = java.io.File(dir, "nest_${System.currentTimeMillis()}.mp4")
-        nesting = true; progress = 0
-        message = "Nesting ${group.size} clips…"
+        es.nesting = true; es.progress = 0
+        es.message = "Nesting ${group.size} clips…"
         val e = TimelineExport(
-            context, group, deliver.copy(audioOnly = false, rangeStart = null, rangeEnd = null, loudness = null, bitrateMbps = maxOf(deliver.bitrateMbps, 40)),
-            onProgress = { progress = it },
+            context, group, es.deliver.copy(audioOnly = false, rangeStart = null, rangeEnd = null, loudness = null, bitrateMbps = maxOf(es.deliver.bitrateMbps, 40)),
+            onProgress = { es.progress = it },
             onDone = { uri, err ->
-                if (uri == null) { nesting = false; message = err ?: "Couldn't nest the clips"; return@TimelineExport }
+                if (uri == null) { es.nesting = false; es.message = err ?: "Couldn't nest the clips"; return@TimelineExport }
                 layerScope.launch {
                     val nc = withContext(Dispatchers.IO) { ClipLoader.load(context, Uri.fromFile(file)) }
-                    nesting = false
-                    if (nc == null) { message = "Couldn't open the nested clip"; return@launch }
+                    es.nesting = false
+                    if (nc == null) { es.message = "Couldn't open the nested clip"; return@launch }
                     // Replace the group (if the timeline didn't change meanwhile).
                     val idx = clips.indexOfFirst { it.id == group.first().id }
                     if (idx < 0 || clips.subList(idx, (idx + group.size).coerceAtMost(clips.size)).map { it.id } != group.map { it.id }) {
-                        message = "The timeline changed while nesting — try again"; return@launch
+                        es.message = "The timeline changed while nesting — try again"; return@launch
                     }
                     repeat(group.size) { clips.removeAt(idx) }
                     clips.add(idx, nc.copy(name = "Nested · ${group.size} clips", nested = group, transition = group.last().transition))
-                    selected = idx
-                    message = "${group.size} clips nested into one — UN-NEST opens them up again"
+                    es.selected = idx
+                    es.message = "${group.size} clips nested into one — UN-NEST opens them up again"
                 }
             },
             toFile = file,
         )
-        try { e.start() } catch (t: Throwable) { nesting = false; message = "Couldn't nest: ${t.message}" }
+        try { e.start() } catch (t: Throwable) { es.nesting = false; es.message = "Couldn't nest: ${t.message}" }
     }
     fun unNest(i: Int) {
         val c = clips.getOrNull(i) ?: return
         val inner = c.nested ?: return
         clips.removeAt(i)
         clips.addAll(i, inner)
-        message = "Opened up into ${inner.size} clips"
+        es.message = "Opened up into ${inner.size} clips"
     }
 
     /** Saves the whole edit (clips, grades, layers, music, delivery settings) as a project. */
     fun saveProject(name: String) {
         val p = VideoProjectData(
-            id = projectId ?: java.util.UUID.randomUUID().toString(), name = name,
-            clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
+            id = es.projectId ?: java.util.UUID.randomUUID().toString(), name = name,
+            clips = clips.toList(), layers = layers.toList(), music = es.music, deliver = es.deliver,
             extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
-            videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
+            videoMuted = es.videoMuted, videoLocked = es.videoLocked, markers = markers.toList(),
             markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
-            timelines = otherTimelines.toList().takeIf { it.isNotEmpty() }, timelineName = timelineName,
+            timelines = otherTimelines.toList().takeIf { it.isNotEmpty() }, timelineName = es.timelineName,
             proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
             bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
         )
         val saved = try { ProjectStore.saveVideo(context, p, clips.firstOrNull()?.let { thumbs[it.id] }) } catch (_: Throwable) { null }
-        if (saved != null) { projectId = saved.id; projectName = saved.name; message = "Project \"${saved.name}\" saved" }
-        else message = "Couldn't save the project"
+        if (saved != null) { es.projectId = saved.id; es.projectName = saved.name; es.message = "Project \"${saved.name}\" saved" }
+        else es.message = "Couldn't save the project"
     }
     // A recovered edit that has run for a while is fine: forget the recovery marker.
     LaunchedEffect(Unit) { delay(15_000); com.dronedirector.veyrocutpro.ui.CrashReport.doneRecovering(context) }
@@ -1410,14 +1348,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         var last = ""
         while (true) {
             delay(20_000)
-            if (clips.isEmpty() && layers.isEmpty() && music == null) continue
+            if (clips.isEmpty() && layers.isEmpty() && es.music == null) continue
             val p = VideoProjectData(
-                id = projectId ?: "", name = projectName,
-                clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
+                id = es.projectId ?: "", name = es.projectName,
+                clips = clips.toList(), layers = layers.toList(), music = es.music, deliver = es.deliver,
                 extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
-                videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
+                videoMuted = es.videoMuted, videoLocked = es.videoLocked, markers = markers.toList(),
                 markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
-                timelines = otherTimelines.toList().takeIf { it.isNotEmpty() }, timelineName = timelineName,
+                timelines = otherTimelines.toList().takeIf { it.isNotEmpty() }, timelineName = es.timelineName,
             proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
             bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
             )
@@ -1435,14 +1373,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         var last = ""
         while (true) {
             delay(asMinutes * 60_000L)
-            if (clips.isEmpty() && layers.isEmpty() && music == null) continue
+            if (clips.isEmpty() && layers.isEmpty() && es.music == null) continue
             val p = VideoProjectData(
-                name = AutoSave.nameFor(projectName),
-                clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
+                name = AutoSave.nameFor(es.projectName),
+                clips = clips.toList(), layers = layers.toList(), music = es.music, deliver = es.deliver,
                 extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
-                videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
+                videoMuted = es.videoMuted, videoLocked = es.videoLocked, markers = markers.toList(),
                 markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
-                timelines = otherTimelines.toList().takeIf { it.isNotEmpty() }, timelineName = timelineName,
+                timelines = otherTimelines.toList().takeIf { it.isNotEmpty() }, timelineName = es.timelineName,
                 proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
                 bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
             )
@@ -1453,27 +1391,27 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             withContext(Dispatchers.IO) { try { AutoSave.saveVideo(context, p, thumb) } catch (_: Throwable) {} }
         }
     }
-    if (askName) ProjectNameDialog(
-        projectName.ifBlank { ProjectStore.defaultName(true) },
-        onSave = { askName = false; projectId = null; saveProject(it); if (leaveAfterSave) onExit() },
-        onDismiss = { askName = false; leaveAfterSave = false },
-        video = true, currentId = projectId,
-        onOverwrite = { id, n -> askName = false; projectId = id; saveProject(n); if (leaveAfterSave) onExit() },
+    if (es.askName) ProjectNameDialog(
+        es.projectName.ifBlank { ProjectStore.defaultName(true) },
+        onSave = { es.askName = false; es.projectId = null; saveProject(it); if (es.leaveAfterSave) onExit() },
+        onDismiss = { es.askName = false; es.leaveAfterSave = false },
+        video = true, currentId = es.projectId,
+        onOverwrite = { id, n -> es.askName = false; es.projectId = id; saveProject(n); if (es.leaveAfterSave) onExit() },
     )
 
     /** Blade: cut the clip under the playhead at the exact frame shown. */
     fun splitAtPlayhead() {
-        if (videoLocked) { message = "The video track is locked — tap its lock on the timeline to unlock"; return }
-        val c = clips.getOrNull(current) ?: return
+        if (es.videoLocked) { es.message = "The video track is locked — tap its lock on the timeline to unlock"; return }
+        val c = clips.getOrNull(es.current) ?: return
         val cut = c.startMs + deck.cur.currentPosition
         if (cut <= c.startMs + 100 || cut >= c.endMs - 100) {
-            message = "Move the playhead inside a clip to split"
+            es.message = "Move the playhead inside a clip to split"
             return
         }
-        clips[current] = c.copy(endMs = cut)
-        clips.add(current + 1, c.copy(id = java.util.UUID.randomUUID().toString(), startMs = cut))
-        selected = current
-        message = "Split at ${tc(globalMs)}"
+        clips[es.current] = c.copy(endMs = cut)
+        clips.add(es.current + 1, c.copy(id = java.util.UUID.randomUUID().toString(), startMs = cut))
+        es.selected = es.current
+        es.message = "Split at ${tc(globalMs)}"
     }
 
     // ---- AI voiceover from text (Kokoro, downloaded once)
@@ -1484,21 +1422,21 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         wx.ttsJob = layerScope.launch {
             wx.ttsStatus = "Getting the voice…"
             val err = withContext(Dispatchers.IO) { Voiceover.ensure(context, v, { p -> wx.ttsProgress = p }, { !isActive }) }
-            if (err != null) { wx.ttsProgress = null; wx.ttsStatus = null; wx.ttsJob = null; if (isActive) message = err; return@launch }
+            if (err != null) { wx.ttsProgress = null; wx.ttsStatus = null; wx.ttsJob = null; if (isActive) es.message = err; return@launch }
             wx.ttsStatus = "Speaking…"; wx.ttsProgress = 0
             val audio = withContext(Dispatchers.Default) {
                 try { Voiceover.speak(context, text, v, speed, { p -> wx.ttsProgress = p }, { !isActive }) } catch (_: Throwable) { null }
             }
             wx.ttsProgress = null; wx.ttsStatus = null; wx.ttsJob = null
             if (!isActive) return@launch
-            if (audio == null || audio.isEmpty()) { message = "Couldn't make the voice" + (Voiceover.failed?.let { " ($it)" } ?: ""); return@launch }
+            if (audio == null || audio.isEmpty()) { es.message = "Couldn't make the voice" + (Voiceover.failed?.let { " ($it)" } ?: ""); return@launch }
             val dir = java.io.File(context.filesDir, "voiceovers").apply { mkdirs() }
             val f = java.io.File(dir, "ai_voice_${System.currentTimeMillis()}.wav")
             withContext(Dispatchers.IO) { Voiceover.writeWav(f, audio) }
             val dur = audio.size * 1000L / Voiceover.RATE
             val n = extraAudio.count { it.name.startsWith("AI voice") } + 1
             extraAudio.add(MusicTrack(uri = android.net.Uri.fromFile(f), name = "AI voice $n · ${v.label.substringBefore(" (")}", durationMs = dur, volume = 1f, fadeInMs = 0, fadeOutMs = 100, duck = 0f, startMs = at))
-            message = "AI voiceover added at ${tc(at)} (${tc(dur)})"
+            es.message = "AI voiceover added at ${tc(at)} (${tc(dur)})"
         }
     }
 
@@ -1522,14 +1460,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 prepare()
                 start()
             }
-        } catch (t: Throwable) { message = "Couldn't start the microphone"; return }
+        } catch (t: Throwable) { es.message = "Couldn't start the microphone"; return }
         wx.voiceFile = f; wx.voiceRec = r; wx.voiceStart = globalMs
-        wx.mutedBeforeVoice = previewMuted
-        previewMuted = true
+        wx.mutedBeforeVoice = es.previewMuted
+        es.previewMuted = true
         if (!deck.cur.isPlaying) deck.cur.play()
     }
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-        if (ok) beginVoice() else message = "Allow the microphone to record a voiceover"
+        if (ok) beginVoice() else es.message = "Allow the microphone to record a voiceover"
     }
     fun startVoice() {
         if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) beginVoice()
@@ -1539,26 +1477,26 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val r = wx.voiceRec ?: return
         wx.voiceRec = null
         deck.cur.pause()
-        previewMuted = wx.mutedBeforeVoice
+        es.previewMuted = wx.mutedBeforeVoice
         try { r.stop() } catch (_: Throwable) {}
         r.release()
         val f = wx.voiceFile ?: return
         val dur = try {
             android.media.MediaMetadataRetriever().let { m -> m.setDataSource(f.path); val d = m.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L; m.release(); d }
         } catch (_: Throwable) { 0L }
-        if (dur < 300) { f.delete(); message = "Voiceover too short"; return }
+        if (dur < 300) { f.delete(); es.message = "Voiceover too short"; return }
         val n = extraAudio.count { it.name.startsWith("Voiceover") } + 1
         extraAudio.add(MusicTrack(uri = android.net.Uri.fromFile(f), name = "Voiceover $n", durationMs = dur, volume = 1f, fadeInMs = 0, fadeOutMs = 150, duck = 0f, startMs = wx.voiceStart))
-        message = "Voiceover $n added at ${tc(wx.voiceStart)}"
+        es.message = "Voiceover $n added at ${tc(wx.voiceStart)}"
     }
     DisposableEffect(Unit) { onDispose { wx.voiceRec?.let { try { it.stop() } catch (_: Throwable) {}; it.release() } } }
 
     /** Beat markers from a music / audio track. */
     fun addBeatMarkers(t: MusicTrack) {
-        message = "Finding the beat…"
+        es.message = "Finding the beat…"
         layerScope.launch {
             val pk = waves[t.uri.toString()] ?: withContext(Dispatchers.IO) { Waveforms.load(context, t.uri) }
-            if (pk == null) { message = "Couldn't read that audio"; return@launch }
+            if (pk == null) { es.message = "Couldn't read that audio"; return@launch }
             val beats = withContext(Dispatchers.Default) { Beats.detect(pk) }
             val total = timelineLength(clips)
             val len = t.playLength(total)
@@ -1570,7 +1508,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 markers.add(tl); added++
             }
             markers.sort()
-            message = if (added > 0) "$added beat markers added" else "No clear beat found"
+            es.message = if (added > 0) "$added beat markers added" else "No clear beat found"
         }
     }
 
@@ -1588,7 +1526,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 err = withContext(Dispatchers.IO) { ModelStore.ensure(context, AiModel.DEPTH, { p -> wx.depthProgress = p }, { !isActive }) }
             }
             wx.depthStatus = null
-            if (err != null) { wx.depthProgress = null; wx.depthJob = null; if (isActive) message = err; return@launch }
+            if (err != null) { wx.depthProgress = null; wx.depthJob = null; if (isActive) es.message = err; return@launch }
             wx.depthProgress = 0; wx.depthStatus = "Working out depth…"
             val id = java.util.UUID.randomUUID().toString()
             val n = withContext(Dispatchers.Default) {
@@ -1597,33 +1535,32 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             wx.depthProgress = null; wx.depthStatus = null; wx.depthJob = null
             if (!isActive) return@launch
             val k = clips.indexOfFirst { it.id == c.id }
-            if (n <= 0 || k < 0) { message = "Couldn't work out the depth" + (DepthModel.failed?.let { " ($it)" } ?: ""); return@launch }
+            if (n <= 0 || k < 0) { es.message = "Couldn't work out the depth" + (DepthModel.failed?.let { " ($it)" } ?: ""); return@launch }
             clips[k] = clips[k].copy(depth = (clips[k].depth ?: fx).copy(id = id, frames = n))
-            message = "Depth worked out ($n maps) — set the focus and strength"
+            es.message = "Depth worked out ($n maps) — set the focus and strength"
         }
     }
 
     // ---- Caption translation (ML Kit, on the phone)
-    var translateStatus by remember { mutableStateOf<String?>(null) }
     // ---- AI dubbing: the captions spoken in another voice / language as one audio track.
     fun dubCaptions(lang: String, man: Boolean, mute: Boolean) {
-        if (wx.dubJob != null) { wx.dubJob?.cancel(); wx.dubJob = null; wx.dubStatus = null; message = "Dubbing stopped"; return }
+        if (wx.dubJob != null) { wx.dubJob?.cancel(); wx.dubJob = null; wx.dubStatus = null; es.message = "Dubbing stopped"; return }
         val caps = layers.filter { it.kind == LayerKind.TEXT && (it.name == "Caption" || it.name == "Word caption") && !it.wholeVideo && it.text.isNotBlank() }.sortedBy { it.startMs }
-        if (caps.isEmpty()) { message = "Make captions first (AI CAPTIONS), and translate them if you want another language"; return }
+        if (caps.isEmpty()) { es.message = "Make captions first (AI CAPTIONS), and translate them if you want another language"; return }
         if (lang != "en" && !com.dronedirector.veyrocutpro.camera.CloudAi.useVideo(context) && !com.dronedirector.veyrocutpro.camera.CloudAi.usePhotos(context)) {
-            message = "Dubbing in that language uses Cloud AI — add your fal.ai key in Cloud AI settings (English works on the phone)"; return
+            es.message = "Dubbing in that language uses Cloud AI — add your fal.ai key in Cloud AI settings (English works on the phone)"; return
         }
         wx.dubStatus = "Starting…"
         wx.dubJob = layerScope.launch {
             if (lang == "en") {
                 val v = Voiceover.voices.first { it.id == if (man) "am_michael" else "af_heart" }
                 val err = withContext(Dispatchers.IO) { Voiceover.ensure(context, v, { p -> wx.dubStatus = "Getting the voice $p%" }, { !isActive }) }
-                if (err != null) { wx.dubStatus = null; wx.dubJob = null; message = err; return@launch }
+                if (err != null) { wx.dubStatus = null; wx.dubJob = null; es.message = err; return@launch }
             }
             val lines = caps.map { Triple(it.startMs, it.endMs, it.text.replace('\n', ' ')) }
             val audio = withContext(Dispatchers.IO) {
                 try { Dubbing.build(context, lines, lang, man, { p -> wx.dubStatus = "Speaking $p%" }, { !isActive }) }
-                catch (t: Throwable) { layerScope.launch { message = t.message ?: "Dubbing failed" }; null }
+                catch (t: Throwable) { layerScope.launch { es.message = t.message ?: "Dubbing failed" }; null }
             }
             wx.dubStatus = null; wx.dubJob = null
             if (!isActive || audio == null) return@launch
@@ -1632,23 +1569,23 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             withContext(Dispatchers.IO) { Voiceover.writeWav(f, audio) }
             val label = Dubbing.LANGS.firstOrNull { it.second == lang }?.first?.substringBefore(" (") ?: lang
             extraAudio.add(MusicTrack(uri = android.net.Uri.fromFile(f), name = "AI dub · $label", durationMs = audio.size * 1000L / Dubbing.RATE, volume = 1f, fadeInMs = 0, fadeOutMs = 100, duck = 0f, startMs = 0L))
-            deliver = deliver.copy(videoGain = if (mute) 0f else 0.18f)
-            message = "AI dub added (${lines.size} lines) — the original voice is " + (if (mute) "muted" else "turned down") + " in the mixer (Audio page)"
+            es.deliver = es.deliver.copy(videoGain = if (mute) 0f else 0.18f)
+            es.message = "AI dub added (${lines.size} lines) — the original voice is " + (if (mute) "muted" else "turned down") + " in the mixer (Audio page)"
         }
     }
     fun translateCaptions(to: String) {
-        if (translateStatus != null) return
+        if (es.translateStatus != null) return
         val caps = layers.filter { it.kind == LayerKind.TEXT && (it.name == "Caption" || it.name == "Word caption") }
-        if (caps.isEmpty()) { message = "Make captions first (AI CAPTIONS, or word-by-word captions on the Text page)"; return }
-        translateStatus = "Starting…"
+        if (caps.isEmpty()) { es.message = "Make captions first (AI CAPTIONS, or word-by-word captions on the Text page)"; return }
+        es.translateStatus = "Starting…"
         layerScope.launch {
             val res = withContext(Dispatchers.IO) {
-                try { Result.success(CaptionTranslate.translate(caps.map { it.text.replace('\n', ' ') }, null, to) { s -> layerScope.launch { translateStatus = s } }) }
+                try { Result.success(CaptionTranslate.translate(caps.map { it.text.replace('\n', ' ') }, null, to) { s -> layerScope.launch { es.translateStatus = s } }) }
                 catch (e: Throwable) { Result.failure(e) }
             }
-            translateStatus = null
+            es.translateStatus = null
             val out = res.getOrNull()
-            if (out == null) { message = res.exceptionOrNull()?.message ?: "Translation failed"; return@launch }
+            if (out == null) { es.message = res.exceptionOrNull()?.message ?: "Translation failed"; return@launch }
             for ((k, l) in caps.withIndex()) {
                 val i = layers.indexOfFirst { it.id == l.id }
                 if (i < 0) continue
@@ -1656,7 +1593,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 val t = captionPieces(out[k], 38).joinToString("\n").ifBlank { out[k] }
                 layers[i] = l.copy(text = if (l.text == l.text.uppercase() && l.text.any { it.isLetter() }) t.uppercase() else t, words = null, name = "Caption")
             }
-            message = "${caps.size} captions translated — Translated by Google"
+            es.message = "${caps.size} captions translated — Translated by Google"
         }
     }
 
@@ -1671,23 +1608,23 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val pts = PenMask.pointsAt(m, src)
         if (pts.size < 6) return
         val q0 = PenMask.boundsQuad(pts)
-        if (c.lengthMs - rel < 300) { message = "Move the playhead to where tracking should start"; return }
+        if (c.lengthMs - rel < 300) { es.message = "Move the playhead to where tracking should start"; return }
         deck.cur.pause()
-        wx.penTrackingId = maskId; wx.penStop = false; message = "Tracking the mask… 0%"
+        wx.penTrackingId = maskId; wx.penStop = false; es.message = "Tracking the mask… 0%"
         layerScope.launch {
             val path = withContext(Dispatchers.Default) {
                 try {
                     PlanarTracker.track(context, listOf(c), 0, rel, c.lengthMs, q0,
-                        progress = { p -> layerScope.launch { if (wx.penTrackingId != null) message = "Tracking the mask… $p% — tap again to stop" } },
+                        progress = { p -> layerScope.launch { if (wx.penTrackingId != null) es.message = "Tracking the mask… $p% — tap again to stop" } },
                         cancelled = { wx.penStop })
                 } catch (_: Throwable) { emptyList() }
             }
             wx.penTrackingId = null
             val i = clips.indexOfFirst { it.id == c.id }
-            if (i < 0 || path.size < 2) { message = "Couldn't follow what's under the mask — try a part with more detail"; return@launch }
+            if (i < 0 || path.size < 2) { es.message = "Couldn't follow what's under the mask — try a part with more detail"; return@launch }
             val track = path.map { it.copy(t = c.srcAtOffset(it.t)) }
             clips[i] = clips[i].copy(masks = clips[i].masks?.map { if (it.id == maskId) it.copy(pts = pts.toList(), pref = q0.toList(), ptrack = track) else it })
-            message = "Mask tracked through ${track.size} frames — it follows the motion"
+            es.message = "Mask tracked through ${track.size} frames — it follows the motion"
         }
     }
 
@@ -1702,34 +1639,34 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val starts = clipStarts(clips)
         val ci = starts.indices.lastOrNull { starts[it] <= from } ?: 0
         val to = if (l0.wholeVideo) timelineLength(clips) else l0.endMs
-        if (to - from < 300) { message = "Move the playhead to where tracking should start"; return }
-        wx.pinTrackingId = id; wx.pinStop = false; message = "Planar tracking… 0%"
+        if (to - from < 300) { es.message = "Move the playhead to where tracking should start"; return }
+        wx.pinTrackingId = id; wx.pinStop = false; es.message = "Planar tracking… 0%"
         val snapshot = clips.toList()
         layerScope.launch {
             val path = withContext(Dispatchers.Default) {
                 try {
                     PlanarTracker.track(context, snapshot, ci, from, to, q0,
-                        progress = { p -> layerScope.launch { if (wx.pinTrackingId != null) message = "Planar tracking… $p% — tap again to stop" } },
+                        progress = { p -> layerScope.launch { if (wx.pinTrackingId != null) es.message = "Planar tracking… $p% — tap again to stop" } },
                         cancelled = { wx.pinStop })
                 } catch (_: Throwable) { emptyList() }
             }
             wx.pinTrackingId = null
             val i = layers.indexOfFirst { it.id == id }
-            if (i < 0 || path.size < 2) { message = "Couldn't follow that surface — pick one with some detail, or move the corners onto it"; return@launch }
+            if (i < 0 || path.size < 2) { es.message = "Couldn't follow that surface — pick one with some detail, or move the corners onto it"; return@launch }
             val l = layers[i]
             val end = path.last().t
             // Keep what was before / after the tracked stretch.
             val old = l.pin.orEmpty().let { if (it.size == 1) emptyList() else it }
             val kept = old.filter { it.t < from - 20 || it.t > end + 20 }
             layers[i] = l.copy(pin = (kept + path).sortedBy { it.t })
-            message = if (end < to - 250) "Tracked to ${tc(end)} — the surface was lost there (${path.size} frames)"
+            es.message = if (end < to - 250) "Tracked to ${tc(end)} — the surface was lost there (${path.size} frames)"
             else "Planar tracked ${path.size} frames — the layer stays on the surface"
         }
     }
 
     // ---- Motion tracking: the selected layer follows the spot under it from the playhead on
     fun trackLayer(id: String) {
-        if (trackingId != null) { trackStop = true; return }
+        if (es.trackingId != null) { es.trackStop = true; return }
         val l0 = layers.firstOrNull { it.id == id } ?: return
         if (clips.isEmpty()) return
         deck.cur.pause()
@@ -1737,19 +1674,19 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val starts = clipStarts(clips)
         val ci = starts.indices.lastOrNull { starts[it] <= from } ?: 0
         val to = if (l0.wholeVideo) timelineLength(clips) else l0.endMs
-        if (to - from < 300) { message = "Move the playhead to where tracking should start"; return }
+        if (to - from < 300) { es.message = "Move the playhead to where tracking should start"; return }
         val at = l0.animAt(from)
-        trackingId = id; trackStop = false; message = "Tracking… 0%"
+        es.trackingId = id; es.trackStop = false; es.message = "Tracking… 0%"
         val snapshot = clips.toList()
         layerScope.launch {
             val path = withContext(Dispatchers.Default) {
                 Tracker.track(context, snapshot, ci, from, to, at.x, at.y,
-                    progress = { p -> layerScope.launch { if (trackingId != null) message = "Tracking… $p% — tap TRACK again to stop" } },
-                    cancelled = { trackStop })
+                    progress = { p -> layerScope.launch { if (es.trackingId != null) es.message = "Tracking… $p% — tap TRACK again to stop" } },
+                    cancelled = { es.trackStop })
             }
-            trackingId = null
+            es.trackingId = null
             val i = layers.indexOfFirst { it.id == id }
-            if (i < 0 || path.size < 2) { message = "Couldn't follow that spot — try a sharper, high-contrast area"; return@launch }
+            if (i < 0 || path.size < 2) { es.message = "Couldn't follow that spot — try a sharper, high-contrast area"; return@launch }
             val l = layers[i]
             val end = path.last().first
             // Keep keyframes before and after the tracked stretch; one key every 200 ms in between.
@@ -1758,7 +1695,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 val cur = l.animAt(t); LayerKey(t, x, y, cur.size, cur.opacity)
             }
             layers[i] = l.copy(keys = (kept + newKeys).sortedBy { it.t })
-            message = if (end < to - 250) "Tracked to ${tc(end)} — the spot was lost there (${newKeys.size} keyframes)"
+            es.message = if (end < to - 250) "Tracked to ${tc(end)} — the spot was lost there (${newKeys.size} keyframes)"
             else "Tracked ${newKeys.size} keyframes — the layer now follows the motion"
         }
     }
@@ -1766,7 +1703,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     // ---- AI captions
     /** Split-screen layouts and picture in picture from the video layers above the main video. */
     fun splitScreen(t: Int) {
-        val aspect = if (deliver.aspect > 0f) deliver.aspect else clips.firstOrNull()?.let { it.width.toFloat() / it.height.coerceAtLeast(1) } ?: (16f / 9f)
+        val aspect = if (es.deliver.aspect > 0f) es.deliver.aspect else clips.firstOrNull()?.let { it.width.toFloat() / it.height.coerceAtLeast(1) } ?: (16f / 9f)
         val vids = layers.indices.filter { layers[it].kind == LayerKind.VIDEO && !layers[it].isBelow }
         val g = 0.012f
         // Cells: centre x, centre y, width share, height share.
@@ -1778,41 +1715,41 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             else -> emptyList()
         }
         if (t == 4) {
-            val i = vids.firstOrNull() ?: run { message = "Add a video layer first (+ VIDEO → Above)"; return }
+            val i = vids.firstOrNull() ?: run { es.message = "Add a video layer first (+ VIDEO → Above)"; return }
             val l = layers[i]
             val size = 0.32f
             val hw = size * l.mediaAspect / aspect / 2f
             layers[i] = l.copy(size = size, cellAspect = null, x = 1f - 0.035f - hw, y = 1f - 0.06f - size / 2f, keys = null, corner = 0.08f, border = 0.004f, borderColor = 0xFFFFFFFF.toInt(), dropShadow = true)
-            selectedLayer = l.id
-            message = "Picture in picture: bottom right with rounded corners, border and shadow — drag it anywhere"
+            es.selectedLayer = l.id
+            es.message = "Picture in picture: bottom right with rounded corners, border and shadow — drag it anywhere"
             return
         }
-        if (vids.size < cells.size) { message = "This layout needs ${cells.size} video layers — add ${cells.size - vids.size} more with + VIDEO (Above)"; return }
+        if (vids.size < cells.size) { es.message = "This layout needs ${cells.size} video layers — add ${cells.size - vids.size} more with + VIDEO (Above)"; return }
         vids.take(cells.size).forEachIndexed { k, i ->
             val c = cells[k]
             layers[i] = layers[i].copy(x = c[0], y = c[1], size = c[3], cellAspect = c[2] / c[3] * aspect, keys = null, corner = null, border = null, dropShadow = null)
         }
-        message = "Split screen ready (${cells.size} cells) — the thin gaps show the main video; select a layer to change its frame"
+        es.message = "Split screen ready (${cells.size} cells) — the thin gaps show the main video; select a layer to change its frame"
     }
 
     fun makeCaptions(lang: String?, clipsOnly: Boolean, style: Int) {
         com.dronedirector.veyrocutpro.camera.CloudAi.load(context)
-        if (!com.dronedirector.veyrocutpro.camera.CloudAi.hasKey) { message = "AI captions use your fal.ai account — add the key in settings → Cloud AI"; return }
+        if (!com.dronedirector.veyrocutpro.camera.CloudAi.hasKey) { es.message = "AI captions use your fal.ai account — add the key in settings → Cloud AI"; return }
         if (clips.isEmpty()) return
         deck.cur.pause()
         val file = java.io.File(context.cacheDir, "captions_${System.currentTimeMillis()}.m4a")
-        message = "Preparing the sound…"
+        es.message = "Preparing the sound…"
         val total = timelineLength(clips)
         val e = TimelineExport(
-            context, clips.toList(), deliver.copy(audioOnly = true, rangeStart = null, rangeEnd = null), emptyList(),
-            if (clipsOnly) null else music, if (clipsOnly) emptyList() else extraAudio.toList(),
+            context, clips.toList(), es.deliver.copy(audioOnly = true, rangeStart = null, rangeEnd = null), emptyList(),
+            if (clipsOnly) null else es.music, if (clipsOnly) emptyList() else extraAudio.toList(),
             onProgress = {},
             onDone = { u, err ->
-                if (u == null) message = err ?: "Couldn't prepare the sound"
+                if (u == null) es.message = err ?: "Couldn't prepare the sound"
                 else layerScope.launch {
                     val segs = try { withContext(Dispatchers.IO) { com.dronedirector.veyrocutpro.camera.CloudAi.transcribe(context, file, lang) } }
-                    catch (_: com.dronedirector.veyrocutpro.camera.CloudAi.Stopped) { message = "Captions stopped"; null }
-                    catch (t: Throwable) { message = t.message ?: "Captions failed"; null }
+                    catch (_: com.dronedirector.veyrocutpro.camera.CloudAi.Stopped) { es.message = "Captions stopped"; null }
+                    catch (t: Throwable) { es.message = t.message ?: "Captions failed"; null }
                     file.delete()
                     if (segs != null) {
                         var n = 0
@@ -1831,13 +1768,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 n++
                             }
                         }
-                        message = if (n > 0) "$n captions added — tap one on the timeline to edit it" else "No speech found"
+                        es.message = if (n > 0) "$n captions added — tap one on the timeline to edit it" else "No speech found"
                     }
                 }
             },
             toFile = file,
         )
-        try { e.start() } catch (t: Throwable) { message = "Couldn't prepare the sound" }
+        try { e.start() } catch (t: Throwable) { es.message = "Couldn't prepare the sound" }
     }
 
     // ---- Auto-reframe: follow the subject when changing the shape of the video.
@@ -1880,43 +1817,43 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     fun autoReframe(aspect: Float?) {
-        if (videoLocked) { message = "The video track is locked"; return }
+        if (es.videoLocked) { es.message = "The video track is locked"; return }
         if (aspect == null) {
             for (i in clips.indices) clips[i] = clips[i].copy(reframe = clips[i].reframe.copy(track = null))
-            message = "Auto-reframe cleared"; return
+            es.message = "Auto-reframe cleared"; return
         }
-        deliver = deliver.copy(aspect = aspect, fill = true)
+        es.deliver = es.deliver.copy(aspect = aspect, fill = true)
         deck.cur.pause()
         layerScope.launch {
             val list = clips.toList()
             for ((i, c) in list.withIndex()) {
-                message = "Auto-reframe: clip ${i + 1} of ${list.size}…"
+                es.message = "Auto-reframe: clip ${i + 1} of ${list.size}…"
                 val tr = withContext(Dispatchers.IO) { reframeTrack(c, aspect) } ?: continue
                 val idx = clips.indexOfFirst { it.id == c.id }
                 if (idx >= 0) clips[idx] = clips[idx].copy(reframe = clips[idx].reframe.copy(track = tr))
             }
-            message = "Auto-reframe done — the picture follows the subject" + if (!AiSegment.hasModel(context)) " (motion)" else ""
+            es.message = "Auto-reframe done — the picture follows the subject" + if (!AiSegment.hasModel(context)) " (motion)" else ""
         }
     }
 
     // ---- Optical flow (on the phone): smooth slow motion and motion blur.
     fun flowRetime(i: Int, factor: Int, speed: Float?, shutter: Float) {
-        if (videoLocked) { message = "The video track is locked"; return }
+        if (es.videoLocked) { es.message = "The video track is locked"; return }
         val c = clips.getOrNull(i) ?: return
         if (wx.flowJob != null) return
-        if (!MorphNative.available) { message = "Optical flow isn't available on this phone"; return }
-        if (c.nested != null) { message = "Un-nest the clip first (or export it), then smooth it"; return }
+        if (!MorphNative.available) { es.message = "Optical flow isn't available on this phone"; return }
+        if (c.nested != null) { es.message = "Un-nest the clip first (or export it), then smooth it"; return }
         deck.cur.pause()
         wx.flowProgress = 0
         wx.flowJob = layerScope.launch {
-            val side = if (deliver.shortSide in 1..720) 1280 else 1920
+            val side = if (es.deliver.shortSide in 1..720) 1280 else 1920
             val f = withContext(Dispatchers.Default) {
                 try { FlowRetime.make(context, c, factor, shutter, side, { wx.flowProgress = it }, { !isActive }) } catch (_: Throwable) { null }
             }
             wx.flowProgress = -1; wx.flowJob = null
             if (!isActive) return@launch
             val idx = clips.indexOfFirst { it.id == c.id }
-            if (f == null || idx < 0) { message = "Couldn't process this clip"; return@launch }
+            if (f == null || idx < 0) { es.message = "Couldn't process this clip"; return@launch }
             val len = c.endMs - c.startMs
             val cur = clips[idx]
             clips[idx] = cur.copy(
@@ -1927,18 +1864,18 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 bg = cur.bg?.takeIf { it.magic == null },
             )
             load(idx.coerceAtMost(clips.lastIndex), 0, false)
-            message = if (factor > 1) "Smooth slow motion: ${factor}× the frames, drawn from the motion — undo brings the original back"
+            es.message = if (factor > 1) "Smooth slow motion: ${factor}× the frames, drawn from the motion — undo brings the original back"
             else "Motion blur added — undo brings the original back"
         }
     }
 
     // ---- AI slow motion (frame interpolation in the cloud).
     fun aiSlowMo(i: Int) {
-        if (videoLocked) { message = "The video track is locked"; return }
+        if (es.videoLocked) { es.message = "The video track is locked"; return }
         val c = clips.getOrNull(i) ?: return
         com.dronedirector.veyrocutpro.camera.CloudAi.load(context)
-        if (!com.dronedirector.veyrocutpro.camera.CloudAi.hasKey) { message = "AI slow-mo uses your fal.ai account — add the key in settings → Cloud AI"; return }
-        if (c.endMs - c.startMs > 20_000) { message = "Trim the clip to 20 s or less for AI slow-mo"; return }
+        if (!com.dronedirector.veyrocutpro.camera.CloudAi.hasKey) { es.message = "AI slow-mo uses your fal.ai account — add the key in settings → Cloud AI"; return }
+        if (c.endMs - c.startMs > 20_000) { es.message = "Trim the clip to 20 s or less for AI slow-mo"; return }
         deck.cur.pause()
         layerScope.launch {
             try {
@@ -1950,29 +1887,29 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     android.media.MediaMetadataRetriever().let { m -> m.setDataSource(out.path); val d = m.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L; m.release(); d }
                 }
                 val idx = clips.indexOfFirst { it.id == c.id }
-                if (idx < 0 || dur <= 0) { message = "AI slow-mo failed"; return@launch }
+                if (idx < 0 || dur <= 0) { es.message = "AI slow-mo failed"; return@launch }
                 clips[idx] = c.copy(
                     id = java.util.UUID.randomUUID().toString(), uri = android.net.Uri.fromFile(out), name = "Slow-mo · ${c.name}",
                     durationMs = dur, startMs = 0, endMs = dur, speed = 0.25f, ramp = null, rampName = null, volKeys = null, muted = true,
                     stab = Stabilize(), mime = "video/avc", hdr = false, tenBit = false,
                 )
                 load(idx.coerceAtMost(clips.lastIndex), 0, false)
-                message = "AI slow motion: 4× more frames, playing at ¼ speed"
-            } catch (_: com.dronedirector.veyrocutpro.camera.CloudAi.Stopped) { message = "AI slow-mo stopped" }
-            catch (t: Throwable) { message = t.message ?: "AI slow-mo failed" }
+                es.message = "AI slow motion: 4× more frames, playing at ¼ speed"
+            } catch (_: com.dronedirector.veyrocutpro.camera.CloudAi.Stopped) { es.message = "AI slow-mo stopped" }
+            catch (t: Throwable) { es.message = t.message ?: "AI slow-mo failed" }
         }
     }
 
     /** Freeze frame: 2 s of the frame under the playhead, inserted there (the clip is split around it). */
     fun freezeAtPlayhead() {
-        if (videoLocked) { message = "The video track is locked"; return }
-        val c = clips.getOrNull(current) ?: return
+        if (es.videoLocked) { es.message = "The video track is locked"; return }
+        val c = clips.getOrNull(es.current) ?: return
         val src = c.startMs + deck.cur.currentPosition
         deck.cur.pause()
-        message = "Making a freeze frame…"
+        es.message = "Making a freeze frame…"
         layerScope.launch {
             val fc = withContext(Dispatchers.IO) { try { VideoTools.freeze(context, c, src, 2000) } catch (_: Throwable) { null } }
-            if (fc == null) { message = "Couldn't make a freeze frame"; return@launch }
+            if (fc == null) { es.message = "Couldn't make a freeze frame"; return@launch }
             val idx = clips.indexOfFirst { it.id == c.id }
             if (idx < 0) return@launch
             if (src > c.startMs + 100 && src < c.endMs - 100) {
@@ -1980,26 +1917,26 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 clips.add(idx + 1, fc.copy(transition = Transition()))
                 clips.add(idx + 2, c.copy(id = java.util.UUID.randomUUID().toString(), startMs = src))
             } else clips.add(idx + 1, fc)
-            selected = idx + 1
-            message = "2 s freeze frame added — trim it on the Edit page"
+            es.selected = idx + 1
+            es.message = "2 s freeze frame added — trim it on the Edit page"
         }
     }
 
     /** Reverse: replaces the clip with a backwards copy (picture only). */
     fun reverseClip(i: Int) {
-        if (videoLocked) { message = "The video track is locked"; return }
+        if (es.videoLocked) { es.message = "The video track is locked"; return }
         val c = clips.getOrNull(i) ?: return
         deck.cur.pause()
-        message = "Reversing… 0%"
+        es.message = "Reversing… 0%"
         layerScope.launch {
             val rc = withContext(Dispatchers.IO) {
-                try { VideoTools.reverse(context, c) { p -> layerScope.launch { message = "Reversing… $p%" } } } catch (_: Throwable) { null }
+                try { VideoTools.reverse(context, c) { p -> layerScope.launch { es.message = "Reversing… $p%" } } } catch (_: Throwable) { null }
             }
             val idx = clips.indexOfFirst { it.id == c.id }
-            if (rc == null || idx < 0) { message = "Couldn't reverse this clip"; return@launch }
+            if (rc == null || idx < 0) { es.message = "Couldn't reverse this clip"; return@launch }
             clips[idx] = rc.copy(transition = c.transition)
             load(idx.coerceAtMost(clips.lastIndex), 0, false)
-            message = if (c.endMs - c.startMs > 60_000) "Reversed (first 60 s) — reversed clips are silent" else "Reversed — reversed clips are silent"
+            es.message = if (c.endMs - c.startMs > 60_000) "Reversed (first 60 s) — reversed clips are silent" else "Reversed — reversed clips are silent"
         }
     }
 
@@ -2013,13 +1950,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val m = wx.tModel
             val err = withContext(Dispatchers.IO) { Transcriber.download(context, m, { p -> wx.tDl = p }, { wx.tDlCancel }) }
             wx.tDl = -1
-            message = err ?: "${m.label} speech model ready"
+            es.message = err ?: "${m.label} speech model ready"
         }
     }
     fun transcribeAll() {
         if (wx.tJob != null || clips.isEmpty()) return
-        if (!Transcriber.available) { message = "Transcription isn't available on this phone"; return }
-        if (!Transcriber.hasModel(context, wx.tModel)) { downloadModel(); message = "Downloading the speech model first (${wx.tModel.sizeMb} MB)…"; return }
+        if (!Transcriber.available) { es.message = "Transcription isn't available on this phone"; return }
+        if (!Transcriber.hasModel(context, wx.tModel)) { downloadModel(); es.message = "Downloading the speech model first (${wx.tModel.sizeMb} MB)…"; return }
         wx.tJob = layerScope.launch {
             val list = clips.toList()
             val all = mutableListOf<TWord>()
@@ -2034,16 +1971,15 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
             if (!Transcriber.stopped) {
                 wx.tWords.clear(); wx.tWords.addAll(all)
-                message = if (all.isEmpty()) "No speech found" else "Transcribed ${all.size} words — tap words to cut them"
-            } else message = "Transcription stopped"
+                es.message = if (all.isEmpty()) "No speech found" else "Transcribed ${all.size} words — tap words to cut them"
+            } else es.message = "Transcription stopped"
             wx.tStatus = null; wx.tJob = null
         }
     }
     /** Word-by-word caption layers from the transcript (style: 0 highlight, 1 box, 2 one word, 3 two lines). */
-    var pendingWordCaps by remember { mutableStateOf<Int?>(null) }
     fun makeWordCaptions(style: Int) {
         if (wx.tWords.isEmpty()) {
-            pendingWordCaps = style
+            es.pendingWordCaps = style
             transcribeAll()
             return
         }
@@ -2055,7 +1991,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val a = starts[ci] + c.tlOffsetOf(w.startMs); val b = starts[ci] + c.tlOffsetOf(w.endMs.coerceAtMost(c.endMs))
             tl += Triple(a, b.coerceAtLeast(a + 80), w.text.trim().replace(' ', '\u00A0'))
         }
-        if (tl.isEmpty()) { message = "No speech found to caption"; return }
+        if (tl.isEmpty()) { es.message = "No speech found to caption"; return }
         val maxWords = when (style) { 2 -> 1; 3 -> 8; else -> 4 }
         val maxChars = when (style) { 2 -> 40; 3 -> 44; else -> 24 }
         val groups = ArrayList<List<Triple<Long, Long, String>>>()
@@ -2083,15 +2019,15 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 animIn = if (style == 2) LayerAnim.POP else null, animMs = if (style == 2) 120L else null,
             ))
         }
-        message = "${groups.size} word-by-word captions added — edit any of them like a text layer (run again to replace them)"
+        es.message = "${groups.size} word-by-word captions added — edit any of them like a text layer (run again to replace them)"
     }
     LaunchedEffect(wx.tJob) {
-        val st = pendingWordCaps
-        if (wx.tJob == null && st != null) { pendingWordCaps = null; if (wx.tWords.isNotEmpty()) makeWordCaptions(st) }
+        val st = es.pendingWordCaps
+        if (wx.tJob == null && st != null) { es.pendingWordCaps = null; if (wx.tWords.isNotEmpty()) makeWordCaptions(st) }
     }
     fun applyTextCuts() {
-        if (videoLocked) { message = "The video track is locked — tap its lock on the timeline to unlock"; return }
-        if (wx.tWords.none { it.deleted }) { message = "Tap the words you want to cut first"; return }
+        if (es.videoLocked) { es.message = "The video track is locked — tap its lock on the timeline to unlock"; return }
+        if (wx.tWords.none { it.deleted }) { es.message = "Tap the words you want to cut first"; return }
         val out = mutableListOf<Clip>(); val newWords = mutableListOf<TWord>()
         var cutMs = 0L; var skipped = 0
         for (c in clips.toList()) {
@@ -2116,141 +2052,133 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 newWords += mine.filter { !it.deleted && it.startMs >= r.first - 30 && it.endMs <= r.last + 30 }.map { it.copy(clipId = id) }
             }
         }
-        if (out.isEmpty()) { message = "That would cut everything — keep at least one word"; return }
+        if (out.isEmpty()) { es.message = "That would cut everything — keep at least one word"; return }
         clips.clear(); clips.addAll(out)
         wx.tWords.clear(); wx.tWords.addAll(newWords)
-        selected = selected.coerceIn(0, clips.lastIndex); current = current.coerceIn(0, clips.lastIndex)
-        load(current, 0, false)
-        message = "Cut %.1f s from the edit".format(cutMs / 1000f) + (if (skipped > 0) " · $skipped clip(s) with a speed ramp skipped" else "") + " — undo brings it back"
+        es.selected = es.selected.coerceIn(0, clips.lastIndex); es.current = es.current.coerceIn(0, clips.lastIndex)
+        load(es.current, 0, false)
+        es.message = "Cut %.1f s from the edit".format(cutMs / 1000f) + (if (skipped > 0) " · $skipped clip(s) with a speed ramp skipped" else "") + " — undo brings it back"
     }
 
     // ---- Pro tools: scene detection, auto-edit to the beat, fit music, multi-select, versions.
-    var sceneJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
-    var sceneProgress by remember { mutableStateOf(-1) }
     val multi = remember { mutableStateListOf<String>() }      // clip ids picked in SELECT CLIPS
     fun detectScenes() {
-        if (videoLocked) { message = "The video track is locked"; return }
-        val c = clips.getOrNull(selected) ?: return
-        if (sceneJob != null) return
-        sceneProgress = 0
+        if (es.videoLocked) { es.message = "The video track is locked"; return }
+        val c = clips.getOrNull(es.selected) ?: return
+        if (es.sceneJob != null) return
+        es.sceneProgress = 0
         var stop = false
-        sceneJob = layerScope.launch {
+        es.sceneJob = layerScope.launch {
             val src = proxyFor(c) ?: c.uri
             val cuts = withContext(Dispatchers.Default) {
-                try { ProTools.detectScenes(context, c, src, onProgress = { sceneProgress = it }, stop = { stop || !isActive }) } catch (_: Throwable) { emptyList() }
+                try { ProTools.detectScenes(context, c, src, onProgress = { es.sceneProgress = it }, stop = { stop || !isActive }) } catch (_: Throwable) { emptyList() }
             }
-            sceneProgress = -1; sceneJob = null
+            es.sceneProgress = -1; es.sceneJob = null
             if (!isActive) return@launch
-            if (cuts.isEmpty()) { message = "No scene changes found in this clip"; return@launch }
+            if (cuts.isEmpty()) { es.message = "No scene changes found in this clip"; return@launch }
             val i = clips.indexOfFirst { it.id == c.id }
             if (i < 0) return@launch
             val parts = ProTools.splitAt(clips[i], cuts)
             clips.removeAt(i); clips.addAll(i, parts)
-            load(current.coerceIn(0, clips.lastIndex), 0, false)
-            message = "Split into ${parts.size} shots at the scene changes — undo brings the clip back"
+            load(es.current.coerceIn(0, clips.lastIndex), 0, false)
+            es.message = "Split into ${parts.size} shots at the scene changes — undo brings the clip back"
         }
     }
     // ---- Shot match (Color → FILM & LENS → SHOT MATCH)
-    var matchBusy by remember { mutableStateOf<Int?>(null) }
     fun matchShot(ref: Int) {
-        val ti = selected
+        val ti = es.selected
         val t = clips.getOrNull(ti) ?: return
         val r = clips.getOrNull(ref) ?: return
-        if (ref == ti || matchBusy != null) return
-        matchBusy = 0
+        if (ref == ti || es.matchBusy != null) return
+        es.matchBusy = 0
         layerScope.launch {
-            val g = withContext(Dispatchers.Default) { try { ShotMatch.match(context, r, t) { matchBusy = it } } catch (_: Throwable) { null } }
-            matchBusy = null
+            val g = withContext(Dispatchers.Default) { try { ShotMatch.match(context, r, t) { es.matchBusy = it } } catch (_: Throwable) { null } }
+            es.matchBusy = null
             val i = clips.indexOfFirst { it.id == t.id }
-            if (g == null || i < 0) { message = "Couldn't read the clips to match"; return@launch }
+            if (g == null || i < 0) { es.message = "Couldn't read the clips to match"; return@launch }
             clips[i] = clips[i].copy(grade = g)
-            message = "Clip ${i + 1} matched to clip ${ref + 1} — fine-tune in Primaries; undo brings the old grade back"
+            es.message = "Clip ${i + 1} matched to clip ${ref + 1} — fine-tune in Primaries; undo brings the old grade back"
         }
     }
     // ---- Deleting a clip (bin on the selected clip, or Delete in the clip tools): close the gap or leave one.
-    var deleteAsk by remember { mutableStateOf<Int?>(null) }
     fun deleteClip(i: Int, leaveGap: Boolean) {
-        if (videoLocked) { message = "The video track is locked"; return }
+        if (es.videoLocked) { es.message = "The video track is locked"; return }
         if (i !in clips.indices) return
         val c = clips[i]
         if (!leaveGap) {
             clips.removeAt(i)
-            selected = selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
-            current = current.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
-            if (clips.isNotEmpty()) load(current, 0, false)
-            message = "Clip deleted — undo brings it back"
+            es.selected = es.selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
+            es.current = es.current.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
+            if (clips.isNotEmpty()) load(es.current, 0, false)
+            es.message = "Clip deleted — undo brings it back"
             return
         }
         // Leave a gap: the clip becomes black of the same length, so everything after it stays in place.
         val len = c.lengthMs
-        val fps = if (deliver.fps > 0) deliver.fps else 30
+        val fps = if (es.deliver.fps > 0) es.deliver.fps else 30
         val w = (c.width.takeIf { it > 0 } ?: 1920).coerceAtMost(1920); val h = (c.height.takeIf { it > 0 } ?: 1080).coerceAtMost(1920)
-        message = "Making the gap…"
+        es.message = "Making the gap…"
         Generators.make(context, GenSpec(GenKind.BLACK, seconds = ((len + 999) / 1000).toInt().coerceAtLeast(1), width = w, height = h, fps = fps), onProgress = {}) { uri, err ->
-            if (uri == null) { message = err ?: "Couldn't make the gap"; return@make }
+            if (uri == null) { es.message = err ?: "Couldn't make the gap"; return@make }
             layerScope.launch {
                 val nc = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }
                 val at = clips.indexOfFirst { it.id == c.id }
-                if (nc == null || at < 0) { message = "Couldn't make the gap"; return@launch }
+                if (nc == null || at < 0) { es.message = "Couldn't make the gap"; return@launch }
                 clips[at] = nc.copy(name = "Gap", startMs = 0L, endMs = len.coerceAtMost(nc.durationMs.takeIf { it > 0 } ?: len))
-                if (current == at) load(at, 0, false)
-                message = "Clip deleted, gap left — undo brings it back"
+                if (es.current == at) load(at, 0, false)
+                es.message = "Clip deleted, gap left — undo brings it back"
             }
         }
     }
-    deleteAsk?.let { di -> DeleteClipDialog(di, onClose = { deleteAsk = null }) { gap -> deleteAsk = null; deleteClip(di, gap) } }
+    es.deleteAsk?.let { di -> DeleteClipDialog(di, onClose = { es.deleteAsk = null }) { gap -> es.deleteAsk = null; deleteClip(di, gap) } }
     // ---- Generators (Media → GENERATORS)
-    var genBusy by remember { mutableStateOf<Int?>(null) }
-    var genCancel by remember { mutableStateOf<(() -> Unit)?>(null) }
     fun makeGenerator(kind: GenKind, c1: Int, c2: Int, seconds: Int) {
-        if (genBusy != null) return
-        if (videoLocked) { message = "The video track is locked"; return }
+        if (es.genBusy != null) return
+        if (es.videoLocked) { es.message = "The video track is locked"; return }
         val ref = clips.firstOrNull()
         var w = ref?.width ?: 1920; var h = ref?.height ?: 1080
-        if (deliver.aspect > 0f) { h = h.coerceAtMost(w); w = (h * deliver.aspect).toInt() }
+        if (es.deliver.aspect > 0f) { h = h.coerceAtMost(w); w = (h * es.deliver.aspect).toInt() }
         // Keep generated clips light: at most 4K on the long side.
         val k = (3840f / maxOf(w, h)).coerceAtMost(1f); w = (w * k).toInt(); h = (h * k).toInt()
-        val fps = if (deliver.fps > 0) deliver.fps else 30
-        genBusy = 0
-        genCancel = Generators.make(context, GenSpec(kind, c1, c2, seconds, w, h, fps), onProgress = { genBusy = it }) { uri, err ->
-            genCancel = null
-            if (uri == null) { genBusy = null; if (err != null) message = err; return@make }
+        val fps = if (es.deliver.fps > 0) es.deliver.fps else 30
+        es.genBusy = 0
+        es.genCancel = Generators.make(context, GenSpec(kind, c1, c2, seconds, w, h, fps), onProgress = { es.genBusy = it }) { uri, err ->
+            es.genCancel = null
+            if (uri == null) { es.genBusy = null; if (err != null) es.message = err; return@make }
             layerScope.launch {
                 val nc = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }
-                genBusy = null
-                if (nc == null) { message = "Couldn't open the generated clip"; return@launch }
-                val at = if (clips.isEmpty()) 0 else (selected + 1).coerceIn(0, clips.size)
+                es.genBusy = null
+                if (nc == null) { es.message = "Couldn't open the generated clip"; return@launch }
+                val at = if (clips.isEmpty()) 0 else (es.selected + 1).coerceIn(0, clips.size)
                 clips.add(at, nc.copy(name = kind.label + if (kind == GenKind.COUNTDOWN) "" else " · ${seconds}s"))
-                selected = at
-                if (clips.size == 1) { current = 0; load(0, 0, false) }
-                message = "${kind.label} added after the selected clip"
+                es.selected = at
+                if (clips.size == 1) { es.current = 0; load(0, 0, false) }
+                es.message = "${kind.label} added after the selected clip"
             }
         }
     }
     // ---- Three-point editing (source viewer), relink, project archive
-    var sourceClip by remember { mutableStateOf<Clip?>(null) }
     // Where the timeline is on screen (window coordinates), for dropping clips dragged with the mouse.
-    var tlBounds by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
     val tlLeftPad = with(androidx.compose.ui.platform.LocalDensity.current) { 50.dp.toPx() }
     /** Puts [src] on the timeline at the clip boundary nearest the time under the pointer. */
     fun dropAt(src: Clip, windowX: Float) {
-        if (videoLocked) { message = "The video track is locked — tap its lock on the timeline to unlock"; return }
-        val ms = zoom.scrollMs + ((windowX - tlBounds.left - tlLeftPad) / zoom.pxPerSec * 1000f).toLong()
+        if (es.videoLocked) { es.message = "The video track is locked — tap its lock on the timeline to unlock"; return }
+        val ms = zoom.scrollMs + ((windowX - es.tlBounds.left - tlLeftPad) / zoom.pxPerSec * 1000f).toLong()
         val nc = src.copy(id = java.util.UUID.randomUUID().toString(), startMs = 0, endMs = src.durationMs, transition = Transition(), volKeys = null, ramp = null, rampName = null, nested = null, speed = 1f)
         val st = clipStarts(clips)
         var at = clips.size
         for (i in clips.indices) if (ms < st[i] + clips[i].lengthMs / 2) { at = i; break }
-        clips.add(at, nc); selected = at
-        if (clips.size == 1) { current = 0; load(0, 0, false) }
-        message = "${nc.name} placed on the timeline"
+        clips.add(at, nc); es.selected = at
+        if (clips.size == 1) { es.current = 0; load(0, 0, false) }
+        es.message = "${nc.name} placed on the timeline"
     }
     fun threePoint(src: Clip, mode: Int) {
-        if (videoLocked) { message = "The video track is locked — tap its lock on the timeline to unlock"; return }
+        if (es.videoLocked) { es.message = "The video track is locked — tap its lock on the timeline to unlock"; return }
         val nc = src.copy(id = java.util.UUID.randomUUID().toString(), transition = Transition(), volKeys = null, ramp = null, rampName = null, reframe = Reframe(), nested = null, speed = 1f)
         if (clips.isEmpty() || mode == 2) {
-            clips.add(nc); selected = clips.lastIndex
-            if (clips.size == 1) { current = 0; load(0, 0, false) }
-            message = "Appended to the end of the timeline (${tc(nc.lengthMs)})"; return
+            clips.add(nc); es.selected = clips.lastIndex
+            if (clips.size == 1) { es.current = 0; load(0, 0, false) }
+            es.message = "Appended to the end of the timeline (${tc(nc.lengthMs)})"; return
         }
         val (i, off) = clipAt(clips, globalMs)
         val c = clips[i]
@@ -2275,18 +2203,18 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 else { clips[k] = d.copy(startMs = d.srcAtOffset(remain), volKeys = null); remain = 0 }
             }
         }
-        selected = at; current = at; load(at, 0, false)
-        message = (if (mode == 1) "Overwritten" else "Inserted") + " at the playhead (${tc(nc.lengthMs)}) — undo takes it back"
+        es.selected = at; es.current = at; load(at, 0, false)
+        es.message = (if (mode == 1) "Overwritten" else "Inserted") + " at the playhead (${tc(nc.lengthMs)}) — undo takes it back"
     }
     val pickSource = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) layerScope.launch {
             try { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
             val c = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }
-            if (c == null) message = "Couldn't open that video" else sourceClip = c
+            if (c == null) es.message = "Couldn't open that video" else es.sourceClip = c
         }
     }
-    sourceClip?.let { sc0 ->
-        SourceViewerDialog(sc0, tc(globalMs), onDismiss = { sourceClip = null }) { cl, mode -> sourceClip = null; threePoint(cl, mode) }
+    es.sourceClip?.let { sc0 ->
+        SourceViewerDialog(sc0, tc(globalMs), onDismiss = { es.sourceClip = null }) { cl, mode -> es.sourceClip = null; threePoint(cl, mode) }
     }
     // Media that can't be opened any more (moved, deleted, access lost): RELINK in the media pool.
     val missing = remember { mutableStateListOf<String>() }
@@ -2294,13 +2222,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val bad = withContext(Dispatchers.IO) { clips.map { it.uri }.distinctBy { it.toString() }.filter { !ProjectArchive.readable(context, it) }.map { it.toString() } }
         missing.clear(); missing.addAll(bad)
     }
-    var relinkFrom by remember { mutableStateOf<String?>(null) }
     val relink = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        val from = relinkFrom; relinkFrom = null
+        val from = es.relinkFrom; es.relinkFrom = null
         if (uri == null || from == null) return@rememberLauncherForActivityResult
         layerScope.launch {
             try { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
-            val nc = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) } ?: run { message = "Couldn't open that file"; return@launch }
+            val nc = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) } ?: run { es.message = "Couldn't open that file"; return@launch }
             var n = 0
             for (i in clips.indices) if (clips[i].uri.toString() == from) {
                 val o = clips[i]
@@ -2311,14 +2238,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             for (i in layers.indices) if (layers[i].videoUri?.toString() == from) layers[i] = layers[i].copy(videoUri = uri, videoDurationMs = nc.durationMs)
             bins.remove(from)?.let { bins[uri.toString()] = it }
             missing.remove(from)
-            if (clips.isNotEmpty()) load(current.coerceIn(0, clips.lastIndex), 0, false)
-            message = "Relinked $n clip(s) to ${nc.name}"
+            if (clips.isNotEmpty()) load(es.current.coerceIn(0, clips.lastIndex), 0, false)
+            es.message = "Relinked $n clip(s) to ${nc.name}"
         }
     }
     fun applyProject(p: VideoProjectData) {
         clips.clear(); clips.addAll(p.clips)
         layers.clear(); layers.addAll(p.layers)
-        music = p.music
+        es.music = p.music
         extraAudio.clear(); extraAudio.addAll(p.extraAudio)
         audioPool.clear(); audioPool.addAll(p.audioPool)
         library.clear(); p.library?.let { library.addAll(it) }
@@ -2327,80 +2254,77 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         markerNotes.clear(); p.markerNotes?.forEach { (k, v) -> k.toLongOrNull()?.let { markerNotes[it] = v } }
         bins.clear(); p.bins?.let { bins.putAll(it) }
         binNames.clear(); p.binNames?.let { binNames.addAll(it) }
-        deliver = p.deliver
-        if (clips.isNotEmpty()) { selected = 0; current = 0; load(0, 0, false) }
+        es.deliver = p.deliver
+        if (clips.isNotEmpty()) { es.selected = 0; es.current = 0; load(0, 0, false) }
     }
     val saveArchive = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         val p = VideoProjectData(
-            id = projectId ?: java.util.UUID.randomUUID().toString(), name = projectName.ifBlank { "Project" },
-            clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
+            id = es.projectId ?: java.util.UUID.randomUUID().toString(), name = es.projectName.ifBlank { "Project" },
+            clips = clips.toList(), layers = layers.toList(), music = es.music, deliver = es.deliver,
             extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
-            videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
+            videoMuted = es.videoMuted, videoLocked = es.videoLocked, markers = markers.toList(),
             markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
             bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
         )
-        archiveBusy = 0
+        es.archiveBusy = 0
         layerScope.launch {
             val err = withContext(Dispatchers.IO) {
-                try { context.contentResolver.openOutputStream(uri)?.use { o -> ProjectArchive.write(context, p, o, { archiveBusy = it }, { false }) } ?: "Couldn't create the file" }
+                try { context.contentResolver.openOutputStream(uri)?.use { o -> ProjectArchive.write(context, p, o, { es.archiveBusy = it }, { false }) } ?: "Couldn't create the file" }
                 catch (t: Throwable) { "Couldn't save the archive: ${t.message}" }
             }
-            archiveBusy = null
-            message = err ?: "Project archive saved (${clips.size} clips and all their files)"
+            es.archiveBusy = null
+            es.message = err ?: "Project archive saved (${clips.size} clips and all their files)"
         }
     }
     val openArchive = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        archiveBusy = 0
+        es.archiveBusy = 0
         layerScope.launch {
-            val (p, err) = withContext(Dispatchers.IO) { ProjectArchive.read(context, uri) { archiveBusy = it } }
-            archiveBusy = null
-            if (p == null) { message = err ?: "Couldn't open the archive"; return@launch }
+            val (p, err) = withContext(Dispatchers.IO) { ProjectArchive.read(context, uri) { es.archiveBusy = it } }
+            es.archiveBusy = null
+            if (p == null) { es.message = err ?: "Couldn't open the archive"; return@launch }
             val saved = withContext(Dispatchers.IO) { try { ProjectStore.saveVideo(context, p, null) } catch (_: Throwable) { null } }
             applyProject(saved ?: p)
-            projectId = saved?.id; projectName = (saved ?: p).name
-            message = "Opened \"${(saved ?: p).name}\" from the archive"
+            es.projectId = saved?.id; es.projectName = (saved ?: p).name
+            es.message = "Opened \"${(saved ?: p).name}\" from the archive"
         }
     }
-    LaunchedEffect(archiveAction) {
-        when (archiveAction) {
-            1 -> try { saveArchive.launch("${projectName.ifBlank { "VeyroCut project" }}.zip") } catch (_: Throwable) { message = "Couldn't open the file picker" }
-            2 -> try { openArchive.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) } catch (_: Throwable) { message = "Couldn't open the file picker" }
+    LaunchedEffect(es.archiveAction) {
+        when (es.archiveAction) {
+            1 -> try { saveArchive.launch("${es.projectName.ifBlank { "VeyroCut project" }}.zip") } catch (_: Throwable) { es.message = "Couldn't open the file picker" }
+            2 -> try { openArchive.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) } catch (_: Throwable) { es.message = "Couldn't open the file picker" }
         }
-        archiveAction = 0
+        es.archiveAction = 0
     }
     // ---- Object removal: Magic Mask follows the object, then it is filled from the frames around it (and LaMa).
-    var eraseProgress by remember { mutableStateOf<Int?>(null) }
-    var eraseStatus by remember { mutableStateOf<String?>(null) }
-    var eraseJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     fun startErase(t: MagicTarget, sel: MagicSel) {
         val c = clips.firstOrNull { it.id == t.clipId } ?: return
-        if (eraseJob != null) return
-        if (videoLocked) { message = "The video track is locked"; return }
+        if (es.eraseJob != null) return
+        if (es.videoLocked) { es.message = "The video track is locked"; return }
         deck.cur.pause()
-        eraseProgress = 0
-        eraseJob = layerScope.launch {
+        es.eraseProgress = 0
+        es.eraseJob = layerScope.launch {
             var err: String? = null
             if (!ModelStore.has(context, AiModel.INPAINT)) {
-                eraseStatus = "Downloading the painting model…"
-                err = withContext(Dispatchers.IO) { ModelStore.ensure(context, AiModel.INPAINT, { p -> eraseProgress = p }, { !isActive }) }
+                es.eraseStatus = "Downloading the painting model…"
+                err = withContext(Dispatchers.IO) { ModelStore.ensure(context, AiModel.INPAINT, { p -> es.eraseProgress = p }, { !isActive }) }
             }
-            if (err != null) { eraseProgress = null; eraseStatus = null; eraseJob = null; if (isActive) message = err; return@launch }
-            eraseStatus = "Following the object…"; eraseProgress = 0
+            if (err != null) { es.eraseProgress = null; es.eraseStatus = null; es.eraseJob = null; if (isActive) es.message = err; return@launch }
+            es.eraseStatus = "Following the object…"; es.eraseProgress = 0
             val tr = withContext(Dispatchers.Default) {
-                try { MagicTracker.track(context, c.uri, c.startMs, c.endMs, sel, { p -> eraseProgress = p }, { !isActive }) } catch (_: Throwable) { null }
+                try { MagicTracker.track(context, c.uri, c.startMs, c.endMs, sel, { p -> es.eraseProgress = p }, { !isActive }) } catch (_: Throwable) { null }
             }
-            if (tr == null || !isActive) { eraseProgress = null; eraseStatus = null; eraseJob = null; if (isActive) message = "Magic Mask couldn't follow the object"; return@launch }
+            if (tr == null || !isActive) { es.eraseProgress = null; es.eraseStatus = null; es.eraseJob = null; if (isActive) es.message = "Magic Mask couldn't follow the object"; return@launch }
             withContext(Dispatchers.IO) { MaskTrack.save(context, sel.id, tr) }
-            eraseStatus = "Removing the object…"; eraseProgress = 0
+            es.eraseStatus = "Removing the object…"; es.eraseProgress = 0
             val f = withContext(Dispatchers.Default) {
-                try { ObjectRemoval.make(context, c, tr, sel.id, { p -> eraseProgress = p }, { !isActive }) } catch (_: Throwable) { null }
+                try { ObjectRemoval.make(context, c, tr, sel.id, { p -> es.eraseProgress = p }, { !isActive }) } catch (_: Throwable) { null }
             }
-            eraseProgress = null; eraseStatus = null; eraseJob = null
+            es.eraseProgress = null; es.eraseStatus = null; es.eraseJob = null
             if (!isActive) return@launch
             val idx = clips.indexOfFirst { it.id == c.id }
-            if (f == null || idx < 0) { message = "Couldn't remove the object" + (ObjectRemoval.failed?.let { " ($it)" } ?: ""); return@launch }
+            if (f == null || idx < 0) { es.message = "Couldn't remove the object" + (ObjectRemoval.failed?.let { " ($it)" } ?: ""); return@launch }
             val len = c.endMs - c.startMs
             val cur = clips[idx]
             clips[idx] = cur.copy(
@@ -2409,11 +2333,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 chroma = null, bitDepth = null, decoder = null, undecodable = null, bg = cur.bg?.takeIf { it.magic == null }, depth = null,
             )
             load(idx.coerceAtMost(clips.lastIndex), 0, false)
-            message = "Object removed — undo brings the original back"
+            es.message = "Object removed — undo brings the original back"
         }
     }
     // ---- Magic Mask: pick any object, track it through the clip (Color → Detail → BACKGROUND, or a video layer).
-    var magicPick by remember { mutableStateOf<MagicTarget?>(null) }
     val magicProgress = remember { mutableStateMapOf<String, Int>() }
     val magicStops = remember { HashMap<String, java.util.concurrent.atomic.AtomicBoolean>() }
     fun startMagic(t: MagicTarget, sel: MagicSel) {
@@ -2436,7 +2359,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
             magicProgress.remove(key)
             if (stop.get()) return@launch
-            if (tr == null) { message = "Magic Mask couldn't follow the object" + (Sam.failed?.let { " ($it)" } ?: ""); return@launch }
+            if (tr == null) { es.message = "Magic Mask couldn't follow the object" + (Sam.failed?.let { " ($it)" } ?: ""); return@launch }
             withContext(Dispatchers.IO) { MaskTrack.save(context, sel.id, tr) }
             val done = sel.copy(fromMs = from, toMs = to, frames = tr.times.size)
             if (t.clipId != null) {
@@ -2446,94 +2369,92 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 val i = layers.indexOfFirst { it.id == t.layerId }
                 if (i >= 0) layers[i] = layers[i].copy(bgRemove = true, layerMagic = done)
             }
-            message = "Magic Mask follows the object through ${tr.times.size} frames"
+            es.message = "Magic Mask follows the object through ${tr.times.size} frames"
         }
     }
-    magicPick?.let { t -> MagicMaskDialog(t, onDismiss = { magicPick = null }) { sel -> magicPick = null; startMagic(t, sel) } }
-    var hlProgress by remember { mutableStateOf(-1) }
-    var hlJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    es.magicPick?.let { t -> MagicMaskDialog(t, onDismiss = { es.magicPick = null }) { sel -> es.magicPick = null; startMagic(t, sel) } }
     fun makeHighlights(targetMs: Long, toBeat: Boolean = false) {
-        if (videoLocked) { message = "The video track is locked"; return }
-        if (clips.isEmpty() || hlJob != null) return
-        hlProgress = 0
-        hlJob = layerScope.launch {
+        if (es.videoLocked) { es.message = "The video track is locked"; return }
+        if (clips.isEmpty() || es.hlJob != null) return
+        es.hlProgress = 0
+        es.hlJob = layerScope.launch {
             val src = clips.distinctBy { it.id }.toList()
             val out = withContext(Dispatchers.Default) {
-                try { Highlights.build(context, src, targetMs, wx.tWords.toList(), { proxyFor(it) ?: it.uri }, { hlProgress = it }, { !isActive }) } catch (_: Throwable) { emptyList() }
+                try { Highlights.build(context, src, targetMs, wx.tWords.toList(), { proxyFor(it) ?: it.uri }, { es.hlProgress = it }, { !isActive }) } catch (_: Throwable) { emptyList() }
             }
-            hlProgress = -1; hlJob = null
+            es.hlProgress = -1; es.hlJob = null
             if (!isActive) return@launch
-            if (out.isEmpty()) { message = "Couldn't find highlights — the clips may be too short"; return@launch }
+            if (out.isEmpty()) { es.message = "Couldn't find highlights — the clips may be too short"; return@launch }
             var reel = out
-            val m = music
+            val m = es.music
             if (toBeat && m != null) {
                 val peaks = waves[m.uri.toString()] ?: withContext(Dispatchers.IO) { Waveforms.load(context, m.uri) }
                 if (peaks != null) reel = withContext(Dispatchers.Default) { Highlights.snapToBeats(out, ProTools.beatsOnTimeline(m, peaks)) }
-            } else if (toBeat) message = "Add a music track to cut on its beat"
+            } else if (toBeat) es.message = "Add a music track to cut on its beat"
             clips.clear(); clips.addAll(reel)
-            selected = 0; current = 0
+            es.selected = 0; es.current = 0
             load(0, 0, false)
-            message = "Highlight reel: ${out.size} moments, ${tc(out.sumOf { it.lengthMs })} — undo brings your clips back"
+            es.message = "Highlight reel: ${out.size} moments, ${tc(out.sumOf { it.lengthMs })} — undo brings your clips back"
         }
     }
     fun autoEditToBeat(every: Int) {
-        if (videoLocked) { message = "The video track is locked"; return }
-        val m = music ?: run { message = "Add a music track first (Media → Sound libraries or Audio)"; return }
+        if (es.videoLocked) { es.message = "The video track is locked"; return }
+        val m = es.music ?: run { es.message = "Add a music track first (Media → Sound libraries or Audio)"; return }
         if (clips.isEmpty()) return
         layerScope.launch {
             val peaks = waves[m.uri.toString()] ?: withContext(Dispatchers.IO) { Waveforms.load(context, m.uri) }
-            if (peaks == null) { message = "Couldn't read the music"; return@launch }
+            if (peaks == null) { es.message = "Couldn't read the music"; return@launch }
             val beats = ProTools.beatsOnTimeline(m, peaks)
             val musicLen = if (m.lengthMs > 0) m.lengthMs else m.durationMs - m.offsetMs
             val sources = clips.distinctBy { it.id }.toList()
             val out = withContext(Dispatchers.Default) { ProTools.autoEdit(sources, beats, every, m.startMs + musicLen) }
-            if (out.isEmpty()) { message = "Couldn't find the beat — try another song"; return@launch }
+            if (out.isEmpty()) { es.message = "Couldn't find the beat — try another song"; return@launch }
             clips.clear(); clips.addAll(out)
-            selected = 0; current = 0
+            es.selected = 0; es.current = 0
             load(0, 0, false)
-            message = "Auto-edit: ${out.size} cuts on the beat — undo brings your clips back"
+            es.message = "Auto-edit: ${out.size} cuts on the beat — undo brings your clips back"
         }
     }
     fun fitMusicToVideo() {
-        val m = music ?: run { message = "Add a music track first"; return }
-        if (m.locked) { message = "The music track is locked"; return }
+        val m = es.music ?: run { es.message = "Add a music track first"; return }
+        if (m.locked) { es.message = "The music track is locked"; return }
         layerScope.launch {
             val peaks = waves[m.uri.toString()] ?: withContext(Dispatchers.IO) { Waveforms.load(context, m.uri) }
-            if (peaks == null) { message = "Couldn't read the music"; return@launch }
+            if (peaks == null) { es.message = "Couldn't read the music"; return@launch }
             val target = timelineLength(clips) - m.startMs
             val parts = withContext(Dispatchers.Default) { ProTools.fitMusic(m, peaks, target) }
-            if (parts == null) { message = "The music already fits the video"; return@launch }
-            music = parts.first()
+            if (parts == null) { es.message = "The music already fits the video"; return@launch }
+            es.music = parts.first()
             extraAudio.addAll(parts.drop(1))
             musicPlayer.setMediaItem(MediaItem.fromUri(m.uri)); musicPlayer.prepare()
-            message = "Music fitted: it now ends with the video, cut on the beat (${parts.size} pieces) — undo restores it"
+            es.message = "Music fitted: it now ends with the video, cut on the beat (${parts.size} pieces) — undo restores it"
         }
     }
     fun restoreVersion(f: java.io.File) {
-        val p = ProTools.loadVersion(f) ?: run { message = "Couldn't open that version"; return }
+        val p = ProTools.loadVersion(f) ?: run { es.message = "Couldn't open that version"; return }
         clips.clear(); clips.addAll(p.clips)
         layers.clear(); layers.addAll(p.layers)
-        music = p.music
+        es.music = p.music
         extraAudio.clear(); extraAudio.addAll(p.extraAudio)
         markers.clear(); markers.addAll(p.markers)
-        deliver = p.deliver
-        if (clips.isNotEmpty()) { selected = 0; current = 0; load(0, 0, false) }
-        message = "Version from " + java.text.SimpleDateFormat("d MMM HH:mm", java.util.Locale.getDefault()).format(java.util.Date(f.name.removeSuffix(".json").toLongOrNull() ?: 0L)) + " restored — SAVE to keep it"
+        es.deliver = p.deliver
+        if (clips.isNotEmpty()) { es.selected = 0; es.current = 0; load(0, 0, false) }
+        es.message = "Version from " + java.text.SimpleDateFormat("d MMM HH:mm", java.util.Locale.getDefault()).format(java.util.Date(f.name.removeSuffix(".json").toLongOrNull() ?: 0L)) + " restored — SAVE to keep it"
     }
-    LaunchedEffect(pendingRestore) { pendingRestore?.let { f -> pendingRestore = null; restoreVersion(f) } }
+    LaunchedEffect(es.pendingRestore) { es.pendingRestore?.let { f -> es.pendingRestore = null; restoreVersion(f) } }
     // Every 10 minutes of editing, keep a version of a saved project (Settings → Version history).
     LaunchedEffect(Unit) {
         while (true) {
             delay(10 * 60_000L)
-            val pid = projectId ?: continue
+            val pid = es.projectId ?: continue
             if (clips.isEmpty()) continue
             val p = VideoProjectData(
-                id = pid, name = projectName, savedAt = System.currentTimeMillis(),
-                clips = clips.toList(), layers = layers.toList(), music = music, deliver = deliver,
+                id = pid, name = es.projectName, savedAt = System.currentTimeMillis(),
+                clips = clips.toList(), layers = layers.toList(), music = es.music, deliver = es.deliver,
                 extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
-                videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
+                videoMuted = es.videoMuted, videoLocked = es.videoLocked, markers = markers.toList(),
                 markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
-                timelines = otherTimelines.toList().takeIf { it.isNotEmpty() }, timelineName = timelineName,
+                timelines = otherTimelines.toList().takeIf { it.isNotEmpty() }, timelineName = es.timelineName,
                 proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
                 bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
             )
@@ -2542,10 +2463,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     fun removeSilences(all: Boolean, db: Float, minMs: Long) {
-        if (videoLocked) { message = "The video track is locked — tap its lock on the timeline to unlock"; return }
+        if (es.videoLocked) { es.message = "The video track is locked — tap its lock on the timeline to unlock"; return }
         if (clips.isEmpty()) return
-        val targets = if (all) clips.indices.toList() else listOf(selected)
-        message = "Listening for pauses…"
+        val targets = if (all) clips.indices.toList() else listOf(es.selected)
+        es.message = "Listening for pauses…"
         layerScope.launch {
             val list = clips.toList()
             var removedMs = 0L; var cuts = 0; var skipped = 0
@@ -2570,11 +2491,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     )
                 }
             }
-            if (out.isEmpty()) { message = "Everything was quiet — nothing was removed"; return@launch }
+            if (out.isEmpty()) { es.message = "Everything was quiet — nothing was removed"; return@launch }
             clips.clear(); clips.addAll(out)
-            selected = selected.coerceIn(0, clips.lastIndex); current = current.coerceIn(0, clips.lastIndex)
-            load(current, 0, false)
-            message = when {
+            es.selected = es.selected.coerceIn(0, clips.lastIndex); es.current = es.current.coerceIn(0, clips.lastIndex)
+            load(es.current, 0, false)
+            es.message = when {
                 removedMs < 100 -> "No pauses found" + if (skipped > 0) " ($skipped clip(s) skipped)" else ""
                 else -> "Removed %.1f s of pauses in %d cut(s)".format(removedMs / 1000f, cuts) + if (skipped > 0) " · $skipped clip(s) skipped" else ""
             }
@@ -2582,91 +2503,89 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     fun detachAudio(i: Int) {
-        if (videoLocked) { message = "The video track is locked"; return }
+        if (es.videoLocked) { es.message = "The video track is locked"; return }
         val c = clips.getOrNull(i) ?: return
-        if (c.ramp != null || c.speed != 1f) { message = "Set the clip to 1x without a ramp to detach its audio"; return }
-        if (c.muted) { message = "This clip has no sound to detach"; return }
+        if (c.ramp != null || c.speed != 1f) { es.message = "Set the clip to 1x without a ramp to detach its audio"; return }
+        if (c.muted) { es.message = "This clip has no sound to detach"; return }
         val st = clipStarts(clips).getOrNull(i) ?: 0L
         extraAudio.add(MusicTrack(
             uri = c.uri, name = "Audio · ${c.name}", durationMs = c.durationMs, offsetMs = c.startMs, volume = c.volume.coerceAtMost(1.5f),
             fadeInMs = c.audio.fadeInMs, fadeOutMs = c.audio.fadeOutMs, fx = c.audio, duck = 0f, startMs = st, lengthMs = c.endMs - c.startMs,
         ))
         clips[i] = c.copy(muted = true)
-        message = "Audio detached — hold its bar on the timeline to move or extend it"
+        es.message = "Audio detached — hold its bar on the timeline to move or extend it"
     }
 
     // ---- Undo / redo: every settled change to clips, layers and audio is a step.
     val history = remember { mutableStateListOf<EditSnap>() }
-    var histPos by remember { mutableStateOf(-1) }
-    val snapNow by remember { derivedStateOf { EditSnap(clips.toList(), layers.toList(), music, extraAudio.toList()) } }
+    val snapNow by remember { derivedStateOf { EditSnap(clips.toList(), layers.toList(), es.music, extraAudio.toList()) } }
     LaunchedEffect(snapNow) {
         delay(450)   // a slider drag or a held timeline move becomes one step
-        if (histPos in history.indices && history[histPos] == snapNow) return@LaunchedEffect
-        while (history.lastIndex > histPos) history.removeAt(history.lastIndex)
+        if (es.histPos in history.indices && history[es.histPos] == snapNow) return@LaunchedEffect
+        while (history.lastIndex > es.histPos) history.removeAt(history.lastIndex)
         history.add(snapNow)
         if (history.size > 80) history.removeAt(0)
-        histPos = history.lastIndex
+        es.histPos = history.lastIndex
     }
     fun applySnap(s: EditSnap) {
         val wasPlaying = deck.cur.isPlaying
         val pos = deck.cur.currentPosition
         clips.clear(); clips.addAll(s.clips)
         layers.clear(); layers.addAll(s.layers)
-        music = s.music
+        es.music = s.music
         extraAudio.clear(); extraAudio.addAll(s.extra)
-        if (selectedLayer != null && layers.none { it.id == selectedLayer }) selectedLayer = null
+        if (es.selectedLayer != null && layers.none { it.id == es.selectedLayer }) es.selectedLayer = null
         if (clips.isNotEmpty()) {
-            val i = current.coerceIn(0, clips.lastIndex)
-            selected = selected.coerceIn(0, clips.lastIndex)
+            val i = es.current.coerceIn(0, clips.lastIndex)
+            es.selected = es.selected.coerceIn(0, clips.lastIndex)
             val c = clips[i]
             load(i, pos.coerceIn(0, (c.endMs - c.startMs - 50).coerceAtLeast(0)), wasPlaying)
         }
     }
     // ---- Several timelines per project (Media → TIMELINES).
     fun currentTimeline() = SavedTimeline(
-        name = timelineName, clips = clips.toList(), layers = layers.toList(), music = music, extraAudio = extraAudio.toList(),
+        name = es.timelineName, clips = clips.toList(), layers = layers.toList(), music = es.music, extraAudio = extraAudio.toList(),
         markers = markers.toList(), markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() }.takeIf { it.isNotEmpty() },
-        deliver = deliver, videoMuted = videoMuted,
+        deliver = es.deliver, videoMuted = es.videoMuted,
     )
     fun openTimeline(t: SavedTimeline, keepCurrent: Boolean = true) {
         if (keepCurrent) otherTimelines.add(currentTimeline())
         otherTimelines.remove(t)
         deck.cur.pause()
-        timelineName = t.name
+        es.timelineName = t.name
         clips.clear(); clips.addAll(t.clips)
         layers.clear(); layers.addAll(t.layers)
-        music = t.music
+        es.music = t.music
         extraAudio.clear(); extraAudio.addAll(t.extraAudio)
         markers.clear(); markers.addAll(t.markers)
         markerNotes.clear(); t.markerNotes?.forEach { (k, v) -> k.toLongOrNull()?.let { markerNotes[it] = v } }
-        deliver = t.deliver; videoMuted = t.videoMuted
-        selectedLayer = null
-        history.clear(); histPos = -1
-        if (clips.isNotEmpty()) { selected = 0; current = 0; load(0, 0, false) } else deck.cur.clearMediaItems()
-        message = "Opened \"${t.name}\""
+        es.deliver = t.deliver; es.videoMuted = t.videoMuted
+        es.selectedLayer = null
+        history.clear(); es.histPos = -1
+        if (clips.isNotEmpty()) { es.selected = 0; es.current = 0; load(0, 0, false) } else deck.cur.clearMediaItems()
+        es.message = "Opened \"${t.name}\""
     }
     fun uniqueTimelineName(base: String): String {
-        val used = otherTimelines.map { it.name }.toSet() + timelineName
+        val used = otherTimelines.map { it.name }.toSet() + es.timelineName
         if (base !in used) return base
         var n = 2
         while ("$base $n" in used) n++
         return "$base $n"
     }
     fun undo() {
-        if (histPos <= 0) { message = "Nothing to undo"; return }
-        histPos--; applySnap(history[histPos]); message = "Undo"
+        if (es.histPos <= 0) { es.message = "Nothing to undo"; return }
+        es.histPos--; applySnap(history[es.histPos]); es.message = "Undo"
     }
     fun redo() {
-        if (histPos >= history.lastIndex) { message = "Nothing to redo"; return }
-        histPos++; applySnap(history[histPos]); message = "Redo"
+        if (es.histPos >= history.lastIndex) { es.message = "Nothing to redo"; return }
+        es.histPos++; applySnap(history[es.histPos]); es.message = "Redo"
     }
 
-    var lastScrub by remember { mutableStateOf(0L) }
     /** Timeline scrubbing: fast keyframe seeks while dragging, exact frame when released. */
     fun scrub(ms: Long, final: Boolean) {
         val now = System.currentTimeMillis()
-        if (!final && now - lastScrub < 60) return
-        lastScrub = now
+        if (!final && now - es.lastScrub < 60) return
+        es.lastScrub = now
         if (deck.cur.isPlaying && !final) deck.cur.pause()
         deck.cur.setSeekParameters(if (final) androidx.media3.exoplayer.SeekParameters.EXACT else androidx.media3.exoplayer.SeekParameters.CLOSEST_SYNC)
         seekGlobal(ms)
@@ -2674,77 +2593,77 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
 
     fun runExportNow(list0: List<Clip>, loudGain: Float) {
         // Export range: cut the edit down to the chosen part first.
-        val ra = deliver.rangeStart; val rb = deliver.rangeEnd
+        val ra = es.deliver.rangeStart; val rb = es.deliver.rangeEnd
         // Review copy: a big faint watermark over everything and each marker's note for 2.5 s.
-        val reviewLayers = if (!deliver.review || deliver.audioOnly) emptyList() else buildList {
-            if (deliver.reviewText.isNotBlank()) add(Layer(kind = LayerKind.TEXT, text = deliver.reviewText.take(40), size = 0.16f, x = 0.5f, y = 0.5f, opacity = 0.28f, shadow = false, wholeVideo = true, name = "Review"))
-            if (deliver.reviewNotes) for (m in markers) add(Layer(kind = LayerKind.TEXT, text = (markerNotes[m] ?: "Marker").take(120), size = 0.045f, x = 0.5f, y = 0.12f, box = true, startMs = m, endMs = m + 2500, name = "Review"))
+        val reviewLayers = if (!es.deliver.review || es.deliver.audioOnly) emptyList() else buildList {
+            if (es.deliver.reviewText.isNotBlank()) add(Layer(kind = LayerKind.TEXT, text = es.deliver.reviewText.take(40), size = 0.16f, x = 0.5f, y = 0.5f, opacity = 0.28f, shadow = false, wholeVideo = true, name = "Review"))
+            if (es.deliver.reviewNotes) for (m in markers) add(Layer(kind = LayerKind.TEXT, text = (markerNotes[m] ?: "Marker").take(120), size = 0.045f, x = 0.5f, y = 0.12f, box = true, startMs = m, endMs = m + 2500, name = "Review"))
         }
         val allLayers = layers.toList() + reviewLayers
-        deliver = deliver.copy(reviewTcStart = if (ra != null && rb != null && rb > ra) ra else 0L)
-        val cut = if (ra != null && rb != null && rb > ra) cutRange(list0, allLayers, music, extraAudio.toList(), ra, rb)
-        else RangeCut(list0, allLayers, music, extraAudio.toList())
-        if (cut.clips.isEmpty()) { exporting = false; message = "Nothing to export in that range"; return }
+        es.deliver = es.deliver.copy(reviewTcStart = if (ra != null && rb != null && rb > ra) ra else 0L)
+        val cut = if (ra != null && rb != null && rb > ra) cutRange(list0, allLayers, es.music, extraAudio.toList(), ra, rb)
+        else RangeCut(list0, allLayers, es.music, extraAudio.toList())
+        if (cut.clips.isEmpty()) { es.exporting = false; es.message = "Nothing to export in that range"; return }
         val g = loudGain
         val list = if (g == 1f) cut.clips else cut.clips.map { it.copy(volume = it.volume * g) }
         val cutMusic = cut.music?.let { if (g == 1f) it else it.copy(volume = it.volume * g) }
         val cutExtra = if (g == 1f) cut.extra else cut.extra.map { it.copy(volume = it.volume * g) }
         val e = TimelineExport(
-            context, if (videoMuted) list.map { it.copy(muted = true) } else list, deliver, cut.layers, cutMusic, cutExtra,
-            onProgress = { progress = if (deliver.loudness != null && (deliver.audio || deliver.audioOnly)) 20 + it * 4 / 5 else it },
+            context, if (es.videoMuted) list.map { it.copy(muted = true) } else list, es.deliver, cut.layers, cutMusic, cutExtra,
+            onProgress = { es.progress = if (es.deliver.loudness != null && (es.deliver.audio || es.deliver.audioOnly)) 20 + it * 4 / 5 else it },
             onDone = { uri, err ->
-                exporting = false; export = null
-                message = if (uri != null) {
+                es.exporting = false; es.export = null
+                es.message = if (uri != null) {
                     val place = com.dronedirector.veyrocutpro.camera.Storage.load(context, com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO)
                     val folder = SaveFolder.get(context, true)?.let { SaveFolder.label(it) }
-                        ?: ((if (place == com.dronedirector.veyrocutpro.camera.Storage.INTERNAL) "" else com.dronedirector.veyrocutpro.camera.Storage.label(context, place) + " · ") + if (deliver.audioOnly) "Music/VeyroCutPro" else "DCIM/VeyroCutPro")
-                    (if (deliver.audioOnly) "Audio exported to " else "Exported to ") + folder
+                        ?: ((if (place == com.dronedirector.veyrocutpro.camera.Storage.INTERNAL) "" else com.dronedirector.veyrocutpro.camera.Storage.label(context, place) + " · ") + if (es.deliver.audioOnly) "Music/VeyroCutPro" else "DCIM/VeyroCutPro")
+                    (if (es.deliver.audioOnly) "Audio exported to " else "Exported to ") + folder
                 } else err ?: "Export failed"
             },
         )
-        export = e
-        try { e.start() } catch (t: Throwable) { exporting = false; export = null; message = "Export failed: ${t.message}" }
+        es.export = e
+        try { e.start() } catch (t: Throwable) { es.exporting = false; es.export = null; es.message = "Export failed: ${t.message}" }
     }
 
     /** Loudness: render the sound once, measure it, then export with every track turned up / down to the target. */
     fun runExport(list0: List<Clip>) {
-        val target = deliver.loudness
-        if (target == null || (!deliver.audio && !deliver.audioOnly)) { runExportNow(list0, 1f); return }
-        message = "Measuring loudness…"
+        val target = es.deliver.loudness
+        if (target == null || (!es.deliver.audio && !es.deliver.audioOnly)) { runExportNow(list0, 1f); return }
+        es.message = "Measuring loudness…"
         val tmp = java.io.File(context.cacheDir, "loudness_${System.currentTimeMillis()}.m4a")
-        val ra = deliver.rangeStart; val rb = deliver.rangeEnd
-        val cut = if (ra != null && rb != null && rb > ra) cutRange(list0, layers.toList(), music, extraAudio.toList(), ra, rb)
-        else RangeCut(list0, layers.toList(), music, extraAudio.toList())
+        val ra = es.deliver.rangeStart; val rb = es.deliver.rangeEnd
+        val cut = if (ra != null && rb != null && rb > ra) cutRange(list0, layers.toList(), es.music, extraAudio.toList(), ra, rb)
+        else RangeCut(list0, layers.toList(), es.music, extraAudio.toList())
         if (cut.clips.isEmpty()) { runExportNow(list0, 1f); return }
         val probe = TimelineExport(
-            context, if (videoMuted) cut.clips.map { it.copy(muted = true) } else cut.clips,
-            deliver.copy(audioOnly = true, audio = true, loudness = null, rangeStart = null, rangeEnd = null),
+            context, if (es.videoMuted) cut.clips.map { it.copy(muted = true) } else cut.clips,
+            es.deliver.copy(audioOnly = true, audio = true, loudness = null, rangeStart = null, rangeEnd = null),
             emptyList(), cut.music, cut.extra,
-            onProgress = { progress = it / 5 },
+            onProgress = { es.progress = it / 5 },
             onDone = { uri, _ ->
-                export = null
+                es.export = null
                 layerScope.launch {
                     val lufs = if (uri != null) withContext(Dispatchers.IO) { Loudness.measure(context, android.net.Uri.fromFile(tmp)) } else null
                     tmp.delete()
-                    if (!exporting) return@launch
+                    if (!es.exporting) return@launch
                     val g = lufs?.let { Loudness.gainFor(it, target) } ?: 1f
-                    message = if (lufs != null) "Loudness %.1f LUFS → %.0f LUFS".format(lufs, target) else "Couldn't measure the loudness — exporting as mixed"
+                    es.message = if (lufs != null) "Loudness %.1f LUFS → %.0f LUFS".format(lufs, target) else "Couldn't measure the loudness — exporting as mixed"
                     runExportNow(list0, g)
                 }
             },
             toFile = tmp,
         )
-        export = probe
+        es.export = probe
         try { probe.start() } catch (t: Throwable) { runExportNow(list0, 1f) }
     }
 
     /** Saves the frame under the playhead (graded, with its text / logo layers) as a photo. */
     fun saveStill() {
-        val c = clips.getOrNull(current) ?: return
+        val c = clips.getOrNull(es.current) ?: return
         val src = c.startMs + deck.cur.currentPosition
         val at = globalMs
         val shownLayers = layers.filter { it.activeAt(at) && it.kind != LayerKind.VIDEO }
-        message = "Saving frame…"
+        es.message = "Saving frame…"
         layerScope.launch {
             val uri = withContext(Dispatchers.IO) {
                 try {
@@ -2754,29 +2673,29 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     savePicture(context, out, png = false, quality = 95, area = com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO)
                 } catch (_: Throwable) { null }
             }
-            message = if (uri != null) "Frame saved as a photo" else "Couldn't save the frame"
+            es.message = if (uri != null) "Frame saved as a photo" else "Couldn't save the frame"
         }
     }
 
     fun startExport() {
-        if (exporting || clips.isEmpty()) return
+        if (es.exporting || clips.isEmpty()) return
         deck.cur.pause()
-        exportStartAt = System.currentTimeMillis()
-        exporting = true
-        progress = 0
-        cloudExport = !deliver.audioOnly && com.dronedirector.veyrocutpro.camera.CloudAi.useVideo(context) && clips.any { it.detail.aiDenoise > 0f }
-        if (!cloudExport) { runExport(clips.toList()); return }
+        es.exportStartAt = System.currentTimeMillis()
+        es.exporting = true
+        es.progress = 0
+        es.cloudExport = !es.deliver.audioOnly && com.dronedirector.veyrocutpro.camera.CloudAi.useVideo(context) && clips.any { it.detail.aiDenoise > 0f }
+        if (!es.cloudExport) { runExport(clips.toList()); return }
         // Cloud AI first (Topaz Nyx on fal.ai), then the normal export with the cleaned clips.
-        cloudJob = layerScope.launch {
+        es.cloudJob = layerScope.launch {
             val list = try {
                 CloudVideoPrep.prepare(context, clips.toList())
             } catch (_: com.dronedirector.veyrocutpro.camera.CloudAi.Stopped) {
-                exporting = false; message = "Export stopped"; return@launch
+                es.exporting = false; es.message = "Export stopped"; return@launch
             } catch (_: kotlinx.coroutines.CancellationException) {
-                exporting = false; return@launch
+                es.exporting = false; return@launch
             } catch (t: Throwable) {
-                message = "Cloud AI unavailable (${t.message}) — using the phone's AI"
-                cloudExport = false
+                es.message = "Cloud AI unavailable (${t.message}) — using the phone's AI"
+                es.cloudExport = false
                 clips.toList()
             } finally {
                 com.dronedirector.veyrocutpro.camera.CloudAi.show(null)
@@ -2786,33 +2705,32 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     // Render queue: start the next export whenever the previous one has finished.
-    LaunchedEffect(exporting, queueAt) {
-        if (queueAt < 0 || exporting) return@LaunchedEffect
-        if (queueAt >= exportQueue.size) {
+    LaunchedEffect(es.exporting, es.queueAt) {
+        if (es.queueAt < 0 || es.exporting) return@LaunchedEffect
+        if (es.queueAt >= exportQueue.size) {
             val n = exportQueue.size
-            queueAt = -1
-            queueBase?.let { deliver = it }
-            message = "Render queue finished — $n exports"
+            es.queueAt = -1
+            es.queueBase?.let { es.deliver = it }
+            es.message = "Render queue finished — $n exports"
             return@LaunchedEffect
         }
-        deliver = exportQueue[queueAt]
-        queueAt += 1
+        es.deliver = exportQueue[es.queueAt]
+        es.queueAt += 1
         startExport()
     }
     // Background export: keep running (with a progress notification) when you leave the app.
-    var wasExporting by remember { mutableStateOf(false) }
-    LaunchedEffect(exporting) {
-        if (exporting) {
-            val what = (if (queueAt > 0) "Exporting $queueAt of ${exportQueue.size}" else if (deliver.audioOnly) "Exporting audio" else "Exporting video") +
-                (projectName.takeIf { it.isNotBlank() }?.let { " · $it" } ?: "")
+    LaunchedEffect(es.exporting) {
+        if (es.exporting) {
+            val what = (if (es.queueAt > 0) "Exporting ${es.queueAt} of ${exportQueue.size}" else if (es.deliver.audioOnly) "Exporting audio" else "Exporting video") +
+                (es.projectName.takeIf { it.isNotBlank() }?.let { " · $it" } ?: "")
             com.dronedirector.veyrocutpro.ExportService.start(context, what)
-            wasExporting = true
-        } else if (wasExporting) {
-            wasExporting = false
-            com.dronedirector.veyrocutpro.ExportService.finish(context, if (queueAt in 1 until exportQueue.size) null else message)
+            es.wasExporting = true
+        } else if (es.wasExporting) {
+            es.wasExporting = false
+            com.dronedirector.veyrocutpro.ExportService.finish(context, if (es.queueAt in 1 until exportQueue.size) null else es.message)
         }
     }
-    LaunchedEffect(progress, exporting) { if (exporting) com.dronedirector.veyrocutpro.ExportService.progress(context, progress) }
+    LaunchedEffect(es.progress, es.exporting) { if (es.exporting) com.dronedirector.veyrocutpro.ExportService.progress(context, es.progress) }
     // Proxy generation also shows in the background-tasks notification.
     val proxyNow = proxyQueue.firstOrNull()?.let { id -> proxyProgress[id] }
     val proxyLeft = proxyQueue.size
@@ -2825,14 +2743,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
 
     Box(Modifier.fillMaxSize().background(Ed.Bg)) {
         com.dronedirector.veyrocutpro.ui.AiBadgeHost(
-            exporting && !cloudExport && clips.any { it.detail.aiDenoise > 0f }, "AI NOISE REDUCTION · EXPORT", 1, progress,
-            onStop = { export?.cancel(); export = null; exporting = false; AiDenoiser.stop(); message = "Export stopped" },
+            es.exporting && !es.cloudExport && clips.any { it.detail.aiDenoise > 0f }, "AI NOISE REDUCTION · EXPORT", 1, es.progress,
+            onStop = { es.export?.cancel(); es.export = null; es.exporting = false; AiDenoiser.stop(); es.message = "Export stopped" },
             modifier = Modifier.align(Alignment.TopCenter).zIndex(20f),
         )
         com.dronedirector.veyrocutpro.ui.AiBadgeHost(
             com.dronedirector.veyrocutpro.camera.CloudAi.stage != null, com.dronedirector.veyrocutpro.camera.CloudAi.stage ?: "", 1,
             com.dronedirector.veyrocutpro.camera.CloudAi.progress,
-            onStop = { com.dronedirector.veyrocutpro.camera.CloudAi.stop(); cloudJob?.cancel(); export?.cancel(); export = null; exporting = false; message = "Export stopped" },
+            onStop = { com.dronedirector.veyrocutpro.camera.CloudAi.stop(); es.cloudJob?.cancel(); es.export?.cancel(); es.export = null; es.exporting = false; es.message = "Export stopped" },
             modifier = Modifier.align(Alignment.TopCenter).zIndex(21f),
         )
         BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
@@ -2845,10 +2763,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val viewer = @Composable { mod: Modifier ->
                 // Mouse: double-click the player for full screen, wheel steps through frames.
                 Box(mod.background(Color.Black).mouseActions(
-                    onDoubleClick = { fullscreen = true },
+                    onDoubleClick = { es.fullscreen = true },
                     onWheel = { dy, _, _, _, _ -> seekGlobal((globalMs + if (dy > 0) 40L else -40L).coerceAtLeast(0L)); true },
                 ), contentAlignment = Alignment.Center) {
-                    val (ow, oh) = outputSize(clips, deliver)
+                    val (ow, oh) = outputSize(clips, es.deliver)
                     val projAspect = ow.toFloat() / oh
                     BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         val boxAspect = maxWidth.value / maxHeight.value
@@ -2858,8 +2776,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             // Video layers placed below the main video are drawn first (underneath it).
                             val belowLayers = layers.filter { it.isBelow }
                             if (belowLayers.isNotEmpty()) LayerPreview(
-                                layers = belowLayers, timeMs = globalMs, selectedId = null, showAll = false, playing = playing,
-                                onMove = { _, _, _ -> }, onSelect = { selectedLayer = it; page = Page.LAYERS },
+                                layers = belowLayers, timeMs = globalMs, selectedId = null, showAll = false, playing = es.playing,
+                                onMove = { _, _, _ -> }, onSelect = { es.selectedLayer = it; es.page = Page.LAYERS },
                             )
                             AndroidView(
                                 factory = { ctx ->
@@ -2877,30 +2795,30 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 update = { root ->
                                     for (i in 0..1) {
                                         val frame = root.getChildAt(i) as AspectRatioFrameLayout
-                                        frame.resizeMode = if (deliver.fill) AspectRatioFrameLayout.RESIZE_MODE_ZOOM else AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                        val shownClip = if (i == deck.active) clips.getOrNull(current) else clips.getOrNull(current + 1)
+                                        frame.resizeMode = if (es.deliver.fill) AspectRatioFrameLayout.RESIZE_MODE_ZOOM else AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                        val shownClip = if (i == deck.active) clips.getOrNull(es.current) else clips.getOrNull(es.current + 1)
                                         frame.setAspectRatio(aspects[i] * (shownClip?.desqueeze ?: 1f))
                                         if (!transitionOn[0]) frame.alpha = if (i == deck.active) 1f else 0f
                                     }
                                 },
                                 modifier = Modifier.fillMaxSize(),
                             )
-                            morphFrame?.let { mf ->
+                            es.morphFrame?.let { mf ->
                                 val img = remember(mf) { mf.asImageBitmap() }
                                 androidx.compose.foundation.Image(
                                     img, contentDescription = null, modifier = Modifier.fillMaxSize(),
-                                    contentScale = if (deliver.fill) androidx.compose.ui.layout.ContentScale.Crop else androidx.compose.ui.layout.ContentScale.Fit,
+                                    contentScale = if (es.deliver.fill) androidx.compose.ui.layout.ContentScale.Crop else androidx.compose.ui.layout.ContentScale.Fit,
                                 )
                             }
-                            if (morphBusy) Text("Analysing morph cut…", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 6.dp, vertical = 2.dp))
+                            if (es.morphBusy) Text("Analysing morph cut…", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 6.dp, vertical = 2.dp))
                             // A selected below-layer shows as a see-through ghost on top while you place it.
-                            val ghost = if (page == Page.LAYERS && !playing) layers.firstOrNull { it.id == selectedLayer && it.isBelow } else null
+                            val ghost = if (es.page == Page.LAYERS && !es.playing) layers.firstOrNull { it.id == es.selectedLayer && it.isBelow } else null
                             LayerPreview(
                                 layers = layers.filter { !it.isBelow || it.id == ghost?.id }.map { if (it.id == ghost?.id) it.copy(opacity = it.opacity * 0.45f) else it },
                                 timeMs = globalMs,
-                                selectedId = if (page == Page.LAYERS) selectedLayer else null,
-                                showAll = page == Page.LAYERS && !playing,
-                                playing = playing,
+                                selectedId = if (es.page == Page.LAYERS) es.selectedLayer else null,
+                                showAll = es.page == Page.LAYERS && !es.playing,
+                                playing = es.playing,
                                 onMove = { id, dx, dy ->
                                     val i = layers.indexOfFirst { it.id == id }
                                     if (i >= 0 && !layers[i].locked) {
@@ -2909,7 +2827,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                         layers[i] = o.editedAt(globalMs, cur.copy(x = (cur.x + dx).coerceIn(0f, 1f), y = (cur.y + dy).coerceIn(0f, 1f), keys = o.keys))
                                     }
                                 },
-                                onSelect = { selectedLayer = it; page = Page.LAYERS },
+                                onSelect = { es.selectedLayer = it; es.page = Page.LAYERS },
                                 onPinCorner = { id, k, dx, dy ->
                                     val i = layers.indexOfFirst { it.id == id }
                                     val p = layers.getOrNull(i)?.pin
@@ -2919,42 +2837,42 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 },
                             )
                             // Before / after split (Color page, Android 13+): drag the divider across the picture.
-                            if (page == Page.COLOR && gpuGrade && clips.isNotEmpty()) {
-                                if (abSplit > 0f) Box(
+                            if (es.page == Page.COLOR && gpuGrade && clips.isNotEmpty()) {
+                                if (es.abSplit > 0f) Box(
                                     Modifier.fillMaxSize().pointerInput(Unit) {
-                                        detectDragGestures { ch, _ -> ch.consume(); abSplit = (ch.position.x / size.width).coerceIn(0.02f, 0.98f) }
+                                        detectDragGestures { ch, _ -> ch.consume(); es.abSplit = (ch.position.x / size.width).coerceIn(0.02f, 0.98f) }
                                     },
                                 ) {
                                     Text("BEFORE", style = Pro.Label.copy(color = Color.White, fontSize = 9.sp), modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 4.dp))
                                     Text("AFTER", style = Pro.Label.copy(color = Color.White, fontSize = 9.sp), modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 4.dp))
                                 }
                                 Text(
-                                    if (abSplit > 0f) "SPLIT ✕" else "BEFORE | AFTER",
+                                    if (es.abSplit > 0f) "SPLIT ✕" else "BEFORE | AFTER",
                                     style = Pro.Label.copy(color = Color.Black, fontSize = 9.sp),
                                     modifier = Modifier.align(Alignment.TopEnd).padding(top = 40.dp, end = 8.dp).clip(RoundedCornerShape(50)).background(Pro.Amber)
-                                        .clickable { abSplit = if (abSplit > 0f) 0f else 0.5f }.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        .clickable { es.abSplit = if (es.abSplit > 0f) 0f else 0.5f }.padding(horizontal = 8.dp, vertical = 4.dp),
                                 )
                             }
                             // Colour mask handles on the player (Color → Masks).
-                            val mc = clips.getOrNull(current)
+                            val mc = clips.getOrNull(es.current)
                             val selMask = mc?.masks?.firstOrNull { it.id == maskTools.selected }
-                            if (page == Page.COLOR && colorTab == ColorTab.MASKS && selMask != null && selected == current && !playing && selMask.type == MaskType.PEN) {
+                            if (es.page == Page.COLOR && es.colorTab == ColorTab.MASKS && selMask != null && es.selected == es.current && !es.playing && selMask.type == MaskType.PEN) {
                                 PenEditOverlay(selMask, mc.startMs + deck.cur.currentPosition) { m ->
-                                    update(current) { cl -> cl.copy(masks = cl.masks?.map { if (it.id == m.id) m else it }) }
+                                    update(es.current) { cl -> cl.copy(masks = cl.masks?.map { if (it.id == m.id) m else it }) }
                                 }
-                            } else if (page == Page.COLOR && colorTab == ColorTab.MASKS && selMask != null && selected == current && !playing) {
+                            } else if (es.page == Page.COLOR && es.colorTab == ColorTab.MASKS && selMask != null && es.selected == es.current && !es.playing) {
                                 MaskEditOverlay(selMask, ow, oh, maskTools, image = thumbs[mc.id], pad = 0.dp) { m ->
-                                    update(current) { cl -> cl.copy(masks = cl.masks?.map { if (it.id == m.id) m else it }) }
+                                    update(es.current) { cl -> cl.copy(masks = cl.masks?.map { if (it.id == m.id) m else it }) }
                                 }
                             }
-                            if (!cropMode) SafeZoneOverlay()
-                            if (cropMode) CropOverlay(
-                                editingEnd = cropEditEnd && clips.getOrNull(current)?.reframe?.animate == true,
+                            if (!es.cropMode) SafeZoneOverlay()
+                            if (es.cropMode) CropOverlay(
+                                editingEnd = es.cropEditEnd && clips.getOrNull(es.current)?.reframe?.animate == true,
                                 onGesture = { pan, zf, rot, w, h ->
-                                    update(current) { cl ->
+                                    update(es.current) { cl ->
                                         val r = cl.reframe
                                         val keyAt = r.keyedAt(deck.cur.currentPosition)
-                                        val end = r.animate && cropEditEnd
+                                        val end = r.animate && es.cropEditEnd
                                         val f = keyAt?.frame ?: if (end) r.end else r.start
                                         val nf = f.copy(
                                             zoom = (f.zoom * zf).coerceIn(0.25f, 8f),
@@ -2965,21 +2883,21 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                             else if (end) r.copy(end = nf) else r.copy(start = nf))
                                     }
                                 },
-                                onDone = { cropMode = false },
+                                onDone = { es.cropMode = false },
                             )
                         }
                     }
-                    if (!fullscreen) Box(
+                    if (!es.fullscreen) Box(
                         Modifier.align(Alignment.BottomEnd).padding(6.dp).size(36.dp).clip(RoundedCornerShape(8.dp))
-                            .background(Color.Black.copy(alpha = 0.5f)).clickable { fullscreen = true },
+                            .background(Color.Black.copy(alpha = 0.5f)).clickable { es.fullscreen = true },
                         contentAlignment = Alignment.Center,
                     ) { Icon(Icons.Filled.Fullscreen, contentDescription = "Full screen", tint = Color.White) }
-                    clips.getOrNull(current)?.let { cc ->
+                    clips.getOrNull(es.current)?.let { cc ->
                         val pu = proxyFor(cc)
                         val badge = when {
                             cachedFor(cc) != null -> "CACHED"
                             pu != null -> "PROXY " + (ProxyMaker.qualityOf(pu)?.label ?: "")
-                            proxySettings.enabled && MediaId.of(cc) in proxyMedia -> "ORIGINAL"
+                            es.proxySettings.enabled && MediaId.of(cc) in proxyMedia -> "ORIGINAL"
                             else -> null
                         }
                         if (badge != null) Text(
@@ -2987,7 +2905,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).clip(RoundedCornerShape(4.dp)).background(Pro.Amber).padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
-                    clips.getOrNull(current)?.let { cc ->
+                    clips.getOrNull(es.current)?.let { cc ->
                         // Small, non-blocking progress chip: the original keeps playing meanwhile.
                         val pp = proxyProgress[MediaId.of(cc)]
                         if (pp != null) Row(
@@ -2995,32 +2913,32 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             CircularProgressIndicator(progress = { pp / 100f }, color = Pro.Amber, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
-                            Text("Proxy ${proxySettings.quality.label} · $pp%", color = Color.White, fontSize = 11.sp, modifier = Modifier.padding(start = 6.dp))
+                            Text("Proxy ${es.proxySettings.quality.label} · $pp%", color = Color.White, fontSize = 11.sp, modifier = Modifier.padding(start = 6.dp))
                         }
                     }
-                    if (showInfo) Text(
-                        infoText, color = Color.White, fontSize = 10.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    if (es.showInfo) Text(
+                        es.infoText, color = Color.White, fontSize = 10.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                         modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).background(Color.Black.copy(alpha = 0.6f)).padding(4.dp),
                     )
                     // RGB histogram: a pull-out drawer on the right edge (never in full screen).
-                    if (!fullscreen && showScope) ScopeDrawer(scopeHist, Modifier.align(Alignment.CenterEnd), frame = scopeFrame) { scopeOpen = it }
+                    if (!es.fullscreen && showScope) ScopeDrawer(es.scopeHist, Modifier.align(Alignment.CenterEnd), frame = es.scopeFrame) { es.scopeOpen = it }
                     if (showTimecode) Text(
                         "${tc(globalMs)} / ${tc(totalMs)}",
                         style = Pro.Value.copy(fontSize = 12.sp),
                         modifier = Modifier.align(Alignment.TopStart).padding(8.dp).clip(RoundedCornerShape(6.dp)).background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 8.dp, vertical = 3.dp),
                     )
-                    if (exporting) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) {
+                    if (es.exporting) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             CircularProgressIndicator(color = Pro.Amber)
-                            Text("Rendering… $progress%", color = Color.White, fontSize = 15.sp)
+                            Text("Rendering… ${es.progress}%", color = Color.White, fontSize = 15.sp)
                             // Estimated time remaining, from the progress so far.
                             var now by remember { mutableStateOf(0L) }
                             LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
-                            Text(if (now > 0) etaFromProgress(exportStartAt, progress) ?: "Estimating time left…" else "Estimating time left…", color = Pro.Dim, fontSize = 13.sp)
-                            Text("CANCEL", style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { export?.cancel(); export = null; exporting = false }.padding(10.dp))
+                            Text(if (now > 0) etaFromProgress(es.exportStartAt, es.progress) ?: "Estimating time left…" else "Estimating time left…", color = Pro.Dim, fontSize = 13.sp)
+                            Text("CANCEL", style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { es.export?.cancel(); es.export = null; es.exporting = false }.padding(10.dp))
                         }
                     }
-                    message?.let {
+                    es.message?.let {
                         Text(it, color = Color.White, fontSize = 13.sp, modifier = Modifier.align(Alignment.BottomCenter).padding(10.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.75f)).padding(horizontal = 14.dp, vertical = 8.dp))
                     }
                 }
@@ -3030,13 +2948,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 // Stuck loading? Play pressed again means "try again", not "do nothing".
                 if (deck.cur.playWhenReady && !deck.cur.isPlaying && deck.cur.playbackState == Player.STATE_BUFFERING) {
                     wx.stallTries = 0
-                    load(current, deck.cur.currentPosition, true)
+                    load(es.current, deck.cur.currentPosition, true)
                     return
                 }
                 if (deck.cur.playWhenReady && deck.cur.playbackState != Player.STATE_ENDED) deck.cur.pause() else {
                     when {
-                        deck.cur.playbackState == Player.STATE_ENDED && current == clips.lastIndex -> load(0, 0, true)
-                        deck.cur.playbackState == Player.STATE_IDLE -> load(current, posMs, true)
+                        deck.cur.playbackState == Player.STATE_ENDED && es.current == clips.lastIndex -> load(0, 0, true)
+                        deck.cur.playbackState == Player.STATE_IDLE -> load(es.current, es.posMs, true)
                         else -> deck.cur.play()
                     }
                 }
@@ -3046,7 +2964,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 KeyBus.handler = handler@{ e ->
                     if (e.action != android.view.KeyEvent.ACTION_DOWN) return@handler false
                     val ctrl = e.isCtrlPressed || e.isMetaPressed
-                    val frame = 1000L / (if (deliver.fps > 0) deliver.fps else 30)
+                    val frame = 1000L / (if (es.deliver.fps > 0) es.deliver.fps else 30)
                     val total = timelineLength(clips)
                     fun go(ms: Long) { if (clips.isNotEmpty()) seekGlobal(ms.coerceIn(0, (total - 1).coerceAtLeast(0))) }
                     when (e.keyCode) {
@@ -3061,34 +2979,34 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         android.view.KeyEvent.KEYCODE_MOVE_END -> { go(total); true }
                         android.view.KeyEvent.KEYCODE_Z -> if (ctrl) { if (e.isShiftPressed) redo() else undo(); true } else false
                         android.view.KeyEvent.KEYCODE_Y -> if (ctrl) { redo(); true } else false
-                        android.view.KeyEvent.KEYCODE_S -> if (ctrl) { if (projectId == null) askName = true else saveProject(projectName); true } else { splitAtPlayhead(); true }
+                        android.view.KeyEvent.KEYCODE_S -> if (ctrl) { if (es.projectId == null) es.askName = true else saveProject(es.projectName); true } else { splitAtPlayhead(); true }
                         android.view.KeyEvent.KEYCODE_B -> { splitAtPlayhead(); true }
                         android.view.KeyEvent.KEYCODE_M -> {
                             val near = markers.firstOrNull { kotlin.math.abs(it - globalMs) < 250 }
                             if (near != null) { markers.remove(near); markerNotes.remove(near) } else { markers.add(globalMs); markers.sort() }
                             true
                         }
-                        android.view.KeyEvent.KEYCODE_I -> { deliver = deliver.copy(rangeStart = globalMs, rangeEnd = deliver.rangeEnd?.takeIf { it > globalMs }); message = "Export range in at ${tc(globalMs)}"; true }
-                        android.view.KeyEvent.KEYCODE_O -> { deliver = deliver.copy(rangeEnd = globalMs, rangeStart = deliver.rangeStart?.takeIf { it < globalMs } ?: 0L); message = "Export range out at ${tc(globalMs)}"; true }
+                        android.view.KeyEvent.KEYCODE_I -> { es.deliver = es.deliver.copy(rangeStart = globalMs, rangeEnd = es.deliver.rangeEnd?.takeIf { it > globalMs }); es.message = "Export range in at ${tc(globalMs)}"; true }
+                        android.view.KeyEvent.KEYCODE_O -> { es.deliver = es.deliver.copy(rangeEnd = globalMs, rangeStart = es.deliver.rangeStart?.takeIf { it < globalMs } ?: 0L); es.message = "Export range out at ${tc(globalMs)}"; true }
                         android.view.KeyEvent.KEYCODE_FORWARD_DEL, android.view.KeyEvent.KEYCODE_DEL -> {
-                            if (videoLocked || clips.isEmpty()) false else {
-                                clips.removeAt(selected.coerceIn(0, clips.lastIndex))
-                                selected = selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
-                                current = current.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
-                                if (clips.isNotEmpty()) load(current, 0, false)
-                                message = "Clip deleted (ripple) — Ctrl+Z to undo"
+                            if (es.videoLocked || clips.isEmpty()) false else {
+                                clips.removeAt(es.selected.coerceIn(0, clips.lastIndex))
+                                es.selected = es.selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
+                                es.current = es.current.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
+                                if (clips.isNotEmpty()) load(es.current, 0, false)
+                                es.message = "Clip deleted (ripple) — Ctrl+Z to undo"
                                 true
                             }
                         }
-                        android.view.KeyEvent.KEYCODE_F -> { fullscreen = !fullscreen; true }
+                        android.view.KeyEvent.KEYCODE_F -> { es.fullscreen = !es.fullscreen; true }
                         else -> false
                     }
                 }
                 onDispose { KeyBus.handler = null }
             }
 
-            fun prevClip() { if (deck.cur.currentPosition > 1500 || current == 0) deck.cur.seekTo(0) else load(current - 1, 0, deck.cur.isPlaying) }
-            fun nextClip() { if (current < clips.lastIndex) load(current + 1, 0, deck.cur.isPlaying) }
+            fun prevClip() { if (deck.cur.currentPosition > 1500 || es.current == 0) deck.cur.seekTo(0) else load(es.current - 1, 0, deck.cur.isPlaying) }
+            fun nextClip() { if (es.current < clips.lastIndex) load(es.current + 1, 0, deck.cur.isPlaying) }
 
             val transport = @Composable {
                 Column(Modifier.fillMaxWidth().background(Ed.Panel).padding(horizontal = 8.dp)) {
@@ -3101,59 +3019,59 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         // Split, undo and redo are always on screen; the zoom tools scroll if the row is narrow.
                         TransportIcon(Icons.Filled.ContentCut, "Split at playhead", accent = true) { splitAtPlayhead() }
-                        TransportIcon(Icons.AutoMirrored.Filled.Undo, "Undo", tint = if (histPos > 0) Color.White else Pro.Dim) { undo() }
-                        TransportIcon(Icons.AutoMirrored.Filled.Redo, "Redo", tint = if (histPos < history.lastIndex) Color.White else Pro.Dim) { redo() }
+                        TransportIcon(Icons.AutoMirrored.Filled.Undo, "Undo", tint = if (es.histPos > 0) Color.White else Pro.Dim) { undo() }
+                        TransportIcon(Icons.AutoMirrored.Filled.Redo, "Redo", tint = if (es.histPos < history.lastIndex) Color.White else Pro.Dim) { redo() }
                       Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
-                        TransportIcon(if (previewMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute preview") { previewMuted = !previewMuted }
+                        TransportIcon(if (es.previewMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute preview") { es.previewMuted = !es.previewMuted }
                         TransportIcon(Icons.Filled.ZoomOut, "Zoom timeline out") { zoom.zoomOut() }
                         TransportIcon(Icons.Filled.FitScreen, "Show whole timeline") { zoom.fit() }
                         TransportIcon(Icons.Filled.ZoomIn, "Zoom timeline in") { zoom.zoomIn() }
                       }
                         TransportIcon(Icons.Filled.SkipPrevious, "Previous clip") { prevClip() }
-                        TransportIcon(if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Pro.Amber) { togglePlay() }
+                        TransportIcon(if (es.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Pro.Amber) { togglePlay() }
                         TransportIcon(Icons.Filled.SkipNext, "Next clip") { nextClip() }
-                        TransportIcon(Icons.Filled.Fullscreen, "Full screen") { fullscreen = true }
+                        TransportIcon(Icons.Filled.Fullscreen, "Full screen") { es.fullscreen = true }
                     }
                 }
             }
 
             val timeline = @Composable {
                 TimelineView(
-                    onDeleteClip = { i -> if (videoLocked) message = "The video track is locked" else deleteAsk = i },
-                    clips = clips, layers = layers, music = music, strips = strips,
-                    globalMs = globalMs, selectedClip = selected,
-                    selectedLayerId = if (page == Page.LAYERS) selectedLayer else null,
+                    onDeleteClip = { i -> if (es.videoLocked) es.message = "The video track is locked" else es.deleteAsk = i },
+                    clips = clips, layers = layers, music = es.music, strips = strips,
+                    globalMs = globalMs, selectedClip = es.selected,
+                    selectedLayerId = if (es.page == Page.LAYERS) es.selectedLayer else null,
                     onScrub = { ms, final -> scrub(ms, final) },
-                    onSelectClip = { selected = it; if (page == Page.MEDIA || page == Page.LAYERS || page == Page.DELIVER) page = Page.EDIT },
-                    onSelectLayer = { selectedLayer = it; page = Page.LAYERS },
+                    onSelectClip = { es.selected = it; if (es.page == Page.MEDIA || es.page == Page.LAYERS || es.page == Page.DELIVER) es.page = Page.EDIT },
+                    onSelectLayer = { es.selectedLayer = it; es.page = Page.LAYERS },
                     zoom = zoom,
-                    onSelectTransition = { selected = it; page = Page.TRANSITIONS },
+                    onSelectTransition = { es.selected = it; es.page = Page.TRANSITIONS },
                     extraAudio = extraAudio,
-                    videoMuted = videoMuted, videoLocked = videoLocked,
-                    onVideoMute = { videoMuted = !videoMuted; message = if (videoMuted) "Video track sound muted" else "Video track sound on" },
-                    onVideoLock = { videoLocked = !videoLocked; message = if (videoLocked) "Video track locked" else "Video track unlocked" },
+                    videoMuted = es.videoMuted, videoLocked = es.videoLocked,
+                    onVideoMute = { es.videoMuted = !es.videoMuted; es.message = if (es.videoMuted) "Video track sound muted" else "Video track sound on" },
+                    onVideoLock = { es.videoLocked = !es.videoLocked; es.message = if (es.videoLocked) "Video track locked" else "Video track unlocked" },
                     onLayerFlags = { l -> val i = layers.indexOfFirst { it.id == l.id }; if (i >= 0) layers[i] = l },
                     onAudioFlags = { t ->
-                        val m = music
-                        if (m != null && m.id == t.id) music = t
+                        val m = es.music
+                        if (m != null && m.id == t.id) es.music = t
                         else { val i = extraAudio.indexOfFirst { it.id == t.id }; if (i >= 0) extraAudio[i] = t }
                     },
-                    onLocked = { message = "Locked — tap the lock at the left of the timeline to unlock" },
+                    onLocked = { es.message = "Locked — tap the lock at the left of the timeline to unlock" },
                     waves = if (showWaves) waves else emptyMap(),
-                    markers = markers, snapping = snapping,
+                    markers = markers, snapping = es.snapping,
                     onToggleMarker = {
                         val near = markers.firstOrNull { kotlin.math.abs(it - globalMs) < 250 }
-                        if (near != null) { markers.remove(near); markerNotes.remove(near); message = "Marker removed" }
-                        else { markers.add(globalMs); markers.sort(); message = "Marker at ${tc(globalMs)} — tap ◆ MARKER on it again to remove" }
+                        if (near != null) { markers.remove(near); markerNotes.remove(near); es.message = "Marker removed" }
+                        else { markers.add(globalMs); markers.sort(); es.message = "Marker at ${tc(globalMs)} — tap ◆ MARKER on it again to remove" }
                     },
-                    onAddVideoLayer = { askVideoLayer = true },
+                    onAddVideoLayer = { es.askVideoLayer = true },
                     onClipTrim = { i, a, b ->
-                        if (i in clips.indices && !videoLocked) clips[i] = clips[i].copy(startMs = a, endMs = b)
+                        if (i in clips.indices && !es.videoLocked) clips[i] = clips[i].copy(startMs = a, endMs = b)
                     },
                     onToggleSnap = {
-                        snapping = !snapping
-                        context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("tl_snap", snapping).apply()
-                        message = if (snapping) "Snapping on" else "Snapping off"
+                        es.snapping = !es.snapping
+                        context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("tl_snap", es.snapping).apply()
+                        es.message = if (es.snapping) "Snapping on" else "Snapping off"
                     },
                     onLayerTime = { id, a, b ->
                         val i = layers.indexOfFirst { it.id == id }
@@ -3164,15 +3082,15 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         if (i >= 0 && to in layers.indices && to != i) { val l = layers.removeAt(i); layers.add(to, l) }
                     },
                     onAudioTime = { id, st, off, len ->
-                        val m = music
-                        if (m != null && m.id == id) music = m.copy(startMs = st, offsetMs = off, lengthMs = len)
+                        val m = es.music
+                        if (m != null && m.id == id) es.music = m.copy(startMs = st, offsetMs = off, lengthMs = len)
                         else { val i = extraAudio.indexOfFirst { it.id == id }; if (i >= 0) extraAudio[i] = extraAudio[i].copy(startMs = st, offsetMs = off, lengthMs = len) }
                     },
                 )
             }
 
             val showStrip = com.dronedirector.veyrocutpro.ui.panelOn("ve.mediastrip")
-            val stripPane = rememberPane("ve_strip_h", paneVersion)
+            val stripPane = rememberPane("ve_strip_h", es.paneVersion)
             val stripH = if (stripPane.dp < 0f) 70f else stripPane.dp
             val tablet = androidx.compose.ui.platform.LocalConfiguration.current.smallestScreenWidthDp >= 600
             val landscape = maxWidth > maxHeight
@@ -3191,51 +3109,51 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     onAppend = { list -> list.forEach { threePoint(it.copy(startMs = 0, endMs = it.durationMs), 2) } },
                     onInsert = { threePoint(it.copy(startMs = 0, endMs = it.durationMs), 0) },
                     onOverwrite = { threePoint(it.copy(startMs = 0, endMs = it.durationMs), 1) },
-                    onSource = { sourceClip = it.copy(startMs = 0, endMs = it.durationMs) },
+                    onSource = { es.sourceClip = it.copy(startMs = 0, endMs = it.durationMs) },
                     onRemove = { list ->
                         val used = list.filter { c -> clips.any { it.uri == c.uri } }
                         library.removeAll { c -> c in list && c !in used }
-                        if (used.isNotEmpty()) message = "${used.size} clip(s) are on the timeline — delete them in the Media page to remove them"
+                        if (used.isNotEmpty()) es.message = "${used.size} clip(s) are on the timeline — delete them in the Media page to remove them"
                     },
                     onImport = { libPick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
                     onImportFolder = { try { libFolder.launch(null) } catch (_: Throwable) {} },
-                    onDragOver = { at -> tlBounds.contains(at) },
-                    onDrop = { c, at -> if (tlBounds.contains(at)) dropAt(c, at.x) },
+                    onDragOver = { at -> es.tlBounds.contains(at) },
+                    onDrop = { c, at -> if (es.tlBounds.contains(at)) dropAt(c, at.x) },
                 )
             }
             val inspector = @Composable { mod: Modifier ->
                 Column(mod.background(Ed.Panel)) {
                     // Landscape / tablet: the media strip is the first tab, on the left.
                     val stripTab = stripInTools && showStrip
-                    LaunchedEffect(stripTab) { if (!stripTab && page == Page.STRIP) page = Page.MEDIA }
+                    LaunchedEffect(stripTab) { if (!stripTab && es.page == Page.STRIP) es.page = Page.MEDIA }
                     val pages = (if (stripTab) listOf(Page.STRIP) else emptyList()) + (if (com.dronedirector.veyrocutpro.camera.SimpleMode.on)
                         listOf(Page.MEDIA, Page.PROXY, Page.EDIT, Page.TEXT, Page.TRANSITIONS, Page.COLOR, Page.LAYERS, Page.AUDIO, Page.DELIVER)
                     else Page.entries.filter { it != Page.STRIP })
-                    Chips(pages.map { it.label }, pages.indexOf(page)) { page = pages[it] }
-                    if (clips.isNotEmpty() && (page == Page.EDIT || page == Page.COLOR || page == Page.AUDIO)) CopyPasteBar(
+                    Chips(pages.map { it.label }, pages.indexOf(es.page)) { es.page = pages[it] }
+                    if (clips.isNotEmpty() && (es.page == Page.EDIT || es.page == Page.COLOR || es.page == Page.AUDIO)) CopyPasteBar(
                         video = true,
                         onCopy = {
-                            clips.getOrNull(selected)?.let { c ->
+                            clips.getOrNull(es.selected)?.let { c ->
                                 EditClipboard.copy(context, CopiedSettings(
                                     fromVideo = true, grade = c.grade, detail = c.detail, reframe = c.reframe, stab = c.stab,
                                     audio = c.audio, volume = c.volume, muted = c.muted, speed = c.speed,
                                 ))
-                                message = "Clip ${selected + 1} settings copied — select another clip and tap PASTE SETTINGS"
+                                es.message = "Clip ${es.selected + 1} settings copied — select another clip and tap PASTE SETTINGS"
                             }
                         },
                         onPaste = { parts, all ->
                             if (all) {
                                 for (i in clips.indices) clips[i] = EditClipboard.pasteOnClip(clips[i], parts)
-                                message = "Settings pasted on all ${clips.size} clips"
+                                es.message = "Settings pasted on all ${clips.size} clips"
                             } else {
-                                update(selected) { EditClipboard.pasteOnClip(it, parts) }
-                                message = "Settings pasted on clip ${selected + 1}"
+                                update(es.selected) { EditClipboard.pasteOnClip(it, parts) }
+                                es.message = "Settings pasted on clip ${es.selected + 1}"
                             }
                         },
                     )
                     Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 4.dp)) {
-                        val sc = clips.getOrNull(selected)
-                        when (page) {
+                        val sc = clips.getOrNull(es.selected)
+                        when (es.page) {
                             Page.STRIP -> Column {
                                 stripView(stripH.dp, false)
                                 ResizeHandle(true,
@@ -3245,12 +3163,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             }
                             Page.MEDIA -> Column {
                             TimelinesSection(
-                                timelineName, otherTimelines.map { it.name },
-                                onRename = { n -> val v = n.trim().take(40); if (v.isNotEmpty() && otherTimelines.none { it.name == v }) timelineName = v },
+                                es.timelineName, otherTimelines.map { it.name },
+                                onRename = { n -> val v = n.trim().take(40); if (v.isNotEmpty() && otherTimelines.none { it.name == v }) es.timelineName = v },
                                 onOpen = { i -> otherTimelines.getOrNull(i)?.let { openTimeline(it) } },
-                                onNew = { openTimeline(SavedTimeline(uniqueTimelineName("Timeline ${otherTimelines.size + 2}"), deliver = deliver)) },
-                                onDuplicate = { openTimeline(currentTimeline().copy(name = uniqueTimelineName("$timelineName copy"))) },
-                                onDelete = { i -> if (i in otherTimelines.indices) { val n = otherTimelines[i].name; otherTimelines.removeAt(i); message = "Deleted \"$n\"" } },
+                                onNew = { openTimeline(SavedTimeline(uniqueTimelineName("Timeline ${otherTimelines.size + 2}"), deliver = es.deliver)) },
+                                onDuplicate = { openTimeline(currentTimeline().copy(name = uniqueTimelineName("${es.timelineName} copy"))) },
+                                onDelete = { i -> if (i in otherTimelines.indices) { val n = otherTimelines[i].name; otherTimelines.removeAt(i); es.message = "Deleted \"$n\"" } },
                             )
                             if (markers.isNotEmpty()) {
                                 SectionTitle("MARKERS") { markers.clear(); markerNotes.clear() }
@@ -3271,88 +3189,88 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             MediaPage(
                                 clips, onAddGallery, onAddFiles,
                                 audioPool = audioPool,
-                                audioUses = { a -> (if (music?.uri == a.uri) 1 else 0) + extraAudio.count { it.uri == a.uri } },
+                                audioUses = { a -> (if (es.music?.uri == a.uri) 1 else 0) + extraAudio.count { it.uri == a.uri } },
                                 onAddAudio = { pickAudio.launch(arrayOf("audio/*")) },
-                                onMulticam = { showMulticam = true },
+                                onMulticam = { es.showMulticam = true },
                                 bins = bins.toMap(), binNames = binNames.toList(),
                                 onNewBin = { b -> if (b !in binNames) binNames.add(b) },
                                 onSetBin = { c, b -> if (b == null) bins.remove(c.uri.toString()) else bins[c.uri.toString()] = b },
-                                onSource = { sourceClip = it },
+                                onSource = { es.sourceClip = it },
                                 onPickSource = { pickSource.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
                                 missing = missing.toList(),
-                                onRelink = { c -> relinkFrom = c.uri.toString(); try { relink.launch(arrayOf("video/*")) } catch (_: Throwable) { relinkFrom = null } },
+                                onRelink = { c -> es.relinkFrom = c.uri.toString(); try { relink.launch(arrayOf("video/*")) } catch (_: Throwable) { es.relinkFrom = null } },
                                 onLibraryAdd = { sec, t ->
                                     layerScope.launch {
                                         val uri = withContext(Dispatchers.IO) { SoundLibrary.file(context, sec, t) }
-                                        if (uri == null) { message = "${t.title} is still being downloaded (first-time download) — try again in a moment"; return@launch }
+                                        if (uri == null) { es.message = "${t.title} is still being downloaded (first-time download) — try again in a moment"; return@launch }
                                         val a = audioPool.firstOrNull { it.uri == uri } ?: PoolAudio(uri, t.title, t.durationMs).also { audioPool.add(it) }
                                         val total = timelineLength(clips)
-                                        val head = ((clipStarts(clips).getOrNull(current) ?: 0L) + (clips.getOrNull(current)?.let { it.tlOffsetOf(it.startMs + posMs) } ?: posMs)).coerceIn(0, total)
-                                        if (music == null) {
-                                            music = MusicTrack(a.uri, a.name, a.durationMs, startMs = head)
+                                        val head = ((clipStarts(clips).getOrNull(es.current) ?: 0L) + (clips.getOrNull(es.current)?.let { it.tlOffsetOf(it.startMs + es.posMs) } ?: es.posMs)).coerceIn(0, total)
+                                        if (es.music == null) {
+                                            es.music = MusicTrack(a.uri, a.name, a.durationMs, startMs = head)
                                             musicPlayer.setMediaItem(MediaItem.fromUri(a.uri)); musicPlayer.prepare()
-                                            message = "${a.name} added as the music track"
+                                            es.message = "${a.name} added as the music track"
                                         } else {
                                             extraAudio.add(MusicTrack(a.uri, a.name, a.durationMs, volume = 1f, fadeInMs = 0, fadeOutMs = 300, startMs = head))
-                                            message = "${a.name} added to the timeline at ${tc(head)}"
+                                            es.message = "${a.name} added to the timeline at ${tc(head)}"
                                         }
                                     }
                                 },
                                 onPlaceAudio = { a ->
                                     val total = timelineLength(clips)
-                                    val head = ((clipStarts(clips).getOrNull(current) ?: 0L) + (clips.getOrNull(current)?.let { it.tlOffsetOf(it.startMs + posMs) } ?: posMs)).coerceIn(0, total)
-                                    if (music == null) {
-                                        music = MusicTrack(a.uri, a.name, a.durationMs, startMs = head)
+                                    val head = ((clipStarts(clips).getOrNull(es.current) ?: 0L) + (clips.getOrNull(es.current)?.let { it.tlOffsetOf(it.startMs + es.posMs) } ?: es.posMs)).coerceIn(0, total)
+                                    if (es.music == null) {
+                                        es.music = MusicTrack(a.uri, a.name, a.durationMs, startMs = head)
                                         musicPlayer.setMediaItem(MediaItem.fromUri(a.uri)); musicPlayer.prepare()
-                                        message = "${a.name} added as the music track"
+                                        es.message = "${a.name} added as the music track"
                                     } else {
                                         extraAudio.add(MusicTrack(a.uri, a.name, a.durationMs, volume = 1f, fadeInMs = 0, fadeOutMs = 300, startMs = head))
-                                        message = "${a.name} added to the timeline at ${tc(head)}"
+                                        es.message = "${a.name} added to the timeline at ${tc(head)}"
                                     }
                                 },
                                 onRemoveAudio = { a ->
                                     audioPool.remove(a)
                                     extraAudio.removeAll { it.uri == a.uri }
-                                    if (music?.uri == a.uri) { music = null; musicPlayer.stop() }
+                                    if (es.music?.uri == a.uri) { es.music = null; musicPlayer.stop() }
                                 },
                                 proxyState = { c -> if (MediaId.of(c) in proxyMedia) proxyStatus(c) else null },
-                                onProxyToggle = { c -> if (MediaId.of(c) in proxyMedia) page = Page.PROXY else { addToProxy(c); message = "${c.name} added to Proxy" } },
+                                onProxyToggle = { c -> if (MediaId.of(c) in proxyMedia) es.page = Page.PROXY else { addToProxy(c); es.message = "${c.name} added to Proxy" } },
                                 onRemove = { c ->
                                     val k = c.uri.toString()
                                     removeFromProxy(MediaId.of(c))
                                     clips.removeAll { it.uri.toString() == k }
                                     library.removeAll { it.uri.toString() == k }
-                                    selected = selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
-                                    current = current.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
-                                    message = "${c.name} removed from the project"
+                                    es.selected = es.selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
+                                    es.current = es.current.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
+                                    es.message = "${c.name} removed from the project"
                                 },
                             )
-                            GeneratorTools(genBusy, onMake = { k, a, b, s -> makeGenerator(k, a, b, s) }, onCancel = { genCancel?.invoke(); genCancel = null; genBusy = null })
+                            GeneratorTools(es.genBusy, onMake = { k, a, b, s -> makeGenerator(k, a, b, s) }, onCancel = { es.genCancel?.invoke(); es.genCancel = null; es.genBusy = null })
                             }
                             Page.PROXY -> ProxyPage(
                                 media = clips.filter { it.nested == null }.distinctBy { MediaId.of(it) },
                                 inProxy = proxyMedia.toList(),
-                                settings = proxySettings,
+                                settings = es.proxySettings,
                                 status = { proxyStatus(it) },
                                 progress = { proxyProgress[MediaId.of(it)] },
                                 busy = proxyQueue.isNotEmpty(),
                                 onSettings = { ns ->
-                                    val qChanged = ns.quality != proxySettings.quality || ns.hevc != proxySettings.hevc
-                                    proxySettings = ns; ProxySettings.save(context, ns)
+                                    val qChanged = ns.quality != es.proxySettings.quality || ns.hevc != es.proxySettings.hevc
+                                    es.proxySettings = ns; ProxySettings.save(context, ns)
                                     if (qChanged) { proxyCancelled.clear(); proxyFail.clear() }
-                                    message = if (!ns.enabled) "Proxy off — the editor plays your original files" else if (qChanged) "Proxy quality ${ns.quality.label} — updating proxies in the background" else "Proxy on — media in the Proxy section plays from its proxy"
+                                    es.message = if (!ns.enabled) "Proxy off — the editor plays your original files" else if (qChanged) "Proxy quality ${ns.quality.label} — updating proxies in the background" else "Proxy on — media in the Proxy section plays from its proxy"
                                 },
                                 onAdd = { addToProxy(it) },
-                                onAddAll = { clips.filter { it.nested == null }.forEach { addToProxy(it) }; message = "All media added to Proxy" },
+                                onAddAll = { clips.filter { it.nested == null }.forEach { addToProxy(it) }; es.message = "All media added to Proxy" },
                                 onRemove = { removeFromProxy(MediaId.of(it)) },
                                 onCancel = { cancelProxy(MediaId.of(it)) },
-                                onCancelAll = { proxyQueue.toList().forEach { cancelProxy(it) }; message = "Proxy generation cancelled — those clips play from the originals" },
+                                onCancelAll = { proxyQueue.toList().forEach { cancelProxy(it) }; es.message = "Proxy generation cancelled — those clips play from the originals" },
                                 onRetry = { c -> val id = MediaId.of(c); proxyFail.remove(id); proxyBad.remove(id); proxyCancelled.remove(id); if (id !in proxyQueue) proxyQueue.add(id) },
                                 onClearFiles = {
                                     proxyQueue.toList().forEach { cancelProxy(it) }
                                     proxies.clear(); proxyStale.clear(); proxyCancelled.clear()
                                     val freed = ProxyMaker.clearAll(context)
-                                    message = "Proxy files deleted (${freed / 1_000_000} MB) — tap GENERATE to make them again"
+                                    es.message = "Proxy files deleted (${freed / 1_000_000} MB) — tap GENERATE to make them again"
                                     proxyMedia.forEach { if (it !in proxyCancelled) proxyCancelled.add(it) }
                                 },
                             ).also {
@@ -3363,14 +3281,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     onRenderAll = {
                                         heavy.filter { RenderCache.key(it) !in cacheReady }.forEach { cacheProgress[RenderCache.key(it)] = 0 }
                                         renderCacheNext()
-                                        if (cacheProgress.isEmpty()) message = "Nothing to render — every heavy clip is cached"
+                                        if (cacheProgress.isEmpty()) es.message = "Nothing to render — every heavy clip is cached"
                                     },
-                                    onStop = { wx.cacheCancel?.invoke(); wx.cacheCancel = null; cacheProgress.clear(); message = "Render cache stopped" },
-                                    onClear = { wx.cacheCancel?.invoke(); wx.cacheCancel = null; cacheProgress.clear(); cacheReady.clear(); val n = RenderCache.clearAll(context); message = "Render cache deleted (${n / 1_000_000} MB)" },
+                                    onStop = { wx.cacheCancel?.invoke(); wx.cacheCancel = null; cacheProgress.clear(); es.message = "Render cache stopped" },
+                                    onClear = { wx.cacheCancel?.invoke(); wx.cacheCancel = null; cacheProgress.clear(); cacheReady.clear(); val n = RenderCache.clearAll(context); es.message = "Render cache deleted (${n / 1_000_000} MB)" },
                                 )
                             }
                             Page.TEXT -> TextEditPage(
-                                words = wx.tWords.toList(), clips = clips.toList(), currentClipId = clips.getOrNull(current)?.id, playSrcMs = clips.getOrNull(current)?.let { it.startMs + posMs } ?: 0L,
+                                words = wx.tWords.toList(), clips = clips.toList(), currentClipId = clips.getOrNull(es.current)?.id, playSrcMs = clips.getOrNull(es.current)?.let { it.startMs + es.posMs } ?: 0L,
                                 model = wx.tModel, onModel = { wx.tModel = it }, hasModel = Transcriber.hasModel(context, wx.tModel), downloading = wx.tDl,
                                 onDownload = { downloadModel() }, onCancelDownload = { wx.tDlCancel = true },
                                 lang = wx.tLang, onLang = { wx.tLang = it }, status = wx.tStatus,
@@ -3384,128 +3302,128 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onFillers = { opt ->
                                     var n = 0
                                     for (i in Transcriber.findFillers(wx.tWords.toList(), opt)) if (!wx.tWords[i].deleted) { wx.tWords[i] = wx.tWords[i].copy(deleted = true); n++ }
-                                    message = if (n == 0) "No filler words found" else "$n filler word(s) marked in red — check them, then tap APPLY CUTS"
+                                    es.message = if (n == 0) "No filler words found" else "$n filler word(s) marked in red — check them, then tap APPLY CUTS"
                                 },
                                 onRestore = { for (i in wx.tWords.indices) if (wx.tWords[i].deleted) wx.tWords[i] = wx.tWords[i].copy(deleted = false) },
                                 onApply = { applyTextCuts() },
                             )
                             Page.TRANSITIONS -> TransitionsPanel(
-                                clips, selected, thumbs,
-                                onChange = { t -> update(selected, { it.copy(transition = t) }) },
-                                onApplyAll = { t -> for (i in 0 until clips.lastIndex) clips[i] = clips[i].copy(transition = t); message = "${t.type.label} on every cut" },
+                                clips, es.selected, thumbs,
+                                onChange = { t -> update(es.selected, { it.copy(transition = t) }) },
+                                onApplyAll = { t -> for (i in 0 until clips.lastIndex) clips[i] = clips[i].copy(transition = t); es.message = "${t.type.label} on every cut" },
                                 onApplyAllAudio = { t ->
                                     for (i in 0 until clips.lastIndex) clips[i] = clips[i].copy(transition = clips[i].transition.copy(audio = t.audio, audioMs = t.audioMs, sfx = t.sfx, sfxVol = t.sfxVol, userSfx = t.userSfx))
                                     val snd = UserSfxLibrary.find(context, t.userSfx)?.name ?: t.sfx?.label
-                                    message = "${t.audioType.label}" + (snd?.let { " + $it" } ?: "") + " on every cut"
+                                    es.message = "${t.audioType.label}" + (snd?.let { " + $it" } ?: "") + " on every cut"
                                 },
                                 onPreview = {
                                     val st = clipStarts(clips)
-                                    if (selected + 1 < clips.size) { seekGlobal((st[selected + 1] - 1500).coerceAtLeast(st[selected])); if (!deck.cur.isPlaying) deck.cur.play() }
+                                    if (es.selected + 1 < clips.size) { seekGlobal((st[es.selected + 1] - 1500).coerceAtLeast(st[es.selected])); if (!deck.cur.isPlaying) deck.cur.play() }
                                 },
                             )
                             Page.EDIT -> if (sc != null) Column {
                                 EditPage(
-                                sc, selected, clips.size, posMs, deliver, { deliver = it },
-                                onChange = { f -> if (videoLocked) message = "The video track is locked" else update(selected, f) },
+                                sc, es.selected, clips.size, es.posMs, es.deliver, { es.deliver = it },
+                                onChange = { f -> if (es.videoLocked) es.message = "The video track is locked" else update(es.selected, f) },
                                 onSplit = { splitAtPlayhead() },
                                 onFreeze = { freezeAtPlayhead() },
-                                onReverse = { reverseClip(selected) },
-                                onDetach = { detachAudio(selected) },
+                                onReverse = { reverseClip(es.selected) },
+                                onDetach = { detachAudio(es.selected) },
                                 onRemoveSilence = { all, db, ms -> removeSilences(all, db, ms) },
-                                onSlowMo = { aiSlowMo(selected) },
-                                flowProgress = wx.flowProgress, onFlow = { f, sp, sh -> flowRetime(selected, f, sp, sh) }, onStopFlow = { wx.flowJob?.cancel(); wx.flowJob = null; wx.flowProgress = -1 },
+                                onSlowMo = { aiSlowMo(es.selected) },
+                                flowProgress = wx.flowProgress, onFlow = { f, sp, sh -> flowRetime(es.selected, f, sp, sh) }, onStopFlow = { wx.flowJob?.cancel(); wx.flowJob = null; wx.flowProgress = -1 },
                                 onReframe = { a -> autoReframe(a) },
-                                onDuplicate = { if (videoLocked) message = "The video track is locked" else clips.add(selected + 1, sc.copy(id = java.util.UUID.randomUUID().toString())) },
+                                onDuplicate = { if (es.videoLocked) es.message = "The video track is locked" else clips.add(es.selected + 1, sc.copy(id = java.util.UUID.randomUUID().toString())) },
                                 onDelete = {
-                                    if (videoLocked) { message = "The video track is locked"; return@EditPage }
-                                    deleteAsk = selected
+                                    if (es.videoLocked) { es.message = "The video track is locked"; return@EditPage }
+                                    es.deleteAsk = es.selected
                                 },
                                 onMove = { dir ->
-                                    if (videoLocked) { message = "The video track is locked"; return@EditPage }
-                                    val to = selected + dir
-                                    if (to in clips.indices) { val c = clips.removeAt(selected); clips.add(to, c); selected = to }
+                                    if (es.videoLocked) { es.message = "The video track is locked"; return@EditPage }
+                                    val to = es.selected + dir
+                                    if (to in clips.indices) { val c = clips.removeAt(es.selected); clips.add(to, c); es.selected = to }
                                 },
-                                onTrimTool = { mode, d -> trimTool(mode, selected, d) },
-                                frameMs = 1000L / (if (deliver.fps > 0) deliver.fps else 30),
-                                onNest = { n -> nestClips(selected, n) },
-                                onUnNest = { unNest(selected) },
-                                nesting = nesting, nestProgress = progress,
+                                onTrimTool = { mode, d -> trimTool(mode, es.selected, d) },
+                                frameMs = 1000L / (if (es.deliver.fps > 0) es.deliver.fps else 30),
+                                onNest = { n -> nestClips(es.selected, n) },
+                                onUnNest = { unNest(es.selected) },
+                                nesting = es.nesting, nestProgress = es.progress,
                                 )
                                 ProEditTools(
-                                    clips = clips.toList(), selectedIdx = selected, sceneProgress = sceneProgress,
-                                    onDetectScenes = { detectScenes() }, onStopScenes = { sceneJob?.cancel(); sceneJob = null; sceneProgress = -1 },
-                                    hlProgress = hlProgress, onHighlights = { makeHighlights(it, wx.hlBeat) }, hlBeat = wx.hlBeat, onHlBeat = { wx.hlBeat = it }, onStopHighlights = { hlJob?.cancel(); hlJob = null; hlProgress = -1 },
+                                    clips = clips.toList(), selectedIdx = es.selected, sceneProgress = es.sceneProgress,
+                                    onDetectScenes = { detectScenes() }, onStopScenes = { es.sceneJob?.cancel(); es.sceneJob = null; es.sceneProgress = -1 },
+                                    hlProgress = es.hlProgress, onHighlights = { makeHighlights(it, wx.hlBeat) }, hlBeat = wx.hlBeat, onHlBeat = { wx.hlBeat = it }, onStopHighlights = { es.hlJob?.cancel(); es.hlJob = null; es.hlProgress = -1 },
                                     picked = multi.toList(),
                                     onPick = { id -> if (id in multi) multi.remove(id) else multi.add(id) },
                                     onPickAll = { if (multi.size == clips.size) multi.clear() else { multi.clear(); multi.addAll(clips.map { it.id }) } },
                                     onBatch = { action ->
-                                        if (videoLocked) { message = "The video track is locked"; return@ProEditTools }
+                                        if (es.videoLocked) { es.message = "The video track is locked"; return@ProEditTools }
                                         val ids = multi.toSet()
                                         when (action) {
-                                            "delete" -> { clips.removeAll { it.id in ids }; multi.clear(); selected = selected.coerceIn(0, (clips.size - 1).coerceAtLeast(0)); current = current.coerceIn(0, (clips.size - 1).coerceAtLeast(0)); if (clips.isNotEmpty()) load(current, 0, false) }
+                                            "delete" -> { clips.removeAll { it.id in ids }; multi.clear(); es.selected = es.selected.coerceIn(0, (clips.size - 1).coerceAtLeast(0)); es.current = es.current.coerceIn(0, (clips.size - 1).coerceAtLeast(0)); if (clips.isNotEmpty()) load(es.current, 0, false) }
                                             "mute" -> for (i in clips.indices) if (clips[i].id in ids) clips[i] = clips[i].copy(muted = !clips[i].muted)
-                                            "grade" -> clips.getOrNull(selected)?.let { src -> for (i in clips.indices) if (clips[i].id in ids) clips[i] = clips[i].copy(grade = src.grade, detail = src.detail) }
+                                            "grade" -> clips.getOrNull(es.selected)?.let { src -> for (i in clips.indices) if (clips[i].id in ids) clips[i] = clips[i].copy(grade = src.grade, detail = src.detail) }
                                             "duplicate" -> { val add = clips.filter { it.id in ids }.map { it.copy(id = java.util.UUID.randomUUID().toString()) }; clips.addAll(add) }
                                             else -> action.removePrefix("speed:").toFloatOrNull()?.let { sp -> for (i in clips.indices) if (clips[i].id in ids) clips[i] = clips[i].copy(speed = sp, ramp = null, rampName = null) }
                                         }
-                                        message = "Done for ${ids.size} clip(s)"
+                                        es.message = "Done for ${ids.size} clip(s)"
                                     },
                                 )
                                 val sk = Stabilizer.keyOf(sc)
                                 ReframePanel(
-                                    sc, cropEditEnd, cropMode, stabProgress[sk], motions[sk] != null,
+                                    sc, es.cropEditEnd, es.cropMode, stabProgress[sk], motions[sk] != null,
                                     onEditEnd = { e ->
-                                        cropEditEnd = e
+                                        es.cropEditEnd = e
                                         // Show the frame being edited.
-                                        if (selected == current) deck.cur.seekTo(if (e) (sc.endMs - sc.startMs - 50).coerceAtLeast(0) else 0)
+                                        if (es.selected == es.current) deck.cur.seekTo(if (e) (sc.endMs - sc.startMs - 50).coerceAtLeast(0) else 0)
                                     },
                                     onCropMode = { on ->
-                                        cropMode = on
-                                        if (on && selected != current) load(selected, 0, false)
+                                        es.cropMode = on
+                                        if (on && es.selected != es.current) load(es.selected, 0, false)
                                         if (on) deck.cur.pause()
                                     },
-                                    onChange = { f -> update(selected, f) },
+                                    onChange = { f -> update(es.selected, f) },
                                     onAnalyze = { analyze(sc) },
-                                    playheadRel = if (selected == current) posMs else 0L,
+                                    playheadRel = if (es.selected == es.current) es.posMs else 0L,
                                     onSeekRel = { t ->
                                         val st = clipStarts(clips)
-                                        seekGlobal((st.getOrNull(selected) ?: 0L) + sc.tlOffsetOf(sc.startMs + t))
+                                        seekGlobal((st.getOrNull(es.selected) ?: 0L) + sc.tlOffsetOf(sc.startMs + t))
                                     },
                                 )
                                 SectionTitle("ANAMORPHIC DESQUEEZE")
                                 val sq = listOf(1f, 1.33f, 1.5f, 1.55f, 1.8f, 2f)
                                 Chips(sq.map { if (it == 1f) "Off" else "${it}×" }, sq.indexOfFirst { it == (sc.desqueeze ?: 1f) }.coerceAtLeast(0)) { i ->
-                                    update(selected) { it.copy(desqueeze = sq[i].takeIf { v -> v > 1f }) }
+                                    update(es.selected) { it.copy(desqueeze = sq[i].takeIf { v -> v > 1f }) }
                                 }
                                 Text("For clips filmed with an anamorphic lens or adapter: stretches the picture back to its real shape (preview and export).", color = Pro.Dim, fontSize = 11.sp)
                             }
-                            Page.COLOR -> if (sc != null) ColorPage(sc, colorTab, { colorTab = it }, maskTools = maskTools, onChange = { f -> update(selected, f) },
-                                onTrackPen = { m -> trackPen(selected, m.id) }, penTracking = wx.penTrackingId,
+                            Page.COLOR -> if (sc != null) ColorPage(sc, es.colorTab, { es.colorTab = it }, maskTools = maskTools, onChange = { f -> update(es.selected, f) },
+                                onTrackPen = { m -> trackPen(es.selected, m.id) }, penTracking = wx.penTrackingId,
                                 onErase = {
-                                    val st = clipStarts(clips).getOrNull(selected) ?: 0L
+                                    val st = clipStarts(clips).getOrNull(es.selected) ?: 0L
                                     val src = if (globalMs in st until st + sc.lengthMs) sc.srcAtOffset(globalMs - st) else sc.startMs
-                                    magicPick = MagicTarget(clipId = sc.id, uri = sc.uri, srcMs = src, initial = null, remove = true)
+                                    es.magicPick = MagicTarget(clipId = sc.id, uri = sc.uri, srcMs = src, initial = null, remove = true)
                                 },
-                                eraseProgress = eraseProgress, eraseStatus = eraseStatus, onStopErase = { eraseJob?.cancel(); eraseJob = null; eraseProgress = null; eraseStatus = null },
-                                onDepth = { analyseDepth(selected) }, depthProgress = wx.depthProgress, depthStatus = wx.depthStatus, onStopDepth = { wx.depthJob?.cancel(); wx.depthJob = null; wx.depthProgress = null },
-                                clipNames = clips.map { it.name }, selfIdx = selected, matchBusy = matchBusy, onMatch = { matchShot(it) },
+                                eraseProgress = es.eraseProgress, eraseStatus = es.eraseStatus, onStopErase = { es.eraseJob?.cancel(); es.eraseJob = null; es.eraseProgress = null; es.eraseStatus = null },
+                                onDepth = { analyseDepth(es.selected) }, depthProgress = wx.depthProgress, depthStatus = wx.depthStatus, onStopDepth = { wx.depthJob?.cancel(); wx.depthJob = null; wx.depthProgress = null },
+                                clipNames = clips.map { it.name }, selfIdx = es.selected, matchBusy = es.matchBusy, onMatch = { matchShot(it) },
                                 onMagic = {
-                                    val st = clipStarts(clips).getOrNull(selected) ?: 0L
+                                    val st = clipStarts(clips).getOrNull(es.selected) ?: 0L
                                     val src = if (globalMs in st until st + sc.lengthMs) sc.srcAtOffset(globalMs - st) else sc.startMs
-                                    magicPick = MagicTarget(clipId = sc.id, uri = sc.uri, srcMs = src, initial = sc.bg?.magic)
+                                    es.magicPick = MagicTarget(clipId = sc.id, uri = sc.uri, srcMs = src, initial = sc.bg?.magic)
                                 },
                                 magicProgress = magicProgress[sc.id], onStopMagic = { magicStops[sc.id]?.set(true); magicProgress.remove(sc.id) },
                                 onCopyToAll = {
                                 val g = sc.grade; val d = sc.detail; val fl = sc.film
                                 for (i in clips.indices) clips[i] = clips[i].copy(grade = g, detail = d, film = fl)
-                                message = "Grade copied to all clips"
+                                es.message = "Grade copied to all clips"
                             })
                             Page.LAYERS -> LayersPage(
-                                layers = layers, selectedId = selectedLayer, totalMs = totalMs, playheadMs = globalMs,
-                                onSelect = { selectedLayer = it },
-                                onAdd = { l -> layers.add(l); selectedLayer = l.id },
+                                layers = layers, selectedId = es.selectedLayer, totalMs = totalMs, playheadMs = globalMs,
+                                onSelect = { es.selectedLayer = it },
+                                onAdd = { l -> layers.add(l); es.selectedLayer = l.id },
                                 onAddLogo = { pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                                onAddVideo = { askVideoLayer = true },
+                                onAddVideo = { es.askVideoLayer = true },
                                 onAddImage = { pickLayerImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                                 onAddLottie = { pickLottie.launch(arrayOf("application/json", "application/zip", "application/octet-stream", "*/*")) },
                                 onUpdate = { l ->
@@ -3513,34 +3431,34 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     if (i >= 0) {
                                         val o = layers[i]
                                         // A locked layer only takes lock / show / name changes.
-                                        if (o.locked && l.locked && l.copy(visible = o.visible, name = o.name) != o) message = "This layer is locked — tap its lock to edit"
+                                        if (o.locked && l.locked && l.copy(visible = o.visible, name = o.name) != o) es.message = "This layer is locked — tap its lock to edit"
                                         else layers[i] = o.editedAt(globalMs, l)
                                     }
                                 },
                                 onSeek = { seekGlobal(it) },
                                 onCaptions = { lang, clipsOnly, style -> makeCaptions(lang, clipsOnly, style) },
                                 onImportSubs = { pickSubs.launch(arrayOf("*/*")) },
-                                onTranslate = { to -> translateCaptions(to) }, translateStatus = translateStatus,
+                                onTranslate = { to -> translateCaptions(to) }, translateStatus = es.translateStatus,
                                 onDub = { l, m, mu -> dubCaptions(l, m, mu) }, dubStatus = wx.dubStatus,
-                                telemetryShow = telemetryShow,
-                                onTelemetryShow = { telemetryShow = it },
+                                telemetryShow = es.telemetryShow,
+                                onTelemetryShow = { es.telemetryShow = it },
                                 onTelemetry = { pickSrt.launch(arrayOf("*/*")) },
-                                onTrack = { trackLayer(it) }, trackingId = trackingId,
-                                onPin = { id, p -> val i = layers.indexOfFirst { it.id == id }; if (i >= 0) { if (layers[i].locked) message = "This layer is locked — tap its lock to edit" else layers[i] = layers[i].copy(pin = p) } },
+                                onTrack = { trackLayer(it) }, trackingId = es.trackingId,
+                                onPin = { id, p -> val i = layers.indexOfFirst { it.id == id }; if (i >= 0) { if (layers[i].locked) es.message = "This layer is locked — tap its lock to edit" else layers[i] = layers[i].copy(pin = p) } },
                                 onPlanarTrack = { planarTrack(it) }, pinTrackingId = wx.pinTrackingId,
-                                frameAspect = outputSize(clips, deliver).let { (w, h) -> w.toFloat() / h.coerceAtLeast(1) },
+                                frameAspect = outputSize(clips, es.deliver).let { (w, h) -> w.toFloat() / h.coerceAtLeast(1) },
                                 onSplit = { splitScreen(it) },
                                 onMagicLayer = { id ->
                                     layers.firstOrNull { it.id == id }?.let { l ->
                                         val u = l.videoUri ?: return@let
                                         val src = (l.videoStartMs + (globalMs - (if (l.wholeVideo) 0L else l.startMs))).coerceIn(l.videoStartMs, (l.videoDurationMs - 1).coerceAtLeast(l.videoStartMs))
-                                        magicPick = MagicTarget(layerId = id, uri = u, srcMs = src, initial = l.layerMagic)
+                                        es.magicPick = MagicTarget(layerId = id, uri = u, srcMs = src, initial = l.layerMagic)
                                     }
                                 },
                                 magicLayerProgress = magicProgress.toMap(), onStopMagicLayer = { id -> magicStops[id]?.set(true); magicProgress.remove(id) },
                                 onDelete = { id ->
-                                    if (layers.any { it.id == id && it.locked }) message = "This layer is locked — tap its lock to delete it"
-                                    else { layers.removeAll { it.id == id }; selectedLayer = layers.lastOrNull()?.id }
+                                    if (layers.any { it.id == id && it.locked }) es.message = "This layer is locked — tap its lock to delete it"
+                                    else { layers.removeAll { it.id == id }; es.selectedLayer = layers.lastOrNull()?.id }
                                 },
                                 onMove = { id, dir ->
                                     val i = layers.indexOfFirst { it.id == id }; val to = i + dir
@@ -3549,51 +3467,51 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             )
                             Page.AUDIO -> Column {
                                 AudioPage(
-                                sc, deliver, music, playing,
+                                sc, es.deliver, es.music, es.playing,
                                 mixer = MixerHooks(
-                                    deliver, { deliver = it }, videoMuted, { videoMuted = it }, soloTrack, { soloTrack = it },
+                                    es.deliver, { es.deliver = it }, es.videoMuted, { es.videoMuted = it }, es.soloTrack, { es.soloTrack = it },
                                     { audioFx.maxOf { it.peak } }, { musicFxProc.peak }, { id -> extraFx[id]?.peak ?: 0f },
                                 ),
                                 onTts = { t, v, sp -> makeTts(t, v, sp) }, ttsProgress = wx.ttsProgress, ttsStatus = wx.ttsStatus, onStopTts = { wx.ttsJob?.cancel(); wx.ttsJob = null; wx.ttsProgress = null; wx.ttsStatus = null },
-                                onChange = { f -> update(selected, f) },
+                                onChange = { f -> update(es.selected, f) },
                                 onPickMusic = { pickMusic.launch(arrayOf("audio/*")) },
-                                onMusic = { music = it; if (it == null) musicPlayer.stop() },
+                                onMusic = { es.music = it; if (it == null) musicPlayer.stop() },
                                 extra = extraAudio,
                                 onExtra = { id, t ->
                                     val i = extraAudio.indexOfFirst { it.id == id }
                                     if (i >= 0) { if (t == null) extraAudio.removeAt(i) else extraAudio[i] = t }
                                 },
-                                posInClip = if (selected == current) posMs else 0L,
+                                posInClip = if (es.selected == es.current) es.posMs else 0L,
                                 recording = wx.voiceRec != null, recordMs = wx.voiceMs,
                                 onVoice = { if (wx.voiceRec == null) startVoice() else stopVoice() },
                                 onBeats = { t -> addBeatMarkers(t) },
                                 onSync = { t -> syncAudioTo(t) },
                             )
-                                MusicTools(hasMusic = music != null, onFit = { fitMusicToVideo() }, onAutoEdit = { autoEditToBeat(it) })
+                                MusicTools(hasMusic = es.music != null, onFit = { fitMusicToVideo() }, onAutoEdit = { autoEditToBeat(it) })
                             }
                             Page.DELIVER -> DeliverPage(
-                                deliver, clips, exporting, { deliver = it }, ::startExport, playheadMs = globalMs, onSaveFrame = { saveStill() },
-                                markers = markers.toList(), projectName = projectName, layers = layers.toList(), markerNotes = markerNotes.toMap(),
-                                smartWhy = if (deliver.smartRender) smartRenderBlocker(context, clips.let { l -> if (videoMuted) l.map { it.copy(muted = true) } else l }, deliver, layers.toList(), music, extraAudio.toList()) else null,
-                                queue = exportQueue.toList(), queueAt = queueAt,
-                                onQueueAdd = { exportQueue.add(deliver); message = "Added to the queue (${exportQueue.size})" },
+                                es.deliver, clips, es.exporting, { es.deliver = it }, ::startExport, playheadMs = globalMs, onSaveFrame = { saveStill() },
+                                markers = markers.toList(), projectName = es.projectName, layers = layers.toList(), markerNotes = markerNotes.toMap(),
+                                smartWhy = if (es.deliver.smartRender) smartRenderBlocker(context, clips.let { l -> if (es.videoMuted) l.map { it.copy(muted = true) } else l }, es.deliver, layers.toList(), es.music, extraAudio.toList()) else null,
+                                queue = exportQueue.toList(), queueAt = es.queueAt,
+                                onQueueAdd = { exportQueue.add(es.deliver); es.message = "Added to the queue (${exportQueue.size})" },
                                 onQueueRemove = { i -> if (i in exportQueue.indices) exportQueue.removeAt(i) },
-                                onQueueStart = { if (!exporting) { queueBase = deliver; queueAt = 0 } },
-                                onQueueStop = { queueAt = -1; export?.cancel(); export = null; exporting = false; deliver = queueBase ?: deliver; message = "Queue stopped" },
+                                onQueueStart = { if (!es.exporting) { es.queueBase = es.deliver; es.queueAt = 0 } },
+                                onQueueStop = { es.queueAt = -1; es.export?.cancel(); es.export = null; es.exporting = false; es.deliver = es.queueBase ?: es.deliver; es.message = "Queue stopped" },
                             )
                         }
-                        if (clips.isEmpty() && page != Page.MEDIA && page != Page.DELIVER) Text("Add a clip in the Media page.", color = Pro.Dim, modifier = Modifier.padding(12.dp))
+                        if (clips.isEmpty() && es.page != Page.MEDIA && es.page != Page.DELIVER) Text("Add a clip in the Media page.", color = Pro.Dim, modifier = Modifier.padding(12.dp))
                     }
                 }
             }
 
-            if (fullscreen) {
-                BackHandler { fullscreen = false }
+            if (es.fullscreen) {
+                BackHandler { es.fullscreen = false }
                 var controls by remember { mutableStateOf(true) }
                 var touch by remember { mutableStateOf(0) }
                 // Controls hide by themselves a few seconds after the last touch while playing.
-                LaunchedEffect(controls, touch, playing) {
-                    if (controls && playing) { delay(3000); controls = false }
+                LaunchedEffect(controls, touch, es.playing) {
+                    if (controls && es.playing) { delay(3000); controls = false }
                 }
                 fun poke() { controls = true; touch++ }
                 Box(
@@ -3613,17 +3531,17 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     .padding(8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                TopIcon(Icons.Filled.FullscreenExit, "Exit full screen") { fullscreen = false }
+                                TopIcon(Icons.Filled.FullscreenExit, "Exit full screen") { es.fullscreen = false }
                                 Text(
-                                    clips.getOrNull(current)?.name ?: "", color = Color.White, fontSize = 14.sp, maxLines = 1,
+                                    clips.getOrNull(es.current)?.name ?: "", color = Color.White, fontSize = 14.sp, maxLines = 1,
                                     overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(horizontal = 6.dp),
                                 )
-                                TopIcon(Icons.Filled.Close, "Close") { fullscreen = false }
+                                TopIcon(Icons.Filled.Close, "Close") { es.fullscreen = false }
                             }
                             // Centre: previous / play / next
                             Row(Modifier.align(Alignment.Center), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
                                 RoundControl(Icons.Filled.SkipPrevious, "Previous", 52.dp) { prevClip(); poke() }
-                                RoundControl(if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", 72.dp, accent = true) { togglePlay(); poke() }
+                                RoundControl(if (es.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", 72.dp, accent = true) { togglePlay(); poke() }
                                 RoundControl(Icons.Filled.SkipNext, "Next", 52.dp) { nextClip(); poke() }
                             }
                             // Bottom: time, seek, mute
@@ -3640,7 +3558,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 )
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text("${tc(globalMs)} / ${tc(totalMs)}", style = Pro.Value.copy(fontSize = 12.sp), modifier = Modifier.weight(1f))
-                                    TopIcon(if (previewMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute") { previewMuted = !previewMuted; poke() }
+                                    TopIcon(if (es.previewMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute") { es.previewMuted = !es.previewMuted; poke() }
                                 }
                             }
                         }
@@ -3648,34 +3566,34 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 }
             } else Column(Modifier.fillMaxSize()) {
                 Row(Modifier.fillMaxWidth().height(50.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TopIcon(Icons.AutoMirrored.Filled.ArrowBack, "Close", enabled = !exporting) { confirmExit = true }
+                    TopIcon(Icons.AutoMirrored.Filled.ArrowBack, "Close", enabled = !es.exporting) { es.confirmExit = true }
                     Column(Modifier.weight(1f).padding(start = 4.dp)) {
                         Text("${clips.size} CLIPS · ${tc(totalMs)}", style = Pro.Label)
                     }
                     VideoPanelsButton(
-                        onPage = { page = it },
+                        onPage = { es.page = it },
                         onReset = {
                             listOf("ve_timeline_land", "ve_timeline_port", "ve_inspector_w", "ve_viewer_port", "ve_strip_h", "ve_mon_media_s", "ve_mon_media_u", "ve_mon_tools_s", "ve_mon_tools_u", "ve_mon_tools_w").forEach { PaneSizes.set(context, it, -1f) }
-                            paneVersion++
-                            message = "Layout reset to original"
+                            es.paneVersion++
+                            es.message = "Layout reset to original"
                         },
                     )
-                    TopIcon(Icons.Filled.Settings, "Settings") { showSettings = true }
-                    BarButton("LOAD", enabled = !exporting) { showLoad = true }
-                    BarButton("SAVE", enabled = !exporting) { askName = true }
+                    TopIcon(Icons.Filled.Settings, "Settings") { es.showSettings = true }
+                    BarButton("LOAD", enabled = !es.exporting) { es.showLoad = true }
+                    BarButton("SAVE", enabled = !es.exporting) { es.askName = true }
                     Text(
                         "EXPORT", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp),
-                        modifier = Modifier.padding(horizontal = 6.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !exporting) { page = Page.DELIVER; com.dronedirector.veyrocutpro.ui.Panels.set(context, "ve.inspector", true) }.padding(horizontal = 14.dp, vertical = 7.dp),
+                        modifier = Modifier.padding(horizontal = 6.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !es.exporting) { es.page = Page.DELIVER; com.dronedirector.veyrocutpro.ui.Panels.set(context, "ve.inspector", true) }.padding(horizontal = 14.dp, vertical = 7.dp),
                     )
                 }
                 // Resizable panels: hold a divider, then drag. Double-tap a divider to reset it.
                 // Hidden panels give their space to the rest; shown again, everything returns to its saved size.
-                val tlPane = rememberPane(if (wide) "ve_timeline_land" else "ve_timeline_port", paneVersion)
+                val tlPane = rememberPane(if (wide) "ve_timeline_land" else "ve_timeline_port", es.paneVersion)
                 val tlScroll = rememberScrollState()
                 var tlEnergy by remember { mutableStateOf(0f) }
                 var tlHEnergy by remember { mutableStateOf(0f) }
                 // Shared with the portrait layout below: the media strip's top divider moves the viewer's edge too.
-                val viewerPane = rememberPane("ve_viewer_port", paneVersion)
+                val viewerPane = rememberPane("ve_viewer_port", es.paneVersion)
                 val autoViewer = boxW * 9f / 16f
                 val timelineBox = @Composable {
                     val stripOn = showStrip && !stripInTools && !monCols   // above the timeline (shown even when empty); a column on ultra-wide monitors
@@ -3700,7 +3618,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         // The tracks stop short of the right and bottom edges: each wheel has its own window there.
                         Box(
                             sized.padding(end = 26.dp, bottom = 26.dp)
-                                .onGloballyPositioned { val p = it.positionInRoot(); tlBounds = androidx.compose.ui.geometry.Rect(p.x, p.y, p.x + it.size.width, p.y + it.size.height) }
+                                .onGloballyPositioned { val p = it.positionInRoot(); es.tlBounds = androidx.compose.ui.geometry.Rect(p.x, p.y, p.x + it.size.width, p.y + it.size.height) }
                                 .verticalScroll(tlScroll)
                                 // Mouse: Ctrl + wheel zooms, Shift + wheel (or a sideways wheel) scrolls along the edit; the plain wheel moves the tracks up and down.
                                 // Right-click a clip to pick it and open its tools.
@@ -3716,11 +3634,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                         val ms = zoom.scrollMs + ((o.x - tlLeftPad) / zoom.pxPerSec * 1000f).toLong()
                                         val st = clipStarts(clips)
                                         val i = clips.indices.firstOrNull { ms >= st[it] && ms < st[it] + clips[it].lengthMs }
-                                        if (i != null) { selected = i; page = Page.EDIT; com.dronedirector.veyrocutpro.ui.Panels.set(context, "ve.inspector", true) }
+                                        if (i != null) { es.selected = i; es.page = Page.EDIT; com.dronedirector.veyrocutpro.ui.Panels.set(context, "ve.inspector", true) }
                                     },
                                 ),
                         ) { timeline() }
-                        if (wheelFx) {
+                        if (es.wheelFx) {
                             TimelineUpscaleOverlay(tlEnergy, tlScroll.value, Modifier.matchParentSize().padding(end = 26.dp, bottom = 26.dp))
                             TimelineUpscaleOverlay(tlHEnergy, zoom.scrollMs.toInt(), Modifier.matchParentSize().padding(end = 26.dp, bottom = 26.dp), horizontal = true)
                         }
@@ -3731,7 +3649,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     .background(Ed.Panel)
                                     .border(1.dp, Color.White.copy(alpha = 0.08f)),
                             ) {
-                                TimelineHWheel(zoom, Modifier.align(Alignment.Center).fillMaxWidth().padding(start = 6.dp, end = 6.dp), fancy = wheelFx) { tlHEnergy = it }
+                                TimelineHWheel(zoom, Modifier.align(Alignment.Center).fillMaxWidth().padding(start = 6.dp, end = 6.dp), fancy = es.wheelFx) { tlHEnergy = it }
                             }
                         }
                         // Scroll wheel window: its own panel on the right, as tall as the visible timeline,
@@ -3742,7 +3660,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     .background(Ed.Panel)
                                     .border(1.dp, Color.White.copy(alpha = 0.08f)),
                             ) {
-                                TimelineWheel(tlScroll, Modifier.align(Alignment.Center).fillMaxHeight().padding(top = 6.dp, bottom = 6.dp), fancy = wheelFx) { tlEnergy = it }
+                                TimelineWheel(tlScroll, Modifier.align(Alignment.Center).fillMaxHeight().padding(top = 6.dp, bottom = 6.dp), fancy = es.wheelFx) { tlEnergy = it }
                             }
                         }
                     }
@@ -3750,8 +3668,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 if (monCols) {
                     // Ultra-wide / super ultra-wide monitor: media | viewer | tools, with the timeline across the whole width.
                     val sup = mon == com.dronedirector.veyrocutpro.ui.MonitorClass.SUPER_ULTRA_WIDE
-                    val mediaPane = rememberPane(if (sup) "ve_mon_media_s" else "ve_mon_media_u", paneVersion)
-                    val toolsPane = rememberPane(if (sup) "ve_mon_tools_s" else "ve_mon_tools_u", paneVersion)
+                    val mediaPane = rememberPane(if (sup) "ve_mon_media_s" else "ve_mon_media_u", es.paneVersion)
+                    val toolsPane = rememberPane(if (sup) "ve_mon_tools_s" else "ve_mon_tools_u", es.paneVersion)
                     val mediaW = if (mediaPane.dp < 0f) boxW * (if (sup) 0.24f else 0.2f) else mediaPane.dp
                     val toolsW = if (toolsPane.dp < 0f) boxW * (if (sup) 0.27f else 0.25f) else toolsPane.dp
                     Row(Modifier.fillMaxWidth().weight(1f)) {
@@ -3777,7 +3695,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         onEnd = { tlPane.save() }, onReset = { tlPane.reset() })
                     timelineBox()
                 } else if (wide) {
-                    val insp = rememberPane(if (mon != com.dronedirector.veyrocutpro.ui.MonitorClass.NONE) "ve_mon_tools_w" else "ve_inspector_w", paneVersion)
+                    val insp = rememberPane(if (mon != com.dronedirector.veyrocutpro.ui.MonitorClass.NONE) "ve_mon_tools_w" else "ve_inspector_w", es.paneVersion)
                     val maxW = boxW
                     Row(Modifier.fillMaxWidth().weight(1f)) {
                         Column(Modifier.weight(1f).fillMaxHeight()) {
@@ -3817,22 +3735,22 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 }
             }
 
-            if (confirmExit) {
+            if (es.confirmExit) {
                 androidx.compose.material3.AlertDialog(
-                    onDismissRequest = { confirmExit = false },
+                    onDismissRequest = { es.confirmExit = false },
                     containerColor = Pro.PanelSolid,
                     title = { Text("Leave the video editor?", color = Color.White) },
-                    text = { Text(if (projectId != null) "Save your latest changes to \"$projectName\" before leaving?" else "This timeline isn't saved yet. Save it as a project to continue later.", color = Pro.Dim) },
+                    text = { Text(if (es.projectId != null) "Save your latest changes to \"${es.projectName}\" before leaving?" else "This timeline isn't saved yet. Save it as a project to continue later.", color = Pro.Dim) },
                     confirmButton = {
                         Row {
-                            androidx.compose.material3.TextButton(onClick = { confirmExit = false; onExit() }) { Text("Leave", color = Pro.Red) }
+                            androidx.compose.material3.TextButton(onClick = { es.confirmExit = false; onExit() }) { Text("Leave", color = Pro.Red) }
                             androidx.compose.material3.TextButton(onClick = {
-                                confirmExit = false
-                                if (projectId == null) { leaveAfterSave = true; askName = true } else { saveProject(projectName); onExit() }
+                                es.confirmExit = false
+                                if (es.projectId == null) { es.leaveAfterSave = true; es.askName = true } else { saveProject(es.projectName); onExit() }
                             }) { Text("Save & leave", color = Pro.Amber) }
                         }
                     },
-                    dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmExit = false }) { Text("Stay", color = Color.White) } },
+                    dismissButton = { androidx.compose.material3.TextButton(onClick = { es.confirmExit = false }) { Text("Stay", color = Color.White) } },
                 )
             }
         }

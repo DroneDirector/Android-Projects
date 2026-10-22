@@ -2157,15 +2157,14 @@ private fun PhotoPanelContent(
         }
         PhotoPanel.LIGHT -> {
             if (isRaw) {
+                SectionTitle("RAW LOOK") { set(e.copy(raw = e.raw.copy(look = 0))) }
+                RawLookStrip(rawMeta, e.raw) { i -> set(e.copy(raw = e.raw.copy(look = i))) }
                 SectionTitle("RAW PROFILE") { set(e.copy(raw = e.raw.copy(profile = 0))) }
                 // "Camera" (the maker's own profile in the file) only when the DNG has one.
                 val profs = RawDng.PROFILES.withIndex().filter { !it.value.camera || rawMeta?.hasCameraProfile == true }
                 Chips(profs.map { p -> if (p.value.camera) "Camera" + (rawMeta?.profileName?.let { " · " + it.take(18) } ?: "") else p.value.label },
                     profs.indexOfFirst { it.index == e.raw.profile }.coerceAtLeast(0)) { i -> set(e.copy(raw = e.raw.copy(profile = profs[i].index))) }
                 Text("RAW (DNG): exposure, highlights, shadows, whites, blacks and white balance work on the sensor data, with headroom above white.", color = Pro.Dim, fontSize = 11.sp)
-                SectionTitle("RAW LOOK") { set(e.copy(raw = e.raw.copy(look = 0))) }
-                Chips(RawDng.LOOKS.map { it.label }, e.raw.look.coerceIn(0, RawDng.LOOKS.size - 1)) { i -> set(e.copy(raw = e.raw.copy(look = i))) }
-                Text("Default is the app's own RAW look. The phone looks are brighter, with lifted shadows, softer highlights and more colour — closer to how phones show their pictures. Match camera picture copies the brightness and colour of the preview the camera stored in the file.", color = Pro.Dim, fontSize = 11.sp)
                 if (rawMeta?.hasLensOps == true) {
                     Row(Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(10.dp)).background(Ed.Raised)
                         .clickable { set(e.copy(raw = e.raw.copy(lensOff = !e.raw.lensOff))) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -2682,3 +2681,43 @@ private fun PhotoShortcutsDialog(onDismiss: () -> Unit) {
     )
 }
 
+
+
+/** Small cached previews of each RAW look on this photo. */
+private object RawLookThumbs { val cache = android.util.LruCache<String, Bitmap>(48) }
+
+/**
+ * RAW LOOK: one compact row of small previews — the photo in each look — to scroll through and tap,
+ * like the transitions list. Default (the app's own RAW look) comes first.
+ */
+@Composable
+internal fun RawLookStrip(meta: RawDng.Meta?, dev: RawDng.Dev, onPick: (Int) -> Unit) {
+    val sel = dev.look.coerceIn(0, RawDng.LOOKS.size - 1)
+    val lin = meta?.let { RawDng.lookSource(it) }
+    Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        RawDng.LOOKS.forEachIndexed { i, look ->
+            val key = "${System.identityHashCode(lin)}/$i/${dev.profile}/${dev.wb}/${dev.vigOn}"
+            val thumb by produceState(RawLookThumbs.cache.get(key), key) {
+                if (value != null || meta == null || lin == null) return@produceState
+                value = withContext(Dispatchers.Default) {
+                    try { RawDng.develop(lin, meta, dev.copy(look = i), 0f, 0f, 0f, 0f, 0f, 0f, 0f).also { RawLookThumbs.cache.put(key, it) } } catch (_: Throwable) { null }
+                }
+            }
+            val on = i == sel
+            Column(
+                Modifier.width(66.dp).clip(RoundedCornerShape(8.dp)).border(if (on) 2.dp else 0.dp, if (on) Pro.Amber else Color.Transparent, RoundedCornerShape(8.dp))
+                    .clickable { onPick(i) }.padding(3.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(Modifier.size(60.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFF1A1E26))) {
+                    thumb?.let { t -> val img = remember(t) { t.asImageBitmap() }; Image(img, null, Modifier.size(60.dp), contentScale = ContentScale.Crop) }
+                }
+                Text(look.label, color = if (on) Pro.Amber else Color.White, fontSize = 9.sp, maxLines = 2, lineHeight = 10.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            }
+        }
+    }
+    Text(if (sel == 0) "Default is the app's own RAW look. Scroll for phone-style looks, or Match camera picture." else when {
+        RawDng.LOOKS[sel].match -> "Copies the brightness and colour of the preview the camera stored in the file."
+        else -> "Brighter, with lifted shadows, softer highlights and more colour — closer to how phones show their pictures."
+    }, color = Pro.Dim, fontSize = 11.sp)
+}

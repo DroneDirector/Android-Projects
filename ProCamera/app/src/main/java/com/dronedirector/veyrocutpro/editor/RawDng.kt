@@ -1319,6 +1319,9 @@ object RawDng {
         return out
     }
 
+    /** The small develop source the RAW LOOK previews are made from (filled in by [preview]). */
+    fun lookSource(m: Meta): Linear? = m.matchLin
+
     /** Set by [open], so "Match camera picture" can read the camera's preview while developing. */
     @Volatile private var appContext: Context? = null
 

@@ -4,7 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
-- Photo editor → Light → **RAW LOOK**: pick a different look for RAW photos — Natural phone, Vivid phone, HDR phone, Warm phone, Cool & crisp, or **Match camera picture** (copies the brightness and colour of the camera's own preview in the file). Default stays the app's own RAW look.
+- Photo editor → Light → **RAW LOOK** (at the top of Light, for RAW photos): a compact row of small previews of your photo in each look — scroll and tap, like the transitions list. Looks: — Natural phone, Vivid phone, HDR phone, Warm phone, Cool & crisp, or **Match camera picture** (copies the brightness and colour of the camera's own preview in the file). Default stays the app's own RAW look.
 - RAW: **JPEG XL compressed DNGs** now open — the format newer Samsung Galaxy phones (and recent iPhones) save their RAW photos in.
 - RAW: DNGs from **black-and-white cameras** (Leica M Monochrom, Pentax K-3 III Monochrome) now open.
 - RAW: fixed coloured garbage blocks in DNGs from some action cameras (e.g. YI Action Camera 3) — older DNGs written with a lossless-JPEG quirk are now read correctly.

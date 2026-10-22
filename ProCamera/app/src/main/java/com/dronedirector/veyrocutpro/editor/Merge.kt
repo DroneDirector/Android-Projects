@@ -17,6 +17,9 @@ enum class MergeKind(val label: String, val hint: String) {
     HDR("HDR merge", "2–5 bracketed shots of the same scene (e.g. −2 / 0 / +2 EV)"),
     PANORAMA("Panorama", "2–8 overlapping shots, picked left to right"),
     FOCUS("Focus stack", "2–8 shots focused at different distances"),
+    NOISE("Noise stack", "2–8 shots of the same scene (tripod or hand-held): averaged for a clean, low-noise picture"),
+    CLEAN("Remove passers-by", "3–8 shots from the same spot a few seconds apart: whatever moves through is taken out"),
+    SUPERRES("Super resolution", "4–8 hand-held shots of the same scene: one picture with twice the width and height"),
 }
 
 /** HDR (exposure fusion), panorama stitching and focus stacking, done on the phone. */
@@ -41,6 +44,7 @@ object Merge {
             onProgress("Finishing the panorama…")
             return PanoOpts.finish(raw, f)
         }
+        if (kind == MergeKind.NOISE || kind == MergeKind.CLEAN || kind == MergeKind.SUPERRES) return multiFrame(context, kind, uris, onProgress)
         onProgress("Loading photos…")
         val maxPx = 2200
         val imgs = uris.take(if (kind == MergeKind.FOCUS) 6 else 5).mapNotNull { decodeAny(context, it, maxPx) }
@@ -188,6 +192,140 @@ object Merge {
             out[i] = (0xFF shl 24) or ((sr / sw).toInt().coerceIn(0, 255) shl 16) or ((sg / sw).toInt().coerceIn(0, 255) shl 8) or (sb / sw).toInt().coerceIn(0, 255)
         }
         return out
+    }
+
+    /** Noise stack, passers-by removal and super resolution: every frame lined up with the middle one. */
+    private fun multiFrame(context: Context, kind: MergeKind, uris: List<Uri>, onProgress: (String) -> Unit): Bitmap? {
+        if (kind == MergeKind.CLEAN && uris.size < 3) return null
+        onProgress("Loading photos…")
+        val maxPx = if (kind == MergeKind.SUPERRES) 1500 else 2000
+        val first = decodeAny(context, uris[uris.size / 2], maxPx) ?: return null
+        val w = first.width; val h = first.height
+        fun pixels(b: Bitmap): IntArray {
+            val s = if (b.width == w && b.height == h) b else Bitmap.createScaledBitmap(b, w, h, true)
+            return IntArray(w * h).also { s.getPixels(it, 0, w, 0, 0, w, h); if (s !== b) s.recycle() }
+        }
+        val ref = pixels(first)
+        val frames = ArrayList<IntArray>()
+        val offs = ArrayList<Pair<Float, Float>>()
+        for ((i, u) in uris.take(8).withIndex()) {
+            onProgress("Aligning ${i + 1} / ${minOf(8, uris.size)}…")
+            if (i == uris.size / 2) { frames += ref; offs += 0f to 0f; continue }
+            val b = decodeAny(context, u, maxPx) ?: continue
+            val p = pixels(b); b.recycle()
+            val d = align(ref, p, w, h)
+            if (kind == MergeKind.SUPERRES) { frames += p; offs += subpixel(ref, p, w, h, d) }
+            else frames += shift(p, w, h, d)
+        }
+        first.recycle()
+        if (frames.size < 2) return null
+        return when (kind) {
+            MergeKind.SUPERRES -> { onProgress("Building the bigger picture…"); superRes(frames, offs, w, h) }
+            MergeKind.CLEAN -> { onProgress("Taking out what moved…"); Bitmap.createBitmap(robust(frames, w, h, median = true), w, h, Bitmap.Config.ARGB_8888) }
+            else -> { onProgress("Averaging…"); Bitmap.createBitmap(robust(frames, w, h, median = false), w, h, Bitmap.Config.ARGB_8888) }
+        }
+    }
+
+    /** Per pixel: the median of the frames, or the mean of the frames close to the median (moving things left out). */
+    private fun robust(frames: List<IntArray>, w: Int, h: Int, median: Boolean): IntArray {
+        val n = frames.size
+        val out = IntArray(w * h)
+        val v = IntArray(n)
+        for (i in out.indices) {
+            var px = 0xFF shl 24
+            for (sh in intArrayOf(16, 8, 0)) {
+                for (k in 0 until n) v[k] = (frames[k][i] shr sh) and 0xFF
+                // insertion sort (n ≤ 8)
+                for (a in 1 until n) { val t = v[a]; var b = a - 1; while (b >= 0 && v[b] > t) { v[b + 1] = v[b]; b-- }; v[b + 1] = t }
+                val med = if (n % 2 == 1) v[n / 2] else (v[n / 2 - 1] + v[n / 2]) / 2
+                val c = if (median) med else {
+                    val tol = max(10, med * 18 / 100)
+                    var sum = 0; var cnt = 0
+                    for (k in 0 until n) if (abs(v[k] - med) <= tol) { sum += v[k]; cnt++ }
+                    if (cnt > 0) (sum + cnt / 2) / cnt else med
+                }
+                px = px or (c shl sh)
+            }
+            out[i] = px
+        }
+        return out
+    }
+
+    /** Refines a whole-pixel shift to a fraction of a pixel (parabola through the match errors). */
+    private fun subpixel(a: IntArray, b: IntArray, w: Int, h: Int, d: Pair<Int, Int>): Pair<Float, Float> {
+        fun err(ox: Int, oy: Int): Float {
+            var e = 0f; var n = 0
+            var y = h / 6
+            while (y < h * 5 / 6) {
+                val yy = y + oy
+                var x = w / 6
+                while (x < w * 5 / 6) {
+                    val xx = x + ox
+                    if (yy in 1 until h && xx in 1 until w) {
+                        val ga = luma(a[y * w + x]) - luma(a[y * w + x - 1]); val gb = luma(b[yy * w + xx]) - luma(b[yy * w + xx - 1])
+                        val ha = luma(a[y * w + x]) - luma(a[(y - 1) * w + x]); val hb = luma(b[yy * w + xx]) - luma(b[(yy - 1) * w + xx])
+                        e += abs(ga - gb) + abs(ha - hb); n++
+                    }
+                    x += 2
+                }
+                y += 2
+            }
+            return if (n > 0) e / n else Float.MAX_VALUE
+        }
+        val (dx, dy) = d
+        val c = err(dx, dy)
+        fun para(m: Float, p: Float): Float { val den = m - 2 * c + p; return if (den > 1e-6f) (0.5f * (m - p) / den).coerceIn(-0.5f, 0.5f) else 0f }
+        return (dx + para(err(dx - 1, dy), err(dx + 1, dy))) to (dy + para(err(dx, dy - 1), err(dx, dy + 1)))
+    }
+
+    /** Drizzle-style super resolution: each frame's pixels land at their sub-pixel place on a 2× grid. */
+    private fun superRes(frames: List<IntArray>, offs: List<Pair<Float, Float>>, w: Int, h: Int): Bitmap {
+        val W = w * 2; val H = h * 2
+        val acc = FloatArray(W * H * 3); val wt = FloatArray(W * H)
+        for ((k, p) in frames.withIndex()) {
+            val (dx, dy) = offs[k]
+            for (y in 0 until h) for (x in 0 until w) {
+                // This frame's pixel (x, y) sits at (x − dx, y − dy) in the reference.
+                val fx = (x - dx + 0.5f) * 2f - 0.5f; val fy = (y - dy + 0.5f) * 2f - 0.5f
+                val x0 = kotlin.math.floor(fx).toInt(); val y0 = kotlin.math.floor(fy).toInt()
+                val ax = fx - x0; val ay = fy - y0
+                val c = p[y * w + x]
+                val r = ((c shr 16) and 0xFF).toFloat(); val g = ((c shr 8) and 0xFF).toFloat(); val b = (c and 0xFF).toFloat()
+                for (j in 0..1) for (i in 0..1) {
+                    val xx = x0 + i; val yy = y0 + j
+                    if (xx !in 0 until W || yy !in 0 until H) continue
+                    val q = (if (i == 0) 1 - ax else ax) * (if (j == 0) 1 - ay else ay)
+                    if (q <= 0f) continue
+                    val o = yy * W + xx
+                    wt[o] += q; acc[o * 3] += r * q; acc[o * 3 + 1] += g * q; acc[o * 3 + 2] += b * q
+                }
+            }
+        }
+        // Gaps (few frames) are filled from the reference scaled up.
+        val refBmp = Bitmap.createBitmap(frames[offs.indexOfFirst { it.first == 0f && it.second == 0f }.coerceAtLeast(0)], w, h, Bitmap.Config.ARGB_8888)
+        val up = Bitmap.createScaledBitmap(refBmp, W, H, true); refBmp.recycle()
+        val base = IntArray(W * H).also { up.getPixels(it, 0, W, 0, 0, W, H) }; up.recycle()
+        val out = IntArray(W * H)
+        for (o in out.indices) {
+            val bw = base[o]
+            val q = wt[o]; val mix = (q / 0.6f).coerceIn(0f, 1f)
+            fun ch(k: Int, sh: Int): Int { val bv = ((bw shr sh) and 0xFF).toFloat(); val v = if (q > 1e-4f) acc[o * 3 + k] / q else bv; return (v * mix + bv * (1 - mix)).toInt().coerceIn(0, 255) }
+            out[o] = (0xFF shl 24) or (ch(0, 16) shl 16) or (ch(1, 8) shl 8) or ch(2, 0)
+        }
+        // Light sharpening brings out the recovered detail.
+        val sharp = IntArray(W * H)
+        for (y in 0 until H) for (x in 0 until W) {
+            val o = y * W + x
+            if (x == 0 || y == 0 || x == W - 1 || y == H - 1) { sharp[o] = out[o]; continue }
+            var px = 0xFF shl 24
+            for (sh in intArrayOf(16, 8, 0)) {
+                fun at(i: Int) = (out[i] shr sh) and 0xFF
+                val v = at(o) + (4 * at(o) - at(o - 1) - at(o + 1) - at(o - W) - at(o + W)) * 0.35f
+                px = px or (v.toInt().coerceIn(0, 255) shl sh)
+            }
+            sharp[o] = px
+        }
+        return Bitmap.createBitmap(sharp, W, H, Bitmap.Config.ARGB_8888)
     }
 
     @Suppress("unused")

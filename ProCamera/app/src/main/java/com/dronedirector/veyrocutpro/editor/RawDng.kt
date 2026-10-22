@@ -41,6 +41,8 @@ object RawDng {
         val shapeOff: Boolean = false,
         /** Index into [LOOKS]; 0 = the default look. */
         val look: Int = 0,
+        /** An imported camera profile (.dcp) used instead of the file's own colour ([DcpStore] id); null = the file's. */
+        val dcp: String? = null,
     ) {
         val vigOn: Boolean get() = !lensOff && !vigOff
         val shapeOn: Boolean get() = !lensOff && !shapeOff
@@ -574,6 +576,75 @@ object RawDng {
         "FC7703" to "Avata", "FC8671" to "Avata 2", "FC3277" to "DJI FPV", "FC9813" to "Neo",
         "ZH20T" to "Zenmuse H20T", "ZH20" to "Zenmuse H20", "ZenmuseP1" to "Zenmuse P1", "FC6520" to "Zenmuse X5S", "FC6540" to "Zenmuse X7",
     )[model.trim()]
+
+    // ---- DNG camera profiles (.dcp): the colour part of a DNG in a file of its own.
+
+    /** A camera profile read from a .dcp file. */
+    class Dcp internal constructor(
+        val name: String, val camera: String,
+        internal val cm1: DoubleArray?, internal val cm2: DoubleArray?, internal val fm1: DoubleArray?, internal val fm2: DoubleArray?,
+        internal val illum1: Int, internal val illum2: Int,
+        internal val hueSat: HsvTable?, internal val hueSat2: HsvTable?, internal val look: HsvTable?, internal val toneCurve: FloatArray?,
+        internal val baselineOffset: Float?,
+    )
+
+    /** Reads a .dcp (DNG Camera Profile) file; throws [UnsupportedRaw] when it isn't one. */
+    fun readDcp(context: Context, uri: Uri): Dcp = Src(context, uri).use { s ->
+        val h = s.bytes(0, 8)
+        val order = if (h[0] == 'M'.code.toByte()) ByteOrder.BIG_ENDIAN else ByteOrder.LITTLE_ENDIAN
+        val bb = ByteBuffer.wrap(h).order(order)
+        val magic = bb.getShort(2).toInt() and 0xFFFF
+        if ((h[0] != 'I'.code.toByte() && h[0] != 'M'.code.toByte()) || (magic != 0x4352 && magic != 42)) throw UnsupportedRaw("Not a camera profile (.dcp)")
+        val (ifd, _) = readIfd(s, bb.getInt(4).toLong() and 0xFFFFFFFFL, order) ?: throw UnsupportedRaw("Not a camera profile (.dcp)")
+        fun m9(t: Int) = ifd.nums(t)?.takeIf { it.size >= 9 }?.copyOf(9)
+        val cm1 = m9(50721); val cm2 = m9(50722)
+        if (cm1 == null && cm2 == null) throw UnsupportedRaw("This profile has no colour matrix")
+        fun hsv(dimTag: Int, dataTag: Int, encTag: Int): HsvTable? {
+            val d = ifd.nums(dimTag) ?: return null
+            val data = ifd.nums(dataTag) ?: return null
+            val hn = d.getOrNull(0)?.toInt() ?: 0; val sn = d.getOrNull(1)?.toInt() ?: 0; val vn = (d.getOrNull(2)?.toInt() ?: 1).coerceAtLeast(1)
+            if (hn < 1 || sn < 2 || data.size < hn * sn * vn * 3) return null
+            return HsvTable(hn, sn, vn, FloatArray(hn * sn * vn * 3) { data[it].toFloat() }, srgbGamma = (ifd.nums(encTag)?.firstOrNull() ?: 0.0) == 1.0)
+        }
+        Dcp(
+            name = ifd.text(50936)?.trim()?.takeIf { it.isNotEmpty() } ?: "Camera profile",
+            camera = ifd.text(50708)?.trim() ?: "",
+            cm1 = cm1, cm2 = cm2, fm1 = m9(50964), fm2 = m9(50965),
+            illum1 = illumK(ifd.num(50778, 21.0).toInt()), illum2 = if (cm2 != null) illumK(ifd.num(50779, 21.0).toInt()) else 0,
+            hueSat = hsv(50937, 50938, 51107), hueSat2 = hsv(50937, 50939, 51107)?.takeIf { cm2 != null },
+            look = hsv(50981, 50982, 51108), toneCurve = ifd.nums(50940)?.takeIf { it.size >= 4 }?.map { it.toFloat() }?.toFloatArray(),
+            baselineOffset = ifd.nums(51109)?.firstOrNull()?.toFloat(),
+        )
+    }
+
+    private val dcpMetas = android.util.LruCache<String, Meta>(4)
+
+    /** [m] with the colour of the imported profile chosen in [dev] (or [m] itself). */
+    private fun withDcp(m: Meta, dev: Dev): Meta {
+        val id = dev.dcp ?: return m
+        val key = "${System.identityHashCode(m)}/$id"
+        dcpMetas.get(key)?.let { return it }
+        val d = DcpStore.get(appContext ?: return m, id) ?: return m
+        val one = d.cm2 == null
+        val out = Meta(
+            m.uri, m.order, m.width, m.height, m.spp, m.bps, m.compression, m.tileW, m.tileH, m.offsets, m.counts, m.rowsPerStrip,
+            m.cfa, m.cfaW, m.cfaH, m.blackRep, m.black, m.blackDH, m.blackDV, m.white, m.linTable,
+            m.activeTop, m.activeLeft, m.cropTop, m.cropLeft, m.cropW, m.cropH, m.gainMaps,
+            d.cm2?.takeIf { kotlin.math.abs(d.illum2 - 6504) < kotlin.math.abs(d.illum1 - 6504) } ?: d.cm1 ?: d.cm2, m.asShot, m.baselineExposure, m.orientation,
+            sampleFormat = m.sampleFormat, predictor = m.predictor,
+            cm1 = d.cm1 ?: d.cm2, cm2 = if (one) null else d.cm2, cc1 = if (one) m.cc1 else m.cc1, cc2 = if (one) null else m.cc2,
+            fm1 = d.fm1, fm2 = if (one) null else d.fm2, illum1 = if (d.cm1 != null) d.illum1 else d.illum2, illum2 = if (one) 0 else d.illum2,
+            analog = m.analog, asShotXY = m.asShotXY,
+            hueSat = d.hueSat, hueSat2 = d.hueSat2, look = d.look, toneCurve = d.toneCurve,
+            baselineOffset = d.baselineOffset ?: m.baselineOffset, profileName = d.name,
+            ops1 = m.ops1, ops2 = m.ops2, warp = m.warp, vignette = m.vignette, info = m.info,
+            dewarp = m.dewarp, drone = m.drone, gains3 = m.gains3, make = m.make, libraw = m.libraw, lj16Bits = m.lj16Bits,
+        )
+        out.estVignette = m.estVignette; out.autoBaseline = m.autoBaseline; out.autoMul = m.autoMul
+        out.matchLin = m.matchLin; out.camLut = m.camLut; out.camSat = m.camSat
+        dcpMetas.put(key, out)
+        return out
+    }
 
     private fun illumK(code: Int): Int = when (code) {
         17, 3, 24 -> 2856; 18 -> 4874; 19 -> 6774; 20 -> 5503; 21, 10 -> 6504; 22, 11 -> 7504; 23 -> 5003
@@ -1700,7 +1771,7 @@ object RawDng {
 
     /** Develops a preview with the current settings (fast enough for live sliders). */
     fun develop(src: Linear, m: Meta, dev: Dev, exposure: Float, highlights: Float, shadows: Float, whites: Float, blacks: Float, temp: Float, tint: Float): Bitmap {
-        val p = Pipe(m, dev, exposure, highlights, shadows, whites, blacks, temp, tint)
+        val p = Pipe(withDcp(m, dev), dev, exposure, highlights, shadows, whites, blacks, temp, tint)
         val n = src.w * src.h
         var out = IntArray(n)
         val f = src.rgb
@@ -1728,7 +1799,7 @@ object RawDng {
     fun export(context: Context, m: Meta, dev: Dev, exposure: Float, highlights: Float, shadows: Float, whites: Float, blacks: Float, temp: Float, tint: Float, maxSide: Int): Bitmap {
         val s = decode(context, m)
         if (dev.wb == 1 && m.autoMul == null) { preview(context, m, 512) } // fills autoMul
-        val p = Pipe(m, dev, exposure, highlights, shadows, whites, blacks, temp, tint)
+        val p = Pipe(withDcp(m, dev), dev, exposure, highlights, shadows, whites, blacks, temp, tint)
         val vig = if (!dev.vigOn) null else (m.vignette ?: m.estVignette)
         val lens3 = dev.vigOn && m.gains3.isNotEmpty()
         val full = max(s.w, s.h)

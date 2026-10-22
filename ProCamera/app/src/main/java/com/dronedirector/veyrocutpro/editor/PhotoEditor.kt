@@ -662,7 +662,12 @@ private fun PhotoWorkspace(
     LaunchedEffect(ExportOpts.gamut, preview) { val pv = preview; gamutImg = if (ExportOpts.gamut != 0 && pv != null) withContext(Dispatchers.Default) { ExportOpts.gamutOverlay(pv) } else null }
     LaunchedEffect(clipWarn, preview) { val pv = preview; clipImg = if (clipWarn && pv != null) withContext(Dispatchers.Default) { Develop.clipOverlay(pv) } else null }
     LaunchedEffect(dustView, dustSens, preview, panel) { val pv = preview; dustImg = if (dustView && panel == PhotoPanel.HEAL && pv != null) withContext(Dispatchers.Default) { Upright.visualise(pv, dustSens) } else null }
-    LaunchedEffect(ExportOpts.proof, preview) { val pv = preview; proofImg = if (ExportOpts.proof && pv != null) withContext(Dispatchers.Default) { ExportOpts.proofView(pv) } else null }
+    LaunchedEffect(ExportOpts.proof, preview, IccProof.on, IccProof.intent, IccProof.paper, IccProof.profile) {
+        val pv = preview
+        proofImg = if (pv == null) null
+            else if (IccProof.on && IccProof.profile != null) withContext(Dispatchers.Default) { try { IccProof.apply(pv) } catch (_: Throwable) { null } }
+            else if (ExportOpts.proof) withContext(Dispatchers.Default) { ExportOpts.proofView(pv) } else null
+    }
     LaunchedEffect(Unit) { ExportOpts.load(context) }
     LaunchedEffect(sharpMaskView, preview, edit.detail.sharpenMasking) { val pv = preview; sharpImg = if (sharpMaskView && pv != null) withContext(Dispatchers.Default) { Develop.sharpenMaskPreview(pv, edit.detail) } else null }
     fun resetZoom() { zoomK = 1f; panX = 0f; panY = 0f }
@@ -953,6 +958,12 @@ private fun PhotoWorkspace(
     }
     LaunchedEffect(message) { if (message != null) { delay(2600); message = null } }
 
+    // Export recipe: several presets exported one after another.
+    val recipeQueue = remember { mutableStateListOf<ExportOpts.Preset>() }
+    fun applyPreset(p: ExportOpts.Preset) {
+        format = p.format; quality = p.quality; sizeIdx = p.sizeIdx
+        ExportOpts.space = p.space; ExportOpts.sharpenFor = p.sharpenFor; ExportOpts.sharpenAmount = p.sharpenAmount; ExportOpts.template = p.template; ExportOpts.presetName = p.name
+    }
     fun export() {
         if (busy || PhotoExportJob.active) return
         busy = true
@@ -1030,6 +1041,7 @@ private fun PhotoWorkspace(
                 val p = context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE)
                 p.edit().putFloat("pe_ms_per_mp", p.getFloat("pe_ms_per_mp", took) * 0.6f + took * 0.4f).apply()
             }
+            if (ok == null || ok == "stopped") recipeQueue.clear()
             message = when {
                 ok == "stopped" -> "Export stopped"
                 ok != null -> "Saved"
@@ -1037,6 +1049,14 @@ private fun PhotoWorkspace(
             }
             PhotoExportJob.end(context, message)
         }
+    }
+
+    LaunchedEffect(busy) {
+        if (busy || recipeQueue.isEmpty()) return@LaunchedEffect
+        delay(400)
+        if (busy || recipeQueue.isEmpty()) return@LaunchedEffect
+        val next = recipeQueue.removeAt(0)
+        applyPreset(next); export()
     }
 
     // ---- AI selections (subject / sky), background and AI erase.
@@ -1604,6 +1624,7 @@ private fun PhotoWorkspace(
                     // Mask handles / brush, and heal taps, on top of the photo.
                     val shownNow = if (comparing) base else preview ?: base
                     if (!split && !comparing && shownNow != null) {
+                        if (panel == PhotoPanel.CROP) CropGuideOverlay(shownNow.width, shownNow.height)
                         val selMask = edit.masks.firstOrNull { it.id == tools.selected }
                         if (panel == PhotoPanel.MASKS && selMask != null && picking == 0) MaskEditOverlay(selMask, shownNow.width, shownNow.height, tools, image = shownNow) { m ->
                             edit = edit.copy(masks = edit.masks.map { if (it.id == m.id) m else it })
@@ -1912,6 +1933,7 @@ private fun PhotoWorkspace(
                                 exportState = ExportState(format, quality, sizeIdx),
                                 onExportState = { f, q, si -> format = f; quality = q; sizeIdx = si },
                                 onExport = { export() },
+                                onRecipe = { list -> if (list.isNotEmpty() && !busy) { recipeQueue.clear(); recipeQueue.addAll(list.drop(1)); applyPreset(list[0]); export() } },
                                 busy = busy,
                                 onPickLogo = { pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                                 isRaw = rawOn(edit),
@@ -2122,6 +2144,7 @@ private fun PhotoPanelContent(
     set: (PhotoEdit) -> Unit,
     exportState: ExportState,
     onExportState: (Int, Float, Int) -> Unit,
+    onRecipe: (List<ExportOpts.Preset>) -> Unit = {},
     onExport: () -> Unit,
     busy: Boolean,
     onPickLogo: () -> Unit = {},
@@ -2160,6 +2183,7 @@ private fun PhotoPanelContent(
         PhotoPanel.LIGHT -> {
             if (isRaw) {
                 RawLookStrip(rawMeta, e.raw) { i -> set(e.copy(raw = e.raw.copy(look = i))) }
+                DcpRow(rawMeta, e.raw) { d -> set(e.copy(raw = d)) }
                 SectionTitle("RAW PROFILE") { set(e.copy(raw = e.raw.copy(profile = 0))) }
                 // "Camera" (the maker's own profile in the file) only when the DNG has one.
                 val profs = RawDng.PROFILES.withIndex().filter { !it.value.camera || rawMeta?.hasCameraProfile == true }
@@ -2362,6 +2386,10 @@ private fun PhotoPanelContent(
                 "16:9" to 16f / 9f, "9:16" to 9f / 16f, "21:9" to 21f / 9f, "2.39:1" to 2.39f, "5:7" to 5f / 7f,
             )
             Chips(aspects.map { it.first }, aspects.indexOfFirst { it.second == geom.aspect }.coerceAtLeast(0)) { i -> geo { it.copy(aspect = aspects[i].second) } }
+            SectionTitle("GUIDES")
+            Chips(CropGuides.MODES, CropGuides.mode) { CropGuides.mode = it }
+            if (CropGuides.turnable) Text("TURN ↻", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { CropGuides.turn = (CropGuides.turn + 1) % 4 }.padding(10.dp))
+            Text("Composition lines over the photo while you crop — only on screen, never in the saved picture.", color = Pro.Dim, fontSize = 11.sp)
             SectionTitle("UPRIGHT") { dev?.upright?.invoke(-1) }
             if (dev != null) {
                 Row(Modifier.hintedScroll(horizontal = true), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2443,6 +2471,20 @@ private fun PhotoPanelContent(
                     }
                     PillChip("+ SAVE", false, accentText = true) { naming = true }
                 }
+                // Recipe: tick several presets and export the photo with all of them in one go.
+                var recipe by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(listOf<String>()) }
+                Text("Export recipe", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+                Row(Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    (ExportOpts.builtIn + ExportOpts.user).forEach { p ->
+                        PillChip((if (p.name in recipe) "✓ " else "") + p.name, p.name in recipe) { recipe = if (p.name in recipe) recipe - p.name else recipe + p.name }
+                    }
+                }
+                val chosen = (ExportOpts.builtIn + ExportOpts.user).filter { it.name in recipe }
+                if (chosen.isNotEmpty()) Text(
+                    "EXPORT WITH ${chosen.size} PRESET" + (if (chosen.size > 1) "S" else ""), style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(enabled = !busy) { onRecipe(chosen) }.padding(10.dp),
+                )
+                Text("Tick presets (e.g. Web + Print + Archive) and export this photo with each of them, one after another — each with its own size, format and file name.", color = Pro.Dim, fontSize = 11.sp)
                 if (naming) ProjectNameDialog("My export ${ExportOpts.user.size + 1}", onSave = { n ->
                     ExportOpts.user.add(ExportOpts.Preset(n, exportState.format, exportState.quality, exportState.sizeIdx, ExportOpts.space, ExportOpts.sharpenFor, ExportOpts.sharpenAmount, ExportOpts.template))
                     ExportOpts.presetName = n; ExportOpts.save(ctx); naming = false
@@ -2473,6 +2515,7 @@ private fun PhotoPanelContent(
                     }
                     androidx.compose.material3.Switch(ExportOpts.proof, { ExportOpts.proof = it }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
                 }
+                IccProofSection()
                 Text("Gamut warning", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
                 Chips(ExportOpts.GAMUT, ExportOpts.gamut) { ExportOpts.gamut = it }
                 if (ExportOpts.gamut != 0) Text("Cyan marks colours that paper can't print — they'll come out duller. Lower their saturation (HSL Mixer) if they matter.", color = Pro.Dim, fontSize = 11.sp)
@@ -2767,5 +2810,71 @@ private fun LookTiles(meta: RawDng.Meta?, lin: RawDng.Linear?, dev: RawDng.Dev, 
                 Text(look.label, color = if (on) Pro.Amber else Color.White, fontSize = 14.sp, maxLines = 2, lineHeight = 17.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
         }
+    }
+}
+
+/**
+ * CAMERA PROFILE (.dcp): import DNG camera profiles and use one instead of the RAW file's own
+ * colour. Picking one also switches RAW PROFILE to Camera, so its tone curve and look table apply.
+ */
+@Composable
+internal fun DcpRow(meta: RawDng.Meta?, dev: RawDng.Dev, onDev: (RawDng.Dev) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var tick by remember { mutableStateOf(0) }
+    var note by remember { mutableStateOf<String?>(null) }
+    val camera = meta?.info?.firstOrNull { it.first == "Camera" }?.second
+    val list = remember(tick, camera) { DcpStore.forCamera(context, camera) }
+    val camIdx = RawDng.PROFILES.indexOfFirst { it.camera }.coerceAtLeast(0)
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { u ->
+        if (u != null) note = try {
+            val en = DcpStore.import(context, u); tick++
+            onDev(dev.copy(dcp = en.id, profile = camIdx))
+            "Imported \"${en.name}\"" + if (en.camera.isNotEmpty()) " for ${en.camera}" else ""
+        } catch (t: Throwable) { t.message ?: "Couldn't read that profile" }
+    }
+    SectionTitle("CAMERA PROFILE (.dcp)") { onDev(dev.copy(dcp = null)) }
+    Chips(listOf("File's own") + list.map { it.name.take(22) }, if (dev.dcp == null) 0 else list.indexOfFirst { it.id == dev.dcp } + 1) { i ->
+        onDev(if (i == 0) dev.copy(dcp = null) else dev.copy(dcp = list[i - 1].id, profile = camIdx))
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+        Text("IMPORT .DCP", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { pick.launch(arrayOf("*/*")) }.padding(10.dp))
+        val cur = list.firstOrNull { it.id == dev.dcp }
+        if (cur != null) Text("REMOVE PROFILE", style = Pro.Label.copy(color = Pro.Red, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable {
+            DcpStore.delete(context, cur.id); tick++; onDev(dev.copy(dcp = null)); note = "Removed \"${cur.name}\""
+        }.padding(10.dp))
+    }
+    Text(note ?: "Use a DNG camera profile (.dcp) — e.g. one made with a colour chart for this camera — instead of the colour in the RAW file. Only profiles for this camera are listed.", color = Pro.Dim, fontSize = 11.sp)
+}
+
+/** Export → PRINTER PROFILE: import a printer / paper ICC profile and soft-proof the photo with it. */
+@Composable
+private fun IccProofSection() {
+    val ctx = LocalContext.current
+    LaunchedEffect(Unit) { withContext(Dispatchers.IO) { IccProof.load(ctx) } }
+    var note by remember { mutableStateOf<String?>(null) }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { u ->
+        if (u != null) note = try { val p = IccProof.import(ctx, u); IccProof.on = true; "Imported \"${p.name}\"" } catch (t: Throwable) { t.message ?: "Couldn't read that profile" }
+    }
+    val p = IccProof.profile
+    Text("Printer profile (.icc)", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+    if (p == null) {
+        Text("IMPORT PRINTER PROFILE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { pick.launch(arrayOf("*/*")) }.padding(10.dp))
+        Text(note ?: "Your print lab or paper maker offers an ICC profile for each paper. Import it to see on screen how the photo will print.", color = Pro.Dim, fontSize = 11.sp)
+        return
+    }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text("Soft proof: " + p.name.take(40), color = Color.White, fontSize = 12.sp)
+            Text(note ?: "The screen shows the photo as this printer and paper reproduce it.", color = Pro.Dim, fontSize = 11.sp)
+        }
+        androidx.compose.material3.Switch(IccProof.on, { IccProof.on = it }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
+    }
+    if (IccProof.on) {
+        Chips(listOf("Perceptual", "Relative colorimetric"), IccProof.intent) { IccProof.intent = it }
+        Chips(listOf("Paper white & ink black", "Screen white"), if (IccProof.paper) 0 else 1) { IccProof.paper = it == 0 }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+        Text("CHANGE PROFILE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { pick.launch(arrayOf("*/*")) }.padding(10.dp))
+        Text("REMOVE", style = Pro.Label.copy(color = Pro.Red, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { IccProof.remove(ctx); note = null }.padding(10.dp))
     }
 }

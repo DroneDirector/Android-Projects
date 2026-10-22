@@ -63,6 +63,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import androidx.core.content.ContextCompat
 import com.dronedirector.veyrocutpro.camera.GradeIO
 import com.dronedirector.veyrocutpro.ui.Pro
@@ -197,6 +198,7 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
                 PillChip("Unflag", false) { LibraryStore.update(context, picked) { it.copy(flag = 0) } }
                 PillChip("+ Album", false) { dialog = "album" }
                 PillChip("Keywords", false) { dialog = "keywords" }
+                PillChip("Contact sheet PDF", false) { dialog = "sheet" }
             }
         }
         Text("${shown.size} photo" + (if (shown.size == 1) "" else "s"), style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), modifier = Modifier.padding(bottom = 4.dp))
@@ -233,6 +235,44 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
             }
         }
     }
+
+    // ---- Contact sheet PDF
+    var sheetCols by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(4) }
+    var sheetLetter by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    var sheetCaps by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(true) }
+    var sheetBusy by remember { mutableStateOf<String?>(null) }
+    val sheetScope = androidx.compose.runtime.rememberCoroutineScope()
+    val sheetUris = sel.map { it.uri }
+    val saveSheet = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { out ->
+        if (out == null || sheetUris.isEmpty()) return@rememberLauncherForActivityResult
+        sheetBusy = "Making the contact sheet…"
+        sheetScope.launch {
+            val res = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                try { "Contact sheet saved (" + ContactSheet.write(context, sheetUris, out, ContactSheet.Options(sheetCols, sheetLetter, sheetCaps)) { i, n -> sheetBusy = "Contact sheet $i / $n" } + " pages)" }
+                catch (t: Throwable) { "Couldn't make the contact sheet: ${t.message}" }
+            }
+            sheetBusy = null
+            android.widget.Toast.makeText(context, res, android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+    sheetBusy?.let { Text(it, color = Pro.Amber, fontSize = 12.sp) }
+    if (dialog == "sheet") androidx.compose.material3.AlertDialog(
+        onDismissRequest = { dialog = null },
+        containerColor = Ed.Raised,
+        title = { Text("Contact sheet PDF", color = Color.White) },
+        text = {
+            Column {
+                Text("${sheetUris.size} photos, as a grid on printable pages.", color = Pro.Dim, fontSize = 12.sp)
+                Text("Photos per row", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { listOf(3, 4, 5, 6).forEach { n -> PillChip("$n", sheetCols == n) { sheetCols = n } } }
+                Text("Paper", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { PillChip("A4", !sheetLetter) { sheetLetter = false }; PillChip("Letter", sheetLetter) { sheetLetter = true } }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 8.dp)) { PillChip("File names & stars", sheetCaps) { sheetCaps = true }; PillChip("Photos only", !sheetCaps) { sheetCaps = false } }
+            }
+        },
+        confirmButton = { Text("SAVE PDF", style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.clickable { dialog = null; saveSheet.launch("Contact sheet.pdf") }.padding(10.dp)) },
+        dismissButton = { Text("CANCEL", style = Pro.Label.copy(color = Pro.Dim, fontSize = 12.sp), modifier = Modifier.clickable { dialog = null }.padding(10.dp)) },
+    )
 
     // ---- Dialogs
     when (dialog) {

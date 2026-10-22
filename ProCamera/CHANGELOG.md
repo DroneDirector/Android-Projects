@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.465 — 2026-10-22
 - Video editor → Audio: the level, loudness and mixer meters now only redraw while the edit plays, instead of all the time — smoother and easier on the battery.
 
 ## 1.0.463 — 2026-10-22

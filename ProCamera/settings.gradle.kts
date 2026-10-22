@@ -18,3 +18,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "ProCamera"
 include(":app")
+include(":wear")

@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import com.dronedirector.veyrocutpro.ui.Text
 import androidx.compose.runtime.Composable
@@ -193,6 +194,14 @@ private fun HubLayout(title: String, subtitle: String, onBack: (() -> Unit)?, ti
                 }
             }
             if (showVersion) ExitButton(angle, pulse, Modifier.align(Alignment.BottomEnd)) { exiting = true }
+            // Start screen settings (gear): home-screen shortcuts.
+            if (showVersion) {
+                var settings by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+                Box(Modifier.align(Alignment.TopEnd).size(46.dp).clip(CircleShape).clickable { settings = true }, contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = Color.White)
+                }
+                if (settings) AppSettingsDialog { settings = false }
+            }
             if (showVersion && version.isNotEmpty()) {
                 Text(
                     "v$version",

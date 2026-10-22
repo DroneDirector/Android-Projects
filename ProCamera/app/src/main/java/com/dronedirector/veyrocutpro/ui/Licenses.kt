@@ -59,6 +59,8 @@ private val NOTICES = listOf(
     Notice("LibRaw 0.22.2 — reading Sony, Canon, Nikon, Fujifilm and other cameras' RAW files (unmodified, its own replaceable libraw.so; source code: github.com/LibRaw/LibRaw, tag 0.22.2)", "LibRaw LLC; includes code from dcraw (Dave Coffin), DCB / FBDD (Jacek Gozdz, BSD), X3F tools (Roland Karlsson, BSD) and Adobe DNG SDK pieces (MIT)", "GNU LGPL 2.1 (full text bundled with the app)", "https://github.com/LibRaw/LibRaw/tree/0.22.2"),
     Notice("Natural Earth 1:110m land outlines (Library map view)", "Natural Earth (naturalearthdata.com)", "Public domain", "https://www.naturalearthdata.com/about/terms-of-use/"),
     Notice("Google ML Kit on-device translation and language identification (caption translation)", "Google LLC", "ML Kit Terms of Service", "https://developers.google.com/ml-kit/terms"),
+    Notice("Google Play services Wearable — the watch remote's connection to the phone", "Google LLC", "Android Software Development Kit License", "https://developer.android.com/studio/terms"),
+    Notice("Jetpack Compose for Wear OS — the watch remote's screen", "The Android Open Source Project", "Apache License 2.0", "https://developer.android.com/jetpack/androidx/releases/wear-compose"),
 )
 
 /** Reads a bundled licence text (fetched at build time), or null if it isn't in this build. */

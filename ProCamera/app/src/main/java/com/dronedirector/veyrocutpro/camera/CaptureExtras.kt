@@ -65,6 +65,31 @@ object CaptureExtras {
     var focusB by mutableStateOf<Float?>(null)
     /** Scope shown on the viewfinder in Pro modes: 0 histogram, 1 waveform, 2 RGB parade, 3 vectorscope. */
     var scope by mutableStateOf(0)
+    /** Pull points: zoom and exposure (EV) A / B — not kept between sessions — and the move's length. */
+    var zoomA by mutableStateOf<Float?>(null)
+    var zoomB by mutableStateOf<Float?>(null)
+    var evA by mutableStateOf<Int?>(null)
+    var evB by mutableStateOf<Int?>(null)
+    var pullSec by mutableStateOf(2)
+    /** Separate focus and exposure points: tap = focus, double-tap = exposure. */
+    var splitAfAe by mutableStateOf(false)
+    /** Where the exposure is metered when focus and exposure are separate (viewfinder pixels). */
+    var aePoint by mutableStateOf<Pair<Float, Float>?>(null)
+    /** What the Fn button does (an [FnAction] name), and whether the Pro read-out bar is shown. */
+    var fnAction by mutableStateOf("ZEBRAS")
+    var readout by mutableStateOf(true)
+    /** Pro audio: record uncompressed and save a 24-bit WAV next to each clip. */
+    var wavAudio by mutableStateOf(false)
+    /** NTSC rates: 24 / 30 / 60 fps clips are conformed to 23.976 / 29.97 / 59.94. */
+    var ntsc by mutableStateOf(false)
+    /** Mirror the picture left ↔ right (lens adapters, mirror rigs, teleprompters) — viewfinder and recording. */
+    var flipH by mutableStateOf(false)
+    /** Record in the chosen frame guide's shape (2.39, 2.76, 1.85…) instead of only showing it. */
+    var recordAspect by mutableStateOf(false)
+    /** Video bitrate: 0 economy, 1 standard, 2 high, 3 extreme. */
+    var bitrateTier by mutableStateOf(2)
+    /** A file (e.g. in Google Drive) the C1–C3 set-ups are synced through, or null. */
+    var presetSyncUri by mutableStateOf<String?>(null)
 
     private fun prefs(c: Context) = c.getSharedPreferences("procam", Context.MODE_PRIVATE)
 
@@ -103,6 +128,16 @@ object CaptureExtras {
         longKind = p.getInt("x_long_kind", 0)
         longSec = p.getInt("x_long_sec", 4)
         scope = p.getInt("x_scope", 0)
+        pullSec = p.getInt("x_pull_sec", 2)
+        splitAfAe = p.getBoolean("x_split_afae", false)
+        fnAction = p.getString("x_fn", "ZEBRAS") ?: "ZEBRAS"
+        readout = p.getBoolean("x_readout", true)
+        wavAudio = p.getBoolean("x_wav", false)
+        ntsc = p.getBoolean("x_ntsc", false)
+        flipH = p.getBoolean("x_flip", false)
+        recordAspect = p.getBoolean("x_rec_aspect", false)
+        bitrateTier = p.getInt("x_bitrate_tier", if (p.getBoolean("high_bitrate", true)) 2 else 1)
+        presetSyncUri = p.getString("x_preset_sync", null)
     }
 
     fun save(c: Context) {
@@ -139,6 +174,16 @@ object CaptureExtras {
             .putInt("x_long_kind", longKind)
             .putInt("x_long_sec", longSec)
             .putInt("x_scope", scope)
+            .putInt("x_pull_sec", pullSec)
+            .putBoolean("x_split_afae", splitAfAe)
+            .putString("x_fn", fnAction)
+            .putBoolean("x_readout", readout)
+            .putBoolean("x_wav", wavAudio)
+            .putBoolean("x_ntsc", ntsc)
+            .putBoolean("x_flip", flipH)
+            .putBoolean("x_rec_aspect", recordAspect)
+            .putInt("x_bitrate_tier", bitrateTier)
+            .putString("x_preset_sync", presetSyncUri)
             .apply()
     }
 

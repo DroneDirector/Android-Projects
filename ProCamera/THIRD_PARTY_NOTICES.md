@@ -13,6 +13,8 @@ also shown in the app: **Settings (gear) → © Open-source licences**.
 | ESRGAN model (AI upscale) | TensorFlow authors (esrgan-tf2) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | DeepLab v3 model (AI subject selection) | The TensorFlow Authors | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | Google ML Kit — face detection, selfie segmentation, subject segmentation, image labelling (via Google Play services) | Google LLC | [ML Kit Terms of Service](https://developers.google.com/ml-kit/terms) |
+| Google Play services Wearable (watch remote connection) | Google LLC | [Android Software Development Kit License](https://developer.android.com/studio/terms) |
+| Jetpack Compose for Wear OS (watch remote screen) | The Android Open Source Project | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | [NAFNet](https://github.com/megvii-research/NAFNet) SIDD width-32 weights (AI noise reduction), [LiteRT conversion](https://huggingface.co/litert-community/NAFNet-SIDD-width32-LiteRT) | megvii-research | [MIT](https://github.com/megvii-research/NAFNet/blob/main/LICENSE) |
 | [jxl-coder](https://github.com/awxkee/jxl-coder) (JPEG XL export) | Radzivon Bartoshyk | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) / BSD-3-Clause |
 | [libjxl](https://github.com/libjxl/libjxl) (inside jxl-coder) | The JPEG XL Project Authors | BSD-3-Clause |

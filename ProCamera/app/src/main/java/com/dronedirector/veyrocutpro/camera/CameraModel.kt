@@ -41,6 +41,7 @@ enum class CaptureMode(val label: String, val isVideo: Boolean, val isPro: Boole
 /** Cinema / social frame guides drawn over the video viewfinder. */
 enum class FrameGuide(val label: String, val ratio: Float) {
     OFF("OFF", 0f),
+    ULTRA("2.76", 2.76f),
     SCOPE("2.39", 2.39f),
     FLAT("1.85", 1.85f),
     CLASSIC("4:3", 4f / 3f),
@@ -346,3 +347,14 @@ enum class VideoCodec(val label: String, val mime: String) {
  * (A001C003_261015_ACLX): camera letter, reel number, clip number, date, then a device tag.
  */
 enum class ClipNaming(val label: String) { STANDARD("Date & time"), CINEMA("Camera / reel / clip") }
+
+/** What the Fn button does (hold Fn to choose). */
+enum class FnAction(val label: String) {
+    ZEBRAS("Zebras"), PEAKING("Peaking"), FALSE_COLOR("False colour"), SCOPE("Next scope"),
+    AE_LOCK("AE lock"), AWB_LOCK("AWB lock"), SPLIT_AFAE("Split focus / exposure"),
+    PULL_A("Pull to A"), PULL_B("Pull to B"), GUIDE("Next frame guide"), SAFE_AREAS("Safe areas"),
+    LOG_ASSIST("Log view assist"), FLIP("Flip picture"), TORCH("Torch"), NEXT_LENS("Next lens"),
+    MAGNIFIER("Focus magnifier"), CLEAN_FEED("Clean feed");
+
+    companion object { fun of(name: String) = entries.firstOrNull { it.name == name } ?: ZEBRAS }
+}

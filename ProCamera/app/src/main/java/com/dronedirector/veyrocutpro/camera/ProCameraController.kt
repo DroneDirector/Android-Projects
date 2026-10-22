@@ -42,6 +42,7 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.core.UseCase
 import androidx.camera.core.UseCaseGroup
+import androidx.camera.core.ViewPort
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
@@ -86,6 +87,7 @@ import kotlin.math.tan
 import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.pow
+import kotlin.math.roundToInt
 
 @androidx.annotation.OptIn(ExperimentalCamera2Interop::class)
 class ProCameraController(private val context: Context) {
@@ -218,6 +220,15 @@ class ProCameraController(private val context: Context) {
     private var exposureRange = Range(100_000L, 250_000_000L)
     /** ISO × exposure-time snapshot from the auto meter, used for ISO / shutter priority. */
     private var meteredExposure = 100.0 * 8_333_333.0
+    /** Android 15+: the camera's own ISO / shutter priority modes this lens offers. */
+    private var aePriorityModes = IntArray(0)
+    private var lastMeterMs = 0L
+    /** Pro audio (24-bit WAV) for the clip being recorded. */
+    private val wavRec = WavRecorder(context) { lvl -> mainExecutor.execute { if (wavActive) set { it.copy(audioLevel = lvl) } } }
+    @Volatile private var wavActive = false
+    /** When the clip's first frame was recorded (System.nanoTime), to line the WAV up with it. */
+    private var videoStartNanos = 0L
+    private var pullJobs = HashMap<String, kotlinx.coroutines.Job>()
     private var frameCounter = 0L
 
     @Volatile
@@ -225,6 +236,7 @@ class ProCameraController(private val context: Context) {
 
     private val analyzer = FrameAnalyzer({ analysisConfig }) { result ->
         _analysis.value = result
+        if (result.meanLuma >= 0f) mainExecutor.execute { meterStep(result.meanLuma) }
         if (result.motionX != 0f) mainExecutor.execute { onPanoMotion(result.motionX) }
     }
 
@@ -241,6 +253,7 @@ class ProCameraController(private val context: Context) {
             falseColor = s.proFalseColor,
             mirror = s.isFront,
             motion = s.panoActive,
+            meter = priorityActive(s) && priorityMode(s) < 0,
         )
     }
 
@@ -261,6 +274,7 @@ class ProCameraController(private val context: Context) {
     /** Leaving the capture screen (home / editors): release the camera, mic and live stream. */
     fun detach() {
         try { if (st.recording) shutter() } catch (_: Throwable) {}
+        watch.stop()
         startScreenAnalysis(false)
         audioMeter.stopMonitoring()
         try { live.close() } catch (_: Throwable) {}
@@ -273,7 +287,12 @@ class ProCameraController(private val context: Context) {
         set { it.copy(ready = false) }
     }
 
+    /** The watch remote (Wear OS). */
+    private val watch by lazy { WatchLink(context, scope, this) { previewView } }
+
     fun attach(owner: LifecycleOwner, view: PreviewView) {
+        pullPresetSync()
+        watch.start()
         this.owner = owner
         previewView = view
         refreshStorage()
@@ -416,6 +435,9 @@ class ProCameraController(private val context: Context) {
             // Cap at 30 s; some sensors report absurd maximums.
             exposureRange = Range(it.lower, minOf(it.upper, 30_000_000_000L))
         }
+        aePriorityModes = if (Build.VERSION.SDK_INT >= 35) try {
+            c2.getCameraCharacteristic(CameraCharacteristics.CONTROL_AE_AVAILABLE_PRIORITY_MODES) ?: IntArray(0)
+        } catch (_: Throwable) { IntArray(0) } else IntArray(0)
         val minFocus = c2.getCameraCharacteristic(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE) ?: 0f
         val tonemaps = c2.getCameraCharacteristic(CameraCharacteristics.TONEMAP_AVAILABLE_TONE_MAP_MODES) ?: IntArray(0)
         val flat = tonemaps.contains(CameraMetadata.TONEMAP_MODE_CONTRAST_CURVE)
@@ -660,6 +682,7 @@ class ProCameraController(private val context: Context) {
         filterProcessor.setFilter(s.filter)
         filterProcessor.setCurve(logCurve(s), s.logAssist)
         filterProcessor.ndFrames = if (s.mode.isNormalVideo) CaptureExtras.ndBlur else 0
+        filterProcessor.flipX = CaptureExtras.flipH
         val effect: CameraEffect? = if (wantEffect) {
             val targets = if (s.mode.isNormalVideo) CameraEffect.PREVIEW or CameraEffect.VIDEO_CAPTURE else CameraEffect.PREVIEW
             FilterEffect(targets, filterProcessor) { t -> mainExecutor.execute { toast("Filter error: ${t.message}") } }
@@ -685,6 +708,10 @@ class ProCameraController(private val context: Context) {
             try {
                 p.unbindAll()
                 val group = UseCaseGroup.Builder().addUseCase(preview)
+                // Record in the frame guide's shape (2.39, 2.76, 1.85…): the picture is cropped to it.
+                if (CaptureExtras.recordAspect && s.isVideo && s.guide.ratio > 0f) {
+                    try { group.setViewPort(ViewPort.Builder(Rational((s.guide.ratio * 1000).roundToInt(), 1000), capRot()).build()) } catch (_: Throwable) {}
+                }
                 val useMain = if (a.fallback) fallbackVideo else main
                 if (useMain != null) group.addUseCase(useMain)
                 if (a.analysis) group.addUseCase(analysis)
@@ -988,7 +1015,9 @@ class ProCameraController(private val context: Context) {
         // Strict: exactly the chosen quality (binding fails rather than silently dropping, e.g. 4K → 1080p).
         val recorderBuilder = Recorder.Builder()
             .setQualitySelector(if (strict) QualitySelector.from(q) else QualitySelector.from(q, FallbackStrategy.lowerQualityOrHigherThan(q)))
-        if (s.highBitrate) recorderBuilder.setTargetVideoEncodingBitRate(s.videoRes.highBitrate)
+        // Bitrate: economy, standard (the phone's own choice), high or extreme.
+        val br = when (CaptureExtras.bitrateTier) { 0 -> s.videoRes.highBitrate / 3; 1 -> 0; 3 -> (s.videoRes.highBitrate * 1.6).toInt(); else -> s.videoRes.highBitrate }
+        if (br > 0) recorderBuilder.setTargetVideoEncodingBitRate(br)
         // 8-bit codec choice; 10-bit HLG is always HEVC and is left to CameraX.
         val hlg = s.isPro && s.profile == VideoProfile.HLG && s.hlgSupported
         if (!hlg && s.videoCodec == VideoCodec.HEVC && s.hevcSupported) {
@@ -1043,7 +1072,14 @@ class ProCameraController(private val context: Context) {
         if (s.sceneActive) return
 
         val b = CaptureRequestOptions.Builder()
-        if (s.manualExposure && s.manualSensor) {
+        val prio = priorityMode(s)
+        if (prio >= 0 && Build.VERSION.SDK_INT >= 35) {
+            // Android 15+: the camera keeps the chosen ISO or shutter and meters the other itself.
+            b.setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+            b.setCaptureRequestOption(CaptureRequest.CONTROL_AE_PRIORITY_MODE, prio)
+            if (s.manualShutter) b.setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, s.shutterNs)
+            else b.setCaptureRequestOption(CaptureRequest.SENSOR_SENSITIVITY, s.iso)
+        } else if (s.manualExposure && s.manualSensor) {
             val (iso, exp) = effectiveExposure(s)
             val frameNs = if (s.mode.isNormalVideo) 1_000_000_000L / s.fps else 33_333_333L
             b.setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF)
@@ -1075,9 +1111,39 @@ class ProCameraController(private val context: Context) {
             Camera2CameraControl.from(control).setCaptureRequestOptions(b.build())
         } catch (_: Throwable) {
         }
-        if (!s.manualExposure && s.evMax > s.evMin) {
+        if ((!s.manualExposure || prio >= 0) && s.evMax > s.evMin) {
             control.setExposureCompensationIndex(s.ev.coerceIn(s.evMin, s.evMax))
         }
+    }
+
+    /** Shutter priority (shutter manual, ISO auto) or ISO priority (ISO manual, shutter auto). */
+    fun priorityActive(s: CameraUiState = st): Boolean = s.isPro && s.manualSensor && (s.manualIso != s.manualShutter) && !s.aeLock
+
+    /** The camera's own priority mode for [s] (Android 15+), or -1 when the app meters itself. */
+    private fun priorityMode(s: CameraUiState): Int {
+        if (Build.VERSION.SDK_INT < 35 || !priorityActive(s)) return -1
+        val want = if (s.manualShutter) CameraMetadata.CONTROL_AE_PRIORITY_MODE_SENSOR_EXPOSURE_TIME_PRIORITY
+            else CameraMetadata.CONTROL_AE_PRIORITY_MODE_SENSOR_SENSITIVITY_PRIORITY
+        return if (aePriorityModes.contains(want)) want else -1
+    }
+
+    /**
+     * Shutter / ISO priority on phones without the camera's own priority modes: keeps the picture's
+     * average brightness at mid grey by adjusting the automatic half (ISO or shutter) continuously.
+     */
+    private fun meterStep(mean: Float) {
+        val s = st
+        if (!priorityActive(s) || priorityMode(s) >= 0 || mean !in 0.01f..0.99f) return
+        val now = System.currentTimeMillis()
+        if (now - lastMeterMs < 150) return
+        lastMeterMs = now
+        val target = 0.42f
+        val ratio = (target / mean).toDouble().pow(1.1).coerceIn(0.6, 1.6)
+        if (abs(ln(ratio)) < 0.04) return
+        val lo = isoRange.lower.toDouble() * exposureRange.lower
+        val hi = isoRange.upper.toDouble() * exposureRange.upper
+        meteredExposure = (meteredExposure * ratio).coerceIn(lo, hi)
+        applyControls()
     }
 
     private fun snapshotMeterIfAuto() {
@@ -1159,6 +1225,13 @@ class ProCameraController(private val context: Context) {
     fun savePreset(slot: Int) {
         CamPresets.save(context, slot, CamPreset.from(st))
         toast("C$slot saved")
+        if (CaptureExtras.presetSyncUri != null) scope.launch(Dispatchers.IO) { if (!CamPresets.syncPush(context)) toast("Couldn't update the set-up sync file") }
+    }
+
+    /** Takes newer C1–C3 from the sync file, if one is set (another device may have saved them). */
+    fun pullPresetSync() {
+        if (CaptureExtras.presetSyncUri == null) return
+        scope.launch(Dispatchers.IO) { if (CamPresets.syncPull(context)) toast("C1–C3 updated from your other device") }
     }
 
     fun recallPreset(slot: Int) {
@@ -1519,9 +1592,20 @@ class ProCameraController(private val context: Context) {
         else -> 0
     }
 
+    /** Bitrate: economy → standard → high → extreme. */
     fun toggleBitrate() {
         if (st.recording) return
-        set { it.copy(highBitrate = !it.highBitrate) }
+        CaptureExtras.bitrateTier = (CaptureExtras.bitrateTier + 1) % 4
+        CaptureExtras.save(context)
+        set { it.copy(highBitrate = CaptureExtras.bitrateTier >= 2) }
+        bind()
+    }
+
+    fun setBitrateTier(t: Int) {
+        if (st.recording) return
+        CaptureExtras.bitrateTier = t.coerceIn(0, 3)
+        CaptureExtras.save(context)
+        set { it.copy(highBitrate = CaptureExtras.bitrateTier >= 2) }
         bind()
     }
 
@@ -1540,6 +1624,7 @@ class ProCameraController(private val context: Context) {
         val view = previewView ?: return
         val s = st
         set { it.copy(focusPoint = x to y, focusId = it.focusId + 1) }
+        if (CaptureExtras.splitAfAe) { startSplitMetering(); return }
         var flags = 0
         if (!s.manualFocusActive) flags = flags or FocusMeteringAction.FLAG_AF
         if (!s.manualExposure && !s.aeLock) flags = flags or FocusMeteringAction.FLAG_AE
@@ -1553,6 +1638,73 @@ class ProCameraController(private val context: Context) {
             cam.cameraControl.startFocusAndMetering(action)
         } catch (_: Throwable) {
         }
+    }
+
+    /** Separate focus and exposure: double-tap meters the exposure at that spot (focus stays put). */
+    fun meterAt(x: Float, y: Float) {
+        if (st.manualExposure && priorityMode(st) < 0) { toast("Exposure is manual"); return }
+        CaptureExtras.aePoint = x to y
+        startSplitMetering()
+    }
+
+    /** Focus at the focus point and exposure at the exposure point, held until changed. */
+    private fun startSplitMetering() {
+        val cam = camera ?: return
+        val view = previewView ?: return
+        val s = st
+        val f = view.meteringPointFactory
+        val af = s.focusPoint?.takeIf { !s.manualFocusActive }
+        val ae = CaptureExtras.aePoint?.takeIf { !s.aeLock && (!s.manualExposure || priorityMode(s) >= 0) }
+        val first = af ?: ae ?: return
+        try {
+            val b = FocusMeteringAction.Builder(f.createPoint(first.first, first.second), if (af != null) FocusMeteringAction.FLAG_AF else FocusMeteringAction.FLAG_AE)
+            if (af != null && ae != null) b.addPoint(f.createPoint(ae.first, ae.second), FocusMeteringAction.FLAG_AE)
+            cam.cameraControl.startFocusAndMetering(b.disableAutoCancel().build())
+        } catch (_: Throwable) {}
+    }
+
+    fun setSplitAfAe(on: Boolean) {
+        CaptureExtras.splitAfAe = on
+        if (!on) CaptureExtras.aePoint = null
+        CaptureExtras.save(context)
+        try { camera?.cameraControl?.cancelFocusAndMetering() } catch (_: Throwable) {}
+    }
+
+    // ---------------------------------------------------------------- pull points
+
+    private fun glide(key: String, durMs: Long, step: (Float) -> Unit) {
+        pullJobs[key]?.cancel()
+        pullJobs[key] = scope.launch {
+            val t0 = System.currentTimeMillis()
+            while (true) {
+                val p = ((System.currentTimeMillis() - t0).toFloat() / durMs.coerceAtLeast(1)).coerceIn(0f, 1f)
+                step(p * p * (3f - 2f * p))
+                if (p >= 1f) break
+                delay(33)
+            }
+        }
+    }
+
+    /** Zoom pull: glide the zoom to [target] over [durMs] (even speed in perceived size). */
+    fun pullZoom(target: Float, durMs: Long) {
+        val from = st.zoom.coerceAtLeast(0.01f); val to = target.coerceIn(st.minZoom, st.maxZoom).coerceAtLeast(0.01f)
+        glide("zoom", durMs) { e -> setZoom(kotlin.math.exp(ln(from) + (ln(to) - ln(from)) * e)) }
+    }
+
+    /** Exposure pull: step the exposure compensation to [target] over [durMs]. */
+    fun pullEv(target: Int, durMs: Long) {
+        val from = st.ev
+        glide("ev", durMs) { e -> val v = (from + (target - from) * e).roundToInt(); if (v != st.ev) setEv(v) }
+    }
+
+    /** Every stored pull point at once — focus, zoom and exposure — to A or B. */
+    fun pullAll(toB: Boolean) {
+        val x = CaptureExtras
+        val d = x.pullSec * 1000L
+        (if (toB) x.focusB else x.focusA)?.let { rackFocus(it, d) }
+        (if (toB) x.zoomB else x.zoomA)?.let { pullZoom(it, d) }
+        (if (toB) x.evB else x.evA)?.let { pullEv(it, d) }
+        if (listOf(x.focusA, x.focusB, x.zoomA, x.zoomB, x.evA, x.evB).all { it == null }) toast("Set A and B points first (focus, zoom or EV)")
     }
 
     // ---------------------------------------------------------------- capture
@@ -1705,7 +1857,54 @@ class ProCameraController(private val context: Context) {
     }
 
     fun setBracket(b: Bracket) = set { it.copy(bracket = b) }
-    fun setGuide(g: FrameGuide) = set { it.copy(guide = g) }
+    fun setGuide(g: FrameGuide) {
+        set { it.copy(guide = g) }
+        if (CaptureExtras.recordAspect && st.isVideo && !st.recording) bind()
+    }
+
+    /** Mirror the picture left ↔ right (viewfinder and recording). */
+    fun setFlip(on: Boolean) {
+        if (st.recording) return
+        CaptureExtras.flipH = on; CaptureExtras.save(context)
+        filterProcessor.flipX = on
+        bind()
+    }
+
+    /** Record in the frame guide's shape (cropped), or only show the guide. */
+    fun setRecordAspect(on: Boolean) {
+        if (st.recording) return
+        CaptureExtras.recordAspect = on; CaptureExtras.save(context)
+        if (on && st.guide == FrameGuide.OFF) set { it.copy(guide = FrameGuide.SCOPE) }
+        bind()
+    }
+
+    /** The Fn button. */
+    fun runFn() {
+        val s = st
+        when (FnAction.of(CaptureExtras.fnAction)) {
+            FnAction.ZEBRAS -> toggleZebras()
+            FnAction.PEAKING -> togglePeaking()
+            FnAction.FALSE_COLOR -> toggleFalseColor()
+            FnAction.SCOPE -> { CaptureExtras.scope = (CaptureExtras.scope + 1) % 4; if (!s.showHistogram) toggleHistogram(); CaptureExtras.save(context) }
+            FnAction.AE_LOCK -> toggleAeLock()
+            FnAction.AWB_LOCK -> toggleAwbLock()
+            FnAction.SPLIT_AFAE -> { setSplitAfAe(!CaptureExtras.splitAfAe); toast(if (CaptureExtras.splitAfAe) "Focus: tap · exposure: double-tap" else "Focus and exposure together") }
+            FnAction.PULL_A -> pullAll(false)
+            FnAction.PULL_B -> pullAll(true)
+            FnAction.GUIDE -> setGuide(FrameGuide.entries[(s.guide.ordinal + 1) % FrameGuide.entries.size])
+            FnAction.SAFE_AREAS -> { CaptureExtras.safeAreas = !CaptureExtras.safeAreas; CaptureExtras.save(context) }
+            FnAction.LOG_ASSIST -> toggleLogAssist()
+            FnAction.FLIP -> setFlip(!CaptureExtras.flipH)
+            FnAction.TORCH -> setFlash(if (s.flash == FlashSetting.TORCH) FlashSetting.OFF else FlashSetting.TORCH)
+            FnAction.NEXT_LENS -> if (s.lenses.isNotEmpty()) selectLens((s.lensIndex + 1) % s.lenses.size)
+            FnAction.MAGNIFIER -> { CaptureExtras.focusMagnifier = !CaptureExtras.focusMagnifier; CaptureExtras.save(context) }
+            FnAction.CLEAN_FEED -> setCleanFeed(!s.cleanFeed)
+        }
+    }
+
+    fun setFnAction(a: FnAction) { CaptureExtras.fnAction = a.name; CaptureExtras.save(context); toast("Fn = ${a.label}") }
+    fun setWavAudio(on: Boolean) { if (!st.recording) { CaptureExtras.wavAudio = on; CaptureExtras.save(context) } }
+    fun setNtsc(on: Boolean) { if (!st.recording) { CaptureExtras.ntsc = on; CaptureExtras.save(context) } }
 
     // ---------------------------------------------------------------- filters
 
@@ -1719,7 +1918,7 @@ class ProCameraController(private val context: Context) {
         if (s.mode.isLapse) return true
         if (s.mode.isSlowMo) return false
         if (s.mode == CaptureMode.PRO_VIDEO && s.profile == VideoProfile.HLG && s.hlgSupported) return false
-        return s.filter != Filter.NONE || logCurve(s) != 0 || filterProcessor.hasLut || CaptureExtras.faceBlur ||
+        return s.filter != Filter.NONE || logCurve(s) != 0 || filterProcessor.hasLut || CaptureExtras.faceBlur || CaptureExtras.flipH ||
             (s.mode.isNormalVideo && CaptureExtras.ndBlur > 1)
     }
 
@@ -2467,7 +2666,14 @@ class ProCameraController(private val context: Context) {
         val micGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
         recordingHasAudio = s0.mode.isNormalVideo && st.audio && micGranted
-        if (recordingHasAudio) { btMic(CaptureExtras.micBluetooth); pending = pending.withAudioEnabled() }
+        videoStartNanos = 0L
+        // Pro audio: the microphone is recorded uncompressed by the app; the video records without sound.
+        wavActive = recordingHasAudio && CaptureExtras.wavAudio && slowMoFile == null && run {
+            audioMeter.stopMonitoring()
+            btMic(CaptureExtras.micBluetooth)
+            wavRec.start().also { if (!it) toast("Couldn't start the 24-bit audio recorder — recording normal sound") }
+        }
+        if (recordingHasAudio && !wavActive) { btMic(CaptureExtras.micBluetooth); pending = pending.withAudioEnabled() }
         if (s0.mode.isNormalVideo && st.audio && !micGranted) toast("Recording without sound (microphone not allowed)")
         playSound(MediaActionSound.START_VIDEO_RECORDING)
         if (CaptureExtras.gyroflow && s0.mode.isNormalVideo && slowMoFile == null) gyroLog.start()
@@ -2478,6 +2684,8 @@ class ProCameraController(private val context: Context) {
             toast("Couldn't start recording: ${t.message}")
         }
     }
+
+    private fun wavStream(clip: Uri, tree: Uri?): java.io.OutputStream? = wavStreamImpl(context, clip, tree)
 
     private fun stopRecording() {
         recording?.stop()
@@ -2521,10 +2729,12 @@ class ProCameraController(private val context: Context) {
                     // Show the level with the input gain applied, matching the finished clip.
                     audioMeter.pushAmplitude((amp * 10f.pow(st.audioGainDb / 20f)).coerceAtMost(1f))
                 }
-                set { it.copy(recordSeconds = stats.recordedDurationNanos / 1_000_000_000L, audioLevel = amp) }
+                if (videoStartNanos == 0L && stats.recordedDurationNanos > 0) videoStartNanos = System.nanoTime() - stats.recordedDurationNanos
+                set { it.copy(recordSeconds = stats.recordedDurationNanos / 1_000_000_000L, audioLevel = if (wavActive) it.audioLevel else amp) }
             }
             is VideoRecordEvent.Finalize -> {
                 recording = null
+                val take = if (wavActive) { wavActive = false; wavRec.stop() } else null
                 btMic(false)
                 scope.launch { delay(400); startPreBuffer() }
                 val slowFile = slowMoFile
@@ -2581,14 +2791,29 @@ class ProCameraController(private val context: Context) {
                 val gainDb = st.audioGainDb
                 val wind = CaptureExtras.windFilter
                 val nr = CaptureExtras.noiseReduce
-                val doAudio = recordingHasAudio && (gainDb != 0 || wind || nr > 0)
+                // Pro audio take: the input gain goes into the WAV (and the clip's sound made from it).
+                val doAudio = recordingHasAudio && ((take == null && gainDb != 0) || wind || nr > 0)
                 val doTitle = CaptureExtras.titleOn && CaptureExtras.titleText.isNotBlank()
-                if ((doAudio || doTitle) && uri != Uri.EMPTY) {
+                val ntsc = CaptureExtras.ntsc && st.fps in listOf(24, 30, 60)
+                val doConform = take != null || ntsc
+                if (uri == Uri.EMPTY) take?.file?.delete()
+                if ((doAudio || doTitle || doConform) && uri != Uri.EMPTY) {
                     val limiter = st.audioLimiter
+                    val start = videoStartNanos
+                    val place = Storage.resolve(context, st.storageVolume)
+                    val tree = if (doc != null && Storage.isTree(place)) place else null
                     set { it.copy(processing = true) }
                     scope.launch {
+                        if (doConform) {
+                            val ok = withContext(Dispatchers.IO) {
+                                val wavOut: (() -> java.io.OutputStream?)? = if (take != null) { { wavStream(uri, tree) } } else null
+                                ClipConform.finish(context, uri, take, start, ntsc, gainDb, limiter, wavOut)
+                            }
+                            if (!ok) toast(if (take != null) "Couldn't finish the 24-bit audio" else "Couldn't conform the clip to the NTSC rate")
+                            else if (take != null) toast("24-bit WAV saved" + if (tree == null) " (Music/VeyroCutPro)" else "")
+                        }
                         if (doAudio) {
-                            val ok = withContext(Dispatchers.IO) { AudioGain.apply(context, uri, gainDb, limiter, wind, nr) }
+                            val ok = withContext(Dispatchers.IO) { AudioGain.apply(context, uri, if (take != null) 0 else gainDb, limiter, wind, nr) }
                             if (!ok) toast("Couldn't process the sound; the clip was saved without it")
                         }
                         if (doTitle) burnTitle(uri)
@@ -2600,6 +2825,22 @@ class ProCameraController(private val context: Context) {
             }
         }
     }
+}
+
+/** Where a clip's 24-bit WAV goes: next to it in the save folder, or Music/VeyroCutPro. */
+private fun wavStreamImpl(context: Context, clip: Uri, tree: Uri?): java.io.OutputStream? {
+    val base = try {
+        context.contentResolver.query(clip, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+    } catch (_: Throwable) { null }?.substringBeforeLast('.') ?: "clip_${System.currentTimeMillis()}"
+    val name = "$base.wav"
+    if (tree != null) Storage.createInTree(context, tree, "audio/wav", name)?.let { return context.contentResolver.openOutputStream(it) }
+    val values = ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+        put(MediaStore.MediaColumns.MIME_TYPE, "audio/wav")
+        if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "Music/VeyroCutPro")
+    }
+    val u = context.contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values) ?: return null
+    return context.contentResolver.openOutputStream(u)
 }
 
 private inline fun <reified E : Enum<E>> prefEnum(context: Context, key: String, default: E): E {

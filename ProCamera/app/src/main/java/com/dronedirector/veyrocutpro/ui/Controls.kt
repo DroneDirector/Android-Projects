@@ -245,9 +245,16 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
             if (s.profile.isLog) {
                 QuickItem("ASSIST", if (s.logAssist) "ON" else "OFF", active = s.logAssist) { c.toggleLogAssist() }
             }
-            QuickItem("BITRATE", if (s.highBitrate) "HIGH" else "STD", active = s.highBitrate, enabled = !s.recording) { c.toggleBitrate() }
+            run {
+                val t = com.dronedirector.veyrocutpro.camera.CaptureExtras.bitrateTier.coerceIn(0, 3)
+                QuickItem("BITRATE", listOf("ECO", "STD", "HIGH", "EXTREME")[t], active = t >= 2, enabled = !s.recording) { c.toggleBitrate() }
+            }
             QuickItem("F.COLOR", if (s.falseColor) "ON" else "OFF", active = s.falseColor) { c.toggleFalseColor() }
             QuickItem("GUIDE", s.guide.label, active = s.guide != FrameGuide.OFF) { c.setGuide(FrameGuide.entries.next(s.guide)) }
+            run {
+                val ra = com.dronedirector.veyrocutpro.camera.CaptureExtras.recordAspect
+                QuickItem("REC SHAPE", if (ra) s.guide.label else "FULL", active = ra, enabled = !s.recording) { c.setRecordAspect(!ra) }
+            }
             val hlg = s.profile == VideoProfile.HLG
             if (s.hevcSupported || hlg) {
                 QuickItem("CODEC", if (hlg) "HEVC 10" else s.videoCodec.label, active = hlg || s.videoCodec != com.dronedirector.veyrocutpro.camera.VideoCodec.H264, enabled = !s.recording && !hlg && s.hevcSupported) {
@@ -367,6 +374,76 @@ fun ProPanel(s: CameraUiState, c: ProCameraController, isoShown: Int?, shutterSh
             ParamChip(ProParam.EV, "%+.1f".format(s.ev * s.evStep), s, s.evMax > s.evMin, s.ev != 0, c)
             ParamChip(ProParam.ZOOM, Stops.zoomLabel(s.zoom), s, s.maxZoom > s.minZoom, abs(s.zoom - 1f) > 0.05f, c)
             FilterChip(s, c)
+            ReadoutExtras(s, c)
+        }
+    }
+}
+
+/** Read-out extras: exposure mode (auto / shutter priority / ISO priority / manual), split focus & exposure, and the Fn button. */
+@Composable
+private fun ReadoutExtras(s: CameraUiState, c: ProCameraController) {
+    val x = com.dronedirector.veyrocutpro.camera.CaptureExtras
+    val modeLabel = when {
+        s.manualIso && s.manualShutter -> "M"
+        s.manualShutter -> "S-PRI"
+        s.manualIso -> "ISO-PRI"
+        else -> "AUTO"
+    }
+    MiniChip("EXP", modeLabel, modeLabel != "AUTO") {
+        c.toast(when (modeLabel) {
+            "S-PRI" -> "Shutter priority: your shutter, ISO follows the light"
+            "ISO-PRI" -> "ISO priority: your ISO, shutter follows the light"
+            "M" -> "Manual exposure: ISO and shutter both yours"
+            else -> "Auto exposure · set ISO or S for priority modes, both for manual"
+        })
+    }
+    MiniChip("AF·AE", if (x.splitAfAe) "SPLIT" else "JOINED", x.splitAfAe) {
+        c.setSplitAfAe(!x.splitAfAe)
+        c.toast(if (x.splitAfAe) "Focus: tap · exposure: double-tap" else "Focus and exposure together")
+    }
+    if (s.isVideo) {
+        val tier = listOf("ECO", "STD", "HIGH", "XTRM")[x.bitrateTier.coerceIn(0, 3)]
+        val rate = if (x.ntsc && s.fps in listOf(24, 30, 60)) "%.2f".format(s.fps / 1.001).trimEnd('0').trimEnd('.') else "${s.fps}"
+        MiniChip("REC", "${s.videoRes.label}·$rate·$tier", false) { c.toast("Change in the quick bar: RES, FPS, BITRATE · NTSC rates in Settings") }
+    }
+    FnChip(c)
+}
+
+@Composable
+private fun MiniChip(label: String, value: String, on: Boolean, onClick: () -> Unit) {
+    Column(
+        Modifier.padding(2.dp).clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick).padding(horizontal = 4.dp, vertical = 5.dp).widthIn(min = 38.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(label, style = Pro.Label.copy(color = Pro.Dim))
+        Text(value, style = Pro.Value.copy(fontSize = 12.sp, color = if (on) Pro.Amber else Color.White), maxLines = 1)
+    }
+}
+
+/** Fn: tap runs the chosen function; hold to choose it. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun FnChip(c: ProCameraController) {
+    val x = com.dronedirector.veyrocutpro.camera.CaptureExtras
+    var menu by remember { mutableStateOf(false) }
+    Box {
+        Column(
+            Modifier.padding(2.dp).clip(RoundedCornerShape(8.dp)).background(Pro.Amber.copy(alpha = 0.18f))
+                .combinedClickable(onClick = { c.runFn() }, onLongClick = { menu = true })
+                .padding(horizontal = 6.dp, vertical = 5.dp).widthIn(min = 38.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("Fn", style = Pro.Label.copy(color = Pro.Amber))
+            Text(com.dronedirector.veyrocutpro.camera.FnAction.of(x.fnAction).label, style = Pro.Value.copy(fontSize = 11.sp, color = Color.White), maxLines = 1)
+        }
+        androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            Text("Fn button does…", style = Pro.Label.copy(color = Pro.Dim), modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+            com.dronedirector.veyrocutpro.camera.FnAction.entries.forEach { a ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(a.label, color = if (a.name == x.fnAction) Pro.Amber else Color.White) },
+                    onClick = { c.setFnAction(a); menu = false },
+                )
+            }
         }
     }
 }
@@ -509,15 +586,8 @@ private fun ParamEditor(p: ProParam, s: CameraUiState, c: ProCameraController, i
             }
             // Rack focus: store two focus points, then glide between them.
             val x = com.dronedirector.veyrocutpro.camera.CaptureExtras
-            var rackSec by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(2) }
-            Row(Modifier.padding(top = 4.dp).hintedScroll(horizontal = true), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("RACK", style = Pro.Label)
-                AutoToggle(if (x.focusA != null) "SET A ✓" else "SET A", x.focusA != null) { x.focusA = shown }
-                AutoToggle(if (x.focusB != null) "SET B ✓" else "SET B", x.focusB != null) { x.focusB = shown }
-                x.focusA?.let { a -> AutoToggle("→ A", false) { c.rackFocus(a, rackSec * 1000L) } }
-                x.focusB?.let { b -> AutoToggle("→ B", false) { c.rackFocus(b, rackSec * 1000L) } }
-                for (sec in listOf(1, 2, 4)) AutoToggle("${sec}s", rackSec == sec) { rackSec = sec }
-            }
+            PullRow("RACK", x.focusA != null, x.focusB != null, { x.focusA = shown }, { x.focusB = shown },
+                { x.focusA?.let { c.rackFocus(it, x.pullSec * 1000L) } }, { x.focusB?.let { c.rackFocus(it, x.pullSec * 1000L) } }, c)
         }
         ProParam.WB -> {
             Column {
@@ -534,8 +604,9 @@ private fun ParamEditor(p: ProParam, s: CameraUiState, c: ProCameraController, i
                 }
             }
         }
-        ProParam.EV -> {
+        ProParam.EV -> Column {
             val count = s.evMax - s.evMin + 1
+            val x = com.dronedirector.veyrocutpro.camera.CaptureExtras
             EditorRow("EV", "%+.1f".format(s.ev * s.evStep)) {
                 AutoToggle("0", s.ev == 0) { c.setEv(0) }
                 Spacer(Modifier.width(8.dp))
@@ -545,8 +616,12 @@ private fun ParamEditor(p: ProParam, s: CameraUiState, c: ProCameraController, i
                     AutoToggle("AE-L", s.aeLock) { c.toggleAeLock() }
                 }
             }
+            // Exposure pull: glide the exposure between two stored settings.
+            PullRow("EV PULL", x.evA != null, x.evB != null, { x.evA = s.ev }, { x.evB = s.ev },
+                { x.evA?.let { c.pullEv(it, x.pullSec * 1000L) } }, { x.evB?.let { c.pullEv(it, x.pullSec * 1000L) } }, c)
         }
-        ProParam.ZOOM -> {
+        ProParam.ZOOM -> Column {
+            val x = com.dronedirector.veyrocutpro.camera.CaptureExtras
             val lo = ln(s.minZoom.coerceAtLeast(0.1f))
             val hi = ln(s.maxZoom.coerceAtLeast(s.minZoom + 0.01f))
             EditorRow("ZOOM", Stops.zoomLabel(s.zoom)) {
@@ -561,7 +636,29 @@ private fun ParamEditor(p: ProParam, s: CameraUiState, c: ProCameraController, i
                     modifier = Modifier.weight(1f),
                 )
             }
+            // Zoom pull: glide the zoom between two stored settings.
+            PullRow("ZOOM PULL", x.zoomA != null, x.zoomB != null, { x.zoomA = s.zoom }, { x.zoomB = s.zoom },
+                { x.zoomA?.let { c.pullZoom(it, x.pullSec * 1000L) } }, { x.zoomB?.let { c.pullZoom(it, x.pullSec * 1000L) } }, c)
         }
+    }
+}
+
+/**
+ * Pull points: SET A / SET B store the current value; → A / → B glide there over the chosen time;
+ * ALL moves every stored point (focus, zoom, exposure) together.
+ */
+@Composable
+private fun PullRow(label: String, hasA: Boolean, hasB: Boolean, setA: () -> Unit, setB: () -> Unit, goA: () -> Unit, goB: () -> Unit, c: ProCameraController) {
+    val x = com.dronedirector.veyrocutpro.camera.CaptureExtras
+    Row(Modifier.padding(top = 4.dp).hintedScroll(horizontal = true), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = Pro.Label)
+        AutoToggle(if (hasA) "SET A ✓" else "SET A", hasA, setA)
+        AutoToggle(if (hasB) "SET B ✓" else "SET B", hasB, setB)
+        if (hasA) AutoToggle("→ A", false, goA)
+        if (hasB) AutoToggle("→ B", false, goB)
+        for (sec in listOf(1, 2, 4, 8)) AutoToggle("${sec}s", x.pullSec == sec) { x.pullSec = sec }
+        AutoToggle("ALL → A", false) { c.pullAll(false) }
+        AutoToggle("ALL → B", false) { c.pullAll(true) }
     }
 }
 

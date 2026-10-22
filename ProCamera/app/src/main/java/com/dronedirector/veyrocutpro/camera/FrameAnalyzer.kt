@@ -17,6 +17,8 @@ data class AnalysisConfig(
     val mirror: Boolean = false,
     /** Track sideways motion between frames (for panorama). */
     val motion: Boolean = false,
+    /** Measure the average brightness (for the app's own shutter / ISO priority). */
+    val meter: Boolean = false,
 )
 
 class AnalysisResult(
@@ -29,6 +31,8 @@ class AnalysisResult(
     val clipLow: Float,
     /** Camera movement since the previous frame, as a share of the screen width (+ = turning right). */
     val motionX: Float = 0f,
+    /** Average brightness 0..1 when metering, else -1. */
+    val meanLuma: Float = -1f,
 )
 
 /**
@@ -84,7 +88,7 @@ class FrameAnalyzer(
     private fun process(image: ImageProxy) {
         if (CaptureExtras.faceBlur) FaceBlur.submit(image)
         val cfg0 = config()
-        val wantAny = cfg0.histogram || cfg0.zebras || cfg0.peaking || cfg0.falseColor || cfg0.motion
+        val wantAny = cfg0.histogram || cfg0.zebras || cfg0.peaking || cfg0.falseColor || cfg0.motion || cfg0.meter
         if (!wantAny && lastOverlay == null) return
         val plane = image.planes[0]
         val buf = plane.buffer
@@ -99,7 +103,8 @@ class FrameAnalyzer(
         frame++
         val wantOverlay = cfg.zebras || cfg.peaking || cfg.falseColor
         // Histogram ~10 fps, overlays ~15 fps.
-        val doHist = cfg.histogram && frame % 3 == 0L
+        val doHist = (cfg.histogram || cfg.meter) && frame % 3 == 0L
+        var mean = -1f
         val doOverlay = wantOverlay && frame % 2 == 0L
         if (!cfg.motion) { prevCols = null; prevRows = null }
         if (!doHist && !doOverlay && !cfg.motion) {
@@ -118,6 +123,7 @@ class FrameAnalyzer(
             var hi = 0
             var lo = 0
             var n = 0
+            var sum = 0L
             var y = 0
             while (y < h) {
                 val row = y * rowStride
@@ -125,6 +131,7 @@ class FrameAnalyzer(
                 while (x < w) {
                     val l = buffer[row + x * pixStride].toInt() and 0xFF
                     bins[l shr 2]++
+                    sum += l
                     if (l >= 250) hi++
                     if (l <= 5) lo++
                     n++
@@ -135,6 +142,7 @@ class FrameAnalyzer(
             val max = (bins.maxOrNull() ?: 1).coerceAtLeast(1).toFloat()
             hist = FloatArray(64) { bins[it] / max }
             if (n > 0) {
+                mean = sum.toFloat() / n / 255f
                 clipHigh = hi.toFloat() / n
                 clipLow = lo.toFloat() / n
             }
@@ -153,7 +161,7 @@ class FrameAnalyzer(
         }
 
         val motion = if (cfg.motion) estimateMotion(w, h, rowStride, pixStride, rotationDegrees) else 0f
-        onResult(AnalysisResult(if (cfg.histogram) hist else null, overlay, clipHigh, clipLow, motion))
+        onResult(AnalysisResult(if (cfg.histogram) hist else null, overlay, clipHigh, clipLow, motion, if (cfg.meter) mean else -1f))
     }
 
     /** Matches brightness profiles of this frame against the previous one. */

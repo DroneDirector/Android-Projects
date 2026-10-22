@@ -154,7 +154,40 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
 
             Section("VIDEO")
             ToggleRow("Record audio", "Uses the microphone; levels show in the audio graph", s.audio) { c.toggleAudio() }
-            ToggleRow("High bitrate", "More detail, bigger files", s.highBitrate) { c.toggleBitrate() }
+            run {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val x = com.dronedirector.veyrocutpro.camera.CaptureExtras
+                ChoiceRow("Bitrate", listOf(0, 1, 2, 3), x.bitrateTier, { listOf("ECONOMY", "STANDARD", "HIGH", "EXTREME")[it] }) { c.setBitrateTier(it) }
+                Text("Economy saves space, Standard is the phone's own choice, High keeps more detail, Extreme is for grading (big files).", color = Pro.Dim, fontSize = 12.sp)
+                ToggleRow(
+                    "24-bit audio (WAV)",
+                    "Pro Video and Video: the sound is recorded uncompressed and saved as a 24-bit WAV next to each clip (or in Music/VeyroCutPro); the clip gets the same sound. Headphone monitoring pauses while recording.",
+                    x.wavAudio,
+                ) { c.setWavAudio(!x.wavAudio) }
+                ToggleRow(
+                    "NTSC frame rates",
+                    "24, 30 and 60 fps clips become 23.976, 29.97 and 59.94 fps (picture and sound slowed by 0.1 % after recording), for broadcast and US workflows",
+                    x.ntsc,
+                ) { c.setNtsc(!x.ntsc) }
+                ToggleRow(
+                    "Record in the frame guide's shape",
+                    "Crops the recording to the chosen guide (2.76, 2.39, 1.85, 4:3, 1:1, 9:16) instead of only drawing it",
+                    x.recordAspect,
+                ) { c.setRecordAspect(!x.recordAspect) }
+                ToggleRow(
+                    "Flip picture",
+                    "Mirrors left ↔ right in the viewfinder and the recording — for lens adapters, mirror rigs and teleprompters",
+                    x.flipH,
+                ) { c.setFlip(!x.flipH) }
+                ToggleRow(
+                    "Separate focus and exposure",
+                    "Tap to focus, double-tap to set where the exposure is measured (the amber sun ring)",
+                    x.splitAfAe,
+                ) { c.setSplitAfAe(!x.splitAfAe) }
+                ChoiceRow("Fn button", com.dronedirector.veyrocutpro.camera.FnAction.entries.toList(), com.dronedirector.veyrocutpro.camera.FnAction.of(x.fnAction), { it.label }) { c.setFnAction(it) }
+                Text("The Fn button sits at the end of the Pro read-out bar: tap it to run this, hold it to choose another function.", color = Pro.Dim, fontSize = 12.sp)
+                PresetSyncRow(c)
+            }
             run {
                 val ctx = androidx.compose.ui.platform.LocalContext.current
                 val x = com.dronedirector.veyrocutpro.camera.CaptureExtras
@@ -452,6 +485,35 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             Spacer(Modifier.padding(4.dp))
             Text("Photos and videos save to DCIM/VeyroCutPro.", style = Pro.Label.copy(fontSize = 11.sp, letterSpacing = 0.sp))
         }
+    }
+}
+
+/** C1–C3 sync between devices through one file in a cloud folder the user picks (Google Drive, Dropbox…). */
+@Composable
+private fun PresetSyncRow(c: com.dronedirector.veyrocutpro.camera.ProCameraController) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val x = com.dronedirector.veyrocutpro.camera.CaptureExtras
+    fun use(u: android.net.Uri?, push: Boolean) {
+        if (u == null) return
+        try { ctx.contentResolver.takePersistableUriPermission(u, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION) } catch (_: Throwable) {}
+        x.presetSyncUri = u.toString(); x.save(ctx)
+        Thread {
+            val ok = if (push) com.dronedirector.veyrocutpro.camera.CamPresets.syncPush(ctx) else com.dronedirector.veyrocutpro.camera.CamPresets.syncPull(ctx) || true
+            c.toast(if (ok) "Set-up sync is on" else "Couldn't write the sync file")
+        }.start()
+    }
+    val create = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")) { use(it, true) }
+    val open = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { use(it, false) }
+    Text("Sync C1–C3 between devices", color = Color.White, fontSize = 15.sp, modifier = Modifier.padding(top = 10.dp))
+    Text(
+        if (x.presetSyncUri != null) "On: your set-ups are saved to the sync file whenever you save one, and newer ones from your other devices are taken when the camera opens."
+        else "Save the sync file in a cloud folder (e.g. Google Drive) on this device, then pick the same file on your other devices.",
+        color = Pro.Dim, fontSize = 12.sp,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+        Text("CREATE SYNC FILE", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { try { create.launch("VeyroCut-camera-setups.json") } catch (_: Throwable) {} }.padding(8.dp))
+        Text("USE EXISTING", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { try { open.launch(arrayOf("application/json", "application/octet-stream", "*/*")) } catch (_: Throwable) {} }.padding(8.dp))
+        if (x.presetSyncUri != null) Text("STOP", style = Pro.Label.copy(color = Pro.Red), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { x.presetSyncUri = null; x.save(ctx) }.padding(8.dp))
     }
 }
 

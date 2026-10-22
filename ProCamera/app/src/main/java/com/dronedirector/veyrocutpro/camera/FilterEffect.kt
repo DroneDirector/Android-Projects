@@ -73,6 +73,8 @@ class FilterProcessor : SurfaceProcessor {
     private var faceBuf: ByteBuffer? = null
 
     @Volatile var ndFrames = 0
+    /** Mirror left ↔ right (viewfinder and recording). */
+    @Volatile var flipX = false
         set(v) { if (field != v) ndPrimed = false; field = v }
     private var ndW = 0
     private var ndH = 0
@@ -300,6 +302,7 @@ class FilterProcessor : SurfaceProcessor {
         GLES20.glUniform3fv(GLES20.glGetUniformLocation(program, "uOffset"), 1, colorOffset, 0)
         GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uCurve"), curveId)
         GLES20.glUniform1f(GLES20.glGetUniformLocation(program, "uZoom"), zoom)
+        GLES20.glUniform1f(GLES20.glGetUniformLocation(program, "uFlip"), if (flipX) 1f else 0f)
         val lk = look
         GLES20.glUniform1i(GLES20.glGetUniformLocation(program, "uLook"), if (lk != null) 1 else 0)
         if (lk != null) {
@@ -440,6 +443,7 @@ class FilterProcessor : SurfaceProcessor {
         GLES20.glEnableVertexAttribArray(aTex)
         GLES20.glUniformMatrix4fv(GLES20.glGetUniformLocation(prog, "uTexMatrix"), 1, false, matrix, 0)
         GLES20.glUniform1f(GLES20.glGetUniformLocation(prog, "uZoom"), 1f)
+        GLES20.glUniform1f(GLES20.glGetUniformLocation(prog, "uFlip"), 0f)
         if (ext != 0) {
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
             GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, ext)
@@ -542,10 +546,12 @@ class FilterProcessor : SurfaceProcessor {
             attribute vec4 aTex;
             uniform mat4 uTexMatrix;
             uniform float uZoom;
+            uniform float uFlip;
             varying vec2 vTex;
             void main() {
                 gl_Position = aPos;
                 vec2 t = (aTex.xy - 0.5) * uZoom + 0.5;
+                if (uFlip > 0.5) t.x = 1.0 - t.x;
                 vTex = (uTexMatrix * vec4(t, 0.0, 1.0)).xy;
             }
             """.trimIndent(),
@@ -661,10 +667,12 @@ class FilterProcessor : SurfaceProcessor {
             attribute vec4 aTex;
             uniform mat4 uTexMatrix;
             uniform float uZoom;
+            uniform float uFlip;
             varying vec2 vTex;
             void main() {
                 gl_Position = aPos;
                 vec2 t = (aTex.xy - 0.5) * uZoom + 0.5;
+                if (uFlip > 0.5) t.x = 1.0 - t.x;
                 vTex = (uTexMatrix * vec4(t, 0.0, 1.0)).xy;
             }
         """.trimIndent()

@@ -41,5 +41,35 @@ object CamPresets {
         prefs(c).getString("cam_preset_$slot", null)?.let { gson.fromJson(it, CamPreset::class.java) }
     } catch (_: Throwable) { null }
 
-    fun save(c: Context, slot: Int, p: CamPreset) { prefs(c).edit().putString("cam_preset_$slot", gson.toJson(p)).apply() }
+    fun save(c: Context, slot: Int, p: CamPreset) {
+        prefs(c).edit().putString("cam_preset_$slot", gson.toJson(p)).putLong("cam_preset_time", System.currentTimeMillis()).apply()
+    }
+
+    // ---- sync between devices through one file the user picks (e.g. in Google Drive or another cloud folder)
+
+    private class SyncFile(val updated: Long = 0, val slots: Map<String, String> = emptyMap())
+
+    /** Writes C1–C3 to the sync file. Call off the main thread. */
+    fun syncPush(c: Context): Boolean {
+        val uri = CaptureExtras.presetSyncUri?.let { android.net.Uri.parse(it) } ?: return false
+        val p = prefs(c)
+        val slots = (1..3).mapNotNull { k -> p.getString("cam_preset_$k", null)?.let { "$k" to it } }.toMap()
+        return try {
+            c.contentResolver.openOutputStream(uri, "wt")?.use { it.write(gson.toJson(SyncFile(p.getLong("cam_preset_time", System.currentTimeMillis()), slots)).toByteArray()) } != null
+        } catch (_: Throwable) { false }
+    }
+
+    /** Takes newer C1–C3 from the sync file (saved on another device). Returns true if anything changed. */
+    fun syncPull(c: Context): Boolean {
+        val uri = CaptureExtras.presetSyncUri?.let { android.net.Uri.parse(it) } ?: return false
+        return try {
+            val f = c.contentResolver.openInputStream(uri)?.use { gson.fromJson(it.reader(), SyncFile::class.java) } ?: return false
+            val p = prefs(c)
+            if (f.slots.isEmpty() || f.updated <= p.getLong("cam_preset_time", 0L)) return false
+            val e = p.edit()
+            for ((k, v) in f.slots) e.putString("cam_preset_$k", v)
+            e.putLong("cam_preset_time", f.updated).apply()
+            true
+        } catch (_: Throwable) { false }
+    }
 }

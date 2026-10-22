@@ -342,7 +342,8 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                                 .pointerInput(Unit) {
                                     detectTapGestures(
                                         onTap = { o -> controller.tapToFocus(o.x, o.y) },
-                                        onDoubleTap = { controller.setActiveParam(null) },
+                                        // Split focus / exposure: double-tap sets the exposure point.
+                                        onDoubleTap = { o -> if (com.dronedirector.veyrocutpro.camera.CaptureExtras.splitAfAe) controller.meterAt(o.x, o.y) else controller.setActiveParam(null) },
                                     )
                                 }
                                 .pointerInput(Unit) {
@@ -358,6 +359,19 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                                 )
                         )
                         FocusReticle(s.focusPoint, s.focusId, locked = s.aeLock || s.manualFocusActive)
+                        // Separate exposure point (split focus / exposure): a small sun-like ring.
+                        com.dronedirector.veyrocutpro.camera.CaptureExtras.aePoint?.takeIf { com.dronedirector.veyrocutpro.camera.CaptureExtras.splitAfAe }?.let { (ax, ay) ->
+                            androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                                val r = 18.dp.toPx(); val c0 = androidx.compose.ui.geometry.Offset(ax, ay)
+                                drawCircle(Pro.Amber, r, c0, style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
+                                for (k in 0 until 8) {
+                                    val a2 = k * Math.PI / 4
+                                    val d0 = androidx.compose.ui.geometry.Offset((kotlin.math.cos(a2) * r * 1.25).toFloat(), (kotlin.math.sin(a2) * r * 1.25).toFloat())
+                                    val d1 = androidx.compose.ui.geometry.Offset((kotlin.math.cos(a2) * r * 1.6).toFloat(), (kotlin.math.sin(a2) * r * 1.6).toFloat())
+                                    drawLine(Pro.Amber, c0 + d0, c0 + d1, 2.dp.toPx())
+                                }
+                            }
+                        }
                         HoldRing(holdAt, (HOLD_MF_MS - HOLD_LOCK_MS).toInt())
                         LongExposureOverlay(s, controller)
                         if (!clean) AeLockOverlay(s, controller)

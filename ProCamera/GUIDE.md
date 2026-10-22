@@ -41,6 +41,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Pro Video → REC SHAPE (or Settings): records in the frame guide's shape — 2.76, 2.39, 1.85, 4:3, 1:1 or 9:16 — instead of only drawing the guide.
 - Bitrate: Economy, Standard, High or Extreme (quick bar BITRATE or Settings → VIDEO). Flip picture mirrors left ↔ right for lens adapters, mirror rigs and teleprompters.
 - Sync C1–C3 between devices: Settings → VIDEO → CREATE SYNC FILE and save it in a cloud folder (e.g. Google Drive); on your other device choose USE EXISTING and pick the same file.
+- Capture gallery → Grade → Detail (photos): Clarity, Texture, Dehaze, Sharpening and Vignette. Light has Exposure, Contrast, Highlights, Shadows, Whites and Blacks.
+- Settings → PHOTO → Always JPEG / Always RAW + JPEG / Always RAW only: the file format for Pro photo mode. Only one can be on, and the app remembers it.
 - Watch remote: install VeyroCutPro-WATCH (from the release) on a Wear OS watch — Galaxy Watch 4 or newer, Pixel Watch. With Capture open on the phone, the watch shows the live picture and records / takes photos, switches photo ↔ video and zooms. Install steps: Guides and Tips → Installing the watch app.
 - Quick bar → STOP MOTION (photo modes): every photo becomes the next frame and the last one shows faintly over the viewfinder (ONION %). FRAMES opens the frame strip: play, HOLD +1, delete, 6–24 fps, MAKE VIDEO.
 - Settings → SLATE & SHOT LOG: set scene, shot, take and notes; they show on the viewfinder, go into photos, and every clip and photo is logged. Export the log as a .csv for Excel / Sheets; the take number goes up after each recording.

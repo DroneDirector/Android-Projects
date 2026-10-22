@@ -106,6 +106,8 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Pro Video → REC SHAPE (or Settings): records in the frame guide's shape — 2.76, 2.39, 1.85, 4:3, 1:1 or 9:16 — instead of only drawing the guide.",
             "Bitrate: Economy, Standard, High or Extreme (quick bar BITRATE or Settings → VIDEO). Flip picture mirrors left ↔ right for lens adapters, mirror rigs and teleprompters.",
             "Sync C1–C3 between devices: Settings → VIDEO → CREATE SYNC FILE and save it in a cloud folder (e.g. Google Drive); on your other device choose USE EXISTING and pick the same file.",
+            "Capture gallery → Grade → Detail (photos): Clarity, Texture, Dehaze, Sharpening and Vignette. Light has Exposure, Contrast, Highlights, Shadows, Whites and Blacks.",
+            "Settings → PHOTO → Always JPEG / Always RAW + JPEG / Always RAW only: the file format for Pro photo mode. Only one can be on, and the app remembers it.",
             "Watch remote: install VeyroCutPro-WATCH (from the release) on a Wear OS watch — Galaxy Watch 4 or newer, Pixel Watch. With Capture open on the phone, the watch shows the live picture and records / takes photos, switches photo ↔ video and zooms. Install steps: Guides and Tips → Installing the watch app.",
             "Quick bar → STOP MOTION (photo modes): every photo becomes the next frame and the last one shows faintly over the viewfinder (ONION %). FRAMES opens the frame strip: play, HOLD +1, delete, 6–24 fps, MAKE VIDEO.",
             "With a mouse: the wheel zooms, right-click locks / unlocks exposure and focus there, and middle-click takes the shot.",

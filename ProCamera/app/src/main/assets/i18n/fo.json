@@ -3031,5 +3031,15 @@
 "Original voice quiet underneath": "Upprunarødd lágt undir",
 "Mute the original": "Doyv upprunan",
 "DUB THE CAPTIONS": "DUBBA TEKSTIRNAR",
-"Dubbing stopped": "Dubbing steðgað"
+"Dubbing stopped": "Dubbing steðgað",
+"Sharpening": "Skerping",
+"Vignette": "Vignetta",
+"Detail works on photos. For videos, use the Video editor's Color page.": "Smálutir virka á myndum. Nýt Color-síðuna í Videoritlinum til video.",
+"Capture gallery → Grade → Detail (photos): Clarity, Texture, Dehaze, Sharpening and Vignette. Light has Exposure, Contrast, Highlights, Shadows, Whites and Blacks.": "Upptøku-myndasavn → Grade → Detail (myndir): Clarity, Texture, Dehaze, Sharpening og Vignette. Light hevur Exposure, Contrast, Highlights, Shadows, Whites og Blacks.",
+"Always JPEG": "Altíð JPEG",
+"Always RAW + JPEG": "Altíð RAW + JPEG",
+"Always RAW only": "Altíð bara RAW",
+"Pro photo mode · remembered next time": "Pro-myndastøða · verður minst til næstu ferð",
+"Not available with this lens / phone": "Ikki tøkt við hesi linsuni / telefonini",
+"Settings → PHOTO → Always JPEG / Always RAW + JPEG / Always RAW only: the file format for Pro photo mode. Only one can be on, and the app remembers it.": "Stillingar → PHOTO → Always JPEG / Always RAW + JPEG / Always RAW only: fílusniðið í Pro-myndastøðu. Bara eitt kann vera tendrað, og appin minnist tað."
 }

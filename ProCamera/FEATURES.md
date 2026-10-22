@@ -30,6 +30,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 
 ### Photo
 - Photo **size per camera** (megapixel choice), aspect **4:3 / 16:9 / 1:1**.
+- **Pro photo file format remembered**: Always JPEG, Always RAW + JPEG or Always RAW only (Settings → PHOTO; one at a time).
 - Android 12+ **full-resolution sensor mode** when the phone allows it, plus a read-out of what the sensor offers to apps.
 - **AI upscale** (optional, off by default): AI 24 / 36 / 48 MP sizes in the size picker. An on-device AI model (ESRGAN, runs on the phone, no internet) rebuilds each photo at the bigger size in the background; Standard or High quality; keep or replace the original; animated progress badge with a **Stop** button.
 - **JPEG, RAW (DNG) and RAW+JPEG** in Pro.
@@ -108,6 +109,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - Full-screen in-app gallery for photos and videos; **Favourites**; separate **RAW** tab with badges.
 - **Colour grading** for photos and videos straight from the gallery.
 
+- **Grade** (photos and videos): looks, light (exposure, contrast, highlights, shadows, whites, blacks), colour, toning, and for photos **Detail** (clarity, texture, dehaze, sharpening, vignette).
 ### Settings
 - **Side buttons**: volume up / down as shutter / record, zoom, or off (normal volume).
 - **External monitor layouts** (DeX / HDMI desktop only): 16:9 / 16:10, 21:9 and 32:9 layouts with media / filmstrip, viewer and tools columns; phones and tablets keep their own layouts and switch back when unplugged.

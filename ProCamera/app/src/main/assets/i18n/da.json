@@ -2977,5 +2977,15 @@
 "Original voice quiet underneath": "Original stemme lavt under",
 "Mute the original": "Slå originalen fra",
 "DUB THE CAPTIONS": "DUB TEKSTERNE",
-"Dubbing stopped": "Dubbing stoppet"
+"Dubbing stopped": "Dubbing stoppet",
+"Sharpening": "Skarphed",
+"Vignette": "Vignet",
+"Detail works on photos. For videos, use the Video editor's Color page.": "Detaljer virker på billeder. Brug Videoeditorens Color-side til videoer.",
+"Capture gallery → Grade → Detail (photos): Clarity, Texture, Dehaze, Sharpening and Vignette. Light has Exposure, Contrast, Highlights, Shadows, Whites and Blacks.": "Optag-galleri → Grade → Detail (billeder): Clarity, Texture, Dehaze, Sharpening og Vignette. Light har Exposure, Contrast, Highlights, Shadows, Whites og Blacks.",
+"Always JPEG": "Altid JPEG",
+"Always RAW + JPEG": "Altid RAW + JPEG",
+"Always RAW only": "Altid kun RAW",
+"Pro photo mode · remembered next time": "Pro-fototilstand · huskes til næste gang",
+"Not available with this lens / phone": "Ikke tilgængelig med dette objektiv / denne telefon",
+"Settings → PHOTO → Always JPEG / Always RAW + JPEG / Always RAW only: the file format for Pro photo mode. Only one can be on, and the app remembers it.": "Indstillinger → PHOTO → Always JPEG / Always RAW + JPEG / Always RAW only: filformatet i Pro-fototilstand. Kun én kan være slået til, og appen husker det."
 }

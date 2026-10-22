@@ -63,6 +63,7 @@ import com.dronedirector.veyrocutpro.camera.Filter
 import com.dronedirector.veyrocutpro.camera.Grade
 import com.dronedirector.veyrocutpro.camera.GradeIO
 import com.dronedirector.veyrocutpro.camera.GradeLut
+import com.dronedirector.veyrocutpro.camera.GradeDetail
 import com.dronedirector.veyrocutpro.camera.MediaItem
 import com.dronedirector.veyrocutpro.camera.VideoGradeExport
 import kotlinx.coroutines.Dispatchers
@@ -71,7 +72,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
-private enum class GradeTab(val label: String) { LOOKS("Looks"), LIGHT("Light"), COLOUR("Colour"), TONING("Toning") }
+private enum class GradeTab(val label: String) { LOOKS("Looks"), LIGHT("Light"), COLOUR("Colour"), DETAIL("Detail"), TONING("Toning") }
 
 /**
  * Colour grading for a photo or video from the gallery. The preview updates live; hold the
@@ -109,7 +110,10 @@ fun GradeEditor(item: MediaItem, onClose: () -> Unit, onSaved: (Uri) -> Unit) {
     LaunchedEffect(base, grade) {
         val b = base ?: return@LaunchedEffect
         delay(25)
-        preview = withContext(Dispatchers.Default) { if (grade.isIdentity) b else GradeLut(grade).apply(b) }
+        preview = withContext(Dispatchers.Default) {
+            val lut = if (grade.copy(clarity = 0f, texture = 0f, dehaze = 0f, sharpen = 0f, vignette = 0f).isIdentity) b else GradeLut(grade).apply(b)
+            if (!item.isVideo && grade.hasDetail) GradeDetail.apply(lut, grade) else lut
+        }
     }
     LaunchedEffect(message) { if (message != null) { delay(2500); message = null } }
 
@@ -297,6 +301,16 @@ fun GradeEditor(item: MediaItem, onClose: () -> Unit, onSaved: (Uri) -> Unit) {
                         GradeSlider("Saturation", grade.saturation) { grade = grade.copy(saturation = it) }
                         GradeSlider("Vibrance", grade.vibrance) { grade = grade.copy(vibrance = it) }
                         GradeSlider("Fade", grade.fade, 0f..1f, percent = true) { grade = grade.copy(fade = it) }
+                    }
+                    GradeTab.DETAIL -> {
+                        if (item.isVideo) Text("Detail works on photos. For videos, use the Video editor's Color page.", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(8.dp))
+                        else {
+                            GradeSlider("Clarity", grade.clarity) { grade = grade.copy(clarity = it) }
+                            GradeSlider("Texture", grade.texture) { grade = grade.copy(texture = it) }
+                            GradeSlider("Dehaze", grade.dehaze) { grade = grade.copy(dehaze = it) }
+                            GradeSlider("Sharpening", grade.sharpen, 0f..1f, percent = true) { grade = grade.copy(sharpen = it) }
+                            GradeSlider("Vignette", grade.vignette) { grade = grade.copy(vignette = it) }
+                        }
                     }
                     GradeTab.TONING -> {
                         HueSlider("Shadows colour", grade.shadowHue) { grade = grade.copy(shadowHue = it) }

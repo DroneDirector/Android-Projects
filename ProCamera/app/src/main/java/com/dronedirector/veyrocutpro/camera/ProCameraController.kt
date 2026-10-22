@@ -102,6 +102,8 @@ class ProCameraController(private val context: Context) {
             headphoneMonitor = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getBoolean("hp_monitor", false),
             monitorVolume = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getInt("hp_volume", 80),
             clipNaming = prefEnum(context, "clip_naming", ClipNaming.STANDARD),
+            // Pro photo: the file format you chose last time (JPEG, RAW + JPEG or RAW only).
+            photoFormat = prefEnum(context, "photo_format", PhotoFormat.JPEG),
             cameraLetter = (context.getSharedPreferences("procam", Context.MODE_PRIVATE).getString("camera_letter", "A") ?: "A").first(),
             reel = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getInt("reel", 1),
             clipNumber = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getInt("clip", 1),
@@ -1430,6 +1432,7 @@ class ProCameraController(private val context: Context) {
     }
 
     fun setPhotoFormat(f: PhotoFormat) {
+        prefs.edit().putString("photo_format", f.name).apply()
         if (st.photoFormat == f) return
         set { it.copy(photoFormat = f, scene = if (f != PhotoFormat.JPEG) Scene.STANDARD else it.scene) }
         bind()

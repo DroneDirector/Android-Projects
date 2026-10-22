@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dronedirector.veyrocutpro.camera.PhotoFormat
 import com.dronedirector.veyrocutpro.camera.CameraUiState
 import com.dronedirector.veyrocutpro.camera.ProCameraController
 import kotlin.math.roundToInt
@@ -110,6 +111,15 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             }
 
             Section("PHOTO")
+            // Pro photo file format: exactly one of the three is on; the choice is remembered.
+            run {
+                val fmts = c.photoFormats()
+                val sub = "Pro photo mode · remembered next time"
+                listOf(PhotoFormat.JPEG to "Always JPEG", PhotoFormat.RAW_JPEG to "Always RAW + JPEG", PhotoFormat.RAW to "Always RAW only").forEach { (f, t) ->
+                    val ok = f in fmts || f == PhotoFormat.JPEG
+                    ToggleRow(t, if (ok) sub else "Not available with this lens / phone", s.photoFormat == f) { if (ok) c.setPhotoFormat(f) }
+                }
+            }
             ChoiceRow("Burst", listOf(1, 3, 5, 10), s.burst, { if (it == 1) "OFF" else "x$it" }) { c.setBurst(it) }
             ChoiceRow("Self-timer", listOf(0, 3, 5, 10), s.timerSec, { if (it == 0) "OFF" else "${it}s" }) { c.setTimer(it) }
             ChoiceRow("Interval", listOf(0, 2, 5, 10, 30), s.intervalSec, { if (it == 0) "OFF" else "${it}s" }) { c.setInterval(it) }

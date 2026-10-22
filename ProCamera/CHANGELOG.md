@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture settings (gear) → PHOTO: **Always JPEG / Always RAW + JPEG / Always RAW only** for Pro photo mode — only one can be on, and the choice is remembered when the app is opened again.
+- Capture gallery → **Grade**: new **Detail** tab for photos — **Clarity, Texture, Dehaze, Sharpening and Vignette** (Light already has Exposure, Contrast, Highlights, Shadows, Whites and Blacks).
 - Capture gallery → **Grade**: RAW (DNG) photos open upright, and the graded copy is saved upright. Contact sheets, print layouts and collages made from DNGs are upright too.
 
 ## 1.0.471 — 2026-10-22

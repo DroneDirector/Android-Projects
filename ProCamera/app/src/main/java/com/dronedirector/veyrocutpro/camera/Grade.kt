@@ -44,7 +44,14 @@ data class Grade(
     val look: Filter = Filter.NONE,
     /** 0..1 strength of the look. */
     val lookAmount: Float = 1f,
+    /** Detail (photos): -1..1 clarity, texture, dehaze, vignette; 0..1 sharpening. */
+    val clarity: Float = 0f,
+    val texture: Float = 0f,
+    val dehaze: Float = 0f,
+    val sharpen: Float = 0f,
+    val vignette: Float = 0f,
 ) {
+    val hasDetail: Boolean get() = clarity != 0f || texture != 0f || dehaze != 0f || sharpen != 0f || vignette != 0f
     val isIdentity: Boolean get() = copy(lookAmount = 1f) == Grade()
 
     /** Grades one colour (components 0..1, modified in place). */
@@ -267,8 +274,9 @@ object GradeIO {
     /** Grades a photo at full resolution and saves it as a new picture next to the original. */
     fun savePhoto(context: Context, uri: Uri, grade: Grade, area: StorageArea = StorageArea.CAPTURE): Uri? {
         val src = decode(context, uri, 0) ?: return null
-        val out = GradeLut(grade).apply(src)
+        var out = GradeLut(grade).apply(src)
         src.recycle()
+        if (grade.hasDetail) { val d = GradeDetail.apply(out, grade); if (d !== out) { out.recycle(); out = d } }
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, gradedName("PRO", "jpg"))
             put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
@@ -359,5 +367,80 @@ object Ratings {
         val e = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
         if (m.stars == 0 && m.flag == 0) e.remove(uri.toString()) else e.putString(uri.toString(), "${m.stars},${m.flag}")
         e.apply()
+    }
+}
+
+/**
+ * Gallery grade → Detail: clarity (midtone local contrast), texture (fine detail), dehaze,
+ * sharpening and vignette, worked on the picture's brightness. Own code.
+ */
+object GradeDetail {
+    private fun blur(a: FloatArray, w: Int, h: Int, r: Int): FloatArray {
+        if (r < 1) return a.copyOf()
+        var cur = a.copyOf(); val t = FloatArray(a.size)
+        repeat(2) {
+            for (y in 0 until h) {
+                var acc = 0f; val o = y * w
+                for (x in -r..r) acc += cur[o + x.coerceIn(0, w - 1)]
+                for (x in 0 until w) { t[o + x] = acc / (2 * r + 1); acc += cur[o + minOf(x + r + 1, w - 1)] - cur[o + maxOf(x - r, 0)] }
+            }
+            for (x in 0 until w) {
+                var acc = 0f
+                for (y in -r..r) acc += t[y.coerceIn(0, h - 1) * w + x]
+                for (y in 0 until h) { cur[y * w + x] = acc / (2 * r + 1); acc += t[minOf(y + r + 1, h - 1) * w + x] - t[maxOf(y - r, 0) * w + x] }
+            }
+        }
+        return cur
+    }
+
+    fun apply(src: Bitmap, g: Grade): Bitmap {
+        if (!g.hasDetail) return src
+        val w = src.width; val h = src.height; val n = w * h
+        val px = IntArray(n); src.getPixels(px, 0, w, 0, 0, w, h)
+        val rr = FloatArray(n); val gg = FloatArray(n); val bb = FloatArray(n)
+        for (i in 0 until n) { val c = px[i]; rr[i] = ((c shr 16) and 255) / 255f; gg[i] = ((c shr 8) and 255) / 255f; bb[i] = (c and 255) / 255f }
+        val long = maxOf(w, h)
+        // Dehaze: take out (or add) the veil, estimated from the darkest channel nearby.
+        if (g.dehaze != 0f) {
+            if (g.dehaze > 0f) {
+                val dark = blur(FloatArray(n) { minOf(rr[it], gg[it], bb[it]) }, w, h, maxOf(2, long / 40))
+                for (i in 0 until n) {
+                    val k = (dark[i] * g.dehaze * 0.85f).coerceAtMost(0.9f)
+                    rr[i] = (rr[i] - k) / (1f - k); gg[i] = (gg[i] - k) / (1f - k); bb[i] = (bb[i] - k) / (1f - k)
+                }
+            } else {
+                val a = -g.dehaze * 0.5f
+                for (i in 0 until n) { rr[i] += (0.82f - rr[i]) * a; gg[i] += (0.84f - gg[i]) * a; bb[i] += (0.88f - bb[i]) * a }
+            }
+        }
+        val l = FloatArray(n) { 0.2126f * rr[it] + 0.7152f * gg[it] + 0.0722f * bb[it] }
+        val delta = FloatArray(n)
+        // Clarity: broad local contrast, strongest in the midtones.
+        if (g.clarity != 0f) {
+            val lo = blur(l, w, h, maxOf(2, long / 60))
+            for (i in 0 until n) { val m = 1f - kotlin.math.abs(l[i] - 0.5f) * 1.6f; delta[i] += (l[i] - lo[i]) * g.clarity * 1.2f * m.coerceIn(0f, 1f) }
+        }
+        // Texture: fine detail (skin, foliage, fabric) without halos.
+        if (g.texture != 0f) {
+            val lo = blur(l, w, h, maxOf(1, long / 400))
+            for (i in 0 until n) delta[i] += (l[i] - lo[i]) * g.texture * 1.4f
+        }
+        // Sharpening: a small unsharp mask.
+        if (g.sharpen > 0f) {
+            val lo = blur(l, w, h, 1)
+            for (i in 0 until n) delta[i] += (l[i] - lo[i]) * g.sharpen * 1.6f
+        }
+        val cx = w / 2f; val cy = h / 2f; val rmax = kotlin.math.sqrt(cx * cx + cy * cy)
+        for (i in 0 until n) {
+            var r = rr[i] + delta[i]; var gr = gg[i] + delta[i]; var b = bb[i] + delta[i]
+            if (g.vignette != 0f) {
+                val dx = (i % w - cx) / rmax; val dy = (i / w - cy) / rmax
+                val d = (dx * dx + dy * dy)
+                val f = if (g.vignette < 0f) 1f + g.vignette * d * 0.9f else 1f + g.vignette * d * 0.6f
+                if (g.vignette < 0f) { r *= f; gr *= f; b *= f } else { r += (1f - r) * (f - 1f); gr += (1f - gr) * (f - 1f); b += (1f - b) * (f - 1f) }
+            }
+            px[i] = (px[i] and (0xFF shl 24)) or ((r.coerceIn(0f, 1f) * 255f + 0.5f).toInt() shl 16) or ((gr.coerceIn(0f, 1f) * 255f + 0.5f).toInt() shl 8) or (b.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
+        }
+        return Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
     }
 }

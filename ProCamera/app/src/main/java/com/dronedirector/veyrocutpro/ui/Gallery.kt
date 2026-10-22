@@ -765,7 +765,7 @@ private fun PhotoPage(item: MediaItem, onToggleChrome: () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         val target = maxOf(constraints.maxWidth, constraints.maxHeight).coerceAtMost(3072)
         val bitmap by androidx.compose.runtime.produceState<ImageBitmap?>(null, item.uri) {
-            value = withContext(Dispatchers.IO) { decodeImage(context, item.uri, target, raw = item.isRaw)?.asImageBitmap() }
+            value = withContext(Dispatchers.IO) { decodeImage(context, item.uri, target, raw = item.isRaw && (item.name.endsWith(".dng", true) || item.mime.contains("dng", true)))?.asImageBitmap() }
         }
         val w = constraints.maxWidth.toFloat()
         val h = constraints.maxHeight.toFloat()
@@ -888,7 +888,7 @@ private fun decodeImage(context: Context, uri: Uri, maxPx: Int, raw: Boolean = f
             }
             decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
         }
-        // RAW (DNG etc.): the decoder doesn't turn the picture by the file's orientation tag (it does for JPEG).
+        // DNG: the decoder doesn't turn the picture by the file's orientation tag (it does for JPEG).
         val rot = if (raw) context.contentResolver.openInputStream(uri)?.use { ExifInterface(it).rotationDegrees } ?: 0 else 0
         if (rot != 0) Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, Matrix().apply { postRotate(rot.toFloat()) }, true) else bmp
     } else {

@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture gallery → **Grade**: RAW (DNG) photos open upright, and the graded copy is saved upright. Contact sheets, print layouts and collages made from DNGs are upright too.
 
 ## 1.0.471 — 2026-10-22
 - **DNG thumbnails are upright too**: in the Capture gallery, the last-photo button, the photo editor's recent photos and the Library (the phone's own thumbnails don't turn DNGs).

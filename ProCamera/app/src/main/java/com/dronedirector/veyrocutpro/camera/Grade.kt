@@ -218,7 +218,7 @@ object GradeIO {
     fun decode(context: Context, uri: Uri, maxPx: Int): Bitmap? = try {
         val limit = if (maxPx > 0) maxPx else 6000
         if (Build.VERSION.SDK_INT >= 28) {
-            ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri)) { d, info, _ ->
+            val b = ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri)) { d, info, _ ->
                 val longest = max(info.size.width, info.size.height)
                 if (longest > limit) {
                     val f = limit.toFloat() / longest
@@ -226,6 +226,8 @@ object GradeIO {
                 }
                 d.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
             }
+            // DNG: the decoder doesn't turn it by the file's orientation tag (it does for JPEG).
+            com.dronedirector.veyrocutpro.ui.UprightThumb.fix(context, uri, b) ?: b
         } else {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }

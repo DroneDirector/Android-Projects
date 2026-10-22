@@ -2685,7 +2685,7 @@ class ProCameraController(private val context: Context) {
         }
     }
 
-    private fun wavStream(clip: Uri, tree: Uri?): java.io.OutputStream? = wavStreamImpl(context, clip, tree)
+    private fun wavStream(clip: Uri, tree: String?): java.io.OutputStream? = wavStreamImpl(context, clip, tree)
 
     private fun stopRecording() {
         recording?.stop()
@@ -2828,7 +2828,7 @@ class ProCameraController(private val context: Context) {
 }
 
 /** Where a clip's 24-bit WAV goes: next to it in the save folder, or Music/VeyroCutPro. */
-private fun wavStreamImpl(context: Context, clip: Uri, tree: Uri?): java.io.OutputStream? {
+private fun wavStreamImpl(context: Context, clip: Uri, tree: String?): java.io.OutputStream? {
     val base = try {
         context.contentResolver.query(clip, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
     } catch (_: Throwable) { null }?.substringBeforeLast('.') ?: "clip_${System.currentTimeMillis()}"

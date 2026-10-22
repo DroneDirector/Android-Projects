@@ -64,6 +64,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.heightIn
 import androidx.core.content.ContextCompat
 import com.dronedirector.veyrocutpro.camera.GradeIO
 import com.dronedirector.veyrocutpro.ui.Pro
@@ -199,6 +200,8 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
                 PillChip("+ Album", false) { dialog = "album" }
                 PillChip("Keywords", false) { dialog = "keywords" }
                 PillChip("Contact sheet PDF", false) { dialog = "sheet" }
+                PillChip("Print layout", false) { dialog = "print" }
+                if (picked.size in 2..9) PillChip("Collage", false) { dialog = "collage" }
             }
         }
         Text("${shown.size} photo" + (if (shown.size == 1) "" else "s"), style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), modifier = Modifier.padding(bottom = 4.dp))
@@ -273,6 +276,48 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
         confirmButton = { Text("SAVE PDF", style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.clickable { dialog = null; saveSheet.launch("Contact sheet.pdf") }.padding(10.dp)) },
         dismissButton = { Text("CANCEL", style = Pro.Label.copy(color = Pro.Dim, fontSize = 12.sp), modifier = Modifier.clickable { dialog = null }.padding(10.dp)) },
     )
+
+    // ---- Print layout (PDF at exact print sizes)
+    var prPaper by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0) }
+    var prLayout by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0) }
+    var prBorder by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(5f) }
+    var prFill by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(true) }
+    var prMarks by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(true) }
+    val savePrint = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { out ->
+        if (out == null || sheetUris.isEmpty()) return@rememberLauncherForActivityResult
+        sheetBusy = "Making the print layout…"
+        sheetScope.launch {
+            val res = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                try { "Print layout saved (" + PrintLayout.write(context, sheetUris, out, PrintLayout.Options(prPaper, prLayout, prBorder, prFill, prMarks)) { i, n -> sheetBusy = "Print layout $i / $n" } + " pages)" }
+                catch (t: Throwable) { "Couldn't make the print layout: ${t.message}" }
+            }
+            sheetBusy = null
+            android.widget.Toast.makeText(context, res, android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+    if (dialog == "print") androidx.compose.material3.AlertDialog(
+        onDismissRequest = { dialog = null },
+        containerColor = Ed.Raised,
+        title = { Text("Print layout", color = Color.White) },
+        text = {
+            Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+                Text("${sheetUris.size} photos at exact print sizes, as a PDF for a printer or print shop (about 300 dpi).", color = Pro.Dim, fontSize = 12.sp)
+                Text("Paper", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                Row(Modifier.hintedScroll(horizontal = true), horizontalArrangement = Arrangement.spacedBy(6.dp)) { PrintLayout.PAPERS.forEachIndexed { i, p -> PillChip(p.label, prPaper == i) { prPaper = i } } }
+                Text("Layout", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                Row(Modifier.hintedScroll(horizontal = true), horizontalArrangement = Arrangement.spacedBy(6.dp)) { PrintLayout.LAYOUTS.forEachIndexed { i, l -> PillChip(l.label, prLayout == i) { prLayout = i } } }
+                Text("Border", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { listOf(0f, 3f, 5f, 10f).forEach { b -> PillChip(if (b == 0f) "None" else "${b.toInt()} mm", prBorder == b) { prBorder = b } } }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 8.dp)) { PillChip("Fill (crop)", prFill) { prFill = true }; PillChip("Whole photo", !prFill) { prFill = false } }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 8.dp)) { PillChip("Crop marks", prMarks) { prMarks = !prMarks } }
+            }
+        },
+        confirmButton = { Text("SAVE PDF", style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.clickable { dialog = null; savePrint.launch("Print layout.pdf") }.padding(10.dp)) },
+        dismissButton = { Text("CANCEL", style = Pro.Label.copy(color = Pro.Dim, fontSize = 12.sp), modifier = Modifier.clickable { dialog = null }.padding(10.dp)) },
+    )
+
+    // ---- Collage
+    if (dialog == "collage") CollageDialog(sheetUris, onDone = { msg -> dialog = null; if (msg != null) android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show() })
 
     // ---- Dialogs
     when (dialog) {
@@ -437,4 +482,56 @@ private fun SurveyView(list: List<LibPhoto>, onClose: () -> Unit, onEdit: (List<
             }
         }
     }
+}
+
+@Composable
+private fun CollageDialog(uris: List<android.net.Uri>, onDone: (String?) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var tpl by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0) }
+    var asp by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0) }
+    var gap by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0.02f) }
+    var corner by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0f) }
+    var bg by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0) }
+    var order by remember { mutableStateOf(uris) }
+    var saving by remember { mutableStateOf(false) }
+    val cache = remember { HashMap<android.net.Uri, android.graphics.Bitmap>() }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val opts = Collage.Options(tpl, asp, gap, corner, bg)
+    val preview by androidx.compose.runtime.produceState<android.graphics.Bitmap?>(null, opts, order) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { try { Collage.render(context, order, opts, 640, cache) } catch (_: Throwable) { null } }
+    }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = { if (!saving) onDone(null) },
+        containerColor = Ed.Raised,
+        title = { Text("Collage", color = Color.White) },
+        text = {
+            Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+                preview?.let { androidx.compose.foundation.Image(it.asImageBitmap(), null, modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit) }
+                Row(Modifier.hintedScroll(horizontal = true).padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) { Collage.TEMPLATES.forEachIndexed { i, t -> PillChip(t, tpl == i) { tpl = i } } }
+                Row(Modifier.hintedScroll(horizontal = true).padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) { Collage.ASPECTS.forEachIndexed { i, a -> PillChip(a.first, asp == i) { asp = i } } }
+                Text("Spacing", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                androidx.compose.material3.Slider(gap, { gap = it }, valueRange = 0f..0.06f)
+                Text("Rounded corners", color = Color.White, fontSize = 13.sp)
+                androidx.compose.material3.Slider(corner, { corner = it }, valueRange = 0f..0.08f)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Collage.BACKGROUNDS.forEachIndexed { i, c -> Box(Modifier.size(28.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(c)).border(2.dp, if (bg == i) Pro.Amber else Pro.Line, androidx.compose.foundation.shape.CircleShape).clickable { bg = i }) }
+                }
+                Text("SHUFFLE ORDER", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 6.dp).clickable { order = order.drop(1) + order.take(1) }.padding(8.dp))
+                Text("The first photo you picked is the big one in Big + small; SHUFFLE moves every photo one place on.", color = Pro.Dim, fontSize = 11.sp)
+            }
+        },
+        confirmButton = {
+            Text(if (saving) "SAVING…" else "SAVE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.clickable(enabled = !saving) {
+                saving = true
+                scope.launch {
+                    val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        try { val b = Collage.render(context, order, opts, 3000); savePhotoAs(context, b, 0, 95, null, false).also { b.recycle() } != null } catch (_: Throwable) { false }
+                    }
+                    saving = false
+                    onDone(if (ok) "Collage saved" else "Couldn't save the collage")
+                }
+            }.padding(10.dp))
+        },
+        dismissButton = { Text("CANCEL", style = Pro.Label.copy(color = Pro.Dim, fontSize = 12.sp), modifier = Modifier.clickable(enabled = !saving) { onDone(null) }.padding(10.dp)) },
+    )
 }

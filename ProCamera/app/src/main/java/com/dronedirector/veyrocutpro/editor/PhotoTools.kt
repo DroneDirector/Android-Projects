@@ -74,6 +74,7 @@ import java.io.File
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.min
+import kotlin.math.max
 
 /** UI-only state of the Masks and Heal panels. */
 class LocalToolsState {
@@ -640,3 +641,42 @@ fun savePhotoAs(context: Context, bmp0: Bitmap, format: Int, quality: Int, exifF
     }
 }
 
+
+/** Retouch → Liquify: drag on the photo to push, pinch, bloat, twirl or restore; each drag becomes one stroke. */
+@Composable
+fun LiquifyOverlay(imgW: Int, imgH: Int, tool: Int, size: Float, strength: Float, onStroke: (LiqStroke) -> Unit) {
+    val done by rememberUpdatedState(onStroke)
+    val t by rememberUpdatedState(tool); val sz by rememberUpdatedState(size); val st by rememberUpdatedState(strength)
+    var path by remember { mutableStateOf<List<Offset>>(emptyList()) }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        val bw = with(density) { maxWidth.toPx() }; val bh = with(density) { maxHeight.toPx() }
+        val r = fit(bw, bh, imgW, imgH, with(density) { 6.dp.toPx() })
+        val longPx = max(r.w, r.h)
+        Canvas(Modifier.fillMaxSize().pointerInput(r) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                val pts = arrayListOf(down.position)
+                path = pts.toList()
+                while (true) {
+                    val ev = awaitPointerEvent()
+                    val ch = ev.changes.firstOrNull { it.id == down.id } ?: break
+                    if (!ch.pressed) break
+                    if ((ch.position - pts.last()).getDistance() > 3f) { pts += ch.position; path = pts.toList() }
+                    ch.consume()
+                }
+                val norm = ArrayList<Float>(pts.size * 2)
+                for (p in pts) { norm += ((p.x - r.left) / r.w).coerceIn(0f, 1f); norm += ((p.y - r.top) / r.h).coerceIn(0f, 1f) }
+                path = emptyList()
+                done(LiqStroke(t, norm, sz, st))
+            }
+        }) {
+            val rad = sz * longPx
+            for (i in 1 until path.size) drawLine(Color.White.copy(alpha = 0.5f), path[i - 1], path[i], 2f)
+            path.lastOrNull()?.let { p ->
+                drawCircle(Color.Black.copy(alpha = 0.4f), rad, p, style = Stroke(3f))
+                drawCircle(Color.White, rad, p, style = Stroke(1.5f))
+            }
+        }
+    }
+}

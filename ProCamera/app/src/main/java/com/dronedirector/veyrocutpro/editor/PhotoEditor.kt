@@ -84,6 +84,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -120,6 +122,8 @@ private data class PhotoEdit(
     val raw: RawDng.Dev = RawDng.Dev(),
     /** Lens Blur from the AI depth map. */
     val lensBlur: LensBlur? = null,
+    /** Retouch: liquify, frequency separation, relight. */
+    val retouch: Retouch = Retouch(),
 )
 
 /** RAW develop does exposure, white balance and the tonal ranges itself; the 8-bit grade skips them. */
@@ -127,7 +131,7 @@ private fun ProGrade.rawRest() = copy(exposure = 0f, highlights = 0f, shadows = 
 
 private enum class PhotoPanel(val label: String) {
     PRESETS("Presets"), LIGHT("Light"), CURVE("Curve"), COLOR("Color"), MIXER("HSL Mixer"),
-    GRADING("Grading"), DETAIL("Detail"), EFFECTS("Effects"), MASKS("Masks"), HEAL("Heal"), LENS("Lens"),
+    GRADING("Grading"), DETAIL("Detail"), EFFECTS("Effects"), MASKS("Masks"), HEAL("Heal"), RETOUCH("Retouch"), LENS("Lens"),
     CROP("Crop & perspective"), WATERMARK("Watermark"), TEXT("Text"), HISTORY("History"), EXPORT("Export"),
 }
 
@@ -429,11 +433,11 @@ fun BigButton(icon: ImageVector, label: String, modifier: Modifier = Modifier, o
 /** The edit a photo opens with: its saved project, or a fresh edit (with the remembered watermark). */
 private fun editOf(context: Context, initial: PhotoProjectData?): PhotoEdit =
     @Suppress("USELESS_ELVIS")
-    if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix(), initial.bg ?: PhotoBackground(), initial.baseFile, initial.texts ?: emptyList(), initial.sky ?: SkySwap(), initial.raw ?: RawDng.Dev(), initial.lensBlur)
+    if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix(), initial.bg ?: PhotoBackground(), initial.baseFile, initial.texts ?: emptyList(), initial.sky ?: SkySwap(), initial.raw ?: RawDng.Dev(), initial.lensBlur, initial.retouch ?: Retouch())
     else PhotoEdit(watermark = WatermarkMemory.load(context, false))
 
 /** AI masks, sky and depth pictures an edit draws from (file → picture). */
-private fun PhotoEdit.aiFiles(): List<String> = masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(bg.maskFile, sky.maskFile, sky.imagePath, lensBlur?.depthFile)
+private fun PhotoEdit.aiFiles(): List<String> = masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(bg.maskFile, sky.maskFile, sky.imagePath, lensBlur?.depthFile) + retouch.files()
 
 /**
  * Reads ahead the filmstrip photos next to [idx]: decodes them and renders them with their own
@@ -461,7 +465,7 @@ private fun prefetchAround(context: Context, idx: Int) {
             val g = e.grade
             val s0 = if (raw != null) RawDng.develop(raw.lin, raw.meta, e.raw, g.exposure, g.highlights, g.shadows, g.whites, g.blacks, g.temperature, g.tint).let { d -> if (d.width != base.width || d.height != base.height) Bitmap.createScaledBitmap(d, base.width, base.height, true) else d } else base
             val eg = if (raw != null) g.rawRest() else g
-            var o = ImageOps.renderPhoto(s0, eg, e.detail, e.geometry, if (eg.isIdentity) null else eg.tables(), e.lens, e.spots, e.masks, ai, e.bg, e.sky, e.lensBlur)
+            var o = ImageOps.renderPhoto(s0, eg, e.detail, e.geometry, if (eg.isIdentity) null else eg.tables(), e.lens, e.spots, e.masks, ai, e.bg, e.sky, e.lensBlur, e.retouch)
             for (t in e.texts) o = stampLayer(app, o, t)
             e.watermark?.let { o = stampLayer(app, o, it) }
             PhotoViewer.store(app, sp.key, sig, o)
@@ -585,17 +589,22 @@ private fun PhotoWorkspace(
     var keepExif by remember { mutableStateOf(true) }
     var stripGps by remember { mutableStateOf(false) }
     val tools = remember { LocalToolsState() }
+    // Retouch panel: 0 liquify, 1 skin, 2 relight; liquify brush.
+    var retouchTab by remember { mutableStateOf(0) }
+    var liqTool by remember { mutableStateOf(0) }
+    var liqSize by remember { mutableStateOf(0.08f) }
+    var liqStrength by remember { mutableStateOf(0.5f) }
     // AI masks (subject / sky) are kept as grey pictures in the app's files.
     val aiMasks = remember { mutableStateMapOf<String, Bitmap>() }
-    LaunchedEffect((edit.masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(edit.bg.maskFile, edit.sky.maskFile, edit.sky.imagePath, edit.lensBlur?.depthFile))) {
-        for (f in (edit.masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(edit.bg.maskFile, edit.sky.maskFile, edit.sky.imagePath, edit.lensBlur?.depthFile))) if (aiMasks[f] == null) withContext(Dispatchers.IO) { BitmapFactory.decodeFile(f) }?.let { aiMasks[f] = it }
+    LaunchedEffect((edit.masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(edit.bg.maskFile, edit.sky.maskFile, edit.sky.imagePath, edit.lensBlur?.depthFile) + edit.retouch.files())) {
+        for (f in (edit.masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(edit.bg.maskFile, edit.sky.maskFile, edit.sky.imagePath, edit.lensBlur?.depthFile) + edit.retouch.files())) if (aiMasks[f] == null) withContext(Dispatchers.IO) { BitmapFactory.decodeFile(f) }?.let { aiMasks[f] = it }
     }
     fun saveProject(name: String) {
         val e = edit
         val p = PhotoProjectData(
             id = projectId ?: java.util.UUID.randomUUID().toString(), name = name, uri = uri,
             grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark,
-            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw, lensBlur = e.lensBlur,
+            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw, lensBlur = e.lensBlur, retouch = e.retouch,
         )
         val thumb = preview
         scope.launch {
@@ -623,7 +632,7 @@ private fun PhotoWorkspace(
             val p = PhotoProjectData(
                 name = AutoSave.nameFor(projectName.ifBlank { uri.lastPathSegment?.substringAfterLast('/') ?: "" }), uri = uri,
                 grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark,
-                format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw, lensBlur = e.lensBlur,
+                format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw, lensBlur = e.lensBlur, retouch = e.retouch,
             )
             val thumb = preview
             withContext(Dispatchers.IO) { try { AutoSave.savePhoto(context, p, thumb) } catch (_: Throwable) {} }
@@ -641,7 +650,7 @@ private fun PhotoWorkspace(
         val p = PhotoProjectData(
             id = sp.projectId ?: java.util.UUID.randomUUID().toString(), name = sp.name, uri = uri,
             grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark,
-            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw, lensBlur = e.lensBlur,
+            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw, lensBlur = e.lensBlur, retouch = e.retouch,
             session = true,
         )
         try {
@@ -671,7 +680,7 @@ private fun PhotoWorkspace(
     LaunchedEffect(Unit) { ExportOpts.load(context) }
     LaunchedEffect(sharpMaskView, preview, edit.detail.sharpenMasking) { val pv = preview; sharpImg = if (sharpMaskView && pv != null) withContext(Dispatchers.Default) { Develop.sharpenMaskPreview(pv, edit.detail) } else null }
     fun resetZoom() { zoomK = 1f; panX = 0f; panY = 0f }
-    LaunchedEffect(panel, split) { if (panel == PhotoPanel.MASKS || panel == PhotoPanel.HEAL || split) resetZoom(); if (panel != PhotoPanel.COLOR && panel != PhotoPanel.MASKS && panel != PhotoPanel.EFFECTS) picking = 0 }
+    LaunchedEffect(panel, split) { if (panel == PhotoPanel.MASKS || panel == PhotoPanel.HEAL || panel == PhotoPanel.RETOUCH || split) resetZoom(); if (panel != PhotoPanel.COLOR && panel != PhotoPanel.MASKS && panel != PhotoPanel.EFFECTS) picking = 0 }
     /** A tap on the photo (box coordinates) → pixel of the shown picture, undoing padding, fit and zoom. */
     fun tapToPixel(o: androidx.compose.ui.geometry.Offset, img: Bitmap, padPx: Float): Pair<Int, Int>? {
         val bw = viewSize.width.toFloat(); val bh = viewSize.height.toFloat()
@@ -831,7 +840,7 @@ private fun PhotoWorkspace(
             try {
                 val hi = loupeSrc?.takeIf { it.first == key }?.second ?: (GradeIO.decode(context, sourceUri(e), 6000) ?: return@withContext null).also { loupeSrc = key to it }
                 val tables = if (e.grade.isIdentity) null else e.grade.tables()
-                var o = ImageOps.renderPhoto(hi, e.grade, e.detail.copy(aiDenoise = 0f), e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg, e.sky, e.lensBlur)
+                var o = ImageOps.renderPhoto(hi, e.grade, e.detail.copy(aiDenoise = 0f), e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg, e.sky, e.lensBlur, e.retouch)
                 for (t in e.texts) o = stampLayer(context, o, t)
                 e.watermark?.let { o = stampLayer(context, o, it) }
                 o
@@ -868,8 +877,8 @@ private fun PhotoWorkspace(
         }
     }
     // Heal works on the whole, uncropped photo so taps land where they should.
-    val healMode = rememberUpdatedState(panel == PhotoPanel.HEAL)
-    LaunchedEffect(panel == PhotoPanel.HEAL, aiMasks.size) { renderReq.trySend(edit) }
+    val healMode = rememberUpdatedState(panel == PhotoPanel.HEAL || (panel == PhotoPanel.RETOUCH && retouchTab == 0))
+    LaunchedEffect(healMode.value, aiMasks.size) { renderReq.trySend(edit) }
     LaunchedEffect(base, aiBase, rawLin) {
         val b = base ?: return@LaunchedEffect
         val ai = aiBase
@@ -913,7 +922,7 @@ private fun PhotoWorkspace(
             val eg = if (raw) e.grade.rawRest() else e.grade
             val tables = if (eg.isIdentity) null else eg.tables()
             val healNow = healMode.value
-            val r = ImageOps.renderPhoto(s0, eg, e.detail, if (healNow) Geometry() else e.geometry, tables, e.lens, e.spots, if (healNow) null else e.masks, aiMasks.toMap(), if (healNow) null else e.bg, if (healNow) null else e.sky, if (healNow) null else e.lensBlur)
+            val r = ImageOps.renderPhoto(s0, eg, e.detail, if (healNow) Geometry() else e.geometry, tables, e.lens, e.spots, if (healNow) null else e.masks, aiMasks.toMap(), if (healNow) null else e.bg, if (healNow) null else e.sky, if (healNow) null else e.lensBlur, if (healNow) e.retouch.copy(fsSmooth = 0f, fsTexture = 1f, light = 0f, shadow = 0f) else e.retouch)
             if (healNow) return r
             var o = r
             for (t in e.texts) o = stampLayer(context, o, t)
@@ -1005,7 +1014,7 @@ private fun PhotoWorkspace(
                     }
                     val eg = if (raw) e.grade.rawRest() else e.grade
                     val tables = if (eg.isIdentity) null else eg.tables()
-                    var out = ImageOps.renderPhoto(full, eg, e.detail, e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg, e.sky, e.lensBlur)
+                    var out = ImageOps.renderPhoto(full, eg, e.detail, e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg, e.sky, e.lensBlur, e.retouch)
                     full.recycle()
                     // AI upscale (×2 / ×4, at most 24 MP).
                     if (aiScale > 1) {
@@ -1128,6 +1137,18 @@ private fun PhotoWorkspace(
                     }
                 }
             }
+        }
+    }
+    /** Retouch → Skin: a People mask (face / body skin) used only by frequency separation. */
+    fun skinMask(parts: List<Int>, done: (String) -> Unit) {
+        val b = base ?: return
+        if (peopleBusy) return
+        peopleBusy = true; message = "Finding the skin…"
+        scope.launch {
+            val path = withContext(Dispatchers.Default) { try { PeopleMask.make(context, b, parts)?.let { AiSegment.saveMask(context, it) } } catch (_: Throwable) { null } }
+            peopleBusy = false
+            if (path == null) message = if (PeopleMask.lastFaces == 0) "No people or faces found in this photo" else "Couldn't find the skin in this photo"
+            else { message = null; done(path) }
         }
     }
     /** Adds an AI selection to a mask as add / subtract / intersect. */
@@ -1468,7 +1489,7 @@ private fun PhotoWorkspace(
                         val full = developed ?: GradeIO.decode(context, u, sizes[sizeIdx]) ?: return@withContext false
                         val eg = if (developed != null) p.grade.rawRest() else p.grade
                         val tables = if (eg.isIdentity) null else eg.tables()
-                        var out = ImageOps.renderPhoto(full, eg, p.detail.copy(aiDenoise = 0f), p.geometry, tables, p.lens, p.spots, p.masks.filter { it.maskFile == null })
+                        var out = ImageOps.renderPhoto(full, eg, p.detail.copy(aiDenoise = 0f), p.geometry, tables, p.lens, p.spots, p.masks.filter { it.maskFile == null }, retouch = p.retouch?.let { Retouch(liquify = it.liquify, fsSmooth = if (it.fsArea == 0) it.fsSmooth else 0f, fsTexture = if (it.fsArea == 0) it.fsTexture else 1f, fsRadius = it.fsRadius) })
                         if (out !== full) full.recycle()
                         p.watermark?.let { out = stampLayer(context, out, it) }
                         savePhotoAs(context, out, format, (quality * 100).toInt(), if (keepExif) p.uri else null, stripGps) != null
@@ -1518,9 +1539,9 @@ private fun PhotoWorkspace(
                         },
                         onRightClick = { split = !split },
                         onDoubleClick = { com.dronedirector.veyrocutpro.ui.Panels.set(context, "pe.controls", !showControls) },
-                    ).pointerInput(split, panel, picking) {
+                    ).pointerInput(split, panel, picking, retouchTab) {
                         // Pinch to zoom in (1:1 loupe), drag to look around while zoomed. Off in Masks / Heal and the split view.
-                        if (!split && picking == 0 && panel != PhotoPanel.MASKS && panel != PhotoPanel.HEAL) detectTransformGestures { c, pan, z, _ ->
+                        if (!split && picking == 0 && panel != PhotoPanel.MASKS && panel != PhotoPanel.HEAL && !(panel == PhotoPanel.RETOUCH && retouchTab == 0)) detectTransformGestures { c, pan, z, _ ->
                             val nz = (zoomK * z).coerceIn(1f, 8f)
                             if (nz != zoomK || zoomK > 1f) {
                                 val bw = viewSize.width.toFloat(); val bh = viewSize.height.toFloat()
@@ -1530,7 +1551,7 @@ private fun PhotoWorkspace(
                                 if (zoomK <= 1.001f) resetZoom()
                             }
                         }
-                    }.pointerInput(split, panel, picking) {
+                    }.pointerInput(split, panel, picking, retouchTab) {
                         if (split) {
                             // Drag anywhere to move the before / after divider.
                             detectHorizontalDragGestures { ch, _ -> splitX = (ch.position.x / size.width).coerceIn(0.02f, 0.98f) }
@@ -1543,7 +1564,7 @@ private fun PhotoWorkspace(
                         } else if (picking != 0) {
                             // Eyedropper: tap the spot to sample.
                             detectTapGestures(onTap = { o -> pickAt(o, 6.dp.toPx()) })
-                        } else if (panel != PhotoPanel.MASKS && panel != PhotoPanel.HEAL) {
+                        } else if (panel != PhotoPanel.MASKS && panel != PhotoPanel.HEAL && !(panel == PhotoPanel.RETOUCH && retouchTab == 0)) {
                             detectTapGestures(
                                 onPress = { if (zoomK <= 1f) { comparing = true; tryAwaitRelease(); comparing = false } },
                                 // Double-tap: 1:1 loupe at that spot, again to fit.
@@ -1632,6 +1653,9 @@ private fun PhotoWorkspace(
                         val em = eraseMask
                         if (panel == PhotoPanel.HEAL && em != null && picking == 5) Unit
                         else if (panel == PhotoPanel.HEAL && em != null) MaskEditOverlay(em, shownNow.width, shownNow.height, tools) { m -> eraseMask = m }
+                        else if (panel == PhotoPanel.RETOUCH && retouchTab == 0) LiquifyOverlay(shownNow.width, shownNow.height, liqTool, liqSize, liqStrength) { st ->
+                            edit = edit.copy(retouch = edit.retouch.copy(liquify = edit.retouch.liquify + st))
+                        }
                         else if (panel == PhotoPanel.HEAL) HealOverlay(
                             edit.spots, shownNow.width, shownNow.height, tools.healSize,
                             onMove = { i, sp -> if (i in edit.spots.indices) edit = edit.copy(spots = edit.spots.toMutableList().also { it[i] = sp }) },
@@ -1831,6 +1855,50 @@ private fun PhotoWorkspace(
                                 EdSlider("Sensitivity", dustSens, 0f..1f, 0.5f, ::pct) { dustSens = it }
                                 Text("VISUALISE SPOTS shows a black-and-white view where dust and specks stand out. FIND DUST heals small dark specks in smooth areas such as the sky.", color = Pro.Dim, fontSize = 11.sp)
                                 aiEraseSection()
+                            }
+                            PhotoPanel.RETOUCH -> {
+                                val rt = edit.retouch
+                                fun rts(f: (Retouch) -> Retouch) { edit = edit.copy(retouch = f(edit.retouch)) }
+                                Chips(listOf("Liquify", "Skin (frequency separation)", "Relight (AI)"), retouchTab) { retouchTab = it }
+                                when (retouchTab) {
+                                    0 -> {
+                                        SectionTitle("LIQUIFY") { rts { it.copy(liquify = emptyList()) } }
+                                        Chips(RetouchFx.TOOLS, liqTool) { liqTool = it }
+                                        EdSlider("Brush size", liqSize, 0.01f..0.3f, 0.08f, ::pct) { liqSize = it }
+                                        EdSlider("Strength", liqStrength, 0.05f..1f, 0.5f, ::pct) { liqStrength = it }
+                                        Text("${rt.liquify.size} stroke(s)", style = Pro.Label)
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Text("UNDO LAST", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable { rts { it.copy(liquify = it.liquify.dropLast(1)) } }.padding(8.dp))
+                                            Text("CLEAR ALL", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { rts { it.copy(liquify = emptyList()) } }.padding(8.dp))
+                                        }
+                                        Text("Drag on the photo. Push moves pixels along your drag, Pinch shrinks and Bloat enlarges under the brush, Twirl turns, Restore brings back the original. The whole photo is shown while you liquify.", color = Pro.Dim, fontSize = 11.sp)
+                                    }
+                                    1 -> {
+                                        SectionTitle("FREQUENCY SEPARATION") { rts { it.copy(fsSmooth = 0f, fsTexture = 1f, fsArea = 0, fsMaskFile = null) } }
+                                        Chips(listOf("Whole photo", "Face skin (AI)", "All skin (AI)"), rt.fsArea) { i ->
+                                            if (i == 0) rts { it.copy(fsArea = 0) }
+                                            else skinMask(if (i == 1) listOf(1) else listOf(1, 2)) { p -> rts { it.copy(fsArea = i, fsMaskFile = p) } }
+                                        }
+                                        EdSlider("Smooth tone", rt.fsSmooth, 0f..1f, 0f, ::pct) { v -> rts { it.copy(fsSmooth = v) } }
+                                        EdSlider("Texture", rt.fsTexture, 0f..2f, 1f, ::pct) { v -> rts { it.copy(fsTexture = v) } }
+                                        EdSlider("Detail size", rt.fsRadius, 0.001f..0.015f, 0.004f, { "%.1f‰".format(it * 1000) }) { v -> rts { it.copy(fsRadius = v) } }
+                                        Text("Splits the photo into tone (colour and light) and texture (pores, hair, fine detail). Smooth tone evens out blotchy skin while Texture keeps the pores real — 100% = as photographed. Detail size sets what counts as texture.", color = Pro.Dim, fontSize = 11.sp)
+                                    }
+                                    else -> {
+                                        SectionTitle("RELIGHT (AI DEPTH)") { rts { it.copy(light = 0f, shadow = 0f, warmth = 0f) } }
+                                        if (rt.depthFile == null) {
+                                            Text("WORK OUT THE DEPTH", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { withDepth { p -> rts { it.copy(depthFile = p, light = if (it.light == 0f) 0.5f else it.light) } } }.padding(10.dp))
+                                            Text(if (depthBusy) "Working out the depth…" else "Relight needs the photo's depth (made on the phone, once; also used by Lens Blur).", color = Pro.Dim, fontSize = 11.sp)
+                                        } else {
+                                            LightPad(rt.lightX, rt.lightY) { x, y -> rts { it.copy(lightX = x, lightY = y) } }
+                                            EdSlider("Light", rt.light, 0f..1f, 0f, ::pct) { v -> rts { it.copy(light = v) } }
+                                            EdSlider("Shadows", rt.shadow, 0f..1f, 0f, ::pct) { v -> rts { it.copy(shadow = v) } }
+                                            EdSlider("Warmth", rt.warmth, -1f..1f, 0f, ::pct) { v -> rts { it.copy(warmth = v) } }
+                                            EdSlider("Softness", rt.softness, 0f..1f, 0.5f, ::pct) { v -> rts { it.copy(softness = v) } }
+                                            Text("Tap or drag in the square to place the light. Light brightens what faces it, Shadows darkens what faces away; nearer things catch more light.", color = Pro.Dim, fontSize = 11.sp)
+                                        }
+                                    }
+                                }
                             }
                             PhotoPanel.TEXT -> {
                                 // Text and sticker layers on the photo.
@@ -2455,7 +2523,7 @@ private fun PhotoPanelContent(
                 }
             }
         }
-        PhotoPanel.MASKS, PhotoPanel.HEAL, PhotoPanel.LENS, PhotoPanel.HISTORY, PhotoPanel.TEXT -> {}   // drawn by the workspace
+        PhotoPanel.MASKS, PhotoPanel.HEAL, PhotoPanel.RETOUCH, PhotoPanel.LENS, PhotoPanel.HISTORY, PhotoPanel.TEXT -> {}   // drawn by the workspace
         PhotoPanel.EXPORT -> {
             run {
                 val ctx = LocalContext.current
@@ -2876,5 +2944,29 @@ private fun IccProofSection() {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
         Text("CHANGE PROFILE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { pick.launch(arrayOf("*/*")) }.padding(10.dp))
         Text("REMOVE", style = Pro.Label.copy(color = Pro.Red, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { IccProof.remove(ctx); note = null }.padding(10.dp))
+    }
+}
+
+/** Relight: a small square to place the light (centre = straight in front). */
+@Composable
+private fun LightPad(x: Float, y: Float, onChange: (Float, Float) -> Unit) {
+    val ch by androidx.compose.runtime.rememberUpdatedState(onChange)
+    Box(
+        Modifier.padding(vertical = 6.dp).size(120.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).border(1.dp, Pro.Line, RoundedCornerShape(8.dp))
+            .pointerInput(Unit) {
+                fun set(o: androidx.compose.ui.geometry.Offset) = ch((o.x / size.width * 2 - 1).coerceIn(-1f, 1f), (o.y / size.height * 2 - 1).coerceIn(-1f, 1f))
+                awaitEachGesture {
+                    val d = awaitFirstDown(); set(d.position)
+                    while (true) { val ev = awaitPointerEvent(); val c = ev.changes.firstOrNull() ?: break; if (!c.pressed) break; set(c.position); c.consume() }
+                }
+            },
+    ) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            val c = androidx.compose.ui.geometry.Offset(size.width / 2, size.height / 2)
+            drawCircle(Color.White.copy(alpha = 0.25f), size.minDimension * 0.18f, c)
+            val p = androidx.compose.ui.geometry.Offset((x + 1) / 2 * size.width, (y + 1) / 2 * size.height)
+            drawLine(Pro.Amber.copy(alpha = 0.6f), p, c, 2f)
+            drawCircle(Pro.Amber, 9.dp.toPx(), p)
+        }
     }
 }

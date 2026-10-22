@@ -89,6 +89,7 @@ data class PhotoProjectData(
     val session: Boolean? = null,
     /** Lens Blur (depth of field from the AI depth map). */
     val lensBlur: LensBlur? = null,
+    val retouch: Retouch? = null,
     /** True for automatic saves (gear → AUTOSAVE); listed apart from your own projects. */
     val autosave: Boolean? = null,
 )

@@ -256,10 +256,12 @@ object ImageOps {
         bg: PhotoBackground? = null,
         sky: SkySwap? = null,
         lensBlur: LensBlur? = null,
+        retouch: Retouch? = null,
     ): Bitmap {
         var b = src
         val srcW = src.width; val srcH = src.height
         if (!spots.isNullOrEmpty()) b = PhotoLocal.heal(b, spots)
+        if (retouch != null && retouch.liquify.isNotEmpty()) { val l = RetouchFx.liquify(b, retouch.liquify); if (b !== src && l !== b) b.recycle(); b = l }
         if (lens != null && !lens.isIdentity) { val l = PhotoLocal.lens(b, lens); if (b !== src && l !== b) b.recycle(); b = l }
         val g = geometry(b, geometry)
         if (b !== src && g !== b) b.recycle()
@@ -271,7 +273,7 @@ object ImageOps {
         detail(px, w, h, detail)
         // AI selections are made on the uncropped photo: give them the same crop / rotation.
         val used = (masks.orEmpty().filter { it.visible }.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } +
-            listOfNotNull(bg?.takeIf { it.active }?.maskFile, sky?.takeIf { it.active }?.maskFile, lensBlur?.takeIf { it.active }?.depthFile)).distinct()
+            listOfNotNull(bg?.takeIf { it.active }?.maskFile, sky?.takeIf { it.active }?.maskFile, lensBlur?.takeIf { it.active }?.depthFile) + retouch?.files().orEmpty()).distinct()
         val placed = HashMap<String, Bitmap>()
         for (f in used) aiMasks[f]?.let { m ->
             val s = Bitmap.createScaledBitmap(m, srcW, srcH, true)
@@ -279,6 +281,12 @@ object ImageOps {
             if (gm !== s) s.recycle()
             placed[f] = gm
         }
+        // Retouch: frequency separation (skin) and relight, before the local masks.
+        if (retouch != null && retouch.fsOn) {
+            val m = if (retouch.fsArea != 0) retouch.fsMaskFile?.let { f -> placed[f]?.let { PhotoLocal.weights(PhotoMask(type = MaskType.SUBJECT, maskFile = f), w, h, it) } } else null
+            if (retouch.fsArea == 0 || m != null) RetouchFx.frequencySeparation(px, w, h, retouch, m)
+        }
+        if (retouch != null && retouch.relightOn) placed[retouch.depthFile]?.let { RetouchFx.relight(px, w, h, retouch, it) }
         // Lens blur (depth of field from the AI depth map), before the local masks.
         if (lensBlur != null && lensBlur.active) placed[lensBlur.depthFile]?.let { d -> LensBlurFx.apply(px, w, h, d, lensBlur) }
         if (!masks.isNullOrEmpty()) PhotoLocal.applyMasks(px, w, h, masks, placed)

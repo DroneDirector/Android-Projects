@@ -182,6 +182,22 @@ fun TeleprompterOverlay(recording: Boolean, isFront: Boolean) {
                     contentAlignment = Alignment.Center,
                 ) { Text("◢", color = Pro.Amber.copy(alpha = 0.7f), fontSize = 14.sp) }
             }
+            // Auto-scroll on / off and its speed, right on the teleprompter.
+            Row(Modifier.fillMaxWidth().background(Color(0x99141619)).padding(start = 6.dp, end = 30.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (Prompter.playing) "❚❚ AUTO-SCROLL" else "▶ AUTO-SCROLL",
+                    style = Pro.Label.copy(color = if (Prompter.playing) Color.Black else Pro.Amber, fontSize = 10.sp),
+                    modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(if (Prompter.playing) Pro.Amber else Color.Transparent)
+                        .clickable { if (Prompter.speed < 1f) Prompter.speed = 30f; Prompter.playing = !Prompter.playing }.padding(horizontal = 8.dp, vertical = 6.dp),
+                )
+                Text("SPEED", style = Pro.Label.copy(color = Pro.Dim, fontSize = 9.sp), modifier = Modifier.padding(start = 6.dp))
+                Slider(
+                    Prompter.speed.coerceIn(5f, 120f), { Prompter.speed = it }, valueRange = 5f..120f,
+                    onValueChangeFinished = { Prompter.save(ctx) },
+                    colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber),
+                    modifier = Modifier.weight(1f).height(28.dp).padding(horizontal = 4.dp),
+                )
+            }
         }
     }
     if (editing) PrompterEditor { editing = false; Prompter.save(ctx) }

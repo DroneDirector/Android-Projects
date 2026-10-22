@@ -5,7 +5,7 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 
 ## Unreleased
 - Capture: **24-bit audio** and **Extreme bitrate** are only offered on phones strong enough for them (memory, processor, graphics and video encoder are checked); on others they're greyed out with a short note.
-- Capture: **teleprompter** — type your text, style it (bold, italic, underline, narrow, alignment, size, text and background colours), let it scroll as you record; drag it anywhere, resize it, shrink it to a small bar or close it. Opens by itself with the selfie camera, and works with the back camera too (PROMPTER in the quick bar).
+- Capture: **teleprompter** — type your text, style it (bold, italic, underline, narrow, alignment, size, text and background colours), let it scroll by itself (**AUTO-SCROLL** button and **speed slider** right on the teleprompter) or start scrolling with the recording; drag it anywhere, resize it, shrink it to a small bar or close it. Opens by itself with the selfie camera, and works with the back camera too (PROMPTER in the quick bar).
 
 ## 1.0.440 — 2026-10-22
 - Capture (Pro): **read-out bar** with exposure mode — **shutter priority** and **ISO priority** now follow the light continuously (Android 15+ uses the camera's own priority modes) — and resolution · frame rate · bitrate in video; tap any value to change it.

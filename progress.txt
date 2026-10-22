@@ -1,6 +1,6 @@
-done=1
+done=2
 total=7
-percent=14
-now=video pages
-elapsed_s=143
-updated=2026-10-22T14:15:59Z
+percent=28
+now=retouch
+elapsed_s=733
+updated=2026-10-22T14:25:49Z

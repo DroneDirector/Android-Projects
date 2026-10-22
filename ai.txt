@@ -1,0 +1,24 @@
+10-22 18:37:24.409  5247  5247 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-22 18:37:24.446  5247  5247 I AndroidRuntime: Using default boot image
+10-22 18:37:24.446  5247  5247 I AndroidRuntime: Leaving lock profiling enabled
+10-22 18:37:25.137  5247  5247 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+10-22 18:37:26.982  5247  5247 D AndroidRuntime: Shutting down VM
+10-22 18:37:42.685  1457  3498 W MagicTether: [MagicTetherInitializer] Invalid account list. [CONTEXT service_id=276 ]
+10-22 18:37:43.422  1406  2998 W MagicTether: [TetherListenerService] Invalid account list. [CONTEXT service_id=276 ]
+10-22 18:37:43.429  1406  1406 I MagicTether: [AutoDisconnectIntentOperation] Canceling task. [CONTEXT service_id=276 ]
+10-22 18:37:43.438  1406  3480 I MagicTether: [AutoDisconnectIntentOperation] Canceling task. [CONTEXT service_id=276 ]
+10-22 18:37:45.177  5505  5505 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-22 18:37:45.215  5505  5505 I AndroidRuntime: Using default boot image
+10-22 18:37:45.215  5505  5505 I AndroidRuntime: Leaving lock profiling enabled
+10-22 18:37:46.317  5505  5505 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+10-22 18:37:48.556  5505  5505 D AndroidRuntime: Shutting down VM
+10-22 18:37:50.220  5528  5528 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-22 18:37:50.267  5528  5528 I AndroidRuntime: Using default boot image
+10-22 18:37:50.267  5528  5528 I AndroidRuntime: Leaving lock profiling enabled
+10-22 18:37:51.007  5528  5528 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+10-22 18:37:52.642  5528  5528 D AndroidRuntime: Shutting down VM
+10-22 18:38:25.037  5755  5755 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-22 18:38:25.057  5755  5755 I AndroidRuntime: Using default boot image
+10-22 18:38:25.057  5755  5755 I AndroidRuntime: Leaving lock profiling enabled
+10-22 18:38:26.158  5755  5755 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+10-22 18:38:32.696  5755  5755 D AndroidRuntime: Shutting down VM

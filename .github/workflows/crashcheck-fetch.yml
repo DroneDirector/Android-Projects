@@ -1,0 +1,25 @@
+name: Crash check results (fetch)
+# Started by hand: copies a crash-check run's saved results (artifact) to the 'crashcheck' branch.
+on:
+  workflow_dispatch:
+    inputs:
+      run:
+        description: "Crash check run id"
+        required: true
+permissions:
+  contents: write
+  actions: read
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the results and save them to the branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir out && gh run download "${{ inputs.run }}" -R "${{ github.repository }}" -n crashcheck -D out
+          cd out && ls -la
+          [ -f logcat-full.txt ] && { grep -n -A40 "FATAL EXCEPTION" logcat-full.txt > fatal.txt || echo "no fatal exception" > fatal.txt; gzip -f logcat-full.txt; }
+          git init -q -b crashcheck && git add -A
+          git -c user.name="github-actions" -c user.email="actions@github.com" commit -qm "Crash check results of run ${{ inputs.run }}"
+          git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" crashcheck

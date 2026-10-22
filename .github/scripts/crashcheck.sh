@@ -453,7 +453,7 @@ if [ -f raw_test.arw ]; then
 else echo "no raw sample downloaded" > out/libraw.txt; fi
 fi
 step "saving the results"; DONE=$TOTAL; step "finished"
-adb logcat -d -b crash > out/crash.txt || true
-adb logcat -d > out/logcat-full.txt || true
+timeout 90 adb logcat -d -b crash > out/crash.txt || true
+timeout 120 adb logcat -d > out/logcat-full.txt || true
 grep -n -A40 "FATAL EXCEPTION" out/logcat-full.txt > out/fatal.txt || echo "no fatal exception" > out/fatal.txt
 cat out/fatal.txt | head -80

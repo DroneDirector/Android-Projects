@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.461 — 2026-10-22
 - Photo editor → Merge photos: **Star stack** — night-sky shots lined up on the stars and averaged.
 - Photo editor → Crop: **Expand (Cloud AI)** — a wider picture with the surroundings painted in (Bria Expand, trained on licensed images).
 - Video editor: **keyframe curve editor** — Bézier handles and presets (ease in / out, back, anticipate) for clip keyframes.

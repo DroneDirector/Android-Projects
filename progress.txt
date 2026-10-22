@@ -1,6 +1,6 @@
-done=4
+done=5
 total=6
-percent=66
-now=camera RAW (LibRaw)
-elapsed_s=939
-updated=2026-10-22T18:51:58Z
+percent=83
+now=saving the results
+elapsed_s=1022
+updated=2026-10-22T18:53:21Z

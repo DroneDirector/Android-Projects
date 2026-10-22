@@ -11,7 +11,7 @@
             android:action="android.intent.action.VIEW"
             android:targetPackage="com.dronedirector.veyrocutpro"
             android:targetClass="com.dronedirector.veyrocutpro.MainActivity">
-            <extra android:name="mode" android:value="VIDEO" />
+            <extra android:name="mode" android:value="PRO_VIDEO" />
         </intent>
     </shortcut>
     <shortcut

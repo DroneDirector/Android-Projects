@@ -17,7 +17,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Simple / Pro layout**: everyday modes and tools only, or everything (Capture settings and both editors' settings).
 - **Backup & restore**: one .vcbackup file with all settings, presets, LUTs, watermarks, sounds and projects.
 - **Quick tour** of the camera gestures on first start (replay from Settings).
-- **App shortcuts** (long-press the icon: Video, Pro photo, Photo editor, Video editor) and a **Quick Settings camera tile**.
+- **App shortcuts** (long-press the icon: Pro video, Pro photo, Photo editor, Video editor) and a **Quick Settings camera tile**.
 - **Open from other apps**: Share / Edit with VeyroCut Pro opens the photo or video editor directly.
 
 - **Languages**: English, Danish (Dansk) and Faroese (Føroyskt), following the phone or chosen in settings.

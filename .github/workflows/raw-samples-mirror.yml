@@ -38,4 +38,4 @@ jobs:
           # Pack and upload one part at a time, so the disk never holds a second full copy.
           mkdir -p /tmp/rel && cd ~/raw-samples
           tar -cf - . | split -b 1900m -d -a 2 --filter='cat > "$FILE" && gh release upload raw-samples-v1 "$FILE" -R "$GITHUB_REPOSITORY" && rm -f "$FILE"' - /tmp/rel/raw-samples.tar.part
-          gh release view raw-samples-v1 --json assets -q '.assets[].name'
+          gh release view raw-samples-v1 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'

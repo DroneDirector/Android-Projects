@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.440 — 2026-10-22
 - Capture (Pro): **read-out bar** with exposure mode — **shutter priority** and **ISO priority** now follow the light continuously (Android 15+ uses the camera's own priority modes) — and resolution · frame rate · bitrate in video; tap any value to change it.
 - Capture: **Fn button** — tap to run your chosen function, hold to pick one of 17.
 - Capture: **pull points** for zoom and exposure as well as focus, over 1–8 s, separately or all together.

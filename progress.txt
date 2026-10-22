@@ -1,6 +1,6 @@
-done=0
+done=1
 total=7
-percent=0
-now=installing the app
-elapsed_s=0
-updated=2026-10-22T17:15:23Z
+percent=14
+now=video pages
+elapsed_s=119
+updated=2026-10-22T17:17:22Z

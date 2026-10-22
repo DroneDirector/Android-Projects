@@ -49,6 +49,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
@@ -2157,7 +2159,6 @@ private fun PhotoPanelContent(
         }
         PhotoPanel.LIGHT -> {
             if (isRaw) {
-                SectionTitle("RAW LOOK") { set(e.copy(raw = e.raw.copy(look = 0))) }
                 RawLookStrip(rawMeta, e.raw) { i -> set(e.copy(raw = e.raw.copy(look = i))) }
                 SectionTitle("RAW PROFILE") { set(e.copy(raw = e.raw.copy(profile = 0))) }
                 // "Camera" (the maker's own profile in the file) only when the DNG has one.
@@ -2694,6 +2695,19 @@ private object RawLookThumbs { val cache = android.util.LruCache<String, Bitmap>
 internal fun RawLookStrip(meta: RawDng.Meta?, dev: RawDng.Dev, onPick: (Int) -> Unit) {
     val sel = dev.look.coerceIn(0, RawDng.LOOKS.size - 1)
     val lin = meta?.let { RawDng.lookSource(it) }
+    var open by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    // Folded: one line with the chosen look; tap to unfold the previews.
+    Row(
+        Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(10.dp)).background(Ed.Raised).clickable { open = !open }.padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("RAW LOOK · " + RawDng.LOOKS[sel].label, color = if (sel == 0) Color.White else Pro.Amber, fontSize = 13.sp)
+            Text(if (open) "Tap a look to use it · tap here to fold" else "Tap here to see different DNG looks", color = Pro.Dim, fontSize = 11.sp)
+        }
+        androidx.compose.material3.Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, tint = Pro.Dim)
+    }
+    if (!open) return
     Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         RawDng.LOOKS.forEachIndexed { i, look ->
             val key = "${System.identityHashCode(lin)}/$i/${dev.profile}/${dev.wb}/${dev.vigOn}"
@@ -2716,6 +2730,10 @@ internal fun RawLookStrip(meta: RawDng.Meta?, dev: RawDng.Dev, onPick: (Int) -> 
             }
         }
     }
+    Text(
+        "FOLD ▲", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { open = false }.padding(horizontal = 8.dp, vertical = 6.dp),
+    )
     Text(if (sel == 0) "Default is the app's own RAW look. Scroll for phone-style looks, or Match camera picture." else when {
         RawDng.LOOKS[sel].match -> "Copies the brightness and colour of the preview the camera stored in the file."
         else -> "Brighter, with lifted shadows, softer highlights and more colour — closer to how phones show their pictures."

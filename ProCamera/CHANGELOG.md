@@ -4,6 +4,14 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture (Pro): **read-out bar** with exposure mode — **shutter priority** and **ISO priority** now follow the light continuously (Android 15+ uses the camera's own priority modes) — and resolution · frame rate · bitrate in video; tap any value to change it.
+- Capture: **Fn button** — tap to run your chosen function, hold to pick one of 17.
+- Capture: **pull points** for zoom and exposure as well as focus, over 1–8 s, separately or all together.
+- Capture: **separate focus and exposure points** (tap = focus, double-tap = exposure).
+- Video: **24-bit WAV audio** saved next to each clip; **NTSC rates** (23.976 / 29.97 / 59.94); **record in the frame guide's shape** (2.76, 2.39, 1.85, 4:3, 1:1, 9:16); **bitrate tiers** (Economy, Standard, High, Extreme); **flip picture** for adapters and mirror rigs.
+- Capture: **sync C1–C3 set-ups** between devices through a file in your cloud folder.
+- New **watch remote** for Wear OS watches (Galaxy Watch 4+, Pixel Watch): live picture, record / shutter, photo ↔ video, zoom — install VeyroCutPro-WATCH from this release (see Guides and Tips).
+- Start screen: new **gear** with **home-screen shortcuts** — add separate icons for Capture, the Photo editor and the Video editor.
 
 ## 1.0.434 — 2026-10-22
 - Photo editor → Light → **RAW LOOK**: a folded line at the top of Light ("Tap here to see different DNG looks"). Unfolded: Default (the app's own RAW look, unchanged), **Match camera picture** (copies the brightness and colour of the preview stored in the RAW file), and fold-out sub-menus **Phones**, **Drones**, **Cameras** and **Action & 360°** with small previews of your photo in each look — scroll and tap, like the transitions list; everything folds away again. The looks are measured: the automatic RAW test compared 150+ sample RAW files with the pictures those cameras made themselves (Pixel, Galaxy, iPhone, DJI, Parrot, Autel, Canon, Sony, Nikon, Fujifilm, Leica, Ricoh, Panasonic, Olympus / OM, YI).

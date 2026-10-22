@@ -31,6 +31,16 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Standard is faster; High keeps more real detail. Choose whether to keep the original. STOP on the AI badge cancels.
 
 **Capture tips**
+- Pro read-out bar: ISO, S, F, WB, EV and ZOOM show their live values — tap one to change it. EXP shows AUTO, S-PRI (shutter priority: set S, ISO follows the light), ISO-PRI (set ISO, shutter follows) or M (both manual). REC shows resolution, frame rate and bitrate in video.
+- Fn button (end of the read-out bar): tap it to run your favourite function, hold it to choose — zebras, peaking, false colour, next scope, AE / AWB lock, split focus / exposure, pull to A / B, frame guide, flip, torch, next lens and more.
+- Pull points: in FOCUS, ZOOM and EV, SET A and SET B store two settings; → A / → B glide there over 1, 2, 4 or 8 s. ALL → A / ALL → B moves focus, zoom and exposure together — smooth rack focus, zoom pulls and exposure changes while recording.
+- Separate focus and exposure (AF·AE chip or Settings): tap to focus, double-tap to set where the exposure is measured (the amber sun ring).
+- Settings → VIDEO → 24-bit audio (WAV): the sound is recorded uncompressed and saved as a 24-bit WAV next to each clip (or in Music/VeyroCutPro), and the clip gets the same sound. Headphone monitoring pauses while recording.
+- Settings → VIDEO → NTSC frame rates: 24, 30 and 60 fps clips become 23.976, 29.97 and 59.94 fps after recording (picture and sound slowed by 0.1 %).
+- Pro Video → REC SHAPE (or Settings): records in the frame guide's shape — 2.76, 2.39, 1.85, 4:3, 1:1 or 9:16 — instead of only drawing the guide.
+- Bitrate: Economy, Standard, High or Extreme (quick bar BITRATE or Settings → VIDEO). Flip picture mirrors left ↔ right for lens adapters, mirror rigs and teleprompters.
+- Sync C1–C3 between devices: Settings → VIDEO → CREATE SYNC FILE and save it in a cloud folder (e.g. Google Drive); on your other device choose USE EXISTING and pick the same file.
+- Watch remote: install VeyroCutPro-WATCH (from the release) on a Wear OS watch — Galaxy Watch 4 or newer, Pixel Watch. With Capture open on the phone, the watch shows the live picture and records / takes photos, switches photo ↔ video and zooms. Install steps: Guides and Tips → Installing the watch app.
 - Settings → SLATE & SHOT LOG: set scene, shot, take and notes; they show on the viewfinder, go into photos, and every clip and photo is logged. Export the log as a .csv for Excel / Sheets; the take number goes up after each recording.
 - Settings → COPYRIGHT: your name and copyright notice are written into every photo you take and every photo you export (Artist / Copyright in the photo's details).
 - SMART → PORTRAIT and AI PORTRAIT: the subject stays sharp and the background is blurred — people, pets, flowers, rocks, branches and other things that stand out. PORTRAIT adds the blur a second after the shot; AI PORTRAIT also shows it live in the viewfinder while you frame (people update fastest; other subjects a few times a second, so the edge can lag a little when you move — "no subject" means nothing is found yet). In both, slide the BACKGROUND BLUR slider above the zoom bar (left f/1.4 = most blur, right f/16 = least) or tap a spot on it; tap AUTO to minimise it and let VeyroCut Pro pick the blur. The saved photo always gets the full-quality blur a second after the shot.
@@ -74,6 +84,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Settings → PHOTO SIZE shows what your phone's sensor allows apps to use.
 
 **General**
+- Start screen → gear → Home-screen shortcuts: turn it on, then add separate icons for Capture, the Photo editor or the Video editor to your phone's home screen — each opens straight into that part of the app.
 - APP COLOUR changes the highlight colour.
 - "Always start in Capture" opens the app straight into the camera.
 - SAVE PHOTOS & VIDEOS TO chooses where captures are saved.

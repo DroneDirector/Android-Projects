@@ -6,6 +6,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 ---
 
 ## Start screen
+- **Home-screen shortcuts** (start screen → gear, off by default): separate home-screen icons that open Capture, the Photo editor or the Video editor directly.
 - **Capture** and **Editor** tiles over an animated aperture background, in the app colour.
 - **Editor hub** to choose the Photo editor or the Video editor.
 - **Startup choice**: always open in Capture, the Photo editor or the Video editor (set in each one's settings; untick to see the start screen again).
@@ -54,6 +55,15 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Remote monitor & control** from any browser on the same Wi-Fi or hotspot (PIN-protected address): live picture, shutter / record, zoom, Photo / Video / Pro Video, autofocus, AE lock, recording time and exposure read-out.
 
 ### Pro controls
+- **Pro read-out bar**: live ISO, shutter, focus, white balance, EV and zoom — tap any to change it — plus the exposure mode (**auto, shutter priority, ISO priority, manual**; Android 15+ uses the camera's own priority modes, older phones are metered continuously by the app) and, in video, resolution · frame rate · bitrate.
+- **Fn button**: one assignable button (tap to run, hold to choose) — zebras, peaking, false colour, next scope, AE / AWB lock, split focus / exposure, pull to A / B, frame guide, safe areas, log assist, flip, torch, next lens, focus magnifier, clean feed.
+- **Pull points**: A / B points for focus (rack focus), zoom and exposure, glided over 1–8 s, separately or all together.
+- **Separate focus and exposure points**: tap = focus, double-tap = exposure (amber sun ring).
+- **Record in cinema shapes**: 2.76 (Ultra Panavision), 2.39, 1.85, 4:3, 1:1, 9:16 — the recording is cropped, not just guided.
+- **Bitrate tiers**: Economy, Standard, High, Extreme. **Flip picture** (left ↔ right, viewfinder and recording).
+- **NTSC rates**: 23.976 / 29.97 / 59.94 fps by conforming 24 / 30 / 60 fps clips after recording (picture and sound together).
+- **Set-up sync**: C1–C3 synced between devices through one file in a cloud folder you choose.
+- **Watch remote** (Wear OS — Galaxy Watch 4+, Pixel Watch): live picture, record / shutter, photo ↔ video, zoom.
 - **Slate & shot log**: scene / shot / take and notes, viewfinder badge, photo description, CSV shot log with camera settings, automatic take numbers.
 - **Safe areas**: action-safe 90 % and title-safe 80 % frames.
 - **Tally border**, **touch lock** while recording, and **storage / battery / heat warnings**.
@@ -70,6 +80,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Composition grids** (3×3, phi, 4×4, crosshair) and **frame guides** (2.39, 1.85, 4:3, 1:1, 9:16).
 
 ### Audio
+- **24-bit audio**: uncompressed recording saved as a 24-bit WAV next to each clip (the clip gets the same sound).
 - **Manual input gain** with limiter (applied to finished clips).
 - **Headphone monitoring** with live gain, limiter and volume; audio level graph.
 - **Left / right level meters** (stereo microphones), **wind filter**, Bluetooth headset microphone option; USB / wired mics used automatically.

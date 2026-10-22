@@ -157,13 +157,16 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             run {
                 val ctx = androidx.compose.ui.platform.LocalContext.current
                 val x = com.dronedirector.veyrocutpro.camera.CaptureExtras
-                ChoiceRow("Bitrate", listOf(0, 1, 2, 3), x.bitrateTier, { listOf("ECONOMY", "STANDARD", "HIGH", "EXTREME")[it] }) { c.setBitrateTier(it) }
-                Text("Economy saves space, Standard is the phone's own choice, High keeps more detail, Extreme is for grading (big files).", color = Pro.Dim, fontSize = 12.sp)
-                ToggleRow(
+                com.dronedirector.veyrocutpro.camera.DeviceClass.check(ctx)
+                val extremeOk = com.dronedirector.veyrocutpro.camera.DeviceClass.extremeBitrate(s.videoRes.highBitrate)
+                ChoiceRow("Bitrate", if (extremeOk) listOf(0, 1, 2, 3) else listOf(0, 1, 2), x.bitrateTier.coerceAtMost(if (extremeOk) 3 else 2), { listOf("ECONOMY", "STANDARD", "HIGH", "EXTREME")[it] }) { c.setBitrateTier(it) }
+                Text("Economy saves space, Standard is the phone's own choice, High keeps more detail" + (if (extremeOk) ", Extreme is for grading (big files)." else ". Extreme needs a more powerful phone (memory, processor and graphics)."), color = Pro.Dim, fontSize = 12.sp)
+                if (com.dronedirector.veyrocutpro.camera.DeviceClass.proAudio) ToggleRow(
                     "24-bit audio (WAV)",
                     "Pro Video and Video: the sound is recorded uncompressed and saved as a 24-bit WAV next to each clip (or in Music/VeyroCutPro); the clip gets the same sound. Headphone monitoring pauses while recording.",
                     x.wavAudio,
                 ) { c.setWavAudio(!x.wavAudio) }
+                else Text("24-bit audio (WAV): needs a more powerful phone (memory, processor and graphics).", color = Pro.Dim, fontSize = 12.sp)
                 ToggleRow(
                     "NTSC frame rates",
                     "24, 30 and 60 fps clips become 23.976, 29.97 and 59.94 fps (picture and sound slowed by 0.1 % after recording), for broadcast and US workflows",

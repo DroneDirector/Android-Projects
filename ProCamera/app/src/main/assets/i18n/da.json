@@ -2744,5 +2744,8 @@
 "Background opacity": "Baggrundens dækkeevne",
 "Start scrolling when recording starts": "Start rulning, når optagelsen starter",
 "Open with the selfie camera": "Åbn med selfiekameraet",
-"Mirror text (for teleprompter glass)": "Spejlvend teksten (til teleprompterglas)"
+"Mirror text (for teleprompter glass)": "Spejlvend teksten (til teleprompterglas)",
+"Needs a more powerful phone (memory, processor and graphics)": "Kræver en kraftigere telefon (hukommelse, processor og grafik)",
+"24-bit audio (WAV): needs a more powerful phone (memory, processor and graphics).": "24-bit lyd (WAV): kræver en kraftigere telefon (hukommelse, processor og grafik).",
+"Economy saves space, Standard is the phone's own choice, High keeps more detail. Extreme needs a more powerful phone (memory, processor and graphics).": "Økonomi sparer plads, Standard er telefonens eget valg, Høj bevarer flere detaljer. Ekstrem kræver en kraftigere telefon (hukommelse, processor og grafik)."
 }

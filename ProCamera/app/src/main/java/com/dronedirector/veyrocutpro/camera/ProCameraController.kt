@@ -291,6 +291,7 @@ class ProCameraController(private val context: Context) {
     private val watch by lazy { WatchLink(context, scope, this) { previewView } }
 
     fun attach(owner: LifecycleOwner, view: PreviewView) {
+        DeviceClass.check(context)
         pullPresetSync()
         watch.start()
         this.owner = owner
@@ -1015,8 +1016,10 @@ class ProCameraController(private val context: Context) {
         // Strict: exactly the chosen quality (binding fails rather than silently dropping, e.g. 4K → 1080p).
         val recorderBuilder = Recorder.Builder()
             .setQualitySelector(if (strict) QualitySelector.from(q) else QualitySelector.from(q, FallbackStrategy.lowerQualityOrHigherThan(q)))
-        // Bitrate: economy, standard (the phone's own choice), high or extreme.
-        val br = when (CaptureExtras.bitrateTier) { 0 -> s.videoRes.highBitrate / 3; 1 -> 0; 3 -> (s.videoRes.highBitrate * 1.6).toInt(); else -> s.videoRes.highBitrate }
+        // Bitrate: economy, standard (the phone's own choice), high or extreme (strong phones only).
+        DeviceClass.check(context)
+        val tier = if (CaptureExtras.bitrateTier >= 3 && !DeviceClass.extremeBitrate(s.videoRes.highBitrate)) 2 else CaptureExtras.bitrateTier
+        val br = when (tier) { 0 -> s.videoRes.highBitrate / 3; 1 -> 0; 3 -> (s.videoRes.highBitrate * 1.6).toInt(); else -> s.videoRes.highBitrate }
         if (br > 0) recorderBuilder.setTargetVideoEncodingBitRate(br)
         // 8-bit codec choice; 10-bit HLG is always HEVC and is left to CameraX.
         val hlg = s.isPro && s.profile == VideoProfile.HLG && s.hlgSupported
@@ -1592,10 +1595,12 @@ class ProCameraController(private val context: Context) {
         else -> 0
     }
 
-    /** Bitrate: economy → standard → high → extreme. */
+    /** Bitrate: economy → standard → high → extreme (extreme only on phones strong enough). */
     fun toggleBitrate() {
         if (st.recording) return
-        CaptureExtras.bitrateTier = (CaptureExtras.bitrateTier + 1) % 4
+        DeviceClass.check(context)
+        val top = if (DeviceClass.extremeBitrate(st.videoRes.highBitrate)) 4 else 3
+        CaptureExtras.bitrateTier = (CaptureExtras.bitrateTier + 1) % top
         CaptureExtras.save(context)
         set { it.copy(highBitrate = CaptureExtras.bitrateTier >= 2) }
         bind()
@@ -1603,6 +1608,8 @@ class ProCameraController(private val context: Context) {
 
     fun setBitrateTier(t: Int) {
         if (st.recording) return
+        DeviceClass.check(context)
+        if (t >= 3 && !DeviceClass.extremeBitrate(st.videoRes.highBitrate)) { toast(DeviceClass.WHY); return }
         CaptureExtras.bitrateTier = t.coerceIn(0, 3)
         CaptureExtras.save(context)
         set { it.copy(highBitrate = CaptureExtras.bitrateTier >= 2) }
@@ -1903,7 +1910,12 @@ class ProCameraController(private val context: Context) {
     }
 
     fun setFnAction(a: FnAction) { CaptureExtras.fnAction = a.name; CaptureExtras.save(context); toast("Fn = ${a.label}") }
-    fun setWavAudio(on: Boolean) { if (!st.recording) { CaptureExtras.wavAudio = on; CaptureExtras.save(context) } }
+    fun setWavAudio(on: Boolean) {
+        if (st.recording) return
+        DeviceClass.check(context)
+        if (on && !DeviceClass.proAudio) { toast(DeviceClass.WHY); return }
+        CaptureExtras.wavAudio = on; CaptureExtras.save(context)
+    }
     fun setNtsc(on: Boolean) { if (!st.recording) { CaptureExtras.ntsc = on; CaptureExtras.save(context) } }
 
     // ---------------------------------------------------------------- filters
@@ -2668,7 +2680,7 @@ class ProCameraController(private val context: Context) {
         recordingHasAudio = s0.mode.isNormalVideo && st.audio && micGranted
         videoStartNanos = 0L
         // Pro audio: the microphone is recorded uncompressed by the app; the video records without sound.
-        wavActive = recordingHasAudio && CaptureExtras.wavAudio && slowMoFile == null && run {
+        wavActive = recordingHasAudio && CaptureExtras.wavAudio && slowMoFile == null && DeviceClass.proAudio && run {
             audioMeter.stopMonitoring()
             btMic(CaptureExtras.micBluetooth)
             wavRec.start().also { if (!it) toast("Couldn't start the 24-bit audio recorder — recording normal sound") }

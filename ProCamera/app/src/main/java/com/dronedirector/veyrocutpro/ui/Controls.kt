@@ -406,7 +406,7 @@ private fun ReadoutExtras(s: CameraUiState, c: ProCameraController) {
         c.toast(if (x.splitAfAe) "Focus: tap · exposure: double-tap" else "Focus and exposure together")
     }
     if (s.isVideo) {
-        val tier = listOf("ECO", "STD", "HIGH", "XTRM")[x.bitrateTier.coerceIn(0, 3)]
+        val tier = listOf("ECO", "STD", "HIGH", "XTRM")[(if (x.bitrateTier >= 3 && !com.dronedirector.veyrocutpro.camera.DeviceClass.extremeBitrate(s.videoRes.highBitrate)) 2 else x.bitrateTier).coerceIn(0, 3)]
         val rate = if (x.ntsc && s.fps in listOf(24, 30, 60)) "%.2f".format(s.fps / 1.001).trimEnd('0').trimEnd('.') else "${s.fps}"
         MiniChip("REC", "${s.videoRes.label}·$rate·$tier", false) { c.toast("Change in the quick bar: RES, FPS, BITRATE · NTSC rates in Settings") }
     }

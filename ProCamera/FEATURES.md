@@ -63,7 +63,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Pull points**: A / B points for focus (rack focus), zoom and exposure, glided over 1–8 s, separately or all together.
 - **Separate focus and exposure points**: tap = focus, double-tap = exposure (amber sun ring).
 - **Record in cinema shapes**: 2.76 (Ultra Panavision), 2.39, 1.85, 4:3, 1:1, 9:16 — the recording is cropped, not just guided.
-- **Bitrate tiers**: Economy, Standard, High, Extreme. **Flip picture** (left ↔ right, viewfinder and recording).
+- **Bitrate tiers**: Economy, Standard, High, Extreme (Extreme and 24-bit audio only on phones strong enough — memory, processor, graphics and the video encoder are checked). **Flip picture** (left ↔ right, viewfinder and recording).
 - **NTSC rates**: 23.976 / 29.97 / 59.94 fps by conforming 24 / 30 / 60 fps clips after recording (picture and sound together).
 - **Set-up sync**: C1–C3 synced between devices through one file in a cloud folder you choose.
 - **Watch remote** (Wear OS — Galaxy Watch 4+, Pixel Watch): live picture, record / shutter, photo ↔ video, zoom.

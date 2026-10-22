@@ -1,6 +1,6 @@
-done=3
+done=4
 total=7
-percent=42
-now=merges
-elapsed_s=1177
-updated=2026-10-22T14:33:13Z
+percent=57
+now=stop motion
+elapsed_s=1340
+updated=2026-10-22T14:35:56Z

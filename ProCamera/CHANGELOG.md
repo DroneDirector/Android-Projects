@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.453 — 2026-10-22
 - Video editor → Audio: **mixer** — a strip per track (clip sound, music, extra tracks) with live meter, level, pan, mute and solo, plus a master level; levels, pan and mute go into the export.
 - Video editor → Audio: live **LUFS loudness meter** (momentary, short-term, integrated) and a **dialogue leveller** that evens out speech.
 - Video editor → Deliver: **OpenTimelineIO (.otio)** export next to EDL and FCPXML; captions also as **WebVTT (.vtt)**; **import .srt / .vtt subtitles** as caption layers (Layers).

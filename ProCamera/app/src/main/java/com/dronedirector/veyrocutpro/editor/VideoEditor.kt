@@ -617,24 +617,22 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     var wheelFx by remember { mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_wheel_fx", true)) }
     var infoText by remember { mutableStateOf("") }
     // Render cache: heavy effects baked into a preview file (key → file).
-    val cacheReady = remember { mutableStateMapOf<String, Uri>() }
-    val cacheProgress = remember { mutableStateMapOf<String, Int>() }
-    var cacheCancel by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val cacheReady = wx.cacheReady
+    val cacheProgress = wx.cacheProgress
     LaunchedEffect(clips.map { if (RenderCache.heavy(it)) RenderCache.key(it) else "" }.distinct()) {
         for (c in clips.toList()) if (RenderCache.heavy(c)) {
             val k = RenderCache.key(c)
             if (k !in cacheReady) withContext(Dispatchers.IO) { RenderCache.existing(context, c) }?.let { cacheReady[k] = it }
         }
     }
-    fun cachedFor(c: Clip): Uri? = if (RenderCache.heavy(c)) cacheReady[RenderCache.key(c)] else null
-    /** The clip as the preview should treat it: with a render cache, its baked effects aren't drawn again. */
-    fun pvc(c: Clip): Clip = if (cachedFor(c) != null) c.copy(bg = null, depth = null) else c
+    fun cachedFor(c: Clip): Uri? = wx.cachedFor(c)
+    fun pvc(c: Clip): Clip = wx.pvc(c)
     fun renderCacheNext() {
-        if (cacheCancel != null) return
+        if (wx.cacheCancel != null) return
         val c = clips.firstOrNull { RenderCache.heavy(it) && RenderCache.key(it) !in cacheReady && RenderCache.key(it) in cacheProgress } ?: return
         val k = RenderCache.key(c)
-        cacheCancel = RenderCache.make(context, c, { p -> cacheProgress[k] = p }) { u, err ->
-            cacheCancel = null
+        wx.cacheCancel = RenderCache.make(context, c, { p -> cacheProgress[k] = p }) { u, err ->
+            wx.cacheCancel = null
             cacheProgress.remove(k)
             if (u != null) cacheReady[k] = u else { message = err; cacheProgress.keys.toList().forEach { cacheProgress.remove(it) } }
             if (u != null) renderCacheNext()
@@ -1608,28 +1606,26 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     // ---- Caption translation (ML Kit, on the phone)
     var translateStatus by remember { mutableStateOf<String?>(null) }
     // ---- AI dubbing: the captions spoken in another voice / language as one audio track.
-    var dubStatus by remember { mutableStateOf<String?>(null) }
-    var dubJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     fun dubCaptions(lang: String, man: Boolean, mute: Boolean) {
-        if (dubJob != null) { dubJob?.cancel(); dubJob = null; dubStatus = null; message = "Dubbing stopped"; return }
+        if (wx.dubJob != null) { wx.dubJob?.cancel(); wx.dubJob = null; wx.dubStatus = null; message = "Dubbing stopped"; return }
         val caps = layers.filter { it.kind == LayerKind.TEXT && (it.name == "Caption" || it.name == "Word caption") && !it.wholeVideo && it.text.isNotBlank() }.sortedBy { it.startMs }
         if (caps.isEmpty()) { message = "Make captions first (AI CAPTIONS), and translate them if you want another language"; return }
         if (lang != "en" && !com.dronedirector.veyrocutpro.camera.CloudAi.useVideo(context) && !com.dronedirector.veyrocutpro.camera.CloudAi.usePhotos(context)) {
             message = "Dubbing in that language uses Cloud AI — add your fal.ai key in Cloud AI settings (English works on the phone)"; return
         }
-        dubStatus = "Starting…"
-        dubJob = layerScope.launch {
+        wx.dubStatus = "Starting…"
+        wx.dubJob = layerScope.launch {
             if (lang == "en") {
                 val v = Voiceover.voices.first { it.id == if (man) "am_michael" else "af_heart" }
-                val err = withContext(Dispatchers.IO) { Voiceover.ensure(context, v, { p -> dubStatus = "Getting the voice $p%" }, { !isActive }) }
-                if (err != null) { dubStatus = null; dubJob = null; message = err; return@launch }
+                val err = withContext(Dispatchers.IO) { Voiceover.ensure(context, v, { p -> wx.dubStatus = "Getting the voice $p%" }, { !isActive }) }
+                if (err != null) { wx.dubStatus = null; wx.dubJob = null; message = err; return@launch }
             }
             val lines = caps.map { Triple(it.startMs, it.endMs, it.text.replace('\n', ' ')) }
             val audio = withContext(Dispatchers.IO) {
-                try { Dubbing.build(context, lines, lang, man, { p -> dubStatus = "Speaking $p%" }, { !isActive }) }
+                try { Dubbing.build(context, lines, lang, man, { p -> wx.dubStatus = "Speaking $p%" }, { !isActive }) }
                 catch (t: Throwable) { layerScope.launch { message = t.message ?: "Dubbing failed" }; null }
             }
-            dubStatus = null; dubJob = null
+            wx.dubStatus = null; wx.dubJob = null
             if (!isActive || audio == null) return@launch
             val dir = java.io.File(context.filesDir, "voiceovers").apply { mkdirs() }
             val f = java.io.File(dir, "dub_${System.currentTimeMillis()}.wav")
@@ -2455,7 +2451,6 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
     magicPick?.let { t -> MagicMaskDialog(t, onDismiss = { magicPick = null }) { sel -> magicPick = null; startMagic(t, sel) } }
     var hlProgress by remember { mutableStateOf(-1) }
-    var hlBeat by remember { mutableStateOf(false) }
     var hlJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     fun makeHighlights(targetMs: Long, toBeat: Boolean = false) {
         if (videoLocked) { message = "The video track is locked"; return }
@@ -3364,14 +3359,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 val heavy = clips.filter { RenderCache.heavy(it) }.distinctBy { RenderCache.key(it) }
                                 RenderCacheSection(
                                     heavy.map { c -> Triple(c.name, cachedFor(c) != null, cacheProgress[RenderCache.key(c)]) },
-                                    running = cacheCancel != null || cacheProgress.isNotEmpty(),
+                                    running = wx.cacheCancel != null || cacheProgress.isNotEmpty(),
                                     onRenderAll = {
                                         heavy.filter { RenderCache.key(it) !in cacheReady }.forEach { cacheProgress[RenderCache.key(it)] = 0 }
                                         renderCacheNext()
                                         if (cacheProgress.isEmpty()) message = "Nothing to render — every heavy clip is cached"
                                     },
-                                    onStop = { cacheCancel?.invoke(); cacheCancel = null; cacheProgress.clear(); message = "Render cache stopped" },
-                                    onClear = { cacheCancel?.invoke(); cacheCancel = null; cacheProgress.clear(); cacheReady.clear(); val n = RenderCache.clearAll(context); message = "Render cache deleted (${n / 1_000_000} MB)" },
+                                    onStop = { wx.cacheCancel?.invoke(); wx.cacheCancel = null; cacheProgress.clear(); message = "Render cache stopped" },
+                                    onClear = { wx.cacheCancel?.invoke(); wx.cacheCancel = null; cacheProgress.clear(); cacheReady.clear(); val n = RenderCache.clearAll(context); message = "Render cache deleted (${n / 1_000_000} MB)" },
                                 )
                             }
                             Page.TEXT -> TextEditPage(
@@ -3439,7 +3434,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 ProEditTools(
                                     clips = clips.toList(), selectedIdx = selected, sceneProgress = sceneProgress,
                                     onDetectScenes = { detectScenes() }, onStopScenes = { sceneJob?.cancel(); sceneJob = null; sceneProgress = -1 },
-                                    hlProgress = hlProgress, onHighlights = { makeHighlights(it, hlBeat) }, hlBeat = hlBeat, onHlBeat = { hlBeat = it }, onStopHighlights = { hlJob?.cancel(); hlJob = null; hlProgress = -1 },
+                                    hlProgress = hlProgress, onHighlights = { makeHighlights(it, wx.hlBeat) }, hlBeat = wx.hlBeat, onHlBeat = { wx.hlBeat = it }, onStopHighlights = { hlJob?.cancel(); hlJob = null; hlProgress = -1 },
                                     picked = multi.toList(),
                                     onPick = { id -> if (id in multi) multi.remove(id) else multi.add(id) },
                                     onPickAll = { if (multi.size == clips.size) multi.clear() else { multi.clear(); multi.addAll(clips.map { it.id }) } },
@@ -3526,7 +3521,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onCaptions = { lang, clipsOnly, style -> makeCaptions(lang, clipsOnly, style) },
                                 onImportSubs = { pickSubs.launch(arrayOf("*/*")) },
                                 onTranslate = { to -> translateCaptions(to) }, translateStatus = translateStatus,
-                                onDub = { l, m, mu -> dubCaptions(l, m, mu) }, dubStatus = dubStatus,
+                                onDub = { l, m, mu -> dubCaptions(l, m, mu) }, dubStatus = wx.dubStatus,
                                 telemetryShow = telemetryShow,
                                 onTelemetryShow = { telemetryShow = it },
                                 onTelemetry = { pickSrt.launch(arrayOf("*/*")) },
@@ -6220,6 +6215,17 @@ private fun DeleteClipDialog(index: Int, onClose: () -> Unit, onDelete: (leaveGa
 
 /** Less-used editor state, kept together (one slot in the editor's main function instead of many). */
 class WorkspaceExtra {
+    // Render cache, AI dubbing, highlight reel options (kept here to keep the workspace function small).
+    val cacheReady = androidx.compose.runtime.mutableStateMapOf<String, android.net.Uri>()
+    val cacheProgress = androidx.compose.runtime.mutableStateMapOf<String, Int>()
+    var cacheCancel by androidx.compose.runtime.mutableStateOf<(() -> Unit)?>(null)
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    fun cachedFor(c: Clip): android.net.Uri? = if (RenderCache.heavy(c)) cacheReady[RenderCache.key(c)] else null
+    /** The clip as the preview should treat it: with a render cache, its baked effects aren't drawn again. */
+    fun pvc(c: Clip): Clip = if (cachedFor(c) != null) c.copy(bg = null, depth = null) else c
+    var dubStatus by androidx.compose.runtime.mutableStateOf<String?>(null)
+    var dubJob by androidx.compose.runtime.mutableStateOf<kotlinx.coroutines.Job?>(null)
+    var hlBeat by androidx.compose.runtime.mutableStateOf(false)
     var ttsProgress by androidx.compose.runtime.mutableStateOf<Int?>(null)
     var ttsStatus by androidx.compose.runtime.mutableStateOf<String?>(null)
     var ttsJob by androidx.compose.runtime.mutableStateOf<kotlinx.coroutines.Job?>(null)

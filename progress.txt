@@ -1,6 +1,6 @@
-done=3
-total=3
-percent=100
-now=finished
-elapsed_s=156
-updated=2026-10-21T08:55:01Z
+done=0
+total=7
+percent=0
+now=installing the app
+elapsed_s=0
+updated=2026-10-22T14:13:36Z

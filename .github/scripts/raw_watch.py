@@ -3,6 +3,8 @@
 - New model from a maker already in .github/raw-samples.txt -> proposed (one file per model).
 - New maker -> proposed separately.
 Nothing is added here: the owner is asked first (an issue); "RAW samples add" adds what was approved.
+Models / makers the owner said not to be reminded about are in .github/raw-samples-ignored.txt
+("Make/Model" or "Make" per line) and are never proposed again.
 Everything already seen is remembered in .github/raw-samples-seen.txt.
 """
 import os, sys
@@ -27,11 +29,16 @@ def main(filelist, samples, seen_path, out_added, out_new):
     tested_models = {(maker(p.split("/")[0]), p.split("/")[1].lower()) for p in listed if p.count("/") >= 2}
     first_run = not os.path.exists(seen_path)
     seen = set() if first_run else {l.rstrip("\n") for l in open(seen_path, encoding="utf-8")}
+    ign_path = os.path.join(os.path.dirname(samples), "raw-samples-ignored.txt")
+    ignored = set()
+    if os.path.exists(ign_path):
+        ignored = {l.strip().lower() for l in open(ign_path, encoding="utf-8") if l.strip() and not l.startswith("#")}
     added, new_makers = [], {}
     if not first_run:
         for p in paths:
             if p in seen or p.count("/") < 2: continue
             mk = maker(p.split("/")[0]); model = p.split("/")[1]
+            if p.split("/")[0].lower() in ignored or (p.split("/")[0] + "/" + model).lower() in ignored: continue
             if mk not in known_makers:
                 new_makers.setdefault(p.split("/")[0], set()).add(model)
             elif (mk, model.lower()) not in tested_models:

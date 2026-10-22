@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.448 — 2026-10-22
 - Teleprompter: text can now also scroll **sideways** as one line, like a news ticker (⇅ / ⇆ in its top bar, or ✎ → Scrolling); scrolling upwards stays the default.
 
 ## 1.0.445 — 2026-10-22

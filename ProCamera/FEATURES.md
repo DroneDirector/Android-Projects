@@ -318,6 +318,9 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - Per clip: volume, pan, channels (stereo / mono / left / right / swap), fades.
 - **Voice noise reduction** per clip (Light / Strong / **Voice isolation (AI)** — RNNoise, BSD-3, on the phone; on export).
 - **3-band EQ**, low cut, voice enhance, **compressor, noise gate, limiter**; presets (Voice, Interview, Wind cut, Warm, Bright, Bass boost, Radio, Loud & punchy); live **level meter**.
+- **Dialogue leveller**: evens out speech (quiet words up, loud words down, pauses left alone).
+- **Mixer**: a strip per track (clip sound, music, extra tracks) with live meter, level (dB), pan, mute and solo, plus master level — in the preview and the export.
+- **LUFS meter** (EBU R128 / BS.1770): momentary, short-term and integrated loudness while playing.
 
 ### Deliver
 - **Background export**: keeps running in other apps or with the screen off (foreground service, progress notification, "finished" notification).
@@ -335,10 +338,13 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Loudness normalisation**: −14 / −16 / −23 LUFS (measured per BS.1770, then the whole mix is set to the target, with a limiter).
 - Choose the **save folder** (default DCIM/VeyroCutPro).
 - **Animated GIF** export (320–640 px, 10–15 fps, up to 20 s) with grade and layers.
-- **Subtitles (.srt)** from the AI captions.
-- **Send to desktop editor**: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) for desktop editing software.
+- **Subtitles** from the captions as **.srt** or **WebVTT (.vtt)**; **import .srt / .vtt** files as caption layers.
+- **Safe zones** on the viewer: TikTok, Reels, Shorts (approximate) and TV action / title safe — never exported.
+- **Smart render (fast copy)**: cut-only edits are copied from the clips without re-encoding — no quality loss, much faster (each clip starts on its nearest earlier key frame).
+- **Send to desktop editor**: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) and **OpenTimelineIO .otio** (cuts, dissolves, speed, markers) for desktop editing software.
 
 ### Projects & workflow
+- **Several timelines per project**: new, duplicate, rename and switch between cuts of the same project (shared media strip).
 - **LOAD / SAVE projects** next to Export; **Save & leave** when exiting; saved projects on the start page.
 - **Copy / Paste settings** between clips (or from a photo), optionally onto every clip.
 - **Remember watermark**; **resizable panels**; **playback info** read-out for troubleshooting.

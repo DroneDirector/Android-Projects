@@ -4,6 +4,12 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor → Audio: **mixer** — a strip per track (clip sound, music, extra tracks) with live meter, level, pan, mute and solo, plus a master level; levels, pan and mute go into the export.
+- Video editor → Audio: live **LUFS loudness meter** (momentary, short-term, integrated) and a **dialogue leveller** that evens out speech.
+- Video editor → Deliver: **OpenTimelineIO (.otio)** export next to EDL and FCPXML; captions also as **WebVTT (.vtt)**; **import .srt / .vtt subtitles** as caption layers (Layers).
+- Video editor → Deliver: **safe zones** on the viewer for TikTok, Reels and Shorts, plus TV action / title safe.
+- Video editor → Deliver: **smart render** — a cut-only edit is copied straight from the clips without re-encoding (no quality loss, much faster).
+- Video editor → Media: **several timelines per project** — new, duplicate, rename, switch.
 
 ## 1.0.450 — 2026-10-22
 - App icon long-press menu: **Video** is now **Pro video** and opens Pro Video mode.

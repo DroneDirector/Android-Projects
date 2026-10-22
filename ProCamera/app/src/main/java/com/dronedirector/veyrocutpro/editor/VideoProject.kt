@@ -159,6 +159,8 @@ data class DeliverSettings(
     val videoGain: Float = 1f,
     val videoPan: Float = 0f,
     val masterGain: Float = 1f,
+    /** Smart render: copy the clips without re-encoding when the edit is cut-only (see [SmartRender]). */
+    val smartRender: Boolean = false,
 ) {
     val audioFmt: AudioExportFormat get() = audioFormat?.takeIf { it.available } ?: AudioExportFormat.M4A
 }
@@ -271,6 +273,37 @@ class TimelineExport(
     }
 
     fun start() {
+        if (settings.smartRender && toFile == null && smartRenderBlocker(context, clips, settings, layers, music, extraAudio) == null) {
+            val withAudio = settings.audio && clips.none { it.muted }
+            Thread {
+                val probe = SmartRender.probeMedia(context, clips, withAudio)
+                if (!probe.ok) { handler.post { if (!finished) startNormal() }; return@Thread }
+                val err = SmartRender.copy(context, clips, withAudio, out, { p -> handler.post { onProgress(p) } }, { finished })
+                if (finished) { out.delete(); return@Thread }
+                if (err != null) { out.delete(); handler.post { if (!finished) startNormal() }; return@Thread }
+                finished = true
+                saveVideo(null)
+            }.start()
+            smartRunning = true
+            return
+        }
+        startNormal()
+    }
+
+    private var smartRunning = false
+
+    /** Saves the finished video in [out] to the gallery / chosen folder and reports back. */
+    private fun saveVideo(err0: String?) {
+        val stamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
+        val name = "EDIT_$stamp.mp4"
+        val uri = SaveFolder.write(context, true, name, "video/mp4") { os -> out.inputStream().use { it.copyTo(os) } }
+            ?: GradeIO.publishVideo(context, out, com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO)
+        out.delete()
+        handler.post { onDone(uri, if (uri == null) (err0 ?: "Couldn't save the video") else null) }
+    }
+
+    private fun startNormal() {
+        smartRunning = false
         // Morph cuts: analyse them first (their frames go through each clip's own effects), then export.
         if (!audioOnly && !settings.keepHdr && morphCuts(clips).isNotEmpty() && MorphNative.available) {
             val (outW, outH) = outputSize(clips, settings)
@@ -645,6 +678,7 @@ class TimelineExport(
     }
 
     fun cancel() {
+        if (smartRunning) { finished = true; smartRunning = false; return }
         morphPrep?.let { it.cancel(); morphPrep = null; finished = true; return }
         if (finished || !::transformer.isInitialized) return
         finished = true
@@ -697,4 +731,35 @@ internal object LutCache {
     }
     @Synchronized
     fun cube(g: ProGrade): Array<Array<IntArray>> = map.getOrPut(g) { g.cube() }
+}
+
+/**
+ * Why this edit can't be smart-rendered (copied without re-encoding), or null when it can.
+ * The media itself (same formats on every clip) is checked when the export starts.
+ */
+fun smartRenderBlocker(context: Context, clips: List<Clip>, s: DeliverSettings, layers: List<Layer>, music: MusicTrack?, extra: List<MusicTrack>): String? {
+    if (clips.isEmpty()) return "there are no clips"
+    if (s.audioOnly) return "this is a sound-only export"
+    if (s.shortSide != 0 || s.aspect != 0f) return "the resolution or shape is changed (choose Source)"
+    if (s.fps != 0) return "the frame rate is changed (choose Source)"
+    if (s.bitrateMbps != 0) return "a bitrate is chosen (choose Auto)"
+    if (s.videoGain != 1f || s.masterGain != 1f || s.videoPan != 0f) return "the mixer changes the sound"
+    if (layers.any { it.visible }) return "there are layers (text, logos, video)"
+    if (s.audio && (music != null || extra.any { !it.muted })) return "there is music or an extra sound track"
+    val anyMuted = clips.any { it.muted }
+    if (s.audio && anyMuted && clips.any { !it.muted }) return "some clips are muted"
+    for ((i, c) in clips.withIndex()) {
+        val n = "clip ${i + 1}"
+        if (c.nested != null) return "$n is a compound clip"
+        if (c.speed != 1f || c.ramp != null) return "$n has a speed change"
+        if (c.decoder != null) return "$n needs its own decoder"
+        if (c.hdr && !s.keepHdr) return "$n is HDR and HDR is turned into SDR"
+        if (c.detail.aiDenoise > 0f || c.bg != null || c.depth != null || !c.reframe.isIdentity || c.reframe.hasOpacity ||
+            c.stab.enabled || (c.desqueeze ?: 1f) > 1f || clipEffects(c).isNotEmpty() || PenMask.active(c).isNotEmpty() || !c.masks.isNullOrEmpty()) return "$n has a grade, effect, crop or mask"
+        if (s.audio && !c.muted && (c.volume != 1f || !c.audio.isNeutral || !c.volKeys.isNullOrEmpty())) return "$n has sound changes"
+        if (i < clips.lastIndex && overlapMs(clips, i) > 0) return "there is a transition after $n"
+    }
+    if (morphCuts(clips).isNotEmpty()) return "there is a morph cut"
+    if (s.audio) for (k in 0 until clips.lastIndex) if (try { cutSound(context, clips, k) } catch (_: Throwable) { null } != null) return "there is a sound effect on a cut"
+    return null
 }

@@ -349,6 +349,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     var music by remember { mutableStateOf(initial?.music) }
     // Extra audio tracks on the timeline, and audio files in the media pool.
     val extraAudio = remember { mutableStateListOf<MusicTrack>().apply { initial?.extraAudio?.let { addAll(it) } } }
+    // Several timelines in one project: the open one lives in the normal state, the others here.
+    val otherTimelines = remember { mutableStateListOf<SavedTimeline>().apply { initial?.timelines?.let { addAll(it) } } }
+    var timelineName by remember { mutableStateOf(initial?.timelineName ?: "Timeline 1") }
     val audioPool = remember { mutableStateListOf<PoolAudio>().apply { initial?.audioPool?.let { addAll(it) } } }
     // Media strip: all imported clips (on the timeline or not), with ratings.
     val library = remember { mutableStateListOf<Clip>().apply { initial?.library?.let { addAll(it.distinctBy { c -> c.uri.toString() }) } } }
@@ -460,6 +463,21 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
     // Drone flight data (DJI .SRT) → timed overlay text on the selected clip.
     var telemetryShow by remember { mutableStateOf(TelemetryShow()) }
+    // Subtitle import (.srt / .vtt) → caption layers.
+    val pickSubs = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            val cues = try { context.contentResolver.openInputStream(uri)?.use { Interchange.parseSubs(it.readBytes().toString(Charsets.UTF_8)) } } catch (_: Throwable) { null }
+            val total = timelineLength(clips).let { if (it > 0) it else Long.MAX_VALUE }
+            var n = 0
+            cues?.forEach { (a, b, t) ->
+                if (a >= total) return@forEach
+                layers.add(Layer(kind = LayerKind.TEXT, text = t, size = 0.046f, x = 0.5f, y = 0.84f, box = true, shadow = true,
+                    startMs = a, endMs = b.coerceAtMost(total), name = "Caption"))
+                n++
+            }
+            message = if (cues == null) "Couldn't read that file" else if (n == 0) "No subtitles found in that file" else "$n captions imported"
+        }
+    }
     val pickSrt = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) layerScope.launch {
             val text = withContext(Dispatchers.IO) {
@@ -1354,6 +1372,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
             videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
             markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
+            timelines = otherTimelines.toList().takeIf { it.isNotEmpty() }, timelineName = timelineName,
             proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
             bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
         )
@@ -1375,6 +1394,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
                 videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
                 markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
+                timelines = otherTimelines.toList().takeIf { it.isNotEmpty() }, timelineName = timelineName,
             proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
             bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
             )
@@ -1399,6 +1419,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
                 videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
                 markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
+                timelines = otherTimelines.toList().takeIf { it.isNotEmpty() }, timelineName = timelineName,
                 proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
                 bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
             )
@@ -2452,6 +2473,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
                 videoMuted = videoMuted, videoLocked = videoLocked, markers = markers.toList(),
                 markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
+                timelines = otherTimelines.toList().takeIf { it.isNotEmpty() }, timelineName = timelineName,
                 proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
                 bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
             )
@@ -2539,6 +2561,36 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val c = clips[i]
             load(i, pos.coerceIn(0, (c.endMs - c.startMs - 50).coerceAtLeast(0)), wasPlaying)
         }
+    }
+    // ---- Several timelines per project (Media → TIMELINES).
+    fun currentTimeline() = SavedTimeline(
+        name = timelineName, clips = clips.toList(), layers = layers.toList(), music = music, extraAudio = extraAudio.toList(),
+        markers = markers.toList(), markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() }.takeIf { it.isNotEmpty() },
+        deliver = deliver, videoMuted = videoMuted,
+    )
+    fun openTimeline(t: SavedTimeline, keepCurrent: Boolean = true) {
+        if (keepCurrent) otherTimelines.add(currentTimeline())
+        otherTimelines.remove(t)
+        deck.cur.pause()
+        timelineName = t.name
+        clips.clear(); clips.addAll(t.clips)
+        layers.clear(); layers.addAll(t.layers)
+        music = t.music
+        extraAudio.clear(); extraAudio.addAll(t.extraAudio)
+        markers.clear(); markers.addAll(t.markers)
+        markerNotes.clear(); t.markerNotes?.forEach { (k, v) -> k.toLongOrNull()?.let { markerNotes[it] = v } }
+        deliver = t.deliver; videoMuted = t.videoMuted
+        selectedLayer = null
+        history.clear(); histPos = -1
+        if (clips.isNotEmpty()) { selected = 0; current = 0; load(0, 0, false) } else deck.cur.clearMediaItems()
+        message = "Opened \"${t.name}\""
+    }
+    fun uniqueTimelineName(base: String): String {
+        val used = otherTimelines.map { it.name }.toSet() + timelineName
+        if (base !in used) return base
+        var n = 2
+        while ("$base $n" in used) n++
+        return "$base $n"
     }
     fun undo() {
         if (histPos <= 0) { message = "Nothing to undo"; return }
@@ -2828,6 +2880,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     update(current) { cl -> cl.copy(masks = cl.masks?.map { if (it.id == m.id) m else it }) }
                                 }
                             }
+                            if (!cropMode) SafeZoneOverlay()
                             if (cropMode) CropOverlay(
                                 editingEnd = cropEditEnd && clips.getOrNull(current)?.reframe?.animate == true,
                                 onGesture = { pan, zf, rot, w, h ->
@@ -3123,6 +3176,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 Text("Hold the divider and drag to make the thumbnails bigger or smaller. Drag a clip onto the timeline with a mouse, or pick it and use Append / Insert.", color = Pro.Dim, fontSize = 11.sp)
                             }
                             Page.MEDIA -> Column {
+                            TimelinesSection(
+                                timelineName, otherTimelines.map { it.name },
+                                onRename = { n -> val v = n.trim().take(40); if (v.isNotEmpty() && otherTimelines.none { it.name == v }) timelineName = v },
+                                onOpen = { i -> otherTimelines.getOrNull(i)?.let { openTimeline(it) } },
+                                onNew = { openTimeline(SavedTimeline(uniqueTimelineName("Timeline ${otherTimelines.size + 2}"), deliver = deliver)) },
+                                onDuplicate = { openTimeline(currentTimeline().copy(name = uniqueTimelineName("$timelineName copy"))) },
+                                onDelete = { i -> if (i in otherTimelines.indices) { val n = otherTimelines[i].name; otherTimelines.removeAt(i); message = "Deleted \"$n\"" } },
+                            )
                             if (markers.isNotEmpty()) {
                                 SectionTitle("MARKERS") { markers.clear(); markerNotes.clear() }
                                 markers.toList().forEach { m ->
@@ -3377,6 +3438,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 },
                                 onSeek = { seekGlobal(it) },
                                 onCaptions = { lang, clipsOnly, style -> makeCaptions(lang, clipsOnly, style) },
+                                onImportSubs = { pickSubs.launch(arrayOf("*/*")) },
                                 onTranslate = { to -> translateCaptions(to) }, translateStatus = translateStatus,
                                 telemetryShow = telemetryShow,
                                 onTelemetryShow = { telemetryShow = it },
@@ -3430,6 +3492,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             Page.DELIVER -> DeliverPage(
                                 deliver, clips, exporting, { deliver = it }, ::startExport, playheadMs = globalMs, onSaveFrame = { saveStill() },
                                 markers = markers.toList(), projectName = projectName, layers = layers.toList(), markerNotes = markerNotes.toMap(),
+                                smartWhy = if (deliver.smartRender) smartRenderBlocker(context, clips.let { l -> if (videoMuted) l.map { it.copy(muted = true) } else l }, deliver, layers.toList(), music, extraAudio.toList()) else null,
                                 queue = exportQueue.toList(), queueAt = queueAt,
                                 onQueueAdd = { exportQueue.add(deliver); message = "Added to the queue (${exportQueue.size})" },
                                 onQueueRemove = { i -> if (i in exportQueue.indices) exportQueue.removeAt(i) },
@@ -4822,6 +4885,7 @@ private fun LayersPage(
     onUpdate: (Layer) -> Unit, onDelete: (String) -> Unit, onMove: (String, Int) -> Unit,
     onSeek: (Long) -> Unit = {},
     onCaptions: (String?, Boolean, Int) -> Unit = { _, _, _ -> },
+    onImportSubs: () -> Unit = {},
     onTranslate: (String) -> Unit = {}, translateStatus: String? = null,
     onTrack: (String) -> Unit = {}, trackingId: String? = null,
     onPin: (String, List<PinQuad>?) -> Unit = { _, _ -> }, onPlanarTrack: (String) -> Unit = {}, pinTrackingId: String? = null, frameAspect: Float = 16f / 9f,
@@ -4844,6 +4908,11 @@ private fun LayersPage(
         modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { onCaptions(langs[capLang].second, capClipsOnly, capStyle) }.padding(10.dp),
     )
     Text("Writes timed caption layers from the speech in your edit (Whisper, via your fal.ai account in Cloud AI settings). Edit or delete any caption like a normal text layer.", color = Pro.Dim, fontSize = 11.sp)
+    Text(
+        "IMPORT SUBTITLES (.srt / .vtt)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable(onClick = onImportSubs).padding(10.dp),
+    )
+    Text("Turns a subtitle file into caption layers (in the style chosen above), timed from the start of the timeline.", color = Pro.Dim, fontSize = 11.sp)
     SectionTitle("TRANSLATE CAPTIONS")
     var trTo by remember { mutableStateOf(0) }
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
@@ -5219,6 +5288,7 @@ private fun DeliverPage(
     markerNotes: Map<Long, String> = emptyMap(),
     queue: List<DeliverSettings> = emptyList(), queueAt: Int = -1,
     onQueueAdd: () -> Unit = {}, onQueueRemove: (Int) -> Unit = {}, onQueueStart: () -> Unit = {}, onQueueStop: () -> Unit = {},
+    smartWhy: String? = null,
 ) {
     // Send the edit to a desktop editor (EDL / FCPXML).
     val ictx = LocalContext.current
@@ -5237,6 +5307,12 @@ private fun DeliverPage(
     }
     val saveSrt = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/x-subrip")) { u ->
         writeTo(u, Interchange.srt(layers))
+    }
+    val saveVtt = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/vtt")) { u ->
+        writeTo(u, Interchange.vtt(layers))
+    }
+    val saveOtio = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { u ->
+        writeTo(u, Interchange.otio(title, clips, fpsX, markers, markerNotes))
     }
     val saveXml = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/xml")) { u ->
         val (w, h) = outputSize(clips, s)
@@ -5266,6 +5342,17 @@ private fun DeliverPage(
         }
         Text("Move the playhead on the timeline, then tap SET IN / SET OUT. Only that part is exported (${tc(rb - ra)}).", color = Pro.Dim, fontSize = 11.sp)
     }
+    SectionTitle("SMART RENDER")
+    Chips(listOf("Off", "Fast copy when possible"), if (s.smartRender) 1 else 0) { onChange(s.copy(smartRender = it == 1)) }
+    Text(
+        if (!s.smartRender) "A cut-only edit can be copied straight from the clips: no re-encoding, no quality loss, and many times faster."
+        else if (smartWhy == null) "This edit can be fast-copied. Each clip starts on the key frame at or just before its in point (up to about a second earlier). If the clips' formats don't match, it exports normally."
+        else "Exports normally: $smartWhy.",
+        color = if (s.smartRender && smartWhy == null) Pro.Amber else Pro.Dim, fontSize = 11.sp,
+    )
+    SectionTitle("SAFE ZONES")
+    Chips(SafeZones.zones.map { it.label }, SafeZones.current) { SafeZones.current = it }
+    Text("Shows on the viewer where TikTok, Reels or Shorts put their buttons and captions, so titles stay clear of them (approximate — the apps change). Action / title safe is the TV standard. Never part of the export.", color = Pro.Dim, fontSize = 11.sp)
     SectionTitle("STILL FRAME")
     Text(
         "SAVE FRAME AS PHOTO", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
@@ -5326,10 +5413,15 @@ private fun DeliverPage(
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
         Text("EDL (.edl)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(enabled = clips.isNotEmpty()) { saveEdl.launch(title.replace(Regex("[^A-Za-z0-9 _-]"), "") + ".edl") }.padding(10.dp))
         Text("FCPXML (.fcpxml)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(enabled = clips.isNotEmpty()) { saveXml.launch(title.replace(Regex("[^A-Za-z0-9 _-]"), "") + ".fcpxml") }.padding(10.dp))
+        Text("OTIO (.otio)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(enabled = clips.isNotEmpty()) { saveOtio.launch(title.replace(Regex("[^A-Za-z0-9 _-]"), "") + ".otio") }.padding(10.dp))
     }
+    Text("OTIO = OpenTimelineIO, the open timeline format many editing and finishing tools read.", color = Pro.Dim, fontSize = 11.sp)
     if (layers.any { it.name == "Caption" && it.kind == LayerKind.TEXT }) {
-        Text("SUBTITLES (.srt)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { saveSrt.launch(title.replace(Regex("[^A-Za-z0-9 _-]"), "") + ".srt") }.padding(10.dp))
-        Text("The AI captions as a subtitle file — for YouTube, Vimeo or a desktop editor.", color = Pro.Dim, fontSize = 11.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("SUBTITLES (.srt)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { saveSrt.launch(title.replace(Regex("[^A-Za-z0-9 _-]"), "") + ".srt") }.padding(10.dp))
+            Text("WEB SUBTITLES (.vtt)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { saveVtt.launch(title.replace(Regex("[^A-Za-z0-9 _-]"), "") + ".vtt") }.padding(10.dp))
+        }
+        Text("The captions as a subtitle file — .srt for YouTube, Vimeo or a desktop editor, .vtt for web players.", color = Pro.Dim, fontSize = 11.sp)
     }
     Text("Frame rate: $fpsX fps (set it under FRAME RATE above to match your clips).", color = Pro.Dim, fontSize = 11.sp)
     xNote?.let { Text(it, color = Color.White, fontSize = 11.sp) }
@@ -6040,4 +6132,34 @@ class WorkspaceExtra {
     var stallSince by androidx.compose.runtime.mutableStateOf<Long>(0L)
     var stallTries by androidx.compose.runtime.mutableStateOf<Int>(0)
     val tWords = androidx.compose.runtime.mutableStateListOf<TWord>()
+}
+
+/** Media → TIMELINES: the open timeline (renamable) and the project's other timelines. */
+@Composable
+private fun TimelinesSection(
+    name: String, others: List<String>, onRename: (String) -> Unit, onOpen: (Int) -> Unit,
+    onNew: () -> Unit, onDuplicate: () -> Unit, onDelete: (Int) -> Unit,
+) {
+    var confirm by remember { mutableStateOf(-1) }
+    SectionTitle("TIMELINES")
+    var edit by remember(name) { mutableStateOf(name) }
+    androidx.compose.material3.OutlinedTextField(
+        value = edit, onValueChange = { edit = it.take(40); onRename(edit) }, singleLine = true,
+        label = { Text("Open timeline", fontSize = 11.sp) },
+        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 13.sp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+    )
+    others.forEachIndexed { i, n ->
+        Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(n, color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f).clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { onOpen(i) }.padding(10.dp))
+            Text(if (confirm == i) "DELETE?" else "✕", color = Pro.Red, fontSize = 12.sp, modifier = Modifier.clickable {
+                if (confirm == i) { confirm = -1; onDelete(i) } else confirm = i
+            }.padding(10.dp))
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+        Text("NEW TIMELINE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(onClick = onNew).padding(10.dp))
+        Text("DUPLICATE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(onClick = onDuplicate).padding(10.dp))
+    }
+    Text("Keep several cuts in one project — a long and a short version, or one per platform. Tap a timeline to open it; the media strip is shared. Saved with the project (an archive .zip holds the open timeline only).", color = Pro.Dim, fontSize = 11.sp)
 }

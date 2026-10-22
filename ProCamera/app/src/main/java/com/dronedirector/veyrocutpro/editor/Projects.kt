@@ -45,6 +45,22 @@ data class VideoProjectData(
     val ratings: Map<String, Int>? = null,
     /** True for automatic saves (gear → AUTOSAVE); listed apart from your own projects. */
     val autosave: Boolean? = null,
+    /** Other timelines in this project (the open one is the fields above), and the open one's name. */
+    val timelines: List<SavedTimeline>? = null,
+    val timelineName: String? = null,
+)
+
+/** A timeline kept in a project next to the open one (Media → TIMELINES). */
+data class SavedTimeline(
+    val name: String,
+    val clips: List<Clip> = emptyList(),
+    val layers: List<Layer> = emptyList(),
+    val music: MusicTrack? = null,
+    val extraAudio: List<MusicTrack> = emptyList(),
+    val markers: List<Long> = emptyList(),
+    val markerNotes: Map<String, String>? = null,
+    val deliver: DeliverSettings = DeliverSettings(),
+    val videoMuted: Boolean = false,
 )
 
 data class PhotoProjectData(

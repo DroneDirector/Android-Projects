@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture gallery → **Grade**: the tab row (Looks, Light, Colour, Detail, Toning) stays on one line and slides sideways; the picture now **updates live while you move a slider**, then sharpens to full quality when you let go.
 
 ## 1.0.474 — 2026-10-22
 - Capture settings (gear) → PHOTO: **Always JPEG / Always RAW + JPEG / Always RAW only** for Pro photo mode — only one can be on, and the choice is remembered when the app is opened again.

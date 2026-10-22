@@ -106,13 +106,31 @@ fun GradeEditor(item: MediaItem, onClose: () -> Unit, onSaved: (Uri) -> Unit) {
         }
         if (bmp != null) base = bmp
     }
-    // Live preview.
-    LaunchedEffect(base, grade) {
+    // Live preview: while a slider moves, a small copy is redrawn for every change (instant);
+    // when it stops, the full-size preview follows.
+    val gradeNow by androidx.compose.runtime.rememberUpdatedState(grade)
+    LaunchedEffect(base) {
         val b = base ?: return@LaunchedEffect
-        delay(25)
-        preview = withContext(Dispatchers.Default) {
-            val lut = if (grade.copy(clarity = 0f, texture = 0f, dehaze = 0f, sharpen = 0f, vignette = 0f).isIdentity) b else GradeLut(grade).apply(b)
-            if (!item.isVideo && grade.hasDetail) GradeDetail.apply(lut, grade) else lut
+        val k = 540f / maxOf(b.width, b.height)
+        val small = if (k < 1f) Bitmap.createScaledBitmap(b, (b.width * k).toInt().coerceAtLeast(1), (b.height * k).toInt().coerceAtLeast(1), true) else b
+        fun render(src: Bitmap, g: Grade, n: Int): Bitmap {
+            val lut = if (g.copy(clarity = 0f, texture = 0f, dehaze = 0f, sharpen = 0f, vignette = 0f).isIdentity) src else GradeLut(g, n).apply(src)
+            return if (!item.isVideo && g.hasDetail) GradeDetail.apply(lut, g) else lut
+        }
+        var shown: Grade? = null
+        var full = true
+        while (true) {
+            val g = gradeNow
+            if (g != shown) {
+                preview = withContext(Dispatchers.Default) { render(small, g, 17) }
+                shown = g; full = false
+            } else if (!full) {
+                delay(120)
+                if (gradeNow == g) {
+                    val f = withContext(Dispatchers.Default) { render(b, g, 33) }
+                    if (gradeNow == g) { preview = f; full = true }
+                }
+            } else delay(16)
         }
     }
     LaunchedEffect(message) { if (message != null) { delay(2500); message = null } }
@@ -253,9 +271,9 @@ fun GradeEditor(item: MediaItem, onClose: () -> Unit, onSaved: (Uri) -> Unit) {
                 }
             }
 
-            // Tabs
+            // Tabs: one line, slide sideways for the ones that don't fit.
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(horizontal = 12.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 GradeTab.entries.forEach { t ->
@@ -263,7 +281,7 @@ fun GradeEditor(item: MediaItem, onClose: () -> Unit, onSaved: (Uri) -> Unit) {
                     Text(
                         t.label,
                         color = if (sel) Color.Black else Color.White,
-                        fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false,
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
                             .background(if (sel) Pro.Amber else Color.White.copy(alpha = 0.08f))

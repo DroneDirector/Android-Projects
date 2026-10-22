@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture gallery: the upright fix now applies to DNG RAW files only; other RAW formats are shown as before.
 
 ## 1.0.467 — 2026-10-22
 - Capture gallery: **RAW (DNG) photos taken upright now show upright** — the viewer now follows the file's orientation, as the JPEGs and your phone's gallery already did.

@@ -1284,6 +1284,52 @@ private fun PhotoWorkspace(
             }
         }
     }
+    // ---- Generative expand (Cloud AI, Bria Expand): a wider canvas with the empty parts filled in.
+    var expandStatus by remember { mutableStateOf<String?>(null) }
+    fun expandTo(aspect: Float, pos: Int, prompt: String) {
+        if (busy || expandStatus != null) return
+        if (!com.dronedirector.veyrocutpro.camera.CloudAi.usePhotos(context)) { message = "Turn on Cloud AI for photos (and add your fal.ai key) to use Expand"; return }
+        val e = edit
+        expandStatus = "Expanding…"
+        scope.launch {
+            val path = withContext(Dispatchers.IO) {
+                try {
+                    var full = (if (rawOn(e)) rawExport(e, 3000, sliders = false) else GradeIO.decode(context, sourceUri(e), 3000)) ?: return@withContext null
+                    // Bria needs the canvas under 5000 × 5000 and the photo to stay a good share of it.
+                    val w0 = full.width; val h0 = full.height
+                    var cw: Int; var ch: Int
+                    if (aspect <= 0f) { cw = w0; ch = h0 }
+                    else if (aspect >= w0.toFloat() / h0) { ch = h0; cw = (h0 * aspect).toInt() } else { cw = w0; ch = (w0 / aspect).toInt() }
+                    // Always add at least a little around the photo.
+                    if (cw == w0 && ch == h0) { cw = (w0 * 1.25f).toInt(); ch = (h0 * 1.25f).toInt() }
+                    val k = minOf(1f, 4800f / maxOf(cw, ch))
+                    if (k < 1f) { val sc = Bitmap.createScaledBitmap(full, (w0 * k).toInt(), (h0 * k).toInt(), true); full.recycle(); full = sc; cw = (cw * k).toInt(); ch = (ch * k).toInt() }
+                    val w = full.width; val h = full.height
+                    val x = when (pos) { 1 -> 0; 2 -> cw - w; else -> (cw - w) / 2 }
+                    val y = when (pos) { 3 -> 0; 4 -> ch - h; else -> (ch - h) / 2 }
+                    val jpeg = java.io.ByteArrayOutputStream().also { full.compress(Bitmap.CompressFormat.JPEG, 95, it) }.toByteArray()
+                    full.recycle()
+                    val res = com.dronedirector.veyrocutpro.camera.CloudAi.expand(context, jpeg, cw, ch, w, h, x, y, prompt)
+                    val dir = java.io.File(context.filesDir, "erased").apply { mkdirs() }
+                    val f = java.io.File(dir, "expanded_${System.currentTimeMillis()}.jpg")
+                    f.writeBytes(res)
+                    f.path
+                } catch (_: com.dronedirector.veyrocutpro.camera.CloudAi.Stopped) { "stopped" } catch (t: Throwable) { "error:" + (t.message ?: "") }
+            }
+            expandStatus = null
+            when {
+                path == null -> message = "Couldn't expand the photo"
+                path == "stopped" -> message = "Expand stopped"
+                path.startsWith("error:") -> message = "Couldn't expand the photo" + path.removePrefix("error:").takeIf { it.isNotBlank() }?.let { " — $it" }.orEmpty()
+                else -> {
+                    // The picture's shape changed: spots, masks, crop and depth no longer fit, so they are cleared.
+                    edit = edit.copy(baseFile = path, spots = emptyList(), masks = emptyList(), geometry = Geometry(), lensBlur = null, bg = PhotoBackground(), sky = SkySwap(),
+                        retouch = edit.retouch.copy(liquify = emptyList(), fsArea = 0, fsMaskFile = null, depthFile = null))
+                    message = "Expanded — RESET under Heal → AI REMOVE goes back to the original"
+                }
+            }
+        }
+    }
     val aiEraseSection: @Composable () -> Unit = {
         SectionTitle("AI REMOVE") { if (edit.baseFile != null) edit = edit.copy(baseFile = null) }
         if (eraseMask == null) {
@@ -2001,6 +2047,7 @@ private fun PhotoWorkspace(
                                 exportState = ExportState(format, quality, sizeIdx),
                                 onExportState = { f, q, si -> format = f; quality = q; sizeIdx = si },
                                 onExport = { export() },
+                                onExpand = { a, pos, pr -> expandTo(a, pos, pr) }, expandStatus = expandStatus,
                                 onRecipe = { list -> if (list.isNotEmpty() && !busy) { recipeQueue.clear(); recipeQueue.addAll(list.drop(1)); applyPreset(list[0]); export() } },
                                 busy = busy,
                                 onPickLogo = { pickLogo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
@@ -2213,6 +2260,7 @@ private fun PhotoPanelContent(
     exportState: ExportState,
     onExportState: (Int, Float, Int) -> Unit,
     onRecipe: (List<ExportOpts.Preset>) -> Unit = {},
+    onExpand: (Float, Int, String) -> Unit = { _, _, _ -> }, expandStatus: String? = null,
     onExport: () -> Unit,
     busy: Boolean,
     onPickLogo: () -> Unit = {},
@@ -2454,6 +2502,19 @@ private fun PhotoPanelContent(
                 "16:9" to 16f / 9f, "9:16" to 9f / 16f, "21:9" to 21f / 9f, "2.39:1" to 2.39f, "5:7" to 5f / 7f,
             )
             Chips(aspects.map { it.first }, aspects.indexOfFirst { it.second == geom.aspect }.coerceAtLeast(0)) { i -> geo { it.copy(aspect = aspects[i].second) } }
+            SectionTitle("EXPAND (CLOUD AI)")
+            var exAsp by remember { mutableStateOf(0) }
+            var exPos by remember { mutableStateOf(0) }
+            var exPrompt by remember { mutableStateOf("") }
+            val exAspects = listOf("16:9" to 16f / 9f, "3:2" to 1.5f, "4:3" to 4f / 3f, "1:1" to 1f, "4:5" to 0.8f, "9:16" to 9f / 16f, "Wider all round" to 0f)
+            Chips(exAspects.map { it.first }, exAsp) { exAsp = it }
+            Chips(listOf("Photo centred", "Photo left", "Photo right", "Photo top", "Photo bottom"), exPos) { exPos = it }
+            androidx.compose.material3.OutlinedTextField(exPrompt, { exPrompt = it.take(200) }, label = { Text("What to add (optional, English)") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
+            Text(expandStatus ?: "EXPAND", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(enabled = expandStatus == null) {
+                val a = exAspects[exAsp].second
+                onExpand(if (a == 0f) -1f else a, exPos, exPrompt)
+            }.padding(10.dp))
+            Text("Makes the picture bigger and paints in what's around it (Bria Expand via your fal.ai account, about \$0.04 per photo; trained only on licensed images). Crop, spots and masks are cleared afterwards.", color = Pro.Dim, fontSize = 11.sp)
             SectionTitle("GUIDES")
             Chips(CropGuides.MODES, CropGuides.mode) { CropGuides.mode = it }
             if (CropGuides.turnable) Text("TURN ↻", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { CropGuides.turn = (CropGuides.turn + 1) % 4 }.padding(10.dp))

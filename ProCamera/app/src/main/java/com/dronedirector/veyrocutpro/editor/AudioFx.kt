@@ -39,8 +39,89 @@ data class AudioFx(
     val dereverb: Float = 0f,
     /** Dialogue leveller (0..1): rides the level so quiet and loud speech come out even. */
     val leveler: Float = 0f,
+    /** Parametric EQ (on top of the three quick bands); null = off. */
+    val bands: List<EqBand>? = null,
+    /** De-esser (0..1): tames sharp "s" and "sh" sounds. */
+    val deess: Float = 0f,
 ) {
     val isNeutral get() = this == AudioFx() || this == AudioFx(limiter = false)
+}
+
+/** One parametric EQ band. type: 0 bell, 1 low shelf, 2 high shelf, 3 low cut, 4 high cut. */
+data class EqBand(val type: Int = 0, val freq: Float = 1000f, val gain: Float = 0f, val q: Float = 1f, val on: Boolean = true) {
+    companion object { val TYPES = listOf("Bell", "Low shelf", "High shelf", "Low cut", "High cut") }
+}
+
+/** Response of a band set at [freq] (dB), for drawing the EQ curve. Own RBJ cookbook maths. */
+object EqMath {
+    private fun coeffs(b: EqBand, rate: Double): DoubleArray? {
+        val w = 2 * PI * b.freq.toDouble().coerceIn(10.0, rate * 0.45) / rate; val c = cos(w); val sn = sin(w)
+        val q = b.q.toDouble().coerceIn(0.1, 18.0); val a = 10.0.pow(b.gain / 40.0)
+        return when (b.type) {
+            0 -> { if (abs(b.gain) < 0.05) return null; val al = sn / (2 * q); doubleArrayOf(1 + al * a, -2 * c, 1 - al * a, 1 + al / a, -2 * c, 1 - al / a) }
+            1, 2 -> {
+                if (abs(b.gain) < 0.05) return null
+                val al = sn / 2 * sqrt((a + 1 / a) * (1 / q.coerceIn(0.5, 1.0) - 1) + 2); val sa = 2 * sqrt(a) * al
+                if (b.type == 1) doubleArrayOf(a * ((a + 1) - (a - 1) * c + sa), 2 * a * ((a - 1) - (a + 1) * c), a * ((a + 1) - (a - 1) * c - sa), (a + 1) + (a - 1) * c + sa, -2 * ((a - 1) + (a + 1) * c), (a + 1) + (a - 1) * c - sa)
+                else doubleArrayOf(a * ((a + 1) + (a - 1) * c + sa), -2 * a * ((a - 1) + (a + 1) * c), a * ((a + 1) + (a - 1) * c - sa), (a + 1) - (a - 1) * c + sa, 2 * ((a - 1) - (a + 1) * c), (a + 1) - (a - 1) * c - sa)
+            }
+            3 -> { val al = sn / (2 * q); doubleArrayOf((1 + c) / 2, -(1 + c), (1 + c) / 2, 1 + al, -2 * c, 1 - al) }
+            else -> { val al = sn / (2 * q); doubleArrayOf((1 - c) / 2, 1 - c, (1 - c) / 2, 1 + al, -2 * c, 1 - al) }
+        }
+    }
+    internal fun normalized(b: EqBand, rate: Double): DoubleArray? = coeffs(b, rate)?.let { k -> doubleArrayOf(k[0] / k[3], k[1] / k[3], k[2] / k[3], k[4] / k[3], k[5] / k[3]) }
+    fun responseDb(bands: List<EqBand>, freq: Float, rate: Double = 48000.0): Float {
+        var db = 0.0
+        val w = 2 * PI * freq / rate
+        for (b in bands) {
+            if (!b.on) continue
+            val k = normalized(b, rate) ?: continue
+            // |H(e^jw)|
+            val cr = cos(w); val ci = -sin(w); val c2r = cos(2 * w); val c2i = -sin(2 * w)
+            val nr = k[0] + k[1] * cr + k[2] * c2r; val ni = k[1] * ci + k[2] * c2i
+            val dr = 1 + k[3] * cr + k[4] * c2r; val di = k[3] * ci + k[4] * c2i
+            db += 10 * kotlin.math.log10(((nr * nr + ni * ni) / (dr * dr + di * di)).coerceAtLeast(1e-12))
+        }
+        return db.toFloat()
+    }
+}
+
+/** The last moments of the preview's sound (mono), for the EQ's live spectrum. */
+object AudioSpectrum {
+    const val N = 2048
+    val buf = FloatArray(N)
+    @Volatile var pos = 0
+    @Volatile var rate = 48000
+    fun push(v: Float) { buf[pos] = v; pos = (pos + 1) % N }
+    /** Magnitudes (dB) of the last N samples in [bins] log-spaced bands from 20 Hz to 20 kHz. Own FFT. */
+    fun bands(bins: Int): FloatArray {
+        val re = DoubleArray(N); val im = DoubleArray(N)
+        val p = pos
+        for (i in 0 until N) { val w = 0.5 - 0.5 * cos(2 * PI * i / (N - 1)); re[i] = buf[(p + i) % N] * w }
+        // In-place radix-2 FFT.
+        var j = 0
+        for (i in 1 until N) { var bit = N shr 1; while (j and bit != 0) { j = j xor bit; bit = bit shr 1 }; j = j xor bit; if (i < j) { val t = re[i]; re[i] = re[j]; re[j] = t } }
+        var len = 2
+        while (len <= N) {
+            val ang = -2 * PI / len
+            for (i in 0 until N step len) for (k in 0 until len / 2) {
+                val wr = cos(ang * k); val wi = sin(ang * k)
+                val ur = re[i + k]; val ui = im[i + k]
+                val vr = re[i + k + len / 2] * wr - im[i + k + len / 2] * wi; val vi = re[i + k + len / 2] * wi + im[i + k + len / 2] * wr
+                re[i + k] = ur + vr; im[i + k] = ui + vi; re[i + k + len / 2] = ur - vr; im[i + k + len / 2] = ui - vi
+            }
+            len = len shl 1
+        }
+        val out = FloatArray(bins)
+        for (b in 0 until bins) {
+            val f0 = 20.0 * 1000.0.pow(b / bins.toDouble()); val f1 = 20.0 * 1000.0.pow((b + 1) / bins.toDouble())
+            val i0 = (f0 / rate * N).toInt().coerceIn(1, N / 2 - 1); val i1 = (f1 / rate * N).toInt().coerceIn(i0, N / 2 - 1)
+            var m = 0.0
+            for (i in i0..i1) m = maxOf(m, re[i] * re[i] + im[i] * im[i])
+            out[b] = (10 * kotlin.math.log10(m.coerceAtLeast(1e-12)) - 40).toFloat()
+        }
+        return out
+    }
 }
 
 enum class AudioPreset(val label: String, val fx: AudioFx) {
@@ -103,6 +184,7 @@ private class Biquad {
     }
 
     fun reset() { z1 = DoubleArray(8); z2 = DoubleArray(8) }
+    fun setNormalized(k: DoubleArray?) { if (k == null) { on = false; return }; b0 = k[0]; b1 = k[1]; b2 = k[2]; a1 = k[3]; a2 = k[4]; on = true }
 
     private fun set(nb0: Double, nb1: Double, nb2: Double, na0: Double, na1: Double, na2: Double) {
         b0 = nb0 / na0; b1 = nb1 / na0; b2 = nb2 / na0; a1 = na1 / na0; a2 = na2 / na0
@@ -170,6 +252,9 @@ class AudioFxProcessor(
     private var built: AudioFx? = null
     private var builtRate = 0
     private val hp = Biquad(); private val ls = Biquad(); private val pk = Biquad(); private val hs = Biquad(); private val pres = Biquad()
+    private val peq = Array(8) { Biquad() }
+    // De-esser: high band split (4.5 kHz high-pass) and its level vs. the whole signal.
+    private val dsHp = Biquad(); private var dsEnv = 0.0; private var dsAll = 0.0
     private var frames = 0L
     private var env = 0.0; private var gateGain = 1.0; private var duck = 1.0
 
@@ -187,6 +272,9 @@ class AudioFxProcessor(
         hs.highShelf(8000.0, r, f.high.toDouble())
         pres.peak(3200.0, r, if (f.voice) 4.0 else 0.0, 1.2)
         kShelf.highShelf(1500.0, r, 4.0); kHp.highPass(38.0, r, 0.5)
+        val bs = f.bands.orEmpty()
+        for (i in peq.indices) { val b = bs.getOrNull(i); if (b == null || !b.on) peq[i].on = false else { peq[i].setNormalized(EqMath.normalized(b, r)) } }
+        dsHp.highPass(4500.0, r, 0.707)
         built = f; builtRate = rate
     }
 
@@ -271,8 +359,23 @@ class AudioFxProcessor(
                 if (pk.on) x = pk.process(x, c)
                 if (hs.on) x = hs.process(x, c)
                 if (pres.on) x = pres.process(x, c)
+                for (b in peq) if (b.on) x = b.process(x, c)
                 frame[c] = x
             }
+            // De-esser: when the sharp high band gets loud next to the whole sound, turn just that band down.
+            if (f.deess > 0f) {
+                var hiPk = 0.0; var allPk = 0.0
+                val hi = DoubleArray(ch)
+                for (c in 0 until ch) { hi[c] = dsHp.process(frame[c], c); hiPk = maxOf(hiPk, abs(hi[c])); allPk = maxOf(allPk, abs(frame[c])) }
+                dsEnv = if (hiPk > dsEnv) atk * dsEnv + (1 - atk) * hiPk else rel * dsEnv + (1 - rel) * hiPk
+                dsAll = if (allPk > dsAll) atk * dsAll + (1 - atk) * allPk else rel * dsAll + (1 - rel) * allPk
+                val k = 0.55 - 0.4 * f.deess
+                if (dsEnv > 0.01 && dsEnv > k * dsAll) {
+                    val gr = ((k * dsAll) / dsEnv).coerceIn(0.15, 1.0)
+                    for (c in 0 until ch) frame[c] -= hi[c] * (1 - gr)
+                }
+            }
+            if (meter) { var m = 0.0; for (c in 0 until ch) m += frame[c]; AudioSpectrum.push((m / ch).toFloat()); AudioSpectrum.rate = rate }
             // Envelope (peak of all channels)
             var lvl = 0.0
             for (c in 0 until ch) lvl = maxOf(lvl, abs(frame[c]))
@@ -325,7 +428,7 @@ class AudioFxProcessor(
         }
     }
 
-    private fun clear() { lev = 1.0; levRms = 0.0; kSum = 0.0; kN = 0; kHist.clear(); kShelf.reset(); kHp.reset(); frames = 0; env = 0.0; gateGain = 1.0; duck = 1.0; nr = null; vi?.release(); vi = null; dc = null; dr = null; nrDrop = 0; held = 0; flushing = false; listOf(hp, ls, pk, hs, pres).forEach { it.reset() } }
+    private fun clear() { lev = 1.0; levRms = 0.0; kSum = 0.0; kN = 0; kHist.clear(); kShelf.reset(); kHp.reset(); frames = 0; env = 0.0; gateGain = 1.0; duck = 1.0; nr = null; vi?.release(); vi = null; dc = null; dr = null; nrDrop = 0; held = 0; flushing = false; listOf(hp, ls, pk, hs, pres, dsHp).forEach { it.reset() }; peq.forEach { it.reset() }; dsEnv = 0.0; dsAll = 0.0 }
     override fun onQueueEndOfStream() {
         // Push silence through so the last moment of sound comes out of the processors' delay.
         if (held > 0 && !flushing) {

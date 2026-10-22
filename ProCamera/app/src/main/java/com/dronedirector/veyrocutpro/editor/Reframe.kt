@@ -26,7 +26,29 @@ data class Frame(val zoom: Float = 1f, val x: Float = 0f, val y: Float = 0f, val
  * A clip keyframe: framing and opacity at [t] (source ms from the clip's in point), and how it
  * eases to the next key — 0 smooth, 1 linear, 2 hold.
  */
-data class ClipKey(val t: Long, val frame: Frame = Frame(), val opacity: Float = 1f, val ease: Int = 0)
+data class ClipKey(
+    val t: Long, val frame: Frame = Frame(), val opacity: Float = 1f, val ease: Int = 0,
+    /** ease 3 = own curve: cubic Bézier handles x1, y1, x2, y2 (x 0..1; y may overshoot), like a graph editor. */
+    val bez: List<Float>? = null,
+)
+
+/** Keyframe curves: the eased progress for [u] (0..1) under [a]'s easing. */
+object KeyCurve {
+    val PRESETS = listOf(
+        "Ease in" to listOf(0.42f, 0f, 1f, 1f), "Ease out" to listOf(0f, 0f, 0.58f, 1f), "Ease in-out" to listOf(0.42f, 0f, 0.58f, 1f),
+        "Strong in-out" to listOf(0.85f, 0f, 0.15f, 1f), "Back (overshoot)" to listOf(0.34f, 1.56f, 0.64f, 1f), "Anticipate" to listOf(0.36f, -0.4f, 0.66f, 1f),
+    )
+    private fun bz(t: Float, p1: Float, p2: Float): Float { val m = 1 - t; return 3 * m * m * t * p1 + 3 * m * t * t * p2 + t * t * t }
+    /** Cubic-Bézier timing (CSS style): solve x(t) = u, return y(t). */
+    fun bezier(u: Float, c: List<Float>): Float {
+        if (c.size < 4) return u
+        val x1 = c[0].coerceIn(0f, 1f); val x2 = c[2].coerceIn(0f, 1f)
+        var lo = 0f; var hi = 1f; var t = u
+        repeat(24) { t = (lo + hi) / 2; if (bz(t, x1, x2) < u) lo = t else hi = t }
+        return bz(t, c[1], c[3])
+    }
+    fun eased(k: ClipKey, u: Float): Float = when (k.ease) { 1 -> u; 2 -> 0f; 3 -> bezier(u, k.bez ?: PRESETS[2].second); else -> u * u * (3f - 2f * u) }
+}
 
 data class Reframe(
     val start: Frame = Frame(),
@@ -52,12 +74,12 @@ data class Reframe(
         val i = k.indexOfLast { it.t <= rel }.coerceIn(0, k.size - 2)
         val a = k[i]; val b = k[i + 1]
         val u = ((rel - a.t).toFloat() / (b.t - a.t).coerceAtLeast(1)).coerceIn(0f, 1f)
-        val e = when (a.ease) { 1 -> u; 2 -> 0f; else -> u * u * (3f - 2f * u) }
+        val e = KeyCurve.eased(a, u)
         fun l(x: Float, y: Float) = x + (y - x) * e
         return ClipKey(
             rel,
             Frame(l(a.frame.zoom, b.frame.zoom), l(a.frame.x, b.frame.x), l(a.frame.y, b.frame.y), l(a.frame.rotation, b.frame.rotation)),
-            l(a.opacity, b.opacity), a.ease,
+            l(a.opacity, b.opacity).coerceIn(0f, 1f), a.ease, a.bez,
         )
     }
 

@@ -43,6 +43,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dronedirector.veyrocutpro.ui.Pro
+import com.dronedirector.veyrocutpro.ui.hintedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 
 /** Transition browser for the cut after clip [index]. */
 @Composable
@@ -418,17 +420,79 @@ private fun ClipKeyframes(c: Clip, playheadRel: Long, onChange: ((Clip) -> Clip)
                 modifier = Modifier.weight(1f).padding(start = 6.dp),
             )
             if (i < keys.lastIndex) {
-                val labels = listOf("Smooth", "Linear", "Hold")
+                val labels = listOf("Smooth", "Linear", "Hold", "Curve")
                 Text(
-                    labels[k.ease.coerceIn(0, 2)], style = Pro.Label.copy(color = Color.White, fontSize = 10.sp),
+                    labels[k.ease.coerceIn(0, 3)], style = Pro.Label.copy(color = Color.White, fontSize = 10.sp),
                     modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Color.White.copy(alpha = 0.08f)).clickable {
-                        onChange { cl -> cl.copy(reframe = cl.reframe.copy(keys = cl.reframe.keys?.map { if (it.t == k.t) it.copy(ease = (it.ease + 1) % 3) else it })) }
+                        onChange { cl -> cl.copy(reframe = cl.reframe.copy(keys = cl.reframe.keys?.map { if (it.t == k.t) it.copy(ease = (it.ease + 1) % 4, bez = it.bez ?: KeyCurve.PRESETS[2].second) else it })) }
                     }.padding(horizontal = 8.dp, vertical = 4.dp),
                 )
             }
             Text("✕", color = Pro.Red, fontSize = 14.sp, modifier = Modifier.clickable {
                 onChange { cl -> cl.copy(reframe = cl.reframe.copy(keys = cl.reframe.keys?.filter { it.t != k.t }?.takeIf { it.isNotEmpty() })) }
             }.padding(8.dp))
+        }
+        if (k.ease == 3 && i < keys.lastIndex) {
+            fun setBez(b: List<Float>) = onChange { cl -> cl.copy(reframe = cl.reframe.copy(keys = cl.reframe.keys?.map { if (it.t == k.t) it.copy(bez = b) else it })) }
+            KeyCurveEditor(k.bez ?: KeyCurve.PRESETS[2].second) { setBez(it) }
+            Row(Modifier.hintedScroll(horizontal = true), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                KeyCurve.PRESETS.forEach { (n, b) -> PillChip(n, k.bez == b) { setBez(b) } }
+            }
+        }
+    }
+    if (keys.any { it.ease == 3 }) Text("Curve: drag the two amber handles to shape how the move speeds up and slows down to the next keyframe (above the top line = overshoot).", color = Pro.Dim, fontSize = 11.sp)
+}
+
+/** Graph editor for one keyframe's curve: time across, progress up; two Bézier handles. */
+@Composable
+fun KeyCurveEditor(bez: List<Float>, onChange: (List<Float>) -> Unit) {
+    val cur by androidx.compose.runtime.rememberUpdatedState(bez)
+    val ch by androidx.compose.runtime.rememberUpdatedState(onChange)
+    Box(
+        Modifier.padding(vertical = 6.dp).fillMaxWidth().height(170.dp).clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(alpha = 0.35f))
+            .pointerInput(Unit) {
+                // The graph area: 0..1 in time, −0.5..1.5 in progress.
+                fun toXY(o: androidx.compose.ui.geometry.Offset): Pair<Float, Float> {
+                    val pad = 18f
+                    val x = ((o.x - pad) / (size.width - 2 * pad)).coerceIn(0f, 1f)
+                    val y = (1.5f - (o.y - pad) / (size.height - 2 * pad) * 2f).coerceIn(-0.5f, 1.5f)
+                    return x to y
+                }
+                fun fromXY(x: Float, y: Float): androidx.compose.ui.geometry.Offset {
+                    val pad = 18f
+                    return androidx.compose.ui.geometry.Offset(pad + x * (size.width - 2 * pad), pad + (1.5f - y) / 2f * (size.height - 2 * pad))
+                }
+                androidx.compose.foundation.gestures.awaitEachGesture {
+                    val d = androidx.compose.foundation.gestures.awaitFirstDown()
+                    val b = cur
+                    val h1 = fromXY(b[0], b[1]); val h2 = fromXY(b[2], b[3])
+                    val which = if ((d.position - h1).getDistance() <= (d.position - h2).getDistance()) 0 else 1
+                    while (true) {
+                        val ev = awaitPointerEvent(); val c = ev.changes.firstOrNull() ?: break
+                        if (!c.pressed) break
+                        val (x, y) = toXY(c.position)
+                        val nb = cur.toMutableList()
+                        nb[which * 2] = (Math.round(x * 100) / 100f); nb[which * 2 + 1] = (Math.round(y * 100) / 100f)
+                        ch(nb); c.consume()
+                    }
+                }
+            },
+    ) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            val pad = 18f
+            fun p(x: Float, y: Float) = androidx.compose.ui.geometry.Offset(pad + x * (size.width - 2 * pad), pad + (1.5f - y) / 2f * (size.height - 2 * pad))
+            val grid = Color.White.copy(alpha = 0.12f)
+            drawLine(grid, p(0f, 0f), p(1f, 0f)); drawLine(grid, p(0f, 1f), p(1f, 1f)); drawLine(grid, p(0f, 0f), p(0f, 1f)); drawLine(grid, p(1f, 0f), p(1f, 1f))
+            val path = androidx.compose.ui.graphics.Path()
+            for (i in 0..60) {
+                val u = i / 60f
+                val o = p(u, KeyCurve.bezier(u, bez))
+                if (i == 0) path.moveTo(o.x, o.y) else path.lineTo(o.x, o.y)
+            }
+            drawPath(path, Color.White, style = androidx.compose.ui.graphics.drawscope.Stroke(2.5f))
+            val h1 = p(bez[0], bez[1]); val h2 = p(bez[2], bez[3])
+            drawLine(Pro.Amber.copy(alpha = 0.7f), p(0f, 0f), h1, 1.5f); drawLine(Pro.Amber.copy(alpha = 0.7f), p(1f, 1f), h2, 1.5f)
+            drawCircle(Pro.Amber, 7.dp.toPx(), h1); drawCircle(Pro.Amber, 7.dp.toPx(), h2)
         }
     }
 }

@@ -161,6 +161,12 @@ data class DeliverSettings(
     val masterGain: Float = 1f,
     /** Smart render: copy the clips without re-encoding when the edit is cut-only (see [SmartRender]). */
     val smartRender: Boolean = false,
+    /** Review copy: burned-in timecode, a watermark text (e.g. DRAFT) and marker notes on screen. */
+    val review: Boolean = false,
+    val reviewText: String = "DRAFT",
+    val reviewNotes: Boolean = true,
+    /** Timecode shown in a review copy starts here (the export range's start). */
+    val reviewTcStart: Long = 0L,
 ) {
     val audioFmt: AudioExportFormat get() = audioFormat?.takeIf { it.available } ?: AudioExportFormat.M4A
 }
@@ -401,7 +407,7 @@ class TimelineExport(
         }
         // Text, stickers, watermarks and logos, bottom layer first.
         val pictureLayers = if (audioOnly) emptyList() else layers.filter { it.visible && it.kind != LayerKind.VIDEO }
-        val overlays = pictureLayers.filter { (it.blend ?: LayerBlend.NORMAL) == LayerBlend.NORMAL && it.pin.isNullOrEmpty() }.mapNotNull { l ->
+        val overlays = (pictureLayers.filter { (it.blend ?: LayerBlend.NORMAL) == LayerBlend.NORMAL && it.pin.isNullOrEmpty() }.mapNotNull { l ->
             LayerRenderer.render(context, l, outW, outH)?.let {
                 LayerOverlay(
                     it, l, partial = { n -> LayerRenderer.render(context, l, outW, outH, n) }, highlighted = { n -> LayerRenderer.render(context, l, outW, outH, hi = n) },
@@ -409,7 +415,7 @@ class TimelineExport(
                     frameAt = if (l.kind == LayerKind.LOTTIE) { n -> LottieRender.render(context, l, maxOf(8f, l.size * outH), outW, n) } else null,
                 ) as androidx.media3.effect.TextureOverlay
             }
-        }
+        } + listOfNotNull(if (settings.review && !audioOnly) TimecodeOverlay(outW, outH, settings.reviewTcStart, if (settings.fps > 0) settings.fps else 30) as androidx.media3.effect.TextureOverlay else null))
         if (overlays.isNotEmpty()) global += androidx.media3.effect.OverlayEffect(overlays)
         // Layers with a blend mode are drawn by their own shader, in layer order.
         for (l in pictureLayers) {
@@ -740,6 +746,7 @@ internal object LutCache {
 fun smartRenderBlocker(context: Context, clips: List<Clip>, s: DeliverSettings, layers: List<Layer>, music: MusicTrack?, extra: List<MusicTrack>): String? {
     if (clips.isEmpty()) return "there are no clips"
     if (s.audioOnly) return "this is a sound-only export"
+    if (s.review) return "Review copy is on"
     if (s.shortSide != 0 || s.aspect != 0f) return "the resolution or shape is changed (choose Source)"
     if (s.fps != 0) return "the frame rate is changed (choose Source)"
     if (s.bitrateMbps != 0) return "a bitrate is chosen (choose Auto)"
@@ -762,4 +769,34 @@ fun smartRenderBlocker(context: Context, clips: List<Clip>, s: DeliverSettings, 
     if (morphCuts(clips).isNotEmpty()) return "there is a morph cut"
     if (s.audio) for (k in 0 until clips.lastIndex) if (try { cutSound(context, clips, k) } catch (_: Throwable) { null } != null) return "there is a sound effect on a cut"
     return null
+}
+
+/** Review copy: the timeline timecode burned into the top-left corner, frame by frame. */
+@androidx.media3.common.util.UnstableApi
+class TimecodeOverlay(outW: Int, outH: Int, private val startMs: Long, private val fps: Int) : androidx.media3.effect.BitmapOverlay() {
+    private val h = (outH * 0.045f).toInt().coerceAtLeast(16)
+    private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.WHITE; textSize = h * 0.72f; typeface = android.graphics.Typeface.MONOSPACE
+    }
+    private val w = (paint.measureText("00:00:00:00") + h * 0.6f).toInt()
+    private var lastFrame = -1L
+    private var bmp: android.graphics.Bitmap? = null
+    private val settings = androidx.media3.effect.StaticOverlaySettings.Builder()
+        .setBackgroundFrameAnchor(-0.96f, 0.94f).setOverlayFrameAnchor(-1f, 1f).build()
+
+    override fun getBitmap(presentationTimeUs: Long): android.graphics.Bitmap {
+        val ms = startMs + presentationTimeUs / 1000
+        val frame = ms * fps / 1000
+        bmp?.let { if (frame == lastFrame) return it }
+        val s = frame / fps; val ff = frame % fps
+        val text = "%02d:%02d:%02d:%02d".format(s / 3600, (s / 60) % 60, s % 60, ff)
+        val b = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(b)
+        c.drawColor(0xAA000000.toInt())
+        c.drawText(text, h * 0.3f, h * 0.76f, paint)
+        lastFrame = frame; bmp = b
+        return b
+    }
+
+    override fun getOverlaySettings(presentationTimeUs: Long): androidx.media3.common.OverlaySettings = settings
 }

@@ -2615,8 +2615,15 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     fun runExportNow(list0: List<Clip>, loudGain: Float) {
         // Export range: cut the edit down to the chosen part first.
         val ra = deliver.rangeStart; val rb = deliver.rangeEnd
-        val cut = if (ra != null && rb != null && rb > ra) cutRange(list0, layers.toList(), music, extraAudio.toList(), ra, rb)
-        else RangeCut(list0, layers.toList(), music, extraAudio.toList())
+        // Review copy: a big faint watermark over everything and each marker's note for 2.5 s.
+        val reviewLayers = if (!deliver.review || deliver.audioOnly) emptyList() else buildList {
+            if (deliver.reviewText.isNotBlank()) add(Layer(kind = LayerKind.TEXT, text = deliver.reviewText.take(40), size = 0.16f, x = 0.5f, y = 0.5f, opacity = 0.28f, shadow = false, wholeVideo = true, name = "Review"))
+            if (deliver.reviewNotes) for (m in markers) add(Layer(kind = LayerKind.TEXT, text = (markerNotes[m] ?: "Marker").take(120), size = 0.045f, x = 0.5f, y = 0.12f, box = true, startMs = m, endMs = m + 2500, name = "Review"))
+        }
+        val allLayers = layers.toList() + reviewLayers
+        deliver = deliver.copy(reviewTcStart = if (ra != null && rb != null && rb > ra) ra else 0L)
+        val cut = if (ra != null && rb != null && rb > ra) cutRange(list0, allLayers, music, extraAudio.toList(), ra, rb)
+        else RangeCut(list0, allLayers, music, extraAudio.toList())
         if (cut.clips.isEmpty()) { exporting = false; message = "Nothing to export in that range"; return }
         val g = loudGain
         val list = if (g == 1f) cut.clips else cut.clips.map { it.copy(volume = it.volume * g) }
@@ -4585,6 +4592,13 @@ private fun AudioPage(
         AudioSwitch("Low cut (80 Hz)", "Removes wind rumble and handling noise", fx.lowCut) { b -> setFx { it.copy(lowCut = b) } }
         AudioSwitch("Voice enhance", "Clearer speech: trims boom, lifts presence", fx.voice) { b -> setFx { it.copy(voice = b) } }
 
+        SectionTitle("PARAMETRIC EQ", onReset = { setFx { it.copy(bands = null) } })
+        ParametricEq(fx.bands.orEmpty(), playing) { nb -> setFx { it.copy(bands = nb) } }
+
+        SectionTitle("DE-ESSER", onReset = { setFx { it.copy(deess = 0f) } })
+        EdSlider("De-esser", fx.deess, 0f..1f, 0f, { if (it <= 0f) "Off" else "%.0f%%".format(it * 100) }) { v -> setFx { it.copy(deess = v) } }
+        Text("Tames harsh \"s\" and \"sh\" sounds in speech without dulling the rest of the voice.", color = Pro.Dim, fontSize = 11.sp)
+
         SectionTitle("DYNAMICS", onReset = { setFx { it.copy(compressor = 0f, gate = 0f, limiter = true, leveler = 0f) } })
         EdSlider("Dialogue leveller", fx.leveler, 0f..1f, 0f, ::pct) { v -> setFx { it.copy(leveler = v) } }
         Text("Rides the level of speech: quiet words come up, loud ones go down, so the whole clip sounds even. Pauses are left alone.", color = Pro.Dim, fontSize = 11.sp)
@@ -5342,6 +5356,13 @@ private fun DeliverPage(
         }
         Text("Move the playhead on the timeline, then tap SET IN / SET OUT. Only that part is exported (${tc(rb - ra)}).", color = Pro.Dim, fontSize = 11.sp)
     }
+    SectionTitle("REVIEW COPY")
+    Chips(listOf("Off", "Review copy"), if (s.review) 1 else 0) { onChange(s.copy(review = it == 1)) }
+    if (s.review) {
+        androidx.compose.material3.OutlinedTextField(s.reviewText, { onChange(s.copy(reviewText = it.take(40))) }, label = { Text("Watermark text (empty = none)") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
+        Chips(listOf("Marker notes on screen", "No notes"), if (s.reviewNotes) 0 else 1) { onChange(s.copy(reviewNotes = it == 0)) }
+    }
+    Text("For sending a cut to a client: timecode burned into the corner, a faint watermark, and each marker's note on screen for 2.5 s — so feedback can say exactly where. Turn it off again for the final export.", color = Pro.Dim, fontSize = 11.sp)
     SectionTitle("SMART RENDER")
     Chips(listOf("Off", "Fast copy when possible"), if (s.smartRender) 1 else 0) { onChange(s.copy(smartRender = it == 1)) }
     Text(

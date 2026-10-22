@@ -181,6 +181,28 @@ object CloudAi {
         download(res.getJSONObject("image").getString("url"))
     }
 
+    /**
+     * Generative expand (Bria Expand — trained only on licensed data, made for commercial use):
+     * the photo placed at [x], [y] on a [cw] × [ch] canvas, the empty parts filled in.
+     */
+    fun expand(c: Context, jpeg: ByteArray, cw: Int, ch: Int, w: Int, h: Int, x: Int, y: Int, prompt: String): ByteArray = job(c, "AI EXPAND") {
+        val url = upload(c, jpeg.inputStream(), jpeg.size.toLong(), "photo.jpg", "image/jpeg")
+        val res = run(c, "fal-ai/bria/expand", JSONObject().put("image_url", url)
+            .put("canvas_size", org.json.JSONArray().put(cw).put(ch))
+            .put("original_image_size", org.json.JSONArray().put(w).put(h))
+            .put("original_image_location", org.json.JSONArray().put(x).put(y))
+            .put("prompt", prompt.replace(Regex("[^A-Za-z0-9 ,.'-]"), " ").trim()))
+        download(res.getJSONObject("image").getString("url"))
+    }
+
+    /** Speech (ElevenLabs Multilingual v2, 29 languages) for one line of text; returns the MP3 bytes. */
+    fun speak(c: Context, text: String, voice: String, language: String?, speed: Float): ByteArray = job(c, "AI DUBBING") {
+        val input = JSONObject().put("text", text).put("voice", voice).put("speed", speed.toDouble().coerceIn(0.7, 1.2))
+        if (language != null) input.put("language_code", language)
+        val res = run(c, "fal-ai/elevenlabs/tts/multilingual-v2", input)
+        download(res.getJSONObject("audio").getString("url"))
+    }
+
     /** Frame interpolation (RIFE): [frames] new frames between each pair, written to [out]. */
     fun interpolate(c: Context, source: File, out: File, frames: Int) = job(c, "AI SLOW MOTION") {
         val url = source.inputStream().use { upload(c, it, source.length(), "clip.mp4", "video/mp4") }

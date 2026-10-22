@@ -20,6 +20,7 @@ enum class MergeKind(val label: String, val hint: String) {
     NOISE("Noise stack", "2–8 shots of the same scene (tripod or hand-held): averaged for a clean, low-noise picture"),
     CLEAN("Remove passers-by", "3–8 shots from the same spot a few seconds apart: whatever moves through is taken out"),
     SUPERRES("Super resolution", "4–8 hand-held shots of the same scene: one picture with twice the width and height"),
+    ASTRO("Star stack", "2–8 night-sky shots from a tripod: lined up on the stars and averaged for a clean, detailed sky"),
 }
 
 /** HDR (exposure fusion), panorama stitching and focus stacking, done on the phone. */
@@ -45,6 +46,7 @@ object Merge {
             return PanoOpts.finish(raw, f)
         }
         if (kind == MergeKind.NOISE || kind == MergeKind.CLEAN || kind == MergeKind.SUPERRES) return multiFrame(context, kind, uris, onProgress)
+        if (kind == MergeKind.ASTRO) return astro(context, uris, onProgress)
         onProgress("Loading photos…")
         val maxPx = 2200
         val imgs = uris.take(if (kind == MergeKind.FOCUS) 6 else 5).mapNotNull { decodeAny(context, it, maxPx) }
@@ -224,6 +226,100 @@ object Merge {
             MergeKind.CLEAN -> { onProgress("Taking out what moved…"); Bitmap.createBitmap(robust(frames, w, h, median = true), w, h, Bitmap.Config.ARGB_8888) }
             else -> { onProgress("Averaging…"); Bitmap.createBitmap(robust(frames, w, h, median = false), w, h, Bitmap.Config.ARGB_8888) }
         }
+    }
+
+    // ---------------- Star stacking
+
+    private class Star(val x: Float, val y: Float, val b: Float)
+
+    /** Bright point lights: local maxima well above the sky background, with a sub-pixel centre. */
+    private fun stars(p: IntArray, w: Int, h: Int): List<Star> {
+        val l = FloatArray(w * h) { luma(p[it]).toFloat() }
+        var sum = 0.0; var sq = 0.0; var n = 0
+        var i = 0
+        while (i < l.size) { sum += l[i]; sq += l[i] * l[i]; n++; i += 97 }
+        val mean = sum / n; val sd = kotlin.math.sqrt((sq / n - mean * mean).coerceAtLeast(1.0))
+        val th = (mean + 5 * sd).toFloat().coerceAtMost(250f)
+        val out = ArrayList<Star>()
+        for (y in 3 until h - 3) for (x in 3 until w - 3) {
+            val v = l[y * w + x]
+            if (v < th) continue
+            var peak = true
+            loop@ for (dy in -2..2) for (dx in -2..2) if ((dx != 0 || dy != 0) && l[(y + dy) * w + x + dx] > v) { peak = false; break@loop }
+            if (!peak) continue
+            // Small: drop big bright areas (moon, lights on the ground).
+            if (l[y * w + x - 3] > th && l[y * w + x + 3] > th && l[(y - 3) * w + x] > th) continue
+            var sx = 0f; var sy = 0f; var sw = 0f
+            for (dy in -1..1) for (dx in -1..1) { val q = (l[(y + dy) * w + x + dx] - mean.toFloat()).coerceAtLeast(0f); sx += (x + dx) * q; sy += (y + dy) * q; sw += q }
+            if (sw > 0f) out += Star(sx / sw, sy / sw, v)
+        }
+        return out.sortedByDescending { it.b }.take(120)
+    }
+
+    /** Rotation + shift taking [f]'s stars onto [r]'s (pairs with matching spacing, best agreement wins). */
+    private fun starFit(r: List<Star>, f: List<Star>): FloatArray? {
+        val rt = r.take(24); val ft = f.take(24)
+        var best: FloatArray? = null; var bestScore = 3
+        for (a in rt.indices) for (b in a + 1 until rt.size) {
+            val dr = kotlin.math.hypot(rt[b].x - rt[a].x, rt[b].y - rt[a].y)
+            if (dr < 20f) continue
+            val ar = kotlin.math.atan2(rt[b].y - rt[a].y, rt[b].x - rt[a].x)
+            for (c in ft.indices) for (d in ft.indices) {
+                if (c == d) continue
+                val df = kotlin.math.hypot(ft[d].x - ft[c].x, ft[d].y - ft[c].y)
+                if (abs(df - dr) > 1.5f) continue
+                val th = ar - kotlin.math.atan2(ft[d].y - ft[c].y, ft[d].x - ft[c].x)
+                if (abs(th) > 0.12f) continue    // at most ~7° between frames
+                val co = kotlin.math.cos(th); val si = kotlin.math.sin(th)
+                val tx = rt[a].x - (co * ft[c].x - si * ft[c].y); val ty = rt[a].y - (si * ft[c].x + co * ft[c].y)
+                var score = 0
+                for (s in f) {
+                    val mx = co * s.x - si * s.y + tx; val my = si * s.x + co * s.y + ty
+                    if (r.any { abs(it.x - mx) < 2f && abs(it.y - my) < 2f }) score++
+                }
+                if (score > bestScore) { bestScore = score; best = floatArrayOf(co, si, tx, ty) }
+            }
+        }
+        return best
+    }
+
+    private fun astro(context: Context, uris: List<Uri>, onProgress: (String) -> Unit): Bitmap? {
+        onProgress("Loading photos…")
+        val first = decodeAny(context, uris[0], 2400) ?: return null
+        val w = first.width; val h = first.height
+        val ref = IntArray(w * h).also { first.getPixels(it, 0, w, 0, 0, w, h) }; first.recycle()
+        val refStars = stars(ref, w, h)
+        if (refStars.size < 4) return null
+        val frames = arrayListOf(ref)
+        for ((i, u) in uris.drop(1).take(7).withIndex()) {
+            onProgress("Lining up the stars ${i + 2} / ${minOf(8, uris.size)}…")
+            val b = decodeAny(context, u, 2400) ?: continue
+            val s = if (b.width == w && b.height == h) b else Bitmap.createScaledBitmap(b, w, h, true)
+            val p = IntArray(w * h).also { s.getPixels(it, 0, w, 0, 0, w, h) }
+            if (s !== b) s.recycle(); b.recycle()
+            val t = starFit(refStars, stars(p, w, h)) ?: continue
+            // Each output pixel q comes from Rᵀ (q − t) in this frame.
+            val co = t[0]; val si = t[1]; val tx = t[2]; val ty = t[3]
+            val out = IntArray(w * h)
+            for (y in 0 until h) for (x in 0 until w) {
+                val qx = x - tx; val qy = y - ty
+                val fx = co * qx + si * qy; val fy = -si * qx + co * qy
+                val x0 = fx.toInt(); val y0 = fy.toInt()
+                if (fx < 0 || fy < 0 || x0 >= w - 1 || y0 >= h - 1) { out[y * w + x] = ref[y * w + x]; continue }
+                val ax = fx - x0; val ay = fy - y0
+                var px = 0xFF shl 24
+                for (sh in intArrayOf(16, 8, 0)) {
+                    fun at(xx: Int, yy: Int) = (p[yy * w + xx] shr sh) and 0xFF
+                    val v = (at(x0, y0) * (1 - ax) + at(x0 + 1, y0) * ax) * (1 - ay) + (at(x0, y0 + 1) * (1 - ax) + at(x0 + 1, y0 + 1) * ax) * ay
+                    px = px or ((v + 0.5f).toInt().coerceIn(0, 255) shl sh)
+                }
+                out[y * w + x] = px
+            }
+            frames += out
+        }
+        if (frames.size < 2) return null
+        onProgress("Stacking ${frames.size} frames…")
+        return Bitmap.createBitmap(robust(frames, w, h, median = false), w, h, Bitmap.Config.ARGB_8888)
     }
 
     /** Per pixel: the median of the frames, or the mean of the frames close to the median (moving things left out). */

@@ -54,6 +54,9 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 ### Remote monitor
 - **Remote monitor & control** from any browser on the same Wi-Fi or hotspot (PIN-protected address): live picture, shutter / record, zoom, Photo / Video / Pro Video, autofocus, AE lock, recording time and exposure read-out.
 
+### Stop motion
+- **Stop motion** (photo modes): each photo is the next frame, onion skin over the viewfinder, frame strip (play, hold, delete), 6–24 fps, MAKE VIDEO.
+
 ### Teleprompter
 - **Teleprompter** over the camera (selfie or back camera): your own text, scrolling at your speed or starting with the recording; bold, italic, underline, narrow, alignment, size, text and background colours with opacity, mirror for teleprompter glass; drag to move, drag the corner to resize, shrink to a small bar, close with ✕; opens by itself with the selfie camera.
 
@@ -125,7 +128,8 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
   - **Upright** (Auto, Level, Vertical, Full), **dust spot** visualise and auto-heal, **panorama** projections (cylindrical / spherical / perspective), boundary warp and AI edge fill.
   - **Export**: **AVIF** (phone's AV1 encoder, Android 14+) and **JPEG XL**, TIFF 16 / 8-bit, sRGB / Display P3 / Adobe RGB with embedded profile, output sharpening (screen / matte / glossy), file-name templates, export presets, **export recipes** (several presets in one go), a matte-print soft proof and **soft proof with a printer / paper ICC profile** (own colour engine: lut8 / lut16 / lutAtoB / lutBtoA, perceptual or relative colorimetric, paper white).
   - **DNG camera profiles (.dcp)**: import and use instead of the RAW file's own colour (matrices, forward matrices, hue / sat maps, look table, tone curve).
-  - **Merges**: HDR, panorama, focus stack, **noise stack**, **remove passers-by** (median of 3–8 shots) and **super resolution** (sub-pixel aligned hand-held shots → 2× size).
+  - **Merges**: HDR, panorama, focus stack, **noise stack**, **remove passers-by** (median of 3–8 shots), **super resolution** (sub-pixel aligned hand-held shots → 2× size) and **star stack** (aligned on the stars, shift + rotation).
+  - **Generative expand (Cloud AI)**: wider canvas with the surroundings painted in (Bria Expand via fal.ai; trained on licensed data).
   - **Retouch**: **Liquify** (push, pinch, bloat, twirl, restore), **frequency separation** (tone smoothing + texture, whole photo or AI face / body skin) and **AI Relight** (light direction, shadows, warmth from the depth map).
   - **Crop guides**: thirds, golden ratio, golden spiral, golden triangles, diagonals, grid (turnable).
   - **Masks**: Object (AI) by tapping, Depth range (AI), and add / subtract / intersect combinations (colour, brightness, depth, subject, sky).
@@ -218,7 +222,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Media strip** (always on screen above the timeline, can be hidden in the Panels menu): every imported clip, used on the timeline or not. Mouse-hover or hold-and-slide **skimming**, an amber **USED ×n** mark, **1–5 star ratings and reject**, filters (All, Unused, Used, ★3+, No rejects, bins), multi-select (append, rate, reject, remove), Append / Insert / Overwrite / Source viewer, **+ Clips** (up to 100 at once) and **+ Folder** (every video in a folder and its sub-folders). With a mouse, drag a clip straight onto the timeline.
 ### Pro editing
 - **Text-based editing**: the edit as text, transcribed on the phone (whisper.cpp, MIT; Whisper model downloaded once — Fast 57 MB / Accurate 181 MB; 99 languages incl. Danish and Faroese). Tap words to cut them, REMOVE FILLERS (um / uh / øh), APPLY CUTS splits the clips without leaving dead air; undo restores; hold a word to jump there.
-- **Clip keyframes**: zoom, position, rotation and opacity over time, Smooth / Linear / Hold easing, diamonds on the timeline, edit on the player at the playhead; preview and export.
+- **Clip keyframes**: zoom, position, rotation and opacity over time, Smooth / Linear / Hold easing or a **Bézier curve** (graph editor with presets), diamonds on the timeline, edit on the player at the playhead; preview and export.
 - **Scene cut detection**: finds the camera cuts in a long clip or finished film and splits it into shots.
 - **Multi-select**: tick clips to delete (ripple), mute, change speed, duplicate or copy a grade in one go.
 - **Auto-edit to the beat**: rebuilds the timeline from your clips with a cut on every 1st / 2nd / 4th / 8th beat.
@@ -239,7 +243,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Morph cut**: own optical-flow engine draws new in-between frames for jump cuts — the frames are rendered through each clip's own grade and effects at full size.
 - **Smarter filler removal**: um / uh, repeats & stutters, and optional filler phrases (you know, like) — the transcript now keeps what was really said.
 - **Auto podcast / interview switching** (Multicam → AUTO: WHO'S TALKING): cuts to whoever is speaking from each angle's own microphone, with an optional wide shot for cross-talk and pauses.
-- **Auto highlights**: a 15 s – 2 min reel of the liveliest moments (sound bursts, movement, lively talk), cut between words.
+- **Auto highlights**: a 15 s – 2 min reel of the liveliest moments (sound bursts, movement, lively talk, sharp shots, faces), cut between words or on the music's beat.
 - **Optical-flow slow motion** on the phone (own motion engine): ½ / ¼ / ⅛ speed or the clip's own ramp with new in-between frames.
 - **Motion blur** from the motion (90° / 180° / 360° shutter).
 - **Corner pin & planar tracking**: put any layer in perspective on a screen, sign or wall and keep it stuck there as the camera moves (own tracker: Lucas–Kanade + RANSAC homography).
@@ -322,6 +326,8 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - Per clip: volume, pan, channels (stereo / mono / left / right / swap), fades.
 - **Voice noise reduction** per clip (Light / Strong / **Voice isolation (AI)** — RNNoise, BSD-3, on the phone; on export).
 - **3-band EQ**, low cut, voice enhance, **compressor, noise gate, limiter**; presets (Voice, Interview, Wind cut, Warm, Bright, Bass boost, Radio, Loud & punchy); live **level meter**.
+- **Parametric EQ**: up to 8 bands (bell, shelves, low / high cut) dragged over a live spectrum; **de-esser**.
+- **AI dubbing**: captions spoken as one audio track at their times (English on the phone with Kokoro; other languages via Cloud AI, ElevenLabs Multilingual v2), original voice ducked or muted.
 - **Dialogue leveller**: evens out speech (quiet words up, loud words down, pauses left alone).
 - **Mixer**: a strip per track (clip sound, music, extra tracks) with live meter, level (dB), pan, mute and solo, plus master level — in the preview and the export.
 - **LUFS meter** (EBU R128 / BS.1770): momentary, short-term and integrated loudness while playing.
@@ -343,6 +349,8 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - Choose the **save folder** (default DCIM/VeyroCutPro).
 - **Animated GIF** export (320–640 px, 10–15 fps, up to 20 s) with grade and layers.
 - **Subtitles** from the captions as **.srt** or **WebVTT (.vtt)**; **import .srt / .vtt** files as caption layers.
+- **Review copy**: burned-in timecode, watermark text and marker notes on screen.
+- **Render cache**: heavy AI effects (noise reduction, background, depth) rendered once for smooth playback; export always from the originals.
 - **Safe zones** on the viewer: TikTok, Reels, Shorts (approximate) and TV action / title safe — never exported.
 - **Smart render (fast copy)**: cut-only edits are copied from the clips without re-encoding — no quality loss, much faster (each clip starts on its nearest earlier key frame).
 - **Send to desktop editor**: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) and **OpenTimelineIO .otio** (cuts, dissolves, speed, markers) for desktop editing software.

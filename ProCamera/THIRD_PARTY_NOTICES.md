@@ -30,6 +30,6 @@ The full Apache 2.0, NAFNet MIT and LibRaw LGPL 2.1 licence texts are bundled wi
 ## Trademarks
 
 Names such as DJI D-Log / D-Log M, Sony S-Log3, Panasonic V-Log, ARRI LogC3, HLG, H.264 / H.265,
-Topaz Labs, fal.ai, the camera / phone / drone makers named in the RAW looks (Google Pixel, Samsung Galaxy, Apple iPhone, DJI, Parrot, Autel, Canon, Sony, Nikon, Fujifilm, Leica, Ricoh, Panasonic, Olympus / OM System, YI), Whisper, BiRefNet, EVF-SAM, Bria and RIFE belong to their respective owners and
+Topaz Labs, fal.ai, the camera / phone / drone makers named in the RAW looks (Google Pixel, Samsung Galaxy, Apple iPhone, DJI, Parrot, Autel, Canon, Sony, Nikon, Fujifilm, Leica, Ricoh, Panasonic, Olympus / OM System, YI), Whisper, BiRefNet, EVF-SAM, Bria, ElevenLabs and RIFE belong to their respective owners and
 are used only to describe compatibility or the optional cloud models you can use with your own
 fal.ai account. VeyroCut Pro is not affiliated with or endorsed by them.

@@ -4,6 +4,15 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor → Merge photos: **Star stack** — night-sky shots lined up on the stars and averaged.
+- Photo editor → Crop: **Expand (Cloud AI)** — a wider picture with the surroundings painted in (Bria Expand, trained on licensed images).
+- Video editor: **keyframe curve editor** — Bézier handles and presets (ease in / out, back, anticipate) for clip keyframes.
+- Video editor → Audio: **parametric EQ** (up to 8 bands over a live spectrum) and a **de-esser**.
+- Video editor → Deliver: **review copy** — burned-in timecode, a watermark and marker notes on screen.
+- Video editor → Proxy: **render cache** — AI noise reduction, background cut-out and AI depth clips rendered once for smooth playback.
+- Video editor → Auto highlights: favours **sharp shots and people**, and can **cut on the music's beat**.
+- Video editor → Layers: **AI dubbing** — the captions spoken as a new audio track (English on the phone; other languages via Cloud AI).
+- Capture: **Stop motion** — onion skin over the viewfinder, a frame strip (play, hold, delete, 6–24 fps) and MAKE VIDEO.
 
 ## 1.0.457 — 2026-10-22
 - Photo editor: new **Retouch** panel — **Liquify** (push, pinch, bloat, twirl, restore), **frequency separation** for skin (whole photo, face skin or all skin via AI) and **Relight** (move or add light using the AI depth map).

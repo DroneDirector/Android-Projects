@@ -11,6 +11,14 @@ internal object LibRawBridge {
         try { System.loadLibrary("raw"); System.loadLibrary("veyroraw"); true } catch (_: Throwable) { false }
     }
 
+    /** JPEG XL compressed DNGs can be decoded (libjxl, shipped with the app's JPEG XL export). */
+    val jxlAvailable: Boolean by lazy {
+        available && run {
+            try { System.loadLibrary("jxl") } catch (_: Throwable) {}
+            try { nJxlInit() } catch (_: Throwable) { false }
+        }
+    }
+
     /** File name endings LibRaw is asked to open. */
     val EXTENSIONS = setOf(
         "arw", "srf", "sr2", "cr2", "cr3", "crw", "nef", "nrw", "raf", "orf", "rw2", "rwl", "pef", "srw",
@@ -26,4 +34,6 @@ internal object LibRawBridge {
     @JvmStatic external fun nRaw(h: Long, one: Int): ShortArray?
     @JvmStatic external fun nThumb(h: Long): ByteArray?
     @JvmStatic external fun nVersion(): String
+    @JvmStatic external fun nJxlInit(): Boolean
+    @JvmStatic external fun nJxl(data: ByteArray, channels: Int, wh: IntArray): ShortArray?
 }

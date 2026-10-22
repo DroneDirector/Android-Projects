@@ -15,6 +15,6 @@ for f in $(find "$SRC/src" -name '*.cpp' ! -name '*_ph.cpp' | sort); do
 done | xargs -P "$(nproc)" -I{} sh -c '{}'
 objs=$(ls "$OUT"/obj/*.o | grep -v '_ph\.cpp\.o')
 $CXX -shared -o "$OUT/libraw.so" $objs -static-libstdc++ -Wl,-soname,libraw.so $EXTRA -lm
-$CC -shared -fPIC -O2 $EXTRA -I"$SRC" ${JNI_INC:-} -o "$OUT/libveyroraw.so" "$HERE/veyroraw.c" -L"$OUT" -lraw -Wl,-rpath,'$ORIGIN' -Wl,-soname,libveyroraw.so
+$CC -shared -fPIC -O2 $EXTRA -I"$SRC" ${JXL_INC:+-I$JXL_INC} ${JNI_INC:-} -o "$OUT/libveyroraw.so" "$HERE/veyroraw.c" -L"$OUT" -lraw -ldl -Wl,-rpath,'$ORIGIN' -Wl,-soname,libveyroraw.so
 rm -rf "$OUT/obj"
 ls -l "$OUT"

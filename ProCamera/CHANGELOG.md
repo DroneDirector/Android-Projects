@@ -4,6 +4,9 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- RAW: **JPEG XL compressed DNGs** now open — the format newer Samsung Galaxy phones (and recent iPhones) save their RAW photos in.
+- RAW: DNGs from **black-and-white cameras** (Leica M Monochrom, Pentax K-3 III Monochrome) now open.
+- RAW: fixed coloured garbage blocks in DNGs from some action cameras (e.g. YI Action Camera 3) — older DNGs written with a lossless-JPEG quirk are now read correctly.
 
 ## 1.0.425 — 2026-10-21
 - **RAW files from other cameras now open in the photo editor**: Sony ARW, Canon CR2 / CR3, Nikon NEF, Fujifilm RAF, Olympus / OM System ORF, Panasonic RW2, Pentax PEF and more. They're read by LibRaw (credited in Settings → Open-source licences) and developed by the same RAW engine as DNGs, starting at about the brightness of the camera's own picture. The gallery and Library recognise them as RAW too.

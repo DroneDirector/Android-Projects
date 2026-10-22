@@ -46,6 +46,7 @@ jobs:
           du -sh ~/raw-samples
       - name: Get LibRaw (for the other cameras' RAW formats)
         run: |
+          sudo apt-get install -y -q libjxl0.7 >/dev/null 2>&1 || sudo apt-get install -y -q libjxl-dev >/dev/null 2>&1 || echo "::warning::no libjxl (JPEG XL DNGs will show as not supported)"
           git fetch -q --depth 1 origin models
           mkdir -p /home/runner/libraw
           for l in libraw libveyroraw; do git show FETCH_HEAD:libraw/linux-x86_64/$l.so > /home/runner/libraw/$l.so || rm -f /home/runner/libraw/$l.so; done

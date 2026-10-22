@@ -177,6 +177,8 @@ object RawDng {
         val make: String = "",
         /** Not a DNG: read through LibRaw (Sony, Canon, Nikon, Fujifilm… RAW files). */
         internal val libraw: Boolean = false,
+        /** DNG 1.0 files: lossless-JPEG difference code 16 is followed by 16 extra bits (as old encoders wrote it). */
+        internal val lj16Bits: Boolean = false,
     ) {
         /**
          * Phone RAWs saved without the camera's lens-shading data (e.g. by apps that don't ask the
@@ -380,7 +382,7 @@ object RawDng {
         val compression = rawIfd.num(259, 1.0).toInt()
         when (compression) {
             1, 7, 8, 34892 -> {}
-            52546 -> throw UnsupportedRaw("JPEG XL DNG (newer iPhone ProRAW) can't be decoded on this phone yet")
+            52546 -> if (!LibRawBridge.jxlAvailable) throw UnsupportedRaw("JPEG XL DNG (newer Galaxy / iPhone RAW) can't be decoded on this phone yet")
             else -> throw UnsupportedRaw("This DNG's compression ($compression) isn't supported yet")
         }
         val bps = rawIfd.num(258, 16.0).toInt()
@@ -399,7 +401,7 @@ object RawDng {
             val planeColor = rawIfd.nums(50710)?.map { it.toInt() } ?: listOf(0, 1, 2)
             cfa = IntArray(cfaW * cfaH) { planeColor.getOrElse(pat[it].toInt()) { pat[it].toInt() } }
             if (cfa.any { it !in 0..2 } || (0..2).any { c -> c !in cfa }) throw UnsupportedRaw("Only red / green / blue colour filters are supported")
-        } else if (spp != 3) throw UnsupportedRaw("Unusual sensor layout")
+        } else if (spp != 3 && spp != 1) throw UnsupportedRaw("Unusual sensor layout") // 1 = black-and-white sensor
 
         val tiled = rawIfd.has(322)
         val offsets = (if (tiled) rawIfd.nums(324) else rawIfd.nums(273))?.map { it.toLong() }?.toLongArray() ?: throw UnsupportedRaw("No image data")
@@ -521,6 +523,7 @@ object RawDng {
             profileName = ifd0.text(50936),
             ops1 = ops1, ops2 = ops2.filter { it.id != 9 }, warp = warp, vignette = vig, info = info, make = ifd0.text(271)?.trim() ?: "",
             dewarp = dewarp, drone = drone, gains3 = gains3,
+            lj16Bits = (ifd0.nums(50706)?.let { v -> v.getOrElse(0) { 1.0 } * 256 + v.getOrElse(1) { 0.0 } } ?: 257.0) < 257.0,
         )
     }
 
@@ -704,12 +707,20 @@ object RawDng {
             val rowsHere = if (tiled) th else min(th, h - y0)
             when (m.compression) {
                 7 -> {
-                    val lj = LJpeg(bytes).decode()
+                    val lj = LJpeg(bytes, m.lj16Bits).decode()
                     val samplesPerRow = tw * spp
                     for (i in 0 until min(lj.size, samplesPerRow * th)) {
                         val r = i / samplesPerRow; val c = i % samplesPerRow
                         put(x0 + c / spp, y0 + r, c % spp, lj[i])
                     }
+                    continue
+                }
+                52546 -> {
+                    // JPEG XL (DNG 1.7): each tile / strip is a JPEG XL image.
+                    val wh = IntArray(2)
+                    val px = LibRawBridge.nJxl(bytes, spp, wh) ?: throw UnsupportedRaw("This JPEG XL DNG couldn't be decoded")
+                    val pw = wh[0]; val ph = wh[1]
+                    for (r in 0 until min(ph, th)) for (c in 0 until min(pw, tw)) for (k in 0 until spp) put(x0 + c, y0 + r, k, px[(r * pw + c) * spp + k].toInt() and 0xFFFF)
                     continue
                 }
                 34892 -> {
@@ -831,6 +842,8 @@ object RawDng {
             o
         }
         val pat = m.cfa?.let { IntArray(m.cfaW * m.cfaH) { k -> colAt((k % m.cfaW) + m.cropLeft, (k / m.cfaW) + m.cropTop) } }
+        // Black-and-white sensors: the same value in all three channels.
+        if (pat == null && spp == 1) return@use Sensor(cw, ch, 3, ShortArray(out.size * 3) { out[it / 3] }, null, m.cfaW, m.cfaH)
         Sensor(cw, ch, spp, out, pat, m.cfaW, m.cfaH)
     }
 
@@ -887,7 +900,7 @@ object RawDng {
 
     // ------------------------------------------------------------------ lossless JPEG (ITU T.81, process 14)
 
-    private class LJpeg(val d: ByteArray) {
+    private class LJpeg(val d: ByteArray, val legacy16: Boolean = false) {
         private var p = 0
         private var bitBuf = 0L; private var bitCnt = 0
         private class Huff(val lookup: IntArray, val maxCode: IntArray, val valPtr: IntArray, val minCode: IntArray, val vals: IntArray)
@@ -974,7 +987,7 @@ object RawDng {
         private fun diff(t: Huff): Int {
             val s = huff(t)
             if (s == 0) return 0
-            if (s == 16) return 32768
+            if (s == 16 && !legacy16) return 32768
             val v = bits(s)
             return if (v < (1 shl (s - 1))) v - (1 shl s) + 1 else v
         }

@@ -76,6 +76,7 @@ class RawSamplesTest {
             val t0 = System.currentTimeMillis()
             try {
                 val uri = Uri.fromFile(f)
+                if (!RawDng.isRaw(ctx, uri)) { rows += "| NOT RAW | $name |  |  |  | not a RAW file inside (the app opens it as a normal photo) |"; continue }
                 val m = RawDng.open(ctx, uri)
                 val lin = RawDng.preview(ctx, m, 1200)
                 val dev = RawDng.develop(lin, m, RawDng.Dev(), 0f, 0f, 0f, 0f, 0f, 0f, 0f)
@@ -110,7 +111,7 @@ class RawSamplesTest {
         File(reportDir, "README.md").writeText(buildString {
             appendLine("# RAW sample test")
             appendLine()
-            appendLine("${files.size} files: $ok OK, $warn to look at, ${rows.count { it.startsWith("| NOT SUPPORTED") }} not supported (clear message), ${fails.size} failed. Side-by-side pictures: camera's own preview (left) and VeyroCut Pro's develop (right).")
+            appendLine("${files.size} files: $ok OK, $warn to look at, ${rows.count { it.startsWith("| NOT SUPPORTED") }} not supported (clear message), ${rows.count { it.startsWith("| NOT RAW") }} not RAW, ${fails.size} failed. Side-by-side pictures: camera's own preview (left) and VeyroCut Pro's develop (right).")
             appendLine()
             appendLine("| Result | File | Camera | Size | Time | Notes |")
             appendLine("|---|---|---|---|---|---|")

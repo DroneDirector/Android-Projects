@@ -2616,5 +2616,8 @@
 "This RAW file couldn't be read": "Denne RAW-fil kunne ikke læses",
 "This RAW format needs the RAW library, which couldn't be loaded": "Dette RAW-format kræver RAW-biblioteket, som ikke kunne indlæses",
 "Sigma Foveon RAW files aren't supported yet": "Sigma Foveon RAW-filer understøttes ikke endnu",
-"This RAW file's sensor data couldn't be read": "Sensordataene i denne RAW-fil kunne ikke læses"
+"This RAW file's sensor data couldn't be read": "Sensordataene i denne RAW-fil kunne ikke læses",
+"RAW goes further: DNGs from other cameras and apps open too — Fujifilm X-Trans and Quad Bayer sensors, black-and-white cameras, lossy, Deflate and JPEG XL compressed DNGs (newer Galaxy phones), and 16 / 24 / 32-bit floating-point HDR DNGs (e.g. HDR merges from desktop photo software).": "RAW går videre: DNG-filer fra andre kameraer og apps kan også åbnes — Fujifilm X-Trans- og Quad Bayer-sensorer, sort-hvid-kameraer, lossy-, Deflate- og JPEG XL-komprimerede DNG-filer (nyere Galaxy-telefoner) og 16 / 24 / 32-bit flydende komma HDR-DNG-filer (f.eks. HDR-sammenfletninger fra fotoprogrammer på computeren).",
+"JPEG XL DNG (newer Galaxy / iPhone RAW) can't be decoded on this phone yet": "JPEG XL DNG (nyere Galaxy / iPhone RAW) kan ikke afkodes på denne telefon endnu",
+"This JPEG XL DNG couldn't be decoded": "Denne JPEG XL DNG kunne ikke afkodes"
 }

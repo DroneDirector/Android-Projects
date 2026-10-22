@@ -155,3 +155,75 @@ JNIEXPORT jbyteArray JNICALL FN(nThumb)(JNIEnv *e, jclass c, jlong h) {
 }
 
 JNIEXPORT jstring JNICALL FN(nVersion)(JNIEnv *e, jclass c) { return str(e, libraw_version()); }
+
+/* ---- JPEG XL compressed DNGs (DNG 1.7, e.g. newer Samsung Galaxy and iPhone RAWs) ----
+ * Decoded with libjxl (BSD-3-Clause), which the app already ships for its JPEG XL export; it's
+ * looked up at run time, so this library doesn't depend on it. */
+#include <dlfcn.h>
+#include "jxl/decode.h"
+
+static void *jx_lib;
+static JxlDecoder *(*jx_create)(const JxlMemoryManager *);
+static void (*jx_destroy)(JxlDecoder *);
+static JxlDecoderStatus (*jx_subscribe)(JxlDecoder *, int);
+static JxlDecoderStatus (*jx_input)(JxlDecoder *, const uint8_t *, size_t);
+static void (*jx_close_input)(JxlDecoder *);
+static JxlDecoderStatus (*jx_process)(JxlDecoder *);
+static JxlDecoderStatus (*jx_info)(const JxlDecoder *, JxlBasicInfo *);
+static JxlDecoderStatus (*jx_out_size)(const JxlDecoder *, const JxlPixelFormat *, size_t *);
+static JxlDecoderStatus (*jx_out_buffer)(JxlDecoder *, const JxlPixelFormat *, void *, size_t);
+static JxlDecoderStatus (*jx_keep_orient)(JxlDecoder *, JXL_BOOL);
+
+JNIEXPORT jboolean JNICALL FN(nJxlInit)(JNIEnv *e, jclass c) {
+    if (jx_process) return JNI_TRUE;
+    const char *names[] = { "libjxl.so", "libjxl.so.0.11", "libjxl.so.0.10", "libjxl.so.0.9", "libjxl.so.0.8", "libjxl.so.0.7" };
+    for (unsigned i = 0; i < sizeof names / sizeof *names && !jx_lib; i++) jx_lib = dlopen(names[i], RTLD_NOW);
+    if (!jx_lib) return JNI_FALSE;
+    jx_create = dlsym(jx_lib, "JxlDecoderCreate"); jx_destroy = dlsym(jx_lib, "JxlDecoderDestroy");
+    jx_subscribe = dlsym(jx_lib, "JxlDecoderSubscribeEvents"); jx_input = dlsym(jx_lib, "JxlDecoderSetInput");
+    jx_close_input = dlsym(jx_lib, "JxlDecoderCloseInput"); jx_info = dlsym(jx_lib, "JxlDecoderGetBasicInfo");
+    jx_out_size = dlsym(jx_lib, "JxlDecoderImageOutBufferSize"); jx_out_buffer = dlsym(jx_lib, "JxlDecoderSetImageOutBuffer");
+    jx_keep_orient = dlsym(jx_lib, "JxlDecoderSetKeepOrientation");
+    JxlDecoderStatus (*proc)(JxlDecoder *) = dlsym(jx_lib, "JxlDecoderProcessInput");
+    if (!jx_create || !jx_destroy || !jx_subscribe || !jx_input || !jx_info || !jx_out_size || !jx_out_buffer || !proc) return JNI_FALSE;
+    jx_process = proc;
+    return JNI_TRUE;
+}
+
+/** One JPEG XL tile → 16-bit samples ([channels] per pixel); its size goes to wh[0], wh[1]. */
+JNIEXPORT jshortArray JNICALL FN(nJxl)(JNIEnv *e, jclass c, jbyteArray data, jint channels, jintArray wh) {
+    if (!jx_process) return 0;
+    jsize n = (*e)->GetArrayLength(e, data);
+    jbyte *in = (*e)->GetByteArrayElements(e, data, 0);
+    JxlDecoder *d = jx_create(0);
+    jshortArray result = 0; uint16_t *buf = 0; JxlBasicInfo info;
+    JxlPixelFormat fmt = { (uint32_t)channels, JXL_TYPE_UINT16, JXL_NATIVE_ENDIAN, 0 };
+    if (!d) goto done;
+    if (jx_keep_orient) jx_keep_orient(d, JXL_TRUE);
+    if (jx_subscribe(d, JXL_DEC_BASIC_INFO | JXL_DEC_FULL_IMAGE) != JXL_DEC_SUCCESS) goto done;
+    if (jx_input(d, (const uint8_t *)in, (size_t)n) != JXL_DEC_SUCCESS) goto done;
+    if (jx_close_input) jx_close_input(d);
+    for (;;) {
+        JxlDecoderStatus s = jx_process(d);
+        if (s == JXL_DEC_BASIC_INFO) {
+            if (jx_info(d, &info) != JXL_DEC_SUCCESS) goto done;
+        } else if (s == JXL_DEC_NEED_IMAGE_OUT_BUFFER) {
+            size_t sz;
+            if (jx_out_size(d, &fmt, &sz) != JXL_DEC_SUCCESS) goto done;
+            buf = malloc(sz);
+            if (!buf || jx_out_buffer(d, &fmt, buf, sz) != JXL_DEC_SUCCESS) goto done;
+        } else if (s == JXL_DEC_FULL_IMAGE) {
+            size_t cnt = (size_t)info.xsize * info.ysize * channels;
+            result = (*e)->NewShortArray(e, (jsize)cnt);
+            if (result) (*e)->SetShortArrayRegion(e, result, 0, (jsize)cnt, (jshort *)buf);
+            jint s2[2] = { (jint)info.xsize, (jint)info.ysize };
+            (*e)->SetIntArrayRegion(e, wh, 0, 2, s2);
+            goto done;
+        } else goto done; /* error, or input ended early */
+    }
+done:
+    if (d) jx_destroy(d);
+    free(buf);
+    (*e)->ReleaseByteArrayElements(e, data, in, JNI_ABORT);
+    return result;
+}

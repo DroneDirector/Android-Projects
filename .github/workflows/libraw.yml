@@ -23,11 +23,14 @@ jobs:
         run: |
           git clone -q --depth 1 -b "$LIBRAW_VERSION" https://github.com/LibRaw/LibRaw.git /tmp/LibRaw
           tar -czf /tmp/LibRaw-$LIBRAW_VERSION-source.tar.gz -C /tmp --exclude=.git LibRaw
+          # libjxl headers only (BSD-3-Clause), matching the libjxl the app already ships inside jxl-coder.
+          git clone -q --depth 1 -b 2.6.1 https://github.com/awxkee/jxl-coder.git /tmp/jxlcoder
       - name: Build
         run: |
           B=ProCamera/native/veyroraw/build.sh; chmod +x $B
           T=$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
           J=$JAVA_HOME/include
+          export JXL_INC=/tmp/jxlcoder/jxlcoder/src/main/cpp
           $B /tmp/LibRaw /tmp/out/arm64-v8a   $T/aarch64-linux-android26-clang   $T/aarch64-linux-android26-clang++   "-Wl,-z,max-page-size=16384"
           $B /tmp/LibRaw /tmp/out/armeabi-v7a $T/armv7a-linux-androideabi26-clang $T/armv7a-linux-androideabi26-clang++
           $B /tmp/LibRaw /tmp/out/x86_64      $T/x86_64-linux-android26-clang    $T/x86_64-linux-android26-clang++    "-Wl,-z,max-page-size=16384"

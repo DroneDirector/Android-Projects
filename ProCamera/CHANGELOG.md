@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor: a zoomed-in photo (pinch, double-tap or 1:1) now stays inside the viewer — it no longer spills over the top bar and the corners.
 
 ## 1.0.493 — 2026-10-23
 - New **quick tour** in the photo editor and the video editor (same look as Capture's): SKIP closes it for now, "Don't show this again" turns it off, and gear → App → Quick tour shows it again or switches it back on.

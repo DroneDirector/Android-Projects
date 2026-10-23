@@ -79,6 +79,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -1571,7 +1572,8 @@ private fun PhotoWorkspace(
             val previewBox = @Composable { mod: Modifier ->
                 Box(
                     // Mouse: wheel = next / previous filmstrip photo, right-click = before / after split, double-click = hide / show the tools.
-                    mod.mouseActions(
+                    // clipToBounds: a zoomed-in photo stays inside the viewer (never over the top bar or the corners).
+                    mod.clipToBounds().mouseActions(
                         onWheel = { dy, _, at, ctrl, _ ->
                             if (ctrl || zoomK > 1f) {
                                 val nz = (zoomK * (if (dy < 0) 1.25f else 0.8f)).coerceIn(1f, 8f)

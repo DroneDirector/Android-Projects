@@ -51,3 +51,40 @@ jobs:
     steps:
       - id: d
         uses: actions/deploy-pages@v4
+  verify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - name: Check the live site
+        run: |
+          sleep 30
+          B="https://dronedirector.github.io/Android-Projects"; mkdir out; fail=0
+          for p in "" capture-features/ photo-editor-features/ video-editor-features/; do
+            c=$(curl -s -o /tmp/p.html -w '%{http_code}' "$B/$p"); n=$(grep -o 'class="acs acs-' /tmp/p.html | wc -l)
+            echo "$c $B/$p ($n sections)" | tee -a out/live.txt; [ "$c" = 200 ] || fail=1
+          done
+          # every file the pages load (wget follows page requisites and reports broken ones)
+          wget -q -e robots=off --spider -r -l 2 -np -p "$B/" -o /tmp/spider.log || true
+          grep -B2 -E "404|broken link" /tmp/spider.log | grep -oE "https?://[^ ]+" | sort -u > out/broken.txt || true
+          echo "broken files: $(wc -l < out/broken.txt)" | tee -a out/live.txt
+          pip install -q playwright && python -m playwright install --with-deps chromium >/dev/null
+          python3 - <<'PY'
+          import asyncio
+          from playwright.async_api import async_playwright
+          async def m():
+              async with async_playwright() as p:
+                  b=await p.chromium.launch(); pg=await b.new_page(viewport={'width':1440,'height':900}); e=[]
+                  pg.on('pageerror',lambda x:e.append(str(x))); pg.on('console',lambda x:e.append(x.text) if x.type=='error' else None)
+                  pg.on('requestfailed',lambda r:e.append('failed: '+r.url))
+                  await pg.goto('https://dronedirector.github.io/Android-Projects/',wait_until='networkidle'); await pg.mouse.move(860,380); await pg.wait_for_timeout(2500)
+                  await pg.screenshot(path='out/live-home.png')
+                  await pg.click('a.acs-much'); await pg.wait_for_load_state('networkidle'); await pg.wait_for_timeout(1500)
+                  await pg.screenshot(path='out/live-much-more.png'); e.append('much more -> '+pg.url)
+                  open('out/live-browser.txt','w').write('\n'.join(e)); await b.close()
+          asyncio.run(m())
+          PY
+          cat out/live-browser.txt
+          cd out && git init -q -b website-live-check && git add -A && git -c user.name=github-actions -c user.email=actions@github.com commit -qm "Live check"
+          git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" website-live-check
+          exit $fail

@@ -1,0 +1,88 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.11.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:generateDebugResValues
+> Task :app:checkDebugAarMetadata
+> Task :app:mapDebugSourceSetPaths
+> Task :app:generateDebugResources
+> Task :app:packageDebugResources
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :app:parseDebugLocalResources
+> Task :app:mergeDebugResources
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDebug
+> Task :app:javaPreCompileDebugUnitTest
+> Task :app:mergeDebugShaders
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:mergeDebugAssets
+> Task :app:processDebugManifestForPackage
+> Task :app:processDebugResources
+> Task :app:packageDebugUnitTestForUnitTest
+> Task :app:generateDebugUnitTestConfig
+> Task :app:compileDebugKotlin
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/PhotoSizes.kt:6:8 'class Camera2CameraInfo : Any' is deprecated. Use the CameraInfo extension properties instead, e.g., 'cameraInfo.cameraId' or 'cameraInfo.cameraCharacteristics'.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/PhotoSizes.kt:31:13 'class Camera2CameraInfo : Any' is deprecated. Use the CameraInfo extension properties instead, e.g., 'cameraInfo.cameraId' or 'cameraInfo.cameraCharacteristics'.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/PhotoSizes.kt:71:21 'class Camera2CameraInfo : Any' is deprecated. Use the CameraInfo extension properties instead, e.g., 'cameraInfo.cameraId' or 'cameraInfo.cameraCharacteristics'.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/PhotoSizes.kt:81:22 'class Camera2CameraInfo : Any' is deprecated. Use the CameraInfo extension properties instead, e.g., 'cameraInfo.cameraId' or 'cameraInfo.cameraCharacteristics'.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:25:8 'class Camera2CameraControl : UseCaseCameraControl' is deprecated. Use the CameraControl.applyCamera2Interop or CameraControl.applyCamera2InteropAsync extension functions instead, e.g., 'cameraControl.applyCamera2Interop { setCaptureRequestOption(key, value) }'.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:26:8 'class Camera2CameraInfo : Any' is deprecated. Use the CameraInfo extension properties instead, e.g., 'cameraInfo.cameraId' or 'cameraInfo.cameraCharacteristics'.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:28:8 'class CaptureRequestOptions : ReadableConfig' is deprecated. Use the camera2Interop or applyCamera2Interop extension functions instead, e.g., 'builder.camera2Interop { setCaptureRequestOption(key, value) }'.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:393:50 'class Camera2CameraInfo : Any' is deprecated. Use the CameraInfo extension properties instead, e.g., 'cameraInfo.cameraId' or 'cameraInfo.cameraCharacteristics'.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:432:18 'class Camera2CameraInfo : Any' is deprecated. Use the CameraInfo extension properties instead, e.g., 'cameraInfo.cameraId' or 'cameraInfo.cameraCharacteristics'.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:632:25 Condition is always 'true'.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:633:34 'fun getExtensionEnabledCameraSelector(cameraSelector: CameraSelector, mode: Int): CameraSelector' is deprecated. Use ExtensionSessionConfig instead.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:645:59 'constructor<T>(baseBuilder: ExtendableBuilder<T>): Camera2Interop.Extender<T>' is deprecated. Use the camera2Interop extension function on UseCase.Builder (e.g., 'builder.camera2Interop { setPhysicalCameraId(physicalCameraId) }') or SessionConfig.Builder for capture request options and callbacks instead.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:893:21 Wrapping the left-hand side of assignments in parentheses, labels or annotations is not allowed. This will become an error in language version 2.3. See https://youtrack.jetbrains.com/issue/KT-70507.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:893:21 Annotations on block-level expressions are parsed differently depending on the presence of a new line. Add a new line after the annotations to annotate the entire expression.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:897:82 Wrapping the left-hand side of assignments in parentheses, labels or annotations is not allowed. This will become an error in language version 2.3. See https://youtrack.jetbrains.com/issue/KT-70507.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:897:82 Annotations on block-level expressions are parsed differently depending on the presence of a new line. Add a new line after the annotations to annotate the entire expression.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:1005:79 'constructor<T>(baseBuilder: ExtendableBuilder<T>): Camera2Interop.Extender<T>' is deprecated. Use the camera2Interop extension function on UseCase.Builder (e.g., 'builder.camera2Interop { setPhysicalCameraId(physicalCameraId) }') or SessionConfig.Builder for capture request options and callbacks instead.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:1079:17 'class CaptureRequestOptions : ReadableConfig' is deprecated. Use the camera2Interop or applyCamera2Interop extension functions instead, e.g., 'builder.camera2Interop { setCaptureRequestOption(key, value) }'.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:1116:13 'class Camera2CameraControl : UseCaseCameraControl' is deprecated. Use the CameraControl.applyCamera2Interop or CameraControl.applyCamera2InteropAsync extension functions instead, e.g., 'cameraControl.applyCamera2Interop { setCaptureRequestOption(key, value) }'.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:1824:21 'class CaptureRequestOptions : ReadableConfig' is deprecated. Use the camera2Interop or applyCamera2Interop extension functions instead, e.g., 'builder.camera2Interop { setCaptureRequestOption(key, value) }'.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:1829:19 'class Camera2CameraControl : UseCaseCameraControl' is deprecated. Use the CameraControl.applyCamera2Interop or CameraControl.applyCamera2InteropAsync extension functions instead, e.g., 'cameraControl.applyCamera2Interop { setCaptureRequestOption(key, value) }'.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:2391:18 'class Camera2CameraInfo : Any' is deprecated. Use the CameraInfo extension properties instead, e.g., 'cameraInfo.cameraId' or 'cameraInfo.cameraCharacteristics'.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/camera/ProCameraController.kt:2866:8 Annotation 'androidx.camera.video.ExperimentalMimeTypeApi' is not annotated with '@RequiresOptIn'. '@OptIn' has no effect.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/AudioFx.kt:442:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/Generators.kt:121:43 'constructor(p0: (Mutable)List<EditedMediaItem>): EditedMediaItemSequence.Builder' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/Generators.kt:121:58 'fun experimentalSetForceAudioTrack(p0: Boolean): EditedMediaItemSequence.Builder' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/Layers.kt:440:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/MorphCut.kt:203:66 'constructor(p0: (Mutable)List<EditedMediaItem>): EditedMediaItemSequence.Builder' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/PhotoEditor.kt:2534:42 'val Icons.Filled.RotateRight: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.RotateRight.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/Proxy.kt:249:71 'constructor(p0: (Mutable)List<EditedMediaItem>): EditedMediaItemSequence.Builder' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/RenderCache.kt:86:64 'constructor(p0: (Mutable)List<EditedMediaItem>): EditedMediaItemSequence.Builder' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/Timeline.kt:819:50 'val Icons.Filled.VolumeOff: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.VolumeOff.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/Timeline.kt:819:78 'val Icons.Filled.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.VolumeUp.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/Timeline.kt:828:51 'val Icons.Filled.VolumeOff: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.VolumeOff.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/Timeline.kt:828:79 'val Icons.Filled.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.VolumeUp.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/VideoEditor.kt:3027:73 'val Icons.Filled.VolumeOff: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.VolumeOff.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/VideoEditor.kt:3027:101 'val Icons.Filled.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.VolumeUp.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/VideoEditor.kt:3563:79 'val Icons.Filled.VolumeOff: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.VolumeOff.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/VideoEditor.kt:3563:107 'val Icons.Filled.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.VolumeUp.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/VideoEditor.kt:4123:34 'val Icons.Filled.CallSplit: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.CallSplit.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/VideoEditor.kt:4126:34 'val Icons.Filled.KeyboardArrowLeft: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.KeyboardArrowLeft.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/VideoEditor.kt:4127:34 'val Icons.Filled.KeyboardArrowRight: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.KeyboardArrowRight.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/VideoEditor.kt:4533:51 'val Icons.Filled.VolumeOff: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.VolumeOff.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/VideoEditor.kt:4533:79 'val Icons.Filled.VolumeUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.VolumeUp.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/VideoEditor.kt:5670:18 'fun setEnableAudioTrackPlaybackParams(p0: Boolean): DefaultAudioSink.Builder' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/editor/VideoProject.kt:476:50 'constructor(p0: (Mutable)List<EditedMediaItem>): EditedMediaItemSequence.Builder' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/ui/StopMotion.kt:101:64 'constructor(p0: (Mutable)List<EditedMediaItem>): EditedMediaItemSequence.Builder' is deprecated. Deprecated in Java.
+
+> Task :app:compileDebugJavaWithJavac
+> Task :app:processDebugJavaRes
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:compileDebugUnitTestKotlin
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugUnitTestJavaRes
+> Task :app:testDebugUnitTest
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_4-1792738799079.json
+
+BUILD SUCCESSFUL in 7m 55s
+27 actionable tasks: 27 executed

@@ -1,0 +1,300 @@
+LibRaw available: true
+# RAW sample test
+
+�288 files: 225 OK, 60 to look at, 1 not supported (clear message), 2 not RAW, 0 failed. Side-by-side pictures: camera's own preview (left) and AlcorCut Pro's develop (right).
+
+1| Result | File | Camera | Size | Time | Notes |
+|---|---|---|---|---|---|
+�| OK | Adobe DNG Converter/Canon EOS 5D Mark III/5G4A9394-compressed-lossless.DNG | Canon EOS 5D Mark III | 1200×799 | 3011 ms |  |
+�| OK | Adobe DNG Converter/Canon EOS 5D Mark III/5G4A9394-compressed-lossy.DNG | Canon EOS 5D Mark III | 1200×799 | 2389 ms |  |
+}| OK | Adobe DNG Converter/Canon EOS 5D Mark III/5G4A9394-uncompressed.DNG | Canon EOS 5D Mark III | 1200×799 | 750 ms |  |
+�| OK | Adobe DNG Converter/Canon EOS 5D Mark III/5G4A9395-compressed-lossless.DNG | Canon EOS 5D Mark III | 1200×800 | 1657 ms |  |
+�| OK | Adobe DNG Converter/Canon EOS 5D Mark III/5G4A9395-compressed-lossy.DNG | Canon EOS 5D Mark III | 1200×800 | 1248 ms |  |
+}| OK | Adobe DNG Converter/Canon EOS 5D Mark III/5G4A9395-uncompressed.DNG | Canon EOS 5D Mark III | 1200×800 | 545 ms |  |
+\| OK | Apple/iPhone 12 Pro/IMG_1361.DNG | iPhone13,3 back camera | 900×1200 | 1706 ms |  |
+[| OK | Apple/iPhone 6s Plus/IMG_0853.DNG | iPhone8,2 back camera | 1200×900 | 842 ms |  |
+Z| OK | Apple/iPhone 7 Plus/IMG_0739.DNG | iPhone9,4 back camera | 1200×900 | 800 ms |  |
+�| OK | Apple/iPhone 8/RAW_2018_11_07_14_43_14_820_noflash.dng | iPhone10,1 back camera | 1200×900 | 807 ms | no camera preview to compare with |
+r| OK | Apple/iPhone SE/A4973FFB-9CBD-4ED8-805D-E30F4AE08A95.dng | iPhone8,4 back camera | 1200×900 | 825 ms |  |
+�| WARN | Apple/iPhone XS/IMG_1105.dng | iPhone11,2 back camera | 1200×900 | 815 ms | dark corners: centre/edge 1.69 vs camera 1.27 |
+�| OK | Arashi Vision/Insta360 One X/IMG_20201122_142733_00_015.dng | Insta360 One2 | 600×1200 | 654 ms | no camera preview to compare with |
+K| OK | Autel Robotics/XB015/MAX_0001.DNG | XB015 | 1200×675 | 339 ms |  |
+O| OK | Autel/Model 323/MAX_0005.DNG | autelModel 323 | 1200×900 | 336 ms |  |
+�| OK | Blackmagic Design/Pocket Cinema Camera 6k Pro/A010_04101355_S068.dng | Blackmagic Pocket Cinema Camera 6K Pro | 1200×675 | 763 ms | no camera preview to compare with |
+�| OK | Blackmagic/Blackmagic Pocket Cinema Camera 4k/4k_DCI_uncompressed.dng | Blackmagic Pocket Cinema Camera 4K | 1200×632 | 337 ms | no camera preview to compare with |
+�| OK | Blackmagic/Blackmagic Pocket Cinema Camera 4k/BMPCC_4k_DCI_3-1.dng | Blackmagic Pocket Cinema Camera 4K | 1200×632 | 146 ms | no camera preview to compare with |
+�| OK | Blackmagic/Blackmagic Pocket Cinema Camera 4k/BMPCC_4k_DCI_4-1.dng | Blackmagic Pocket Cinema Camera 4K | 1200×632 | 153 ms | no camera preview to compare with |
+�| OK | Blackmagic/Blackmagic Pocket Cinema Camera 4k/BMPCC_4k_DCI_lossless.dng | Blackmagic Pocket Cinema Camera 4K | 1200×632 | 540 ms | no camera preview to compare with |
+�| OK | Blackmagic/Blackmagic Pocket Cinema Camera 4k/BMPCC_4k_DCI_uncompressed.dng | Blackmagic Pocket Cinema Camera 4K | 1200×632 | 365 ms | no camera preview to compare with |
+�| OK | Blackmagic/Micro Cinema Camera/CAM1_2000-01-01_1659_C0002_000100.dng | Blackmagic Micro Cinema Camera | 960×540 | 162 ms | no camera preview to compare with |
+�| OK | Blackmagic/Micro Cinema Camera/CAM1_2000-01-01_1707_C0003_000100.dng | Blackmagic Micro Cinema Camera | 960×540 | 43 ms | no camera preview to compare with |
+�| OK | Blackmagic/Pocket Cinema Camera/Blackmagic_Pocket_Cinema_Camera_1_2016-09-17_0053_C0022_000007.dng | Blackmagic Pocket Cinema Camera | 960×540 | 145 ms | no camera preview to compare with |
+�| OK | Blackmagic/URSA 4K/Blackmagic URSA_1_1999-12-31_2153_C0003_000001.dng | Blackmagic URSA 4K | 1200×648 | 515 ms | no camera preview to compare with |
+b| OK | Canon/Canon DIGITAL IXUS 60/CRW_2069.DNG | Canon DIGITAL IXUS 60 | 1200×900 | 305 ms |  |
+k| OK | Canon/Canon DIGITAL IXUS 95 IS/CRW_2593_01.DNG | Canon DIGITAL IXUS 95 IS | 1200×899 | 449 ms |  |
+�| WARN | Canon/Canon PowerShot A3100 IS/CRW_3338.DNG | Canon PowerShot A3100 IS | 1200×900 | 502 ms | dark corners: centre/edge 3.10 vs camera 2.30 |
+�| WARN | Canon/Canon PowerShot A3300 IS/CRW_1140.DNG | Canon PowerShot A3300 IS | 1200×900 | 682 ms | colour cast r/g 0.97 vs 1.17, b/g 0.43 vs 0.80 |
+�| WARN | Canon/Canon PowerShot A410/CANON_A410_CHDK_CRW_0741.DNG | Canon PowerShot A410 | 1024×768 | 137 ms | colour cast r/g 1.31 vs 1.30, b/g 0.44 vs 0.98 |
+`| OK | Canon/Canon PowerShot A480/CRW_0010.DNG | Canon PowerShot A480 | 1200×894 | 408 ms |  |
+p| OK | Canon/Canon PowerShot A540/CANON_A540_CHDK_CRW_0010.DNG | Canon PowerShot A540 | 1200×900 | 249 ms |  |
+`| OK | Canon/Canon PowerShot A550/CRW_0006.DNG | Canon PowerShot A550 | 1200×900 | 289 ms |  |
+`| OK | Canon/Canon PowerShot A560/IMG_2641.DNG | Canon PowerShot A560 | 1200×900 | 288 ms |  |
+�| WARN | Canon/Canon PowerShot A570 IS/CRW_1918.DNG | Canon PowerShot A570 IS | 1200×900 | 296 ms | colour cast r/g 0.93 vs 0.89, b/g 0.52 vs 0.92 |
+�| WARN | Canon/Canon PowerShot A640/CRW_0440.DNG | Canon PowerShot A640 | 1200×900 | 374 ms | colour cast r/g 1.04 vs 1.02, b/g 0.80 vs 0.98 |
+m| OK | Canon/Canon PowerShot D10/CANON_D10_CHDK_CRW_0626.DNG | Canon PowerShot D10 | 1200×892 | 479 ms |  |
+�| OK | Canon/Canon PowerShot ELPH 130 IS/CANON_IXUS140_ELPH130_CHDK_CRW_5645.DNG | Canon PowerShot ELPH 130 IS | 1200×900 | 614 ms |  |
+�| WARN | Canon/Canon PowerShot ELPH 160/RAW_CANON_POWERSHOT_IXUS160_CHDK.DNG | Canon PowerShot ELPH 160 | 1200×899 | 890 ms | dark corners: centre/edge 4.48 vs camera 2.34 |
+�| OK | Canon/Canon PowerShot ELPH 180/CANON_IXUS175_ELPH180_CHDK_CRW_0194.DNG | Canon PowerShot ELPH 180 | 1200×899 | 760 ms |  |
+�| WARN | Canon/Canon PowerShot ELPH 180/CRW_0334.DNG | Canon PowerShot ELPH 180 | 1200×899 | 758 ms | colour cast r/g 0.97 vs 1.10, b/g 1.45 vs 1.10 |
+n| OK | Canon/Canon PowerShot ELPH 310 HS/CRW_9720.DNG | Canon PowerShot ELPH 310 HS | 1200×900 | 502 ms |  |
+�| WARN | Canon/Canon PowerShot S2 IS/IMG_1739.DNG | Canon PowerShot S2 IS | 1200×899 | 215 ms | colour cast r/g 0.95 vs 0.94, b/g 0.77 vs 1.02 |
+�| WARN | Canon/Canon PowerShot S3IS/CRW_8531.DNG | Canon PowerShotS3IS | 1200×900 | 196 ms | brightness 0.42 vs camera 0.83; colour cast r/g 0.77 vs 0.97, b/g 0.73 vs 1.02 |
+�| WARN | Canon/EOS 5D Mark III/M24-1221_000202.dng | EOS 5D Mark III | 952×532 | 121 ms | dark corners: centre/edge 0.69 vs camera 0.47 |
+|| OK | Canon/EOS 5D Mark III/compress.dng | Canon EOS 5D Mark III | 960×409 | 103 ms | no camera preview to compare with |
+u| OK | Canon/EOS 5D Mark III/hdrmerge-bayer-fp16-uncompressed.dng | Canon EOS 5D Mark III | 1200×801 | 1619 ms |  |
+w| OK | Canon/EOS 5D Mark III/hdrmerge-bayer-fp16-w-pred-deflate.dng | Canon EOS 5D Mark III | 1200×801 | 1629 ms |  |
+t| OK | Canon/EOS 5D Mark III/hdrmerge-bayer-fp24-uncompressed.dng | Canon EOS 5D Mark III | 1200×801 | 830 ms |  |
+w| OK | Canon/EOS 5D Mark III/hdrmerge-bayer-fp24-w-pred-deflate.dng | Canon EOS 5D Mark III | 1200×801 | 1247 ms |  |
+t| OK | Canon/EOS 5D Mark III/hdrmerge-bayer-fp32-uncompressed.dng | Canon EOS 5D Mark III | 1200×801 | 677 ms |  |
+w| OK | Canon/EOS 5D Mark III/hdrmerge-bayer-fp32-w-pred-deflate.dng | Canon EOS 5D Mark III | 1200×801 | 1305 ms |  |
+[| OK | Canon/EOS 5D Mark IV/B13A0729.CR2 | Canon EOS 5D Mark IV | 1200×801 | 1081 ms |  |
+�| OK | Canon/EOS 60D/M14-1451_000085_cDNG_compressed.dng | Canon EOS 60D | 480×270 | 40 ms | no camera preview to compare with |
+g| OK | Canon/EOS 7D Mark II/0P9A0410-Enhanced-NR.dng | Canon EOS 7D Mark II | 1200×800 | 1207 ms |  |
+{| WARN | Canon/EOS 80D/IMG_0096.CR2 | Canon EOS 80D | 1200×800 | 572 ms | dark corners: centre/edge 0.85 vs camera 0.59 |
+Z| OK | Canon/EOS 90D/Canon-90D-cRAW-ISO-100.CR3 | Canon EOS 90D | 1200×800 | 767 ms |  |
+e| OK | Canon/EOS R5/Canon_EOS_R5_CRAW_ISO_100_crop_dual.CR3 | Canon EOS R5 | 1200×799 | 452 ms |  |
+g| OK | Canon/EOS R6/Canon_EOS_R6_CRAW_ISO_100_crop_nodual.CR3 | Canon EOS R6 | 1200×799 | 258 ms |  |
+J| OK | Canon/EOS R7/443A0157.CR3 | Canon EOS R7 | 1200×800 | 712 ms |  |
+a| OK | Canon/EOS-1D X/CROPGX2R4019-topaz-denoiseraw.dng | Canon EOS-1D X | 644×644 | 58 ms |  |
+T| OK | Canon/IXY 220F/canon_ixy_220f.DNG | Canon IXY 220F | 1200×900 | 807 ms |  |
+z| OK | Canon/PowerShot A3200 IS/RAW_CANON_POWERSHOT_A3200IS_CHDK.DNG | Canon PowerShot A3200 IS | 1200×900 | 698 ms |  |
+�| WARN | Canon/PowerShot A720 IS/IMG_8329.DNG | Canon PowerShot A720 IS | 1200×900 | 408 ms | bright corners: centre/edge 0.58 vs camera 0.72 |
+Z| OK | Canon/PowerShot G1 X/CRW_0004.DNG | Canon PowerShot G1 X | 1200×900 | 766 ms |  |
+�| WARN | Canon/PowerShot G7 X/CANON_G7X_CHDK_CRW_6740.DNG | Canon PowerShot G7 X | 1200×800 | 993 ms | dark corners: centre/edge 1.47 vs camera 1.07; brightness 0.24 vs camera 0.45; colour cast r/g 0.98 vs 1.10, b/g 0.95 vs 1.13 |
+Z| OK | Canon/PowerShot S100/CRW_1369.DNG | Canon PowerShot S100 | 901×1200 | 644 ms |  |
+}| OK | Canon/PowerShot SD450/RAW_CANON_POWERSHOT_SD450_CHDK_V0.9.7-725.DNG | Canon PowerShot SD450 | 1200×899 | 274 ms |  |
+`| OK | Canon/PowerShot SX10 IS/CRW_1627.DNG | Canon PowerShot SX10 IS | 1200×900 | 507 ms |  |
+e| OK | Canon/PowerShot SX100 IS/CRW_0964_01.DNG | Canon PowerShot SX100 IS | 1200×900 | 412 ms |  |
+�| WARN | Canon/PowerShot SX130 IS/CRW_8815.DNG | Canon PowerShot SX130 IS | 1200×900 | 621 ms | bright corners: centre/edge 0.43 vs camera 0.59; colour cast r/g 1.06 vs 1.35, b/g 0.90 vs 0.77 |
+u| OK | Canon/PowerShot SX160 IS/CANON_SX160IS_CHDK_CRW_5152.DNG | Canon PowerShot SX160 IS | 1200×900 | 794 ms |  |
+`| OK | Canon/PowerShot SX20 IS/CRW_6489.DNG | Canon PowerShot SX20 IS | 1200×900 | 614 ms |  |
+b| OK | Canon/PowerShot SX220 HS/CRW_7733.DNG | Canon PowerShot SX220 HS | 1200×900 | 617 ms |  |
+b| OK | Canon/PowerShot SX230 HS/CRW_5894.DNG | Canon PowerShot SX230 HS | 1200×900 | 680 ms |  |
+�| WARN | Canon/PowerShot SX240 HS/CRW_5797.DNG | Canon PowerShot SX240 HS | 1200×892 | 650 ms | dark corners: centre/edge 2.76 vs camera 1.55 |
+�| WARN | Canon/PowerShot SX260 HS/CRW_3027.DNG | Canon PowerShot SX260 HS | 1200×900 | 618 ms | dark corners: centre/edge 1.38 vs camera 1.07 |
+�| WARN | Canon/PowerShot SX30 IS/CRW_0763.DNG | Canon PowerShot SX30 IS | 1200×900 | 729 ms | dark corners: centre/edge 5.42 vs camera 2.85 |
+�| WARN | Canon/PowerShot SX40 HS/CRW_6037.DNG | Canon PowerShot SX40 HS | 1200×897 | 615 ms | dark corners: centre/edge 1.76 vs camera 1.31 |
+`| OK | Canon/PowerShot SX50 HS/CRW_4061.DNG | Canon PowerShot SX50 HS | 1200×879 | 615 ms |  |
+u| OK | Canon/PowerShot SX510 HS/RAW_CANON_POWERSHOT_SX510HS.DNG | Canon PowerShot SX510 HS | 1200×900 | 617 ms |  |
+�| WARN | Canon/PowerShot SX530 HS/CRW_4494.DNG | Canon PowerShot SX530 HS | 1200×900 | 815 ms | bright corners: centre/edge 0.43 vs camera 0.89; colour cast r/g 1.42 vs 1.19, b/g 1.15 vs 1.03 |
+m| OK | Canon/PowerShot SX60 HS/Canon-SX60HS-CHDK-RAW.DNG | Canon PowerShot SX60 HS | 1200×900 | 801 ms |  |
+v| OK | Canon/PowerShot SX710 HS/CANON_SX710HS_CHDK_CRW_0716.DNG | Canon PowerShot SX710 HS | 1200×899 | 1002 ms |  |
+X| OK | DJI/DJI Osmo Action/DJI_0254.DNG | DJI DJI Osmo Action | 1200×900 | 608 ms |  |
+L| OK | DJI/FC220/DJI_0004.DNG | Mavic Pro (FC220) | 1200×899 | 487 ms |  |
+D| OK | DJI/FC350/DJI_0040.DNG | DJI FC350 | 1200×673 | 345 ms |  |
+a| OK | DJI/FC4382/DJI_20250506184749_0011_D.DNG | Mavic 3 Pro (FC4382) | 1200×899 | 912 ms |  |
+R| OK | DJI/FC6310/DJI_0220.DNG | Phantom 4 Pro (FC6310) | 1200×799 | 795 ms |  |
+K| OK | DJI/FC7303/DJI_0109.DNG | Mini 2 (FC7303) | 1200×900 | 584 ms |  |
+K| OK | DJI/FC7303/DJI_0765.DNG | Mini 2 (FC7303) | 1200×675 | 437 ms |  |
+�| WARN | DJI/FC9287/DJI_20250528104510_0025_D.DNG | Mavic4 Cine (FC9287) | 1200×674 | 2572 ms | dark corners: centre/edge 0.79 vs camera 0.57 |
+>| OK | Eyedeas/E1/EYED0651.DNG | E1 | 900×1200 | 607 ms |  |
+p| OK | FIMI/X8SE/IMG_20180808_081040_0001.DNG | X8SE | 1200×673 | 312 ms | no camera preview to compare with |
+`| OK | Fujifilm/X-S10/Fujifilm-X-S10-compressed.RAF | Fujifilm X-S10 | 1200×800 | 2621 ms |  |
+M| OK | Fujifilm/X-T4/DSCF0266.RAF | Fujifilm X-T4 | 1200×800 | 1291 ms |  |
+|| WARN | Fujifilm/X-T5/DSCF0021.RAF | Fujifilm X-T5 | 1200×801 | 3698 ms | dark corners: centre/edge 0.55 vs camera 0.38 |
+g| OK | Fujifilm/X100S/fujifilm-x100s-daylight-DSCF9505.dng | Fujifilm X100S | 1200×799 | 1510 ms |  |
+O| OK | Fujifilm/X100V/DSCF0733.RAF | Fujifilm X100V | 1200×800 | 1280 ms |  |
+�| OK | Google/Pixel 2 XL/IMG_20180109_080629.dng | Pixel 2 XL-Google-google | 1200×898 | 1113 ms | no camera preview to compare with |
+\| OK | Google/Pixel 3a/IMG_20190918_164153.dng | Google Pixel 3a | 1200×898 | 1325 ms |  |
+`| OK | Google/Pixel 4 XL/IMG_20191023_125156.dng | Google Pixel 4 XL | 1200×898 | 1141 ms |  |
+_| OK | Google/Pixel 4a/PXL_20201121_100251397.dng | Google Pixel 4a | 1200×898 | 1319 ms |  |
+�| WARN | Google/Pixel 6 Pro/PXL_20220910_093206982.dng | Google Pixel 6 Pro | 1200×902 | 1334 ms | colour cast r/g 0.96 vs 0.72, b/g 1.10 vs 1.18 |
+e| OK | Google/Pixel 7 Pro/PXL_20221204_063131635.dng | Google Pixel 7 Pro | 1200×902 | 1289 ms |  |
+u| OK | Google/Pixel 8 Pro/PXL_20240415_103400204.RAW-02.ORIGINAL.dng | Google Pixel 8 Pro | 1200×902 | 4942 ms |  |
+�| OK | HMD Global/Nokia 7 plus/IMG_20190612_120131.dng | Nokia 7 plus-HMD Global-Nokia | 1200×898 | 923 ms | no camera preview to compare with |
+k| OK | HTC/HTC 10/IMAG1305.dng | HTC 10-HTC-htc | 1200×908 | 925 ms | no camera preview to compare with |
+�| OK | HUAWEI/ANE-LX1/IMG_20200920_112515.dng | ANE-LX1-HUAWEI-HUAWEI | 1200×898 | 1193 ms | no camera preview to compare with |
+�| OK | HUAWEI/AUM-L29/IMG_20181222_154757.dng | AUM-L29-HUAWEI-HONOR | 1200×888 | 991 ms | no camera preview to compare with |
+�| OK | HUAWEI/BLA-L29/IMG_20180119_175851.dng | BLA-L29-HUAWEI-HUAWEI | 1200×898 | 893 ms | no camera preview to compare with |
+�| OK | HUAWEI/CLT-L09/IMG_20191010_085409.dng | CLT-L09-HUAWEI-HUAWEI | 1200×899 | 2917 ms | no camera preview to compare with |
+�| OK | HUAWEI/DLI-L22/IMG_20171028_150510.dng | DLI-L22-HUAWEI-HONOR | 1200×888 | 993 ms | no camera preview to compare with |
+�| OK | HUAWEI/EML-L09/IMG_20190316_130857_(2).dng | EML-L09-HUAWEI-HUAWEI | 1200×898 | 893 ms | no camera preview to compare with |
+�| OK | HUAWEI/EML-L29/IMG_20190507_233457.dng | EML-L29-HUAWEI-HUAWEI | 1200×898 | 903 ms | no camera preview to compare with |
+�| OK | HUAWEI/EVA-AL00/IMG_20171015_200142.dng | EVA-AL00-HUAWEI-HUAWEI | 1200×898 | 892 ms | no camera preview to compare with |
+}| OK | HUAWEI/EVA-L09/Huawai_P9_Leica.dng | EVA-L09-HUAWEI-HUAWEI | 1200×898 | 892 ms | no camera preview to compare with |
+�| OK | HUAWEI/FRD-L09/IMG_20180520_132951.dng | FRD-L09-HUAWEI-HONOR | 1200×898 | 894 ms | no camera preview to compare with |
+�| OK | HUAWEI/HRY-LX1/IMG_20190427_200711.dng | HRY-LX1-HUAWEI-HONOR | 1200×898 | 983 ms | no camera preview to compare with |
+�| OK | HUAWEI/HUAWEI NXT-L29/IMG_20190508_113343.dng | HUAWEI NXT-L29-HUAWEI-HUAWEI | 1200×898 | 1188 ms | no camera preview to compare with |
+�| OK | HUAWEI/PRA-LX1/IMG_20180330_171432.dng | PRA-LX1-HUAWEI-HUAWEI | 1200×898 | 896 ms | no camera preview to compare with |
+�| OK | HUAWEI/SNE-LX1/IMG_20191221_095657.dng | SNE-LX1-HUAWEI-HUAWEI | 899×1199 | 1479 ms | no camera preview to compare with |
+�| OK | HUAWEI/VKY-L09/IMG_20180429_160450.dng | VKY-L09-HUAWEI-HUAWEI | 1200×898 | 899 ms | no camera preview to compare with |
+�| OK | HUAWEI/VOG-L29/IMG_20190330_123314.dng | VOG-L29-HUAWEI-HUAWEI | 1200×898 | 630 ms | no camera preview to compare with |
+�| OK | HUAWEI/VTR-L09/IMG_20180307_120152.dng | VTR-L09-HUAWEI-HUAWEI | 1200×898 | 899 ms | no camera preview to compare with |
+�| OK | HUAWEI/WAS-LX1A/IMG_20180416_193350.dng | WAS-LX1A-HUAWEI-HUAWEI | 898×1200 | 904 ms | no camera preview to compare with |
+Y| OK | Hasselblad/L1D-20c/DJI_0017.DNG | Mavic 2 Pro (L1D-20c) | 1200×799 | 842 ms |  |
+U| OK | Hasselblad/L2D-20c/DJI_0023.DNG | Mavic 3 (L2D-20c) | 1200×898 | 886 ms |  |
+y| OK | KanDao/QooCam/KD3D_20190310_123825_000001.DNG | QooCam | 1200×600 | 346 ms | no camera preview to compare with |
+�| WARN | KanDao/QooCam/KDRaw_Q360_20190310_125715_000001.dng | QooCam | 1200×600 | 597 ms | bright corners: centre/edge 12.18 vs camera 77.83 |
+y| OK | KanDao/QooCam/Q360_20190310_123437_000001.DNG | QooCam | 1200×600 | 347 ms | no camera preview to compare with |
+�| OK | Kandao/QooCam 8K/Q360_20210330_100513_00000D.DNG | KanDao Digital Camera | 600×1200 | 1013 ms | no camera preview to compare with |
+U| OK | LEICA CAMERA AG/LEICA SL2/L1020010.DNG | LEICA SL2 | 1200×675 | 2449 ms |  |
+p| OK | LG/D855/IMG_2017_07_16_13_10_47.dng | LG-D855 | 1200×899 | 477 ms | no camera preview to compare with |
+G| OK | LG/H815/20161227_150823.dng | LG-H815 | 1200×675 | 704 ms |  |
+�| WARN | LG/LG-F800K/20171028_174609.dng | LG-F800K | 1200×900 | 735 ms | bright corners: centre/edge 1.68 vs camera 5.09; colour cast r/g 1.19 vs 1.85, b/g 0.73 vs 0.54 |
+u| OK | LG/LG-H850/LGG5_Camera_Front.dng | LG-H850-LGE-lge | 898×1200 | 635 ms | no camera preview to compare with |
+�| WARN | LG/LG-H870/20180705_215945.dng | LG-H870 | 1200×900 | 601 ms | bright corners: centre/edge 1.21 vs camera 1.60; brightness 0.44 vs camera 0.26; colour cast r/g 1.00 vs 1.01, b/g 1.01 vs 1.22 |
+z| OK | LG/LG-H910/opn_20190921_065338_0.dng | LG-H910-LGE-lge | 1200×898 | 1298 ms | no camera preview to compare with |
+�| OK | LG/Nexus 5X/IMG_20170214_170637_637.dng | Nexus 5X-LGE-google | 1200×898 | 934 ms | no camera preview to compare with |
+w| OK | LG/US996/IMG_20170821_025047.dng | LG-US996-LGE-lge | 1200×898 | 1218 ms | no camera preview to compare with |
+A| OK | LG/VS995/0313171232.dng | VS995 | 1200×900 | 735 ms |  |
+Y| OK | Leica Camera AG/LEICA M10-R/M10R0324.DNG | LEICA M10-R | 1200×793 | 2509 ms |  |
+k| OK | Leica/CL/L1080510_2018_CL-35-135-Chateau_Thy__Chateau_Ham.DNG | LEICA CL | 1200×800 | 1307 ms |  |
+�| WARN | Leica/M (Typ 240)/ADG_RPUsubmit_compressed_L1006373.DNG | LEICA M (Typ 240) | 1200×801 | 1519 ms | bright corners: centre/edge 1.23 vs camera 1.92 |
+�| WARN | Leica/M (Typ 240)/ADG_RPUsubmit_uncompressed_L1006374.DNG | LEICA M (Typ 240) | 1200×801 | 851 ms | bright corners: centre/edge 1.23 vs camera 1.91 |
+�| WARN | Leica/M Monochrom (Typ 246)/M2462362.DNG | LEICA M MONOCHROM (Typ 246) | 1200×801 | 1519 ms | bright corners: centre/edge 1.62 vs camera 2.90 |
+N| OK | Leica/M Monochrom/L1000622.DNG | M Monochrom | 1200×798 | 688 ms |  |
+E| OK | Leica/M10/f5381888.dng | LEICA M10 | 1200×800 | 1503 ms |  |
+K| OK | Leica/M8/L1030132.DNG | M8 Digital Camera | 1200×807 | 310 ms |  |
+�| WARN | Leica/M9 Digital Camera/L1049391.DNG | M9 Digital Camera | 1200×798 | 497 ms | dark corners: centre/edge 0.35 vs camera 0.13 |
+z| WARN | Leica/M9/L1049390.DNG | M9 Digital Camera | 1200×798 | 470 ms | dark corners: centre/edge 0.35 vs camera 0.13 |
+U| OK | Leica/Q (Typ 116)/L1070048.DNG | LEICA Q (Typ 116) | 1200×800 | 1509 ms |  |
+C| OK | Leica/Q2/L1000750.DNG | LEICA Q2 | 1200×800 | 2389 ms |  |
+e| OK | Leica/SL (Typ 601)/20160915_Lechtaler_001.DNG | LEICA SL (Typ 601) | 1200×800 | 1401 ms |  |
+t| WARN | Leica/X2/L1021324.DNG | LEICA X2 | 1200×794 | 815 ms | bright corners: centre/edge 3.25 vs camera 19.99 |
+g| OK | Light/L16/L16_00148.dng | Light L16 | 1200×900 | 6082 ms | no camera preview to compare with |
+t| OK | MADV/QJXJ01FJ/IMG_20190326_134416.DNG | QJXJ01FJ | 1200×600 | 1058 ms | no camera preview to compare with |
+�| OK | Microsoft/Lumia 950 XL Dual SIM/Microsoft_-_Lumia_950XL.dng | Microsoft Lumia 950 XL Dual SIM | 1200×900 | 1538 ms |  |
+| WARN | Nikon/D750/compressed_12_bit.NEF | Nikon D750 | 1200×802 | 751 ms | colour cast r/g 2.15 vs 2.37, b/g 1.09 vs 1.11 |
+D| OK | Nikon/D80/DSC_0143.dng | Nikon D80 | 1200×803 | 669 ms |  |
+Z| OK | Nikon/D850/Nikon-D850-12bit-compressed.NEF | Nikon D850 | 1200×799 | 1358 ms |  |
+m| OK | Nikon/LS-5000/F014-07.dng | Nikon LS-5000 | 1200×811 | 1772 ms | no camera preview to compare with |
+u| WARN | Nikon/Z 50/DSC_0441.NEF | Nikon Z 50 | 1200×798 | 705 ms | dark corners: centre/edge 1.04 vs camera 0.81 |
+�| NOT SUPPORTED | Nikon/Z 8/Nikon_Z8_high_efficiency_low.NEF |  |  |  | This Nikon RAW type isn't supported yet (High Efficiency RAW) — Lossless compressed RAW works |
+D| OK | Nikon/Z f/DSC_0040.NEF | Nikon Z f | 1200×799 | 775 ms |  |
+�| WARN | Nokia/Lumia 1020/RAW_NOKIA_LUMIA_1020.DNG | Nokia Lumia 1020 | 1200×899 | 3445 ms | bright corners: centre/edge 1.03 vs camera 2.17; brightness 0.32 vs camera 0.13; colour cast r/g 1.07 vs 1.49, b/g 0.92 vs 1.47 |
+�| WARN | Nokia/Lumia 930/WP_20180612_19_16_03_Raw__highres.dng | Make Lumia 930 | 1200×675 | 1329 ms | brightness 0.32 vs camera 0.51 |
+n| OK | OM System/OM-1/OM_Systems_OM1_RAW_Image_20mpx_P1010025.ORF | OM Digital OM-1 | 1200×899 | 849 ms |  |
+j| OK | Olympus/E-M1MarkII/Olympus_EM1mk2_Standard_20MP.ORF | Olympus E-M1MarkII | 1200×895 | 706 ms |  |
+�| OK | OnePlus/ONEPLUS A3003/IMG_20170316_134557.dng | ONEPLUS A3003-OnePlus-OnePlus | 1200×900 | 713 ms | no camera preview to compare with |
+�| OK | OnePlus/ONEPLUS A5000/IMG_20171224_201301.dng | ONEPLUS A5000-OnePlus-OnePlus | 1200×900 | 637 ms | no camera preview to compare with |
+�| OK | OnePlus/ONEPLUS A6003/IMG_20201019_093659.dng | ONEPLUS A6003-OnePlus-OnePlus | 1200×900 | 638 ms | no camera preview to compare with |
+�| WARN | OnePlus/One/IMG_20150729_201116.dng | OnePlus One A0001 | 889×1200 | 1102 ms | bright corners: centre/edge 1.24 vs camera 1.60 |
+�| WARN | PARROT/Bebop 2/Bebop2_20170330115857+0200.dng | PARROT Bebop 2 | 972×1200 | 518 ms | bright corners: centre/edge 5.74 vs camera 9.51 |
+�| WARN | PARROT/Bebop Drone/Bebop_Drone_2015-11-07T180428+0000_C10611.dng | PARROT Bebop Drone | 972×1200 | 534 ms | bright corners: centre/edge 23.26 vs camera 42.26 |
+M| OK | PENTAX/PENTAX K-r/IMGP4425.DNG | PENTAX K-r | 1200×797 | 790 ms |  |
+Q| OK | Panasonic/DC-G9/P1000475.RW2 | Panasonic DC-G9 | 1200×899 | 1029 ms |  |
+R| OK | Panasonic/DC-GH5/_T012010.RW2 | Panasonic DC-GH5 | 1200×899 | 407 ms |  |
+R| OK | Panasonic/DC-S5/dc-s5_6k4k.RW2 | Panasonic DC-S5 | 1200×800 | 396 ms |  |
+T| OK | Panasonic/DMC-LX1/P1080763.dng | Panasonic DMC-LX1 | 1200×675 | 536 ms |  |
+~| WARN | Parrot/Anafi/100000190019.DNG | Parrot Anafi | 1200×901 | 1567 ms | dark corners: centre/edge 0.57 vs camera 0.41 |
+I| OK | Pentax/645D/645D2839.DNG | PENTAX 645D | 1200×898 | 2741 ms |  |
+I| OK | Pentax/645Z/IMGP2836.DNG | PENTAX 645Z | 1200×900 | 3321 ms |  |
+I| OK | Pentax/K-01/_IGP2068.DNG | PENTAX K-01 | 1200×794 | 1024 ms |  |
+W| OK | Pentax/K-1 Mark II/_IMG2387.DNG | PENTAX K-1 Mark II | 1200×800 | 2294 ms |  |
+W| OK | Pentax/K-1 Mark II/_IMG2390.DNG | PENTAX K-1 Mark II | 1200×800 | 2370 ms |  |
+W| OK | Pentax/K-1 Mark II/_K1I9779.DNG | PENTAX K-1 Mark II | 1200×800 | 2305 ms |  |
+W| OK | Pentax/K-1 Mark II/_K1I9783.DNG | PENTAX K-1 Mark II | 1200×800 | 2311 ms |  |
+W| OK | Pentax/K-1 Mark II/_K1I9784.DNG | PENTAX K-1 Mark II | 1200×800 | 2331 ms |  |
+W| OK | Pentax/K-1 Mark II/_K1I9786.DNG | PENTAX K-1 Mark II | 1200×800 | 1109 ms |  |
+G| OK | Pentax/K-1/IMGP8551.DNG | PENTAX K-1 | 1200×800 | 2261 ms |  |
+G| OK | Pentax/K-1/IMGP8555.DNG | PENTAX K-1 | 1200×800 | 2273 ms |  |
+T| OK | Pentax/K-3 II/20170430-121325.dng | PENTAX K-3 II | 1200×797 | 1554 ms |  |
+M| OK | Pentax/K-3 II/IMGP0668.DNG | PENTAX K-3 II | 1200×797 | 1592 ms |  |
+�| WARN | Pentax/K-3 Mark III Monochrome/K3III.DNG | PENTAX K-3 Mark III Monochrome | 1200×800 | 1815 ms | dark corners: centre/edge 1.67 vs camera 1.03 |
+Y| OK | Pentax/K-3 Mark III/_IMG0114.DNG | PENTAX K-3 Mark III | 1200×800 | 1789 ms |  |
+G| OK | Pentax/K-3/IMGP6916.DNG | PENTAX K-3 | 1200×797 | 1512 ms |  |
+I| OK | Pentax/K-30/_IGP4042.DNG | PENTAX K-30 | 1200×794 | 1011 ms |  |
+Q| OK | Pentax/K-5 II s/_JAK3776.DNG | PENTAX K-5 II s | 1200×794 | 1103 ms |  |
+M| OK | Pentax/K-5 II/IMGP2032.DNG | PENTAX K-5 II | 1200×794 | 1332 ms |  |
+G| OK | Pentax/K-5/_MAR0543.DNG | PENTAX K-5 | 1200×794 | 1064 ms |  |
+I| OK | Pentax/K-50/IMGP1385.DNG | PENTAX K-50 | 1200×794 | 1005 ms |  |
+Q| OK | Pentax/K-500/Pentax_-_K-500.DNG | PENTAX K-500 | 1200×794 | 1012 ms |  |
+G| OK | Pentax/K-7/IMGP6297.DNG | PENTAX K-7 | 1200×797 | 1010 ms |  |
+I| OK | Pentax/K-70/IMGP0771.DNG | PENTAX K-70 | 1200×800 | 1664 ms |  |
+I| OK | Pentax/K-70/IMGP6855.DNG | PENTAX K-70 | 1200×800 | 1604 ms |  |
+I| OK | Pentax/K-S1/IMGP4743.DNG | PENTAX K-S1 | 1200×800 | 1236 ms |  |
+I| OK | Pentax/K-S2/IMGP3368.DNG | PENTAX K-S2 | 1200×800 | 1316 ms |  |
+F| OK | Pentax/K-x/IMGP6431.DNG | PENTAX K-x | 1200×797 | 822 ms |  |
+H| OK | Pentax/K10D/IMGP5398.DNG | PENTAX K10D | 1200×803 | 519 ms |  |
+J| OK | Pentax/K200D/IMGP2292.DNG | PENTAX K200D | 1200×803 | 520 ms |  |
+N| OK | Pentax/K20D/RAW_Pentax_K20.DNG | PENTAX K20D | 1200×797 | 752 ms |  |
+E| OK | Pentax/KP/IMGP0236.DNG | PENTAX KP | 1200×797 | 1610 ms |  |
+O| OK | Pentax/MX-1/pentax_mx1_raw2.dng | PENTAX MX-1 | 1200×900 | 680 ms |  |
+B| OK | Pentax/Q/IMGP0647.DNG | PENTAX Q | 1200×900 | 626 ms |  |
+D| OK | Pentax/Q7/IMGP1691.DNG | PENTAX Q7 | 1200×799 | 613 ms |  |
+�| OK | Plustek/OpticFilm 8100/SF8_processed_-_Mon_Jun_17_19-45-39_2019.dng | Plustek OpticFilm 8100 | 1200×833 | 209 ms | no camera preview to compare with |
+�| OK | Plustek/OpticFilm 8200i SE/AristaUltra_400_Test1.dng | Plustek OpticFilm 8200i | 1200×805 | 639 ms | no camera preview to compare with |
+�| WARN | RICOH/GXR/R0017428.DNG | RICOH S10 24-72mm F2.5-4.4 VC | 900×1200 | 523 ms | bright corners: centre/edge 0.31 vs camera 1.00; colour cast r/g 1.15 vs 1.00, b/g 0.81 vs 1.00 |
+m| OK | RICOH/RICOH GX200/R0014336-20180515-ss620-ap4.6-fl5-iso64.DNG | RICOH GX200 | 1200×900 | 602 ms |  |
+�| OK | RaspberryPi/RP_imx477/pi.dng | Raspberry Pi High Quality Camera | 1200×899 | 593 ms | no camera preview to compare with |
+�| OK | RaspberryPi/RP_imx477/pi_hq_picamera.dng | Raspberry Pi High Quality Camera | 1200×899 | 597 ms | no camera preview to compare with |
+�| OK | RaspberryPi/RP_imx477/pi_hq_raspistill.dng | Raspberry Pi High Quality Camera | 1200×899 | 602 ms | no camera preview to compare with |
+�| OK | Realme/RMX1851/IMG_OCT_20191005_163311.dng | RMX1851-Realme-Realme | 1200×900 | 1223 ms | no camera preview to compare with |
+|| OK | Ricoh/GR DIGITAL 2/RAW_RICOH_GR2.DNG | Ricoh GR DIGITAL 2 | 1200×900 | 502 ms | no camera preview to compare with |
+C| OK | Ricoh/GR II/R0000443.DNG | GR II | 1200×795 | 1030 ms |  |
+z| WARN | Ricoh/GR III/R0000357.DNG | RICOH GR III | 1200×800 | 1648 ms | dark corners: centre/edge 1.39 vs camera 1.04 |
+|| WARN | Ricoh/GR IIIx/R0001005.DNG | RICOH GR IIIx | 1200×800 | 1595 ms | dark corners: centre/edge 0.29 vs camera 0.16 |
+<| OK | Ricoh/GR/R0003611.DNG | GR | 1200×794 | 977 ms |  |
+�| OK | Samsung/G920F/LRM_20170316_152407.dng | SM-G920F-samsung-samsung | 1200×674 | 1178 ms | no camera preview to compare with |
+C| OK | Samsung/G935F/20170403_104110.dng | C12LLJB18SM C12LLJK01GM
+ | 1200×675 | 686 ms |  |
+J| OK | Samsung/GX10/_G107701.DNG | SAMSUNG GX10 | 1200×803 | 571 ms |  |
+z| WARN | Samsung/GX20/_G205027.DNG | SAMSUNG GX20 | 1200×797 | 795 ms | colour cast r/g 1.10 vs 1.52, b/g 0.89 vs 0.88 |
+Z| OK | Samsung/Galaxy S21 Ultra/20230712_115041.dng | SM-G998B | 1200×900 | 2451 ms |  |
+z| WARN | Samsung/Galaxy S22 Ulra/20221225_114402.dng | SM-S908U1 | 1200×900 | 2284 ms | brightness 0.29 vs camera 0.51 |
+Z| OK | Samsung/Galaxy S22 Ultra/20230531_111518.dng | SM-S901U | 1200×900 | 2084 ms |  |
+b| OK | Samsung/Galaxy S23 Ultra/20230817_120455.dng | Galaxy S23 Ultra | 1200×900 | 2140 ms |  |
+�| WARN | Samsung/Galaxy S23 Ultra/20231214_130645.dng | Galaxy S23 Ultra | 1200×900 | 8150 ms | brightness 0.16 vs camera 0.45 |
+�| WARN | Samsung/Galaxy S23+/20231227_172938.dng | Galaxy S23+ | 900×1200 | 7026 ms | dark corners: centre/edge 113.34 vs camera 51.92; colour cast r/g 1.67 vs 2.04, b/g 0.30 vs 0.39 |
+V| OK | Samsung/Galaxy S23/20230414_115131.dng | Galaxy S23 | 1200×900 | 8088 ms |  |
+V| OK | Samsung/Galaxy S23/20230715_154550.dng | Galaxy S23 | 1200×675 | 1902 ms |  |
+�| WARN | Samsung/SAMSUNG-SM-G930A/20180105_103031.dng | SAMSUNG-SM-G930A | 1200×675 | 693 ms | dark corners: centre/edge 2.52 vs camera 0.21 |
+F| OK | Samsung/SM-G930F/20200125_130015.dng | D12LLJH03SM D12LLLC01GM
+ | 1200×900 | 911 ms |  |
+Q| OK | Samsung/SM-G930T/20180602_132834.dng | SM-G930T | 1200×900 | 918 ms |  |
+J| OK | Samsung/SM-G950F/2018-06-08_12.48.51.dng | F12LLJA00VM F12LLKL01GM
+ | 1200×900 | 908 ms |  |
+�| WARN | Samsung/SM-G950U/20170828_141409.dng | SM-G950U | 675×1200 | 706 ms | bright corners: centre/edge 1.08 vs camera 1.57 |
+H| WARN | Samsung/SM-G955F/20180202_091722.dng | F12LLJA00SM F12LLKG01GM
+H | 1200×900 | 935 ms | dark corners: centre/edge 0.74 vs camera 0.54 |
+r| OK | Samsung/SM-G960F/20191119_101508.dng | SM-G960F | 898×1200 | 958 ms | no camera preview to compare with |
+�| OK | Samsung/SM-G965F/Samsung_SM-G965F_4-3_ratio_f2.4.dng | SM-G965F | 1200×900 | 905 ms | no camera preview to compare with |
+r| OK | Samsung/SM-G973F/20191114_225157.dng | SM-G973F | 898×1200 | 917 ms | no camera preview to compare with |
+y| NOT RAW | Samsung/SM-G973U/20200402_181931.dng |  |  |  | not a RAW file inside (the app opens it as a normal photo) |
+x| WARN | Sigma/fp L/SDIM0915.DNG | SIGMA fp L | 1200×797 | 6306 ms | bright corners: centre/edge 2.43 vs camera 3.71 |
+|| OK | Sigma/fp/A002_647_20240229_000001_4k_12bit.DNG | SIGMA fp | 1200×675 | 488 ms | no camera preview to compare with |
+|| OK | Sigma/fp/A002_648_20240229_000001_4k_10bit.DNG | SIGMA fp | 1200×675 | 465 ms | no camera preview to compare with |
+{| OK | Sigma/fp/A002_650_20240229_000001_4k_8bit.DNG | SIGMA fp | 1200×675 | 415 ms | no camera preview to compare with |
+{| OK | Sigma/fp/A002_651_20240229_000001_2k_12bit.DNG | SIGMA fp | 960×540 | 178 ms | no camera preview to compare with |
+{| OK | Sigma/fp/A002_652_20240229_000001_2k_10bit.DNG | SIGMA fp | 960×540 | 159 ms | no camera preview to compare with |
+z| OK | Sigma/fp/A002_653_20240229_000001_2k_8bit.DNG | SIGMA fp | 960×540 | 147 ms | no camera preview to compare with |
+s| WARN | Sigma/fp/SDIM4591.DNG | SIGMA fp | 1200×800 | 2582 ms | colour cast r/g 3.43 vs 2.43, b/g 1.03 vs 0.71 |
+}| WARN | Sigma/sd Quattro/sample3.DNG | sd Quattro | 1200×800 | 3063 ms | bright corners: centre/edge 1.72 vs camera 2.44 |
+S| OK | Sony/ILCE-1/A1_full_compressed.ARW | Sony ILCE-1 | 1200×801 | 1181 ms |  |
+N| OK | Sony/ILCE-6400/DSC00087.ARW | Sony ILCE-6400 | 1200×801 | 476 ms |  |
+V| OK | Sony/ILCE-7M3/UNCOMPRESSED_14bit.ARW | Sony ILCE-7M3 | 1200×801 | 407 ms |  |
+p| OK | Sony/ILCE-7M4/ILCE-7M4_DSC06673_FullFrame-Raw-Uncompressed.ARW | Sony ILCE-7M4 | 1200×800 | 651 ms |  |
+�| WARN | Sony/ILCE-7RM5/7RM5-LosslessCompressedLarge.ARW | Sony ILCE-7RM5 | 1200×799 | 2100 ms | bright corners: centre/edge 0.98 vs camera 1.23 |
+a| OK | Sony/ZV-E10/DSC00002.ARW | Sony ZV-E10 | 1200×801 | 475 ms | shape 1.50 vs camera 1.78 |
+�| WARN | XIAOYI/YDXJ 2/ydxj0065.dng | XIAOYI YDXJ 2 | 1200×900 | 737 ms | dark corners: centre/edge 1.30 vs camera 1.01; colour cast r/g 1.10 vs 1.01, b/g 0.77 vs 1.02 |
+�| WARN | XIAOYI/YI 4K/YDXJ0026.DNG | XIAOYI YDXJ 2 | 1200×675 | 516 ms | dark corners: centre/edge 8.01 vs camera 4.66; colour cast r/g 1.10 vs 0.99, b/g 0.62 vs 0.94 |
+|| WARN | XIAOYI/YIAC 3/YIAC0075.DNG | XIAOYI YIAC 3 | 1200×900 | 749 ms | colour cast r/g 0.95 vs 0.66, b/g 0.84 vs 0.80 |
+|| OK | Xiaomi/HM NOTE 1LTE/IMG_2016.07.31_15.48.08.dng | SonyIMX | 1200×889 | 636 ms | no camera preview to compare with |
+�| OK | Xiaomi/M2010J19CG/IMG_20201224_141323.dng | M2010J19CG-Xiaomi-POCO | 1200×898 | 984 ms | no camera preview to compare with |
+�| WARN | Xiaomi/MI 8/IMG_20200101_174326.dng | google MI 8 | 1200×672 | 929 ms | dark corners: centre/edge 1.90 vs camera 1.25 |
+u| OK | Xiaomi/MI MAX/IMG_2019_10_27_14_47_40.dng | MI MAX | 1200×898 | 782 ms | no camera preview to compare with |
+�| OK | Xiaomi/Mi 9 Lite/IMG_20200324_073611.dng | Mi 9 Lite-Xiaomi-Xiaomi | 898×1200 | 935 ms | no camera preview to compare with |
+�| OK | Xiaomi/Redmi Note 7/IMG_20190615_155524.dng | Redmi Note 7-Xiaomi-xiaomi | 1200×898 | 995 ms | no camera preview to compare with |
+�| OK | Xiaomi/Redmi Note 8T/IMG_20200715_094601.dng | Redmi Note 8T-Xiaomi-xiaomi | 1200×898 | 935 ms | no camera preview to compare with |
+t| WARN | YI TECHNOLOGY/M1/PC070001.DNG | M1 | 1200×900 | 1042 ms | dark corners: centre/edge 0.54 vs camera 0.42 |
+H| OK | Yuneec/CGO3/YUN00038.dng | YUNEEC CGO3 | 1200×899 | 751 ms |  |
+n| OK | Yuneec/CGO3P/YUN00007.dng | YUNEEC CGO3P À | 1200×899 | 449 ms | no camera preview to compare with |
+�| OK | asus/ASUS_I01WD/P_20190922_161212.dng | ASUS_I01WD-asus-asus | 1200×889 | 1001 ms | no camera preview to compare with |
+�| OK | asus/ASUS_Z01KD/2018-12-02_07.39.26-1.dng | ASUS_Z01KD-ASUS-asus | 899×1200 | 602 ms | no camera preview to compare with |
+�| OK | bq/Aquaris U Plus/IMG_20180217_111328_894.dng | Aquaris U Plus-bq-bq | 898×1200 | 1239 ms | no camera preview to compare with |
+�| NOT RAW | moto g8plus/moto g8plus/IMG_20200621_212547364.dng |  |  |  | not a RAW file inside (the app opens it as a normal photo) |
+�| OK | motorola/Moto G (5S) Plus/IMG_20180328_152254.dng | Moto G (5S) Plus-motorola-motorola | 1200×888 | 1007 ms | no camera preview to compare with |
+{| OK | motorola/Nexus 6/DSC_0017.DNG | Nexus 6-motorola-google | 1200×888 | 1017 ms | no camera preview to compare with |
+�| OK | motorola/moto g(7) play/IMG_20191114_091702382.dng | moto g(7) play-motorola-motorola | 1200×888 | 1017 ms | no camera preview to compare with |
+R| OK | samsung/SM-S901E/20250305_173647.dng | SM-S901E | 900×1200 | 2359 ms |  |
+

@@ -21,24 +21,31 @@ jobs:
         run: bash .github/scripts/website/setup-wp.sh
       - name: Save the pages as plain files
         run: |
+          LIVE="https://dronedirector.github.io/Android-Projects"
           mkdir -p /tmp/mirror && cd /tmp/mirror
           for p in "" capture-features/ photo-editor-features/ video-editor-features/; do
-            wget -q -e robots=off --page-requisites --convert-links --adjust-extension --no-host-directories -P . "http://127.0.0.1:8080/$p" || true
+            wget -q -e robots=off --page-requisites --adjust-extension --no-host-directories -P . "http://127.0.0.1:8080/$p" || true
           done
-          # CSS files point at fonts and pictures too
-          grep -rhoE "url\(['\"]?[^)'\"]+" --include=*.css . | sed -E "s/url\(['\"]?//" | grep -vE '^(data:|#)' | sort -u > /tmp/urls.txt || true
+          # files fetched with ?ver=… lose the query (GitHub Pages ignores it)
+          find . -name '*\?*' | while read f; do mv -f "$f" "${f%%\?*}"; done
+          # fonts and pictures named in CSS
           find . -name "*.css" | while read f; do d=$(dirname "$f"); grep -oE "url\(['\"]?[^)'\"]+" "$f" | sed -E "s/url\(['\"]?//" | grep -vE '^(data:|#|http)' | while read u; do
-              src="http://127.0.0.1:8080/$(realpath -m --relative-to=. "$d/${u%%[?#]*}")"; dst="$d/${u%%[?#]*}"
-              [ -f "$dst" ] || { mkdir -p "$(dirname "$dst")"; wget -q -O "$dst" "$src" || rm -f "$dst"; }
+              u=${u%%[?#]*}; dst=$(realpath -m "$d/$u"); rel=${dst#$PWD/}
+              [ -f "$dst" ] || { mkdir -p "$(dirname "$dst")"; cp "$HOME/site/$rel" "$dst" 2>/dev/null || rm -f "$dst"; }
             done; done
-          # Any leftover absolute links to the test server become site-relative; no search engine indexing.
-          find . -name "*.html" | while read f; do
-            depth=$(echo "$f" | tr -cd '/' | wc -c); rel=$(printf '../%.0s' $(seq 2 $depth)); [ -z "$rel" ] && rel="./"
-            sed -i -e "s#http://127.0.0.1:8080/#$rel#g" -e "s#http:\\\\/\\\\/127.0.0.1:8080\\\\/#$rel#g" -e 's#<head>#<head><meta name="robots" content="noindex">#' "$f"
+          # scripts Elementor and WordPress load later on demand
+          mkdir -p wp-content/plugins/elementor/assets/js wp-includes/js
+          cp -r ~/site/wp-content/plugins/elementor/assets/js/. wp-content/plugins/elementor/assets/js/
+          cp ~/site/wp-includes/js/wp-emoji-release.min.js wp-includes/js/ 2>/dev/null || true
+          # every address to the test server becomes the live address; no search engine indexing
+          grep -rlE '127\.0\.0\.1:8080' --include='*.html' --include='*.css' --include='*.js' --include='*.json' . | while read f; do
+            sed -i -e "s#http://127.0.0.1:8080#$LIVE#g" -e "s#http:\\\\/\\\\/127.0.0.1:8080#${LIVE//\//\\\\/}#g" "$f"
           done
+          find . -name "*.html" -exec sed -i 's#<head>#<head><meta name="robots" content="noindex">#' {} +
           touch .nojekyll
-          find . -type f | sed 's#^\./##' | sort | head -80; du -sh .
-          grep -c 'acs acs-' index.html
+          echo "left: $(grep -rl '127.0.0.1' . | wc -l) files still naming the test server"
+          grep -o 'href="[^"]*capture-features[^"]*"' index.html | sort -u
+          du -sh .
       - uses: actions/configure-pages@v5
         with: { enablement: true }
         continue-on-error: true

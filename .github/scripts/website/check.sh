@@ -2,12 +2,16 @@
 # Checks the AlcorCut pages on the test WordPress and takes screenshots. Run from the repo root.
 set -u
 O="$PWD/out"; mkdir -p "$O"; S="$HOME/site"; fail=0
-wp --path="$S" option get acs_pages --format=json > /tmp/pages.json; echo "acs_pages: $(cat /tmp/pages.json)" | tee "$O/pages.txt"
+wp --path="$S" option get acs_pages --format=json 2>/dev/null | grep -o '{"home"[^}]*}' | head -1 > /tmp/pages.json; echo "acs_pages: $(cat /tmp/pages.json)" | tee "$O/pages.txt"
 wp --path="$S" post list --post_type=page --fields=ID,post_title,post_name,page_template >> "$O/pages.txt"
 python3 - > /tmp/urls.json <<'PY'
 import json,subprocess
 ids=json.load(open('/tmp/pages.json'))
-out={k:subprocess.check_output(['wp','--path='+__import__('os').environ['HOME']+'/site','post','url',str(v)]).decode().strip() for k,v in ids.items()}
+import re
+def url(v):
+    o=subprocess.run(['wp','--path='+__import__('os').environ['HOME']+'/site','post','url',str(v)],capture_output=True,text=True).stdout
+    return [l for l in o.splitlines() if re.match(r'https?://',l.strip())][-1].strip()
+out={k:url(v) for k,v in ids.items()}
 out['home_id']=ids['home']; print(json.dumps(out))
 PY
 echo "urls: $(cat /tmp/urls.json)" | tee -a "$O/pages.txt"

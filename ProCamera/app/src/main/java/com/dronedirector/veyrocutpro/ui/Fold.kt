@@ -65,12 +65,15 @@ class FoldCollector {
         val l = pending[k] ?: return
         val t = label.trim().trimEnd(':')
         if (t.length < 2 || t.length > 34 || l.size >= 7 || l.any { it.equals(t, true) }) return
-        if (t.endsWith('.') || !t.any { it.isLetter() }) return
+        // Values change while a slider moves — never let them into the summary (it would jump).
+        if (t.endsWith('.') || !t.any { it.isLetter() } || t.any { it.isDigit() } || t.contains('%') || t.contains('±')) return
         l += t
     }
 
     internal fun publish() {
         for ((k, v) in pending) {
+            // An open section keeps the summary it had, so nothing moves while its controls are used.
+            if (Fold.isOpen(k) && summaries.containsKey(k)) continue
             val s = v.joinToString(", ") { readable(it) }
             if (summaries[k] != s) summaries[k] = s
         }
@@ -124,7 +127,9 @@ fun SectionHeader(text: String, onReset: (() -> Unit)? = null) {
     ) {
         Column(Modifier.weight(1f)) {
             androidx.compose.material3.Text(readable(I18n.tr(text)), color = if (open) Pro.Amber else Color.White, fontSize = 15.sp)
-            if (summary.isNotEmpty()) androidx.compose.material3.Text(summary, color = Pro.Dim, fontSize = 12.sp, maxLines = if (open) 4 else 2, lineHeight = 16.sp)
+            // Fixed size: always two lines' room, so the header's height never changes.
+            if (summary.isNotEmpty()) androidx.compose.material3.Text(summary, color = Pro.Dim, fontSize = 12.sp, maxLines = 2, minLines = 2, lineHeight = 16.sp,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
         if (onReset != null && open) Text("RESET", style = Pro.Label.copy(fontSize = 10.sp),
             modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClick = onReset).padding(horizontal = 8.dp, vertical = 6.dp))

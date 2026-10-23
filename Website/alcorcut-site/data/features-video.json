@@ -102,7 +102,9 @@
    "Wheels (lift / gamma / gain), primaries, curves, HSL, detail, effects, looks; scope drawer (histogram, waveform, RGB parade, vectorscope); copy grade to all clips.",
    "<strong>My LUTs</strong> (.cube) as a creative look or as the log → Rec.709 input conversion; <strong>my presets</strong> shared with the photo editor.",
    "<strong>AI noise reduction</strong> per clip (built-in NAFNet), applied on export with a stoppable progress badge.",
-   "<strong>Colour masks</strong> (up to 3 per clip): gradient, radial, colour range and brightness range, each with its own grade; handles on the player; live preview and export."
+   "<strong>Colour masks</strong> (up to 3 per clip): gradient, radial, colour range and brightness range, each with its own grade; handles on the player; live preview and export.",
+   "<strong>HDR levels in nits</strong> (HLG / HDR10): nits waveform from the real 10-bit frame, 100 / 203 / 1000-nit guides, peak / average / above-203 / above-1000.",
+   "<strong>Export a look as a .cube LUT</strong> (33-point) (also in the photo editor), also added to My LUTs."
   ]
  },
  {
@@ -113,7 +115,8 @@
    "<strong>Anamorphic desqueeze</strong> per clip (preview and export).",
    "<strong>Auto-reframe</strong> (AI) to 9:16, 1:1 or 4:5 — the picture follows the subject.",
    "<strong>AI slow motion</strong> by frame interpolation (RIFE via Cloud AI).",
-   "<strong>Stabilization</strong>: motion analysis with smooth or locked (tripod) modes, smoothness and auto-crop."
+   "<strong>Stabilization</strong>: motion analysis with smooth or locked (tripod) modes, smoothness and auto-crop.",
+   "<strong>Gyro stabilisation</strong> in the video editor from Capture's motion file (.gcsv), lined up with the picture automatically."
   ]
  },
  {
@@ -128,7 +131,8 @@
    "<strong>Chroma key</strong> (green / blue / black / white screen) for video and image layers, with tolerance and edge softness.",
    "<strong>AI captions</strong> from the speech in the edit (Whisper via Cloud AI), boxed / clean / big styles.",
    "<strong>Layer animations</strong>: in / out — fade, slide up / down / left / right, pop, zoom, bounce, wipe reveal, typewriter — with adjustable length.",
-   "<strong>Rename layers</strong> (e.g. name your watermarks) — names show in the layer list and on the timeline."
+   "<strong>Rename layers</strong> (e.g. name your watermarks) — names show in the layer list and on the timeline.",
+   "<strong>Luma key</strong> for video and picture layers (remove dark / remove bright, level, softness)."
   ]
  },
  {
@@ -145,7 +149,8 @@
    "<strong>AI dubbing</strong>: captions spoken as one audio track at their times (English on the phone with Kokoro; other languages via Cloud AI, ElevenLabs Multilingual v2), original voice ducked or muted.",
    "<strong>Dialogue leveller</strong>: evens out speech (quiet words up, loud words down, pauses left alone).",
    "<strong>Mixer</strong>: a strip per track (clip sound, music, extra tracks) with live meter, level (dB), pan, mute and solo, plus master level — in the preview and the export.",
-   "<strong>LUFS meter</strong> (EBU R128 / BS.1770): momentary, short-term and integrated loudness while playing."
+   "<strong>LUFS meter</strong> (EBU R128 / BS.1770): momentary, short-term and integrated loudness while playing.",
+   "<strong>Track groups (VCA)</strong> in the mixer: Dialogue, Music, Effects — group fader and group mute."
   ]
  },
  {
@@ -181,7 +186,9 @@
    "<strong>LOAD / SAVE projects</strong> next to Export; <strong>Save &amp; leave</strong> when exiting; saved projects on the start page.",
    "<strong>Copy / Paste settings</strong> between clips (or from a photo), optionally onto every clip.",
    "<strong>Remember watermark</strong>; <strong>resizable panels</strong>; <strong>playback info</strong> read-out for troubleshooting.",
-   "<strong>Panels menu</strong> (icon next to the gear): show / hide the tools panel, transport bar, histogram, timecode and audio waveforms — the player and timeline grow into freed space and return to their saved sizes; presets <strong>Full / Cut / Color / Audio</strong>; <strong>triple-tap</strong> the icon to restore the original layout."
+   "<strong>Panels menu</strong> (icon next to the gear): show / hide the tools panel, transport bar, histogram, timecode and audio waveforms — the player and timeline grow into freed space and return to their saved sizes; presets <strong>Full / Cut / Color / Audio</strong>; <strong>triple-tap</strong> the icon to restore the original layout.",
+   "<strong>Fold-out tool sections</strong>: every section of the tool panels opens and closes, with a line listing what's inside; gear → Layout &amp; look sets how they start (remember, always closed, all open).",
+   "<strong>Quick tour</strong> the first time the editor opens (skip, don't show again, replay from gear → App)."
   ]
  }
 ]

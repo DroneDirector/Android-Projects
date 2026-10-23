@@ -23,7 +23,8 @@
    "<strong>HSL mixer</strong> (8 colour bands: hue, saturation, luminance).",
    "<strong>Colour grading wheels</strong> for shadows, midtones and highlights; lift / gamma / gain.",
    "<strong>Detail</strong>: sharpen, noise reduction, <strong>AI noise reduction</strong> (built-in NAFNet model), clarity, texture, vignette, grain.",
-   "<strong>My LUTs</strong>: import .cube LUTs, blend by strength."
+   "<strong>My LUTs</strong>: import .cube LUTs, blend by strength.",
+   "<strong>Export a look as a .cube LUT</strong> (33-point): LUTs → Export look as LUT — saved in Documents/AlcorCutPro/LUTs and added to My LUTs."
   ]
  },
  {
@@ -95,7 +96,9 @@
    "<strong>LOAD / SAVE projects</strong> next to Export; SAVE lists your saved projects to overwrite one, or save as new.",
    "<strong>Batch export</strong>: apply the current edit to up to 50 photos at once; photo exports (single, batch and export selected) keep running in other apps or with the screen off, with a progress notification.",
    "<strong>Resizable panels</strong> (hold the divider, then drag; double-tap to reset).",
-   "<strong>Panels menu</strong> (icon next to the gear): show / hide the tools panel, copy / paste bar, histogram and before / after buttons — the photo fills freed space and returns to its saved size; presets <strong>Full / View / Edit / Color</strong>; <strong>triple-tap</strong> the icon to restore the original layout. The histogram button (bar-chart icon) choice is now remembered."
+   "<strong>Panels menu</strong> (icon next to the gear): show / hide the tools panel, copy / paste bar, histogram and before / after buttons — the photo fills freed space and returns to its saved size; presets <strong>Full / View / Edit / Color</strong>; <strong>triple-tap</strong> the icon to restore the original layout. The histogram button (bar-chart icon) choice is now remembered.",
+   "<strong>Fold-out tool sections</strong>: every section of the tool panels opens and closes, with a line listing what's inside; gear → Layout &amp; look sets how they start.",
+   "<strong>Quick tour</strong> the first time the editor opens (skip, don't show again, replay from gear → App)."
   ]
  },
  {

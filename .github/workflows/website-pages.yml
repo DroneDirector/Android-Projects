@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [ "Website/**", ".github/workflows/website-pages.yml", ".github/scripts/website/**" ]
+    paths: [ "Website/**", "ProCamera/FEATURES.md", ".github/workflows/website-pages.yml", ".github/scripts/website/**" ]
 permissions:
   contents: read
   pages: write
@@ -15,8 +15,28 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v5
+      - name: Feature lists from the app's FEATURES.md
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          python3 .github/scripts/website/features.py ProCamera/FEATURES.md Website/alcorcut-site/data
+          if ! git diff --quiet -- Website/alcorcut-site/data; then
+            git config user.name "github-actions"; git config user.email "actions@github.com"
+            git add Website/alcorcut-site/data
+            git commit -qm "Website: feature lists updated from FEATURES.md [skip ci]"
+            for i in 1 2 3; do git pull -q --rebase origin main && git push -q origin HEAD:main && break; sleep 5; done
+          fi
+          # The plugin, ready to upload to WordPress (its own release, never the app's "latest").
+          (cd Website && zip -qr "$RUNNER_TEMP/alcorcut-site.zip" alcorcut-site)
+          gh release view website-plugin -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create website-plugin -R "$GITHUB_REPOSITORY" --title "AlcorCut Pro website plugin (WordPress + Elementor)" \
+              --notes "The website plugin, updated automatically whenever the website or the app's feature list changes. Upload alcorcut-site.zip in WordPress → Plugins → Add New → Upload Plugin (Elementor must be active)." --prerelease --latest=false
+          gh release upload website-plugin "$RUNNER_TEMP/alcorcut-site.zip" --clobber -R "$GITHUB_REPOSITORY"
       - name: WordPress + Elementor + AlcorCut plugin
         run: bash .github/scripts/website/setup-wp.sh
       - name: Save the pages as plain files

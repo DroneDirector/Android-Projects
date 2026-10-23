@@ -121,6 +121,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Panels menu** (icon next to the gear): show / hide the exposure read-out, histogram, audio meter, level, Pro controls bar and tips; presets **Full / Minimal / Video**; **triple-tap** the icon to restore the original layout.
 
 ---
+- **Keep settings after uninstall** (optional): settings, presets and LUTs saved to Documents/AlcorCutPro/Settings; restore from the first screen after reinstalling.
 
 ## Photo editor
 - Open from the gallery, files or recent AlcorCut Pro photos; **saved projects** row on the start page.
@@ -198,6 +199,9 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Panels menu** (icon next to the gear): show / hide the tools panel, copy / paste bar, histogram and before / after buttons — the photo fills freed space and returns to its saved size; presets **Full / View / Edit / Color**; **triple-tap** the icon to restore the original layout. The histogram button (bar-chart icon) choice is now remembered.
 
 ---
+- **Export a look as a .cube LUT** (33-point): LUTs → Export look as LUT — saved in Documents/AlcorCutPro/LUTs and added to My LUTs.
+- **Fold-out tool sections**: every section of the tool panels opens and closes, with a line listing what's inside; gear → Layout & look sets how they start.
+- **Quick tour** the first time the editor opens (skip, don't show again, replay from gear → App).
 
 ## Video editor
 ### Media & timeline
@@ -300,6 +304,8 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **My LUTs** (.cube) as a creative look or as the log → Rec.709 input conversion; **my presets** shared with the photo editor.
 - **AI noise reduction** per clip (built-in NAFNet), applied on export with a stoppable progress badge.
 - **Colour masks** (up to 3 per clip): gradient, radial, colour range and brightness range, each with its own grade; handles on the player; live preview and export.
+- **HDR levels in nits** (HLG / HDR10): nits waveform from the real 10-bit frame, 100 / 203 / 1000-nit guides, peak / average / above-203 / above-1000.
+- **Export a look as a .cube LUT** (33-point) (also in the photo editor), also added to My LUTs.
 
 ### Crop, zoom & stabilization
 - **Crop & zoom on the player** (pinch, drag, twist) with thirds grid; zoom 0.25×–4×, position, rotate, flip.
@@ -308,6 +314,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Auto-reframe** (AI) to 9:16, 1:1 or 4:5 — the picture follows the subject.
 - **AI slow motion** by frame interpolation (RIFE via Cloud AI).
 - **Stabilization**: motion analysis with smooth or locked (tripod) modes, smoothness and auto-crop.
+- **Gyro stabilisation** in the video editor from Capture's motion file (.gcsv), lined up with the picture automatically.
 
 ### Layers
 - **Text, stickers, watermark, logo, image and video (picture-in-picture)** layers with timing, position, size and opacity.
@@ -320,6 +327,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **AI captions** from the speech in the edit (Whisper via Cloud AI), boxed / clean / big styles.
 - **Layer animations**: in / out — fade, slide up / down / left / right, pop, zoom, bounce, wipe reveal, typewriter — with adjustable length.
 - **Rename layers** (e.g. name your watermarks) — names show in the layer list and on the timeline.
+- **Luma key** for video and picture layers (remove dark / remove bright, level, softness).
 
 ### Audio
 - **Sound libraries** (Media page): built-in **Soundtracks** — 26 original cinematic tracks owned by the developer and cleared for use in your videos — with listen-before-adding preview; **Nature sounds** section ready for more. Tracks behave like imported music (timeline, waveform, fades, ducking, export).
@@ -334,6 +342,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Dialogue leveller**: evens out speech (quiet words up, loud words down, pauses left alone).
 - **Mixer**: a strip per track (clip sound, music, extra tracks) with live meter, level (dB), pan, mute and solo, plus master level — in the preview and the export.
 - **LUFS meter** (EBU R128 / BS.1770): momentary, short-term and integrated loudness while playing.
+- **Track groups (VCA)** in the mixer: Dialogue, Music, Effects — group fader and group mute.
 
 ### Deliver
 - **Background export**: keeps running in other apps or with the screen off (foreground service, progress notification, "finished" notification).
@@ -366,6 +375,8 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Panels menu** (icon next to the gear): show / hide the tools panel, transport bar, histogram, timecode and audio waveforms — the player and timeline grow into freed space and return to their saved sizes; presets **Full / Cut / Color / Audio**; **triple-tap** the icon to restore the original layout.
 
 ---
+- **Fold-out tool sections**: every section of the tool panels opens and closes, with a line listing what's inside; gear → Layout & look sets how they start (remember, always closed, all open).
+- **Quick tour** the first time the editor opens (skip, don't show again, replay from gear → App).
 
 ## Cloud AI (optional)
 - Bring your own **fal.ai** account (API key stored encrypted on the phone; only sent to fal.ai).
@@ -381,9 +392,3 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Folded settings menus**: the gear menus in Capture, the photo editor and the video editor group every setting in fold-out sections (e.g. Photo, Video, Audio, AI, Saving & backup, App); each line shows a short list of what is inside.
 - **Quick tours**: Capture, the photo editor and the video editor each have a short first-run tour (skip, don't show again, or replay from the gear → App).
 - **Fold-out tool sections**: in the photo and video editors every tool panel section opens and closes (title + a line listing what's inside), inside the sliding tabs; gear → Layout & look sets how they start (remember, always closed, all open).
-- **Gyro stabilisation** in the video editor from Capture's motion file (.gcsv), lined up with the picture automatically.
-- **HDR levels in nits** (HLG / HDR10): nits waveform from the real 10-bit frame, 100 / 203 / 1000-nit guides, peak / average / above-203 / above-1000.
-- **Track groups (VCA)** in the mixer: Dialogue, Music, Effects — group fader and group mute.
-- **Export a look as a .cube LUT** (33-point) from the photo or video editor, also added to My LUTs.
-- **Luma key** for video and picture layers (remove dark / remove bright, level, softness).
-- **Keep settings after uninstall** (optional): settings, presets and LUTs saved to Documents/AlcorCutPro/Settings; restore from the first screen after reinstalling.

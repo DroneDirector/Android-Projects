@@ -5,6 +5,7 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 
 ## Unreleased
 - Capture settings (gear): everything is now in **folded sections** — Photo, Video, Audio, Viewfinder & monitoring, AI, Controls & buttons, Privacy / title / copyright, Film-set workflow, Remote & output, Storage & backup, App and This lens. Each line says what's inside; tap to open or fold it again.
+- Photo editor and video editor settings (gear): also in **folded sections** — Layout & look, Saving & backup, Watermark, AI and App; the video editor adds Project archive & versions and Playback & proxies. Each line says what's inside.
 
 ## 1.0.482 — 2026-10-23
 - Photo editor: fixed a crash (out of memory) when using **Colour noise** on big photos — it now works on a small copy of the colours and needs very little memory.

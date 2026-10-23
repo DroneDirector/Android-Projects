@@ -712,7 +712,7 @@ private fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit) {
 
 /** A folded group of settings: one line with what's inside; tap to open or close. */
 @Composable
-private fun SettingsGroup(key: String, title: String, summary: String, content: @Composable () -> Unit) {
+internal fun SettingsGroup(key: String, title: String, summary: String, content: @Composable () -> Unit) {
     var open by androidx.compose.runtime.saveable.rememberSaveable(key) { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.06f))

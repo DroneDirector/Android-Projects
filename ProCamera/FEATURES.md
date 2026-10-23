@@ -378,3 +378,4 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 ## Look & feel
 - Same dark "Pro" design across Capture and both editors.
 - **App colour** picker available in Capture settings and in both editors' settings.
+- **Folded settings menus**: the gear menus in Capture, the photo editor and the video editor group every setting in fold-out sections (e.g. Photo, Video, Audio, AI, Saving & backup, App); each line shows a short list of what is inside.

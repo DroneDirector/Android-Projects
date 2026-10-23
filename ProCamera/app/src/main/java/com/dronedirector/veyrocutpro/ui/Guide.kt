@@ -116,6 +116,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Video editor → Audio → Mixer → Track groups: put each track in Dialogue, Music or Effects; a group fader moves all its tracks together and M mutes the group.",
             "Photo and video editor → LUTs → EXPORT THIS LOOK AS .CUBE: saves your grade as a 33-point .cube LUT in Documents/AlcorCutPro/LUTs and adds it to My LUTs.",
             "Video editor → layer → Luma key: Remove dark (fire, sparks, smoke on black) or Remove bright, with Level and Softness.",
+            "Gear → Layout & look → Fold-out sections: Remember (sections left open open again next time), Always closed, or All open — set separately for the photo and video editor.",
             "Photo editor and video editor: every section in the tool panels is a fold-out (title, a line saying what's inside, arrow). Tap to open or close it; the tabs above work as before.",
             "Photo and video editor settings are folded into groups too (Layout & look, Saving & backup, Watermark, AI, App, and in the video editor Project archive & versions and Playback & proxies). Each line says what's inside.",
             "Watch remote: install AlcorCutPro-WATCH (from the release) on a Wear OS watch — Galaxy Watch 4 or newer, Pixel Watch. With Capture open on the phone, the watch shows the live picture and records / takes photos, switches photo ↔ video and zooms. Install steps: Guides and Tips → Installing the watch app.",

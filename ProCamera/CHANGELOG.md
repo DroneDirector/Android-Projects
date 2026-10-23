@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo and video editor: new **gear → Layout & look → Fold-out sections** setting — Remember (sections you left open open again next time), Always closed, or All open; each editor has its own choice.
 
 ## 1.0.502 — 2026-10-23
 - Fold-out sections: no more shaking while you drag a slider in an open section — the heading's summary stays still (fixed height, values never included).

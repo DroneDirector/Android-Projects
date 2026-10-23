@@ -201,7 +201,7 @@ fun EditorSettingsDialog(
         title = { Text("$editorName settings", color = Color.White) },
         text = {
             Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
-                com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "look", "Layout & look", if (isVideo) "Simple layout, app colour, scroll wheel effects, mouse pointer, scroll wheel" else "Simple layout, app colour, mouse pointer") {
+                com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "look", "Layout & look", if (isVideo) "Simple layout, app colour, scroll wheel effects, mouse pointer, scroll wheel, fold-out sections" else "Simple layout, app colour, mouse pointer, fold-out sections") {
                         Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text("Simple layout", color = Color.White, fontSize = 15.sp)
@@ -217,6 +217,7 @@ fun EditorSettingsDialog(
                         com.dronedirector.veyrocutpro.ui.AccentPicker()
                         if (colourExtra != null) colourExtra()
                         com.dronedirector.veyrocutpro.ui.PointerAndWheelSettings(showWheel = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR)
+                    com.dronedirector.veyrocutpro.ui.FoldModeSetting(if (isVideo) "video" else "photo")
                 }
                 com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "save", "Saving & backup", "Save location, autosave, backup and restore") {
                         val video = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR

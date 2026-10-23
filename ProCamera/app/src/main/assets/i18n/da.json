@@ -3092,5 +3092,16 @@
 "Video editor → Color → Input: for HDR clips (HLG / HDR10), HDR LEVELS shows a nits waveform with 100 / 203 / 1000-nit guides plus peak, average and how much is above 203 and 1000 nits, measured from the clip at the playhead.": "Videoredigering → Color → Input: til HDR-klip (HLG / HDR10) viser HDR-NIVEAUER en nits-waveform med 100 / 203 / 1000-nits hjælpelinjer samt top, gennemsnit og hvor meget der ligger over 203 og 1000 nits, målt fra klippet ved afspilningshovedet.",
 "Video editor → Audio → Mixer → Track groups: put each track in Dialogue, Music or Effects; a group fader moves all its tracks together and M mutes the group.": "Videoredigering → Audio → Mixer → Sporgrupper: læg hvert spor i Dialog, Musik eller Effekter; en gruppefader flytter alle dens spor sammen, og M slår gruppen fra.",
 "Photo and video editor → LUTs → EXPORT THIS LOOK AS .CUBE: saves your grade as a 33-point .cube LUT in Documents/AlcorCutPro/LUTs and adds it to My LUTs.": "Foto- og videoredigering → LUTs → EKSPORTÉR DETTE LOOK SOM .CUBE: gemmer din farvekorrektion som en 33-punkts .cube-LUT i Documents/AlcorCutPro/LUTs og tilføjer den til My LUTs.",
-"Video editor → layer → Luma key: Remove dark (fire, sparks, smoke on black) or Remove bright, with Level and Softness.": "Videoredigering → lag → Luma-key: Fjern mørke (ild, gnister, røg på sort) eller Fjern lyse, med Niveau og Blødhed."
+"Video editor → layer → Luma key: Remove dark (fire, sparks, smoke on black) or Remove bright, with Level and Softness.": "Videoredigering → lag → Luma-key: Fjern mørke (ild, gnister, røg på sort) eller Fjern lyse, med Niveau og Blødhed.",
+"Fold-out sections": "Udfoldelige sektioner",
+"How the tool sections start when you open the editor again.": "Hvordan værktøjssektionerne starter, når du åbner redigeringen igen.",
+"Remember": "Husk",
+"Always closed": "Altid lukket",
+"All open": "Alle åbne",
+"Sections you leave open are open again next time.": "Sektioner, du lader stå åbne, er åbne igen næste gang.",
+"Every section starts open.": "Alle sektioner starter åbne.",
+"Every section starts closed — open only what you need.": "Alle sektioner starter lukkede — åbn kun det, du har brug for.",
+"Simple layout, app colour, scroll wheel effects, mouse pointer, scroll wheel, fold-out sections": "Enkelt layout, appfarve, effekter på rullehjul, musemarkør, rullehjul, udfoldelige sektioner",
+"Simple layout, app colour, mouse pointer, fold-out sections": "Enkelt layout, appfarve, musemarkør, udfoldelige sektioner",
+"Gear → Layout & look → Fold-out sections: Remember (sections left open open again next time), Always closed, or All open — set separately for the photo and video editor.": "Tandhjul → Layout og udseende → Udfoldelige sektioner: Husk (sektioner, der stod åbne, åbner igen næste gang), Altid lukket eller Alle åbne — vælges separat for foto- og videoredigering."
 }

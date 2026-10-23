@@ -41,9 +41,71 @@ import androidx.compose.ui.unit.sp
  * option titles), so it always matches the section — also for features added later.
  */
 object Fold {
+    /** How sections start when the editor opens: remember what was open, always closed, or all open. */
+    const val REMEMBER = 0; const val CLOSED = 1; const val OPEN = 2
+
     private val open = mutableStateMapOf<String, Boolean>()
-    fun isOpen(key: String) = open[key] ?: false
-    fun toggle(key: String) { open[key] = !isOpen(key) }
+    private val modes = mutableStateMapOf<String, Int>()
+    private var prefs: android.content.SharedPreferences? = null
+    private val loaded = HashSet<String>()
+
+    private fun scopeOf(key: String) = key.substringBefore('|')
+
+    fun init(c: android.content.Context) {
+        if (prefs == null) prefs = c.applicationContext.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE)
+    }
+
+    // Reads only (no state writes while composing or measuring); setMode stores the choice.
+    fun mode(scope: String): Int = modes[scope] ?: prefs?.getInt("fold_mode_$scope", CLOSED) ?: CLOSED
+
+    fun setMode(c: android.content.Context, scope: String, m: Int) {
+        init(c)
+        modes[scope] = m
+        val p = prefs ?: return
+        p.edit().putInt("fold_mode_$scope", m).apply()
+        // Start over from the chosen default (and, for Remember, from what is open right now).
+        val nowOpen = open.filter { it.value && scopeOf(it.key) == scope }.keys
+        open.keys.filter { scopeOf(it) == scope }.forEach { open.remove(it) }
+        if (m == REMEMBER) { nowOpen.forEach { open[it] = true }; save(scope) }
+    }
+
+    /** Remember mode: sections left open last time open again. */
+    fun load(scope: String) {
+        if (!loaded.add(scope)) return
+        if (mode(scope) != REMEMBER) return
+        prefs?.getStringSet("fold_open_$scope", emptySet())?.forEach { open[it] = true }
+    }
+
+    private fun save(scope: String) {
+        if (mode(scope) != REMEMBER) return
+        prefs?.edit()?.putStringSet("fold_open_$scope", open.filter { it.value && scopeOf(it.key) == scope }.keys.toSet())?.apply()
+    }
+
+    fun isOpen(key: String) = open[key] ?: (mode(scopeOf(key)) == OPEN)
+    fun toggle(key: String) { open[key] = !isOpen(key); save(scopeOf(key)) }
+}
+
+/** Gear → Layout & look: how the editor's fold-out sections start. */
+@Composable
+fun FoldModeSetting(scope: String) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    Fold.init(ctx)
+    val m = Fold.mode(scope)
+    Text("Fold-out sections", color = Color.White, fontSize = 15.sp, modifier = Modifier.padding(top = 10.dp))
+    Text("How the tool sections start when you open the editor again.", color = Pro.Dim, fontSize = 12.sp)
+    androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf(Fold.REMEMBER to "Remember", Fold.CLOSED to "Always closed", Fold.OPEN to "All open").forEach { (v, label) ->
+            val sel = m == v
+            Text(label, color = if (sel) Color.Black else Color.White, fontSize = 12.sp,
+                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (sel) Pro.Amber else Color.White.copy(alpha = 0.08f))
+                    .clickable { Fold.setMode(ctx, scope, v) }.padding(horizontal = 12.dp, vertical = 7.dp))
+        }
+    }
+    Text(when (m) {
+        Fold.REMEMBER -> "Sections you leave open are open again next time."
+        Fold.OPEN -> "Every section starts open."
+        else -> "Every section starts closed — open only what you need."
+    }, color = Pro.Dim, fontSize = 11.sp)
 }
 
 /** Collects the labels of the controls under each header while a [FoldColumn] composes. */
@@ -163,6 +225,8 @@ fun FoldColumn(
     val parent = LocalFold.current
     val c = remember { FoldCollector() }
     c.scope = scope ?: parent?.scope ?: "fold"
+    Fold.init(androidx.compose.ui.platform.LocalContext.current)
+    Fold.load(c.scope)
     CompositionLocalProvider(LocalFold provides c) {
         Layout(
             content = {

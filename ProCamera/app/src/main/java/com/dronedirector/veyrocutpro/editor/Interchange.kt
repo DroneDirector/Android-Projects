@@ -7,7 +7,7 @@ package com.dronedirector.veyrocutpro.editor
  *  - OpenTimelineIO (.otio, JSON): cuts, dissolves, speed and markers; written from the public
  *    OTIO file format (no OTIO code is used), readable by any OTIO-aware tool.
  *  - Subtitles: .srt and .vtt out, and .srt / .vtt in (as caption layers).
- * Only the edit travels: grades, effects and layers stay in VeyroCut Pro. Media is matched by file name,
+ * Only the edit travels: grades, effects and layers stay in VelaCut Pro. Media is matched by file name,
  * so on the computer you point the editor at the folder with the original clips.
  */
 object Interchange {
@@ -67,7 +67,7 @@ object Interchange {
             sb.append("      <media-rep kind=\"original-media\" src=\"file:///VeyroCutPro/${esc(name)}\"/>\n    </asset>\n")
         }
         val total = frames(clips.sumOf { it.lengthMs }, fps)
-        sb.append("  </resources>\n  <library>\n    <event name=\"VeyroCut Pro\">\n      <project name=\"${esc(title)}\">\n")
+        sb.append("  </resources>\n  <library>\n    <event name=\"VelaCut Pro\">\n      <project name=\"${esc(title)}\">\n")
         sb.append("        <sequence format=\"r1\" duration=\"${t(total, fps)}\" tcStart=\"0s\" tcFormat=\"NDF\">\n          <spine>\n")
         var off = 0L
         var ms = 0L

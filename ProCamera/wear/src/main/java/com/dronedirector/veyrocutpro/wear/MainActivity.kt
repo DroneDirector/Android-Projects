@@ -45,8 +45,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 
 /**
- * VeyroCut Pro watch remote: shows the phone camera's picture, records / takes photos, switches
- * between photo and video, and zooms. Talks to the VeyroCut Pro phone app over the watch connection.
+ * VelaCut Pro watch remote: shows the phone camera's picture, records / takes photos, switches
+ * between photo and video, and zooms. Talks to the VelaCut Pro phone app over the watch connection.
  */
 class MainActivity : ComponentActivity(), MessageClient.OnMessageReceivedListener {
     private class Phone(val recording: Boolean, val seconds: Long, val mode: String, val isVideo: Boolean, val ready: Boolean, val zoom: String, val busy: Boolean)
@@ -114,7 +114,7 @@ class MainActivity : ComponentActivity(), MessageClient.OnMessageReceivedListene
             if (connected) preview?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alpha = 0.75f) }
             if (!connected || p == null) {
                 Text(
-                    "Open VeyroCut Pro Capture on your phone",
+                    "Open VelaCut Pro Capture on your phone",
                     color = Color.White, fontSize = 14.sp, textAlign = TextAlign.Center,
                     modifier = Modifier.padding(24.dp),
                 )

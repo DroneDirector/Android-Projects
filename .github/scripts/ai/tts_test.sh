@@ -22,7 +22,7 @@ fun main() {
 open('G2PTest.kt', 'w').write('import org.json.JSONObject\nimport java.io.File\n' + g + main)
 PY
 cat > sent.txt <<'TXT'
-Welcome to VeyroCut Pro, the video editor that fits in your pocket.
+Welcome to VelaCut Pro, the video editor that fits in your pocket.
 On the 3rd of July 2026, we filmed 150 drone shots over the Faroe Islands.
 It costs $4.99 and saves you 25% of your time.
 Dr. Smith's interview starts at 9:30, so don't be late!

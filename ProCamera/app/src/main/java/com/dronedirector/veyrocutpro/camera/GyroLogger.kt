@@ -104,7 +104,7 @@ class GyroLogger(private val context: Context) : SensorEventListener {
                 "Documents/VeyroCutPro/Gyroflow"
             } else {
                 @Suppress("DEPRECATION")
-                val dir = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DCIM), "VeyroCutPro").apply { mkdirs() }
+                val dir = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DCIM), "VelaCutPro").apply { mkdirs() }
                 File(dir, fileName).writeText(text)
                 "DCIM/VeyroCutPro"
             }
@@ -123,7 +123,7 @@ class GyroLogger(private val context: Context) : SensorEventListener {
         sb.append("id,veyrocutpro_android\n")
         // Android sensor axes: X right, Y up, Z out of the screen (phone held upright).
         sb.append("orientation,XYZ\n")
-        sb.append("note,VeyroCut Pro ").append(Build.MANUFACTURER).append(' ').append(Build.MODEL).append('\n')
+        sb.append("note,VelaCut Pro ").append(Build.MANUFACTURER).append(' ').append(Build.MODEL).append('\n')
         sb.append("fwversion,").append(Build.VERSION.RELEASE).append('\n')
         sb.append("timestamp,").append(startWallMs / 1000).append('\n')
         sb.append("vendor,").append(Build.MANUFACTURER).append('\n')

@@ -43,13 +43,13 @@ object Backup {
                     zip.closeEntry()
                 }
                 zip.putNextEntry(ZipEntry("info.json"))
-                zip.write(JSONObject().put("app", "VeyroCut Pro").put("version", 1).put("time", System.currentTimeMillis()).toString().toByteArray())
+                zip.write(JSONObject().put("app", "VelaCut Pro").put("version", 1).put("time", System.currentTimeMillis()).toString().toByteArray())
                 zip.closeEntry()
             }
         } != null
     } catch (_: Throwable) { false }
 
-    /** Restores a backup; the app then restarts. Returns false if the file isn't a VeyroCut Pro backup. */
+    /** Restores a backup; the app then restarts. Returns false if the file isn't a VelaCut Pro backup. */
     fun restore(context: Context, src: Uri): Boolean {
         val root = context.filesDir.canonicalFile
         var prefs: String? = null
@@ -61,7 +61,7 @@ object Backup {
                         val e = zip.nextEntry ?: break
                         when {
                             e.name == "prefs.json" -> prefs = zip.readBytes().toString(Charsets.UTF_8)
-                            e.name == "info.json" -> ok = zip.readBytes().toString(Charsets.UTF_8).contains("VeyroCut Pro")
+                            e.name == "info.json" -> ok = zip.readBytes().toString(Charsets.UTF_8).let { t -> t.contains("VelaCut Pro") || t.contains("VeyroCut Pro") }
                             e.name.startsWith("files/") && !e.isDirectory -> {
                                 val target = File(root, e.name.removePrefix("files/")).canonicalFile
                                 // Never write outside the app's own folder.
@@ -165,7 +165,7 @@ fun BackupSection() {
                     scope.launch {
                         val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Backup.restore(ctx, uri) }
                         busy = null
-                        if (ok) { toast("Backup restored — restarting"); Backup.restart(ctx) } else toast("That isn't a VeyroCut Pro backup")
+                        if (ok) { toast("Backup restored — restarting"); Backup.restart(ctx) } else toast("That isn't a VelaCut Pro backup")
                     }
                 }) { com.dronedirector.veyrocutpro.ui.Text("Restore", color = Pro.Amber) }
             },
@@ -183,7 +183,7 @@ fun BackupSection() {
                 )
             }
             b("SAVE BACKUP") {
-                val name = "VeyroCutPro_backup_" + java.text.SimpleDateFormat("yyyyMMdd_HHmm", java.util.Locale.US).format(java.util.Date()) + ".vcbackup"
+                val name = "VelaCutPro_backup_" + java.text.SimpleDateFormat("yyyyMMdd_HHmm", java.util.Locale.US).format(java.util.Date()) + ".vcbackup"
                 save.launch(name)
             }
             b("RESTORE") { open.launch(arrayOf("*/*")) }

@@ -86,7 +86,7 @@ fun StorageChooser(area: StorageArea, onChange: (String) -> Unit = {}) {
     )
     Text(
         "Plug in a USB stick, SSD or card reader (USB-C or an adapter), then pick or create a folder on it. " +
-            "Videos record straight onto the drive. If it's unplugged, VeyroCut Pro saves to internal storage and tells you.",
+            "Videos record straight onto the drive. If it's unplugged, VelaCut Pro saves to internal storage and tells you.",
         color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp),
     )
 }

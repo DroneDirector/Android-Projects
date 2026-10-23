@@ -1,4 +1,4 @@
-// JNI bridge for the morph cut engine (VeyroCut Pro).
+// JNI bridge for the morph cut engine (VelaCut Pro).
 #include <jni.h>
 #include <android/bitmap.h>
 #include <cstring>

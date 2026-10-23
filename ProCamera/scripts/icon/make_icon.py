@@ -1,5 +1,5 @@
 """
-VeyroCut Pro launcher icon: one geometry definition -> Android adaptive-icon vector XML + PNG preview.
+VelaCut Pro launcher icon: one geometry definition -> Android adaptive-icon vector XML + PNG preview.
 Usage: python3 make_icon.py <res_dir> <preview_png>
 """
 import math, sys, os

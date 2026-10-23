@@ -1,5 +1,5 @@
 // JNI bridge for whisper.cpp (MIT): on-device speech-to-text with word timestamps.
-// Written for VeyroCut Pro's text-based editing.
+// Written for VelaCut Pro's text-based editing.
 #include <jni.h>
 #include <atomic>
 #include <string>

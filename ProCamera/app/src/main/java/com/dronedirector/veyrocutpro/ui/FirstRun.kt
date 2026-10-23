@@ -99,7 +99,7 @@ private fun FirstRunScreen(askData: Boolean, onDownloadNow: () -> Unit, onWaitWi
     ) {
         Column(Modifier.widthIn(max = 520.dp).fillMaxWidth().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             GlowLogo(110.dp)
-            Text("VeyroCut Pro", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text("VelaCut Pro", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             Text("FIRST-TIME SETUP", style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.padding(top = 6.dp))
             Text(
                 "Downloading the AI models and soundtracks (about ${total / 1_000_000} MB). This happens only once — after that everything works offline.",
@@ -227,7 +227,7 @@ private fun CheckingSplash() {
     Box(Modifier.fillMaxSize().background(Color(0xFF07090D)), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             GlowLogo(110.dp)
-            Text("VeyroCut Pro", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text("VelaCut Pro", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
             Text("Checking for updated AI files…", style = Pro.Label.copy(color = Pro.Dim, fontSize = 12.sp), modifier = Modifier.padding(top = 10.dp, bottom = 14.dp))
             GlowBar(0.35f, true, Modifier.size(180.dp, 6.dp))
         }

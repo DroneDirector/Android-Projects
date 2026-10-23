@@ -75,7 +75,7 @@ object LibraryStore {
     fun get(uri: String) = meta[uri] ?: LibMeta()
     fun update(c: Context, uris: Collection<String>, f: (LibMeta) -> LibMeta) { for (u in uris) meta[u] = f(get(u)); save(c) }
 
-    /** Every photo on the phone (needs the photo permission), newest first; else only VeyroCut Pro's own. */
+    /** Every photo on the phone (needs the photo permission), newest first; else only VelaCut Pro's own. */
     fun photos(c: Context): List<LibPhoto> {
         val out = ArrayList<LibPhoto>()
         val col = if (Build.VERSION.SDK_INT >= 29) MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL) else MediaStore.Images.Media.EXTERNAL_CONTENT_URI

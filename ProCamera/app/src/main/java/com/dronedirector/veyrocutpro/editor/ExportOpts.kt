@@ -229,7 +229,7 @@ object ExportOpts {
             var extra = 8 + ifdSize
             val bpsOff = extra; extra += spp * 2
             val resOff = extra; extra += 16
-            val softOff = extra; val soft = "VeyroCut Pro\u0000".toByteArray(); extra += soft.size
+            val softOff = extra; val soft = "VelaCut Pro\u0000".toByteArray(); extra += soft.size
             val dataOff = extra
             o.writeShort(entries)
             fun e(tag: Int, type: Int, count: Int, value: Int) { o.writeShort(tag); o.writeShort(type); o.writeInt(count); if (type == 3 && count == 1) { o.writeShort(value); o.writeShort(0) } else o.writeInt(value) }

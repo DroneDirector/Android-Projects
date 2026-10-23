@@ -122,7 +122,7 @@ private enum class GalleryTab(val label: String) { ALL("All"), PHOTOS("Photos"),
 private val hasTrash: Boolean get() = Build.VERSION.SDK_INT >= 30
 
 /**
- * In-app gallery of everything VeyroCut Pro saved: a grid with All / Photos / Videos tabs and a
+ * In-app gallery of everything VelaCut Pro saved: a grid with All / Photos / Videos tabs and a
  * full-screen swipe viewer (pinch / double-tap zoom, video playback, share, delete, open in another app).
  */
 @Composable
@@ -479,7 +479,7 @@ private fun GalleryHeader(count: Int, onBack: () -> Unit) {
         ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to camera", tint = Color.White) }
         Column(Modifier.weight(1f).padding(start = 4.dp)) {
             Text("Gallery", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Text("VeyroCut Pro · $count ${if (count == 1) "item" else "items"}", style = Pro.Label)
+            Text("VelaCut Pro · $count ${if (count == 1) "item" else "items"}", style = Pro.Label)
         }
     }
 }
@@ -539,7 +539,7 @@ private fun EmptyGallery(tab: GalleryTab) {
                 when (tab) {
                     GalleryTab.FAVORITES -> "Open a photo or video and tap the heart to add it here."
                     GalleryTab.RAW -> "In PRO photo mode, set FORMAT to RAW or RAW+J to save DNG files."
-                    else -> "Everything you shoot with VeyroCut Pro shows up here."
+                    else -> "Everything you shoot with VelaCut Pro shows up here."
                 },
                 color = Pro.Dim, fontSize = 13.sp, textAlign = TextAlign.Center)
         }

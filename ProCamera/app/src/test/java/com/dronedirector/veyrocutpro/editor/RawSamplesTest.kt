@@ -136,7 +136,7 @@ class RawSamplesTest {
         File(reportDir, "README.md").writeText(buildString {
             appendLine("# RAW sample test")
             appendLine()
-            appendLine("${files.size} files: $ok OK, $warn to look at, ${rows.count { it.startsWith("| NOT SUPPORTED") }} not supported (clear message), ${rows.count { it.startsWith("| NOT RAW") }} not RAW, ${fails.size} failed. Side-by-side pictures: camera's own preview (left) and VeyroCut Pro's develop (right).")
+            appendLine("${files.size} files: $ok OK, $warn to look at, ${rows.count { it.startsWith("| NOT SUPPORTED") }} not supported (clear message), ${rows.count { it.startsWith("| NOT RAW") }} not RAW, ${fails.size} failed. Side-by-side pictures: camera's own preview (left) and VelaCut Pro's develop (right).")
             appendLine()
             appendLine("| Result | File | Camera | Size | Time | Notes |")
             appendLine("|---|---|---|---|---|---|")

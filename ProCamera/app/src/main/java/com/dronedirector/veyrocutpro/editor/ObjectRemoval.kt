@@ -19,7 +19,7 @@ import kotlin.math.roundToInt
 /**
  * Object removal for video ,
  * on the phone. The object is the one Magic Mask follows. For every frame:
- *  1. the motion of the scene is worked out (VeyroCut Pro's own optical flow) and completed inside
+ *  1. the motion of the scene is worked out (VelaCut Pro's own optical flow) and completed inside
  *     the object, so it describes the background behind it;
  *  2. each hidden pixel is looked up along that motion in the frames before and after, where the
  *     background is visible (the camera or the object moved) — real picture, not invented;

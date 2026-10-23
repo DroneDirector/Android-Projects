@@ -82,7 +82,7 @@ object StartScreen {
 @Composable
 fun HomeScreen(onCapture: () -> Unit, onEditor: () -> Unit) {
     HubLayout(
-        title = "VeyroCut Pro",
+        title = "VelaCut Pro",
         subtitle = "CAPTURE · EDIT · CREATE",
         onBack = null,
         showVersion = true,

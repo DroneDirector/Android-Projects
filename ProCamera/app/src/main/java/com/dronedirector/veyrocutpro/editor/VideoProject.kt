@@ -714,7 +714,7 @@ fun publishAudio(context: Context, file: File, name: String, mime: String = "aud
     }
     return try {
         @Suppress("DEPRECATION")
-        val dir = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC), "VeyroCutPro").apply { mkdirs() }
+        val dir = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC), "VelaCutPro").apply { mkdirs() }
         val dest = File(dir, name)
         file.inputStream().use { i -> dest.outputStream().use { i.copyTo(it) } }
         android.media.MediaScannerConnection.scanFile(context, arrayOf(dest.path), arrayOf(mime), null)

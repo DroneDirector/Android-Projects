@@ -1,4 +1,4 @@
-# VeyroCut Pro — Google Play "Data safety" answers
+# VelaCut Pro — Google Play "Data safety" answers
 
 Use this to fill in **Play Console → App content → Data safety**. It matches
 [PRIVACY.md](PRIVACY.md) and the app's code as of version 1.0.15x. Re-check it whenever a

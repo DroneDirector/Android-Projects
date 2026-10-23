@@ -1,4 +1,4 @@
-// JNI bridge for RNNoise (voice isolation). Written for VeyroCut Pro.
+// JNI bridge for RNNoise (voice isolation). Written for VelaCut Pro.
 #include <jni.h>
 #include <stdlib.h>
 #include "rnnoise.h"

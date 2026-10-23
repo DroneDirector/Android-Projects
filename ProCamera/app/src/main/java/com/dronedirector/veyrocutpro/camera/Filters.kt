@@ -189,7 +189,7 @@ enum class Filter(val label: String, val swatch: Long) {
                 resolver.openFileDescriptor(uri, "rw")?.use { pfd ->
                     val exif = ExifInterface(pfd.fileDescriptor)
                     saved.forEach { (k, v) -> exif.setAttribute(k, v) }
-                    exif.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, "VeyroCut Pro ${filter.label}")
+                    exif.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, "VelaCut Pro ${filter.label}")
                     exif.saveAttributes()
                 }
                 true

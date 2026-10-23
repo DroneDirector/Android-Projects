@@ -29,7 +29,7 @@ import kotlin.math.sqrt
  * Magic Mask: tap or box any person, animal, vehicle or object
  * on one frame; the AI outlines it (MobileSAM — Apache 2.0 — on the phone, through ONNX Runtime —
  * MIT) and it is tracked through the clip: every frame's outline is carried forward with
- * VeyroCut Pro's own optical flow and re-fitted by the AI.
+ * VelaCut Pro's own optical flow and re-fitted by the AI.
  */
 
 /** A prompt: x, y in 0..1 of the picture; label 1 = object, 0 = not the object, 2 / 3 = box corners. */

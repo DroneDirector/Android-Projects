@@ -1,4 +1,4 @@
-# VeyroCut Pro — Future ideas
+# VelaCut Pro — Future ideas
 
 Possible features for later. **Not** on the active to-do list: nothing here is started until the owner asks.
 
@@ -9,4 +9,4 @@ Possible features for later. **Not** on the active to-do list: nothing here is s
   presses (Settings → Side buttons).
   Option B for DJI without a partner deal: own code from the observed Bluetooth protocol (EU interoperability rules),
   only if no lock / encryption has to be broken, with an IP lawyer's review first and an "unofficial" label — see
-  Guides and Tips/VeyroCut-Pro-gimbal-support-notes.pdf, page 2.
+  Guides and Tips/VelaCut-Pro-gimbal-support-notes.pdf, page 2.

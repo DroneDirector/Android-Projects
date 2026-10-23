@@ -6,7 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 
-/** One photo or video saved by VeyroCut Pro. */
+/** One photo or video saved by VelaCut Pro. */
 data class MediaItem(
     val uri: Uri,
     val isVideo: Boolean,
@@ -23,7 +23,7 @@ data class MediaItem(
         name.substringAfterLast('.', "").lowercase() in com.dronedirector.veyrocutpro.editor.RawDng.OTHER_RAW_EXTENSIONS)
 }
 
-/** Reads the photos and videos VeyroCut Pro saved (DCIM/VeyroCutPro on internal storage and SD cards). */
+/** Reads the photos and videos VelaCut Pro saved (DCIM/VeyroCutPro on internal storage and SD cards). */
 @Suppress("DEPRECATION")
 object MediaLibrary {
     private const val FOLDER = "DCIM/VeyroCutPro"

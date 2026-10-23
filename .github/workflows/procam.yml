@@ -1,4 +1,4 @@
-name: Build VeyroCut Pro APK
+name: Build VelaCut Pro APK
 
 # Every push to ProCamera/ builds the APK and takes emulator screenshots
 # (pushed to the 'screenshots' branch). Nothing is published until the
@@ -71,18 +71,18 @@ jobs:
           V="1.0.${{ github.run_number }}"
           ls -l app/build/outputs/apk/release/
           # One APK per processor type: 64-bit phones (almost all), older 32-bit phones, and emulators / Chromebooks.
-          cp app/build/outputs/apk/release/app-arm64-v8a-release.apk "VeyroCutPro-ARM-$V.apk"
-          cp app/build/outputs/apk/release/app-armeabi-v7a-release.apk "VeyroCutPro-$V-OLD-32bit-phones.apk"
-          cp app/build/outputs/apk/release/app-x86_64-release.apk "VeyroCutPro-$V-EMULATOR-ONLY-x86_64.apk"
+          cp app/build/outputs/apk/release/app-arm64-v8a-release.apk "VelaCutPro-ARM-$V.apk"
+          cp app/build/outputs/apk/release/app-armeabi-v7a-release.apk "VelaCutPro-$V-OLD-32bit-phones.apk"
+          cp app/build/outputs/apk/release/app-x86_64-release.apk "VelaCutPro-$V-EMULATOR-ONLY-x86_64.apk"
           # The watch remote (Wear OS, e.g. Galaxy Watch 4+).
-          cp wear/build/outputs/apk/release/wear-release.apk "VeyroCutPro-WATCH-$V.apk" || echo "::warning::no watch APK"
-          ls -l VeyroCutPro-*.apk
+          cp wear/build/outputs/apk/release/wear-release.apk "VelaCutPro-WATCH-$V.apk" || echo "::warning::no watch APK"
+          ls -l VelaCutPro-*.apk
 
       - name: Save native debug symbols (for the Play Console)
         run: |
           # The app ships stripped native libraries; the full ones go to a separate zip, so native crash
           # reports in the Play Console can be read (Play Console → App bundle explorer → Downloads → upload).
-          OUT="$PWD/VeyroCutPro-1.0.${{ github.run_number }}-native-debug-symbols.zip"
+          OUT="$PWD/VelaCutPro-1.0.${{ github.run_number }}-native-debug-symbols.zip"
           SYM=app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip
           if [ -f "$SYM" ]; then cp "$SYM" "$OUT"; else
             L=$(find app/build/intermediates/merged_native_libs/release -type d -name lib | head -1)
@@ -91,7 +91,7 @@ jobs:
           ls -l "$OUT" || echo "no native symbols found"
 
       - name: Check method sizes (Android verifier limit)
-        run: python3 "$GITHUB_WORKSPACE/.github/scripts/dexcheck.py" $(ls VeyroCutPro-ARM-*.apk | head -1)
+        run: python3 "$GITHUB_WORKSPACE/.github/scripts/dexcheck.py" $(ls VelaCutPro-ARM-*.apk | head -1)
 
       - name: Report compile errors
         if: failure()
@@ -105,12 +105,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: apk
-          path: ProCamera/VeyroCutPro-*.apk
+          path: ProCamera/VelaCutPro-*.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: symbols
-          path: ProCamera/VeyroCutPro-*-native-debug-symbols.zip
+          path: ProCamera/VelaCutPro-*-native-debug-symbols.zip
           if-no-files-found: ignore
 
   screenshots:
@@ -186,19 +186,19 @@ jobs:
           [ -s notes.txt ] || echo "- Maintenance and stability improvements." > notes.txt
           REPO="https://github.com/${{ github.repository }}/blob/main/ProCamera"
           {
-            echo "## What's new in VeyroCut Pro $VER"
+            echo "## What's new in VelaCut Pro $VER"
             echo
             cat notes.txt
             echo
             echo "📖 [Full feature list]($REPO/FEATURES.md) · 📝 [Changelog]($REPO/CHANGELOG.md)"
             echo
-            echo "**Install:** tap **VeyroCutPro-ARM-$VER.apk** below to download, then open it to install — this is the one for your phone (all modern phones). Only for very old phones: …-OLD-32bit-phones.apk. Not for phones: …-EMULATOR-ONLY-x86_64.apk (PC emulators and Chromebooks)."
+            echo "**Install:** tap **VelaCutPro-ARM-$VER.apk** below to download, then open it to install — this is the one for your phone (all modern phones). Only for very old phones: …-OLD-32bit-phones.apk. Not for phones: …-EMULATOR-ONLY-x86_64.apk (PC emulators and Chromebooks)."
             echo
-            echo "**Watch remote:** VeyroCutPro-WATCH-$VER.apk goes on a Wear OS watch (Galaxy Watch 4 or newer, Pixel Watch…) — see Guides and Tips for how to install it for testing."
+            echo "**Watch remote:** VelaCutPro-WATCH-$VER.apk goes on a Wear OS watch (Galaxy Watch 4 or newer, Pixel Watch…) — see Guides and Tips for how to install it for testing."
             echo
             echo "On first launch the app downloads its AI models and soundtracks once (about 700 MB; it asks first on mobile data)."
             echo
-            echo "_VeyroCutPro-$VER-native-debug-symbols.zip is for developers only (upload it to the Play Console with this version so native crash reports are readable)._"
+            echo "_VelaCutPro-$VER-native-debug-symbols.zip is for developers only (upload it to the Play Console with this version so native crash reports are readable)._"
           } > release-notes.md
           cat release-notes.md
 
@@ -206,13 +206,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          APK="apk/VeyroCutPro-ARM-1.0.${{ github.run_number }}.apk"
+          APK="apk/VelaCutPro-ARM-1.0.${{ github.run_number }}.apk"
           NAME=$(basename "$APK" .apk)
           SYM=$(ls symbols/*.zip 2>/dev/null | head -1)
-          WATCH=$(ls apk/VeyroCutPro-WATCH-*.apk 2>/dev/null | head -1)
+          WATCH=$(ls apk/VelaCutPro-WATCH-*.apk 2>/dev/null | head -1)
           gh release create "veyrocutpro-1.0.${{ github.run_number }}" "$APK" apk/*-OLD-32bit-phones.apk apk/*-EMULATOR-ONLY-x86_64.apk $WATCH $SYM \
             -R "${{ github.repository }}" \
-            --title "VeyroCut Pro 1.0.${{ github.run_number }}" \
+            --title "VelaCut Pro 1.0.${{ github.run_number }}" \
             --notes-file release-notes.md \
             --latest
 
@@ -231,5 +231,5 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add ProCamera/CHANGELOG.md
-          git commit -m "Changelog: VeyroCut Pro 1.0.${{ github.run_number }} [skip ci]" || exit 0
+          git commit -m "Changelog: VelaCut Pro 1.0.${{ github.run_number }} [skip ci]" || exit 0
           git pull --rebase -q origin main && git push -q origin HEAD:main

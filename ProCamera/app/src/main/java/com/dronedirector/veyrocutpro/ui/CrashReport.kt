@@ -33,7 +33,7 @@ object CrashReport {
                 error.printStackTrace(java.io.PrintWriter(sw))
                 val during = if (marker(app).exists()) "while recovering an unsaved edit\n" else ""
                 file(app).writeText(
-                    "VeyroCut Pro $version · Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT}) · " +
+                    "VelaCut Pro $version · Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT}) · " +
                         "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n" +
                         java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date()) + " · thread ${thread.name}\n" +
                         during + "\n" + sw.toString().take(12_000),
@@ -61,7 +61,7 @@ fun CrashReportDialog() {
     AlertDialog(
         onDismissRequest = { CrashReport.clear(context); report = null },
         containerColor = Pro.PanelSolid,
-        title = { Text("VeyroCut Pro closed unexpectedly", color = Color.White) },
+        title = { Text("VelaCut Pro closed unexpectedly", color = Color.White) },
         text = {
             Text(
                 "Sorry about that. A crash report was saved on this phone (it contains no photos or videos — only what went wrong). " +
@@ -71,7 +71,7 @@ fun CrashReportDialog() {
         },
         confirmButton = {
             TextButton(onClick = {
-                val send = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_SUBJECT, "VeyroCut Pro crash report"); putExtra(Intent.EXTRA_TEXT, r) }
+                val send = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_SUBJECT, "VelaCut Pro crash report"); putExtra(Intent.EXTRA_TEXT, r) }
                 try { context.startActivity(Intent.createChooser(send, I18n.tr("Share crash report")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Throwable) {}
                 CrashReport.clear(context); report = null
             }) { Text("SHARE REPORT", color = Pro.Amber) }
@@ -80,7 +80,7 @@ fun CrashReportDialog() {
             Row2(
                 { TextButton(onClick = {
                     val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                    cm.setPrimaryClip(android.content.ClipData.newPlainText("VeyroCut Pro crash report", r))
+                    cm.setPrimaryClip(android.content.ClipData.newPlainText("VelaCut Pro crash report", r))
                     CrashReport.clear(context); report = null
                 }) { Text("COPY", color = Pro.Amber) } },
                 { TextButton(onClick = { CrashReport.clear(context); report = null }) { Text("DISMISS", color = Pro.Dim) } },

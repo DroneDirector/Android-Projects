@@ -1,10 +1,10 @@
 <resources>
-    <string name="app_name">VeyroCut Pro</string>
+    <string name="app_name">VelaCut Pro</string>
     <string name="sc_video">Pro video</string>
     <string name="sc_video_long">Pro video mode</string>
     <string name="sc_pro">Pro photo</string>
     <string name="sc_pro_long">Pro photo mode</string>
     <string name="sc_photo_editor">Photo editor</string>
     <string name="sc_video_editor">Video editor</string>
-    <string name="tile_label">VeyroCut camera</string>
+    <string name="tile_label">VelaCut camera</string>
 </resources>

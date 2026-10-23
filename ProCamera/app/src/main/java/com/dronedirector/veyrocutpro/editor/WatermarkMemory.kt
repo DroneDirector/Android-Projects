@@ -39,7 +39,7 @@ object WatermarkMemory {
             val j = JSONObject(s)
             Layer(
                 kind = LayerKind.entries.firstOrNull { it.name == j.optString("kind") } ?: LayerKind.WATERMARK,
-                text = j.optString("text", "© VeyroCut Pro"),
+                text = j.optString("text", "© VelaCut Pro"),
                 imageUri = j.optString("image").takeIf { it.isNotEmpty() }?.let(Uri::parse),
                 color = j.optInt("color", 0xFFFFFFFF.toInt()),
                 size = j.optDouble("size", 0.035).toFloat(),

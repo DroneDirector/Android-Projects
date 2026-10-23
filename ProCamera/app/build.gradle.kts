@@ -130,7 +130,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.11.1")
     implementation("androidx.media3:media3-ui:1.11.1")
     implementation("androidx.activity:activity-compose:1.9.3")
-    // Watch remote (Wear OS): talking to the VeyroCut Pro watch app.
+    // Watch remote (Wear OS): talking to the VelaCut Pro watch app.
     implementation("com.google.android.gms:play-services-wearable:19.0.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")

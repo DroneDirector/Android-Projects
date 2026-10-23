@@ -34,7 +34,7 @@ class ExportService : Service() {
             else startForeground(ID, n)
         } catch (_: Throwable) { stopSelf(); return START_NOT_STICKY }
         if (wake == null) wake = (getSystemService(POWER_SERVICE) as PowerManager)
-            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "VeyroCutPro:background").apply { setReferenceCounted(false); acquire(6 * 60 * 60 * 1000L) }
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "VelaCutPro:background").apply { setReferenceCounted(false); acquire(6 * 60 * 60 * 1000L) }
         running = true
         return START_NOT_STICKY
     }
@@ -98,7 +98,7 @@ class ExportService : Service() {
                 .setShowWhen(false)
                 .setContentIntent(openApp(context))
             when {
-                list.isEmpty() -> b.setContentTitle("VeyroCut Pro").setContentText("Working in the background…").setProgress(0, 0, true)
+                list.isEmpty() -> b.setContentTitle("VelaCut Pro").setContentText("Working in the background…").setProgress(0, 0, true)
                 list.size == 1 -> {
                     val t = list[0]
                     b.setContentTitle(t.title).setContentText(if (t.pct >= 0) "${t.pct}%" else "Working…")
@@ -155,7 +155,7 @@ class ExportService : Service() {
             try {
                 val n = builder(app)
                     .setSmallIcon(android.R.drawable.stat_sys_upload_done)
-                    .setContentTitle("VeyroCut Pro")
+                    .setContentTitle("VelaCut Pro")
                     .setContentText(text)
                     .setAutoCancel(true)
                     .setContentIntent(openApp(app))

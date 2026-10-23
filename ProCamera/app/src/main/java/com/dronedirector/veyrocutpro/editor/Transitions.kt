@@ -60,7 +60,7 @@ enum class TransitionType(val id: Float, val label: String, val group: Transitio
     GLITCH_VHS(54f, "Glitch 3 · VHS rewind", TransitionGroup.FANCY, TransitionKind.UNIFORM),
     GLITCH_SORT(63f, "Glitch 4 · Pixel sort", TransitionGroup.FANCY, TransitionKind.UNIFORM),
 
-    // Cinematic set: original VeyroCut Pro shaders (written for this app, no third-party code).
+    // Cinematic set: original VelaCut Pro shaders (written for this app, no third-party code).
     FILM_BURN(50f, "Film burn", TransitionGroup.CINEMATIC, TransitionKind.MASK),
     ANAMORPHIC(51f, "Anamorphic flare", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),
     LENS_WARP(52f, "Lens warp", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),

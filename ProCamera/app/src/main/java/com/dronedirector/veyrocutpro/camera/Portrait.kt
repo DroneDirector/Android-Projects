@@ -260,7 +260,7 @@ object Portrait {
                     ExifInterface.TAG_GPS_LONGITUDE, ExifInterface.TAG_GPS_LONGITUDE_REF, ExifInterface.TAG_ARTIST, ExifInterface.TAG_COPYRIGHT,
                 )) exif.getAttribute(tag)?.let { o.setAttribute(tag, it) }
                 o.setAttribute(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL.toString())
-                o.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, "VeyroCut Pro portrait ${label(usedF)}${if (fNumber <= 0f) " (auto)" else ""}")
+                o.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, "VelaCut Pro portrait ${label(usedF)}${if (fNumber <= 0f) " (auto)" else ""}")
                 o.saveAttributes()
             } catch (_: Throwable) {}
             return if (keepOriginal) {

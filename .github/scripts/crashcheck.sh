@@ -242,7 +242,7 @@ if want tts; then
 step "tts"
 # AI voiceover (downloads the voice model once, then speaks a line).
 tapText "Audio"; sleep 3; scrollTo "What should the voice say"; tapText "What should the voice say"; sleep 1
-adb shell input text "Hello%sfrom%sVeyroCut%sPro."; adb shell input keyevent KEYCODE_BACK; sleep 1
+adb shell input text "Hello%sfrom%sVelaCut%sPro."; adb shell input keyevent KEYCODE_BACK; sleep 1
 scrollTo "MAKE VOICEOVER"; tapText "MAKE VOICEOVER"; for i in $(seq 1 90); do sleep 6; seeText "AI voiceover added" && break; seeText "make the voice" && break; seeText "Download failed" && break; done; shot 12a-tts
 fi
 if want depth; then

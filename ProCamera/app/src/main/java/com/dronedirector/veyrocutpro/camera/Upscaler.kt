@@ -235,7 +235,7 @@ object Upscaler {
             val srcExif = cr.openInputStream(uri)?.use { ExifInterface(it) }
             val dst = ExifInterface(tmp.path)
             if (srcExif != null) for (tag in EXIF_TAGS) srcExif.getAttribute(tag)?.let { dst.setAttribute(tag, it) }
-            dst.setAttribute(ExifInterface.TAG_SOFTWARE, "VeyroCut Pro AI upscale ${mp} MP")
+            dst.setAttribute(ExifInterface.TAG_SOFTWARE, "VelaCut Pro AI upscale ${mp} MP")
             dst.saveAttributes()
         } catch (_: Throwable) {}
 

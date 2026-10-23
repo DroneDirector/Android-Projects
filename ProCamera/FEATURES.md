@@ -1,6 +1,6 @@
-# VeyroCut Pro — Features
+# VelaCut Pro — Features
 
-VeyroCut Pro is a pro camera, photo editor and video editor for Android phones and tablets (Android 8.0+).
+VelaCut Pro is a pro camera, photo editor and video editor for Android phones and tablets (Android 8.0+).
 App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](https://github.com/DroneDirector/Android-Projects/releases); see the [changelog](CHANGELOG.md) for what changed in each version. Open-source parts and licences: [third-party notices](THIRD_PARTY_NOTICES.md).
 
 ---
@@ -18,7 +18,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Backup & restore**: one .vcbackup file with all settings, presets, LUTs, watermarks, sounds and projects.
 - **Quick tour** of the camera gestures on first start (replay from Settings).
 - **App shortcuts** (long-press the icon: Pro video, Pro photo, Photo editor, Video editor) and a **Quick Settings camera tile**.
-- **Open from other apps**: Share / Edit with VeyroCut Pro opens the photo or video editor directly.
+- **Open from other apps**: Share / Edit with VelaCut Pro opens the photo or video editor directly.
 
 - **Languages**: English, Danish (Dansk) and Faroese (Føroyskt), following the phone or chosen in settings.
 - **First-launch setup**: the AI models and soundtracks (about 700 MB) are downloaded once on first launch, with a progress screen (asks first on mobile data, resumes after a dropped connection, can carry on in the background); one small APK per phone type.
@@ -115,7 +115,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **External monitor layouts** (DeX / HDMI desktop only): 16:9 / 16:10, 21:9 and 32:9 layouts with media / filmstrip, viewer and tools columns; phones and tablets keep their own layouts and switch back when unplugged.
 - **Autosave** (photo and video editors): interval Off / 1 / 2 / 5 / 10 / 15 / 30 min and 1–5 kept copies, listed under LOAD → AUTOSAVES.
 - **Samsung DeX ready**: resizable windows, wide layouts, mouse and keyboard; the app keeps your edit when you connect a keyboard / mouse or move between the phone and a monitor.
-- **Mouse support**: VeyroCut's own glowing pointer (halo, trail, click ripple, orbiting spark), or a plain pointer, or the normal Android arrow. Choose the **pointer colour** and, separately, the **scroll wheel colour** in each screen's gear settings. Wheel, right-click, middle-click and double-click actions in Capture, the Photo editor and the Video editor, plus drag from the media strip to the timeline.
+- **Mouse support**: VelaCut's own glowing pointer (halo, trail, click ripple, orbiting spark), or a plain pointer, or the normal Android arrow. Choose the **pointer colour** and, separately, the **scroll wheel colour** in each screen's gear settings. Wheel, right-click, middle-click and double-click actions in Capture, the Photo editor and the Video editor, plus drag from the media strip to the timeline.
 - **Copyright**: your name and copyright written into every photo (camera and photo editor exports).
 - **External storage**: save to phone storage, an SD card / USB drive, or a folder you pick on any USB stick, SSD or SD card (videos record straight onto the drive; falls back to internal storage if it is unplugged); **app colour** (accent) picker; layout and control options.
 - **Panels menu** (icon next to the gear): show / hide the exposure read-out, histogram, audio meter, level, Pro controls bar and tips; presets **Full / Minimal / Video**; **triple-tap** the icon to restore the original layout.
@@ -123,7 +123,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 ---
 
 ## Photo editor
-- Open from the gallery, files or recent VeyroCut Pro photos; **saved projects** row on the start page.
+- Open from the gallery, files or recent VelaCut Pro photos; **saved projects** row on the start page.
 - **Skip to the editor** from the start page: open the editor without picking a photo first, then add one from inside (manual, every time).
 - **Pro develop**:
   - **Library**: all phone photos with stars, flags, colour labels, keywords, albums, smart albums, on-device AI content search, EXIF info, compare (2, linked zoom) and survey (up to 12) views, virtual copies, **contact sheet PDF** (A4 / Letter, 3–6 per row, names and stars), **print layout PDF** (exact print sizes, borders, crop marks), **collage** (5 templates, 2–9 photos), and multi-photo editing in the filmstrip.
@@ -278,7 +278,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Wipes & shapes**: wipe left / right / up / down, diagonal, iris, clock, blinds, barn door, mosaic.
 - **Motion**: push left / right / up / down, whip pan left / right, zoom in, zoom out, spin.
 - **Stylized**: light leak, ink bleed, sparkle dissolve, glitch, pixelate, chromatic, ripple, light speed, swirl.
-- **Cinematic** (13, original shaders written for VeyroCut Pro): film burn, anamorphic flare, lens warp, letterbox close, aperture (iris blades), smoke, shatter, kaleidoscope, cube turn (3D), card flip (3D), sun rays, neon edges, ember drift.
+- **Cinematic** (13, original shaders written for VelaCut Pro): film burn, anamorphic flare, lens warp, letterbox close, aperture (iris blades), smoke, shatter, kaleidoscope, cube turn (3D), card flip (3D), sun rays, neon edges, ember drift.
 - **More glitches** (Stylized): Glitch 2 · Datamosh, Glitch 3 · VHS rewind, Glitch 4 · Pixel sort.
 - Animated previews with your own clips, adjustable duration, apply to all cuts.
 

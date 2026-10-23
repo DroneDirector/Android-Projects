@@ -53,7 +53,7 @@ object HomeShortcuts {
         val ids = TARGETS.map { it.id }
         try {
             if (on) ShortcutManagerCompat.enableShortcuts(c, TARGETS.map { info(c, it) })
-            else ShortcutManagerCompat.disableShortcuts(c, ids, "Turn on home-screen shortcuts in VeyroCut Pro (start screen → gear)")
+            else ShortcutManagerCompat.disableShortcuts(c, ids, "Turn on home-screen shortcuts in VelaCut Pro (start screen → gear)")
         } catch (_: Throwable) {}
     }
 

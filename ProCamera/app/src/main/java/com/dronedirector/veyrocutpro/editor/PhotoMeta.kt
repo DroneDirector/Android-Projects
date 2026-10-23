@@ -59,14 +59,14 @@ object PhotoMeta {
     }
 
     private fun packet(attrs: String, body: String) = """<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
-<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="VeyroCut Pro">
+<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="VelaCut Pro">
  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
   <rdf:Description rdf:about=""
     xmlns:dc="http://purl.org/dc/elements/1.1/"
     xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/"
     xmlns:xmp="http://ns.adobe.com/xap/1.0/"
     xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"
-    xmp:CreatorTool="VeyroCut Pro"$attrs>
+    xmp:CreatorTool="VelaCut Pro"$attrs>
 $body  </rdf:Description>
  </rdf:RDF>
 </x:xmpmeta>

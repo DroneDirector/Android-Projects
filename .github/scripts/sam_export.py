@@ -1,4 +1,4 @@
-"""Exports MobileSAM (Apache 2.0, github.com/ChaoningZhang/MobileSAM) to ONNX for VeyroCut Pro's Magic Mask,
+"""Exports MobileSAM (Apache 2.0, github.com/ChaoningZhang/MobileSAM) to ONNX for VelaCut Pro's Magic Mask,
 then checks the exported models against PyTorch on test pictures (fp32 and int8 encoders)."""
 import sys, os, numpy as np, torch, cv2
 sys.path.insert(0, 'MobileSAM')

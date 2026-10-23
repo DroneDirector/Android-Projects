@@ -16,7 +16,7 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 
 /**
- * The phone side of the watch remote (VeyroCut Pro on a Wear OS watch, e.g. Galaxy Watch 4+).
+ * The phone side of the watch remote (VelaCut Pro on a Wear OS watch, e.g. Galaxy Watch 4+).
  * While the watch app is open it says "hello" every few seconds; the phone then sends the camera's
  * state and a small live picture, and carries out the watch's commands.
  */

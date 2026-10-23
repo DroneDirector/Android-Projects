@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.507 — 2026-10-23
 - New **Keep settings after uninstall** switch (gear → backup, in Capture and both editors): your settings, presets and LUTs are saved to Documents/AlcorCutPro/Settings when you leave the app; after reinstalling, **Restore my settings** on the first screen brings them back. Off by default; the fal.ai key is never included.
 - Android's own backup now covers settings only (no large AI models, no encrypted key), so it no longer runs over its size limit.
 

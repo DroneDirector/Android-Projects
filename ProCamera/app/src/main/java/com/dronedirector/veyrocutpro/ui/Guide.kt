@@ -394,7 +394,7 @@ fun GuideDialog(variant: GuideVariant, open: GuideTopic? = null, onDismiss: () -
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(variant.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
-                        Text("GET MORE OUT OF VEYROCUT PRO", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp, letterSpacing = 2.sp))
+                        Text("GET MORE OUT OF ALCORCUT PRO", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp, letterSpacing = 2.sp))
                     }
                     Box(Modifier.size(44.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.08f)).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
                         Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.White)

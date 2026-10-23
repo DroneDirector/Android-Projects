@@ -95,6 +95,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         com.dronedirector.veyrocutpro.ui.CrashReport.install(this)
         BackgroundWatch.start(this)
+        com.dronedirector.veyrocutpro.ui.HomeShortcuts.refresh(applicationContext)
         // Android 13+: background tasks show their progress in the notification shade only with this permission.
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {

@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Name: the home-screen shortcuts are now **AC Capture / AC Photo editor / AC Video editor** (icons already on the home screen update when the app opens), and the last places showing the old name in capitals (start-page "RECENT … PHOTOS", the guide header) now say AlcorCut Pro.
 
 ## 1.0.490 — 2026-10-23
 - New name: **AlcorCut Pro** (formerly VeyroCut Pro) everywhere in the app, the docs and the download files (AlcorCutPro-ARM-….apk). Same app — it updates over the old one; settings, projects and the save folders on the phone are unchanged. Old backups still restore.

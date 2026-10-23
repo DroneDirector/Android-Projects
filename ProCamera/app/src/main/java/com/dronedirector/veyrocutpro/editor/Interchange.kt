@@ -45,7 +45,7 @@ object Interchange {
             }
             if (c.speed != 1f) sb.append("M2   %-8s %05.1f                %s\n".format(r, c.speed * fps, tc(srcIn, fps)))
             sb.append("* FROM CLIP NAME: ").append(c.name).append('\n')
-            if (c.ramp != null) sb.append("* SPEED RAMP IN VEYROCUT PRO (NOT TRANSFERRED)\n")
+            if (c.ramp != null) sb.append("* SPEED RAMP IN ALCORCUT PRO (NOT TRANSFERRED)\n")
             sb.append('\n')
             event++
         }

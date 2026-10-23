@@ -356,7 +356,7 @@ fun MediaChooser(
             Text("Browse files also opens MKV, MOV, WebM and clips from SD cards or USB drives.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
         }
         SavedProjects(videos, onOpenProject)
-        Text("RECENT VEYROCUT PRO ${if (videos) "VIDEOS" else "PHOTOS"}", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 18.dp, bottom = 6.dp))
+        Text("RECENT ALCORCUT PRO ${if (videos) "VIDEOS" else "PHOTOS"}", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 18.dp, bottom = 6.dp))
         if (recent.isEmpty()) {
             Text("Nothing yet.", color = Pro.Dim, fontSize = 13.sp)
         } else {

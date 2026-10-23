@@ -40,9 +40,9 @@ import com.dronedirector.veyrocutpro.R
 object HomeShortcuts {
     class Target(val id: String, val label: String, val screen: String)
     val TARGETS = listOf(
-        Target("home_capture", "VC Capture", "capture"),
-        Target("home_photo", "VC Photo editor", "photo"),
-        Target("home_video", "VC Video editor", "video"),
+        Target("home_capture", "AC Capture", "capture"),
+        Target("home_photo", "AC Photo editor", "photo"),
+        Target("home_video", "AC Video editor", "video"),
     )
 
     private fun prefs(c: Context) = c.getSharedPreferences("procam", Context.MODE_PRIVATE)
@@ -66,6 +66,12 @@ object HomeShortcuts {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         )
         .build()
+
+    /** Brings icons already on the home screen up to date (e.g. after the app was renamed). */
+    fun refresh(c: Context) {
+        if (!enabled(c)) return
+        try { ShortcutManagerCompat.updateShortcuts(c, TARGETS.map { info(c, it) }) } catch (_: Throwable) {}
+    }
 
     /** Asks the home screen to add the icon. Returns false if the home screen can't add icons. */
     fun pin(c: Context, t: Target): Boolean = try {

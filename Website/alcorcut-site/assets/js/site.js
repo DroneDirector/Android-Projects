@@ -133,6 +133,10 @@
       W.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
     });
 
+    /* ---------------- the app's scroll wheel as the page's scroll bar (and under the screenshots) */
+    if (finePointer) wheel(null, false);
+    $$(".acs-gallery__track").forEach(function (tr) { wheel(tr, true); });
+
     /* ---------------- the app's glowing mouse pointer */
     if (cfg.pointer && finePointer) pointer();
   });
@@ -209,6 +213,100 @@
         if (fx) { var lg = ctx.createLinearGradient(p.x, p.y, p.x + 12 * U, p.y + 19 * U); lg.addColorStop(0, rgba(col, 1)); lg.addColorStop(1, rgba(sec, 1)); ctx.fillStyle = lg; } else ctx.fillStyle = rgba(col, 1);
         ctx.fill(); ctx.lineWidth = U; ctx.strokeStyle = fx ? "rgba(255,255,255,.9)" : "rgba(255,255,255,.6)"; ctx.stroke();
       }
+      requestAnimationFrame(frame);
+    })(performance.now());
+  }
+
+  /**
+   * Port of the app's TimelineWheel (editor/TimelineWheel.kt): a glass track with rolling ridges, a
+   * cyan-to-violet thumb with a sweeping scan line, an animated gradient rim, and — while it moves —
+   * "upscale" pixel blocks that refine from coarse to fine, plus sparkles. Drag it like a wheel or click
+   * to jump. target = null is the page itself (vertical, fixed on the right edge).
+   */
+  function wheel(target, horizontal) {
+    var page = !target, U = 1.75;
+    var cv = doc.createElement("canvas"); cv.className = "acs-wheel" + (horizontal ? " acs-wheel--h" : page ? " acs-wheel--page" : "");
+    cv.setAttribute("aria-hidden", "true");
+    if (page) { doc.body.appendChild(cv); root.classList.add("acs-has-wheel"); }
+    else target.parentNode.insertBefore(cv, target.nextSibling);
+    var ctx = cv.getContext("2d"), dpr = 1, W0 = 0, H0 = 0, energy = 0, last = 0, t0 = performance.now(), dragging = false, prevPos = -1;
+    var col = [79, 227, 255], vio = [155, 107, 255], tip = [167, 238, 255];
+    function rgba(c, a) { return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + Math.max(0, Math.min(1, a)).toFixed(3) + ")"; }
+    function hash(a, b, c) { var h = (a * 374761393 + b * 668265263 + c * 1274126177) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) & 0xffff) / 65535; }
+    function metrics() {
+      if (page) { var max = root.scrollHeight - innerHeight; return { pos: W.scrollY, max: Math.max(0, max), view: innerHeight }; }
+      return horizontal ? { pos: target.scrollLeft, max: target.scrollWidth - target.clientWidth, view: target.clientWidth } : { pos: target.scrollTop, max: target.scrollHeight - target.clientHeight, view: target.clientHeight };
+    }
+    function scrollTo(v) { if (page) W.scrollTo(0, v); else if (horizontal) target.scrollLeft = v; else target.scrollTop = v; }
+    function size() { var r = cv.getBoundingClientRect(); dpr = Math.min(2, W.devicePixelRatio || 1); W0 = r.width; H0 = r.height; cv.width = Math.max(1, W0 * dpr); cv.height = Math.max(1, H0 * dpr); }
+    size(); W.addEventListener("resize", size);
+    // drag like a wheel; click to jump
+    var start = 0, startPos = 0, moved = false;
+    cv.addEventListener("pointerdown", function (e) { dragging = true; moved = false; start = horizontal ? e.clientX : e.clientY; startPos = metrics().pos; cv.setPointerCapture(e.pointerId); e.preventDefault(); });
+    cv.addEventListener("pointermove", function (e) {
+      if (!dragging) return; var m = metrics(), len = horizontal ? W0 : H0, d = (horizontal ? e.clientX : e.clientY) - start;
+      if (Math.abs(d) > 3) moved = true;
+      scrollTo(startPos + d * (m.max + len) / len);
+    });
+    cv.addEventListener("pointerup", function (e) {
+      dragging = false; if (moved) return;
+      var r = cv.getBoundingClientRect(), f = horizontal ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height, m = metrics();
+      if (page) W.scrollTo({ top: f * m.max, behavior: "smooth" }); else target.scrollTo({ left: horizontal ? f * m.max : 0, top: horizontal ? 0 : f * m.max, behavior: "smooth" });
+    });
+    function rr(x, y, w, h, r) { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); }
+    (function frame(now) {
+      var m = metrics(), dt = now - last; last = now;
+      if (m.pos !== prevPos || dragging) { if (prevPos !== -1) energy = 1; prevPos = m.pos; } else energy = Math.max(0, energy - dt / 900);
+      var e = energy * energy * (3 - 2 * energy); // ease out
+      var ph = ((now - t0) % 2400) / 2400, can = m.max > 1, dim = can ? 1 : 0.4;
+      cv.style.opacity = can ? "" : "0";
+      // Work along the wheel's length: L = long side, S = short side (vertical = as in the app).
+      var L = horizontal ? W0 : H0, S = horizontal ? H0 : W0;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W0, H0);
+      if (horizontal) ctx.setTransform(0, dpr, dpr, 0, 0, 0); // draw in "vertical" coordinates, mapped sideways
+      var w = S, h = L, r = w / 2;
+      // glass track
+      rr(0, 0, w, h, r); ctx.fillStyle = "rgba(13,16,22,.8)"; ctx.fill();
+      // rolling ridges
+      var sp = 5 * U, off = (m.pos * 0.35) % sp;
+      for (var y = -off; y < h; y += sp) {
+        var edge = 1 - Math.abs(y / h - 0.5) * 2;
+        ctx.strokeStyle = "rgba(255,255,255," + ((0.06 + 0.10 * edge) * dim).toFixed(3) + ")"; ctx.lineWidth = U;
+        ctx.beginPath(); ctx.moveTo(w * 0.3, y); ctx.lineTo(w * 0.7, y); ctx.stroke();
+      }
+      // thumb position and size
+      var vis = can ? Math.min(h, Math.max(h * 0.22, h * m.view / (m.view + m.max))) : h;
+      var t = can ? Math.min(1, Math.max(0, m.pos / m.max)) : 0, top = (h - vis) * t;
+      // "upscale" pixels while moving
+      if (e > 0.01) {
+        var cell = 2 * U + 7 * U * e, step = Math.floor(ph * 12), j = 0;
+        for (var cy = 0; cy < h; cy += cell, j++) {
+          var i = 0;
+          for (var cx = 0; cx < w; cx += cell, i++) {
+            var v = hash(i, j, step), near = 1 - Math.min(1, Math.abs(cy + cell / 2 - (top + vis / 2)) / h), a = e * near * (0.15 + 0.45 * v);
+            if (a > 0.02) { ctx.fillStyle = rgba(v > 0.5 ? col : vio, a); ctx.fillRect(cx, cy, cell - 1, cell - 1); }
+          }
+        }
+      }
+      // thumb with gradient glow
+      var g = ctx.createLinearGradient(0, top, 0, top + vis);
+      g.addColorStop(0, rgba(col, 0.85 * dim)); g.addColorStop(0.5, rgba(vio, 0.85 * dim)); g.addColorStop(1, rgba(tip, 0.9 * dim));
+      rr(w * 0.18, top + 1, w * 0.64, Math.max(2, vis - 2), w * 0.32); ctx.fillStyle = g; ctx.fill();
+      // scan line sweeping through the thumb
+      var scanY = top + vis * ((ph * 1.4) % 1), sa = (0.25 + 0.75 * e) * dim, sg = ctx.createLinearGradient(0, scanY - 6, 0, scanY + 6);
+      sg.addColorStop(0, "rgba(255,255,255,0)"); sg.addColorStop(0.5, "rgba(255,255,255," + sa.toFixed(3) + ")"); sg.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = sg; ctx.fillRect(0, scanY - 6, w, 12);
+      // sparkles while moving
+      if (e > 0.05) for (var k = 0; k < 4; k++) {
+        var st = Math.floor(ph * 30), sx = w * hash(k, 7, st), sy = top + vis * hash(k, 11, st);
+        ctx.fillStyle = "rgba(255,255,255," + (e * 0.9).toFixed(3) + ")"; ctx.beginPath(); ctx.arc(sx, sy, U * (0.6 + 0.6 * Math.max(0, Math.sin(ph * 40 + k))), 0, Math.PI * 2); ctx.fill();
+      }
+      // rim: animated gradient border
+      var rim;
+      if (ctx.createConicGradient) { rim = ctx.createConicGradient(0, w / 2, h * ph); rim.addColorStop(0, rgba(col, 1)); rim.addColorStop(0.33, rgba(vio, 1)); rim.addColorStop(0.66, rgba(tip, 1)); rim.addColorStop(1, rgba(col, 1)); }
+      else rim = rgba(col, 1);
+      ctx.globalAlpha = (0.45 + 0.55 * e) * dim; ctx.lineWidth = (1 + 1.2 * e) * U; ctx.strokeStyle = rim;
+      rr(ctx.lineWidth / 2, ctx.lineWidth / 2, w - ctx.lineWidth, h - ctx.lineWidth, r); ctx.stroke(); ctx.globalAlpha = 1;
       requestAnimationFrame(frame);
     })(performance.now());
   }

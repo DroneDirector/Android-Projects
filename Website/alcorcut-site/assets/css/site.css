@@ -287,6 +287,16 @@ body.admin-bar .acs-features__tools { top: 104px; }
 @keyframes acs-orbit { to { transform: rotate(360deg); } }
 @keyframes acs-ripple { from { width: 12px; height: 12px; border: 2.5px solid rgba(79, 227, 255, .9); opacity: 1; } to { width: 70px; height: 70px; border: 1px solid rgba(79, 227, 255, .9); opacity: 0; } }
 
+/* ---------------------------------------------------------------- the app's scroll wheel */
+html.acs-has-wheel { scrollbar-width: none; }
+html.acs-has-wheel::-webkit-scrollbar { display: none; }
+.acs-wheel { display: block; touch-action: none; transition: opacity .4s; cursor: grab; }
+.acs-wheel:active { cursor: grabbing; }
+.acs-wheel--page { position: fixed; z-index: 940; right: 6px; top: 86px; bottom: 96px; width: 16px; height: calc(100vh - 182px); filter: drop-shadow(0 0 8px rgba(79, 227, 255, .35)); }
+body.admin-bar .acs-wheel--page { top: 118px; height: calc(100vh - 214px); }
+.acs-wheel--h { width: min(var(--acs-wrap), 100% - 40px); height: 16px; margin: -18px auto 0; filter: drop-shadow(0 0 8px rgba(79, 227, 255, .3)); }
+.acs-gallery__track { padding-bottom: 40px; }
+
 /* ---------------------------------------------------------------- the glowing pointer */
 .acs-pointer { position: fixed; inset: 0; z-index: 2147483000; pointer-events: none; }
 html.acs-ptr, html.acs-ptr * { cursor: none !important; }

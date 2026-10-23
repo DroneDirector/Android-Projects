@@ -220,16 +220,33 @@ jobs:
         run: |
           VER="1.0.${{ github.run_number }}"
           DATE=$(date -u +%Y-%m-%d)
-          python3 - "$VER" "$DATE" <<'PY'
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          # The entries this version was built with (later pushes may add more; those stay unreleased).
+          python3 - <<'PY'
+          s = open("ProCamera/CHANGELOG.md").read()
+          i = s.index("## Unreleased\n") + len("## Unreleased\n"); j = s.find("\n## ", i)
+          open("/tmp/entries.txt", "w").write(s[i:j if j >= 0 else len(s)].strip())
+          PY
+          for attempt in 1 2 3 4; do
+            git fetch -q origin main && git reset -q --hard origin/main
+            python3 - "$VER" "$DATE" <<'PY'
           import sys
           ver, date = sys.argv[1], sys.argv[2]
           p = "ProCamera/CHANGELOG.md"
           s = open(p).read()
-          s = s.replace("## Unreleased\n", "## Unreleased\n\n## %s — %s\n" % (ver, date), 1)
+          mine = [l for l in open("/tmp/entries.txt").read().split("\n") if l.strip()]
+          i = s.index("## Unreleased\n") + len("## Unreleased\n"); j = s.find("\n## ", i)
+          if j < 0: j = len(s)
+          cur = [l for l in s[i:j].split("\n") if l.strip()]
+          rest = [l for l in cur if l not in mine]
+          body = ("\n".join(rest) + "\n\n" if rest else "\n") + "## %s — %s\n" % (ver, date) + "\n".join(mine) + "\n"
+          s = s[:i] + body + s[j:]
           open(p, "w").write(s)
           PY
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add ProCamera/CHANGELOG.md
-          git commit -m "Changelog: AlcorCut Pro 1.0.${{ github.run_number }} [skip ci]" || exit 0
-          git pull --rebase -q origin main && git push -q origin HEAD:main
+            git add ProCamera/CHANGELOG.md
+            git commit -q -m "Changelog: AlcorCut Pro $VER [skip ci]" || exit 0
+            git push -q origin HEAD:main && exit 0
+            sleep 5
+          done
+          exit 1

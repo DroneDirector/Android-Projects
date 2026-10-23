@@ -204,6 +204,17 @@ fun ReframePanel(
             colors = SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
     }
     if (s.enabled) {
+        val gyroPick = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { u ->
+            if (u != null) onChange { it.copy(stab = it.stab.copy(gyro = true, gyroFile = u.toString())) }
+        }
+        Text("Source", color = Color.White, fontSize = 13.sp)
+        Chips(listOf("Picture analysis", "Gyro (motion data)"), if (s.gyro == true) 1 else 0) { i -> onChange { it.copy(stab = it.stab.copy(gyro = i == 1)) } }
+        if (s.gyro == true) {
+            Text("Uses the phone's own motion data recorded with the clip (Capture → Settings → Video → Stabilization: Gyroflow saves a .gcsv file with the clip's name). Sharper and steadier than the picture alone — the picture is still measured once to line the data up.", color = Pro.Dim, fontSize = 11.sp)
+            Text(if (s.gyroFile != null) "Using the file you picked." else "The file is found by the clip's name; or pick it yourself.", color = Pro.Dim, fontSize = 11.sp)
+            Text("CHOOSE MOTION FILE (.GCSV)", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp),
+                modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { gyroPick.launch(arrayOf("*/*")) }.padding(8.dp))
+        }
         Chips(listOf("Smooth motion", "Locked (tripod)"), if (s.tripod) 1 else 0) { i -> onChange { it.copy(stab = it.stab.copy(tripod = i == 1)) } }
         if (!s.tripod) EdSlider("Smoothness", s.strength, 0f..1f, 0.6f, ::pct) { v -> onChange { it.copy(stab = it.stab.copy(strength = v)) } }
         Row(verticalAlignment = Alignment.CenterVertically) {

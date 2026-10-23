@@ -74,6 +74,22 @@ fun LutSection(g: ProGrade, onChange: (ProGrade) -> Unit) {
     }
     Text("Import 3D .cube LUTs from your phone, Drive or SD card — they're kept in the app for photos, videos and the Capture monitor. Hold a LUT to delete it.", color = Pro.Dim, fontSize = 11.sp)
     error?.let { Text(it, color = Pro.Red, fontSize = 11.sp) }
+    SectionTitle("EXPORT LOOK AS LUT")
+    var exportMsg by remember { mutableStateOf<String?>(null) }
+    var exporting by remember { mutableStateOf(false) }
+    PillChip(if (exporting) "SAVING…" else "EXPORT THIS LOOK AS .CUBE", false, accentText = true) {
+        if (exporting) return@PillChip
+        if (g.isIdentity) { exportMsg = "Make a look first — the grade is still neutral."; return@PillChip }
+        exporting = true
+        val name = "AlcorCut look " + java.text.SimpleDateFormat("d MMM HH.mm", java.util.Locale.getDefault()).format(java.util.Date())
+        Thread {
+            val where = LutLibrary.exportLook(context, g, name)
+            exportMsg = if (where != null) "Saved to $where — and added to My LUTs." else "Couldn't save the LUT"
+            exporting = false
+        }.start()
+    }
+    Text("Saves the colour of this grade (tone, curves, colour, HSL, grading, LUT) as a standard 33-point .cube LUT for other photos, videos, the Capture monitor or other editing software. Sharpening, vignette and other effects that depend on the picture aren't part of a LUT.", color = Pro.Dim, fontSize = 11.sp)
+    exportMsg?.let { Text(it, color = Pro.Amber, fontSize = 11.sp) }
     confirmDelete?.let { l ->
         AlertDialog(
             onDismissRequest = { confirmDelete = null }, containerColor = Pro.PanelSolid,

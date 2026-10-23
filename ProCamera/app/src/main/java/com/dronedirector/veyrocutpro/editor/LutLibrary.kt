@@ -116,6 +116,55 @@ object LutLibrary {
         return UserLut(id, name)
     }
 
+    /**
+     * The grade's colour (everything in [g]: tone, curves, colour, HSL, grading, LUT, calibration — not the
+     * spatial effects like sharpening or vignette) as a standard 33³ .cube LUT, red changing fastest.
+     */
+    fun cubeText(g: ProGrade, title: String, n: Int = 33): String {
+        val sb = StringBuilder(n * n * n * 26 + 200)
+        sb.append("TITLE \"").append(title.replace("\"", "'")).append("\"\n")
+        sb.append("# Made with AlcorCut Pro\n")
+        sb.append("LUT_3D_SIZE ").append(n).append('\n')
+        sb.append("DOMAIN_MIN 0.0 0.0 0.0\nDOMAIN_MAX 1.0 1.0 1.0\n")
+        val c = FloatArray(3)
+        for (bi in 0 until n) for (gi in 0 until n) for (ri in 0 until n) {
+            c[0] = ri / (n - 1f); c[1] = gi / (n - 1f); c[2] = bi / (n - 1f)
+            g.apply(c)
+            sb.append(String.format(java.util.Locale.US, "%.6f %.6f %.6f\n", c[0].coerceIn(0f, 1f), c[1].coerceIn(0f, 1f), c[2].coerceIn(0f, 1f)))
+        }
+        return sb.toString()
+    }
+
+    /** Exports [g] as a .cube LUT: saved to Documents/AlcorCutPro/LUTs and added to My LUTs. Returns where, or null. */
+    fun exportLook(context: Context, g: ProGrade, name: String): String? {
+        init(context)
+        val clean = name.replace(Regex("[^A-Za-z0-9 _.-]"), "_").ifBlank { "Look" }
+        val text = cubeText(g, clean)
+        val where = try {
+            if (android.os.Build.VERSION.SDK_INT >= 29) {
+                val v = android.content.ContentValues().apply {
+                    put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "$clean.cube")
+                    put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
+                    put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Documents/AlcorCutPro/LUTs")
+                }
+                val u = context.contentResolver.insert(android.provider.MediaStore.Files.getContentUri("external"), v) ?: return null
+                context.contentResolver.openOutputStream(u)?.use { it.write(text.toByteArray()) }
+            } else {
+                @Suppress("DEPRECATION")
+                val d = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOCUMENTS), "AlcorCutPro/LUTs").apply { mkdirs() }
+                File(d, "$clean.cube").writeText(text)
+            }
+            "Documents/AlcorCutPro/LUTs/$clean.cube"
+        } catch (_: Throwable) { null }
+        // Also into My LUTs, so it can be used on videos, other photos and the Capture monitor straight away.
+        try {
+            val id = "lut_" + System.currentTimeMillis()
+            val d = dir()
+            if (d != null) { File(d, "$id.cube").writeText(text); File(d, "$id.name").writeText(clean); refresh() }
+        } catch (_: Throwable) {}
+        return where
+    }
+
     fun delete(id: String) {
         val d = dir() ?: return
         File(d, "$id.cube").delete(); File(d, "$id.name").delete()

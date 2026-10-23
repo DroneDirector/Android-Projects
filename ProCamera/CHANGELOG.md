@@ -4,6 +4,11 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: **gyro stabilisation** — Edit → Stabilize → Source: Gyro (motion data) uses the motion file Capture records with the clip (Gyroflow setting) for sharper, steadier stabilisation; the picture is measured once to line the data up automatically. A .gcsv can also be picked by hand.
+- Video editor: **HDR levels in nits** (Color → Input, HDR clips): a nits waveform from the real 10-bit frame with 100 / 203 / 1000-nit guides, peak and average, and how much of the frame is above 203 and 1000 nits.
+- Video editor: **track groups (VCA)** in the mixer — Dialogue, Music and Effects; a group fader moves all its tracks together, M mutes the group.
+- Photo and video editor: **export your look as a .cube LUT** (LUTs → Export look as LUT) — saved in Documents/AlcorCutPro/LUTs and added to My LUTs.
+- Video editor: **luma key** for video and picture layers — remove dark (fire, sparks, smoke on black) or bright parts, with level and softness.
 
 ## 1.0.497 — 2026-10-23
 - Photo editor and video editor: every section in the tool panels is now a **fold-out** (like the Capture settings) — a title, a short line listing what's inside, and an arrow. Open only what you need, so finding a tool is much quicker. The tabs above (Presets, Light, Colour… / Media, Edit, Colour, Audio, Proxy…) work as before.

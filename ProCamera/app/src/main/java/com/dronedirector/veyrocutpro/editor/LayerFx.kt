@@ -90,6 +90,34 @@ fun chromaKeyBitmap(src: Bitmap, key: Int, tol: Float, soft: Float): Bitmap {
     return Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
 }
 
+/** Default luma-key level: cut below 15 % (dark) or above 85 % (bright). */
+fun Layer.lumaLevelOrDefault(): Float = lumaLevel ?: if (lumaKey == 2) 0.85f else 0.15f
+
+/** Luma key alpha: [mode] 1 removes dark parts, 2 removes bright parts, with a soft edge. */
+fun lumaAlpha(y: Float, mode: Int, level: Float, soft: Float): Float {
+    val e = 0.01f + soft * 0.35f
+    val t = when (mode) {
+        1 -> ((y - level) / e).coerceIn(0f, 1f)
+        2 -> ((level - y) / e).coerceIn(0f, 1f)
+        else -> return 1f
+    }
+    return t * t * (3f - 2f * t)
+}
+
+/** Makes the dark (mode 1) or bright (mode 2) parts of a picture transparent. */
+fun lumaKeyBitmap(src: Bitmap, mode: Int, level: Float, soft: Float): Bitmap {
+    val w = src.width; val h = src.height
+    val px = IntArray(w * h)
+    src.getPixels(px, 0, w, 0, 0, w, h)
+    for (i in px.indices) {
+        val c = px[i]
+        val y = (0.2126f * ((c shr 16) and 0xFF) + 0.7152f * ((c shr 8) and 0xFF) + 0.0722f * (c and 0xFF)) / 255f
+        val oa = ((c ushr 24) and 0xFF) / 255f * lumaAlpha(y, mode, level, soft)
+        px[i] = ((oa * 255f).toInt() shl 24) or (c and 0x00FFFFFF)
+    }
+    return Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
+}
+
 private fun cbcr(r: Float, g: Float, b: Float): Pair<Float, Float> =
     (-0.1687f * r - 0.3313f * g + 0.5f * b) to (0.5f * r - 0.4187f * g - 0.0813f * b)
 
@@ -102,6 +130,13 @@ private const val CHROMA_FN = """
         float t1 = t0 + 0.02 + soft * 0.2;
         return smoothstep(t0, t1, distance(a, k));
     }
+    float lumaAlpha(vec3 c, float mode, float level, float soft) {
+        float y = dot(c, vec3(0.2126, 0.7152, 0.0722));
+        float e = 0.01 + soft * 0.35;
+        if (mode < 0.5) return 1.0;
+        if (mode < 1.5) return smoothstep(0.0, 1.0, clamp((y - level) / e, 0.0, 1.0));
+        return smoothstep(0.0, 1.0, clamp((level - y) / e, 0.0, 1.0));
+    }
 """
 
 /** Preview (Android 13+): chroma key on a video layer's view. */
@@ -111,23 +146,38 @@ object ChromaPreview {
         uniform float3 uKey;
         uniform float uTol;
         uniform float uSoft;
+        uniform float uUseKey;
+        uniform float uLuma;
+        uniform float uLevel;
+        uniform float uLSoft;
         half4 main(float2 p) {
             half4 c = content.eval(p);
+            float y = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+            float e = 0.01 + uLSoft * 0.35;
+            float la = 1.0;
+            if (uLuma > 0.5 && uLuma < 1.5) la = smoothstep(0.0, 1.0, clamp((y - uLevel) / e, 0.0, 1.0));
+            if (uLuma > 1.5) la = smoothstep(0.0, 1.0, clamp((uLevel - y) / e, 0.0, 1.0));
             float2 a = float2(-0.1687 * c.r - 0.3313 * c.g + 0.5 * c.b, 0.5 * c.r - 0.4187 * c.g - 0.0813 * c.b);
             float2 k = float2(-0.1687 * uKey.r - 0.3313 * uKey.g + 0.5 * uKey.b, 0.5 * uKey.r - 0.4187 * uKey.g - 0.0813 * uKey.b);
             float t0 = 0.04 + uTol * 0.3;
             float t1 = t0 + 0.02 + uSoft * 0.2;
-            float al = smoothstep(t0, t1, distance(a, k));
-            return c * half(al);
+            float al = uUseKey > 0.5 ? smoothstep(t0, t1, distance(a, k)) : 1.0;
+            return c * half(al * la);
         }
     """
 
     fun apply(v: android.view.View, l: Layer, extra: android.graphics.RenderEffect? = null) {
         if (android.os.Build.VERSION.SDK_INT < 33) return
         val key = l.chroma
-        if (key == null) { v.setRenderEffect(extra); return }
+        val luma = l.lumaKey ?: 0
+        if (key == null && luma == 0) { v.setRenderEffect(extra); return }
         val sh = android.graphics.RuntimeShader(SHADER)
-        sh.setFloatUniform("uKey", ((key shr 16) and 0xFF) / 255f, ((key shr 8) and 0xFF) / 255f, (key and 0xFF) / 255f)
+        val k = key ?: 0
+        sh.setFloatUniform("uKey", ((k shr 16) and 0xFF) / 255f, ((k shr 8) and 0xFF) / 255f, (k and 0xFF) / 255f)
+        sh.setFloatUniform("uUseKey", if (key != null) 1f else 0f)
+        sh.setFloatUniform("uLuma", luma.toFloat())
+        sh.setFloatUniform("uLevel", l.lumaLevelOrDefault())
+        sh.setFloatUniform("uLSoft", l.lumaSoft ?: 0.15f)
         sh.setFloatUniform("uTol", l.chromaTol ?: 0.4f)
         sh.setFloatUniform("uSoft", l.chromaSoft ?: 0.3f)
         val ck = android.graphics.RenderEffect.createRuntimeShaderEffect(sh, "content")
@@ -137,12 +187,18 @@ object ChromaPreview {
 
 /** Export: chroma key on a video layer (the compositor then uses the transparency). */
 @UnstableApi
-class ChromaKeyEffect(private val key: Int, private val tol: Float, private val soft: Float) : GlEffect {
-    override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram = ChromaProgram(key, tol, soft, useHdr)
+class ChromaKeyEffect(
+    private val key: Int?, private val tol: Float, private val soft: Float,
+    private val luma: Int = 0, private val level: Float = 0.15f, private val lsoft: Float = 0.15f,
+) : GlEffect {
+    override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram = ChromaProgram(key, tol, soft, luma, level, lsoft, useHdr)
 }
 
 @UnstableApi
-private class ChromaProgram(private val key: Int, private val tol: Float, private val soft: Float, useHdr: Boolean) :
+private class ChromaProgram(
+    private val key: Int?, private val tol: Float, private val soft: Float,
+    private val luma: Int, private val level: Float, private val lsoft: Float, useHdr: Boolean,
+) :
     BaseGlShaderProgram(useHdr, 1) {
     private val program = try { GlProgram(VERT, FRAG) } catch (e: GlUtil.GlException) { throw VideoFrameProcessingException(e) }
 
@@ -154,9 +210,14 @@ private class ChromaProgram(private val key: Int, private val tol: Float, privat
         try {
             program.use()
             program.setSamplerTexIdUniform("uTexSampler", inputTexId, 0)
-            program.setFloatsUniform("uKey", floatArrayOf(((key shr 16) and 0xFF) / 255f, ((key shr 8) and 0xFF) / 255f, (key and 0xFF) / 255f))
+            val k = key ?: 0
+            program.setFloatsUniform("uKey", floatArrayOf(((k shr 16) and 0xFF) / 255f, ((k shr 8) and 0xFF) / 255f, (k and 0xFF) / 255f))
             program.setFloatUniform("uTol", tol)
             program.setFloatUniform("uSoft", soft)
+            program.setFloatUniform("uUseKey", if (key != null) 1f else 0f)
+            program.setFloatUniform("uLuma", luma.toFloat())
+            program.setFloatUniform("uLevel", level)
+            program.setFloatUniform("uLSoft", lsoft)
             program.bindAttributesAndUniforms()
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
         } catch (e: GlUtil.GlException) { throw VideoFrameProcessingException(e) }
@@ -182,11 +243,15 @@ private class ChromaProgram(private val key: Int, private val tol: Float, privat
             uniform vec3 uKey;
             uniform float uTol;
             uniform float uSoft;
+            uniform float uUseKey;
+            uniform float uLuma;
+            uniform float uLevel;
+            uniform float uLSoft;
             varying vec2 vTexSamplingCoord;
             $CHROMA_FN
             void main() {
                 vec4 c = texture2D(uTexSampler, vTexSamplingCoord);
-                float a = chromaAlpha(c.rgb, uKey, uTol, uSoft);
+                float a = (uUseKey > 0.5 ? chromaAlpha(c.rgb, uKey, uTol, uSoft) : 1.0) * lumaAlpha(c.rgb, uLuma, uLevel, uLSoft);
                 gl_FragColor = vec4(c.rgb, c.a * a);
             }
         """

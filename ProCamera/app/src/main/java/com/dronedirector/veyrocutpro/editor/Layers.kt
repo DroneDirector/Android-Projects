@@ -70,6 +70,10 @@ data class Layer(
     val chroma: Int? = null,
     val chromaTol: Float? = null,
     val chromaSoft: Float? = null,
+    /** Luma key: 1 = remove the dark parts, 2 = remove the bright parts (null / 0 = off); level and softness 0..1. */
+    val lumaKey: Int? = null,
+    val lumaLevel: Float? = null,
+    val lumaSoft: Float? = null,
     /** Animation when the layer appears / disappears, and how long each takes (ms). */
     val animIn: LayerAnim? = null,
     val animOut: LayerAnim? = null,
@@ -231,7 +235,8 @@ object LayerRenderer {
                 val w = (src.width * (h.toFloat() / src.height)).toInt().coerceAtLeast(4)
                 val scaled = Bitmap.createScaledBitmap(src, min(w, frameW), h, true)
                 val key = l.chroma
-                if (key != null) chromaKeyBitmap(scaled, key, l.chromaTol ?: 0.4f, l.chromaSoft ?: 0.3f) else scaled
+                (if (key != null) chromaKeyBitmap(scaled, key, l.chromaTol ?: 0.4f, l.chromaSoft ?: 0.3f) else scaled)
+                    .let { if ((l.lumaKey ?: 0) != 0) lumaKeyBitmap(it, l.lumaKey ?: 0, l.lumaLevelOrDefault(), l.lumaSoft ?: 0.15f) else it }
             }
             else -> renderText(l, px, frameW, chars, hi)
         }

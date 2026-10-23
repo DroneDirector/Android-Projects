@@ -112,7 +112,11 @@ data class Reframe(
     }
 }
 
-data class Stabilize(val enabled: Boolean = false, val strength: Float = 0.6f, val tripod: Boolean = false, val autoZoom: Boolean = true)
+data class Stabilize(
+    val enabled: Boolean = false, val strength: Float = 0.6f, val tripod: Boolean = false, val autoZoom: Boolean = true,
+    /** Use the phone's motion data (Capture's .gcsv) instead of the picture alone; and a file picked by hand. */
+    val gyro: Boolean? = null, val gyroFile: String? = null,
+)
 
 /** Final transform at a moment: scale, rotation (degrees, clockwise) and shift (fraction of the frame, y down). */
 data class Xform(val scale: Float, val rotation: Float, val tx: Float, val ty: Float, val flip: Boolean)
@@ -225,7 +229,7 @@ class Motion(val timesMs: LongArray, val x: FloatArray, val y: FloatArray, val a
 object Stabilizer {
     private val memory = HashMap<String, Motion>()
 
-    fun keyOf(c: Clip) = c.uri.toString()
+    fun keyOf(c: Clip) = c.uri.toString() + if (c.stab.gyro == true) "|gyro|" + (c.stab.gyroFile ?: "") else ""
     private fun key(c: Clip) = keyOf(c)
     private fun file(context: Context, c: Clip) = File(File(context.cacheDir, "stab").apply { mkdirs() }, "m_" + key(c).hashCode().toUInt().toString(16) + ".bin")
 
@@ -259,10 +263,16 @@ object Stabilizer {
         val cancelled = java.util.concurrent.atomic.AtomicBoolean(false)
         val main = Handler(Looper.getMainLooper())
         Thread {
-            val result = try { run(context, c, { cancelled.get() }) { p -> main.post { onProgress(p) } } } catch (t: Throwable) { null }
+            val optical = try { run(context, c, { cancelled.get() }) { p -> main.post { onProgress(p) } } } catch (t: Throwable) { null }
             if (cancelled.get()) return@Thread
+            // Gyro: line the motion file up with the picture-based path and use the gyro's path instead.
+            var note: String? = null
+            val result = if (optical != null && c.stab.gyro == true) {
+                (try { GyroStab.fuse(context, c, optical) } catch (_: Throwable) { null })
+                    ?: optical.also { note = "No matching motion file for ${c.name} — stabilised from the picture instead" }
+            } else optical
             if (result != null) save(context, c, result)
-            main.post { onDone(result, if (result == null) "Couldn't analyse this clip" else null) }
+            main.post { onDone(result, if (result == null) "Couldn't analyse this clip" else note ?: if (c.stab.gyro == true) "Gyro stabilisation ready for ${c.name}" else null) }
         }.apply { priority = Thread.MIN_PRIORITY + 1 }.start()
         return { cancelled.set(true) }
     }

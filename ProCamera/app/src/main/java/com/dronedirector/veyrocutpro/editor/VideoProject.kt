@@ -159,6 +159,9 @@ data class DeliverSettings(
     val videoGain: Float = 1f,
     val videoPan: Float = 0f,
     val masterGain: Float = 1f,
+    /** Track groups (VCA): track id → 0 dialogue, 1 music, 2 effects (null = by kind), and each group's fader. */
+    val groups: Map<String, Int>? = null,
+    val groupLevels: List<Float>? = null,
     /** Smart render: copy the clips without re-encoding when the edit is cut-only (see [SmartRender]). */
     val smartRender: Boolean = false,
     /** Review copy: burned-in timecode, a watermark text (e.g. DRAFT) and marker notes on screen. */
@@ -451,7 +454,7 @@ class TimelineExport(
                         if (mm == null) add(BgRemoveEffect(0, 0, l.bgInvert == true))
                         else if (tr != null) add(BgRemoveEffect(0, 0, l.bgInvert == true, tr) { rel -> l.videoStartMs + rel })
                     }
-                    l.chroma?.let { add(ChromaKeyEffect(it, l.chromaTol ?: 0.4f, l.chromaSoft ?: 0.3f)) }
+                    if (l.chroma != null || (l.lumaKey ?: 0) != 0) add(ChromaKeyEffect(l.chroma, l.chromaTol ?: 0.4f, l.chromaSoft ?: 0.3f, l.lumaKey ?: 0, l.lumaLevelOrDefault(), l.lumaSoft ?: 0.15f))
                     // Picture-in-picture frame: rounded corners, border, drop shadow.
                     if (l.hasPipStyle) add(PipStyleEffect(
                         (l.corner ?: 0f) * minOf(pw, ph), (l.border ?: 0f) * outH, l.borderColor ?: 0xFFFFFFFF.toInt(),

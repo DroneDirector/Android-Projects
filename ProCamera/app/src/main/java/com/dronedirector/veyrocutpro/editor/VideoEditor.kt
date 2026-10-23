@@ -704,7 +704,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         stabProgress[k] = 0
         stabCancels[k] = Stabilizer.analyze(context, c, onProgress = { stabProgress[k] = it }) { m, err ->
             stabProgress.remove(k); stabCancels.remove(k)
-            if (m != null) { motions[k] = m; es.message = "Stabilisation ready for ${c.name}" } else es.message = err
+            if (m != null) { motions[k] = m; es.message = err ?: "Stabilisation ready for ${c.name}" } else es.message = err
         }
     }
     val deck = remember { Deck(players) }
@@ -3400,7 +3400,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 }
                                 Text("For clips filmed with an anamorphic lens or adapter: stretches the picture back to its real shape (preview and export).", color = Pro.Dim, fontSize = 11.sp)
                             }
-                            Page.COLOR -> if (sc != null) ColorPage(sc, es.colorTab, { es.colorTab = it }, maskTools = maskTools, onChange = { f -> update(es.selected, f) },
+                            Page.COLOR -> if (sc != null) ColorPage(sc, es.colorTab, { es.colorTab = it }, maskTools = maskTools, posUs = (if (es.selected == es.current) sc.startMs + es.posMs else sc.startMs) * 1000, onChange = { f -> update(es.selected, f) },
                                 onTrackPen = { m -> trackPen(es.selected, m.id) }, penTracking = wx.penTrackingId,
                                 onErase = {
                                     val st = clipStarts(clips).getOrNull(es.selected) ?: 0L
@@ -4216,6 +4216,7 @@ private fun ColorPage(
     onTrackPen: ((PhotoMask) -> Unit)? = null, penTracking: String? = null,
     onDepth: () -> Unit = {}, depthProgress: Int? = null, depthStatus: String? = null, onStopDepth: () -> Unit = {},
     onErase: () -> Unit = {}, eraseProgress: Int? = null, eraseStatus: String? = null, onStopErase: () -> Unit = {},
+    posUs: Long = 0L,
 ) {
     val g = c.grade
     fun grade(f: (ProGrade) -> ProGrade) = onChange { it.copy(grade = f(it.grade)) }
@@ -4245,6 +4246,7 @@ private fun ColorPage(
             }
             Text("10-bit HDR (HLG / HDR10) clips are tone-mapped to SDR automatically on export.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
             Text("Have the camera maker's conversion LUT? Import it in the LUTs tab and switch on \"Use as input conversion\".", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+            HdrLevelsSection(c.uri, posUs)
         }
         ColorTab.LUTS -> {
             Text("Import your own 3D LUTs (.cube) — from grading software, camera makers (DJI, Sony, Panasonic…), or LUT packs. Tap + IMPORT, pick the file, then choose how it's used.", color = Pro.Dim, fontSize = 11.sp)
@@ -4713,6 +4715,73 @@ private fun MixerSection(mx: MixerHooks, music: MusicTrack?, onMusic: (MusicTrac
         EdSlider("Master level", d.masterGain, 0f..2f, 1f, { if (it <= 0.001f) "−∞" else "%+.1f dB".format(20 * kotlin.math.log10(it)) }) { mx.onDeliver(d.copy(masterGain = it)) }
     }
     Text("Levels, pan and mute go into the export; solo (S) is for listening only. Level 0 dB = as recorded; the limiter keeps boosted tracks from clipping.", color = Pro.Dim, fontSize = 11.sp)
+    TrackGroups(mx, music, onMusic, extra, onExtra)
+}
+
+/** A mixer track for the groups: id, name, level (0..2), muted. */
+private data class GroupTrack(val id: String, val name: String, val level: Float, val muted: Boolean)
+
+/**
+ * Track groups (VCA faders): every track belongs to Dialogue, Music or Effects. A group's fader raises or
+ * lowers all its tracks together (keeping their balance) and its mute silences them all.
+ */
+@Composable
+private fun TrackGroups(mx: MixerHooks, music: MusicTrack?, onMusic: (MusicTrack?) -> Unit, extra: List<MusicTrack>, onExtra: (String, MusicTrack?) -> Unit) {
+    val d = mx.deliver
+    val names = listOf("Dialogue", "Music", "Effects")
+    fun groupOf(id: String): Int = d.groups?.get(id) ?: when (id) { "video" -> 0; "music" -> 1; else -> 2 }
+    val tracks = buildList {
+        add(GroupTrack("video", "Video track (clip sound)", d.videoGain, mx.videoMuted))
+        music?.let { add(GroupTrack("music", "Music · ${it.name}", it.volume / 0.8f, it.muted)) }
+        extra.forEach { add(GroupTrack(it.id, it.name, it.volume / 0.8f, it.muted)) }
+    }
+    val levels = (d.groupLevels ?: listOf(1f, 1f, 1f)).let { if (it.size < 3) listOf(1f, 1f, 1f) else it }
+    fun setLevels(members: List<GroupTrack>, ratio: Float, base: DeliverSettings) {
+        var nd = base
+        members.forEach { t ->
+            val nl = (t.level * ratio).coerceIn(0f, 2f)
+            when (t.id) {
+                "video" -> nd = nd.copy(videoGain = nl)
+                "music" -> music?.let { onMusic(it.copy(volume = nl * 0.8f)) }
+                else -> extra.firstOrNull { it.id == t.id }?.let { onExtra(it.id, it.copy(volume = nl * 0.8f)) }
+            }
+        }
+        mx.onDeliver(nd)
+    }
+    SectionTitle("TRACK GROUPS (VCA)", onReset = { mx.onDeliver(d.copy(groups = null, groupLevels = null)) })
+    for (k in 0..2) {
+        val members = tracks.filter { groupOf(it.id) == k }
+        val allMuted = members.isNotEmpty() && members.all { it.muted }
+        Column(Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(10.dp)).background(Ed.Raised).padding(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(names[k], color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                androidx.compose.material3.Text("${members.size} track" + if (members.size == 1) "" else "s", color = Pro.Dim, fontSize = 11.sp)
+                Text("M", style = Pro.Label.copy(color = if (allMuted) Color.Black else Color.White),
+                    modifier = Modifier.padding(start = 8.dp).clip(RoundedCornerShape(6.dp)).background(if (allMuted) Color(0xFFFF9F0A) else Color.White.copy(alpha = 0.1f))
+                        .clickable(enabled = members.isNotEmpty()) {
+                            val m = !allMuted
+                            members.forEach { t ->
+                                when (t.id) {
+                                    "video" -> mx.onVideoMuted(m)
+                                    "music" -> music?.let { onMusic(it.copy(muted = m)) }
+                                    else -> extra.firstOrNull { it.id == t.id }?.let { onExtra(it.id, it.copy(muted = m)) }
+                                }
+                            }
+                        }.padding(horizontal = 8.dp, vertical = 4.dp))
+            }
+            EdSlider("Group fader", levels[k], 0.06f..2f, 1f, { "%+.1f dB".format(20 * kotlin.math.log10(it)) }) { nv ->
+                val old = levels[k].coerceAtLeast(0.06f)
+                val nl = levels.toMutableList().also { it[k] = nv }
+                setLevels(members, nv / old, d.copy(groupLevels = nl))
+            }
+        }
+    }
+    androidx.compose.material3.Text("TRACKS", style = Pro.Label, modifier = Modifier.padding(top = 6.dp))
+    tracks.forEach { t ->
+        androidx.compose.material3.Text(t.name, color = Color.White.copy(alpha = 0.85f), fontSize = 12.sp, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
+        Chips(names, groupOf(t.id)) { g -> mx.onDeliver(d.copy(groups = (d.groups ?: emptyMap()) + (t.id to g))) }
+    }
+    Text("A group fader moves all its tracks together and keeps their balance; M mutes the whole group. Each track's own level stays in the strips above.", color = Pro.Dim, fontSize = 11.sp)
 }
 
 /** Live L/R peak meter of the preview (after the clip's audio processing). */
@@ -5278,6 +5347,16 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
             if (l.kind == LayerKind.VIDEO && android.os.Build.VERSION.SDK_INT < 33) Text("This phone can't show the key in the preview (Android 13+ needed); the export is keyed.", color = Pro.Dim, fontSize = 11.sp)
         }
     }
+    if (l.kind == LayerKind.VIDEO || l.kind == LayerKind.IMAGE || l.kind == LayerKind.LOGO) {
+        SectionTitle("LUMA KEY")
+        Chips(listOf("Off", "Remove dark", "Remove bright"), (l.lumaKey ?: 0).coerceIn(0, 2)) { onUpdate(l.copy(lumaKey = it.takeIf { m -> m != 0 }, lumaLevel = null)) }
+        if ((l.lumaKey ?: 0) != 0) {
+            EdSlider("Level", l.lumaLevelOrDefault(), 0f..1f, if (l.lumaKey == 2) 0.85f else 0.15f, ::pct) { onUpdate(l.copy(lumaLevel = it)) }
+            EdSlider("Softness", l.lumaSoft ?: 0.15f, 0f..1f, 0.15f, ::pct) { onUpdate(l.copy(lumaSoft = it)) }
+            if (l.kind == LayerKind.VIDEO && android.os.Build.VERSION.SDK_INT < 33) Text("This phone can't show the key in the preview (Android 13+ needed); the export is keyed.", color = Pro.Dim, fontSize = 11.sp)
+        }
+        Text("Cuts out by brightness: Remove dark for fire, sparks, light leaks and smoke on black; Remove bright for shapes on white.", color = Pro.Dim, fontSize = 11.sp)
+    }
     if (l.kind != LayerKind.VIDEO) {
         SectionTitle("ANIMATION") { onUpdate(l.copy(animIn = null, animOut = null, animMs = null)) }
         val anims = LayerAnim.entries.filter { it != LayerAnim.TYPEWRITER || l.kind == LayerKind.TEXT || l.kind == LayerKind.WATERMARK }
@@ -5609,7 +5688,7 @@ private fun VideoLayerView(l: Layer, timeMs: Long, play: Boolean, pin: FloatArra
     // Background removal (people or Magic Mask): drawn on the view, frame by frame, like the export.
     val tvRef = remember { arrayOfNulls<android.view.TextureView>(1) }
     val cutBg = remember { BgRemoval(0) }
-    LaunchedEffect(l.bgRemove, l.layerMagic, l.bgInvert, l.chroma, l.chromaTol, l.chromaSoft) {
+    LaunchedEffect(l.bgRemove, l.layerMagic, l.bgInvert, l.chroma, l.chromaTol, l.chromaSoft, l.lumaKey, l.lumaLevel, l.lumaSoft) {
         if (l.bgRemove != true) { tvRef[0]?.let { ChromaPreview.apply(it, l) }; return@LaunchedEffect }
         while (true) {
             androidx.compose.runtime.withFrameNanos { }

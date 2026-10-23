@@ -143,35 +143,49 @@ object ImageOps {
      * are kept (big chroma differences aren't smoothed).
      */
     private fun colourNoise(px: IntArray, w: Int, h: Int, amount: Float, scale: Float) {
-        val n = w * h
-        val y = FloatArray(n); val cb = FloatArray(n); val cr = FloatArray(n)
-        for (i in 0 until n) {
-            val c = px[i]; val r = ((c shr 16) and 255).toFloat(); val g = ((c shr 8) and 255).toFloat(); val b = (c and 255).toFloat()
-            val l = 0.299f * r + 0.587f * g + 0.114f * b
-            y[i] = l; cb[i] = b - l; cr[i] = r - l
+        // The colour is smoothed on a small copy (at most ~1024 px across) — little memory even for
+        // full-size photos — and the smooth colour is then laid back under every full-size pixel.
+        val f = max(1, (max(w, h) + 1023) / 1024)
+        val sw = (w + f - 1) / f; val sh = (h + f - 1) / f; val sn = sw * sh
+        val cb = FloatArray(sn); val cr = FloatArray(sn); val cnt = IntArray(sn)
+        for (y in 0 until h) { val so = (y / f) * sw
+            for (x in 0 until w) {
+                val c = px[y * w + x]; val r = ((c shr 16) and 255).toFloat(); val g = ((c shr 8) and 255).toFloat(); val b = (c and 255).toFloat()
+                val l = 0.299f * r + 0.587f * g + 0.114f * b
+                val k = so + x / f; cb[k] += b - l; cr[k] += r - l; cnt[k]++
+            } }
+        for (k in 0 until sn) if (cnt[k] > 0) { cb[k] /= cnt[k]; cr[k] /= cnt[k] }
+        val rad = max(1, (((3f + 7f * amount) * scale) / f).toInt())
+        val t = FloatArray(sn)
+        fun blur(a: FloatArray) {
+            repeat(2) {
+                for (yy in 0 until sh) { var acc = 0f; val off = yy * sw
+                    for (x in -rad..rad) acc += a[off + x.coerceIn(0, sw - 1)]
+                    for (x in 0 until sw) { t[off + x] = acc / (2 * rad + 1); acc += a[off + min(x + rad + 1, sw - 1)] - a[off + max(x - rad, 0)] } }
+                for (x in 0 until sw) { var acc = 0f
+                    for (yy in -rad..rad) acc += t[yy.coerceIn(0, sh - 1) * sw + x]
+                    for (yy in 0 until sh) { a[yy * sw + x] = acc / (2 * rad + 1); acc += t[min(yy + rad + 1, sh - 1) * sw + x] - t[max(yy - rad, 0) * sw + x] } }
+            }
         }
-        val rad = max(2, ((3f + 7f * amount) * scale).toInt())
-        fun blur(a: FloatArray): FloatArray {
-            val t = FloatArray(n); val o = FloatArray(n)
-            for (yy in 0 until h) { var acc = 0f; val off = yy * w
-                for (x in -rad..rad) acc += a[off + x.coerceIn(0, w - 1)]
-                for (x in 0 until w) { t[off + x] = acc / (2 * rad + 1); acc += a[off + min(x + rad + 1, w - 1)] - a[off + max(x - rad, 0)] } }
-            for (x in 0 until w) { var acc = 0f
-                for (yy in -rad..rad) acc += t[yy.coerceIn(0, h - 1) * w + x]
-                for (yy in 0 until h) { o[yy * w + x] = acc / (2 * rad + 1); acc += t[min(yy + rad + 1, h - 1) * w + x] - t[max(yy - rad, 0) * w + x] } }
-            return o
-        }
-        val bb = blur(blur(cb)); val rr = blur(blur(cr))
+        blur(cb); blur(cr)
         val th = 14f + 46f * amount
-        for (i in 0 until n) {
-            val diff = abs(cb[i] - bb[i]) + abs(cr[i] - rr[i])
-            val edge = (1f - diff / (th * 2f)).coerceIn(0f, 1f)
-            val dark = 1f - (y[i] / 255f) * 0.45f
-            val k = (amount * 1.15f * edge * dark).coerceIn(0f, 1f)
-            val ncb = cb[i] + (bb[i] - cb[i]) * k; val ncr = cr[i] + (rr[i] - cr[i]) * k
-            val l = y[i]
-            val r = l + ncr; val b = l + ncb; val g = (l - 0.299f * r - 0.114f * b) / 0.587f
-            px[i] = (px[i] and (0xFF shl 24)) or (r.toInt().coerceIn(0, 255) shl 16) or (g.toInt().coerceIn(0, 255) shl 8) or b.toInt().coerceIn(0, 255)
+        for (y in 0 until h) {
+            val fy = ((y + 0.5f) / f - 0.5f).coerceIn(0f, sh - 1f); val y0 = min(fy.toInt(), max(sh - 2, 0)); val ay = fy - y0; val y1 = min(y0 + 1, sh - 1)
+            for (x in 0 until w) {
+                val fx = ((x + 0.5f) / f - 0.5f).coerceIn(0f, sw - 1f); val x0 = min(fx.toInt(), max(sw - 2, 0)); val ax = fx - x0; val x1 = min(x0 + 1, sw - 1)
+                fun s(a: FloatArray) = (a[y0 * sw + x0] * (1 - ax) + a[y0 * sw + x1] * ax) * (1 - ay) + (a[y1 * sw + x0] * (1 - ax) + a[y1 * sw + x1] * ax) * ay
+                val i = y * w + x
+                val c = px[i]; val r0 = ((c shr 16) and 255).toFloat(); val g0 = ((c shr 8) and 255).toFloat(); val b0 = (c and 255).toFloat()
+                val l = 0.299f * r0 + 0.587f * g0 + 0.114f * b0
+                val pb = b0 - l; val pr = r0 - l
+                val bb = s(cb); val rr = s(cr)
+                val edge = (1f - (abs(pb - bb) + abs(pr - rr)) / (th * 2f)).coerceIn(0f, 1f)
+                val k = (amount * 1.15f * edge * (1f - (l / 255f) * 0.45f)).coerceIn(0f, 1f)
+                if (k <= 0f) continue
+                val ncb = pb + (bb - pb) * k; val ncr = pr + (rr - pr) * k
+                val r = l + ncr; val b = l + ncb; val g = (l - 0.299f * r - 0.114f * b) / 0.587f
+                px[i] = (c and (0xFF shl 24)) or (r.toInt().coerceIn(0, 255) shl 16) or (g.toInt().coerceIn(0, 255) shl 8) or b.toInt().coerceIn(0, 255)
+            }
         }
     }
 
@@ -179,7 +193,7 @@ object ImageOps {
         if (d.isZero) return
         val scale = max(w, h) / 1080f
 
-        if (d.colorNoise > 0f) colourNoise(px, w, h, d.colorNoise, scale)
+        if (d.colorNoise > 0f) try { colourNoise(px, w, h, d.colorNoise, scale) } catch (_: OutOfMemoryError) {}
         if (d.denoise > 0f) {
             // Edge-aware smoothing: blend towards a blur only where the difference is small.
             val r = max(1, (2 * scale).toInt())

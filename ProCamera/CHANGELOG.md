@@ -5,6 +5,8 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 
 ## Unreleased
 - Fold-out sections: no more shaking while you drag a slider in an open section — the heading's summary stays still (fixed height, values never included).
+
+## 1.0.499 — 2026-10-23
 - Video editor: **gyro stabilisation** — Edit → Stabilize → Source: Gyro (motion data) uses the motion file Capture records with the clip (Gyroflow setting) for sharper, steadier stabilisation; the picture is measured once to line the data up automatically. A .gcsv can also be picked by hand.
 - Video editor: **HDR levels in nits** (Color → Input, HDR clips): a nits waveform from the real 10-bit frame with 100 / 203 / 1000-nit guides, peak and average, and how much of the frame is above 203 and 1000 nits.
 - Video editor: **track groups (VCA)** in the mixer — Dialogue, Music and Effects; a group fader moves all its tracks together, M mutes the group.

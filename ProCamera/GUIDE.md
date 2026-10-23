@@ -3,6 +3,8 @@
 The same guides are in the app: open the **settings gear** in Capture, the Photo editor or the Video editor and tap the **guide** button (or **How to add a key** under Cloud AI). Each guide shows only what applies to that part of the app.
 See also the [feature list](FEATURES.md) and the [changelog](CHANGELOG.md).
 
+**New name:** The app is now called VelaCut Pro (formerly VeyroCut Pro). It is the same app: it updates over the old one, and your settings, projects and saved photos and videos stay where they were.
+
 ## Cloud AI: add your API key (all three guides)
 Optional: runs Topaz Labs' professional AI on fast servers through your own fal.ai account. Without it, the AI runs on the phone.
 
@@ -20,7 +22,6 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 ## Capture guide
 **Mouse**
-- The app is now called VelaCut Pro (formerly VeyroCut Pro). It is the same app: it updates over the old one, and your settings, projects and saved photos and videos stay where they were.
 - Gallery: hold a photo or video to select it, then tap more. Share, Delete (to the trash for 30 days), ♥ Favourite, ✓ Pick or ✕ Reject them together; Done ends the selection.
 - Settings → Side buttons: Off (normal volume), Shutter / record, or Zoom (volume up zooms in, down zooms out).
 - Samsung DeX on a wide monitor: photos and videos are taken wide (landscape).

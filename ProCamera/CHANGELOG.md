@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.490 — 2026-10-23
 - New name: **AlcorCut Pro** (formerly VeyroCut Pro) everywhere in the app, the docs and the download files (AlcorCutPro-ARM-….apk). Same app — it updates over the old one; settings, projects and the save folders on the phone are unchanged. Old backups still restore.
 
 ## 1.0.486 — 2026-10-23

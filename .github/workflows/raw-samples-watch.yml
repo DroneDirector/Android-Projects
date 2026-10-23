@@ -28,7 +28,7 @@ jobs:
               if [ -s /tmp/added.txt ]; then echo "### New models from makers already in the test"; echo '```'; cat /tmp/added.txt; echo '```'; fi
               if [ -s /tmp/new-makers.txt ]; then echo "### New makers (not in the test yet)"; sed 's/^/- /' /tmp/new-makers.txt; fi
               echo
-              echo "To add: tell Claude \"add them\", or run the **RAW samples add** workflow (Actions tab) with this issue's number."
+              echo "To add: say \"add them\" in the chat, or run the **RAW samples add** workflow (Actions tab) with this issue's number."
             } > /tmp/body.md
             gh label create raw-watch -R "$GITHUB_REPOSITORY" -c FFB300 -d "RAW samples watch" 2>/dev/null || true
             gh issue create -R "$GITHUB_REPOSITORY" -l raw-watch -t "New RAW samples on raw.pixls.us — add them to the app?" -F /tmp/body.md

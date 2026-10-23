@@ -34,7 +34,7 @@ and the new APK appears on the Releases page a few minutes later. New builds ins
 - HDR, Night, Bokeh and Auto scene modes where the phone maker provides them
 - Volume keys as shutter
 
-Layouts adapt to phones and tablets in portrait and landscape. Files save to `DCIM/VeyroCutPro`.
+Layouts adapt to phones and tablets in portrait and landscape. Files save to `DCIM/AlcorCutPro`.
 
 ### Building on a computer
 

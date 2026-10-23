@@ -64,7 +64,7 @@ object Interchange {
         for ((name, v) in assets) {
             val (id, c) = v
             sb.append("    <asset id=\"$id\" name=\"${esc(name)}\" start=\"0s\" duration=\"${t(frames(c.durationMs, fps), fps)}\" hasVideo=\"1\" hasAudio=\"1\" format=\"r1\">\n")
-            sb.append("      <media-rep kind=\"original-media\" src=\"file:///VeyroCutPro/${esc(name)}\"/>\n    </asset>\n")
+            sb.append("      <media-rep kind=\"original-media\" src=\"file:///AlcorCutPro/${esc(name)}\"/>\n    </asset>\n")
         }
         val total = frames(clips.sumOf { it.lengthMs }, fps)
         sb.append("  </resources>\n  <library>\n    <event name=\"AlcorCut Pro\">\n      <project name=\"${esc(title)}\">\n")
@@ -153,7 +153,7 @@ object Interchange {
             if (c.speed != 1f && c.ramp == null) fx.put(org.json.JSONObject().put("OTIO_SCHEMA", "LinearTimeWarp.1").put("name", "Speed")
                 .put("effect_name", "LinearTimeWarp").put("time_scalar", c.speed.toDouble()).put("metadata", org.json.JSONObject()))
             val ref = org.json.JSONObject().put("OTIO_SCHEMA", "ExternalReference.1").put("name", c.name)
-                .put("target_url", "file:///VeyroCutPro/" + c.name).put("available_range", range(0, frames(c.durationMs, fps))).put("metadata", org.json.JSONObject())
+                .put("target_url", "file:///AlcorCutPro/" + c.name).put("available_range", range(0, frames(c.durationMs, fps))).put("metadata", org.json.JSONObject())
             items.put(org.json.JSONObject().put("OTIO_SCHEMA", "Clip.2").put("name", c.name)
                 .put("source_range", range(src, len))
                 .put("media_references", org.json.JSONObject().put("DEFAULT_MEDIA", ref)).put("active_media_reference_key", "DEFAULT_MEDIA")

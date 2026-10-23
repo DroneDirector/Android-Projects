@@ -109,7 +109,7 @@ $body  </rdf:Description>
         return packet(a.toString(), iptcXml())
     }
 
-    /** Writes [xmp] as `<photo name>.xmp` in Documents/VeyroCutPro/XMP. Returns where, or null. */
+    /** Writes [xmp] as `<photo name>.xmp` in Documents/AlcorCutPro/XMP. Returns where, or null. */
     fun writeSidecar(context: Context, source: Uri, xmp: String): String? {
         val srcName = try {
             context.contentResolver.query(source, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME), null, null, null)
@@ -121,16 +121,16 @@ $body  </rdf:Description>
                 val values = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, name)
                     put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, "Documents/VeyroCutPro/XMP")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "Documents/AlcorCutPro/XMP")
                 }
                 val uri = context.contentResolver.insert(MediaStore.Files.getContentUri("external"), values) ?: return null
                 context.contentResolver.openOutputStream(uri)?.use { it.write(xmp.toByteArray()) }
             } else {
                 @Suppress("DEPRECATION")
-                val dir = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOCUMENTS), "VeyroCutPro/XMP").apply { mkdirs() }
+                val dir = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOCUMENTS), "AlcorCutPro/XMP").apply { mkdirs() }
                 File(dir, name).writeText(xmp)
             }
-            "Documents/VeyroCutPro/XMP/$name"
+            "Documents/AlcorCutPro/XMP/$name"
         } catch (_: Throwable) { null }
     }
 }

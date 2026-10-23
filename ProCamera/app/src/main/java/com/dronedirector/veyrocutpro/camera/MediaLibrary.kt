@@ -23,12 +23,12 @@ data class MediaItem(
         name.substringAfterLast('.', "").lowercase() in com.dronedirector.veyrocutpro.editor.RawDng.OTHER_RAW_EXTENSIONS)
 }
 
-/** Reads the photos and videos AlcorCut Pro saved (DCIM/VeyroCutPro on internal storage and SD cards). */
+/** Reads the photos and videos AlcorCut Pro saved (DCIM/AlcorCutPro, and older folders, on internal storage and SD cards). */
 @Suppress("DEPRECATION")
 object MediaLibrary {
-    private const val FOLDER = "DCIM/VeyroCutPro"
-    /** Where earlier versions (AcluxPro) saved — still shown in the gallery. */
-    private const val LEGACY_FOLDER = "DCIM/AcluxPro"
+    private const val FOLDER = "DCIM/AlcorCutPro"
+    /** Where earlier versions saved (VeyroCut Pro, AcluxPro) — still shown in the gallery. */
+    private val LEGACY_FOLDERS = listOf("DCIM/VeyroCutPro", "DCIM/AcluxPro")
 
     /** Items in the trash (Android 11+): kept 30 days by the system, then deleted. */
     fun queryTrash(context: Context): List<MediaItem> {
@@ -122,11 +122,11 @@ object MediaLibrary {
             }
         }.toTypedArray()
         val (selection, args) = if (Build.VERSION.SDK_INT >= 29) {
-            "(${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? OR ${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?)" to
-                arrayOf("$FOLDER%", "$LEGACY_FOLDER%")
+            (listOf(FOLDER) + LEGACY_FOLDERS).joinToString(" OR ", "(", ")") { "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?" } to
+                (listOf(FOLDER) + LEGACY_FOLDERS).map { "$it%" }.toTypedArray()
         } else {
-            "(${MediaStore.MediaColumns.DATA} LIKE ? OR ${MediaStore.MediaColumns.DATA} LIKE ?)" to
-                arrayOf("%/$FOLDER/%", "%/$LEGACY_FOLDER/%")
+            (listOf(FOLDER) + LEGACY_FOLDERS).joinToString(" OR ", "(", ")") { "${MediaStore.MediaColumns.DATA} LIKE ?" } to
+                (listOf(FOLDER) + LEGACY_FOLDERS).map { "%/$it/%" }.toTypedArray()
         }
         val out = mutableListOf<MediaItem>()
         try {

@@ -2184,7 +2184,7 @@ class ProCameraController(private val context: Context) {
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
             put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
             if (Build.VERSION.SDK_INT >= 29) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AlcorCutPro")
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
         }
@@ -2513,7 +2513,7 @@ class ProCameraController(private val context: Context) {
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
             put(MediaStore.MediaColumns.MIME_TYPE, mime)
-            if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro")
+            if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AlcorCutPro")
         }
         return ImageCapture.OutputFileOptions.Builder(
             context.contentResolver,
@@ -2533,7 +2533,7 @@ class ProCameraController(private val context: Context) {
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, name)
             put(MediaStore.MediaColumns.MIME_TYPE, mime)
-            if (Build.VERSION.SDK_INT >= 29) { put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro"); put(MediaStore.MediaColumns.IS_PENDING, 1) }
+            if (Build.VERSION.SDK_INT >= 29) { put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AlcorCutPro"); put(MediaStore.MediaColumns.IS_PENDING, 1) }
         }
         val target = Storage.insert(context, place, values, Storage.Kind.IMAGE) ?: run { tmp.delete(); toast("Couldn't save the photo"); return null }
         ioExecutor.execute {
@@ -2650,7 +2650,7 @@ class ProCameraController(private val context: Context) {
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, "${clipName()}.mp4")
             put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
-            if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro")
+            if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AlcorCutPro")
         }
         if (!monitorWhileRecording) audioMeter.stopMonitoring()
         monitorSilencedWarned = false
@@ -2825,7 +2825,7 @@ class ProCameraController(private val context: Context) {
                                 ClipConform.finish(context, uri, take, start, ntsc, gainDb, limiter, wavOut)
                             }
                             if (!ok) toast(if (take != null) "Couldn't finish the 24-bit audio" else "Couldn't conform the clip to the NTSC rate")
-                            else if (take != null) toast("24-bit WAV saved" + if (tree == null) " (Music/VeyroCutPro)" else "")
+                            else if (take != null) toast("24-bit WAV saved" + if (tree == null) " (Music/AlcorCutPro)" else "")
                         }
                         if (doAudio) {
                             val ok = withContext(Dispatchers.IO) { AudioGain.apply(context, uri, if (take != null) 0 else gainDb, limiter, wind, nr) }
@@ -2842,7 +2842,7 @@ class ProCameraController(private val context: Context) {
     }
 }
 
-/** Where a clip's 24-bit WAV goes: next to it in the save folder, or Music/VeyroCutPro. */
+/** Where a clip's 24-bit WAV goes: next to it in the save folder, or Music/AlcorCutPro. */
 private fun wavStreamImpl(context: Context, clip: Uri, tree: String?): java.io.OutputStream? {
     val base = try {
         context.contentResolver.query(clip, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
@@ -2852,7 +2852,7 @@ private fun wavStreamImpl(context: Context, clip: Uri, tree: String?): java.io.O
     val values = ContentValues().apply {
         put(MediaStore.MediaColumns.DISPLAY_NAME, name)
         put(MediaStore.MediaColumns.MIME_TYPE, "audio/wav")
-        if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "Music/VeyroCutPro")
+        if (Build.VERSION.SDK_INT >= 29) put(MediaStore.MediaColumns.RELATIVE_PATH, "Music/AlcorCutPro")
     }
     val u = context.contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values) ?: return null
     return context.contentResolver.openOutputStream(u)

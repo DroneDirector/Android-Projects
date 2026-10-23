@@ -282,6 +282,7 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
                 if (p != null && p.uri != Uri.EMPTY) { PhotoSession.current = -1; project = p; source = p.uri }
                 else android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Couldn't open that project"), android.widget.Toast.LENGTH_SHORT).show()
             })
+            com.dronedirector.veyrocutpro.ui.EditorTourHost(com.dronedirector.veyrocutpro.ui.GuideVariant.PHOTO)
         }
     }
 }
@@ -2281,7 +2282,7 @@ private fun PhotoPanelContent(
                 PillChip("IMPORT .XMP PRESETS", false, accentText = true) { dev.importXmp() }
                 PillChip("EXPORT AS .XMP", false, accentText = true) { dev.exportXmp() }
             }
-            Text("Import .xmp presets or sidecars (Camera Raw settings) (they're added to MY PRESETS). Export saves this look as an .xmp preset in Documents/VeyroCutPro/Presets.", color = Pro.Dim, fontSize = 11.sp)
+            Text("Import .xmp presets or sidecars (Camera Raw settings) (they're added to MY PRESETS). Export saves this look as an .xmp preset in Documents/AlcorCutPro/Presets.", color = Pro.Dim, fontSize = 11.sp)
             BuiltInPresetSection(thumbSrc, g, e.detail) { ng, nd -> set(e.copy(grade = ng, detail = nd.copy(aiDenoise = e.detail.aiDenoise))) }
             LutSection(g) { ng -> set(e.copy(grade = ng)) }
             SectionTitle("PROFILE / LOOK")
@@ -2630,7 +2631,7 @@ private fun PhotoPanelContent(
             if (exportState.format != 1 && (exportState.format < 4 || exportState.format >= 6)) EdSlider("Quality", exportState.quality, 0.6f..1f, 0.95f, ::pct) { onExportState(exportState.format, it, exportState.sizeIdx) }
             SectionTitle("SIZE (LONG EDGE)")
             Chips(listOf("Full (≤4800)", "4096", "2560", "1920", "Instagram 1080", "Web 2048", "4K 3840"), exportState.sizeIdx) { onExportState(exportState.format, exportState.quality, it) }
-            Text("Exports a new picture to DCIM/VeyroCutPro; the original stays untouched.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 8.dp))
+            Text("Exports a new picture to DCIM/AlcorCutPro; the original stays untouched.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 8.dp))
             run {
                 val ctx = LocalContext.current
                 SectionTitle("OUTPUT")
@@ -2692,7 +2693,7 @@ private fun PhotoPanelContent(
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text("Also save an .xmp sidecar", color = Color.White, fontSize = 14.sp)
-                        Text("Your edit (light, colour, HSL, detail, straighten) as Adobe Camera Raw settings, named after the original, in Documents/VeyroCutPro/XMP. Put it next to the original to continue in other photo software.", color = Pro.Dim, fontSize = 11.sp)
+                        Text("Your edit (light, colour, HSL, detail, straighten) as Adobe Camera Raw settings, named after the original, in Documents/AlcorCutPro/XMP. Put it next to the original to continue in other photo software.", color = Pro.Dim, fontSize = 11.sp)
                     }
                     androidx.compose.material3.Switch(
                         checked = PhotoMeta.sidecar, onCheckedChange = { PhotoMeta.sidecar = it; PhotoMeta.save(ctx) },
@@ -2745,7 +2746,7 @@ fun HslMixer(bands: List<HslBand>, onChange: (List<HslBand>) -> Unit) {
     EdSlider("Luminance", b.lum) { upd(b.copy(lum = it)) }
 }
 
-/** Saves an edited picture as a new file in DCIM/VeyroCutPro. */
+/** Saves an edited picture as a new file in DCIM/AlcorCutPro. */
 fun savePicture(context: Context, bmp: Bitmap, png: Boolean, quality: Int, area: com.dronedirector.veyrocutpro.camera.StorageArea = com.dronedirector.veyrocutpro.camera.StorageArea.PHOTO): Uri? {
     val name = "EDIT_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + if (png) ".png" else ".jpg"
     // A folder chosen in the editor settings wins; otherwise the default app location.
@@ -2756,7 +2757,7 @@ fun savePicture(context: Context, bmp: Bitmap, png: Boolean, quality: Int, area:
         put(MediaStore.MediaColumns.DISPLAY_NAME, name)
         put(MediaStore.MediaColumns.MIME_TYPE, if (png) "image/png" else "image/jpeg")
         if (Build.VERSION.SDK_INT >= 29) {
-            put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AlcorCutPro")
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
     }

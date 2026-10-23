@@ -80,7 +80,7 @@ class GyroLogger(private val context: Context) : SensorEventListener {
 
     /**
      * Stops logging and writes `<clip>.gcsv` next to the clip when the clip is in a picked folder,
-     * otherwise in Documents/VeyroCutPro/Gyroflow. Returns a short place description, or null.
+     * otherwise in Documents/AlcorCutPro/Gyroflow. Returns a short place description, or null.
      */
     fun stopAndSave(videoUri: Uri, videoName: String, treePlace: String?): String? {
         if (!running) return null
@@ -97,16 +97,16 @@ class GyroLogger(private val context: Context) : SensorEventListener {
                 val values = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
                     put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, "Documents/VeyroCutPro/Gyroflow")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "Documents/AlcorCutPro/Gyroflow")
                 }
                 val uri = context.contentResolver.insert(MediaStore.Files.getContentUri("external"), values) ?: return null
                 context.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) }
-                "Documents/VeyroCutPro/Gyroflow"
+                "Documents/AlcorCutPro/Gyroflow"
             } else {
                 @Suppress("DEPRECATION")
                 val dir = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DCIM), "AlcorCutPro").apply { mkdirs() }
                 File(dir, fileName).writeText(text)
-                "DCIM/VeyroCutPro"
+                "DCIM/AlcorCutPro"
             }
         } catch (_: Throwable) { null }
     }

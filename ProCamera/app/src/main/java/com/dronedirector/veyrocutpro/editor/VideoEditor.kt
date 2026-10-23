@@ -262,6 +262,7 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
                     else { clips.clear(); clips.addAll(p.clips); project = p }
                 },
             )
+            com.dronedirector.veyrocutpro.ui.EditorTourHost(com.dronedirector.veyrocutpro.ui.GuideVariant.VIDEO)
         }
     }
 }
@@ -2618,7 +2619,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 es.message = if (uri != null) {
                     val place = com.dronedirector.veyrocutpro.camera.Storage.load(context, com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO)
                     val folder = SaveFolder.get(context, true)?.let { SaveFolder.label(it) }
-                        ?: ((if (place == com.dronedirector.veyrocutpro.camera.Storage.INTERNAL) "" else com.dronedirector.veyrocutpro.camera.Storage.label(context, place) + " · ") + if (es.deliver.audioOnly) "Music/VeyroCutPro" else "DCIM/VeyroCutPro")
+                        ?: ((if (place == com.dronedirector.veyrocutpro.camera.Storage.INTERNAL) "" else com.dronedirector.veyrocutpro.camera.Storage.label(context, place) + " · ") + if (es.deliver.audioOnly) "Music/AlcorCutPro" else "DCIM/AlcorCutPro")
                     (if (es.deliver.audioOnly) "Audio exported to " else "Exported to ") + folder
                 } else err ?: "Export failed"
             },
@@ -5424,7 +5425,7 @@ private fun DeliverPage(
                 AudioExportFormat.AIFF -> "Uncompressed 24-bit — the usual format on Mac (Logic, GarageBand, Final Cut)."
                 AudioExportFormat.FLAC -> "Lossless and about half the size of WAV — sounds identical."
                 AudioExportFormat.OPUS -> "Opus 160 kbps — very small for its quality, great for web and voice."
-            } + " Saves just the sound of the timeline — clips, music and audio tracks — to Music/VeyroCutPro (or your chosen save folder). Muted tracks are left out.",
+            } + " Saves just the sound of the timeline — clips, music and audio tracks — to Music/AlcorCutPro (or your chosen save folder). Muted tracks are left out.",
             color = Pro.Dim, fontSize = 11.sp,
         )
     }

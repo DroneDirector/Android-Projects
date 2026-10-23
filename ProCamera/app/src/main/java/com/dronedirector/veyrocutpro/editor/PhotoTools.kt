@@ -554,7 +554,7 @@ val PHOTO_FORMATS = listOf("JPEG", "PNG", "WebP", "HEIC", "TIFF 16-bit", "TIFF 8
 
 /**
  * Saves an exported photo as JPEG, PNG, WebP or HEIC, optionally with the original's camera
- * details (and location unless [stripGps]), into the chosen folder or DCIM/VeyroCutPro.
+ * details (and location unless [stripGps]), into the chosen folder or DCIM/AlcorCutPro.
  */
 fun savePhotoAs(context: Context, bmp0: Bitmap, format: Int, quality: Int, exifFrom: Uri?, stripGps: Boolean): Uri? {
     PhotoExportError.last = null
@@ -616,7 +616,7 @@ fun savePhotoAs(context: Context, bmp0: Bitmap, format: Int, quality: Int, exifF
             put(MediaStore.MediaColumns.DISPLAY_NAME, name)
             put(MediaStore.MediaColumns.MIME_TYPE, mime)
             if (Build.VERSION.SDK_INT >= 29) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AlcorCutPro")
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
         }
@@ -626,7 +626,7 @@ fun savePhotoAs(context: Context, bmp0: Bitmap, format: Int, quality: Int, exifF
             ?: (if (f >= 6 && Build.VERSION.SDK_INT >= 29) try {
                 resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, name); put(MediaStore.MediaColumns.MIME_TYPE, mime)
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, "Download/VeyroCutPro"); put(MediaStore.MediaColumns.IS_PENDING, 1)
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "Download/AlcorCutPro"); put(MediaStore.MediaColumns.IS_PENDING, 1)
                 })
             } catch (_: Throwable) { null } else null) ?: return null
         return try {

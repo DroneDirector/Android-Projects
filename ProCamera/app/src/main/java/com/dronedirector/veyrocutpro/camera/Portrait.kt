@@ -268,7 +268,7 @@ object Portrait {
                     put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "PRO_" + System.currentTimeMillis() + "_portrait.jpg")
                     put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
                     if (android.os.Build.VERSION.SDK_INT >= 29) {
-                        put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro")
+                        put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AlcorCutPro")
                         put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
                     }
                 }

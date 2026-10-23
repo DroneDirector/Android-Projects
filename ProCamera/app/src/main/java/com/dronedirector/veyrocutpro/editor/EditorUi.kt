@@ -277,7 +277,7 @@ fun EditorSettingsDialog(
                 com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "ai", "AI", "Cloud AI (fal.ai key, noise reduction, upscale and more)") {
                     com.dronedirector.veyrocutpro.ui.CloudAiSettings(gv)
                 }
-                com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "app", "App", "Language, startup screen, guide, licences, privacy") {
+                com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "app", "App", "Language, startup screen, quick tour, guide, licences, privacy") {
                     com.dronedirector.veyrocutpro.ui.LanguagePicker()
                         Text("STARTUP", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 10.dp))
                         Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -294,6 +294,7 @@ fun EditorSettingsDialog(
                                 colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
                             )
                         }
+                    com.dronedirector.veyrocutpro.ui.EditorTourSettings(gv, onShow = onDismiss)
                     com.dronedirector.veyrocutpro.ui.GuideButton(gv)
                     com.dronedirector.veyrocutpro.ui.LicensesButton()
                     com.dronedirector.veyrocutpro.ui.PrivacyButton()

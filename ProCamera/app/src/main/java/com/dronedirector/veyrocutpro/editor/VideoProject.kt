@@ -144,7 +144,7 @@ data class DeliverSettings(
     val aspect: Float = 0f,
     /** true = fill the frame (crop), false = fit inside (bars). */
     val fill: Boolean = true,
-    /** Save only the sound (AAC in an .m4a file, to Music/VeyroCutPro). */
+    /** Save only the sound (AAC in an .m4a file, to Music/AlcorCutPro). */
     val audioOnly: Boolean = false,
     /** Export only this part of the timeline (ms); null = the whole edit. */
     val rangeStart: Long? = null,
@@ -230,7 +230,7 @@ fun outputSize(clips: List<Clip>, s: DeliverSettings): Pair<Int, Int> {
     return (w / 2 * 2).coerceAtLeast(2) to (h / 2 * 2).coerceAtLeast(2)
 }
 
-/** Renders the timeline to a new video in DCIM/VeyroCutPro with Media3 Transformer. Start on the main thread. */
+/** Renders the timeline to a new video in DCIM/AlcorCutPro with Media3 Transformer. Start on the main thread. */
 @UnstableApi
 class TimelineExport(
     private val context: Context,
@@ -695,14 +695,14 @@ class TimelineExport(
     }
 }
 
-/** Saves an exported sound file to Music/VeyroCutPro. */
+/** Saves an exported sound file to Music/AlcorCutPro. */
 fun publishAudio(context: Context, file: File, name: String, mime: String = "audio/mp4"): Uri? {
     val resolver = context.contentResolver
     if (android.os.Build.VERSION.SDK_INT >= 29) {
         val values = android.content.ContentValues().apply {
             put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name)
             put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime)
-            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Music/VeyroCutPro")
+            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Music/AlcorCutPro")
             put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
         }
         val target = com.dronedirector.veyrocutpro.camera.Storage.insert(context, com.dronedirector.veyrocutpro.camera.Storage.load(context, com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO), values, com.dronedirector.veyrocutpro.camera.Storage.Kind.AUDIO) ?: return null

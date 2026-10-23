@@ -129,7 +129,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                     Text("Economy saves space, Standard is the phone's own choice, High keeps more detail" + (if (extremeOk) ", Extreme is for grading (big files)." else ". Extreme needs a more powerful phone (memory, processor and graphics)."), color = Pro.Dim, fontSize = 12.sp)
                     if (com.dronedirector.veyrocutpro.camera.DeviceClass.proAudio) ToggleRow(
                         "24-bit audio (WAV)",
-                        "Pro Video and Video: the sound is recorded uncompressed and saved as a 24-bit WAV next to each clip (or in Music/VeyroCutPro); the clip gets the same sound. Headphone monitoring pauses while recording.",
+                        "Pro Video and Video: the sound is recorded uncompressed and saved as a 24-bit WAV next to each clip (or in Music/AlcorCutPro); the clip gets the same sound. Headphone monitoring pauses while recording.",
                         x.wavAudio,
                     ) { c.setWavAudio(!x.wavAudio) }
                     else Text("24-bit audio (WAV): needs a more powerful phone (memory, processor and graphics).", color = Pro.Dim, fontSize = 12.sp)
@@ -163,7 +163,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                     Text(
                         when (c.stabilizationMode) {
                             1 -> "In-app: the camera steadies the picture while you film. Quick and ready to use; crops the edges a little."
-                            2 -> "Gyroflow: the phone's motion sensors are recorded into a .gcsv file with the same name as each video (Documents/VeyroCutPro/Gyroflow, or next to the clip in a picked folder). Open both in Gyroflow (free, gyroflow.xyz) on a computer for gimbal-smooth results. The camera's own stabilization is off so the picture stays raw."
+                            2 -> "Gyroflow: the phone's motion sensors are recorded into a .gcsv file with the same name as each video (Documents/AlcorCutPro/Gyroflow, or next to the clip in a picked folder). Open both in Gyroflow (free, gyroflow.xyz) on a computer for gimbal-smooth results. The camera's own stabilization is off so the picture stays raw."
                             else -> "Choose In-app for steady video straight away, or Gyroflow for the smoothest result after filming."
                         },
                         color = Pro.Dim, fontSize = 12.sp,
@@ -525,7 +525,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
             }
 
             Spacer(Modifier.padding(4.dp))
-            Text("Photos and videos save to DCIM/VeyroCutPro.", style = Pro.Label.copy(fontSize = 11.sp, letterSpacing = 0.sp))
+            Text("Photos and videos save to DCIM/AlcorCutPro.", style = Pro.Label.copy(fontSize = 11.sp, letterSpacing = 0.sp))
         }
     }
 }

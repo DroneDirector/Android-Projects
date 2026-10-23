@@ -257,7 +257,7 @@ $curves  </rdf:Description>
 """
     }
 
-    /** Saves a preset .xmp in Documents/VeyroCutPro/Presets. Returns where, or null. */
+    /** Saves a preset .xmp in Documents/AlcorCutPro/Presets. Returns where, or null. */
     fun savePreset(context: Context, name: String, xmp: String): String? {
         val file = name.replace(Regex("[^A-Za-z0-9 _.-]"), "_").ifBlank { "Preset" } + ".xmp"
         return try {
@@ -265,16 +265,16 @@ $curves  </rdf:Description>
                 val v = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, file)
                     put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, "Documents/VeyroCutPro/Presets")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "Documents/AlcorCutPro/Presets")
                 }
                 val u = context.contentResolver.insert(MediaStore.Files.getContentUri("external"), v) ?: return null
                 context.contentResolver.openOutputStream(u)?.use { it.write(xmp.toByteArray()) }
             } else {
                 @Suppress("DEPRECATION")
-                val dir = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOCUMENTS), "VeyroCutPro/Presets").apply { mkdirs() }
+                val dir = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOCUMENTS), "AlcorCutPro/Presets").apply { mkdirs() }
                 File(dir, file).writeText(xmp)
             }
-            "Documents/VeyroCutPro/Presets/$file"
+            "Documents/AlcorCutPro/Presets/$file"
         } catch (_: Throwable) { null }
     }
 

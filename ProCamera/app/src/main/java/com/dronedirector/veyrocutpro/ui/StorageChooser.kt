@@ -69,7 +69,7 @@ fun StorageChooser(area: StorageArea, onChange: (String) -> Unit = {}) {
         "Same as capture", Storage.label(ctx, Storage.choice(ctx, StorageArea.CAPTURE)), choice == Storage.SAME,
     ) { set(Storage.SAME) }
     options.forEach { o ->
-        Radio(o.label, if (o.removable) "SD card / USB drive · DCIM/VeyroCutPro" else "This device · DCIM/VeyroCutPro", choice == o.volume) { set(o.volume) }
+        Radio(o.label, if (o.removable) "SD card / USB drive · DCIM/AlcorCutPro" else "This device · DCIM/AlcorCutPro", choice == o.volume) { set(o.volume) }
     }
     if (Storage.isTree(choice)) Radio(
         Storage.label(ctx, choice),

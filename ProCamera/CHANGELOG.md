@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- New **quick tour** in the photo editor and the video editor (same look as Capture's): SKIP closes it for now, "Don't show this again" turns it off, and gear → App → Quick tour shows it again or switches it back on.
+- New photos and videos now save to **DCIM/AlcorCutPro** (also Music/AlcorCutPro and Documents/AlcorCutPro); everything in the old DCIM/VeyroCutPro folder still shows in the app's gallery and editors.
 - Name: the home-screen shortcuts are now **AC Capture / AC Photo editor / AC Video editor** (icons already on the home screen update when the app opens), and the last places showing the old name in capitals (start-page "RECENT … PHOTOS", the guide header) now say AlcorCut Pro.
 
 ## 1.0.490 — 2026-10-23

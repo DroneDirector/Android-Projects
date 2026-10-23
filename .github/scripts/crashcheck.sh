@@ -38,13 +38,13 @@ adb shell settings put secure immersive_mode_confirmations confirmed
 adb shell settings put global hide_error_dialogs 1
 adb shell settings put global anr_show_background 0
 for L in com.google.android.apps.nexuslauncher com.android.launcher3; do adb shell pm disable-user --user 0 "$L" >/dev/null 2>&1 || true; done
-adb shell mkdir -p /sdcard/DCIM/VeyroCutPro
-adb push test_clip.mp4 /sdcard/DCIM/VeyroCutPro/VID_TEST.mp4
-adb push test_a.jpg /sdcard/DCIM/VeyroCutPro/IMG_TEST_A.jpg
-adb push test_b.jpg /sdcard/DCIM/VeyroCutPro/IMG_TEST_B.jpg
-[ -f test_c.jpg ] && adb push test_c.jpg /sdcard/DCIM/VeyroCutPro/IMG_TEST_C.jpg
-for f in IMG_TEST_A.jpg IMG_TEST_B.jpg IMG_TEST_C.jpg; do adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/DCIM/VeyroCutPro/$f >/dev/null 2>&1 || true; done
-adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/DCIM/VeyroCutPro/VID_TEST.mp4 || true
+adb shell mkdir -p /sdcard/DCIM/AlcorCutPro
+adb push test_clip.mp4 /sdcard/DCIM/AlcorCutPro/VID_TEST.mp4
+adb push test_a.jpg /sdcard/DCIM/AlcorCutPro/IMG_TEST_A.jpg
+adb push test_b.jpg /sdcard/DCIM/AlcorCutPro/IMG_TEST_B.jpg
+[ -f test_c.jpg ] && adb push test_c.jpg /sdcard/DCIM/AlcorCutPro/IMG_TEST_C.jpg
+for f in IMG_TEST_A.jpg IMG_TEST_B.jpg IMG_TEST_C.jpg; do adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/DCIM/AlcorCutPro/$f >/dev/null 2>&1 || true; done
+adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/DCIM/AlcorCutPro/VID_TEST.mp4 || true
 adb shell content call --uri content://media/external/file --method scan_volume --arg external_primary >/dev/null 2>&1 || true
 sleep 5
 adb logcat -c
@@ -336,7 +336,7 @@ tabTo "Crop & perspective"; scrollTo "UPRIGHT"; tapExact "Auto"; sleep 8; shot 1
 tabTo "Heal"; scrollTo "DUST SPOTS"; tapText "VISUALISE SPOTS"; sleep 4; shot 16g-visualise; tapText "VISUALISE SPOTS"; tapText "FIND DUST"; sleep 8; shot 16h-dust
 tapExact "EXPORT"; sleep 2; scrollTo "EXPORT PRESETS"; tapText "Print (TIFF"; sleep 2; scrollTo "OUTPUT"; tapText "Soft proof" ; sleep 1; shot 16i-export-opts
 scrollTo "EXPORT PHOTO"; tapText "EXPORT PHOTO"; for i in $(seq 1 60); do sleep 4; seeText "EXPORTING" || break; done; sleep 3; shot 16j-exported
-adb shell ls -la /sdcard/DCIM/VeyroCutPro/ > out/exports.txt 2>&1 || true
+adb shell ls -la /sdcard/DCIM/AlcorCutPro/ > out/exports.txt 2>&1 || true
 fi
 if want photo; then
 step "photo"
@@ -442,8 +442,8 @@ fi
 if want libraw; then
 step "camera RAW (LibRaw)"
 if [ -f raw_test.arw ]; then
-  adb push raw_test.arw /sdcard/DCIM/VeyroCutPro/RAW_TEST.ARW
-  adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/DCIM/VeyroCutPro/RAW_TEST.ARW >/dev/null 2>&1 || true
+  adb push raw_test.arw /sdcard/DCIM/AlcorCutPro/RAW_TEST.ARW
+  adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/DCIM/AlcorCutPro/RAW_TEST.ARW >/dev/null 2>&1 || true
   adb shell content call --uri content://media/external/file --method scan_volume --arg external_primary >/dev/null 2>&1 || true; sleep 5
   ID=$(adb shell "content query --uri content://media/external/file --projection _id --where \"_display_name='RAW_TEST.ARW'\"" | grep -o "_id=[0-9]*" | head -1 | cut -d= -f2)
   echo "raw id: $ID" > out/libraw.txt

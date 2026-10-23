@@ -190,7 +190,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Real-time preview** while dragging sliders; the viewer shows the photo at full screen resolution (full size when zoomed in).
 - **Copy / Paste settings** (choose what to paste) — also between photos and video clips.
 - **LOAD / SAVE projects** next to Export; SAVE lists your saved projects to overwrite one, or save as new.
-- Export **JPEG or PNG**, quality and size choice; choose the **save folder** (default DCIM/VeyroCutPro).
+- Export **JPEG or PNG**, quality and size choice; choose the **save folder** (default DCIM/AlcorCutPro).
 - Also **WebP** and **HEIC**; Instagram / web / 4K sizes; **AI upscale** 2× / 4× in the export; keep or remove **camera info and location**.
 - **IPTC title, caption & keywords** in every export, and an optional **.xmp sidecar** (Camera Raw settings) with the edit.
 - **Batch export**: apply the current edit to up to 50 photos at once; photo exports (single, batch and export selected) keep running in other apps or with the screen off, with a progress notification.
@@ -339,7 +339,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Background export**: keeps running in other apps or with the screen off (foreground service, progress notification, "finished" notification).
 - **Background tasks notification**: one notification in the pull-down shade lists every background task with its progress — photo and video exports, edit sync, proxies, AI noise reduction, AI upscale, AI cull, Cloud AI and first-launch downloads.
 - **Render queue**: several export settings of the same edit rendered one after another (✓ per finished job, stop any time).
-- **Audio only** export to Music/VeyroCutPro as AAC .m4a, WAV (16 / 24-bit, 32-bit float), AIFF 24-bit, FLAC (lossless) or Opus .ogg — all licence-free formats; WAV / AIFF / FLAC are written by the app's own encoder from the finished mix (lossless).
+- **Audio only** export to Music/AlcorCutPro as AAC .m4a, WAV (16 / 24-bit, 32-bit float), AIFF 24-bit, FLAC (lossless) or Opus .ogg — all licence-free formats; WAV / AIFF / FLAC are written by the app's own encoder from the finished mix (lossless).
 - **Track switches & trim handles**: per-row mute, eye (hide a layer from the feed and the export) and lock; bracket-style trim handles on both ends of every V1 clip, layer and audio bar — hold and drag to lengthen or shorten within the video, with a live length read-out.
 - **Timeline scroll wheel**: a slim glowing wheel in its own window on the timeline's right edge (as tall as the timeline, growing with the tracks, never covering a track) scrolls the tracks up and down (drag or tap), with an "upscale" effect — pixel blocks resolving and a scan line following the scroll.
 - **Keep HDR** (HLG / HDR10, 10-bit HEVC) or convert to SDR.
@@ -349,7 +349,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Export a range** (in / out) and **save a frame as a photo**.
 - **Estimated file size** shown live as you change the settings.
 - **Loudness normalisation**: −14 / −16 / −23 LUFS (measured per BS.1770, then the whole mix is set to the target, with a limiter).
-- Choose the **save folder** (default DCIM/VeyroCutPro).
+- Choose the **save folder** (default DCIM/AlcorCutPro).
 - **Animated GIF** export (320–640 px, 10–15 fps, up to 20 s) with grade and layers.
 - **Subtitles** from the captions as **.srt** or **WebVTT (.vtt)**; **import .srt / .vtt** files as caption layers.
 - **Review copy**: burned-in timecode, watermark text and marker notes on screen.
@@ -379,3 +379,4 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - Same dark "Pro" design across Capture and both editors.
 - **App colour** picker available in Capture settings and in both editors' settings.
 - **Folded settings menus**: the gear menus in Capture, the photo editor and the video editor group every setting in fold-out sections (e.g. Photo, Video, Audio, AI, Saving & backup, App); each line shows a short list of what is inside.
+- **Quick tours**: Capture, the photo editor and the video editor each have a short first-run tour (skip, don't show again, or replay from the gear → App).

@@ -243,7 +243,7 @@ object Upscaler {
             put(MediaStore.MediaColumns.DISPLAY_NAME, "${baseName}_AI${mp}MP.jpg")
             put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
             if (Build.VERSION.SDK_INT >= 29) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/VeyroCutPro")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/AlcorCutPro")
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
         }

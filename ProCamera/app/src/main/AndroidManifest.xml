@@ -34,7 +34,7 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.VeyroCutPro">
+        android:theme="@style/Theme.AlcorCutPro">
 
         <!-- Samsung DeX: keep running (and keep the edit open) when moving between the phone screen and a monitor or changing density. -->
         <meta-data android:name="com.samsung.android.keepalive.density" android:value="true" />

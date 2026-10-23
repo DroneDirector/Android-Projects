@@ -24,7 +24,7 @@ enum class StorageArea(val key: String, val label: String) {
 
 /**
  * Where AlcorCut Pro saves. A place is either a media volume name (internal storage, an SD card or a USB
- * drive that Android lists — saved in DCIM/VeyroCutPro there) or "tree:<uri>" — a folder the user picked
+ * drive that Android lists — saved in DCIM/AlcorCutPro there) or "tree:<uri>" — a folder the user picked
  * on any drive (USB stick, SSD, SD card) through the system folder picker. If the place is gone
  * (drive unplugged), saving falls back to internal storage with a short notice.
  */

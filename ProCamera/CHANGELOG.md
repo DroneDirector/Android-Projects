@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.482 — 2026-10-23
 - Photo editor: fixed a crash (out of memory) when using **Colour noise** on big photos — it now works on a small copy of the colours and needs very little memory.
 
 ## 1.0.479 — 2026-10-22

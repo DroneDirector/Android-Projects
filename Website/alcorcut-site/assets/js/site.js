@@ -147,6 +147,8 @@
     doc.body.appendChild(cv);
     var ctx = cv.getContext("2d"), dpr = 1, pos = null, pressed = false, clickAt = -1e9, clickPos = { x: 0, y: 0 }, trail = [], hoverLink = false;
     var col = [79, 227, 255], sec = partner(col), t0 = performance.now();
+    // The app draws in dp; on a tablet or DeX screen one dp is about 1.75 screen pixels.
+    var U = 1.75;
     function partner(c) { // hue + 70°, as CursorStyle.partner
       var r = c[0] / 255, g = c[1] / 255, b = c[2] / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, h = 0;
       if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
@@ -174,37 +176,38 @@
     (function frame(now) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, innerWidth, innerHeight);
       if (pos) {
-        var p = pos, ph = ((now - t0) % 2400) / 2400, fx = !reduce;
+        // Effects always on, as in the app (not tied to the system's reduce-animations setting).
+        var p = pos, ph = ((now - t0) % 2400) / 2400, fx = true;
         if (fx) {
           // comet trail
           var pts = trail.filter(function (q) { return now - q[2] < 260; });
           pts.forEach(function (q, i) {
-            var life = 1 - (now - q[2]) / 260, k = (i + 1) / pts.length, r = 9 * k + 2;
+            var life = 1 - (now - q[2]) / 260, k = (i + 1) / pts.length, r = (9 * k + 2) * U;
             ctx.fillStyle = radial(q[0], q[1], r, [[0, rgba(sec, 0.45 * life * k)], [1, rgba(sec, 0)]]); circle(q[0], q[1], r); ctx.fill();
           });
           // breathing halo (brighter while pressed, and a little over links and buttons)
-          var br = 16 + Math.sin(ph * 2 * Math.PI) * 3, a = pressed ? 0.42 : hoverLink ? 0.34 : 0.26;
+          var br = (16 + Math.sin(ph * 2 * Math.PI) * 3) * U, a = pressed ? 0.42 : hoverLink ? 0.34 : 0.26;
           ctx.fillStyle = radial(p.x, p.y, br, [[0, rgba(col, a)], [0.5, rgba(col, 0.08)], [1, rgba(col, 0)]]); circle(p.x, p.y, br); ctx.fill();
           // orbiting spark
-          var an = ph * 2 * Math.PI, sx = p.x + Math.cos(an) * 13, sy = p.y + Math.sin(an) * 13;
-          ctx.fillStyle = rgba(sec, 0.5); circle(sx, sy, 3.2); ctx.fill();
-          ctx.fillStyle = "rgba(255,255,255,.85)"; circle(sx, sy, 1.6); ctx.fill();
+          var an = ph * 2 * Math.PI, sx = p.x + Math.cos(an) * 13 * U, sy = p.y + Math.sin(an) * 13 * U;
+          ctx.fillStyle = rgba(sec, 0.5); circle(sx, sy, 3.2 * U); ctx.fill();
+          ctx.fillStyle = "rgba(255,255,255,.85)"; circle(sx, sy, 1.6 * U); ctx.fill();
           // click ripple
           var dt = now - clickAt;
           if (dt >= 0 && dt <= 450) {
             var f = dt / 450;
-            ctx.lineWidth = 2.5 - 1.5 * f; ctx.strokeStyle = rgba(col, (1 - f) * 0.9); circle(clickPos.x, clickPos.y, 6 + 22 * f); ctx.stroke();
-            ctx.lineWidth = 1; ctx.strokeStyle = rgba(sec, (1 - f) * 0.5); circle(clickPos.x, clickPos.y, 4 + 34 * f); ctx.stroke();
+            ctx.lineWidth = (2.5 - 1.5 * f) * U; ctx.strokeStyle = rgba(col, (1 - f) * 0.9); circle(clickPos.x, clickPos.y, (6 + 22 * f) * U); ctx.stroke();
+            ctx.lineWidth = U; ctx.strokeStyle = rgba(sec, (1 - f) * 0.5); circle(clickPos.x, clickPos.y, (4 + 34 * f) * U); ctx.stroke();
           }
         }
         // the arrow, tip at the mouse position
-        var s = pressed ? 0.9 : 1;
+        var s = (pressed ? 0.9 : 1) * U;
         ctx.beginPath();
         ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y + 17 * s); ctx.lineTo(p.x + 4.5 * s, p.y + 13 * s); ctx.lineTo(p.x + 7.5 * s, p.y + 19.5 * s);
         ctx.lineTo(p.x + 10 * s, p.y + 18.3 * s); ctx.lineTo(p.x + 7 * s, p.y + 12 * s); ctx.lineTo(p.x + 12.5 * s, p.y + 12 * s); ctx.closePath();
-        ctx.lineJoin = "round"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,.75)"; ctx.stroke();
-        if (fx) { var lg = ctx.createLinearGradient(p.x, p.y, p.x + 12, p.y + 19); lg.addColorStop(0, rgba(col, 1)); lg.addColorStop(1, rgba(sec, 1)); ctx.fillStyle = lg; } else ctx.fillStyle = rgba(col, 1);
-        ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = fx ? "rgba(255,255,255,.9)" : "rgba(255,255,255,.6)"; ctx.stroke();
+        ctx.lineJoin = "round"; ctx.lineWidth = 3 * U; ctx.strokeStyle = "rgba(0,0,0,.75)"; ctx.stroke();
+        if (fx) { var lg = ctx.createLinearGradient(p.x, p.y, p.x + 12 * U, p.y + 19 * U); lg.addColorStop(0, rgba(col, 1)); lg.addColorStop(1, rgba(sec, 1)); ctx.fillStyle = lg; } else ctx.fillStyle = rgba(col, 1);
+        ctx.fill(); ctx.lineWidth = U; ctx.strokeStyle = fx ? "rgba(255,255,255,.9)" : "rgba(255,255,255,.6)"; ctx.stroke();
       }
       requestAnimationFrame(frame);
     })(performance.now());

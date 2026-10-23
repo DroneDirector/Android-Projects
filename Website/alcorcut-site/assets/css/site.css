@@ -323,7 +323,7 @@ html.acs-ptr, html.acs-ptr * { cursor: none !important; }
   .acs-group { padding: 22px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .acs *, .acs *::before, .acs *::after, .acs-top * { animation: none !important; transition: none !important; }
+  .acs *, .acs *::before, .acs *::after { animation: none !important; transition: none !important; }
   html.acs-js [data-reveal] { opacity: 1; transform: none; }
   .acs-glow { opacity: 1; transform: none; }
 }

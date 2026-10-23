@@ -1,0 +1,67 @@
+name: Website test (WordPress + Elementor)
+# Installs a fresh WordPress with the free Elementor plugin, activates Website/alcorcut-site, checks the
+# pages and saves screenshots (also of the Elementor editor) to the 'website-preview' branch.
+on:
+  workflow_dispatch:
+  push:
+    paths: [ "Website/**", ".github/workflows/website-test.yml", ".github/scripts/website/**" ]
+permissions:
+  contents: write
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - name: WordPress + Elementor
+        run: |
+          sudo systemctl start mysql.service
+          curl -fsSL -o /tmp/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && chmod +x /tmp/wp && sudo mv /tmp/wp /usr/local/bin/wp
+          mkdir -p ~/site && cd ~/site
+          wp core download --quiet
+          wp config create --dbname=wp --dbuser=root --dbpass=root --dbhost=127.0.0.1 --quiet
+          wp config set WP_DEBUG true --raw; wp config set WP_DEBUG_LOG true --raw; wp config set WP_DEBUG_DISPLAY false --raw
+          wp db create
+          wp core install --url=http://127.0.0.1:8080 --title="AlcorCut Pro" --admin_user=admin --admin_password=admin --admin_email=test@example.com --skip-email
+          wp rewrite structure '/%postname%/' --quiet
+          wp plugin install elementor --activate
+          cp -r "$GITHUB_WORKSPACE/Website/alcorcut-site" wp-content/plugins/
+          wp plugin activate alcorcut-site
+          wp option get acs_pages --format=json | tee /tmp/pages.json
+          wp post list --post_type=page --fields=ID,post_title,post_name,page_template
+          wp option get page_on_front
+          nohup wp server --host=127.0.0.1 --port=8080 --path=$HOME/site > /tmp/server.log 2>&1 &
+          sleep 4
+      - name: Check the pages
+        run: |
+          cd ~/site; mkdir -p "$GITHUB_WORKSPACE/out"; O="$GITHUB_WORKSPACE/out"
+          fail=0
+          for id in $(python3 -c "import json;print(' '.join(str(v) for v in json.load(open('/tmp/pages.json')).values()))"); do
+            url=$(wp post url $id); code=$(curl -s -o /tmp/p.html -w '%{http_code}' "$url")
+            n=$(grep -o 'class="acs acs-' /tmp/p.html | wc -l)
+            echo "$url -> $code, $n AlcorCut sections" | tee -a "$O/pages.txt"
+            [ "$code" = 200 ] && [ "$n" -ge 4 ] || fail=1
+          done
+          curl -s http://127.0.0.1:8080/ | grep -q 'acs-hero' && echo "front page = AlcorCut home" | tee -a "$O/pages.txt"
+          cp wp-content/debug.log "$O/debug.log" 2>/dev/null || echo "no PHP notices" > "$O/debug.log"
+          grep -i "alcorcut" "$O/debug.log" && fail=1 || true
+          exit $fail
+      - name: Screenshots
+        if: always()
+        run: |
+          pip install -q playwright && python -m playwright install --with-deps chromium >/dev/null
+          cd ~/site
+          P=$(python3 - <<'PY'
+          import json,subprocess
+          ids=json.load(open('/tmp/pages.json')); out={k:subprocess.check_output(['wp','post','url',str(v)]).decode().strip() for k,v in ids.items()}
+          out['home_id']=ids['home']; print(json.dumps(out))
+          PY
+          )
+          cd "$GITHUB_WORKSPACE" && python3 .github/scripts/website/shots.py http://127.0.0.1:8080 "$P"
+          ls -la out
+      - name: Save to the 'website-preview' branch
+        if: always()
+        run: |
+          cd out && git init -q -b website-preview && git add -A
+          git -c user.name=github-actions -c user.email=actions@github.com commit -qm "Website test (run ${{ github.run_number }})"
+          git push -fq "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" website-preview

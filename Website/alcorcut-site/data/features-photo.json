@@ -1,0 +1,109 @@
+[
+ {
+  "title": "RAW development",
+  "items": [
+   "<strong>Upright</strong> (Auto, Level, Vertical, Full), <strong>dust spot</strong> visualise and auto-heal, <strong>panorama</strong> projections (cylindrical / spherical / perspective), boundary warp and AI edge fill.",
+   "<strong>DNG camera profiles (.dcp)</strong>: import and use instead of the RAW file's own colour (matrices, forward matrices, hue / sat maps, look table, tone curve).",
+   "<strong>RAW (DNG) develop</strong>: the editor reads the sensor data itself (uncompressed and lossless-compressed DNGs, lens-shading maps, the camera's colour matrix) — exposure ±5 stops, highlights, shadows, whites, blacks and white balance work on the full-range data with a soft highlight roll-off; <strong>RAW profiles</strong> (Standard, Flat, Vivid, Portrait, Landscape, Mono) and <strong>white balance presets</strong> (As shot, Auto, Daylight, Cloudy, Shade, Tungsten, Fluorescent); full-quality demosaic on export; RAW files in a batch export are developed too.",
+   "<strong>Full DNG support</strong>: uncompressed, lossless-JPEG, lossy-JPEG and Deflate DNGs; 8–32-bit integer and 16 / 24 / 32-bit floating-point (HDR) data with all TIFF / DNG predictors; Bayer, X-Trans, Quad Bayer and any other RGB colour filter pattern, plus linear (demosaiced) DNGs; strips or tiles; linearisation tables, per-row / column black levels, active area, default crop and DefaultUserCrop; all OpcodeList1 / 2 / 3 corrections (bad pixels, map table / polynomial, per-row / column delta and scale, lens-shading gain maps, WarpRectilinear distortion + lateral chromatic aberration, FixVignetteRadial); full colour model (dual-illuminant ColorMatrix / CameraCalibration / ForwardMatrix interpolated by the white, AnalogBalance, AsShotNeutral / AsShotWhiteXY); the embedded camera profile (ProfileHueSatMap, ProfileLookTable, ProfileToneCurve, BaselineExposureOffset); RAW INFO panel. JPEG XL compressed DNGs (DNG 1.7 — newer Samsung Galaxy phones and iPhones) and black-and-white (monochrome) DNGs.",
+   "<strong>RAW looks</strong> (top of the Light panel, a folded menu): Default (the app's own RAW look, unchanged), Match camera picture (tone curve and colour strength fitted to the preview stored in the file), and fold-out sub-menus — Phones (Pixel, Galaxy, iPhone style), Drones (DJI camera picture, Parrot, Autel style), Cameras (Canon, Sony, Nikon, Fujifilm, Leica, Ricoh, Panasonic, Olympus / OM style), Action &amp; 360° (YI) — each a scrollable row of small previews of the photo. The looks were measured by the RAW test from how each maker renders its own RAW files. Saved with the edit, synced and kept in presets.",
+   "<strong>Other cameras' RAW formats</strong>: Sony ARW, Canon CR2 / CR3, Nikon NEF, Fujifilm RAF (X-Trans), Olympus / OM System ORF, Panasonic RW2, Pentax PEF, Samsung SRW, Hasselblad 3FR / FFF, Phase One IIQ and more open in the photo editor, read by LibRaw (LGPL 2.1, its own replaceable library) and developed by the app's own RAW engine; the starting brightness is matched to the camera's own picture; embedded camera previews show instantly. Nikon High Efficiency RAW and Sigma Foveon files show a clear \"not supported yet\" message.",
+   "<strong>Automatic RAW test</strong>: every change to the RAW code develops 60+ sample files from drones (DJI, Hasselblad, Autel, Parrot, Yuneec, FIMI), cameras (Sony, Canon, Nikon, Fujifilm, Olympus, Panasonic, Pentax, Leica, Ricoh, Sigma) and phones (iPhone, Pixel, Galaxy, Xiaomi, OnePlus, Huawei) and compares each with the camera's own preview (public-domain samples from raw.pixls.us, used only for testing).",
+   "<strong>DJI drone RAW</strong>: DNGs from DJI drones and Zenmuse cameras with the drone's own lens corrections applied (OpcodeList3 vignetting gain maps, WarpRectilinear distortion / colour fringing, or the DewarpData calibration), the drone's embedded colour profile and tone curve, drone name from the XMP product name or camera code, and flight data in RAW INFO (height, altitude, GPS, gimbal pitch / yaw, heading, speed); HDR and panorama merges develop DNG brackets from the RAW data."
+  ]
+ },
+ {
+  "title": "Light, colour & tone",
+  "items": [
+   "Colour grading with <strong>Global, Blending and Balance</strong>.",
+   "<strong>Light</strong>: exposure, contrast, highlights, shadows, whites, blacks.",
+   "<strong>Point curves</strong> (RGB, R, G, B) with draggable points.",
+   "<strong>Parametric tone curve</strong> (highlights, lights, darks, shadows) with contrast pivot.",
+   "<strong>Color</strong>: temperature, tint, saturation, vibrance, dehaze, fade.",
+   "<strong>HSL mixer</strong> (8 colour bands: hue, saturation, luminance).",
+   "<strong>Colour grading wheels</strong> for shadows, midtones and highlights; lift / gamma / gain.",
+   "<strong>Detail</strong>: sharpen, noise reduction, <strong>AI noise reduction</strong> (built-in NAFNet model), clarity, texture, vignette, grain.",
+   "<strong>My LUTs</strong>: import .cube LUTs, blend by strength."
+  ]
+ },
+ {
+  "title": "Masks & AI",
+  "items": [
+   "<strong>Generative expand (Cloud AI)</strong>: wider canvas with the surroundings painted in (Bria Expand via fal.ai; trained on licensed data).",
+   "<strong>Masks</strong>: Object (AI) by tapping, Depth range (AI), and add / subtract / intersect combinations (colour, brightness, depth, subject, sky).",
+   "<strong>Lens Blur</strong> from AI depth: tap-to-focus, focus range, blur amount, bokeh shapes (circle, hexagon, octagon, ring, cat's eye) and bokeh boost.",
+   "Pro sharpening (<strong>Radius, Detail, Masking</strong> + mask preview) and <strong>Defringe</strong> (purple / green).",
+   "<strong>AI Remove</strong>: tap people, cars or signs (the AI selects each), or paint over wires, and the AI (LaMa on the phone, or Bria Eraser with Cloud AI) paints in what was behind them at the photo's full size.",
+   "<strong>People masks (AI)</strong>: face skin, body skin, eye whites, irises, eyebrows, lips, teeth, hair and clothes of everyone in the photo, plus one-tap <strong>portrait looks</strong> (smooth skin, whiten teeth, brighten eyes, iris enhance, lip colour, hair shine, brows). <strong>Texture</strong> and <strong>Clarity</strong> inside every mask.",
+   "<strong>AI culling</strong> in the filmstrip: rejects blurry shots and closed eyes, groups similar shots (bursts) and picks the best of each, with notes on the thumbnails.",
+   "<strong>AI masks</strong>: subject and sky selected automatically.",
+   "<strong>Colour-range and brightness-range masks</strong>: tap the photo to pick a colour or brightness (e.g. only the blues, only the highlights), with range and softness.",
+   "<strong>Background (AI)</strong>: portrait blur, transparent background or colour fill behind the subject.",
+   "<strong>Sky replacement (AI)</strong>: 5 built-in skies or your own picture, with strength and light matching.",
+   "<strong>AI Remove</strong>: tap or paint over bigger objects to remove them.",
+   "Also <strong>WebP</strong> and <strong>HEIC</strong>; Instagram / web / 4K sizes; <strong>AI upscale</strong> 2× / 4× in the export; keep or remove <strong>camera info and location</strong>."
+  ]
+ },
+ {
+  "title": "Retouch & repair",
+  "items": [
+   "<strong>Retouch</strong>: <strong>Liquify</strong> (push, pinch, bloat, twirl, restore), <strong>frequency separation</strong> (tone smoothing + texture, whole photo or AI face / body skin) and <strong>AI Relight</strong> (light direction, shadows, warmth from the depth map).",
+   "<strong>Crop guides</strong>: thirds, golden ratio, golden spiral, golden triangles, diagonals, grid (turnable).",
+   "<strong>Crop &amp; format</strong>: common aspect ratios, rotate, flip, straighten, zoom.",
+   "<strong>Perspective</strong> correction (vertical / horizontal keystone).",
+   "<strong>Lens corrections</strong>: distortion, vignetting, colour fringes.",
+   "<strong>Heal / spot removal</strong>: tap to remove dust, blemishes and small objects; <strong>clone stamp</strong> for exact copies from a source you pick."
+  ]
+ },
+ {
+  "title": "Merges",
+  "items": [
+   "<strong>Merges</strong>: HDR, panorama, focus stack, <strong>noise stack</strong>, <strong>remove passers-by</strong> (median of 3–8 shots), <strong>super resolution</strong> (sub-pixel aligned hand-held shots → 2× size) and <strong>star stack</strong> (aligned on the stars, shift + rotation).",
+   "<strong>Merge photos</strong>: HDR (exposure fusion), panorama stitching, focus stacking."
+  ]
+ },
+ {
+  "title": "Library & workflow",
+  "items": [
+   "Open from the gallery, files or recent AlcorCut Pro photos; <strong>saved projects</strong> row on the start page.",
+   "<strong>Skip to the editor</strong> from the start page: open the editor without picking a photo first, then add one from inside (manual, every time).",
+   "<strong>Library</strong>: all phone photos with stars, flags, colour labels, keywords, albums, smart albums, on-device AI content search, EXIF info, compare (2, linked zoom) and survey (up to 12) views, virtual copies, <strong>contact sheet PDF</strong> (A4 / Letter, 3–6 per row, names and stars), <strong>print layout PDF</strong> (exact print sizes, borders, crop marks), <strong>collage</strong> (5 templates, 2–9 photos), and multi-photo editing in the filmstrip.",
+   "<strong>60 built-in presets</strong> (Portrait, Landscape, B&amp;W, Film, Cinematic, Vintage, Urban, Food, Travel, Moody) with live thumbnails and an <strong>Amount</strong> slider.",
+   "<strong>.xmp</strong> preset and sidecar import, and .xmp preset export.",
+   "<strong>Auto tone</strong>, <strong>Auto white balance</strong>, a <strong>WB eyedropper</strong> and <strong>clipping warnings</strong>.",
+   "<strong>Point Color</strong> and <strong>Calibration</strong> (shadows tint, red / green / blue primaries).",
+   "<strong>Colour noise</strong> reduction (chroma smoothing, strongest in the shadows; keeps real colour edges).",
+   "<strong>Post-crop vignette</strong> (Midpoint, Roundness, Feather, Highlights) and <strong>grain</strong> (Size, Roughness).",
+   "<strong>Zoom / 1:1 loupe</strong> (pinch, double-tap, Ctrl + wheel).",
+   "<strong>Keyboard shortcuts</strong> (Bluetooth / USB keyboards, Samsung DeX): photo navigation, stars, flags, colour labels, before / after, zoom, panels, undo / redo, copy / paste the look, save and export; ? shows the list.",
+   "<strong>Ultra HDR export</strong> (Android 14+): JPEGs with a gain map, so highlights glow brighter on HDR screens (Subtle / Standard / Strong).",
+   "<strong>Gamut warning</strong> for glossy or matte prints, <strong>reference view</strong> with <strong>match look</strong>, <strong>batch rename</strong> of photo files from a template, and <strong>noise reduction inside masks</strong>.",
+   "Lens <strong>auto colour fringes</strong> (measured) and <strong>lens profiles</strong> by focal length; Library <strong>Stacks</strong>, <strong>People</strong> (by number of faces) and <strong>Map</strong> (offline world map, Natural Earth) views; <strong>colour chart calibration</strong> (24-patch chart → colour matrix); <strong>Refine edge (hair)</strong> for AI masks.",
+   "<strong>Targeted adjustment</strong>: drag on the photo to change the tone curve or the HSL mixer (hue / saturation / luminance) for exactly the tone or colour under your finger.",
+   "<strong>Multi-import + filmstrip</strong>: pick up to 100 photos at once from the gallery or files; a filmstrip under the photo switches between them, and every photo keeps its own edit automatically. Star ratings, Pick / Reject flags, colour labels, filters (All, ★3+, Picks, Edited, No rejects), multi-select <strong>Sync edit</strong> (colour, light, detail, lens, RAW develop), batch rate / flag, <strong>export selected</strong> (each with its own edit) and remove. \"Continue filmstrip\" on the start page; hide it from the Panels menu. Switching photos never shows a black viewer: the last render (kept in memory and on disk), the saved thumbnail, or the DNG's embedded camera preview colour-matched to the editor's own develop shows instantly while the RAW renders, then fades over; neighbouring photos are decoded and rendered ahead. Filmstrip thumbnails are cached in memory and on disk, and RAW thumbnails use the DNG's embedded preview, so the strip fills instantly.",
+   "Panels: <strong>Presets, Light, Curve, Color, HSL Mixer, Grading, Detail, Effects, Crop &amp; format, Watermark, Export</strong>.",
+   "<strong>File-type tags</strong> on the photo and video editors' start-page thumbnails (DNG RAW, JPEG, PNG, HEIC / MP4, MOV, MKV…); not shown inside the editors.",
+   "<strong>Masks</strong>: linear gradient, radial and brush, each with its own light and colour settings.",
+   "<strong>Watermark</strong>: text or logo, font, colour, size, position, opacity; optional <strong>Remember watermark</strong>.",
+   "<strong>Text &amp; stickers</strong>: any number of text and emoji layers with font, colour, shadow / box, size, position and opacity.",
+   "<strong>History &amp; snapshots</strong>: jump to any step, save named versions and switch between them.",
+   "Live RGB <strong>histogram</strong> as a pull-out drawer on the right edge (same as the video editor) with waveform, RGB parade and vectorscope, <strong>hold for before</strong>, <strong>undo / redo</strong>.",
+   "<strong>Before / after split view</strong> with a draggable divider.",
+   "<strong>My presets</strong>: save your look and reuse it (also in the video editor).",
+   "<strong>Real-time preview</strong> while dragging sliders; the viewer shows the photo at full screen resolution (full size when zoomed in).",
+   "<strong>Copy / Paste settings</strong> (choose what to paste) — also between photos and video clips.",
+   "<strong>LOAD / SAVE projects</strong> next to Export; SAVE lists your saved projects to overwrite one, or save as new.",
+   "<strong>Batch export</strong>: apply the current edit to up to 50 photos at once; photo exports (single, batch and export selected) keep running in other apps or with the screen off, with a progress notification.",
+   "<strong>Resizable panels</strong> (hold the divider, then drag; double-tap to reset).",
+   "<strong>Panels menu</strong> (icon next to the gear): show / hide the tools panel, copy / paste bar, histogram and before / after buttons — the photo fills freed space and returns to its saved size; presets <strong>Full / View / Edit / Color</strong>; <strong>triple-tap</strong> the icon to restore the original layout. The histogram button (bar-chart icon) choice is now remembered."
+  ]
+ },
+ {
+  "title": "Export & print",
+  "items": [
+   "<strong>Export</strong>: <strong>AVIF</strong> (phone's AV1 encoder, Android 14+) and <strong>JPEG XL</strong>, TIFF 16 / 8-bit, sRGB / Display P3 / Adobe RGB with embedded profile, output sharpening (screen / matte / glossy), file-name templates, export presets, <strong>export recipes</strong> (several presets in one go), a matte-print soft proof and <strong>soft proof with a printer / paper ICC profile</strong> (own colour engine: lut8 / lut16 / lutAtoB / lutBtoA, perceptual or relative colorimetric, paper white).",
+   "Export <strong>JPEG or PNG</strong>, quality and size choice; choose the <strong>save folder</strong> (default DCIM/AlcorCutPro).",
+   "<strong>IPTC title, caption &amp; keywords</strong> in every export, and an optional <strong>.xmp sidecar</strong> (Camera Raw settings) with the edit."
+  ]
+ }
+]

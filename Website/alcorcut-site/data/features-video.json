@@ -1,0 +1,187 @@
+[
+ {
+  "title": "Media & timeline",
+  "items": [
+   "<strong>Delete from the timeline</strong>: a bin on the selected clip; choose Close gap (ripple) or Leave gap (black of the same length).",
+   "<strong>Skip to the editor</strong> from the start page: open an empty timeline without picking a video first (manual, every time).",
+   "Add clips from the gallery or files (MP4, MKV, MOV, WebM, SD card / USB).",
+   "Export to internal storage, an SD card / USB drive or a picked folder on any external drive (own SAVE LOCATION, or the same as capture).",
+   "<strong>4:2:2 / 4:4:4 footage</strong>: detected from the stream, decoded with whichever decoder on the phone can read it (hardware, then Android's software decoder), plays directly (with the right decoder) or from a proxy, export from the original.",
+   "<strong>Media pool</strong> with codec, HDR / 10-bit badges; delete from the pool with confirmation.",
+   "<strong>Multi-track timeline</strong> starting at the left edge: filmstrips, layer rows and audio rows; drag the playhead or tap the ruler; two-finger pinch zoom and scroll; follows the playhead while playing.",
+   "Under the player: <strong>mute, zoom out, show whole timeline, zoom in, split, undo, redo</strong>, previous / play / next, full screen.",
+   "<strong>Trim, split, duplicate, reorder, speed, delete</strong> clips.",
+   "<strong>Real audio waveforms</strong> on clips and audio tracks.",
+   "<strong>Markers</strong> with notes (list on the Media page, jump to any marker) and <strong>snapping</strong> (cuts, markers, playhead, other items).",
+   "<strong>Speed ramps</strong> (8 curves), <strong>freeze frame</strong>, <strong>reverse</strong>, <strong>detach audio</strong> for J- and L-cuts.",
+   "<strong>Beat markers</strong> found from the music.",
+   "<strong>Remove silences</strong>: cut the pauses out of one clip or all clips (silence level and minimum pause adjustable; undo restores).",
+   "<strong>Track headers</strong>: mute the video track or any audio track, show / hide layers, <strong>lock</strong> tracks against edits.",
+   "<strong>Hold-and-drag on the timeline</strong>: move layers and audio in time, drag layers up / down to reorder, hold an edge to trim or extend.",
+   "<strong>Audio in the media pool</strong> (MP3, WAV, AAC…): add to the timeline at the playhead — the first becomes the music track, more become extra audio tracks with volume and fades.",
+   "Gapless clip-to-clip playback; <strong>full-screen player</strong> with auto-hiding controls.",
+   "<strong>Proxy media</strong>: a Proxy section next to Media — only media added there plays from a proxy; Proxy ON / OFF switch; 360p, 540p, 720p or 1080p (H.264 or HEVC), remade in the background when the quality changes; background generation with progress and cancel; proxies linked to their originals by a stable media ID and checked for matching length, frame rate, orientation and audio, so switching never shifts edits; missing, unfinished or failing proxies fall back to the original (never a blank frame); lighter timeline thumbnails and filmstrips from proxies; exports always use the originals.",
+   "Grade preview drawn on screen (Android 13+) for smooth, instant playback; exports use the full pipeline.",
+   "<strong>Media strip</strong> (always on screen above the timeline, can be hidden in the Panels menu): every imported clip, used on the timeline or not. Mouse-hover or hold-and-slide <strong>skimming</strong>, an amber <strong>USED ×n</strong> mark, <strong>1–5 star ratings and reject</strong>, filters (All, Unused, Used, ★3+, No rejects, bins), multi-select (append, rate, reject, remove), Append / Insert / Overwrite / Source viewer, <strong>+ Clips</strong> (up to 100 at once) and <strong>+ Folder</strong> (every video in a folder and its sub-folders). With a mouse, drag a clip straight onto the timeline."
+  ]
+ },
+ {
+  "title": "Pro editing",
+  "items": [
+   "<strong>Text-based editing</strong>: the edit as text, transcribed on the phone (whisper.cpp, MIT; Whisper model downloaded once — Fast 57 MB / Accurate 181 MB; 99 languages incl. Danish and Faroese). Tap words to cut them, REMOVE FILLERS (um / uh / øh), APPLY CUTS splits the clips without leaving dead air; undo restores; hold a word to jump there.",
+   "<strong>Clip keyframes</strong>: zoom, position, rotation and opacity over time, Smooth / Linear / Hold easing or a <strong>Bézier curve</strong> (graph editor with presets), diamonds on the timeline, edit on the player at the playhead; preview and export.",
+   "<strong>Scene cut detection</strong>: finds the camera cuts in a long clip or finished film and splits it into shots.",
+   "<strong>Multi-select</strong>: tick clips to delete (ripple), mute, change speed, duplicate or copy a grade in one go.",
+   "<strong>Auto-edit to the beat</strong>: rebuilds the timeline from your clips with a cut on every 1st / 2nd / 4th / 8th beat.",
+   "<strong>Fit music to video</strong>: the song ends exactly with the video on its real ending — a beat-aligned middle part is cut out or repeated.",
+   "<strong>Before / after split</strong> on the player (Color page, Android 13+) with a draggable divider.",
+   "<strong>Project version history</strong>: a version on every save and every 10 minutes (newest 30), RESTORE any of them.",
+   "<strong>YouTube chapters</strong> from timeline markers, copied ready for the description.",
+   "<strong>Rolling credits</strong>: Credits layer and a Roll animation for any text layer.",
+   "<strong>Keyboard shortcuts</strong> (Bluetooth / USB): J / K / L, Space, frame steps, cut to cut, split, ripple delete, markers, in / out, undo / redo, save.",
+   "<strong>Timeline scroll wheels</strong>: a vertical wheel (tracks up / down) and a horizontal wheel along the bottom (through the edit), each in its own window, with the AI-upscale effect.",
+   "<strong>Shot match</strong>: one tap sets a clip's exposure, white balance, contrast and saturation to match another clip as graded.",
+   "<strong>Film emulation</strong>: 35mm / 16mm / Super 8 looks, halation, bloom, grain (amount and size), gate weave.",
+   "<strong>Lens correction</strong>: barrel / pincushion distortion, colour fringing and vignette fix, with action cam, drone and ultra-wide presets.",
+   "<strong>Deflicker</strong> for timelapses, hyperlapses and flickering lights (scene cuts left alone).",
+   "<strong>Background removal &amp; Magic Mask</strong>: people found automatically (ML Kit), or Magic Mask — tap / box any object and it is tracked through the clip (MobileSAM, Apache 2.0, via ONNX Runtime, MIT; own optical-flow tracking with close-up re-fitting, occlusion and scene-cut handling); blur, recolour, remove or invert; edges refined against the full picture; live preview matches the export; cut-outs for video layers.",
+   "<strong>Generators</strong>: black, colour, gradient, noise and colour-bars clips, and a film countdown leader (3–10).",
+   "<strong>Split-screen templates</strong> (2 side by side, 2 stacked, 3 columns, 2 × 2) and <strong>picture in picture</strong>; video layers get a frame shape (crop to fill), rounded corners, border and drop shadow.",
+   "<strong>Morph cut</strong>: own optical-flow engine draws new in-between frames for jump cuts — the frames are rendered through each clip's own grade and effects at full size.",
+   "<strong>Smarter filler removal</strong>: um / uh, repeats &amp; stutters, and optional filler phrases (you know, like) — the transcript now keeps what was really said.",
+   "<strong>Auto podcast / interview switching</strong> (Multicam → AUTO: WHO'S TALKING): cuts to whoever is speaking from each angle's own microphone, with an optional wide shot for cross-talk and pauses.",
+   "<strong>Auto highlights</strong>: a 15 s – 2 min reel of the liveliest moments (sound bursts, movement, lively talk, sharp shots, faces), cut between words or on the music's beat.",
+   "<strong>Optical-flow slow motion</strong> on the phone (own motion engine): ½ / ¼ / ⅛ speed or the clip's own ramp with new in-between frames.",
+   "<strong>Motion blur</strong> from the motion (90° / 180° / 360° shutter).",
+   "<strong>Corner pin &amp; planar tracking</strong>: put any layer in perspective on a screen, sign or wall and keep it stuck there as the camera moves (own tracker: Lucas–Kanade + RANSAC homography).",
+   "<strong>Shape layers</strong> (rectangle, rounded, ellipse, line, arrow, triangle, star, heart; filled or outline) and <strong>Lottie animation layers</strong> (.json / .zip; lottie-android, Apache 2.0).",
+   "<strong>Shape (pen) masks</strong> on clips: a smooth curve with a soft edge and its own grade, planar-tracked to follow what it covers.",
+   "<strong>Object removal (AI)</strong>: tap anything and it's removed from the whole clip — filled from the real background in nearby frames (own optical flow), with LaMa (Apache 2.0) painting only what's never seen.",
+   "<strong>AI depth</strong> (Depth Anything V2 Small, Apache 2.0): lens blur with real depth of field, fog / haze by distance, or a darker, calmer background.",
+   "<strong>AI voiceover from text</strong>: 12 natural English voices (Kokoro 82M, Apache 2.0; misaki dictionaries), made on the phone and added as an audio track.",
+   "<strong>Studio voice (AI)</strong>: DeepFilterNet3 (MIT / Apache 2.0) voice clean-up; <strong>de-click</strong> and <strong>de-reverb</strong> (own code).",
+   "<strong>Caption translation</strong> on the phone (Google ML Kit) into 19 languages.",
+   "AI models are downloaded the first time a feature needs them (Depth 99 MB, Object removal 208 MB, Voiceover 105 MB), so the app stays smaller.",
+   "<strong>Word-by-word captions</strong> from the on-phone transcript: Highlight, Box, One word or Two lines.",
+   "<strong>Animated title templates</strong>: lower third, big title, cinematic, location, chapter, subscribe, end card.",
+   "<strong>Source viewer &amp; three-point editing</strong>: mark in / out, then INSERT, OVERWRITE or APPEND at the playhead.",
+   "<strong>Bins &amp; colour labels</strong> in the media pool and timeline; <strong>relink missing media</strong>; <strong>project archive</strong> (.zip with all media) to move or back up a project.",
+   "<strong>Multicam</strong>: 2–4 angles synced by sound, live switching between them while playing; the cut lands on the timeline as normal clips.",
+   "<strong>Sync by sound</strong>: external recorder / wireless mic audio lined up with a clip automatically (waveform cross-correlation).",
+   "<strong>Trim tools</strong>: slip, roll and slide by 1 or 10 frames; normal trims ripple (magnetic main track).",
+   "<strong>Nested (compound) clips</strong>: join several clips into one and open them up again.",
+   "<strong>Drone telemetry</strong>: DJI .SRT flight data (altitude, speed, GPS, camera settings) as a live read-out matched to trim and speed.",
+   "<strong>Auto-save &amp; crash recovery</strong> every 20 seconds; auto-saved edits keep access to their media, and RECOVER checks the edit first and leaves out files that can no longer be read.",
+   "<strong>Crash reports</strong>: after an unexpected close, the next start shows a short report (no photos or videos) to share or copy."
+  ]
+ },
+ {
+  "title": "Transitions",
+  "items": [
+   "<strong>Basic</strong>: cross dissolve, dip to black, dip to white, flash, blur dissolve.",
+   "<strong>Wipes &amp; shapes</strong>: wipe left / right / up / down, diagonal, iris, clock, blinds, barn door, mosaic.",
+   "<strong>Motion</strong>: push left / right / up / down, whip pan left / right, zoom in, zoom out, spin.",
+   "<strong>Stylized</strong>: light leak, ink bleed, sparkle dissolve, glitch, pixelate, chromatic, ripple, light speed, swirl.",
+   "<strong>Cinematic</strong> (13, original shaders written for AlcorCut Pro): film burn, anamorphic flare, lens warp, letterbox close, aperture (iris blades), smoke, shatter, kaleidoscope, cube turn (3D), card flip (3D), sun rays, neon edges, ember drift.",
+   "<strong>More glitches</strong> (Stylized): Glitch 2 · Datamosh, Glitch 3 · VHS rewind, Glitch 4 · Pixel sort.",
+   "Animated previews with your own clips, adjustable duration, apply to all cuts.",
+   "Match video (default), hard cut, constant gain, constant power, exponential fade, dip to silence, quick out / slow in, slow out / quick in — each with a small volume-curve picture.",
+   "Work over the video transition, or on a plain cut as a fade out / in around the cut (adjustable 0.1–3 s); in the preview and the export; apply to all cuts.",
+   "<strong>Hits &amp; impacts</strong>: cinematic impact, cinematic boom, trailer hit, braam, drum hit, punch, thunder, heartbeat, sub drop.",
+   "<strong>Whooshes &amp; air</strong>: whoosh, fast swoosh, deep whoosh, swirl, wind gust.",
+   "<strong>Builds &amp; risers</strong>: riser, reverse cymbal, clock tick build, tape stop.",
+   "<strong>Stylized &amp; sci-fi</strong>: glitch, record scratch, laser zap, magic shimmer, camera shutter, TV static.",
+   "Made by the app itself (no downloaded audio). Impacts land on the cut; risers and reverse cymbals build up to it. Effect volume, ▶ listen, heard in the preview and mixed into the export.",
+   "<strong>My sounds</strong>: import your own transition sounds (MP3, WAV, M4A, AAC, OGG, FLAC); they're copied into the app, can be used on any cut, and can start on, centre on or end on the cut. ✕ removes one."
+  ]
+ },
+ {
+  "title": "Color",
+  "items": [
+   "Log input transforms: <strong>D-Log, D-Log M, S-Log3, V-Log, LogC3, HLG, Flat</strong>.",
+   "Wheels (lift / gamma / gain), primaries, curves, HSL, detail, effects, looks; scope drawer (histogram, waveform, RGB parade, vectorscope); copy grade to all clips.",
+   "<strong>My LUTs</strong> (.cube) as a creative look or as the log → Rec.709 input conversion; <strong>my presets</strong> shared with the photo editor.",
+   "<strong>AI noise reduction</strong> per clip (built-in NAFNet), applied on export with a stoppable progress badge.",
+   "<strong>Colour masks</strong> (up to 3 per clip): gradient, radial, colour range and brightness range, each with its own grade; handles on the player; live preview and export."
+  ]
+ },
+ {
+  "title": "Crop, zoom & stabilization",
+  "items": [
+   "<strong>Crop &amp; zoom on the player</strong> (pinch, drag, twist) with thirds grid; zoom 0.25×–4×, position, rotate, flip.",
+   "<strong>Ken Burns</strong> animation from a start framing to an end framing.",
+   "<strong>Anamorphic desqueeze</strong> per clip (preview and export).",
+   "<strong>Auto-reframe</strong> (AI) to 9:16, 1:1 or 4:5 — the picture follows the subject.",
+   "<strong>AI slow motion</strong> by frame interpolation (RIFE via Cloud AI).",
+   "<strong>Stabilization</strong>: motion analysis with smooth or locked (tripod) modes, smoothness and auto-crop."
+  ]
+ },
+ {
+  "title": "Layers",
+  "items": [
+   "<strong>Text, stickers, watermark, logo, image and video (picture-in-picture)</strong> layers with timing, position, size and opacity.",
+   "<strong>Unlimited video layers, above or below the main video</strong>: + VIDEO on the timeline asks where the new video goes; above = on top (picture-in-picture or full frame), below = behind your clips (shows where the main video doesn't cover the frame). Switch later under PLACEMENT; reorder by dragging rows; rows above V1 for layers on top, under V1 for layers below (marked ↑ / ↓); same stacking in the preview and the export.",
+   "<strong>Keyframes</strong> for layer position, size and opacity (smooth easing; diamonds on the timeline).",
+   "<strong>Motion tracking</strong>: a layer follows a moving object from the playhead (on-device patch tracking → position keyframes).",
+   "<strong>Adjustment layers</strong>: a grade over everything under them for their time range, with strength (up to 3 at a time).",
+   "<strong>Blend modes</strong> (Screen, Multiply, Overlay, Add, Lighten, Darken, Soft light, Difference) for picture, text and sticker layers.",
+   "<strong>Chroma key</strong> (green / blue / black / white screen) for video and image layers, with tolerance and edge softness.",
+   "<strong>AI captions</strong> from the speech in the edit (Whisper via Cloud AI), boxed / clean / big styles.",
+   "<strong>Layer animations</strong>: in / out — fade, slide up / down / left / right, pop, zoom, bounce, wipe reveal, typewriter — with adjustable length.",
+   "<strong>Rename layers</strong> (e.g. name your watermarks) — names show in the layer list and on the timeline."
+  ]
+ },
+ {
+  "title": "Audio",
+  "items": [
+   "<strong>Sound libraries</strong> (Media page): built-in <strong>Soundtracks</strong> — 26 original cinematic tracks owned by the developer and cleared for use in your videos — with listen-before-adding preview; <strong>Nature sounds</strong> section ready for more. Tracks behave like imported music (timeline, waveform, fades, ducking, export).",
+   "<strong>Music track</strong> with start point, volume, fades and <strong>ducking</strong> under clips.",
+   "<strong>Voiceover</strong> recording onto its own audio track.",
+   "<strong>Volume keyframes</strong> per clip.",
+   "Per clip: volume, pan, channels (stereo / mono / left / right / swap), fades.",
+   "<strong>Voice noise reduction</strong> per clip (Light / Strong / <strong>Voice isolation (AI)</strong> — RNNoise, BSD-3, on the phone; on export).",
+   "<strong>3-band EQ</strong>, low cut, voice enhance, <strong>compressor, noise gate, limiter</strong>; presets (Voice, Interview, Wind cut, Warm, Bright, Bass boost, Radio, Loud &amp; punchy); live <strong>level meter</strong>.",
+   "<strong>Parametric EQ</strong>: up to 8 bands (bell, shelves, low / high cut) dragged over a live spectrum; <strong>de-esser</strong>.",
+   "<strong>AI dubbing</strong>: captions spoken as one audio track at their times (English on the phone with Kokoro; other languages via Cloud AI, ElevenLabs Multilingual v2), original voice ducked or muted.",
+   "<strong>Dialogue leveller</strong>: evens out speech (quiet words up, loud words down, pauses left alone).",
+   "<strong>Mixer</strong>: a strip per track (clip sound, music, extra tracks) with live meter, level (dB), pan, mute and solo, plus master level — in the preview and the export.",
+   "<strong>LUFS meter</strong> (EBU R128 / BS.1770): momentary, short-term and integrated loudness while playing."
+  ]
+ },
+ {
+  "title": "Deliver",
+  "items": [
+   "<strong>Background export</strong>: keeps running in other apps or with the screen off (foreground service, progress notification, \"finished\" notification).",
+   "<strong>Background tasks notification</strong>: one notification in the pull-down shade lists every background task with its progress — photo and video exports, edit sync, proxies, AI noise reduction, AI upscale, AI cull, Cloud AI and first-launch downloads.",
+   "<strong>Render queue</strong>: several export settings of the same edit rendered one after another (✓ per finished job, stop any time).",
+   "<strong>Audio only</strong> export to Music/AlcorCutPro as AAC .m4a, WAV (16 / 24-bit, 32-bit float), AIFF 24-bit, FLAC (lossless) or Opus .ogg — all licence-free formats; WAV / AIFF / FLAC are written by the app's own encoder from the finished mix (lossless).",
+   "<strong>Track switches &amp; trim handles</strong>: per-row mute, eye (hide a layer from the feed and the export) and lock; bracket-style trim handles on both ends of every V1 clip, layer and audio bar — hold and drag to lengthen or shorten within the video, with a live length read-out.",
+   "<strong>Timeline scroll wheel</strong>: a slim glowing wheel in its own window on the timeline's right edge (as tall as the timeline, growing with the tracks, never covering a track) scrolls the tracks up and down (drag or tap), with an \"upscale\" effect — pixel blocks resolving and a scan line following the scroll.",
+   "<strong>Keep HDR</strong> (HLG / HDR10, 10-bit HEVC) or convert to SDR.",
+   "Resolution up to <strong>4K UHD</strong>, frame rate, <strong>H.264 / HEVC</strong>, bitrate up to very high, audio on/off.",
+   "Project formats: Original, 16:9, 9:16, 1:1, 4:5, 4:3 and more; fill or fit.",
+   "<strong>Export presets</strong> (YouTube 4K / 1080p, Instagram Reel / 4:5, TikTok, Square, small file).",
+   "<strong>Export a range</strong> (in / out) and <strong>save a frame as a photo</strong>.",
+   "<strong>Estimated file size</strong> shown live as you change the settings.",
+   "<strong>Loudness normalisation</strong>: −14 / −16 / −23 LUFS (measured per BS.1770, then the whole mix is set to the target, with a limiter).",
+   "Choose the <strong>save folder</strong> (default DCIM/AlcorCutPro).",
+   "<strong>Animated GIF</strong> export (320–640 px, 10–15 fps, up to 20 s) with grade and layers.",
+   "<strong>Subtitles</strong> from the captions as <strong>.srt</strong> or <strong>WebVTT (.vtt)</strong>; <strong>import .srt / .vtt</strong> files as caption layers.",
+   "<strong>Review copy</strong>: burned-in timecode, watermark text and marker notes on screen.",
+   "<strong>Render cache</strong>: heavy AI effects (noise reduction, background, depth) rendered once for smooth playback; export always from the originals.",
+   "<strong>Safe zones</strong> on the viewer: TikTok, Reels, Shorts (approximate) and TV action / title safe — never exported.",
+   "<strong>Smart render (fast copy)</strong>: cut-only edits are copied from the clips without re-encoding — no quality loss, much faster (each clip starts on its nearest earlier key frame).",
+   "<strong>Send to desktop editor</strong>: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) and <strong>OpenTimelineIO .otio</strong> (cuts, dissolves, speed, markers) for desktop editing software."
+  ]
+ },
+ {
+  "title": "Projects & workflow",
+  "items": [
+   "<strong>Several timelines per project</strong>: new, duplicate, rename and switch between cuts of the same project (shared media strip).",
+   "<strong>LOAD / SAVE projects</strong> next to Export; <strong>Save &amp; leave</strong> when exiting; saved projects on the start page.",
+   "<strong>Copy / Paste settings</strong> between clips (or from a photo), optionally onto every clip.",
+   "<strong>Remember watermark</strong>; <strong>resizable panels</strong>; <strong>playback info</strong> read-out for troubleshooting.",
+   "<strong>Panels menu</strong> (icon next to the gear): show / hide the tools panel, transport bar, histogram, timecode and audio waveforms — the player and timeline grow into freed space and return to their saved sizes; presets <strong>Full / Cut / Color / Audio</strong>; <strong>triple-tap</strong> the icon to restore the original layout."
+  ]
+ }
+]

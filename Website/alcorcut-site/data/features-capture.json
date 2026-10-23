@@ -1,0 +1,137 @@
+[
+ {
+  "title": "Modes",
+  "items": [
+   "<strong>Photo</strong>, <strong>Pro</strong> (photo), <strong>Video</strong>, <strong>Pro Video</strong> and <strong>Live</strong> streaming.",
+   "Smart modes: <strong>Portrait</strong> (background blur for people, pets, flowers, rocks, branches…; slider f/1.4 – f/16, or AUTO), <strong>AI Portrait</strong> (the same, plus the blur shown live in the viewfinder), <strong>Panorama</strong> (gyroscope-guided ~180°, cylindrical stitching), <strong>Time-lapse</strong>, <strong>Hyperlapse</strong>, <strong>Slow-mo</strong>, <strong>Super slow-mo</strong>, <strong>Burst</strong>."
+  ]
+ },
+ {
+  "title": "Photo",
+  "items": [
+   "Photo <strong>size per camera</strong> (megapixel choice), aspect <strong>4:3 / 16:9 / 1:1</strong>.",
+   "<strong>Pro photo file format remembered</strong>: Always JPEG, Always RAW + JPEG or Always RAW only (Settings → PHOTO; one at a time).",
+   "Android 12+ <strong>full-resolution sensor mode</strong> when the phone allows it, plus a read-out of what the sensor offers to apps.",
+   "<strong>AI upscale</strong> (optional, off by default): AI 24 / 36 / 48 MP sizes in the size picker. An on-device AI model (ESRGAN, runs on the phone, no internet) rebuilds each photo at the bigger size in the background; Standard or High quality; keep or replace the original; animated progress badge with a <strong>Stop</strong> button.",
+   "<strong>JPEG, RAW (DNG) and RAW+JPEG</strong> in Pro.",
+   "Scenes: <strong>Standard, HDR, Night, Bokeh, Auto+</strong> (where the phone supports them).",
+   "<strong>Burst</strong> (×3/×5/×10), <strong>self-timer</strong>, <strong>interval</strong> shooting, <strong>exposure bracketing</strong> (±1 / ±2).",
+   "<strong>Film looks</strong>: Natural, Vivid, Chrome, Warm, Cool, Cinema, Fade, Sepia, Mono, Noir, Teal &amp; Orange, Print Film, Bleach Bypass, Golden Hour, Cold Thriller, Vintage 8mm.",
+   "Flash <strong>Off / Auto / On / Torch</strong>; shutter sound on/off; volume keys as shutter."
+  ]
+ },
+ {
+  "title": "Video",
+  "items": [
+   "<strong>4K, 1080p, 720p, 480p</strong>; high-bitrate option.",
+   "Codec choice <strong>H.264 or H.265 (HEVC)</strong> — also for time-lapse / hyperlapse; <strong>10-bit HLG</strong>.",
+   "Picture profiles: <strong>Standard, Flat, D-Log, D-Log M</strong>.",
+   "<strong>Stabilization choice</strong>: Off, <strong>In-app (crop)</strong> — the camera's own stabilization — or <strong>Gyroflow</strong>: the gyroscope and accelerometer are recorded into a .gcsv log per clip (optical / electronic stabilization off) for gimbal-smooth results in Gyroflow on a computer.",
+   "<strong>Motion blur (electronic ND)</strong>: blends ×2 / ×4 / ×8 frames for cinematic motion blur in bright light, in preview and recording.",
+   "<strong>Pre-record</strong>: keeps 3, 5 or 10 seconds from before you press record.",
+   "<strong>Cinema clip naming</strong> (camera / reel / clip) or date &amp; time.",
+   "<strong>Clean feed</strong> (hide the on-screen controls for an HDMI / screen mirror)."
+  ]
+ },
+ {
+  "title": "Long exposure",
+  "items": [
+   "<strong>LONG EXP</strong> smart mode: <strong>Light trails</strong> (lighten stacking), <strong>Silky water</strong> (averaging) and <strong>Night sky</strong> (averaging + brightening, less noise); 2–30 s, live build-up preview, finish early with the shutter."
+  ]
+ },
+ {
+  "title": "Remote monitor",
+  "items": [
+   "<strong>Remote monitor &amp; control</strong> from any browser on the same Wi-Fi or hotspot (PIN-protected address): live picture, shutter / record, zoom, Photo / Video / Pro Video, autofocus, AE lock, recording time and exposure read-out."
+  ]
+ },
+ {
+  "title": "Stop motion",
+  "items": [
+   "<strong>Stop motion</strong> (photo modes): each photo is the next frame, onion skin over the viewfinder, frame strip (play, hold, delete), 6–24 fps, MAKE VIDEO."
+  ]
+ },
+ {
+  "title": "Teleprompter",
+  "items": [
+   "<strong>Teleprompter</strong> over the camera (selfie or back camera): your own text, scrolling at your speed or starting with the recording; bold, italic, underline, narrow, alignment, size, text and background colours with opacity, mirror for teleprompter glass; drag to move, drag the corner to resize, shrink to a small bar, close with ✕; opens by itself with the selfie camera."
+  ]
+ },
+ {
+  "title": "Pro controls",
+  "items": [
+   "<strong>Pro read-out bar</strong>: live ISO, shutter, focus, white balance, EV and zoom — tap any to change it — plus the exposure mode (<strong>auto, shutter priority, ISO priority, manual</strong>; Android 15+ uses the camera's own priority modes, older phones are metered continuously by the app) and, in video, resolution · frame rate · bitrate.",
+   "<strong>Fn button</strong>: one assignable button (tap to run, hold to choose) — zebras, peaking, false colour, next scope, AE / AWB lock, split focus / exposure, pull to A / B, frame guide, safe areas, log assist, flip, torch, next lens, focus magnifier, clean feed.",
+   "<strong>Pull points</strong>: A / B points for focus (rack focus), zoom and exposure, glided over 1–8 s, separately or all together.",
+   "<strong>Separate focus and exposure points</strong>: tap = focus, double-tap = exposure (amber sun ring).",
+   "<strong>Record in cinema shapes</strong>: 2.76 (Ultra Panavision), 2.39, 1.85, 4:3, 1:1, 9:16 — the recording is cropped, not just guided.",
+   "<strong>Bitrate tiers</strong>: Economy, Standard, High, Extreme (Extreme and 24-bit audio only on phones strong enough — memory, processor, graphics and the video encoder are checked). <strong>Flip picture</strong> (left ↔ right, viewfinder and recording).",
+   "<strong>NTSC rates</strong>: 23.976 / 29.97 / 59.94 fps by conforming 24 / 30 / 60 fps clips after recording (picture and sound together).",
+   "<strong>Set-up sync</strong>: C1–C3 synced between devices through one file in a cloud folder you choose.",
+   "<strong>Watch remote</strong> (Wear OS — Galaxy Watch 4+, Pixel Watch): live picture, record / shutter, photo ↔ video, zoom.",
+   "<strong>Slate &amp; shot log</strong>: scene / shot / take and notes, viewfinder badge, photo description, CSV shot log with camera settings, automatic take numbers.",
+   "<strong>Safe areas</strong>: action-safe 90 % and title-safe 80 % frames.",
+   "<strong>Tally border</strong>, <strong>touch lock</strong> while recording, and <strong>storage / battery / heat warnings</strong>.",
+   "<strong>Custom set-ups C1 / C2 / C3</strong>: hold to save all current settings, tap to recall.",
+   "<strong>Autofocus with hold-for-manual-focus</strong> in every mode (photo, pro, video, pro video and the smart modes): tap to focus, hold 2 s for manual focus with a slim vertical focus slider on the right edge of the feed (∞ to closest, live distance tag, focus magnifier while dragging), ✕ returns to autofocus.",
+   "<strong>Hold-and-release exposure lock</strong> (about ½ s) with an EV slider under the lock; do it again or tap ✕ to unlock.",
+   "<strong>Shutter angle</strong> read-out for video with a one-tap <strong>180°</strong> button.",
+   "<strong>Monitoring LUT</strong>: your own .cube LUT on the viewfinder (optionally recorded into videos).",
+   "<strong>Focus magnifier</strong> (×4) while focusing manually; <strong>rack focus</strong> between two stored points (1 / 2 / 4 s).",
+   "<strong>Scopes</strong>: histogram, <strong>waveform</strong>, <strong>RGB parade</strong> or <strong>vectorscope</strong> with skin-tone line.",
+   "<strong>Anamorphic desqueeze</strong> for the viewfinder (1.33×, 1.5×, 1.55×, 1.8×, 2×).",
+   "Manual <strong>ISO, shutter, focus, white balance</strong> (presets 3200K–7500K and more), <strong>exposure compensation</strong> and <strong>zoom</strong>.",
+   "Analysis: <strong>zebras</strong>, <strong>false colour</strong>, <strong>focus peaking</strong>, <strong>histogram</strong> (also in Pro Video when the phone can't add an analysis stream).",
+   "<strong>Composition grids</strong> (3×3, phi, 4×4, crosshair) and <strong>frame guides</strong> (2.39, 1.85, 4:3, 1:1, 9:16)."
+  ]
+ },
+ {
+  "title": "Audio",
+  "items": [
+   "<strong>24-bit audio</strong>: uncompressed recording saved as a 24-bit WAV next to each clip (the clip gets the same sound).",
+   "<strong>Manual input gain</strong> with limiter (applied to finished clips).",
+   "<strong>Headphone monitoring</strong> with live gain, limiter and volume; audio level graph.",
+   "<strong>Left / right level meters</strong> (stereo microphones), <strong>wind filter</strong>, Bluetooth headset microphone option; USB / wired mics used automatically.",
+   "<strong>Voice noise reduction</strong> (Light / Strong): cleans hiss, hum and background noise from recorded sound."
+  ]
+ },
+ {
+  "title": "Privacy & titles",
+  "items": [
+   "<strong>Face blur</strong>: faces are pixelated live in the viewfinder, in videos and in photos (on-device face detection). Quick BLUR switch.",
+   "<strong>Title on videos</strong>: your text burned into each clip — lower third, centre or top, for 3 / 5 / 10 s or the whole clip, with a fade / slide in and out; quick TITLE switch and viewfinder preview.",
+   "<strong>Auto-enhance</strong> photos: an extra, improved copy of each photo (exposure, contrast, white balance, vibrance); the original is kept.",
+   "Panels menu toggles for the BLUR and TITLE switches and the title preview."
+  ]
+ },
+ {
+  "title": "Live streaming",
+  "items": [
+   "Stream to <strong>YouTube, TikTok, Twitch, Facebook</strong> or any <strong>RTMP / RTMPS / SRT</strong> server; <strong>H.264 or H.265</strong>."
+  ]
+ },
+ {
+  "title": "Gallery",
+  "items": [
+   "<strong>Select several</strong> (hold one): share, delete (to the trash), favourite, pick or reject them together.",
+   "<strong>Trash</strong> (Android 11+): deleted items are kept 30 days and can be restored; empty trash.",
+   "<strong>Culling</strong>: 1–5 stars, pick / reject, rating filters and delete-all-rejects.",
+   "Full-screen in-app gallery for photos and videos; <strong>Favourites</strong>; separate <strong>RAW</strong> tab with badges.",
+   "<strong>Colour grading</strong> for photos and videos straight from the gallery.",
+   "<strong>Grade</strong> (photos and videos): looks, light (exposure, contrast, highlights, shadows, whites, blacks), colour, toning, and for photos <strong>Detail</strong> (clarity, texture, dehaze, sharpening, vignette)."
+  ]
+ },
+ {
+  "title": "Settings",
+  "items": [
+   "<strong>Side buttons</strong>: volume up / down as shutter / record, zoom, or off (normal volume).",
+   "<strong>External monitor layouts</strong> (DeX / HDMI desktop only): 16:9 / 16:10, 21:9 and 32:9 layouts with media / filmstrip, viewer and tools columns; phones and tablets keep their own layouts and switch back when unplugged.",
+   "<strong>Autosave</strong> (photo and video editors): interval Off / 1 / 2 / 5 / 10 / 15 / 30 min and 1–5 kept copies, listed under LOAD → AUTOSAVES.",
+   "<strong>Samsung DeX ready</strong>: resizable windows, wide layouts, mouse and keyboard; the app keeps your edit when you connect a keyboard / mouse or move between the phone and a monitor.",
+   "<strong>Mouse support</strong>: AlcorCut's own glowing pointer (halo, trail, click ripple, orbiting spark), or a plain pointer, or the normal Android arrow. Choose the <strong>pointer colour</strong> and, separately, the <strong>scroll wheel colour</strong> in each screen's gear settings. Wheel, right-click, middle-click and double-click actions in Capture, the Photo editor and the Video editor, plus drag from the media strip to the timeline.",
+   "<strong>Copyright</strong>: your name and copyright written into every photo (camera and photo editor exports).",
+   "<strong>External storage</strong>: save to phone storage, an SD card / USB drive, or a folder you pick on any USB stick, SSD or SD card (videos record straight onto the drive; falls back to internal storage if it is unplugged); <strong>app colour</strong> (accent) picker; layout and control options.",
+   "<strong>Panels menu</strong> (icon next to the gear): show / hide the exposure read-out, histogram, audio meter, level, Pro controls bar and tips; presets <strong>Full / Minimal / Video</strong>; <strong>triple-tap</strong> the icon to restore the original layout."
+  ]
+ }
+]

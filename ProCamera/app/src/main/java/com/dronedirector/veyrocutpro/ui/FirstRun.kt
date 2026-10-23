@@ -137,6 +137,7 @@ private fun FirstRunScreen(askData: Boolean, onDownloadNow: () -> Unit, onWaitWi
                 )
                 Text("The download carries on in the background. Tools whose model hasn't arrived yet tell you so.", color = Pro.Dim, fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp))
             }
+            RestorePreviousSettings()
         }
     }
 }

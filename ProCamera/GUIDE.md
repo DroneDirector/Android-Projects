@@ -53,6 +53,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Photo and video editor → LUTs → EXPORT THIS LOOK AS .CUBE: saves your grade as a 33-point .cube LUT in Documents/AlcorCutPro/LUTs and adds it to My LUTs.
 - Video editor → layer → Luma key: Remove dark (fire, sparks, smoke on black) or Remove bright, with Level and Softness.
 - Gear → Layout & look → Fold-out sections: Remember (sections left open open again next time), Always closed, or All open — set separately for the photo and video editor.
+- Gear → backup → Keep settings after uninstall: saves your settings, presets and LUTs to Documents/AlcorCutPro/Settings whenever you leave the app; after reinstalling, tap RESTORE MY SETTINGS on the first screen and pick AlcorCutPro-settings.vcbackup.
 - Photo editor and video editor: every section in the tool panels is a fold-out (title, a line saying what's inside, arrow). Tap to open or close it; the tabs above work as before.
 - Photo and video editor settings are folded into groups too (Layout & look, Saving & backup, Watermark, AI, App, and in the video editor Project archive & versions and Playback & proxies). Each line says what's inside.
 - Watch remote: install AlcorCutPro-WATCH (from the release) on a Wear OS watch — Galaxy Watch 4 or newer, Pixel Watch. With Capture open on the phone, the watch shows the live picture and records / takes photos, switches photo ↔ video and zooms. Install steps: Guides and Tips → Installing the watch app.

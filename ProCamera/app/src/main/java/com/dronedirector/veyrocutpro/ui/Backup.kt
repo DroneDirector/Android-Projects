@@ -49,6 +49,39 @@ object Backup {
         } != null
     } catch (_: Throwable) { false }
 
+    /**
+     * The compact settings-only version (for "Keep settings after uninstall"): settings plus the app's
+     * small files (presets, LUTs, watermarks…), but none of the big downloaded AI models.
+     */
+    fun exportSettings(context: Context, os: java.io.OutputStream) {
+        ZipOutputStream(os.buffered()).use { zip ->
+            zip.putNextEntry(ZipEntry("prefs.json"))
+            zip.write(prefsJson(context).toString().toByteArray())
+            zip.closeEntry()
+            val root = context.filesDir
+            var total = 0L
+            root.walkTopDown().filter { it.isFile && it.length() < 2_000_000 }.forEach { f ->
+                val rel = f.relativeTo(root).invariantSeparatorsPath
+                val top = rel.substringBefore('/')
+                if (top in SKIP || top == "models" || top == "whisper" || top == "stab" || total > 20_000_000) return@forEach
+                total += f.length()
+                zip.putNextEntry(ZipEntry("files/$rel"))
+                f.inputStream().use { it.copyTo(zip) }
+                zip.closeEntry()
+            }
+            zip.putNextEntry(ZipEntry("info.json"))
+            zip.write(JSONObject().put("app", "AlcorCut Pro").put("version", 1).put("kind", "settings").put("time", System.currentTimeMillis()).toString().toByteArray())
+            zip.closeEntry()
+        }
+    }
+
+    /** A cheap fingerprint of the settings, to skip saving when nothing changed. */
+    fun settingsFingerprint(context: Context): String {
+        val sb = StringBuilder(prefsJson(context).toString())
+        context.filesDir.walkTopDown().filter { it.isFile && it.length() < 2_000_000 }.forEach { sb.append(it.path).append(it.length()).append(it.lastModified()) }
+        return sb.toString().hashCode().toString()
+    }
+
     /** Restores a backup; the app then restarts. Returns false if the file isn't a AlcorCut Pro backup. */
     fun restore(context: Context, src: Uri): Boolean {
         val root = context.filesDir.canonicalFile
@@ -90,7 +123,7 @@ object Backup {
     private fun prefsJson(context: Context): JSONObject {
         val out = JSONObject()
         val dir = File(context.applicationInfo.dataDir, "shared_prefs")
-        dir.listFiles { f -> f.name.endsWith(".xml") }.orEmpty().forEach { f ->
+        dir.listFiles { f -> f.name.endsWith(".xml") && !f.name.contains("secure") }.orEmpty().forEach { f ->
             val name = f.name.removeSuffix(".xml")
             val all = context.getSharedPreferences(name, Context.MODE_PRIVATE).all
             val o = JSONObject()
@@ -192,5 +225,6 @@ fun BackupSection() {
             busy ?: "One file with all settings, presets, LUTs, watermarks, your sounds and saved projects — for a new phone or after reinstalling. Photos and videos stay in your gallery.",
             color = if (busy != null) Pro.Amber else Pro.Dim, fontSize = 12.sp,
         )
+        KeepSettingsRow()
     }
 }

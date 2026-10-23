@@ -233,6 +233,12 @@ class MainActivity : ComponentActivity() {
         return extras.getBoolean("settings", false)
     }
 
+    override fun onStop() {
+        super.onStop()
+        // "Keep settings after uninstall": save the settings file when leaving the app (only if changed).
+        com.dronedirector.veyrocutpro.ui.KeepSettings.saveIfOn(applicationContext)
+    }
+
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) hideSystemBars()

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android's own backup (Android 11 and older): settings only — never the big AI models, and never the
+     encrypted key store (it can't be read on another install). -->
+<full-backup-content>
+    <include domain="sharedpref" path="." />
+    <exclude domain="sharedpref" path="acluxpro_secure.xml" />
+</full-backup-content>

@@ -3103,5 +3103,12 @@
 "Every section starts closed — open only what you need.": "Alle sektioner starter lukkede — åbn kun det, du har brug for.",
 "Simple layout, app colour, scroll wheel effects, mouse pointer, scroll wheel, fold-out sections": "Enkelt layout, appfarve, effekter på rullehjul, musemarkør, rullehjul, udfoldelige sektioner",
 "Simple layout, app colour, mouse pointer, fold-out sections": "Enkelt layout, appfarve, musemarkør, udfoldelige sektioner",
-"Gear → Layout & look → Fold-out sections: Remember (sections left open open again next time), Always closed, or All open — set separately for the photo and video editor.": "Tandhjul → Layout og udseende → Udfoldelige sektioner: Husk (sektioner, der stod åbne, åbner igen næste gang), Altid lukket eller Alle åbne — vælges separat for foto- og videoredigering."
+"Gear → Layout & look → Fold-out sections: Remember (sections left open open again next time), Always closed, or All open — set separately for the photo and video editor.": "Tandhjul → Layout og udseende → Udfoldelige sektioner: Husk (sektioner, der stod åbne, åbner igen næste gang), Altid lukket eller Alle åbne — vælges separat for foto- og videoredigering.",
+"Keep settings after uninstall": "Behold indstillinger efter afinstallation",
+"Saves your settings, presets and LUTs to Documents/AlcorCutPro/Settings whenever you leave the app. That folder stays if the app is uninstalled — after reinstalling, tap Restore my settings on the first screen and pick the file. Your fal.ai key isn't included.": "Gemmer dine indstillinger, forudindstillinger og LUT'er i Documents/AlcorCutPro/Settings, hver gang du forlader appen. Mappen bliver, hvis appen afinstalleres — efter geninstallation trykker du på Gendan mine indstillinger på første skærm og vælger filen. Din fal.ai-nøgle er ikke med.",
+"Reinstalled the app?": "Har du geninstalleret appen?",
+"RESTORE MY SETTINGS": "GENDAN MINE INDSTILLINGER",
+"Settings restored — restarting": "Indstillinger gendannet — genstarter",
+"That isn't a AlcorCut Pro settings file": "Det er ikke en AlcorCut Pro-indstillingsfil",
+"Gear → backup → Keep settings after uninstall: saves your settings, presets and LUTs to Documents/AlcorCutPro/Settings whenever you leave the app; after reinstalling, tap RESTORE MY SETTINGS on the first screen and pick AlcorCutPro-settings.vcbackup.": "Tandhjul → backup → Behold indstillinger efter afinstallation: gemmer dine indstillinger, forudindstillinger og LUT'er i Documents/AlcorCutPro/Settings, hver gang du forlader appen; efter geninstallation trykker du på GENDAN MINE INDSTILLINGER på første skærm og vælger AlcorCutPro-settings.vcbackup."
 }

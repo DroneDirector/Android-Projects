@@ -386,3 +386,4 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Track groups (VCA)** in the mixer: Dialogue, Music, Effects — group fader and group mute.
 - **Export a look as a .cube LUT** (33-point) from the photo or video editor, also added to My LUTs.
 - **Luma key** for video and picture layers (remove dark / remove bright, level, softness).
+- **Keep settings after uninstall** (optional): settings, presets and LUTs saved to Documents/AlcorCutPro/Settings; restore from the first screen after reinstalling.

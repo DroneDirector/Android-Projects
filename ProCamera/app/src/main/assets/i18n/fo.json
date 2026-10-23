@@ -3157,5 +3157,12 @@
 "Every section starts closed — open only what you need.": "Allir partar byrja latnir aftur — opna bara tað, tú hevur brúk fyri.",
 "Simple layout, app colour, scroll wheel effects, mouse pointer, scroll wheel, fold-out sections": "Einføld uppsetan, applitur, effektir á rullihjóli, músarpeikari, rullihjól, faldaðir partar",
 "Simple layout, app colour, mouse pointer, fold-out sections": "Einføld uppsetan, applitur, músarpeikari, faldaðir partar",
-"Gear → Layout & look → Fold-out sections: Remember (sections left open open again next time), Always closed, or All open — set separately for the photo and video editor.": "Tannhjól → Uppsetan og útsjónd → Faldaðir partar: Minst til (partar, sum stóðu opnir, opna aftur næstu ferð), Altíð latnir aftur ella Allir opnir — vel sær fyri mynda- og videoritilin."
+"Gear → Layout & look → Fold-out sections: Remember (sections left open open again next time), Always closed, or All open — set separately for the photo and video editor.": "Tannhjól → Uppsetan og útsjónd → Faldaðir partar: Minst til (partar, sum stóðu opnir, opna aftur næstu ferð), Altíð latnir aftur ella Allir opnir — vel sær fyri mynda- og videoritilin.",
+"Keep settings after uninstall": "Varðveit stillingar eftir avinstallering",
+"Saves your settings, presets and LUTs to Documents/AlcorCutPro/Settings whenever you leave the app. That folder stays if the app is uninstalled — after reinstalling, tap Restore my settings on the first screen and pick the file. Your fal.ai key isn't included.": "Goymir tínar stillingar, forstillingar og LUT'ir í Documents/AlcorCutPro/Settings, hvørja ferð tú fert úr appini. Mappan verður verandi, um appin verður avinstallerað — eftir endurinstallering trýstir tú á Endurskapa mínar stillingar á fyrsta skermi og velur fíluna. Tín fal.ai-lykil er ikki við.",
+"Reinstalled the app?": "Hevur tú endurinstallerað appina?",
+"RESTORE MY SETTINGS": "ENDURSKAPA MÍNAR STILLINGAR",
+"Settings restored — restarting": "Stillingar endurskaptar — byrjar av nýggjum",
+"That isn't a AlcorCut Pro settings file": "Hetta er ikki ein AlcorCut Pro-stillingarfíla",
+"Gear → backup → Keep settings after uninstall: saves your settings, presets and LUTs to Documents/AlcorCutPro/Settings whenever you leave the app; after reinstalling, tap RESTORE MY SETTINGS on the first screen and pick AlcorCutPro-settings.vcbackup.": "Tannhjól → trygdarafrit → Varðveit stillingar eftir avinstallering: goymir tínar stillingar, forstillingar og LUT'ir í Documents/AlcorCutPro/Settings, hvørja ferð tú fert úr appini; eftir endurinstallering trýstir tú á ENDURSKAPA MÍNAR STILLINGAR á fyrsta skermi og velur AlcorCutPro-settings.vcbackup."
 }

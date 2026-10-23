@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android's own backup (Android 12+): settings only in the cloud backup; a phone-to-phone transfer also
+     brings presets, LUTs and projects (but not the downloaded AI models, which download again). -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="sharedpref" path="." />
+        <exclude domain="sharedpref" path="acluxpro_secure.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="sharedpref" path="." />
+        <include domain="file" path="." />
+        <exclude domain="sharedpref" path="acluxpro_secure.xml" />
+        <exclude domain="file" path="models/" />
+        <exclude domain="file" path="whisper/" />
+        <exclude domain="file" path="sound_library/" />
+    </device-transfer>
+</data-extraction-rules>

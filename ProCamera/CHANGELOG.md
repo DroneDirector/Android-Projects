@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.486 — 2026-10-23
 - Capture settings (gear): everything is now in **folded sections** — Photo, Video, Audio, Viewfinder & monitoring, AI, Controls & buttons, Privacy / title / copyright, Film-set workflow, Remote & output, Storage & backup, App and This lens. Each line says what's inside; tap to open or fold it again.
 - Photo editor and video editor settings (gear): also in **folded sections** — Layout & look, Saving & backup, Watermark, AI and App; the video editor adds Project archive & versions and Playback & proxies. Each line says what's inside.
 

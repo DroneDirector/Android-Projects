@@ -155,7 +155,8 @@ object ImageOps {
                 val k = so + x / f; cb[k] += b - l; cr[k] += r - l; cnt[k]++
             } }
         for (k in 0 until sn) if (cnt[k] > 0) { cb[k] /= cnt[k]; cr[k] /= cnt[k] }
-        val rad = max(1, (((3f + 7f * amount) * scale) / f).toInt())
+        // Wide: the blotches in dim light are large (up to ~3 % of the picture's width).
+        val rad = max(1, ((max(w, h) * (0.006f + 0.022f * amount)) / f).toInt())
         val t = FloatArray(sn)
         fun blur(a: FloatArray) {
             repeat(2) {
@@ -168,7 +169,7 @@ object ImageOps {
             }
         }
         blur(cb); blur(cr)
-        val th = 14f + 46f * amount
+        val th = 25f + 90f * amount
         for (y in 0 until h) {
             val fy = ((y + 0.5f) / f - 0.5f).coerceIn(0f, sh - 1f); val y0 = min(fy.toInt(), max(sh - 2, 0)); val ay = fy - y0; val y1 = min(y0 + 1, sh - 1)
             for (x in 0 until w) {
@@ -180,9 +181,11 @@ object ImageOps {
                 val pb = b0 - l; val pr = r0 - l
                 val bb = s(cb); val rr = s(cr)
                 val edge = (1f - (abs(pb - bb) + abs(pr - rr)) / (th * 2f)).coerceIn(0f, 1f)
-                val k = (amount * 1.15f * edge * (1f - (l / 255f) * 0.45f)).coerceIn(0f, 1f)
-                if (k <= 0f) continue
-                val ncb = pb + (bb - pb) * k; val ncr = pr + (rr - pr) * k
+                val k = (amount * 1.4f * edge * (1f - (l / 255f) * 0.45f)).coerceIn(0f, 1f)
+                // Near-black: colour there is almost only noise, so it is also turned down.
+                val shadow = 1f - amount * 0.7f * ((70f - l) / 70f).coerceIn(0f, 1f)
+                if (k <= 0f && shadow >= 1f) continue
+                val ncb = (pb + (bb - pb) * k) * shadow; val ncr = (pr + (rr - pr) * k) * shadow
                 val r = l + ncr; val b = l + ncb; val g = (l - 0.299f * r - 0.114f * b) / 0.587f
                 px[i] = (c and (0xFF shl 24)) or (r.toInt().coerceIn(0, 255) shl 16) or (g.toInt().coerceIn(0, 255) shl 8) or b.toInt().coerceIn(0, 255)
             }

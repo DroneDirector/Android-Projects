@@ -155,9 +155,9 @@ class ACS_Hero extends ACS_Base {
         echo '<ul class="acs-chips" data-reveal>';
         foreach (array_filter(array_map('trim', explode("\n", (string) $s['badges']))) as $b) echo '<li>' . esc_html($b) . '</li>';
         echo '</ul></div><div class="acs-hero__stage" data-tilt aria-hidden="true">';
-        echo acs_device($s['shot_a'], 'phone', 'acs-hero__p acs-hero__p--a');
-        echo acs_device($s['shot_b'], 'phone', 'acs-hero__p acs-hero__p--b');
-        echo acs_device($s['shot_c'], 'phone', 'acs-hero__p acs-hero__p--c');
+        echo acs_device($s['shot_a'], 'tablet', 'acs-hero__p acs-hero__p--a');
+        echo acs_device($s['shot_b'], 'tablet', 'acs-hero__p acs-hero__p--b');
+        echo acs_device($s['shot_c'], 'tablet', 'acs-hero__p acs-hero__p--c');
         echo '<div class="acs-hero__ring"></div></div></div>';
         echo '<a class="acs-scrollhint" href="#android" aria-label="Scroll down"><span></span></a></section>';
     }
@@ -278,7 +278,7 @@ class ACS_Pro extends ACS_Base {
     protected function render() {
         $s = $this->s();
         echo '<section class="acs acs-pro' . ($s['flip'] === 'yes' ? ' is-flip' : '') . '" id="' . esc_attr($s['anchor']) . '"><div class="acs-wrap acs-pro__in">';
-        echo '<div class="acs-pro__media" data-reveal data-tilt>' . acs_device($s['shot'], 'phone', 'acs-pro__phone') . '<div class="acs-pro__orb" aria-hidden="true"></div></div>';
+        echo '<div class="acs-pro__media" data-reveal data-tilt>' . acs_device($s['shot'], 'tablet', 'acs-pro__phone') . '<div class="acs-pro__orb" aria-hidden="true"></div></div>';
         echo '<div class="acs-pro__copy"><p class="acs-eyebrow" data-reveal>' . esc_html($s['eyebrow']) . '</p><h2 class="acs-h2" data-reveal>' . acs_rich($s['title']) . '</h2><p class="acs-lead" data-reveal>' . esc_html($s['text']) . '</p><ol class="acs-reasons">';
         foreach ((array) $s['reasons'] as $i => $r) {
             echo '<li data-reveal style="--d:' . (int) $i . '"><span class="acs-reasons__n">' . sprintf('%02d', $i + 1) . '</span><div><h3>' . esc_html($r['title']) . '</h3><p>' . esc_html($r['text']) . '</p></div></li>';
@@ -297,7 +297,7 @@ class ACS_Gallery extends ACS_Base {
         return ['eyebrow' => ['text', 'Small line above the title', $c['eyebrow']], 'title' => ['textarea', 'Title', $c['title']]];
     }
     protected function repeaters() {
-        return ['shots' => ['Screenshots', ['image' => ['media', 'Screenshot', acs_img('shot-capture.svg')], 'caption' => ['text', 'Caption', '']], acs_content()['gallery']['shots'], 'caption']];
+        return ['shots' => ['Screenshots', ['image' => ['media', 'Screenshot', acs_img('shot-capture.jpg')], 'caption' => ['text', 'Caption', '']], acs_content()['gallery']['shots'], 'caption']];
     }
     protected function render() {
         $s = $this->s();
@@ -305,7 +305,7 @@ class ACS_Gallery extends ACS_Base {
         echo '<div class="acs-gallery__nav"><button type="button" class="acs-round" data-dir="-1" aria-label="Previous">' . acs_line_icon('arrow') . '</button><button type="button" class="acs-round" data-dir="1" aria-label="Next">' . acs_line_icon('arrow') . '</button></div></div></div>';
         echo '<div class="acs-gallery__track" tabindex="0">';
         foreach ((array) $s['shots'] as $i => $it) {
-            echo '<figure class="acs-gallery__item" data-reveal style="--d:' . (int) ($i % 4) . '">' . acs_device($it['image'], 'phone', '', $it['caption']) . '<figcaption>' . esc_html($it['caption']) . '</figcaption></figure>';
+            echo '<figure class="acs-gallery__item" data-reveal style="--d:' . (int) ($i % 4) . '">' . acs_device($it['image'], 'tablet', '', $it['caption']) . '<figcaption>' . esc_html($it['caption']) . '</figcaption></figure>';
         }
         echo '</div></section>';
     }

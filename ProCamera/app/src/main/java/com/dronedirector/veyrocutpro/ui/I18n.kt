@@ -157,6 +157,8 @@ fun Text(
     style: TextStyle = androidx.compose.material3.LocalTextStyle.current,
 ) {
     @Suppress("UNUSED_VARIABLE") val l = I18n.lang   // recompose when the language changes
+    // Inside a fold-out section, control titles (white, 13–16 sp) make up the section's "what's inside" line.
+    if (color == Color.White && fontSize.isSp && fontSize.value in 12.5f..16.5f) LocalFold.current?.collect(I18n.tr(text))
     androidx.compose.material3.Text(
         text = I18n.tr(text), modifier = modifier, color = color, fontSize = fontSize, fontStyle = fontStyle, fontWeight = fontWeight,
         fontFamily = fontFamily, letterSpacing = letterSpacing, textDecoration = textDecoration, textAlign = textAlign,

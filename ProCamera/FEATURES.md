@@ -380,3 +380,4 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **App colour** picker available in Capture settings and in both editors' settings.
 - **Folded settings menus**: the gear menus in Capture, the photo editor and the video editor group every setting in fold-out sections (e.g. Photo, Video, Audio, AI, Saving & backup, App); each line shows a short list of what is inside.
 - **Quick tours**: Capture, the photo editor and the video editor each have a short first-run tour (skip, don't show again, or replay from the gear → App).
+- **Fold-out tool sections**: in the photo and video editors every tool panel section opens and closes (title + a line listing what's inside), inside the sliding tabs.

@@ -50,17 +50,7 @@ object Ed {
 }
 
 @Composable
-fun SectionTitle(text: String, onReset: (() -> Unit)? = null) {
-    Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(text, style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.weight(1f))
-        if (onReset != null) {
-            Text(
-                "RESET", style = Pro.Label.copy(fontSize = 10.sp),
-                modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClick = onReset).padding(horizontal = 8.dp, vertical = 4.dp),
-            )
-        }
-    }
-}
+fun SectionTitle(text: String, onReset: (() -> Unit)? = null) = com.dronedirector.veyrocutpro.ui.SectionHeader(text, onReset)
 
 /** Labelled slider; tap the label to reset. */
 @Composable

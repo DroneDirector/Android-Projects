@@ -3154,17 +3154,17 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             }
                         },
                     )
-                    Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 4.dp)) {
+                    com.dronedirector.veyrocutpro.ui.FoldColumn(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 4.dp), scope = "video") {
                         val sc = clips.getOrNull(es.selected)
                         when (es.page) {
-                            Page.STRIP -> Column {
+                            Page.STRIP -> com.dronedirector.veyrocutpro.ui.FoldColumn {
                                 stripView(stripH.dp, false)
                                 ResizeHandle(true,
                                     onDrag = { d -> stripPane.dp = (stripH + d).coerceIn(40f, 240f) },
                                     onEnd = { stripPane.save() }, onReset = { stripPane.reset() })
                                 Text("Hold the divider and drag to make the thumbnails bigger or smaller. Drag a clip onto the timeline with a mouse, or pick it and use Append / Insert.", color = Pro.Dim, fontSize = 11.sp)
                             }
-                            Page.MEDIA -> Column {
+                            Page.MEDIA -> com.dronedirector.veyrocutpro.ui.FoldColumn {
                             TimelinesSection(
                                 es.timelineName, otherTimelines.map { it.name },
                                 onRename = { n -> val v = n.trim().take(40); if (v.isNotEmpty() && otherTimelines.none { it.name == v }) es.timelineName = v },
@@ -3324,7 +3324,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     if (es.selected + 1 < clips.size) { seekGlobal((st[es.selected + 1] - 1500).coerceAtLeast(st[es.selected])); if (!deck.cur.isPlaying) deck.cur.play() }
                                 },
                             )
-                            Page.EDIT -> if (sc != null) Column {
+                            Page.EDIT -> if (sc != null) com.dronedirector.veyrocutpro.ui.FoldColumn {
                                 EditPage(
                                 sc, es.selected, clips.size, es.posMs, es.deliver, { es.deliver = it },
                                 onChange = { f -> if (es.videoLocked) es.message = "The video track is locked" else update(es.selected, f) },
@@ -3468,7 +3468,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     if (i >= 0 && to in layers.indices) { val l = layers.removeAt(i); layers.add(to, l) }
                                 },
                             )
-                            Page.AUDIO -> Column {
+                            Page.AUDIO -> com.dronedirector.veyrocutpro.ui.FoldColumn {
                                 AudioPage(
                                 sc, es.deliver, es.music, es.playing,
                                 mixer = MixerHooks(

@@ -1869,7 +1869,7 @@ private fun PhotoWorkspace(
                             }
                         },
                     )
-                    Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 4.dp)) {
+                    com.dronedirector.veyrocutpro.ui.FoldColumn(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 4.dp), scope = "photo") {
                         when (panel) {
                             PhotoPanel.MASKS -> MasksPanel(edit.masks, tools, { edit = edit.copy(masks = it) }, onAi = aiMaskAction, onAiSub = aiSubAction, onPeople = peopleAction)
                             PhotoPanel.HEAL -> {

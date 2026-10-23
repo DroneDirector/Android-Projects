@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor and video editor: every section in the tool panels is now a **fold-out** (like the Capture settings) — a title, a short line listing what's inside, and an arrow. Open only what you need, so finding a tool is much quicker. The tabs above (Presets, Light, Colour… / Media, Edit, Colour, Audio, Proxy…) work as before.
 
 ## 1.0.495 — 2026-10-23
 - Photo editor: a zoomed-in photo (pinch, double-tap or 1:1) now stays inside the viewer — it no longer spills over the top bar and the corners.

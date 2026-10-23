@@ -286,7 +286,7 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
     }
 }
 
-/** Start page of an editor: pick from gallery, browse files, or recent VelaCut Pro media. */
+/** Start page of an editor: pick from gallery, browse files, or recent AlcorCut Pro media. */
 @Composable
 fun MediaChooser(
     title: String,
@@ -790,7 +790,7 @@ private fun PhotoWorkspace(
         message = if (n == 0) "No develop settings found in that file" else "Imported $n preset" + (if (n == 1) "" else "s") + " (in MY PRESETS); the first one is applied"
     }
     fun exportXmp() {
-        val name = projectName.ifBlank { "VelaCut look " + java.text.SimpleDateFormat("d MMM HH.mm", java.util.Locale.getDefault()).format(java.util.Date()) }
+        val name = projectName.ifBlank { "AlcorCut look " + java.text.SimpleDateFormat("d MMM HH.mm", java.util.Locale.getDefault()).format(java.util.Date()) }
         val e = edit
         scope.launch {
             val where = withContext(Dispatchers.IO) { DevPresets.savePreset(context, name, DevPresets.presetXmp(name, e.grade, e.detail)) }
@@ -2551,7 +2551,7 @@ private fun PhotoPanelContent(
             Chips(listOf("None", "Text", "Logo image"), when { wm == null -> 0; wm.kind == LayerKind.LOGO -> 2; else -> 1 }) { i ->
                 when (i) {
                     0 -> set(e.copy(watermark = null))
-                    1 -> set(e.copy(watermark = Layer(kind = LayerKind.WATERMARK, text = "© VelaCut Pro", size = 0.035f, x = 0.84f, y = 0.93f, opacity = 0.7f, font = LayerFont.LIGHT, wholeVideo = true)))
+                    1 -> set(e.copy(watermark = Layer(kind = LayerKind.WATERMARK, text = "© AlcorCut Pro", size = 0.035f, x = 0.84f, y = 0.93f, opacity = 0.7f, font = LayerFont.LIGHT, wholeVideo = true)))
                     2 -> onPickLogo()
                 }
             }

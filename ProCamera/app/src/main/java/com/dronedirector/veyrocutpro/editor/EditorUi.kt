@@ -283,7 +283,7 @@ fun EditorSettingsDialog(
                         Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text("Always start in $editorName", color = Color.White, fontSize = 15.sp)
-                                Text("Open VelaCut Pro straight into the $editorName. Turn off to show the start screen again.", color = Pro.Dim, fontSize = 12.sp)
+                                Text("Open AlcorCut Pro straight into the $editorName. Turn off to show the start screen again.", color = Pro.Dim, fontSize = 12.sp)
                             }
                             androidx.compose.material3.Switch(
                                 checked = always,

@@ -9,7 +9,7 @@ import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.sqrt
 
-/** Pro editing helpers written for VelaCut Pro (no third-party code). */
+/** Pro editing helpers written for AlcorCut Pro (no third-party code). */
 object ProTools {
 
     // ------------------------------------------------------------------ scene cut detection

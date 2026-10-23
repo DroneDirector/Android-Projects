@@ -29,7 +29,7 @@ jobs:
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           df -h / | tail -1
-          printf '%s\n' "RAW sample files used only by VelaCut Pro's automatic RAW test - NOT part of the app." \
+          printf '%s\n' "RAW sample files used only by AlcorCut Pro's automatic RAW test - NOT part of the app." \
             "Copied from https://raw.pixls.us/ where contributors released them into the public domain (CC0)." \
             "To unpack: cat raw-samples.tar.part* | tar -xf -" > /tmp/notes.md
           gh release delete raw-samples-v1 -y --cleanup-tag 2>/dev/null || true

@@ -1,5 +1,5 @@
 name: LibRaw build
-# Builds LibRaw (unmodified, LGPL 2.1 — the version below) and VelaCut Pro's small bridge to it
+# Builds LibRaw (unmodified, LGPL 2.1 — the version below) and AlcorCut Pro's small bridge to it
 # (ProCamera/native/veyroraw) for phones and for the RAW test, and stores them with LibRaw's exact
 # source code on the "models" branch, where the APK build picks them up.
 on:

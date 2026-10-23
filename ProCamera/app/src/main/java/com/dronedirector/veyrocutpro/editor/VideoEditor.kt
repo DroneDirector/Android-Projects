@@ -2294,7 +2294,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
     LaunchedEffect(es.archiveAction) {
         when (es.archiveAction) {
-            1 -> try { saveArchive.launch("${es.projectName.ifBlank { "VelaCut project" }}.zip") } catch (_: Throwable) { es.message = "Couldn't open the file picker" }
+            1 -> try { saveArchive.launch("${es.projectName.ifBlank { "AlcorCut project" }}.zip") } catch (_: Throwable) { es.message = "Couldn't open the file picker" }
             2 -> try { openArchive.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) } catch (_: Throwable) { es.message = "Couldn't open the file picker" }
         }
         es.archiveAction = 0
@@ -5002,7 +5002,7 @@ private fun LayersPage(
         SmallAction(Icons.Filled.TextFields, "Text") { onAdd(Layer(kind = LayerKind.TEXT, startMs = playheadMs, endMs = end)) }
         SmallAction(Icons.Filled.EmojiEmotions, "Sticker") { stickers = !stickers }
         SmallAction(Icons.Filled.WaterDrop, "Watermark") {
-            onAdd(Layer(kind = LayerKind.WATERMARK, text = "© VelaCut Pro", size = 0.04f, x = 0.84f, y = 0.92f, opacity = 0.65f, shadow = true, wholeVideo = true, font = LayerFont.LIGHT))
+            onAdd(Layer(kind = LayerKind.WATERMARK, text = "© AlcorCut Pro", size = 0.04f, x = 0.84f, y = 0.92f, opacity = 0.65f, shadow = true, wholeVideo = true, font = LayerFont.LIGHT))
         }
         SmallAction(Icons.Filled.Movie, "Video", onAddVideo)
         SmallAction(Icons.Filled.Photo, "Image", onAddImage)
@@ -5023,7 +5023,7 @@ Music
 Artist — Song title
 
 Filmed on
-VelaCut Pro
+AlcorCut Pro
 
 Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, animIn = LayerAnim.ROLL, animOut = LayerAnim.NONE, shadow = true))
         }
@@ -5320,7 +5320,7 @@ private fun DeliverPage(
     // Send the edit to a desktop editor (EDL / FCPXML).
     val ictx = LocalContext.current
     val fpsX = if (s.fps > 0) s.fps else 30
-    val title = projectName?.takeIf { it.isNotBlank() } ?: "VelaCut Pro edit"
+    val title = projectName?.takeIf { it.isNotBlank() } ?: "AlcorCut Pro edit"
     var xNote by remember { mutableStateOf<String?>(null) }
     fun writeTo(uri: android.net.Uri?, text: String) {
         if (uri == null) return

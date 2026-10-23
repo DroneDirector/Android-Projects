@@ -37,7 +37,7 @@ import kotlin.math.roundToInt
 /**
  * Morph cut (Transitions → Basic → Morph cut),
  * Smooth Cut: for a jump cut (words cut out of an interview), the last frame before the transition
- * and the first frame after it are analysed with VelaCut Pro's own optical flow, and every frame in
+ * and the first frame after it are analysed with AlcorCut Pro's own optical flow, and every frame in
  * between is drawn new — each pixel moves along its own path from one picture to the other, so a
  * head glides to its new position instead of jumping or cross-fading.
  */

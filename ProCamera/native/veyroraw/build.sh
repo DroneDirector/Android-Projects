@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds libraw.so (LibRaw, LGPL 2.1, unmodified) and libveyroraw.so (VelaCut Pro's bridge).
+# Builds libraw.so (LibRaw, LGPL 2.1, unmodified) and libveyroraw.so (AlcorCut Pro's bridge).
 #   build.sh <LibRaw source dir> <out dir> <CC> <CXX> [extra flags]
 # CC / CXX: an Android NDK clang (e.g. aarch64-linux-android26-clang) or the host gcc for tests.
 set -euo pipefail

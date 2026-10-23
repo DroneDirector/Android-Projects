@@ -33,7 +33,7 @@ import androidx.media3.transformer.ProgressHolder
 import androidx.media3.transformer.Transformer
 import java.io.File
 
-/** Generated clips (Media → GENERATORS): drawn by VelaCut Pro and saved as short videos. */
+/** Generated clips (Media → GENERATORS): drawn by AlcorCut Pro and saved as short videos. */
 enum class GenKind(val label: String) {
     BLACK("Black"), SOLID("Solid colour"), GRADIENT("Gradient"), NOISE("Noise"), BARS("Colour bars"), COUNTDOWN("Countdown leader"),
 }

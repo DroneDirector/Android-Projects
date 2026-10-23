@@ -29,7 +29,7 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
- * Optical-flow retiming, on the phone (VelaCut Pro's own motion engine, as in the morph cut):
+ * Optical-flow retiming, on the phone (AlcorCut Pro's own motion engine, as in the morph cut):
  *
  *  - Smooth slow motion: [factor]× more frames — new in-between frames drawn from the motion
  *    between each pair of real frames (optical-flow retiming). The new file keeps the clip's length and sound, so the clip's

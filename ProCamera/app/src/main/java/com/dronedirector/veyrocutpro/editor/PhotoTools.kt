@@ -596,7 +596,7 @@ fun savePhotoAs(context: Context, bmp0: Bitmap, format: Int, quality: Int, exifF
                 val dst = androidx.exifinterface.media.ExifInterface(tmp.path)
                 for (t in EXIF_KEEP) src.getAttribute(t)?.let { dst.setAttribute(t, it) }
                 if (!stripGps) for (t in EXIF_GPS) src.getAttribute(t)?.let { dst.setAttribute(t, it) }
-                dst.setAttribute(androidx.exifinterface.media.ExifInterface.TAG_SOFTWARE, "VelaCut Pro")
+                dst.setAttribute(androidx.exifinterface.media.ExifInterface.TAG_SOFTWARE, "AlcorCut Pro")
                 dst.saveAttributes()
             }
         } catch (_: Throwable) {}

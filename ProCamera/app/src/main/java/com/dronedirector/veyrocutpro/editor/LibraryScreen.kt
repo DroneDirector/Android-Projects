@@ -156,7 +156,7 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
         }
         if (!granted) {
             Row(Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(RoundedCornerShape(10.dp)).background(Pro.Amber.copy(alpha = 0.12f)).clickable { ask.launch(perm) }.padding(12.dp)) {
-                Text("Allow access to your photos to see the whole library (now only VelaCut Pro's own photos are shown). Tap to allow.", color = Color.White, fontSize = 12.sp)
+                Text("Allow access to your photos to see the whole library (now only AlcorCut Pro's own photos are shown). Tap to allow.", color = Color.White, fontSize = 12.sp)
             }
         }
         OutlinedTextField(

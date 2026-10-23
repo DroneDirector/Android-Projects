@@ -1,4 +1,4 @@
-"""Reference of VelaCut Pro's Magic Mask tracker (MagicTracker.kt follows the same steps):
+"""Reference of AlcorCut Pro's Magic Mask tracker (MagicTracker.kt follows the same steps):
 crop-based MobileSAM fitting + optical-flow carrying + cut / loss handling."""
 import ctypes, numpy as np, cv2, onnxruntime as ort, os
 HERE = os.path.dirname(os.path.abspath(__file__))

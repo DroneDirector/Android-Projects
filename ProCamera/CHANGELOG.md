@@ -1,10 +1,10 @@
-# VelaCut Pro — Changelog
+# AlcorCut Pro — Changelog
 
 All notable changes per released version. The full feature list is in [FEATURES.md](FEATURES.md).
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
-- New name: **VelaCut Pro** (formerly VeyroCut Pro) everywhere in the app, the docs and the download files (VelaCutPro-ARM-….apk). Same app — it updates over the old one; settings, projects and the save folders on the phone are unchanged. Old backups still restore.
+- New name: **AlcorCut Pro** (formerly VeyroCut Pro) everywhere in the app, the docs and the download files (AlcorCutPro-ARM-….apk). Same app — it updates over the old one; settings, projects and the save folders on the phone are unchanged. Old backups still restore.
 
 ## 1.0.486 — 2026-10-23
 - Capture settings (gear): everything is now in **folded sections** — Photo, Video, Audio, Viewfinder & monitoring, AI, Controls & buttons, Privacy / title / copyright, Film-set workflow, Remote & output, Storage & backup, App and This lens. Each line says what's inside; tap to open or fold it again.

@@ -20,7 +20,7 @@ import kotlin.math.sin
 
 /**
  * Film emulation, lens correction and deflicker for a clip (Color → FILM & LENS). Written for
- * VelaCut Pro (no third-party code).
+ * AlcorCut Pro (no third-party code).
  */
 data class FilmLook(
     /** Red-orange glow around bright highlights, like film's halation (0..1). */

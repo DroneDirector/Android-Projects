@@ -15,7 +15,7 @@ import java.nio.LongBuffer
 
 /**
  * AI voiceover from text, on the phone: Kokoro 82M (Apache 2.0) speaks phonemes; the words are turned
- * into phonemes with misaki's pronunciation dictionaries (Apache 2.0) plus VelaCut Pro's own rules
+ * into phonemes with misaki's pronunciation dictionaries (Apache 2.0) plus AlcorCut Pro's own rules
  * for numbers, word endings and unknown words (no GPL espeak). English (American and British voices).
  */
 object Voiceover {

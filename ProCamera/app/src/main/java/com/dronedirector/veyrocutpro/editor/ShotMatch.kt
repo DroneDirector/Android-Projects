@@ -12,7 +12,7 @@ import kotlin.math.sqrt
  * Shot match (Color → MATCH): makes a clip's colour and brightness match a reference clip, by
  * measuring both (three frames each) and adjusting the clip's exposure, white balance, contrast and
  * saturation until its statistics agree with the reference as you see it (with its grade).
- * Written for VelaCut Pro (no third-party code).
+ * Written for AlcorCut Pro (no third-party code).
  */
 object ShotMatch {
     private const val W = 96

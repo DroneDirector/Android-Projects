@@ -1,9 +1,9 @@
 /*
- * VelaCut Pro's small bridge to LibRaw (used for camera RAW formats other than DNG: Sony ARW,
+ * AlcorCut Pro's small bridge to LibRaw (used for camera RAW formats other than DNG: Sony ARW,
  * Canon CR2/CR3, Nikon NEF, Fujifilm RAF, Olympus ORF, Panasonic RW2, Pentax PEF…).
  *
  * LibRaw itself is a separate shared library (libraw.so, LGPL 2.1) used only through its public C
- * API, so it can be replaced by the user. This file is VelaCut Pro's own code.
+ * API, so it can be replaced by the user. This file is AlcorCut Pro's own code.
  *
  * Everything else (colour, white balance, demosaic, lens corrections, editing) is done by the app's
  * own RAW pipeline: LibRaw only reads the file — the sensor data, its colour pattern, black / white

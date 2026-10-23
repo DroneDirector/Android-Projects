@@ -1,8 +1,8 @@
-# VelaCut Pro — Privacy Policy
+# AlcorCut Pro — Privacy Policy
 
 *Last updated: 16 October 2026*
 
-VelaCut Pro ("the app") is a camera, photo editor and video editor for Android, published by
+AlcorCut Pro ("the app") is a camera, photo editor and video editor for Android, published by
 DroneDirector. This policy explains what the app does with your information. In short: **your
 photos, videos and sound stay on your phone, unless you choose to send them somewhere** (Cloud AI
 or live streaming). We have no servers, no user accounts, no ads and no analytics.

@@ -9,7 +9,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * Audio file writers for the audio-only export, written for VelaCut Pro (no third-party code).
+ * Audio file writers for the audio-only export, written for AlcorCut Pro (no third-party code).
  * Input is a raw interleaved little-endian PCM file — 16-bit integer or 32-bit float — captured
  * from the finished mix. Formats: WAV (16 / 24-bit integer, 32-bit float), AIFF (16 / 24-bit) and
  * FLAC (16 / 24-bit, lossless). All three formats are open and free to use in commercial apps.

@@ -77,7 +77,7 @@ object Rename {
         } catch (_: Throwable) { Outcome.CantRename }
     }
 
-    /** Android 11+: the system "allow VelaCut Pro to change these photos?" request. */
+    /** Android 11+: the system "allow AlcorCut Pro to change these photos?" request. */
     fun permissionRequest(context: Context, uris: List<Uri>): android.app.PendingIntent? =
         if (Build.VERSION.SDK_INT >= 30) try { MediaStore.createWriteRequest(context.contentResolver, uris) } catch (_: Throwable) { null } else null
 }

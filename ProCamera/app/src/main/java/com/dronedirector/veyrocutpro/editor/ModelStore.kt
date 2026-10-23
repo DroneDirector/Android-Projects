@@ -85,7 +85,7 @@ object ModelStore {
 /**
  * Everything heavy the app needs — AI models and the built-in soundtracks — is downloaded once, on
  * first launch (it's not inside the APK, so the APK stays small), and kept in the app's private
- * storage: only VelaCut Pro can use it, it survives app updates, and it's removed on uninstall.
+ * storage: only AlcorCut Pro can use it, it survives app updates, and it's removed on uninstall.
  * Downloads resume where they stopped.
  */
 object AppData {

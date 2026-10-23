@@ -132,7 +132,7 @@ class RemoteMonitor(
 
     private fun page(): String = """
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VelaCut Pro · Remote</title>
+<title>AlcorCut Pro · Remote</title>
 <style>
 :root{--a:#FFB300}
 *{box-sizing:border-box}body{margin:0;background:#0b0c0e;color:#fff;font:14px system-ui,sans-serif}
@@ -150,7 +150,7 @@ small{color:#999;display:block;text-align:center;padding-bottom:16px}
 <div id="bar"><span id="mode">—</span><span id="rec"></span><span id="exp"></span></div>
 <div class="row"><button onclick="c('zoom_out')">− ZOOM</button><button id="sh" onclick="c('shutter')">SHUTTER</button><button onclick="c('zoom_in')">ZOOM +</button></div>
 <div class="row"><button onclick="c('mode_photo')">PHOTO</button><button onclick="c('mode_video')">VIDEO</button><button onclick="c('mode_pro_video')">PRO VIDEO</button><button onclick="c('af')">AUTOFOCUS</button><button onclick="c('ae_lock')">AE LOCK</button></div>
-<small>VelaCut Pro remote monitor · keep both devices on the same Wi-Fi</small>
+<small>AlcorCut Pro remote monitor · keep both devices on the same Wi-Fi</small>
 <script>
 function c(x){fetch('cmd/'+x).then(s)}
 function s(){fetch('status').then(r=>r.json()).then(j=>{

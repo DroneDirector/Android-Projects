@@ -435,7 +435,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                         ToggleRow("Next take automatically", "The take number goes up after each recording", x.slateAutoTake) { x.slateAutoTake = !x.slateAutoTake; x.save(ctx) }
                         androidx.compose.material3.OutlinedTextField(value = x.slateNotes, onValueChange = { v -> x.slateNotes = v.take(200); x.save(ctx) }, label = { Text("Notes (e.g. good take, focus soft)") }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            androidx.compose.material3.TextButton(onClick = { exportLog.launch("VelaCutPro_shot_log.csv") }) { Text("Export shot log (.csv) · $logCount", color = Pro.Amber) }
+                            androidx.compose.material3.TextButton(onClick = { exportLog.launch("AlcorCutPro_shot_log.csv") }) { Text("Export shot log (.csv) · $logCount", color = Pro.Amber) }
                             androidx.compose.material3.TextButton(onClick = { com.dronedirector.veyrocutpro.camera.Slate.clear(ctx); logCount = 0 }) { Text("Clear log", color = Pro.Red) }
                         }
                         Text("The log opens in Excel, Google Sheets or Numbers: date, file, scene, shot, take, notes and camera settings for each clip and photo.", color = Pro.Dim, fontSize = 12.sp)
@@ -553,7 +553,7 @@ private fun PresetSyncRow(c: com.dronedirector.veyrocutpro.camera.ProCameraContr
         color = Pro.Dim, fontSize = 12.sp,
     )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
-        Text("CREATE SYNC FILE", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { try { create.launch("VelaCut-camera-setups.json") } catch (_: Throwable) {} }.padding(8.dp))
+        Text("CREATE SYNC FILE", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { try { create.launch("AlcorCut-camera-setups.json") } catch (_: Throwable) {} }.padding(8.dp))
         Text("USE EXISTING", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { try { open.launch(arrayOf("application/json", "application/octet-stream", "*/*")) } catch (_: Throwable) {} }.padding(8.dp))
         if (x.presetSyncUri != null) Text("STOP", style = Pro.Label.copy(color = Pro.Red), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { x.presetSyncUri = null; x.save(ctx) }.padding(8.dp))
     }

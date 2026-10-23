@@ -303,9 +303,9 @@ private fun PermissionGate(content: @Composable () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Text("VelaCut Pro", color = Pro.Amber, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                Text("AlcorCut Pro", color = Pro.Amber, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "VelaCut Pro needs the camera to work, and the microphone to record sound with video.",
+                    "AlcorCut Pro needs the camera to work, and the microphone to record sound with video.",
                     color = Color.White,
                     textAlign = TextAlign.Center,
                 )

@@ -1,5 +1,5 @@
-// VelaCut Pro — dense optical flow and flow-based frame synthesis (morph cut).
-// Written for VelaCut Pro; no third-party code.
+// AlcorCut Pro — dense optical flow and flow-based frame synthesis (morph cut).
+// Written for AlcorCut Pro; no third-party code.
 //
 // Flow: coarse-to-fine. On every pyramid level, small overlapping patches find their motion by
 // inverse-compositional Lucas–Kanade search (starting from the coarser level), the patch motions are

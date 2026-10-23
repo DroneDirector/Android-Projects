@@ -115,7 +115,7 @@ object ProjectArchive {
                 }
             }
         } catch (t: Throwable) { dir.deleteRecursively(); return null to "Couldn't read the archive: ${t.message}" }
-        val j = json ?: run { dir.deleteRecursively(); return null to "This isn't a VelaCut Pro project archive" }
+        val j = json ?: run { dir.deleteRecursively(); return null to "This isn't a AlcorCut Pro project archive" }
         val p0 = ProjectStore.parseVideo(j) ?: run { dir.deleteRecursively(); return null to "The project in the archive couldn't be read" }
         val p = mapUris(p0) { u -> if (u.scheme == SCHEME) Uri.fromFile(File(dir, u.schemeSpecificPart)) else u }
             .copy(id = UUID.randomUUID().toString(), name = p0.name.ifBlank { "Archived project" } + " (archive)")

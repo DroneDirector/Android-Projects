@@ -10,7 +10,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * Audio repair written for VelaCut Pro (no third-party code): de-click and de-reverb.
+ * Audio repair written for AlcorCut Pro (no third-party code): de-click and de-reverb.
  * Both take interleaved samples (−1..1) and return the same number of samples, [delay] frames late.
  */
 

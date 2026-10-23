@@ -240,7 +240,7 @@ fun PointerAndWheelSettings(showWheel: Boolean = true) {
     Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("Glowing pointer", color = Color.White, fontSize = 15.sp)
-            Text("With a mouse connected: VelaCut's own pointer in your colour. Off = the normal Android arrow.", color = Pro.Dim, fontSize = 12.sp)
+            Text("With a mouse connected: AlcorCut's own pointer in your colour. Off = the normal Android arrow.", color = Pro.Dim, fontSize = 12.sp)
         }
         androidx.compose.material3.Switch(CursorStyle.custom, { CursorStyle.setCustom(ctx, it) },
             colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))

@@ -1,5 +1,5 @@
-// VelaCut Pro — dense optical flow and flow-based frame synthesis (morph cut).
-// Written for VelaCut Pro; no third-party code.
+// AlcorCut Pro — dense optical flow and flow-based frame synthesis (morph cut).
+// Written for AlcorCut Pro; no third-party code.
 #pragma once
 #include <cstdint>
 #include <vector>

@@ -10,7 +10,7 @@
         android:label="@string/app_name"
         android:theme="@android:style/Theme.DeviceDefault">
 
-        <!-- A remote for the phone app: it needs VelaCut Pro on the phone. -->
+        <!-- A remote for the phone app: it needs AlcorCut Pro on the phone. -->
         <meta-data
             android:name="com.google.android.wearable.standalone"
             android:value="false" />

@@ -1,18 +1,18 @@
-# VelaCut Pro — Guides
+# AlcorCut Pro — Guides
 
 The same guides are in the app: open the **settings gear** in Capture, the Photo editor or the Video editor and tap the **guide** button (or **How to add a key** under Cloud AI). Each guide shows only what applies to that part of the app.
 See also the [feature list](FEATURES.md) and the [changelog](CHANGELOG.md).
 
-**New name:** The app is now called VelaCut Pro (formerly VeyroCut Pro). It is the same app: it updates over the old one, and your settings, projects and saved photos and videos stay where they were.
+**New name:** The app is now called AlcorCut Pro (formerly VeyroCut Pro). It is the same app: it updates over the old one, and your settings, projects and saved photos and videos stay where they were.
 
 ## Cloud AI: add your API key (all three guides)
 Optional: runs Topaz Labs' professional AI on fast servers through your own fal.ai account. Without it, the AI runs on the phone.
 
 1. Open [fal.ai](https://fal.ai/dashboard/keys) and sign up or log in.
 2. Add credit to your fal.ai account ([Billing](https://fal.ai/dashboard/billing)). You pay fal.ai per use.
-3. Go to **Dashboard → API Keys → Add key**, name it (e.g. "VelaCut Pro") and create it.
+3. Go to **Dashboard → API Keys → Add key**, name it (e.g. "AlcorCut Pro") and create it.
 4. Copy the key — it's shown only once.
-5. In VelaCut Pro: settings gear → **CLOUD AI** → **Add your fal.ai key**.
+5. In AlcorCut Pro: settings gear → **CLOUD AI** → **Add your fal.ai key**.
 6. Paste the key and tap **SAVE KEY**. It's stored encrypted on the phone and only sent to fal.ai.
 7. Turn on **Photos in the cloud** (Capture: Topaz upscale · Photo editor: Topaz Denoise, pick Normal / Strong / Extreme / Max) or **Video in the cloud** (Video editor: Topaz Nyx — Nyx Fast is quickest and cheapest, about $0.10 per 10 s of 1080p).
 8. Keep **Wi-Fi only** on to avoid mobile data.
@@ -47,14 +47,14 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Settings → PHOTO → Always JPEG / Always RAW + JPEG / Always RAW only: the file format for Pro photo mode. Only one can be on, and the app remembers it.
 - Capture settings (gear) are grouped in folded sections — Photo, Video, Audio, Viewfinder & monitoring, AI, Controls & buttons, Privacy, Film-set workflow, Remote & output, Storage & backup, App, This lens. Each shows what's inside; tap to open or close.
 - Photo and video editor settings are folded into groups too (Layout & look, Saving & backup, Watermark, AI, App, and in the video editor Project archive & versions and Playback & proxies). Each line says what's inside.
-- Watch remote: install VelaCutPro-WATCH (from the release) on a Wear OS watch — Galaxy Watch 4 or newer, Pixel Watch. With Capture open on the phone, the watch shows the live picture and records / takes photos, switches photo ↔ video and zooms. Install steps: Guides and Tips → Installing the watch app.
+- Watch remote: install AlcorCutPro-WATCH (from the release) on a Wear OS watch — Galaxy Watch 4 or newer, Pixel Watch. With Capture open on the phone, the watch shows the live picture and records / takes photos, switches photo ↔ video and zooms. Install steps: Guides and Tips → Installing the watch app.
 - Quick bar → STOP MOTION (photo modes): every photo becomes the next frame and the last one shows faintly over the viewfinder (ONION %). FRAMES opens the frame strip: play, HOLD +1, delete, 6–24 fps, MAKE VIDEO.
 - Settings → SLATE & SHOT LOG: set scene, shot, take and notes; they show on the viewfinder, go into photos, and every clip and photo is logged. Export the log as a .csv for Excel / Sheets; the take number goes up after each recording.
 - Settings → COPYRIGHT: your name and copyright notice are written into every photo you take and every photo you export (Artist / Copyright in the photo's details).
-- SMART → PORTRAIT and AI PORTRAIT: the subject stays sharp and the background is blurred — people, pets, flowers, rocks, branches and other things that stand out. PORTRAIT adds the blur a second after the shot; AI PORTRAIT also shows it live in the viewfinder while you frame (people update fastest; other subjects a few times a second, so the edge can lag a little when you move — "no subject" means nothing is found yet). In both, slide the BACKGROUND BLUR slider above the zoom bar (left f/1.4 = most blur, right f/16 = least) or tap a spot on it; tap AUTO to minimise it and let VelaCut Pro pick the blur. The saved photo always gets the full-quality blur a second after the shot.
+- SMART → PORTRAIT and AI PORTRAIT: the subject stays sharp and the background is blurred — people, pets, flowers, rocks, branches and other things that stand out. PORTRAIT adds the blur a second after the shot; AI PORTRAIT also shows it live in the viewfinder while you frame (people update fastest; other subjects a few times a second, so the edge can lag a little when you move — "no subject" means nothing is found yet). In both, slide the BACKGROUND BLUR slider above the zoom bar (left f/1.4 = most blur, right f/16 = least) or tap a spot on it; tap AUTO to minimise it and let AlcorCut Pro pick the blur. The saved photo always gets the full-quality blur a second after the shot.
 - SMART → PANO: tap the shutter and turn slowly in one direction, keeping the yellow line on the horizon — it finishes by itself at about 180°, or tap to finish early.
 - While recording: a red tally border shows you're rolling, and the padlock on the left locks the screen against accidental touches (hold it to unlock). Warnings appear for low storage, low battery and heat.
-- Settings → SAVE PHOTOS & VIDEOS TO: internal storage, an SD card / USB drive, or CHOOSE A FOLDER on any USB stick, SSD or card reader. Videos record straight onto the drive; if it's unplugged, VelaCut Pro saves to internal storage and tells you.
+- Settings → SAVE PHOTOS & VIDEOS TO: internal storage, an SD card / USB drive, or CHOOSE A FOLDER on any USB stick, SSD or card reader. Videos record straight onto the drive; if it's unplugged, AlcorCut Pro saves to internal storage and tells you.
 - SMART → LONG EXP: pick LOOK (TRAILS for car lights and light painting, WATER for silky waterfalls and waves, STARS for the night sky) and TIME (2–30 s), put the phone on a tripod or something steady, and tap the shutter. The picture builds up live; tap the shutter again to finish early.
 - Settings → Stabilization: OFF, IN-APP (CROP) — the camera steadies the picture while filming — or GYROFLOW, which records the phone's motion into a .gcsv file with the same name as each video (Documents/VeyroCutPro/Gyroflow). Put the video and its .gcsv in the same folder on a computer and open them in Gyroflow (free, gyroflow.xyz) for gimbal-smooth footage. STAB in the quick bar switches between them.
 - Video → ND BLUR (quick bar or Settings): blends frames like an ND filter or a slower shutter, for smooth cinematic movement in bright light. ×2 is subtle, ×8 is strong. Works best with a fast shutter and a steady camera.
@@ -62,8 +62,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Settings → Simple layout: shows only the everyday modes and controls (Photo, Video, Portrait, Pano, Long exposure, Time-lapse, Slow-mo; fewer editor panels). Turn it off for every Pro tool — nothing is lost.
 - Settings → BACKUP & RESTORE: SAVE BACKUP makes one .vcbackup file with all your settings, presets, LUTs, watermarks, sounds and projects. RESTORE on a new phone or after reinstalling brings it all back (the app restarts).
 - Gallery → delete moves photos and videos to the Trash (Android 11+), where you can restore them for 30 days. EMPTY TRASH removes them for good.
-- Shortcuts: long-press the VelaCut Pro icon for Video, Pro photo, Photo editor and Video editor. Add the VelaCut camera tile to Quick Settings to open the camera from the notification shade.
-- From other apps: Share a photo or video to VelaCut Pro (or choose Edit with) and it opens straight in the right editor.
+- Shortcuts: long-press the AlcorCut Pro icon for Video, Pro photo, Photo editor and Video editor. Add the AlcorCut camera tile to Quick Settings to open the camera from the notification shade.
+- From other apps: Share a photo or video to AlcorCut Pro (or choose Edit with) and it opens straight in the right editor.
 - Settings → SHOW THE QUICK TOUR AGAIN replays the gesture tour.
 - Settings → LANGUAGE · SPROG · MÁL: Phone language, English, Dansk or Føroyskt. The whole app switches at once (also in both editors' settings).
 - C1 / C2 / C3 in the quick bar: hold one to save all your current settings (mode, lens, ISO, shutter, white balance, resolution, frame rate, profile, filter…), tap it to bring them back.
@@ -162,7 +162,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Exporting cleans the full-size photo (on the phone, or in the cloud if Cloud AI is on). STOP on the AI badge cancels.
 
 **RAW (DNG) photos**
-- Open a DNG (from VelaCut Pro's Pro mode or any phone / camera that saves DNG) and the RAW badge appears: the editor develops the sensor data itself.
+- Open a DNG (from AlcorCut Pro's Pro mode or any phone / camera that saves DNG) and the RAW badge appears: the editor develops the sensor data itself.
 - Other cameras' RAW files open too: Sony ARW, Canon CR2 / CR3, Nikon NEF, Fujifilm RAF, Olympus / OM System ORF, Panasonic RW2, Pentax PEF and more (read by LibRaw). The same RAW engine as for DNGs develops them, starting at about the brightness of the camera's own picture.
 - Light → RAW LOOK: tap "Tap here to see different DNG looks" at the top of Light to unfold it. Default (the app's own RAW look) and Match camera picture (copies the brightness and colour of the preview stored in this RAW file) come first; under them, Phones, Drones, Cameras and Action & 360° each unfold into small previews of your photo in looks measured from how those cameras render their own pictures (Pixel, Galaxy, iPhone, DJI, Parrot, Autel, Canon, Sony, Nikon, Fujifilm, Leica, Ricoh, Panasonic, Olympus / OM, YI). Tap a look to use it; tap a line again, or FOLD, to fold it away.
 - Light → RAW PROFILE picks the base look: Standard, Flat (most room for grading), Vivid, Portrait, Landscape or Mono.
@@ -317,7 +317,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Layers → TITLE TEMPLATES: animated lower third, big title, cinematic title, location, chapter, subscribe and end card, added at the playhead — edit the words like any text layer.
 - Layers → SPLIT SCREEN: 2 side by side, 2 stacked, 3 columns or a 2 × 2 grid from your video layers, or picture in picture. Each video layer's FRAME sets its shape (cropped to fill), rounded corners, a border and a drop shadow.
 - Text page → WORD-BY-WORD CAPTIONS: captions from the transcript where each word lights up as it's spoken — Highlight, Box, One word or Two lines. Made on the phone; running it again replaces them.
-- Transitions → Basic → Morph cut: for jump cuts in interviews — VelaCut Pro analyses the two frames and draws new in-between frames, so the head glides to its new place instead of jumping or cross-fading (try 0.3–0.6 s). “Analysing morph cut…” shows while the preview is prepared; the export draws the frames at full size.
+- Transitions → Basic → Morph cut: for jump cuts in interviews — AlcorCut Pro analyses the two frames and draws new in-between frames, so the head glides to its new place instead of jumping or cross-fading (try 0.3–0.6 s). “Analysing morph cut…” shows while the preview is prepared; the export draws the frames at full size.
 - Audio → Voice noise reduction → Voice isolation (AI): keeps the voice and removes wind, traffic, hum, crowd and background music (on export).
 - Deliver: exports keep running when you switch apps or lock the screen — a notification shows the progress and tells you when it's done. RENDER QUEUE: set up an export, tap + ADD TO QUEUE, change the settings and add more (e.g. 4K, a 9:16 Reel and an audio file), then START QUEUE renders them one after another.
 - COPY / PASTE SETTINGS copies a clip's grade, audio and more to other clips (or all clips).

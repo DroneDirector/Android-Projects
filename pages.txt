@@ -1,0 +1,19 @@
+acs_pages: {"home":5,"capture":6,"photo":7,"video":8}
+ID	post_title	post_name	page_template
+5	AlcorCut Pro	alcorcut-pro	elementor_canvas
+6	Capture — all features	capture-features	elementor_canvas
+7	Photo editor — all features	photo-editor-features	elementor_canvas
+8	Video editor — all features	video-editor-features	elementor_canvas
+2	Sample Page	sample-page	default
+3	Privacy Policy	privacy-policy	default
+PHP: 2026-10-23 21:01:47 [notice X 0][/home/runner/site/wp-content/plugins/elementor/modules/global-classes/atomic-global-styles.php::410] Elementor\Modules\GlobalClasses\Atomic_Global_Styles::get_cache_root_key(): Implicitly marking parameter $key as nullable is deprecated, the explicit nullable type must be used instead [array (
+  'trace' => '
+#0: Elementor\Core\Logger\Manager -> shutdown()
+',
+)]
+urls: {"home": "http://127.0.0.1:8080/", "capture": "http://127.0.0.1:8080/capture-features/", "photo": "http://127.0.0.1:8080/photo-editor-features/", "video": "http://127.0.0.1:8080/video-editor-features/", "home_id": 5}
+home http://127.0.0.1:8080/ -> HTTP 200, 14 AlcorCut sections
+capture http://127.0.0.1:8080/capture-features/ -> HTTP 200, 5 AlcorCut sections
+photo http://127.0.0.1:8080/photo-editor-features/ -> HTTP 200, 5 AlcorCut sections
+video http://127.0.0.1:8080/video-editor-features/ -> HTTP 200, 5 AlcorCut sections
+front page = AlcorCut home

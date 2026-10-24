@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.538 — 2026-10-24
 - The editors' **Camera** now opens the full **Capture** screen — every mode and pro control (manual ISO / shutter / focus / white balance, RAW, lenses, pro video…) — over the editor instead of the phone's basic camera app. Photo editor: each photo goes straight into the filmstrip. Video editor: videos and photos go into the media list. A "← Back to … editor" bar (or Back) returns to the editor, which stays open underneath.
 
 ## 1.0.536 — 2026-10-24

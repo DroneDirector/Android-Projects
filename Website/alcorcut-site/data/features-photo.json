@@ -42,7 +42,7 @@
    "<strong>Background (AI)</strong>: portrait blur, transparent background or colour fill behind the subject.",
    "<strong>Sky replacement (AI)</strong>: 5 built-in skies or your own picture, with strength and light matching.",
    "<strong>AI Remove</strong>: tap or paint over bigger objects to remove them.",
-   "<strong>AI noise reduction done in the edit</strong>: the full-size photo is cleaned once in the background while you edit and the export reuses it — no second AI pass."
+   "<strong>AI noise reduction done in the edit</strong>: the full-size photo is cleaned once in the background while you edit and the export reuses it — no second AI pass. Results are remembered, so reopening a project never runs the AI again."
   ]
  },
  {

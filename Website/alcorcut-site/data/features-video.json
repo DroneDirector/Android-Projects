@@ -2,7 +2,7 @@
  {
   "title": "Media & timeline",
   "items": [
-   "<strong>Camera → media list</strong>: record a video or take a photo (becomes a 5 s clip) from the Media page or the media strip's + Camera; it goes into the media list, not onto the timeline.",
+   "<strong>Camera → media list</strong>: the Media page and the media strip's + Camera open the full <strong>Capture</strong> screen (every mode and pro control) over the editor; videos you record and photos you take (each becomes a 5 s clip) go into the media list, not onto the timeline.",
    "<strong>Delete from the timeline</strong>: a bin on the selected clip; choose Close gap (ripple) or Leave gap (black of the same length).",
    "<strong>Skip to the editor</strong> from the start page: open an empty timeline without picking a video first (manual, every time).",
    "Add clips from the gallery or files (MP4, MKV, MOV, WebM, SD card / USB).",

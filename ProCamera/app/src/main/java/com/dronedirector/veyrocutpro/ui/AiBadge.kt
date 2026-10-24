@@ -18,6 +18,7 @@ import com.dronedirector.veyrocutpro.ui.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
@@ -28,18 +29,18 @@ import androidx.compose.ui.unit.sp
 
 /** Animated AI progress badge (progress ring, shimmer, big percentage) with an optional stop button. */
 @Composable
-fun AiBadgeHost(visible: Boolean, title: String, count: Int, progress: Int, onStop: (() -> Unit)?, modifier: Modifier = Modifier) {
+fun AiBadgeHost(visible: Boolean, title: String, count: Int, progress: Int, onStop: (() -> Unit)?, modifier: Modifier = Modifier, note: String? = null) {
     androidx.compose.animation.AnimatedVisibility(
         visible = visible,
         modifier = modifier,
         enter = androidx.compose.animation.slideInVertically { -it * 2 } + androidx.compose.animation.fadeIn() +
             androidx.compose.animation.scaleIn(initialScale = 0.7f),
         exit = androidx.compose.animation.slideOutVertically { -it * 2 } + androidx.compose.animation.fadeOut(),
-    ) { AiBadge(title, count, progress, onStop) }
+    ) { AiBadge(title, count, progress, onStop, note = note) }
 }
 
 @Composable
-fun AiBadge(title: String, count: Int, progress: Int, onStop: (() -> Unit)? = null, modifier: Modifier = Modifier) {
+fun AiBadge(title: String, count: Int, progress: Int, onStop: (() -> Unit)? = null, modifier: Modifier = Modifier, note: String? = null) {
     val accent = Pro.Amber
     val shown by androidx.compose.animation.core.animateIntAsState(progress, androidx.compose.animation.core.tween(500), label = "pct")
     val sweep by androidx.compose.animation.core.animateFloatAsState(progress / 100f, androidx.compose.animation.core.tween(500), label = "sweep")
@@ -109,6 +110,11 @@ fun AiBadge(title: String, count: Int, progress: Int, onStop: (() -> Unit)? = nu
                     modifier = Modifier.padding(start = 2.dp, bottom = 3.dp),
                 )
             }
+            // Why this run happens (e.g. a second, full-size pass).
+            if (note != null) Text(
+                note, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.75f), fontSize = 10.5.sp, lineHeight = 13.sp,
+                modifier = Modifier.widthIn(max = 230.dp),
+            )
         }
         if (onStop != null) {
             Box(

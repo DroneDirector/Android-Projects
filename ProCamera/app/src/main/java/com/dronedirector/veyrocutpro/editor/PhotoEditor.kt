@@ -888,7 +888,7 @@ private fun PhotoWorkspace(
         if (AiDenoiseCache.has(context, k)) return@LaunchedEffect
         delay(1200)   // let RAW sliders settle first
         val e0 = edit
-        AiDenoiseCache.prepare(context, k) { if (rawOn(e0)) rawExport(e0, 30000) else GradeIO.decode(context, sourceUri(e0), 30000) }
+        AiDenoiseCache.prepare(context, k, sourceUri(e0).toString()) { if (rawOn(e0)) rawExport(e0, 30000) else GradeIO.decode(context, sourceUri(e0), 30000) }
     }
     // Heal works on the whole, uncropped photo so taps land where they should.
     val healMode = rememberUpdatedState(panel == PhotoPanel.HEAL || (panel == PhotoPanel.RETOUCH && retouchTab == 0))
@@ -1527,8 +1527,8 @@ private fun PhotoWorkspace(
 
     Box(Modifier.fillMaxSize().background(Ed.Bg)) {
         com.dronedirector.veyrocutpro.ui.AiBadgeHost(
-            AiDenoiser.running, "AI NOISE REDUCTION", 1, AiDenoiser.progress, onStop = { AiDenoiser.stop() },
-            modifier = Modifier.align(Alignment.TopCenter).zIndex(20f),
+            AiDenoiser.running, if (AiDenoiseCache.note != null) "AI NOISE REDUCTION · FULL SIZE" else "AI NOISE REDUCTION", 1, AiDenoiser.progress, onStop = { AiDenoiser.stop() },
+            modifier = Modifier.align(Alignment.TopCenter).zIndex(20f), note = AiDenoiseCache.note,
         )
         com.dronedirector.veyrocutpro.ui.AiBadgeHost(
             com.dronedirector.veyrocutpro.camera.Upscaler.pending > 0, "AI UPSCALING", 1, com.dronedirector.veyrocutpro.camera.Upscaler.progress,
@@ -2248,11 +2248,16 @@ internal object AiDenoiseCache {
     private val jobs = HashMap<String, kotlinx.coroutines.Job>()
     private fun dir(c: Context) = java.io.File(c.cacheDir, "ai_denoise").apply { mkdirs() }
     private fun file(c: Context, key: String) = java.io.File(dir(c), "$key.px")
+    /** Why the full-size pass is running (shown in the AI progress badge); null when it isn't. */
+    var note by mutableStateOf<String?>(null)
+        private set
+    /** The photo the last full-size pass was made for: a new pass for the same photo is a re-run. */
+    private var lastSource: String? = null
 
     fun has(c: Context, key: String) = file(c, key).length() > 8
 
     /** Runs the AI on [decode]'s full-size picture once for [key] (any other unfinished one is dropped). */
-    fun prepare(c: Context, key: String, decode: () -> Bitmap?) {
+    fun prepare(c: Context, key: String, source: String, decode: () -> Bitmap?) {
         val app = c.applicationContext
         synchronized(jobs) {
             if (jobs[key]?.isActive == true) return
@@ -2260,12 +2265,16 @@ internal object AiDenoiseCache {
             jobs.clear()
             jobs[key] = scope.launch {
                 var src: Bitmap? = null
+                val again = lastSource == source
+                note = if (again) "Running again on the full-size photo: the RAW exposure, white balance or tones changed, and the AI works on the developed picture."
+                else "Second pass: the preview is done — now the full-size photo, so the export can use it without running the AI again."
                 try {
                     src = decode() ?: return@launch
                     val den = AiDenoiser.denoiseBitmap(app, src, 1f) ?: return@launch
                     save(app, key, den); den.recycle()
+                    lastSource = source
                 } catch (_: Throwable) {
-                } finally { src?.recycle() }
+                } finally { src?.recycle(); note = null }
             }
         }
     }

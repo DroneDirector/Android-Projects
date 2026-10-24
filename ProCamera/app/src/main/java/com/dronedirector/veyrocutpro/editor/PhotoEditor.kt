@@ -879,6 +879,16 @@ private fun PhotoWorkspace(
             else -> { edit = edit.copy(detail = edit.detail.copy(aiDenoise = 0f)); message = "AI noise reduction isn't available on this phone" }
         }
     }
+    // The same AI at full size, once, in the background while you edit: kept, and used by the export
+    // (so exporting never runs the AI again). Redone only when what goes into it changes (RAW develop).
+    val aiKey = if (aiOn && !com.dronedirector.veyrocutpro.camera.CloudAi.usePhotos(context)) edit.aiKey(sourceUri(edit).toString(), rawOn(edit)) else null
+    LaunchedEffect(aiKey) {
+        val k = aiKey ?: return@LaunchedEffect
+        if (AiDenoiseCache.has(context, k)) return@LaunchedEffect
+        delay(1200)   // let RAW sliders settle first
+        val e0 = edit
+        AiDenoiseCache.prepare(context, k) { if (rawOn(e0)) rawExport(e0, 30000) else GradeIO.decode(context, sourceUri(e0), 30000) }
+    }
     // Heal works on the whole, uncropped photo so taps land where they should.
     val healMode = rememberUpdatedState(panel == PhotoPanel.HEAL || (panel == PhotoPanel.RETOUCH && retouchTab == 0))
     LaunchedEffect(healMode.value, aiMasks.size) { renderReq.trySend(edit) }
@@ -988,6 +998,8 @@ private fun PhotoWorkspace(
         val e = edit
         PhotoExportJob.scope.launch {
             // The export runs in its own process (all of its memory free for the photo); see PhotoExportProcess.
+            // AI noise reduction made while editing: let it finish, then the export simply uses it.
+            if (e.detail.aiDenoise > 0f) AiDenoiseCache.await(e.aiKey(sourceUri(e).toString(), rawOn(e)))
             val req = PhotoExportReq(
                 edit = ProjectStore.gson.toJson(e), uri = uri.toString(), source = sourceUri(e).toString(), raw = rawOn(e),
                 maxPx = sizes[sizeIdx], aiScale = aiScale, format = format, quality = quality, keepExif = keepExif, stripGps = stripGps,
@@ -2008,6 +2020,17 @@ private fun PhotoWorkspace(
                             }
                             else -> PhotoPanelContent(
                                 panel, edit, { edit = it },
+                                aiUpscale = {
+                                    Text("AI upscale", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                                    Chips(listOf("Off", "AI 2×", "AI 4×"), when (aiScale) { 2 -> 1; 4 -> 2; else -> 0 }) { aiScale = listOf(0, 2, 4)[it] }
+                                    if (aiScale > 1) Text("Makes the exported photo bigger with the built-in AI (ESRGAN) — or Topaz in the cloud when Cloud AI is on. Up to 50 MP.", color = Pro.Dim, fontSize = 11.sp)
+                                },
+                                cameraInfo = {
+                                    Text("Camera info", color = Color.White, fontSize = 13.sp)
+                                    Chips(listOf("Keep camera info", "Remove all"), if (keepExif) 0 else 1) { keepExif = it == 0 }
+                                    if (keepExif) Chips(listOf("Keep location", "Remove location"), if (stripGps) 1 else 0) { stripGps = it == 1 }
+                                    Text("Date, camera, lens and settings are copied into JPEG and WebP exports.", color = Pro.Dim, fontSize = 11.sp)
+                                },
                                 exportState = ExportState(format, quality, sizeIdx),
                                 onExportState = { f, q, si -> format = f; quality = q; sizeIdx = si },
                                 onExport = { export() },
@@ -2047,13 +2070,6 @@ private fun PhotoWorkspace(
                         }
                         if (panel == PhotoPanel.EFFECTS) { backgroundSection(); skySection() }
                         if (panel == PhotoPanel.EXPORT) {
-                            SectionTitle("AI UPSCALE")
-                            Chips(listOf("Off", "AI 2×", "AI 4×"), when (aiScale) { 2 -> 1; 4 -> 2; else -> 0 }) { aiScale = listOf(0, 2, 4)[it] }
-                            Text("Makes the exported photo bigger with the built-in AI (ESRGAN) — or Topaz in the cloud when Cloud AI is on. Up to 50 MP.", color = Pro.Dim, fontSize = 11.sp)
-                            SectionTitle("CAMERA INFO")
-                            Chips(listOf("Keep camera info", "Remove all"), if (keepExif) 0 else 1) { keepExif = it == 0 }
-                            if (keepExif) Chips(listOf("Keep location", "Remove location"), if (stripGps) 1 else 0) { stripGps = it == 1 }
-                            Text("Date, camera, lens and settings are copied into JPEG and WebP exports.", color = Pro.Dim, fontSize = 11.sp)
                             SectionTitle("BATCH")
                             Chips(listOf("Look only", "Look + crop + masks + watermark"), if (batchWithCrop) 1 else 0) { batchWithCrop = it == 1 }
                             Text(
@@ -2214,6 +2230,72 @@ internal object PhotoExportJob {
     }
 }
 
+/** What the AI noise reduction works on: the photo (and, for RAW, its develop and tonal sliders). */
+private fun PhotoEdit.aiKey(source: String, raw: Boolean): String {
+    val g = grade
+    val k = if (raw) "$source|raw|${ProjectStore.gson.toJson(this.raw)}|${g.exposure}|${g.highlights}|${g.shadows}|${g.whites}|${g.blacks}|${g.temperature}|${g.tint}"
+    else "$source|${baseFile ?: ""}"
+    return java.security.MessageDigest.getInstance("SHA-1").digest(k.toByteArray()).joinToString("") { "%02x".format(it) }
+}
+
+/**
+ * Full-size AI noise reduction made while editing, kept in the app's cache (at full strength; the
+ * strength slider blends it with the original). The export — in its own process — reads it from there.
+ */
+internal object AiDenoiseCache {
+    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
+    private val jobs = HashMap<String, kotlinx.coroutines.Job>()
+    private fun dir(c: Context) = java.io.File(c.cacheDir, "ai_denoise").apply { mkdirs() }
+    private fun file(c: Context, key: String) = java.io.File(dir(c), "$key.px")
+
+    fun has(c: Context, key: String) = file(c, key).length() > 8
+
+    /** Runs the AI on [decode]'s full-size picture once for [key] (any other unfinished one is dropped). */
+    fun prepare(c: Context, key: String, decode: () -> Bitmap?) {
+        val app = c.applicationContext
+        synchronized(jobs) {
+            if (jobs[key]?.isActive == true) return
+            if (jobs.values.any { it.isActive }) { AiDenoiser.stop(); jobs.values.forEach { it.cancel() } }
+            jobs.clear()
+            jobs[key] = scope.launch {
+                var src: Bitmap? = null
+                try {
+                    src = decode() ?: return@launch
+                    val den = AiDenoiser.denoiseBitmap(app, src, 1f) ?: return@launch
+                    save(app, key, den); den.recycle()
+                } catch (_: Throwable) {
+                } finally { src?.recycle() }
+            }
+        }
+    }
+
+    /** Waits for the background job of [key], if one is running. */
+    suspend fun await(key: String) { synchronized(jobs) { jobs[key] }?.join() }
+
+    private fun save(c: Context, key: String, b: Bitmap) {
+        val f = file(c, key); val tmp = java.io.File(f.path + ".tmp")
+        val buf = java.nio.ByteBuffer.allocateDirect(b.width * b.height * 4)
+        b.copyPixelsToBuffer(buf); buf.rewind()
+        java.io.RandomAccessFile(tmp, "rw").use { r ->
+            r.setLength(0); r.writeInt(b.width); r.writeInt(b.height); r.channel.write(buf)
+        }
+        tmp.renameTo(f)
+        // Keep the newest few only (each is a full-size picture).
+        dir(c).listFiles()?.filter { it.name.endsWith(".px") }?.sortedByDescending { it.lastModified() }?.drop(3)?.forEach { it.delete() }
+    }
+
+    fun load(c: Context, key: String): Bitmap? = try {
+        val f = file(c, key)
+        if (!f.exists()) null else java.io.RandomAccessFile(f, "r").use { r ->
+            val w = r.readInt(); val h = r.readInt()
+            val buf = java.nio.ByteBuffer.allocateDirect(w * h * 4)
+            while (buf.hasRemaining()) if (r.channel.read(buf) < 0) break
+            buf.rewind()
+            Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).apply { copyPixelsFromBuffer(buf) }
+        }
+    } catch (_: Throwable) { null }
+}
+
 /** One photo export, handed to the export process as JSON. */
 internal class PhotoExportReq(
     val edit: String, val uri: String, val source: String, val raw: Boolean, val maxPx: Int, val aiScale: Int,
@@ -2253,7 +2335,14 @@ internal fun runPhotoExport(context: Context, req: PhotoExportReq): PhotoExportR
                 val g = e.grade
                 RawDng.export(context, meta, e.raw, g.exposure, g.highlights, g.shadows, g.whites, g.blacks, g.temperature, g.tint, maxPx)
             } else GradeIO.decode(context, source, maxPx)) ?: return null
-            if (e.detail.aiDenoise > 0f) {
+            val ready = if (e.detail.aiDenoise > 0f) AiDenoiseCache.load(context, e.aiKey(req.source, req.raw)) else null
+            if (ready != null) {
+                // Already cleaned while editing: blend it in at the chosen strength — the AI doesn't run again.
+                val o = f.copy(Bitmap.Config.ARGB_8888, true)
+                android.graphics.Canvas(o).drawBitmap(ready, null, android.graphics.Rect(0, 0, o.width, o.height),
+                    android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG).apply { alpha = (e.detail.aiDenoise.coerceIn(0f, 1f) * 255).toInt() })
+                ready.recycle(); f.recycle(); f = o
+            } else if (e.detail.aiDenoise > 0f) {
                 // Full-resolution AI noise reduction, tile by tile into a new picture (very little memory).
                 var den: Bitmap? = null
                 // Cloud AI (Topaz Denoise) when chosen in settings; otherwise / on failure the on-phone AI.
@@ -2356,6 +2445,8 @@ private fun PhotoPanelContent(
     rawMeta: RawDng.Meta? = null,
     thumbSrc: Bitmap? = null,
     dev: DevUi? = null,
+    aiUpscale: @Composable () -> Unit = {},
+    cameraInfo: @Composable () -> Unit = {},
 ) {
     val g = e.grade
     fun grade(f: (ProGrade) -> ProGrade) = set(e.copy(grade = f(g)))
@@ -2676,6 +2767,26 @@ private fun PhotoPanelContent(
         }
         PhotoPanel.MASKS, PhotoPanel.HEAL, PhotoPanel.RETOUCH, PhotoPanel.LENS, PhotoPanel.HISTORY, PhotoPanel.TEXT -> {}   // drawn by the workspace
         PhotoPanel.EXPORT -> {
+            SectionTitle("EXPORT")
+            Text("Format", color = Color.White, fontSize = 13.sp)
+            Chips(PHOTO_FORMATS, exportState.format) { onExportState(it, exportState.quality, exportState.sizeIdx) }
+            if (exportState.format in 4..5) Text("TIFF: uncompressed and lossless (large files), for print and other editing software.", color = Pro.Dim, fontSize = 11.sp)
+            if (exportState.format == 3) Text("HEIC: about half the size of JPEG (Android 9+).", color = Pro.Dim, fontSize = 11.sp)
+            if (exportState.format == 6) Text(if (AvifWriter.supported) "AVIF: often half the size of JPEG at the same quality; opens on Android 12+, current browsers and most photo apps." else "AVIF needs an AV1 encoder — this phone doesn't have one (Android 14+ has it built in).", color = Pro.Dim, fontSize = 11.sp)
+            if (exportState.format == 7) Text("JPEG XL: high quality at small sizes, wide colour and HDR-ready; opens in newer photo software, Safari and on Apple devices. Few Android apps can show it yet.", color = Pro.Dim, fontSize = 11.sp)
+            if (exportState.format != 1 && (exportState.format < 4 || exportState.format >= 6)) EdSlider("Quality", exportState.quality, 0.6f..1f, 0.95f, ::pct) { onExportState(exportState.format, it, exportState.sizeIdx) }
+            if (exportState.format == 0) Text(if (exportState.quality >= 0.995f) "JPEG at maximum: full colour detail (4:4:4) and almost no compression — the largest, highest-quality files." else "JPEG keeps full colour detail (4:4:4). 100 % = maximum quality.", color = Pro.Dim, fontSize = 11.sp)
+            Text("Size (long edge)", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            Chips(listOf("Full (≤4800)", "4096", "2560", "1920", "Instagram 1080", "Web 2048", "4K 3840", "Original (full resolution)"), exportState.sizeIdx) { onExportState(exportState.format, exportState.quality, it) }
+            if (exportState.sizeIdx == 7) Text("The photo's own full size, as big as the sensor or file goes. Always saved at that size, however heavy the edit.", color = Pro.Dim, fontSize = 11.sp)
+            aiUpscale()
+            Text("Exports a new picture to DCIM/AlcorCutPro; the original stays untouched.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 8.dp))
+            Text(
+                if (busy) "EXPORTING…" else "EXPORT PHOTO",
+                style = Pro.Value.copy(color = Color.Black, fontSize = 14.sp),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (busy) Pro.Amber.copy(alpha = 0.4f) else Pro.Amber)
+                    .clickable(enabled = !busy, onClick = onExport).padding(14.dp),
+            )
             run {
                 val ctx = LocalContext.current
                 SectionTitle("EXPORT PRESETS")
@@ -2709,21 +2820,9 @@ private fun PhotoPanelContent(
                     ExportOpts.presetName = n; ExportOpts.save(ctx); naming = false
                 }, onDismiss = { naming = false }, title = "Save export preset", info = "Saves the format, size, quality, colour space, output sharpening and file name.", fieldLabel = "Preset name")
             }
-            SectionTitle("FORMAT")
-            Chips(PHOTO_FORMATS, exportState.format) { onExportState(it, exportState.quality, exportState.sizeIdx) }
-            if (exportState.format in 4..5) Text("TIFF: uncompressed and lossless (large files), for print and other editing software.", color = Pro.Dim, fontSize = 11.sp)
-            if (exportState.format == 3) Text("HEIC: about half the size of JPEG (Android 9+).", color = Pro.Dim, fontSize = 11.sp)
-            if (exportState.format == 6) Text(if (AvifWriter.supported) "AVIF: often half the size of JPEG at the same quality; opens on Android 12+, current browsers and most photo apps." else "AVIF needs an AV1 encoder — this phone doesn't have one (Android 14+ has it built in).", color = Pro.Dim, fontSize = 11.sp)
-            if (exportState.format == 7) Text("JPEG XL: high quality at small sizes, wide colour and HDR-ready; opens in newer photo software, Safari and on Apple devices. Few Android apps can show it yet.", color = Pro.Dim, fontSize = 11.sp)
-            if (exportState.format != 1 && (exportState.format < 4 || exportState.format >= 6)) EdSlider("Quality", exportState.quality, 0.6f..1f, 0.95f, ::pct) { onExportState(exportState.format, it, exportState.sizeIdx) }
-            if (exportState.format == 0) Text(if (exportState.quality >= 0.995f) "JPEG at maximum: full colour detail (4:4:4) and almost no compression — the largest, highest-quality files." else "JPEG keeps full colour detail (4:4:4). 100 % = maximum quality.", color = Pro.Dim, fontSize = 11.sp)
-            SectionTitle("SIZE (LONG EDGE)")
-            Chips(listOf("Full (≤4800)", "4096", "2560", "1920", "Instagram 1080", "Web 2048", "4K 3840", "Original (full resolution)"), exportState.sizeIdx) { onExportState(exportState.format, exportState.quality, it) }
-            if (exportState.sizeIdx == 7) Text("The photo's own full size, as big as the sensor or file goes. Always saved at that size, however heavy the edit.", color = Pro.Dim, fontSize = 11.sp)
-            Text("Exports a new picture to DCIM/AlcorCutPro; the original stays untouched.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 8.dp))
             run {
                 val ctx = LocalContext.current
-                SectionTitle("OUTPUT")
+                SectionTitle("COLOUR & SHARPENING")
                 Text("Colour space (profile embedded)", color = Color.White, fontSize = 13.sp)
                 Chips(ExportOpts.SPACES, ExportOpts.space) { ExportOpts.space = it; ExportOpts.save(ctx) }
                 Text("Output sharpening", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
@@ -2759,7 +2858,9 @@ private fun PhotoPanelContent(
             run {
                 val ctx = LocalContext.current
                 LaunchedEffect(Unit) { PhotoMeta.load(ctx) }
-                SectionTitle("CAPTION & KEYWORDS (IPTC)")
+                SectionTitle("METADATA")
+                cameraInfo()
+                Text("Caption & keywords (IPTC)", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
                 val tf = @Composable { label: String, value: String, single: Boolean, onChange: (String) -> Unit ->
                     androidx.compose.material3.OutlinedTextField(
                         value = value, onValueChange = { onChange(it.take(if (single) 200 else 2000)); PhotoMeta.save(ctx) },
@@ -2790,12 +2891,6 @@ private fun PhotoPanelContent(
                     )
                 }
             }
-            Text(
-                if (busy) "EXPORTING…" else "EXPORT PHOTO",
-                style = Pro.Value.copy(color = Color.Black, fontSize = 14.sp),
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (busy) Pro.Amber.copy(alpha = 0.4f) else Pro.Amber)
-                    .clickable(enabled = !busy, onClick = onExport).padding(14.dp),
-            )
         }
     }
 }

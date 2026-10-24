@@ -192,6 +192,8 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Copy / Paste settings** (choose what to paste) — also between photos and video clips.
 - **LOAD / SAVE projects** next to Export; SAVE lists your saved projects to overwrite one, or save as new.
 - Export **JPEG or PNG**, quality and size choice; choose the **save folder** (default DCIM/AlcorCutPro).
+- **Export tab like a delivery page**: one EXPORT fold-out with format, quality, size, AI upscale and the export button; presets, colour & sharpening, file name, metadata and batch each in their own fold-out.
+- **AI noise reduction done in the edit**: the full-size photo is cleaned once in the background while you edit and the export reuses it — no second AI pass.
 - **Maximum-quality JPEG**: own encoder with full colour detail (4:4:4) — at 100 % hardly any compression; colour profile embedded. Exports run in their own process with all memory free for the photo.
 - Also **WebP** and **HEIC**; Instagram / web / 4K sizes; **Original (full resolution)** with no size limit — big exports with AI noise reduction run piece by piece, noise reduction, clarity, texture and sharpening work in bands of rows, and the photo is always saved at the size you chose; **AI upscale** 2× / 4× in the export (up to 50 MP); keep or remove **camera info and location**.
 - **IPTC title, caption & keywords** in every export, and an optional **.xmp sidecar** (Camera Raw settings) with the edit.

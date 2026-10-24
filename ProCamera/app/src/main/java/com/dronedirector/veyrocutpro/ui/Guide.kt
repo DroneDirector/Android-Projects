@@ -228,6 +228,8 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Heal: tap dust, blemishes or small objects on the photo — a matching patch from nearby covers each one. Clone stamp: tap the source, then tap where to paint. Drag a solid circle to move a spot, drag its dashed circle to change where it copies from, hold a spot to delete it. UNDO LAST removes the latest.",
             "Lens: Distortion straightens bulging lines from wide lenses; Vignetting brightens dark corners; Colour fringes removes purple / green outlines.",
             "Crop & perspective → PERSPECTIVE: Vertical straightens buildings that lean in at the top.",
+            "Export tab: everything for the file itself (format, quality, size, AI upscale) and the EXPORT PHOTO button are in the EXPORT fold-out; presets, colour & sharpening, file name, metadata and batch have their own.",
+            "AI noise reduction is applied to the full-size photo while you edit; the export reuses it.",
             "Export: JPEG (100 % = maximum quality, full colour detail), PNG, WebP or HEIC; sizes for Instagram / web / 4K or Original (full resolution); AI 2× / 4× upscale (up to 50 MP); keep or remove camera info and location; BATCH EXPORT applies your edit to up to 50 photos. Exports keep running if you leave the app or turn the screen off — pull down the notification shade to see every background task and its progress.",
             "Start page → MERGE PHOTOS: HDR merge (bracketed shots), Panorama (overlapping shots, left to right) or Focus stack — the result opens in the editor.",
             "SPLIT (top-left of the photo) shows before / after side by side — drag to move the divider.",

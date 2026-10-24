@@ -3120,5 +3120,11 @@
 "JPEG at maximum: full colour detail (4:4:4) and almost no compression — the largest, highest-quality files.": "JPEG i maksimum: fuld farvedetalje (4:4:4) og næsten ingen komprimering — de største filer i højeste kvalitet.",
 "JPEG keeps full colour detail (4:4:4). 100 % = maximum quality.": "JPEG beholder fuld farvedetalje (4:4:4). 100 % = maksimal kvalitet.",
 "the export stopped unexpectedly — please try again": "eksporten stoppede uventet — prøv igen",
-"the export didn't report back": "eksporten svarede ikke"
+"the export didn't report back": "eksporten svarede ikke",
+"Format": "Format",
+"Size (long edge)": "Størrelse (lange kant)",
+"Camera info": "Kamerainfo",
+"Caption & keywords (IPTC)": "Billedtekst og nøgleord (IPTC)",
+"METADATA": "METADATA",
+"COLOUR & SHARPENING": "FARVE OG SKARPHED"
 }

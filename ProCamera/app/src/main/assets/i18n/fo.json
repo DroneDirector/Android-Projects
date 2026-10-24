@@ -3174,5 +3174,11 @@
 "JPEG at maximum: full colour detail (4:4:4) and almost no compression — the largest, highest-quality files.": "JPEG í hægsta: full litdetalja (4:4:4) og næstan eingin samanpressing — størstu fílurnar í hægstu góðsku.",
 "JPEG keeps full colour detail (4:4:4). 100 % = maximum quality.": "JPEG varðveitir fulla litdetalju (4:4:4). 100 % = hægsta góðska.",
 "the export stopped unexpectedly — please try again": "útflutningurin steðgaði óvæntað — royn aftur",
-"the export didn't report back": "útflutningurin svaraði ikki"
+"the export didn't report back": "útflutningurin svaraði ikki",
+"Format": "Snið",
+"Size (long edge)": "Stødd (langa kantin)",
+"Camera info": "Myndatólsupplýsingar",
+"Caption & keywords (IPTC)": "Myndatekstur og lyklaorð (IPTC)",
+"METADATA": "METADATA",
+"COLOUR & SHARPENING": "LITUR OG SKARPLEIKI"
 }

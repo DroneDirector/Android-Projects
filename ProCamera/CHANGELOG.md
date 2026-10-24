@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor **Export tab** reorganised like a delivery page, each part in its own fold-out: **EXPORT** (format, quality, size, AI upscale and the EXPORT PHOTO button together), EXPORT PRESETS, COLOUR & SHARPENING, FILE NAME, METADATA (camera info, caption & keywords, .xmp sidecar) and BATCH. Nothing is duplicated.
+- **AI noise reduction is done while you edit**: once it's on, the AI cleans the full-size photo in the background, once, and keeps the result. The export uses it and doesn't run the AI again (with RAW, changing exposure or white balance afterwards cleans it again in the background, as the AI works on the developed picture). Cloud AI (Topaz) still runs at export.
 
 ## 1.0.515 — 2026-10-24
 - Photo export now runs in a **process of its own**, with all of its memory free for the photo (none taken by the editor, previews or Capture) — full-resolution exports with AI noise reduction no longer need to step down.

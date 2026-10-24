@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.541 — 2026-10-24
 - **Chromecast** in Capture and the video editor: the cast button shows the live viewfinder (Capture) or the viewer (video editor) on a TV with a Chromecast or Google TV on the same Wi-Fi, a few seconds behind. The picture is streamed from the phone (own HLS / MPEG-TS code); Google's free Cast library connects to the TV. The button sits on the picture by default; gear → Remote & output (Capture) or gear → Cast to TV (video editor) moves it below the picture / next to Split. Hide it in the layout (panels) menu ("Cast button").
 
 ## 1.0.538 — 2026-10-24

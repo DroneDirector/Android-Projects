@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.549 — 2026-10-24
 - Chromecast fix: the video editor's picture now reaches the TV (it showed only the AlcorCut Pro card — the title / layer pictures couldn't be drawn into the TV frame, which dropped the whole frame).
 
 ## 1.0.547 — 2026-10-24

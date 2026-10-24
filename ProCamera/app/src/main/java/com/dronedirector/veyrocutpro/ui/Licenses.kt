@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.sp
 private class Notice(val name: String, val by: String, val license: String, val url: String)
 
 private val NOTICES = listOf(
-    Notice("AndroidX: CameraX, Media3 (ExoPlayer, Transformer, Effect), Jetpack Compose, Material 3, Material Icons, Activity, Lifecycle, Core, Security Crypto, ExifInterface, HeifWriter", "The Android Open Source Project / Google LLC", "Apache License 2.0", "https://developer.android.com/jetpack/androidx"),
+    Notice("AndroidX: CameraX, Media3 (ExoPlayer, Transformer, Effect), Jetpack Compose, Material 3, Material Icons, Activity, Lifecycle, Core, Security Crypto, ExifInterface, HeifWriter, MediaRouter", "The Android Open Source Project / Google LLC", "Apache License 2.0", "https://developer.android.com/jetpack/androidx"),
     Notice("LiteRT (TensorFlow Lite runtime)", "Google LLC", "Apache License 2.0", "https://ai.google.dev/edge/litert"),
     Notice("Kotlin standard library, kotlinx.coroutines", "JetBrains s.r.o. and contributors", "Apache License 2.0", "https://kotlinlang.org"),
     Notice("Gson", "Google LLC", "Apache License 2.0", "https://github.com/google/gson"),
@@ -60,6 +60,7 @@ private val NOTICES = listOf(
     Notice("Natural Earth 1:110m land outlines (Library map view)", "Natural Earth (naturalearthdata.com)", "Public domain", "https://www.naturalearthdata.com/about/terms-of-use/"),
     Notice("Google ML Kit on-device translation and language identification (caption translation)", "Google LLC", "ML Kit Terms of Service", "https://developers.google.com/ml-kit/terms"),
     Notice("Google Play services Wearable — the watch remote's connection to the phone", "Google LLC", "Android Software Development Kit License", "https://developer.android.com/studio/terms"),
+    Notice("Google Cast SDK (Google Play services) — casting the live picture to a Chromecast / Google TV", "Google LLC", "Google APIs Terms of Service / Android Software Development Kit License", "https://developers.google.com/cast/docs/terms"),
     Notice("Jetpack Compose for Wear OS — the watch remote's screen", "The Android Open Source Project", "Apache License 2.0", "https://developer.android.com/jetpack/androidx/releases/wear-compose"),
 )
 

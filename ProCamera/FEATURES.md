@@ -53,6 +53,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **LONG EXP** smart mode: **Light trails** (lighten stacking), **Silky water** (averaging) and **Night sky** (averaging + brightening, less noise); 2–30 s, live build-up preview, finish early with the shutter.
 
 ### Remote monitor
+- **Cast to TV (Chromecast)**: the live viewfinder on a TV with a Chromecast or Google TV on the same Wi-Fi (a few seconds behind). Button on the picture or below it (gear → Remote & output); hide it in the layout menu.
 - **Remote monitor & control** from any browser on the same Wi-Fi or hotspot (PIN-protected address): live picture, shutter / record, zoom, Photo / Video / Pro Video, autofocus, AE lock, recording time and exposure read-out.
 
 ### Stop motion
@@ -210,6 +211,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 
 ## Video editor
 ### Media & timeline
+- **Cast to TV (Chromecast)**: the viewer on a TV with a Chromecast or Google TV (a few seconds behind). Button on the picture or next to Split (gear → Cast to TV); hide it in the layout menu.
 - **Camera → media list**: the Media page and the media strip's + Camera open the full **Capture** screen (every mode and pro control) over the editor; videos you record and photos you take (each becomes a 5 s clip) go into the media list, not onto the timeline.
 - **Delete from the timeline**: a bin on the selected clip; choose Close gap (ripple) or Leave gap (black of the same length).
 - **Skip to the editor** from the start page: open an empty timeline without picking a video first (manual, every time).

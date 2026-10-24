@@ -3241,5 +3241,20 @@
 "Videos go to the video editor — the photo editor takes photos": "Sjónbond hoyra til sjónbandsviðgerðina — myndaviðgerðin tekur myndir",
 "← Back to ": "← Aftur til ",
 "photo editor": "myndaviðgerð",
-"video editor": "sjónbandsviðgerð"
+"video editor": "sjónbandsviðgerð",
+"Cast to TV": "Cast til sjónvarp",
+"Cast to a TV": "Cast til eitt sjónvarp",
+"Cast button (Chromecast)": "Cast-knøttur (Chromecast)",
+"On the picture (corner)": "Á myndini (horn)",
+"Below the picture": "Undir myndini",
+"Shows the live picture on a TV with a Chromecast or Google TV on the same Wi-Fi (a few seconds behind). Hide the button in the layout menu.": "Vísir livandi myndina á einum sjónvarpi við Chromecast ella Google TV á sama Wi-Fi (nøkur sekund seinni). Fjal knøttin í uppsetingarvalmyndini.",
+"Casting needs Google Play services, which this device doesn't have.": "Casting krevur Google Play tænastur, sum hetta tól ikki hevur.",
+"The live picture is on the TV (a few seconds behind).": "Livandi myndin er á sjónvarpinum (nøkur sekund seinni).",
+"Looking for a Chromecast or Google TV on this Wi-Fi…": "Leitar eftir einum Chromecast ella Google TV á hesum Wi-Fi…",
+"STOP CASTING": "STEÐGA CASTING",
+"Cast button": "Cast-knøttur",
+"Chromecast button: show the live picture on a TV": "Chromecast-knøttur: vís livandi myndina á einum sjónvarpi",
+"Chromecast button: show the viewer on a TV": "Chromecast-knøttur: vís sýnaran á einum sjónvarpi",
+"Chromecast button on the picture or next to Split": "Chromecast-knøttur á myndini ella við síðuna av Kluta",
+"CAST TO TV": "CAST TIL SJÓNVARP"
 }

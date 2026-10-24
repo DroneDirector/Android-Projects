@@ -3187,5 +3187,20 @@
 "Videos go to the video editor — the photo editor takes photos": "Videoer hører til videoredigeringen — fotoredigeringen tager billeder",
 "← Back to ": "← Tilbage til ",
 "photo editor": "fotoredigering",
-"video editor": "videoredigering"
+"video editor": "videoredigering",
+"Cast to TV": "Cast til TV",
+"Cast to a TV": "Cast til et TV",
+"Cast button (Chromecast)": "Cast-knap (Chromecast)",
+"On the picture (corner)": "På billedet (hjørne)",
+"Below the picture": "Under billedet",
+"Shows the live picture on a TV with a Chromecast or Google TV on the same Wi-Fi (a few seconds behind). Hide the button in the layout menu.": "Viser det levende billede på et TV med Chromecast eller Google TV på samme Wi-Fi (nogle sekunder forsinket). Skjul knappen i layoutmenuen.",
+"Casting needs Google Play services, which this device doesn't have.": "Casting kræver Google Play-tjenester, som denne enhed ikke har.",
+"The live picture is on the TV (a few seconds behind).": "Det levende billede vises på TV'et (nogle sekunder forsinket).",
+"Looking for a Chromecast or Google TV on this Wi-Fi…": "Leder efter en Chromecast eller Google TV på dette Wi-Fi…",
+"STOP CASTING": "STOP CASTING",
+"Cast button": "Cast-knap",
+"Chromecast button: show the live picture on a TV": "Chromecast-knap: vis det levende billede på et TV",
+"Chromecast button: show the viewer on a TV": "Chromecast-knap: vis fremviseren på et TV",
+"Chromecast button on the picture or next to Split": "Chromecast-knap på billedet eller ved siden af Del",
+"CAST TO TV": "CAST TIL TV"
 }

@@ -30,7 +30,7 @@ import java.io.File
  */
 @UnstableApi
 object RenderCache {
-    private fun dir(c: Context) = File(c.cacheDir, "rendercache").apply { mkdirs() }
+    private fun dir(c: Context) = MediaCatalog.sub(c, "rendercache")
 
     /** Clips with something worth caching. */
     fun heavy(c: Clip) = c.nested == null && (c.detail.aiDenoise > 0f || c.bg != null || (c.depth?.frames ?: 0) > 0)
@@ -42,6 +42,7 @@ object RenderCache {
     }
 
     private fun fileFor(ctx: Context, c: Clip) = File(dir(ctx), key(c).replace(Regex("[^A-Za-z0-9_]"), "_") + ".mp4")
+        .also { MediaCatalog.claim(ctx, c.uri, it) }
 
     fun existing(ctx: Context, c: Clip): Uri? = fileFor(ctx, c).takeIf { it.exists() && it.length() > 1000 }?.let { Uri.fromFile(it) }
 

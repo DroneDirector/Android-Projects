@@ -23,7 +23,8 @@ object Waveforms {
     /** Decodes (or loads the saved copy). Slow: call off the main thread. */
     fun load(context: Context, uri: Uri): FloatArray? {
         cached(uri)?.let { return it }
-        val file = File(File(context.cacheDir, "waves").apply { mkdirs() }, uri.toString().hashCode().toUInt().toString(16) + ".wav1")
+        val file = File(MediaCatalog.sub(context, "waves"), uri.toString().hashCode().toUInt().toString(16) + ".wav1")
+            .also { MediaCatalog.claim(context, uri, it) }
         if (file.exists()) {
             try {
                 val bytes = file.readBytes()

@@ -25,10 +25,17 @@ import java.security.MessageDigest
  * photo opened longest ago is let go first. Catalogs can be created, renamed, deleted, switched and
  * moved to another storage location.
  */
-object Catalogs {
-    data class Info(val id: String, val name: String, val root: String, val created: Long = System.currentTimeMillis())
+data class CatalogInfo(val id: String, val name: String, val root: String, val created: Long = System.currentTimeMillis())
 
-    val list = mutableStateListOf<Info>()
+/** Catalog management shared by the photo editor ([Catalogs]) and the video editor ([VideoCatalogs]). */
+open class CatalogStore(
+    private val prefsName: String,
+    private val folder: String,
+    private val firstName: String,
+    private val copiesDefault: Boolean,
+) {
+
+    val list = mutableStateListOf<CatalogInfo>()
     var activeId by mutableStateOf("")
         private set
     /** Photos a catalog remembers; 0 = unlimited. */
@@ -43,11 +50,10 @@ object Catalogs {
     /** Saves the open photo's edit before the catalog changes (set by the editor while it's open). */
     @Volatile var beforeSwitch: (() -> Unit)? = null
 
-    const val MIN_LIMIT = 10
-    private const val PREFS = "catalogs"
+    val MIN_LIMIT = 10
     private var ready = false
 
-    private fun prefs(c: Context) = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private fun prefs(c: Context) = c.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
 
     @Synchronized fun init(context: Context) {
         if (ready) return
@@ -55,14 +61,14 @@ object Catalogs {
         ready = true
         val p = prefs(c)
         try {
-            val arr = ProjectStore.gson.fromJson(p.getString("list", "[]"), Array<Info>::class.java)
+            val arr = ProjectStore.gson.fromJson(p.getString("list", "[]"), Array<CatalogInfo>::class.java)
             list.clear(); arr?.filterNotNull()?.let { list.addAll(it) }
         } catch (_: Throwable) {}
         limit = p.getInt("limit", 0).let { if (it in 1 until MIN_LIMIT) MIN_LIMIT else it.coerceAtLeast(0) }
-        keepCopies = p.getBoolean("copies", true)
+        keepCopies = p.getBoolean("copies", copiesDefault)
         if (list.isEmpty()) {
             // First start: the existing filmstrip and its edits become the first catalog.
-            val info = Info(newId(), "My catalog", defaultRoot(c).path)
+            val info = CatalogInfo(newId(), firstName, defaultRoot(c).path)
             list.add(info)
             activeId = info.id
             migrate(c, dir(info))
@@ -76,10 +82,10 @@ object Catalogs {
     }
 
     private fun newId() = java.util.UUID.randomUUID().toString().take(12)
-    private fun defaultRoot(c: Context) = File(c.filesDir, "catalogs")
+    private fun defaultRoot(c: Context) = File(c.filesDir, folder)
 
-    fun dir(info: Info) = File(info.root, info.id).apply { mkdirs() }
-    fun active(context: Context): Info { init(context); return list.firstOrNull { it.id == activeId } ?: list.first() }
+    fun dir(info: CatalogInfo) = File(info.root, info.id).apply { mkdirs() }
+    fun active(context: Context): CatalogInfo { init(context); return list.firstOrNull { it.id == activeId } ?: list.first() }
     fun dir(context: Context): File = dir(active(context))
     fun sub(context: Context, name: String) = File(dir(context), name).apply { mkdirs() }
 
@@ -93,19 +99,19 @@ object Catalogs {
         init(context)
         limit = if (n <= 0) 0 else n.coerceAtLeast(MIN_LIMIT)
         store(context)
-        PhotoSession.enforceLimit(context)
+        enforce(context)
     }
 
     fun setKeepCopies(context: Context, on: Boolean) {
         init(context); keepCopies = on; store(context)
-        if (on) PhotoSession.copyMissing(context)
+        if (on) copyAll(context)
     }
 
     // ---- catalogs
 
-    fun create(context: Context, name: String): Info {
+    fun create(context: Context, name: String): CatalogInfo {
         init(context)
-        val info = Info(newId(), name.ifBlank { "Catalog ${list.size + 1}" }, active(context).root)
+        val info = CatalogInfo(newId(), name.ifBlank { "Catalog ${list.size + 1}" }, active(context).root)
         list.add(info); dir(info); store(context)
         return info
     }
@@ -120,9 +126,9 @@ object Catalogs {
         init(context)
         if (id == activeId || list.none { it.id == id }) return
         try { beforeSwitch?.invoke() } catch (_: Throwable) {}
-        PhotoSession.save(context)
+        saveOpen(context)
         activeId = id; store(context)
-        PhotoSession.reload(context)
+        reloadOpen(context)
         version++
     }
 
@@ -141,7 +147,7 @@ object Catalogs {
     fun locations(context: Context): List<Pair<String, File>> {
         val out = mutableListOf("Phone — private app storage" to defaultRoot(context))
         context.getExternalFilesDirs(null).filterNotNull().forEachIndexed { i, d ->
-            out += (if (i == 0) "Phone storage (Android/data folder)" else "SD card" + (if (i > 1) " $i" else "")) to File(d, "catalogs")
+            out += (if (i == 0) "Phone storage (Android/data folder)" else "SD card" + (if (i > 1) " $i" else "")) to File(d, folder)
         }
         return out
     }
@@ -152,7 +158,7 @@ object Catalogs {
         val info = list.firstOrNull { it.id == id } ?: return false
         if (File(info.root).canonicalPath == root.canonicalPath) return true
         val from = dir(info); val to = File(root, info.id)
-        if (id == activeId) { try { beforeSwitch?.invoke() } catch (_: Throwable) {}; PhotoSession.save(context) }
+        if (id == activeId) { try { beforeSwitch?.invoke() } catch (_: Throwable) {}; saveOpen(context) }
         return try {
             val files = from.walkTopDown().filter { it.isFile }.toList()
             val total = files.sumOf { it.length() }.coerceAtLeast(1L)
@@ -168,20 +174,23 @@ object Catalogs {
             val i = list.indexOfFirst { it.id == id }
             list[i] = info.copy(root = root.path); store(context)
             from.deleteRecursively()
-            if (id == activeId) PhotoSession.reload(context)
+            if (id == activeId) reloadOpen(context)
             true
         } catch (_: Throwable) { to.deleteRecursively(); false }
     }
 
-    fun sizeOf(info: Info): Long = try { dir(info).walkTopDown().filter { it.isFile }.sumOf { it.length() } } catch (_: Throwable) { 0L }
-    fun countOf(info: Info): Int = try {
+    fun sizeOf(info: CatalogInfo): Long = try { dir(info).walkTopDown().filter { it.isFile }.sumOf { it.length() } } catch (_: Throwable) { 0L }
+    open fun countOf(info: CatalogInfo): Int = try {
         val t = object : com.google.gson.reflect.TypeToken<List<SessionPhoto>>() {}.type
         (ProjectStore.gson.fromJson<List<SessionPhoto>>(File(dir(info), "session.json").readText(), t) ?: emptyList()).size
     } catch (_: Throwable) { 0 }
 
     // ---- first start: the old filmstrip moves into the catalog
 
-    private fun migrate(c: Context, to: File) {
+    /** First start of the photo catalogs: the old filmstrip moves in (see [Catalogs]). */
+    protected open fun migrate(c: Context, to: File) {}
+
+    protected fun migratePhotos(c: Context, to: File) {
         try {
             val old = File(c.filesDir, "photo_session.json")
             if (!old.exists()) return
@@ -203,9 +212,9 @@ object Catalogs {
     }
 
     /** A file in the catalog for a copy of [uri]. */
-    fun copyFile(context: Context, uri: String, name: String): File {
+    fun copyFile(context: Context, uri: String, name: String, into: String = "photos"): File {
         val ext = name.substringAfterLast('.', "").lowercase().takeIf { it.length in 2..5 } ?: "jpg"
-        return File(sub(context, "photos"), photoId(uri) + "." + ext)
+        return File(sub(context, into), photoId(uri) + "." + ext)
     }
 
     /**
@@ -239,4 +248,19 @@ object Catalogs {
     fun readable(context: Context, u: Uri): Boolean = try {
         context.contentResolver.openInputStream(u)?.use { true } ?: false
     } catch (_: Throwable) { false }
+
+    // What a catalog holds is up to the editor using it.
+    protected open fun saveOpen(context: Context) {}
+    protected open fun reloadOpen(context: Context) {}
+    protected open fun enforce(context: Context) {}
+    protected open fun copyAll(context: Context) {}
+}
+
+/** The photo editor's catalogs: the filmstrip ([PhotoSession]) with each photo's copy, edit and AI results. */
+object Catalogs : CatalogStore("catalogs", "catalogs", "My catalog", true) {
+    override fun saveOpen(context: Context) = PhotoSession.save(context)
+    override fun reloadOpen(context: Context) = PhotoSession.reload(context)
+    override fun enforce(context: Context) = PhotoSession.enforceLimit(context)
+    override fun copyAll(context: Context) = PhotoSession.copyMissing(context)
+    override fun migrate(c: Context, to: File) = migratePhotos(c, to)
 }

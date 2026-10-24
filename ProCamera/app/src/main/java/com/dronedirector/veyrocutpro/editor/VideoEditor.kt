@@ -164,7 +164,7 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
             val loaded = withContext(Dispatchers.IO) {
                 uris.mapNotNull { u ->
                     try { context.contentResolver.takePersistableUriPermission(u, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
-                    ClipLoader.load(context, u)
+                    ClipLoader.load(context, u)?.let { MediaCatalog.added(context, it) }
                 }
             }
             clips.addAll(loaded)
@@ -334,7 +334,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 if (library.any { it.uri == u }) { es.libLoading--; continue }
                 val c = withContext(Dispatchers.IO) {
                     try { context.contentResolver.takePersistableUriPermission(u, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
-                    ClipLoader.load(context, u)
+                    ClipLoader.load(context, u)?.let { MediaCatalog.added(context, it) }
                 }
                 es.libLoading--
                 if (c != null) { library.add(c); added++ }
@@ -1365,7 +1365,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val json = withContext(Dispatchers.Default) { try { ProjectStore.gson.toJson(p) } catch (_: Throwable) { "" } }
             if (json.isNotEmpty() && json != last) {
                 last = json
-                withContext(Dispatchers.IO) { ProjectStore.writeAutosave(context, json); try { ProjectStore.keepAutosaveAccess(context, p) } catch (_: Throwable) {} }
+                withContext(Dispatchers.IO) {
+                    ProjectStore.writeAutosave(context, json); try { ProjectStore.keepAutosaveAccess(context, p) } catch (_: Throwable) {}
+                    // The video catalog keeps each clip's latest settings.
+                    try { MediaCatalog.remember(context, p.clips) } catch (_: Throwable) {}
+                }
             }
         }
     }
@@ -2212,7 +2216,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val pickSource = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) layerScope.launch {
             try { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
-            val c = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }
+            val c = withContext(Dispatchers.IO) { ClipLoader.load(context, uri)?.let { MediaCatalog.added(context, it) } }
             if (c == null) es.message = "Couldn't open that video" else es.sourceClip = c
         }
     }
@@ -2246,7 +2250,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     fun applyProject(p: VideoProjectData) {
-        clips.clear(); clips.addAll(p.clips)
+        // A clip whose original is gone opens from the video catalog's copy, if one was kept.
+        clips.clear(); clips.addAll(p.clips.map { try { MediaCatalog.resolve(context, it) } catch (_: Throwable) { it } })
+        MediaCatalog.inUse = p.clips.map { it.uri.toString() }.toSet()
         layers.clear(); layers.addAll(p.layers)
         es.music = p.music
         extraAudio.clear(); extraAudio.addAll(p.extraAudio)

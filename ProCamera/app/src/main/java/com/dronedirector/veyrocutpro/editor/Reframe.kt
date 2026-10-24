@@ -231,7 +231,8 @@ object Stabilizer {
 
     fun keyOf(c: Clip) = c.uri.toString() + if (c.stab.gyro == true) "|gyro|" + (c.stab.gyroFile ?: "") else ""
     private fun key(c: Clip) = keyOf(c)
-    private fun file(context: Context, c: Clip) = File(File(context.cacheDir, "stab").apply { mkdirs() }, "m_" + key(c).hashCode().toUInt().toString(16) + ".bin")
+    private fun file(context: Context, c: Clip) = File(MediaCatalog.sub(context, "stab"), "m_" + key(c).hashCode().toUInt().toString(16) + ".bin")
+        .also { MediaCatalog.claim(context, c.uri, it) }
 
     fun cached(context: Context, c: Clip): Motion? {
         memory[key(c)]?.let { return it }

@@ -105,10 +105,13 @@ data class ProxySettings(val enabled: Boolean = true, val quality: ProxyQuality 
  */
 @UnstableApi
 object ProxyMaker {
-    private fun dir(context: Context) = File(context.cacheDir, "proxies").apply { mkdirs() }
+    // Kept in the open video catalog, with the clip (see MediaCatalog).
+    private fun dir(context: Context) = MediaCatalog.sub(context, "proxies")
 
     fun fileFor(context: Context, c: Clip, q: ProxyQuality, hevc: Boolean): File =
-        File(dir(context), "proxy_${MediaId.of(c)}_${q.height}${if (hevc) "_hevc" else ""}.mp4")
+        File(dir(context), "proxy_${MediaId.of(c)}_${q.height}${if (hevc) "_hevc" else ""}.mp4").also {
+            MediaCatalog.claim(context, c.uri, it); MediaCatalog.claim(context, c.uri, File(it.parentFile, it.name + ".json"))
+        }
     private fun sideFor(f: File) = File(f.parentFile, f.name + ".json")
 
     /** What a proxy must match in its original. */

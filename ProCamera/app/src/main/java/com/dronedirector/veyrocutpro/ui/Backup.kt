@@ -64,6 +64,8 @@ object Backup {
                 val rel = f.relativeTo(root).invariantSeparatorsPath
                 val top = rel.substringBefore('/')
                 if (top in SKIP || top == "models" || top == "whisper" || top == "stab" || total > 20_000_000) return@forEach
+                // Catalogs: their settings and edits come along; photo / clip copies, AI results and caches don't.
+                if ((top == "catalogs" || top == "video_catalogs") && listOf("/ai/", "/photos/", "/media/", "/proxies/", "/stab/", "/waves/", "/rendercache/", "/cloudai/").any { rel.contains(it) }) return@forEach
                 total += f.length()
                 zip.putNextEntry(ZipEntry("files/$rel"))
                 f.inputStream().use { it.copyTo(zip) }

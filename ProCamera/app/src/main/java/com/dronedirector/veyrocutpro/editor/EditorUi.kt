@@ -242,6 +242,7 @@ fun EditorSettingsDialog(
                     com.dronedirector.veyrocutpro.ui.BackupSection()
                 }
                 if (screen == com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "catalog", "Catalog", "Catalogs, photos remembered, photo copies, location") { PhotoCatalogSettings() }
+                if (isVideo) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "catalog", "Catalog", "Catalogs, clips remembered, their settings, proxies and analysis, copies, location") { VideoCatalogSettings() }
                 if (projectExtra != null) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "project", "Project archive & versions", "Save or open a project archive (.zip), version history") { projectExtra() }
                 if (playbackExtra != null) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "playback", "Playback & proxies", "Playback info read-out, proxy media") { playbackExtra() }
                 if (screen != com.dronedirector.veyrocutpro.ui.AppScreen.EDITOR) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "wm", "Watermark", "Remember your watermark and add it to everything new") {

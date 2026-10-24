@@ -110,7 +110,8 @@ object Transcriber {
 
     // ---- cache (per media + range + language), so re-opening a project is instant
     private fun cacheFile(context: Context, c: Clip, lang: String?) =
-        File(File(context.filesDir, "transcripts").apply { mkdirs() }, "v2_${MediaId.of(c)}_${c.startMs}_${c.endMs}_${lang ?: "auto"}.tsv")
+        File(MediaCatalog.sub(context, "transcripts"), "v2_${MediaId.of(c)}_${c.startMs}_${c.endMs}_${lang ?: "auto"}.tsv")
+            .also { MediaCatalog.claim(context, c.uri, it) }
 
     private fun cached(context: Context, c: Clip, lang: String?): List<TWord>? = try {
         val f = cacheFile(context, c, lang)

@@ -35,7 +35,8 @@ object CloudVideoPrep {
         val need = clips.filter { it.detail.aiDenoise > 0f }.distinctBy { keyOf(it) }
         need.forEachIndexed { i, c ->
             val key = keyOf(c)
-            val out = File(dir(context), "nyx_$key.mp4")
+            // Cloud AI results are kept in the video catalog with the clip: never paid for twice.
+            val out = File(MediaCatalog.sub(context, "cloudai"), "nyx_$key.mp4").also { MediaCatalog.claim(context, c.uri, it) }
             if (!out.exists() || out.length() < 1024) {
                 CloudAi.show("CLOUD AI · PREPARING CLIP ${i + 1}/${need.size}", 0)
                 val trimmed = trim(context, c)

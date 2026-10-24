@@ -124,6 +124,14 @@ object PhotoSession {
         if (drop.isNotEmpty()) remove(context, drop)
     }
 
+    /** Removes the catalog's AI results (made again when needed); returns the bytes freed. */
+    fun slimDown(context: Context): Long {
+        val files = Catalogs.sub(context, "ai").listFiles().orEmpty()
+        val n = files.sumOf { it.length() }
+        files.forEach { it.delete() }
+        return n
+    }
+
     /** Copies photos that have no copy in the catalog yet (in the background). */
     fun copyMissing(context: Context) {
         if (!Catalogs.keepCopies) return

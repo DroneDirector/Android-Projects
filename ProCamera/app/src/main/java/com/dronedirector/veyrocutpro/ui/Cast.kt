@@ -63,8 +63,13 @@ object CastLink {
         private set
     var connecting by mutableStateOf(false)
         private set
-    private var source: (() -> Bitmap?)? = null
+    /** Screens that can give a picture, newest last (Capture opened over the editor, then the editor again). */
+    private class Src(val frame: suspend () -> Bitmap?, val sound: CastFeed.Sound)
+    private val sources = ArrayList<Src>()
     private var listening = false
+
+    /** What the TV shows now: the newest screen's picture, or the idle card when none is open. */
+    private suspend fun frame(): Bitmap? = sources.lastOrNull()?.frame?.invoke()
 
     private fun cast(c: Context): CastContext? = try { CastContext.getSharedInstance(c.applicationContext) } catch (_: Throwable) { null }
 
@@ -90,24 +95,24 @@ object CastLink {
         listening = true
     }
 
-    /** The screen that's showing sets what goes to the TV. */
-    fun use(c: Context, src: () -> Bitmap?) {
-        source = src
+    /** A screen with a cast button opened: its picture (and sound) goes to the TV. */
+    fun use(c: Context, src: suspend () -> Bitmap?, sound: CastFeed.Sound) {
+        sources.removeAll { it.frame === src }
+        sources.add(Src(src, sound))
+        CastFeed.setSound(sound)
         listen(c)
         val s = cast(c)?.sessionManager?.currentCastSession
-        if (s != null && s.isConnected) { device = s.castDevice?.friendlyName ?: "TV"; play(s) }
+        if (s != null && s.isConnected) { device = s.castDevice?.friendlyName ?: "TV"; if (!CastFeed.running) play(s) }
     }
 
-    /** The screen went away: stop sending its picture (the TV connection is ended too). */
-    fun release(c: Context, src: () -> Bitmap?) {
-        if (source !== src) return
-        source = null
-        stop(c)
+    /** The screen went away: the TV stays connected and shows the previous screen, or the AlcorCut Pro card. */
+    fun release(c: Context, src: suspend () -> Bitmap?) {
+        sources.removeAll { it.frame === src }
+        sources.lastOrNull()?.let { CastFeed.setSound(it.sound) }
     }
 
     private fun play(s: CastSession) {
-        val src = source ?: return
-        CastFeed.start(src)
+        CastFeed.start { frame() }
         val url = CastFeed.url() ?: return
         val meta = MediaMetadata(MediaMetadata.MEDIA_TYPE_MOVIE).apply { putString(MediaMetadata.KEY_TITLE, "AlcorCut Pro") }
         val info = MediaInfo.Builder(url)
@@ -152,12 +157,12 @@ fun CastPlaceSetting(screen: String) {
 
 /** The cast button: pick a TV, or stop casting. [source] gives the current picture (called on the main thread). */
 @Composable
-fun CastButton(source: () -> Bitmap?, modifier: Modifier = Modifier, small: Boolean = false) {
+fun CastButton(source: suspend () -> Bitmap?, modifier: Modifier = Modifier, small: Boolean = false, sound: CastFeed.Sound = CastFeed.Sound.MIC) {
     val ctx = LocalContext.current
     val src by rememberUpdatedState(source)
-    val stable = remember { { src() } }
+    val stable: suspend () -> Bitmap? = remember { suspend { src() } }
     DisposableEffect(Unit) {
-        CastLink.use(ctx, stable)
+        CastLink.use(ctx, stable, sound)
         onDispose { CastLink.release(ctx, stable) }
     }
     var picking by remember { mutableStateOf(false) }

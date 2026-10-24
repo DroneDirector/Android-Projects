@@ -1,5 +1,9 @@
 package com.dronedirector.veyrocutpro.editor
 
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.draw.drawWithContent
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -724,11 +728,37 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     val deck = remember { Deck(players) }
-    // The viewer's picture for a TV (Chromecast).
-    val castSource: () -> android.graphics.Bitmap? = {
+    // The viewer's picture for a TV (Chromecast): the layers below, the video, then titles / layers on top —
+    // put together like the viewer, without the editing aids (handles, guides, read-outs).
+    val castBelow = androidx.compose.ui.graphics.rememberGraphicsLayer()
+    val castAbove = androidx.compose.ui.graphics.rememberGraphicsLayer()
+    val castFrame = remember { arrayOfNulls<androidx.compose.ui.geometry.Rect>(1) }
+    val castHasBelow = remember { booleanArrayOf(false) }
+    val castSource: suspend () -> android.graphics.Bitmap? = castSrc@{
+        val fr = castFrame[0] ?: return@castSrc null
+        if (fr.width < 2f || fr.height < 2f) return@castSrc null
+        val k = 1280f / fr.width
+        val out = android.graphics.Bitmap.createBitmap(1280, (fr.height * k).toInt().coerceAtLeast(2), android.graphics.Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(out)
+        c.drawColor(android.graphics.Color.BLACK)
+        val all = android.graphics.RectF(0f, 0f, out.width.toFloat(), out.height.toFloat())
+        val p = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
+        fun layerOn(img: androidx.compose.ui.graphics.ImageBitmap?) { img?.asAndroidBitmap()?.let { b -> c.drawBitmap(b, null, all, p) } }
+        if (castHasBelow[0]) layerOn(try { castBelow.toImageBitmap() } catch (_: Throwable) { null })
         (texViews[deck.active] as? android.view.TextureView)?.let { tv ->
-            if (tv.isAvailable && tv.width > 0 && tv.height > 0) tv.getBitmap(1280, (1280f * tv.height / tv.width).toInt().coerceAtLeast(2)) else null
+            if (tv.isAvailable && tv.width > 0 && tv.height > 0) {
+                val loc = IntArray(2); tv.getLocationInWindow(loc)
+                val bw = minOf(tv.width, 1920)
+                val vb = tv.getBitmap(bw, (bw.toFloat() * tv.height / tv.width).toInt().coerceAtLeast(2))
+                if (vb != null) {
+                    val l = (loc[0] - fr.left) * k; val t = (loc[1] - fr.top) * k
+                    c.drawBitmap(vb, null, android.graphics.RectF(l, t, l + tv.width * k, t + tv.height * k), p)
+                    vb.recycle()
+                }
+            }
         }
+        layerOn(try { castAbove.toImageBitmap() } catch (_: Throwable) { null })
+        out
     }
     val aspects = remember { mutableStateListOf(16f / 9f, 16f / 9f) }
 
@@ -2803,13 +2833,18 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         val boxAspect = maxWidth.value / maxHeight.value
                         val fw = if (boxAspect > projAspect) maxHeight * projAspect else maxWidth
                         val fh = if (boxAspect > projAspect) maxHeight else maxWidth / projAspect
-                        Box(Modifier.width(fw).height(fh).clipToBounds().background(Color.Black)) {
+                        Box(Modifier.width(fw).height(fh).clipToBounds().background(Color.Black)
+                            .onGloballyPositioned { castFrame[0] = it.boundsInWindow() }) {
                             // Video layers placed below the main video are drawn first (underneath it).
                             val belowLayers = layers.filter { it.isBelow }
-                            if (belowLayers.isNotEmpty()) LayerPreview(
+                            castHasBelow[0] = belowLayers.isNotEmpty()
+                            if (belowLayers.isNotEmpty()) Box(Modifier.fillMaxSize().drawWithContent {
+                                castBelow.record { this@drawWithContent.drawContent() }
+                                drawLayer(castBelow)
+                            }) { LayerPreview(
                                 layers = belowLayers, timeMs = globalMs, selectedId = null, showAll = false, playing = es.playing,
                                 onMove = { _, _, _ -> }, onSelect = { es.selectedLayer = it; es.page = Page.LAYERS },
-                            )
+                            ) }
                             AndroidView(
                                 factory = { ctx ->
                                     android.widget.FrameLayout(ctx).apply {
@@ -2844,6 +2879,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             if (es.morphBusy) Text("Analysing morph cut…", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.align(Alignment.BottomStart).padding(8.dp).background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 6.dp, vertical = 2.dp))
                             // A selected below-layer shows as a see-through ghost on top while you place it.
                             val ghost = if (es.page == Page.LAYERS && !es.playing) layers.firstOrNull { it.id == es.selectedLayer && it.isBelow } else null
+                            // Titles and layers on top (also recorded for the TV).
+                            Box(Modifier.fillMaxSize().drawWithContent {
+                                castAbove.record { this@drawWithContent.drawContent() }
+                                drawLayer(castAbove)
+                            }) {
                             LayerPreview(
                                 layers = layers.filter { !it.isBelow || it.id == ghost?.id }.map { if (it.id == ghost?.id) it.copy(opacity = it.opacity * 0.45f) else it },
                                 timeMs = globalMs,
@@ -2867,6 +2907,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     })
                                 },
                             )
+                            }
                             // Before / after split (Color page, Android 13+): drag the divider across the picture.
                             if (es.page == Page.COLOR && gpuGrade && clips.isNotEmpty()) {
                                 if (es.abSplit > 0f) Box(
@@ -2955,7 +2996,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     if (!es.fullscreen && showScope) ScopeDrawer(es.scopeHist, Modifier.align(Alignment.CenterEnd), frame = es.scopeFrame) { es.scopeOpen = it }
                     // Cast to a TV: on the picture (default), unless the gear puts it next to Split.
                     if (castPanel && !es.fullscreen && com.dronedirector.veyrocutpro.ui.CastPlace.get(context, "ve") == 0)
-                        com.dronedirector.veyrocutpro.ui.CastButton(castSource, Modifier.align(Alignment.BottomEnd).padding(8.dp), small = true)
+                        com.dronedirector.veyrocutpro.ui.CastButton(castSource, Modifier.align(Alignment.BottomEnd).padding(end = 48.dp, bottom = 7.dp), small = true, sound = com.dronedirector.veyrocutpro.camera.CastFeed.Sound.APP)
                     if (showTimecode) Text(
                         "${tc(globalMs)} / ${tc(totalMs)}",
                         style = Pro.Value.copy(fontSize = 12.sp),
@@ -3054,7 +3095,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         // Split, undo and redo are always on screen; the zoom tools scroll if the row is narrow.
                         TransportIcon(Icons.Filled.ContentCut, "Split at playhead", accent = true) { splitAtPlayhead() }
                         if (castPanel && com.dronedirector.veyrocutpro.ui.CastPlace.get(context, "ve") == 1)
-                            com.dronedirector.veyrocutpro.ui.CastButton(castSource, Modifier.padding(horizontal = 2.dp), small = true)
+                            com.dronedirector.veyrocutpro.ui.CastButton(castSource, Modifier.padding(horizontal = 2.dp), small = true, sound = com.dronedirector.veyrocutpro.camera.CastFeed.Sound.APP)
                         TransportIcon(Icons.AutoMirrored.Filled.Undo, "Undo", tint = if (es.histPos > 0) Color.White else Pro.Dim) { undo() }
                         TransportIcon(Icons.AutoMirrored.Filled.Redo, "Redo", tint = if (es.histPos < history.lastIndex) Color.White else Pro.Dim) { redo() }
                       Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
@@ -5783,13 +5824,31 @@ private fun fxPlayer(context: android.content.Context, fx: AudioFxProcessor): Ex
     val rf = object : androidx.media3.exoplayer.DefaultRenderersFactory(context) {
         override fun buildAudioSink(context: android.content.Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): androidx.media3.exoplayer.audio.AudioSink =
             androidx.media3.exoplayer.audio.DefaultAudioSink.Builder(context)
-                .setAudioProcessors(arrayOf(fx))
+                // The sound also goes to a TV while casting (mixed with the other players there).
+                .setAudioProcessors(arrayOf(fx, androidx.media3.exoplayer.audio.TeeAudioProcessor(CastTap())))
                 .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                 .build()
     }
     // Originals that need a special decoder (4:2:2) play with it when they aren't on a proxy.
     rf.setMediaCodecSelector(Chroma.selector(liveDecoders)).setEnableDecoderFallback(true)
     return ExoPlayer.Builder(context, rf).build()
+}
+
+/** Hands what a player is playing to the TV feed (only while casting). */
+@OptIn(UnstableApi::class)
+private class CastTap : androidx.media3.exoplayer.audio.TeeAudioProcessor.AudioBufferSink {
+    private var rate = 48000; private var channels = 2; private var encoding = androidx.media3.common.C.ENCODING_PCM_16BIT
+    override fun flush(sampleRateHz: Int, channelCount: Int, encoding: Int) { rate = sampleRateHz; channels = channelCount; this.encoding = encoding }
+    override fun handleBuffer(buffer: java.nio.ByteBuffer) {
+        if (!com.dronedirector.veyrocutpro.camera.CastFeed.running) return
+        val b = buffer.duplicate().order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        val pcm = when (encoding) {
+            androidx.media3.common.C.ENCODING_PCM_16BIT -> ShortArray(b.remaining() / 2) { b.getShort() }
+            androidx.media3.common.C.ENCODING_PCM_FLOAT -> ShortArray(b.remaining() / 4) { (b.getFloat().coerceIn(-1f, 1f) * 32767f).toInt().toShort() }
+            else -> return
+        }
+        com.dronedirector.veyrocutpro.camera.CastFeed.pushPcm(this, pcm, rate, channels)
+    }
 }
 
 /** Pinch to zoom, drag to move and twist to rotate the picture; thirds grid while editing. */

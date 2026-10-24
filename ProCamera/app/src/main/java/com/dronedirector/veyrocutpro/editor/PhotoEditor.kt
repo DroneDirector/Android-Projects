@@ -1030,7 +1030,7 @@ private fun PhotoWorkspace(
                     e.watermark?.let { out = stampLayer(context, out, it) }
                     // A removed background needs a format with transparency.
                     val fmt = if (e.bg.active && e.bg.mode == 2 && format !in listOf(1, 2, 4, 5)) 1 else format
-                    savePhotoAs(context, out, fmt, (quality * 100).toInt(), if (keepExif) uri else null, stripGps).also { saved ->
+                    return savePhotoAs(context, out, fmt, (quality * 100).toInt(), if (keepExif) uri else null, stripGps).also { saved ->
                         // Camera Raw (.xmp) sidecar for the original, with the closest matching settings.
                         if (saved != null && PhotoMeta.sidecar && uri != Uri.EMPTY) {
                             val where = PhotoMeta.writeSidecar(context, uri, PhotoMeta.sidecarXmp(e.grade, e.detail, e.geometry, raw))

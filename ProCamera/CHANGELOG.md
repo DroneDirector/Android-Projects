@@ -5,6 +5,8 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 
 ## Unreleased
 - **Camera inside the editors**: Photo editor — the filmstrip's + (and the empty editor and start page) offers Gallery, Browse files and **Camera**; a photo you take goes straight into the filmstrip. Video editor — Media page **Camera → media list** and the media strip's **+ Camera**: record a video or take a photo (it becomes a 5 s clip); both go into the media list, not onto the timeline. Captures are saved to DCIM/AlcorCutPro.
+
+## 1.0.531 — 2026-10-24
 - AI progress badge: the full-size noise-reduction pass is shown as plain "AI NOISE REDUCTION" with one short line ("Cleaning the full-size photo").
 
 ## 1.0.529 — 2026-10-24

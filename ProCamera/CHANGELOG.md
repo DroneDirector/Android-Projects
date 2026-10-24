@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.524 — 2026-10-24
 - AI noise reduction is **remembered**: the cleaned preview and full-size results are kept on the phone (also after restarting the app), so reopening a project or photo with AI noise reduction shows it straight away without running the AI again. It also no longer starts while a RAW is still loading (which could make it run up to three times), and an outdated full-size pass stops quietly instead of interrupting the preview.
 - AI progress badge: the second, full-size noise-reduction pass is labelled **AI NOISE REDUCTION · FULL SIZE** with a short line saying why it runs (the full photo for the export — or, for RAW, that exposure, white balance or tones changed).
 - Photo editor → Detail → AI NOISE REDUCTION: a note says when the AI has to run again. For RAW: use it last, after exposure, white balance, highlights, shadows, whites and blacks. Clarity, texture, colour grading, curves, masks and the rest never make it run again.

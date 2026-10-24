@@ -182,6 +182,7 @@
  {
   "title": "Projects & workflow",
   "items": [
+   "<strong>Video catalogs</strong>: every clip you use is remembered — its last settings (given back when added to another project), proxies, stabilisation analysis, waveforms, render cache, cloud AI results and transcripts, so nothing is made twice. Several named catalogs; clips remembered (10 to any number, or unlimited); optional clip copies; move to private storage, shared storage or an SD card; slim down. Lossless only.",
    "<strong>Several timelines per project</strong>: new, duplicate, rename and switch between cuts of the same project (shared media strip).",
    "<strong>LOAD / SAVE projects</strong> next to Export; <strong>Save &amp; leave</strong> when exiting; saved projects on the start page.",
    "<strong>Copy / Paste settings</strong> between clips (or from a photo), optionally onto every clip.",

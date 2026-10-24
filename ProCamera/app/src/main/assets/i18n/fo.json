@@ -3164,5 +3164,10 @@
 "RESTORE MY SETTINGS": "ENDURSKAPA MÍNAR STILLINGAR",
 "Settings restored — restarting": "Stillingar endurskaptar — byrjar av nýggjum",
 "That isn't a AlcorCut Pro settings file": "Hetta er ikki ein AlcorCut Pro-stillingarfíla",
-"Gear → backup → Keep settings after uninstall: saves your settings, presets and LUTs to Documents/AlcorCutPro/Settings whenever you leave the app; after reinstalling, tap RESTORE MY SETTINGS on the first screen and pick AlcorCutPro-settings.vcbackup.": "Tannhjól → trygdarafrit → Varðveit stillingar eftir avinstallering: goymir tínar stillingar, forstillingar og LUT'ir í Documents/AlcorCutPro/Settings, hvørja ferð tú fert úr appini; eftir endurinstallering trýstir tú á ENDURSKAPA MÍNAR STILLINGAR á fyrsta skermi og velur AlcorCutPro-settings.vcbackup."
+"Gear → backup → Keep settings after uninstall: saves your settings, presets and LUTs to Documents/AlcorCutPro/Settings whenever you leave the app; after reinstalling, tap RESTORE MY SETTINGS on the first screen and pick AlcorCutPro-settings.vcbackup.": "Tannhjól → trygdarafrit → Varðveit stillingar eftir avinstallering: goymir tínar stillingar, forstillingar og LUT'ir í Documents/AlcorCutPro/Settings, hvørja ferð tú fert úr appini; eftir endurinstallering trýstir tú á ENDURSKAPA MÍNAR STILLINGAR á fyrsta skermi og velur AlcorCutPro-settings.vcbackup.",
+"Original (full resolution)": "Upprunaligt (full upploysn)",
+"The photo's own full size, as big as the sensor or file goes. Very large photos with heavy AI tools may be saved a little smaller if the phone runs out of memory — the app tells you when.": "Myndin í sínari egnu fullu stødd, so stór sum skynjarin ella fílan er. Sera stórar myndir við tungum AI-amboðum kunnu verða goymdar eitt sindur minni, um telefonin fær ov lítið minni — appin sigur frá, tá ið tað hendir.",
+"Makes the exported photo bigger with the built-in AI (ESRGAN) — or Topaz in the cloud when Cloud AI is on. Up to 50 MP.": "Ger útfluttu myndina størri við innbygdu AI (ESRGAN) — ella Topaz í skýnum, tá ið Cloud AI er tendrað. Upp til 50 MP.",
+"not enough memory for this size with these settings": "ikki nóg mikið minni til hesa stødd við hesum stillingum",
+"the largest this phone's memory allowed with these settings": "tað størsta, sum minnið í telefonini loyvdi við hesum stillingum"
 }

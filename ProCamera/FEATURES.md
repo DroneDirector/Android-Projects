@@ -192,7 +192,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Copy / Paste settings** (choose what to paste) — also between photos and video clips.
 - **LOAD / SAVE projects** next to Export; SAVE lists your saved projects to overwrite one, or save as new.
 - Export **JPEG or PNG**, quality and size choice; choose the **save folder** (default DCIM/AlcorCutPro).
-- Also **WebP** and **HEIC**; Instagram / web / 4K sizes; **Original (full resolution)** with no size limit — big exports with AI noise reduction run piece by piece, and if the phone runs short of memory the photo is saved slightly smaller instead of failing; **AI upscale** 2× / 4× in the export (up to 50 MP); keep or remove **camera info and location**.
+- Also **WebP** and **HEIC**; Instagram / web / 4K sizes; **Original (full resolution)** with no size limit — big exports with AI noise reduction run piece by piece, noise reduction, clarity, texture and sharpening work in bands of rows, and the photo is always saved at the size you chose; **AI upscale** 2× / 4× in the export (up to 50 MP); keep or remove **camera info and location**.
 - **IPTC title, caption & keywords** in every export, and an optional **.xmp sidecar** (Camera Raw settings) with the edit.
 - **Batch export**: apply the current edit to up to 50 photos at once; photo exports (single, batch and export selected) keep running in other apps or with the screen off, with a progress notification.
 - **Resizable panels** (hold the divider, then drag; double-tap to reset).

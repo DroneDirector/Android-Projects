@@ -987,12 +987,14 @@ private fun PhotoWorkspace(
         exportEstMs = (mp * per * (if (aiScale > 1) 4 else 1)).toLong()
         val e = edit
         PhotoExportJob.scope.launch {
-            // If a photo doesn't fit in memory, try again a little smaller (and say so) instead of failing.
-            var savedPx = 0
+            // The size you chose is always the size saved. If the phone's memory can't hold every step at
+            // that size, the heavy steps run a little smaller and the result is enlarged back to your size.
+            var savedPx = 0; var wantPx = 0
             fun attempt(maxPx: Int): Any? {
                     val raw = rawOn(e)
                     var full = (if (raw) rawExport(e, maxPx) else GradeIO.decode(context, sourceUri(e), maxPx)) ?: return null
                     savedPx = maxOf(full.width, full.height)
+                    if (wantPx == 0) wantPx = savedPx
                     if (e.detail.aiDenoise > 0f) {
                         // Full-resolution AI noise reduction, tile by tile into a new picture (very little memory).
                         var den: Bitmap? = null
@@ -1017,6 +1019,14 @@ private fun PhotoWorkspace(
                     val tables = if (eg.isIdentity) null else eg.tables()
                     var out = ImageOps.renderPhoto(full, eg, e.detail, e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg, e.sky, e.lensBlur, e.retouch)
                     full.recycle()
+                    // Back to the chosen size when the steps above had to run smaller (drawn in native memory).
+                    if (wantPx > savedPx) {
+                        val k = wantPx.toFloat() / savedPx
+                        val big = Bitmap.createBitmap((out.width * k).toInt().coerceAtLeast(1), (out.height * k).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+                        android.graphics.Canvas(big).drawBitmap(out, null, android.graphics.Rect(0, 0, big.width, big.height), android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG or android.graphics.Paint.DITHER_FLAG))
+                        if (out.hasAlpha()) big.setHasAlpha(true)
+                        out.recycle(); out = big
+                    }
                     // AI upscale (×2 / ×4, at most 50 MP).
                     if (aiScale > 1) {
                         val k = minOf(aiScale.toFloat(), kotlin.math.sqrt(50e6f / (out.width.toFloat() * out.height)))
@@ -1042,7 +1052,7 @@ private fun PhotoWorkspace(
                 PhotoExportError.last = null
                 var px = sizes[sizeIdx]
                 var result: Any? = null
-                for (tryNo in 0 until 4) {
+                for (tryNo in 0 until 6) {
                     try { result = attempt(px); break }
                     catch (_: OutOfMemoryError) {
                         System.gc()
@@ -1050,7 +1060,7 @@ private fun PhotoWorkspace(
                         val real = if (savedPx > 0) savedPx else px.coerceAtMost(8000)
                         px = (minOf(px, real) * 0.8f).toInt()
                         PhotoExportError.last = "not enough memory for this size with these settings"
-                        if (px < 1200) break
+                        if (px < 1000) break
                     } catch (t: Throwable) {
                         result = if (t is AiDenoiser.Stopped || t.cause is AiDenoiser.Stopped) "stopped" else {
                             PhotoExportError.last = (t.message ?: t.javaClass.simpleName).take(80); null
@@ -1058,12 +1068,12 @@ private fun PhotoWorkspace(
                         break
                     }
                 }
-                if (result != null && result != "stopped" && savedPx in 1 until minOf(sizes[sizeIdx], 1_000_000) && PhotoExportError.last != null) "smaller" else result
+                if (result != null && result != "stopped" && wantPx > savedPx) "smaller" else result
             }
             busy = false
             // Learn how long exports take on this phone (plain exports only, no AI steps).
             if (ok != null && ok != "stopped" && e.detail.aiDenoise <= 0f && aiScale <= 1) {
-                val mpDone = exportMp(base, if (savedPx > 0) savedPx else sizes[sizeIdx])
+                val mpDone = exportMp(base, if (wantPx > 0) wantPx else sizes[sizeIdx])
                 val took = (System.currentTimeMillis() - exportT0) / mpDone.coerceAtLeast(0.5f)
                 val p = context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE)
                 p.edit().putFloat("pe_ms_per_mp", p.getFloat("pe_ms_per_mp", took) * 0.6f + took * 0.4f).apply()
@@ -1071,7 +1081,7 @@ private fun PhotoWorkspace(
             if (ok == null || ok == "stopped") recipeQueue.clear()
             message = when {
                 ok == "stopped" -> "Export stopped"
-                ok == "smaller" -> "Saved at $savedPx px — the largest this phone's memory allowed with these settings"
+                ok == "smaller" -> "Saved at your size ($wantPx px). The phone's memory was short, so the heaviest steps ran at $savedPx px"
                 ok != null -> "Saved"
                 else -> PhotoExportError.last?.let { "Couldn't export — $it" } ?: "Couldn't export — try a smaller size"
             }
@@ -2650,7 +2660,7 @@ private fun PhotoPanelContent(
             if (exportState.format != 1 && (exportState.format < 4 || exportState.format >= 6)) EdSlider("Quality", exportState.quality, 0.6f..1f, 0.95f, ::pct) { onExportState(exportState.format, it, exportState.sizeIdx) }
             SectionTitle("SIZE (LONG EDGE)")
             Chips(listOf("Full (≤4800)", "4096", "2560", "1920", "Instagram 1080", "Web 2048", "4K 3840", "Original (full resolution)"), exportState.sizeIdx) { onExportState(exportState.format, exportState.quality, it) }
-            if (exportState.sizeIdx == 7) Text("The photo's own full size, as big as the sensor or file goes. Very large photos with heavy AI tools may be saved a little smaller if the phone runs out of memory — the app tells you when.", color = Pro.Dim, fontSize = 11.sp)
+            if (exportState.sizeIdx == 7) Text("The photo's own full size, as big as the sensor or file goes. Always saved at that size, however heavy the edit.", color = Pro.Dim, fontSize = 11.sp)
             Text("Exports a new picture to DCIM/AlcorCutPro; the original stays untouched.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 8.dp))
             run {
                 val ctx = LocalContext.current

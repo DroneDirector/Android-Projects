@@ -3112,8 +3112,9 @@
 "That isn't a AlcorCut Pro settings file": "Det er ikke en AlcorCut Pro-indstillingsfil",
 "Gear → backup → Keep settings after uninstall: saves your settings, presets and LUTs to Documents/AlcorCutPro/Settings whenever you leave the app; after reinstalling, tap RESTORE MY SETTINGS on the first screen and pick AlcorCutPro-settings.vcbackup.": "Tandhjul → backup → Behold indstillinger efter afinstallation: gemmer dine indstillinger, forudindstillinger og LUT'er i Documents/AlcorCutPro/Settings, hver gang du forlader appen; efter geninstallation trykker du på GENDAN MINE INDSTILLINGER på første skærm og vælger AlcorCutPro-settings.vcbackup.",
 "Original (full resolution)": "Original (fuld opløsning)",
-"The photo's own full size, as big as the sensor or file goes. Very large photos with heavy AI tools may be saved a little smaller if the phone runs out of memory — the app tells you when.": "Billedets egen fulde størrelse, så stor som sensoren eller filen. Meget store billeder med tunge AI-værktøjer kan blive gemt lidt mindre, hvis telefonen løber tør for hukommelse — appen siger til, når det sker.",
 "Makes the exported photo bigger with the built-in AI (ESRGAN) — or Topaz in the cloud when Cloud AI is on. Up to 50 MP.": "Gør det eksporterede billede større med den indbyggede AI (ESRGAN) — eller Topaz i skyen, når Cloud AI er slået til. Op til 50 MP.",
 "not enough memory for this size with these settings": "ikke nok hukommelse til denne størrelse med disse indstillinger",
-"the largest this phone's memory allowed with these settings": "det største telefonens hukommelse tillod med disse indstillinger"
+"the largest this phone's memory allowed with these settings": "det største telefonens hukommelse tillod med disse indstillinger",
+"Always saved at that size, however heavy the edit.": "Gemmes altid i den størrelse, uanset hvor tung redigeringen er.",
+"The photo's own full size, as big as the sensor or file goes. Always saved at that size, however heavy the edit.": "Billedets egen fulde størrelse, så stor som sensoren eller filen. Gemmes altid i den størrelse, uanset hvor tung redigeringen er."
 }

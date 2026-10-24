@@ -98,6 +98,28 @@ object ImageOps {
     private fun to8(v: Float) = (v * 255f + 0.5f).toInt().coerceIn(0, 255)
 
     /** Separable box blur of the three channels; [radius] in pixels. */
+    /**
+     * Runs [op] on bands of rows of the picture: each band is copied with [margin] extra rows above
+     * and below (the reach of the op's blur), processed, and only its own rows are written back —
+     * after the next band has read the untouched rows it needs. Small pictures run in one go.
+     */
+    private fun banded(px: IntArray, w: Int, h: Int, margin: Int, op: (IntArray, Int) -> Unit) {
+        val rows = max(max(64, 3_000_000 / max(1, w)), margin)
+        if (h <= rows + 2 * margin) { op(px, h); return }
+        var pending: IntArray? = null; var pendingY = 0
+        var y0 = 0
+        while (y0 < h) {
+            val y1 = min(h, y0 + rows)
+            val a = max(0, y0 - margin); val b = min(h, y1 + margin)
+            val band = px.copyOfRange(a * w, b * w)
+            op(band, b - a)
+            pending?.let { System.arraycopy(it, 0, px, pendingY * w, it.size) }
+            pending = band.copyOfRange((y0 - a) * w, (y1 - a) * w); pendingY = y0
+            y0 = y1
+        }
+        pending?.let { System.arraycopy(it, 0, px, pendingY * w, it.size) }
+    }
+
     private fun boxBlur(src: IntArray, w: Int, h: Int, radius: Int): IntArray {
         if (radius < 1) return src.copyOf()
         val tmp = IntArray(w * h)
@@ -197,23 +219,32 @@ object ImageOps {
         val scale = max(w, h) / 1080f
 
         if (d.colorNoise > 0f) try { colourNoise(px, w, h, d.colorNoise, scale) } catch (_: OutOfMemoryError) {}
+        val ref = max(w, h)
+        // The blur-based steps run in bands of rows (each with enough rows around it), so a full-size
+        // photo needs only a little extra memory; the result is the same as doing the whole picture at once.
         if (d.denoise > 0f) {
             // Edge-aware smoothing: blend towards a blur only where the difference is small.
             val r = max(1, (2 * scale).toInt())
-            val blur = boxBlur(px, w, h, r)
             val threshold = 10f + d.denoise * 40f
-            for (i in px.indices) {
-                val a = px[i]; val b = blur[i]
-                val diff = (abs(((a shr 16) and 0xFF) - ((b shr 16) and 0xFF)) + abs(((a shr 8) and 0xFF) - ((b shr 8) and 0xFF)) + abs((a and 0xFF) - (b and 0xFF))) / 3f
-                val wgt = (1f - diff / threshold).coerceIn(0f, 1f) * d.denoise
-                if (wgt > 0f) px[i] = mix(a, b, wgt)
+            banded(px, w, h, r + 1) { band, bh ->
+                val blur = boxBlur(band, w, bh, r)
+                for (i in band.indices) {
+                    val a = band[i]; val b = blur[i]
+                    val diff = (abs(((a shr 16) and 0xFF) - ((b shr 16) and 0xFF)) + abs(((a shr 8) and 0xFF) - ((b shr 8) and 0xFF)) + abs((a and 0xFF) - (b and 0xFF))) / 3f
+                    val wgt = (1f - diff / threshold).coerceIn(0f, 1f) * d.denoise
+                    if (wgt > 0f) band[i] = mix(a, b, wgt)
+                }
             }
         }
-        if (d.clarity != 0f) unsharp(px, w, h, max(2, (18 * scale).toInt()), d.clarity * 0.6f, midtonesOnly = true)
-        if (d.texture != 0f) unsharp(px, w, h, max(1, (4 * scale).toInt()), d.texture * 0.6f, midtonesOnly = false)
+        if (d.clarity != 0f) { val r = max(2, (18 * scale).toInt()); banded(px, w, h, r + 1) { b, bh -> unsharp(b, w, bh, r, d.clarity * 0.6f, midtonesOnly = true) } }
+        if (d.texture != 0f) { val r = max(1, (4 * scale).toInt()); banded(px, w, h, r + 1) { b, bh -> unsharp(b, w, bh, r, d.texture * 0.6f, midtonesOnly = false) } }
         if (d.sharpen > 0f) {
-            if (d.sharpenRadius == 0f && d.sharpenDetail == 0f && d.sharpenMasking == 0f) unsharp(px, w, h, max(1, (1.2f * scale).toInt()), d.sharpen * 1.2f, midtonesOnly = false)
-            else proSharpen(px, w, h, d, scale)
+            if (d.sharpenRadius == 0f && d.sharpenDetail == 0f && d.sharpenMasking == 0f) {
+                val r = max(1, (1.2f * scale).toInt()); banded(px, w, h, r + 1) { b, bh -> unsharp(b, w, bh, r, d.sharpen * 1.2f, midtonesOnly = false) }
+            } else {
+                val m = max(1, (d.sharpRadius * 1.2f * scale).toInt()) + max(1, ref / 1400) + 3
+                banded(px, w, h, m) { b, bh -> proSharpen(b, w, bh, d, scale, ref) }
+            }
         }
         Develop.defringe(px, w, h, d.defringePurple, d.defringeGreen)
         // Vignette after the crop (post-crop vignette). Untouched shape controls keep the original look.
@@ -253,10 +284,10 @@ object ImageOps {
     }
 
     /** Sharpening with Radius, Detail (halo control) and edge Masking. */
-    private fun proSharpen(px: IntArray, w: Int, h: Int, d: Detail, scale: Float) {
+    private fun proSharpen(px: IntArray, w: Int, h: Int, d: Detail, scale: Float, ref: Int = max(w, h)) {
         val radius = max(1, (d.sharpRadius * 1.2f * scale).toInt())
         val blur = boxBlur(px, w, h, radius)
-        val mask = Develop.edgeMask(px, w, h, d.sharpenMasking)
+        val mask = Develop.edgeMask(px, w, h, d.sharpenMasking, ref)
         val amount = d.sharpen * 1.2f * (0.6f + d.sharpDetail * 0.8f)
         // Low Detail damps big differences (halos); high Detail lets fine texture through fully.
         val limit = 18f + d.sharpDetail * 120f

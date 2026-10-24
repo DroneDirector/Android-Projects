@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo export: the size you choose is now **always** the size saved, however heavy the edit. Noise reduction, clarity, texture and sharpening work through the photo in bands, so full-size photos need far less memory; if a phone still runs short, the heaviest steps run a little smaller and the photo is brought back to your exact size (the app tells you).
 
 ## 1.0.511 — 2026-10-24
 - Photo editor: exports with **AI noise reduction** no longer fail with "Couldn't export — try a smaller size" on big photos. The AI now works through the photo piece by piece (far less memory), falls back to the phone's processor if the graphics chip gives up, and if a photo still doesn't fit, the export steps down a little and saves anyway — telling you the size it saved at.

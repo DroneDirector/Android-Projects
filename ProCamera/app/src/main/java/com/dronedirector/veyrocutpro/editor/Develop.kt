@@ -114,13 +114,13 @@ object Develop {
     }
 
     /** 0..1 per pixel: 1 on edges, 0 on smooth areas, as [masking] (0..1) rises. masking 0 = everywhere. */
-    fun edgeMask(px: IntArray, w: Int, h: Int, masking: Float): FloatArray {
+    fun edgeMask(px: IntArray, w: Int, h: Int, masking: Float, ref: Int = max(w, h)): FloatArray {
         val out = FloatArray(w * h)
         if (masking <= 0.001f) { out.fill(1f); return out }
         val l = FloatArray(w * h)
         for (i in px.indices) { val p = px[i]; l[i] = (((p shr 16) and 0xFF) * 54 + ((p shr 8) and 0xFF) * 183 + (p and 0xFF) * 19) / 65280f }
         // Light blur first so noise doesn't count as an edge.
-        val bl = blurF(l, w, h, max(1, max(w, h) / 1400))
+        val bl = blurF(l, w, h, max(1, ref / 1400))
         val th = masking * 0.12f
         val soft = 0.03f + masking * 0.04f
         for (y in 0 until h) for (x in 0 until w) {

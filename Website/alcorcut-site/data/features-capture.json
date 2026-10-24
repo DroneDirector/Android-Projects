@@ -42,6 +42,7 @@
  {
   "title": "Remote monitor",
   "items": [
+   "<strong>Cast to TV (Chromecast)</strong>: the live viewfinder on a TV with a Chromecast or Google TV on the same Wi-Fi (a few seconds behind). Button on the picture or below it (gear → Remote &amp; output); hide it in the layout menu.",
    "<strong>Remote monitor &amp; control</strong> from any browser on the same Wi-Fi or hotspot (PIN-protected address): live picture, shutter / record, zoom, Photo / Video / Pro Video, autofocus, AE lock, recording time and exposure read-out."
   ]
  },

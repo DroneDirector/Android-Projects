@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.529 — 2026-10-24
 - **Video catalogs**: the video editor keeps a catalog of every clip you use — its last settings (grade, detail, stabilisation, film look, desqueeze, audio), given back when you add the clip to another project (switch in ⚙ → Catalog), and the slow work done for it: proxies, stabilisation analysis, waveforms, render cache, cloud AI results (never paid for twice) and transcripts, now kept in the catalog instead of the cache Android may clear. ⚙ → **Catalog**: create, name, rename, open and delete catalogs; choose how many clips to remember (10 or more, or Unlimited); clip copies (off by default — videos are large; when on, a project still opens if a clip's original is gone); move the catalog to private storage, shared storage or an SD card; **Slim down** frees what can be made again and keeps every clip's settings. Everything is stored as is or losslessly — nothing lossy.
 - Photo catalogs: **Slim down** button too (removes AI results only; photos, copies and edits stay). Catalog edits and settings are included in the settings backup; copies and caches aren't.
 

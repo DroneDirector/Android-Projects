@@ -466,6 +466,9 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                                 modifier = Modifier.align(Alignment.TopCenter).padding(top = 38.dp).clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 8.dp, vertical = 2.dp),
                             )
                         }
+                        // Cast to a TV: on the picture (default), unless the gear puts it below.
+                        if (!clean && panelOn("cap.cast") && CastPlace.get(context, "cap") == 0)
+                            CastButton({ controller.castFrame() }, Modifier.align(Alignment.TopEnd).padding(top = 96.dp, end = 10.dp))
                         val hints = panelOn("cap.hints")
                         if (hints) SmartModeHint(s, Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp))
                         ProcessingBadge(s, Modifier.align(Alignment.Center))
@@ -520,6 +523,12 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                     )
                 }
 
+                // Cast button below the picture (gear → Remote & output), just above the controls.
+                if (!clean && panelOn("cap.cast") && CastPlace.get(context, "cap") == 1) CastButton(
+                    { controller.castFrame() }, small = true,
+                    modifier = if (landscape) Modifier.align(Alignment.BottomEnd).padding(end = rail + 6.dp, bottom = 12.dp)
+                    else Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = bottomBar + 6.dp),
+                )
                 // Pro status: red tally border while recording, low storage / battery / heat warnings, touch lock.
                 if (!clean) ProStatus(s)
                 ToastHost(s.message, s.messageId, Modifier.align(Alignment.Center))
@@ -675,6 +684,7 @@ private fun CapturePanelsButton(s: CameraUiState, controller: ProCameraControlle
         PanelDef("cap.qblur", "Face blur switch", "BLUR on / off in the quick bar"),
         PanelDef("cap.qtitle", "Title switch", "TITLE on / off in the quick bar (video)"),
         PanelDef("cap.titlepreview", "Title preview", "Shows where your video title will appear"),
+        PanelDef("cap.cast", "Cast button", "Chromecast button: show the live picture on a TV"),
     )
     val all = panels.map { it.key }.toSet()
     PanelsButton(

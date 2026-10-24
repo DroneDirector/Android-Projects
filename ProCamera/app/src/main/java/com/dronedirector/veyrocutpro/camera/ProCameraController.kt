@@ -2104,6 +2104,9 @@ class ProCameraController(private val context: Context) {
     fun setLongSec(sec: Int) { CaptureExtras.longSec = sec; CaptureExtras.save(context) }
 
     /** A copy of what the viewfinder shows, up to [longSide] px. Main thread. */
+    /** The live picture for a TV (Chromecast), about 1280 px wide. Main thread. */
+    fun castFrame(): Bitmap? = grabViewfinder(1280)
+
     private fun grabViewfinder(longSide: Int): Bitmap? {
         val view = previewView ?: return null
         val tv = view.findTextureView()

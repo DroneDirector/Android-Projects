@@ -461,7 +461,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 }
             }
 
-            SettingsGroup("remote", "Remote & output", "Remote monitor & control from another device, clean feed for HDMI / streaming") {
+            SettingsGroup("remote", "Remote & output", "Remote monitor & control from another device, cast to a TV (Chromecast), clean feed for HDMI / streaming") {
                 Section("REMOTE MONITOR")
                 ToggleRow(
                     "Remote monitor & control",
@@ -475,6 +475,9 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                     }
                     Text("The 4-digit number at the end is the PIN — only devices with the full address can connect. No Wi-Fi? Turn on this phone's hotspot and join it from the other device. Turn this off when you're done.", color = Pro.Dim, fontSize = 12.sp)
                 }
+
+                Section("CAST TO TV")
+                CastPlaceSetting("cap")
 
                 Section("OUTPUT")
                 Text(

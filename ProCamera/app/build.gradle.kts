@@ -132,6 +132,9 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.3")
     // Watch remote (Wear OS): talking to the AlcorCut Pro watch app.
     implementation("com.google.android.gms:play-services-wearable:19.0.0")
+    // Chromecast: Google's Cast library (free to use; Google Play services) and AndroidX MediaRouter (Apache 2.0).
+    implementation("com.google.android.gms:play-services-cast-framework:21.5.0")
+    implementation("androidx.mediarouter:mediarouter:1.7.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
 

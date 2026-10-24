@@ -90,6 +90,11 @@
             android:exported="false"
             android:foregroundServiceType="dataSync|mediaProcessing" />
 
+        <!-- Chromecast: the Cast library's options (the standard receiver on the TV). -->
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="com.dronedirector.veyrocutpro.ui.CastOptionsProvider" />
+
         <!-- Photo exports run in their own process, with all of its memory free for the photo. -->
         <service
             android:name=".editor.PhotoExportProcess"

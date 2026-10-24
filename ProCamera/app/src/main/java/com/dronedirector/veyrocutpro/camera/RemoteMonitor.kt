@@ -60,13 +60,7 @@ class RemoteMonitor(
         return "http://$ip:$port/$pin"
     }
 
-    private fun localIp(): String? = try {
-        NetworkInterface.getNetworkInterfaces().toList()
-            .filter { it.isUp && !it.isLoopback }
-            .sortedBy { if (it.name.startsWith("wlan") || it.name.startsWith("ap") || it.name.startsWith("swlan")) 0 else 1 }
-            .flatMap { it.inetAddresses.toList() }
-            .firstOrNull { it is Inet4Address && it.isSiteLocalAddress }?.hostAddress
-    } catch (_: Throwable) { null }
+    private fun localIp(): String? = localIpAddress()
 
     private fun handle(sock: Socket) {
         try {
@@ -166,6 +160,15 @@ document.getElementById('v').onerror=function(){var i=this;setTimeout(function()
 """.trimIndent()
 
     companion object {
+        /** This phone's address on the local Wi-Fi / hotspot, or null. */
+        fun localIpAddress(): String? = try {
+            NetworkInterface.getNetworkInterfaces().toList()
+                .filter { it.isUp && !it.isLoopback }
+                .sortedBy { if (it.name.startsWith("wlan") || it.name.startsWith("ap") || it.name.startsWith("swlan")) 0 else 1 }
+                .flatMap { it.inetAddresses.toList() }
+                .firstOrNull { it is Inet4Address && it.isSiteLocalAddress }?.hostAddress
+        } catch (_: Throwable) { null }
+
         fun jpeg(b: Bitmap, quality: Int = 60): ByteArray =
             ByteArrayOutputStream().also { b.compress(Bitmap.CompressFormat.JPEG, quality, it) }.toByteArray()
     }

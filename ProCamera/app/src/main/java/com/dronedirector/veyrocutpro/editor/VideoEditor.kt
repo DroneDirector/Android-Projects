@@ -708,6 +708,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val stabCancels = remember { HashMap<String, () -> Unit>() }
     val frameViews = remember { arrayOfNulls<android.view.View>(2) }
     val texViews = remember { arrayOfNulls<android.view.View>(2) }
+    val castPanel = com.dronedirector.veyrocutpro.ui.panelOn("ve.cast")
     val transitionOn = remember { booleanArrayOf(false) }
     val gpuGrade = remember { GradePreview.supported }
     val filmOn = remember { booleanArrayOf(false, false) }
@@ -723,6 +724,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     val deck = remember { Deck(players) }
+    // The viewer's picture for a TV (Chromecast).
+    val castSource: () -> android.graphics.Bitmap? = {
+        (texViews[deck.active] as? android.view.TextureView)?.let { tv ->
+            if (tv.isAvailable && tv.width > 0 && tv.height > 0) tv.getBitmap(1280, (1280f * tv.height / tv.width).toInt().coerceAtLeast(2)) else null
+        }
+    }
     val aspects = remember { mutableStateListOf(16f / 9f, 16f / 9f) }
 
     fun mediaItemFor(c: Clip) = MediaItem.Builder().setUri(sourceFor(c)).setMediaId(c.id)
@@ -2946,6 +2953,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     )
                     // RGB histogram: a pull-out drawer on the right edge (never in full screen).
                     if (!es.fullscreen && showScope) ScopeDrawer(es.scopeHist, Modifier.align(Alignment.CenterEnd), frame = es.scopeFrame) { es.scopeOpen = it }
+                    // Cast to a TV: on the picture (default), unless the gear puts it next to Split.
+                    if (castPanel && !es.fullscreen && com.dronedirector.veyrocutpro.ui.CastPlace.get(context, "ve") == 0)
+                        com.dronedirector.veyrocutpro.ui.CastButton(castSource, Modifier.align(Alignment.BottomEnd).padding(8.dp), small = true)
                     if (showTimecode) Text(
                         "${tc(globalMs)} / ${tc(totalMs)}",
                         style = Pro.Value.copy(fontSize = 12.sp),
@@ -3043,6 +3053,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         // Split, undo and redo are always on screen; the zoom tools scroll if the row is narrow.
                         TransportIcon(Icons.Filled.ContentCut, "Split at playhead", accent = true) { splitAtPlayhead() }
+                        if (castPanel && com.dronedirector.veyrocutpro.ui.CastPlace.get(context, "ve") == 1)
+                            com.dronedirector.veyrocutpro.ui.CastButton(castSource, Modifier.padding(horizontal = 2.dp), small = true)
                         TransportIcon(Icons.AutoMirrored.Filled.Undo, "Undo", tint = if (es.histPos > 0) Color.White else Pro.Dim) { undo() }
                         TransportIcon(Icons.AutoMirrored.Filled.Redo, "Redo", tint = if (es.histPos < history.lastIndex) Color.White else Pro.Dim) { redo() }
                       Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
@@ -5836,6 +5848,7 @@ private fun VideoPanelsButton(onPage: (Page) -> Unit, onReset: () -> Unit) {
         com.dronedirector.veyrocutpro.ui.PanelDef("ve.scope", "Histogram pull-out", "Show or hide the RGB histogram tab on the right edge of the player"),
         com.dronedirector.veyrocutpro.ui.PanelDef("ve.timecode", "Timecode", "Time read-out on the viewer"),
         com.dronedirector.veyrocutpro.ui.PanelDef("ve.waves", "Audio waveforms", "Sound waves drawn on the timeline clips"),
+        com.dronedirector.veyrocutpro.ui.PanelDef("ve.cast", "Cast button", "Chromecast button: show the viewer on a TV"),
         com.dronedirector.veyrocutpro.ui.PanelDef("ve.mediastrip", "Media strip", "Imported clips above the timeline: skim, rate, add to the timeline"),
     )
     val all = panels.map { it.key }.toSet()

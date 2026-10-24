@@ -41,7 +41,8 @@
    "<strong>Colour-range and brightness-range masks</strong>: tap the photo to pick a colour or brightness (e.g. only the blues, only the highlights), with range and softness.",
    "<strong>Background (AI)</strong>: portrait blur, transparent background or colour fill behind the subject.",
    "<strong>Sky replacement (AI)</strong>: 5 built-in skies or your own picture, with strength and light matching.",
-   "<strong>AI Remove</strong>: tap or paint over bigger objects to remove them."
+   "<strong>AI Remove</strong>: tap or paint over bigger objects to remove them.",
+   "<strong>AI noise reduction done in the edit</strong>: the full-size photo is cleaned once in the background while you edit and the export reuses it — no second AI pass."
   ]
  },
  {
@@ -106,6 +107,7 @@
   "items": [
    "<strong>Export</strong>: <strong>AVIF</strong> (phone's AV1 encoder, Android 14+) and <strong>JPEG XL</strong>, TIFF 16 / 8-bit, sRGB / Display P3 / Adobe RGB with embedded profile, output sharpening (screen / matte / glossy), file-name templates, export presets, <strong>export recipes</strong> (several presets in one go), a matte-print soft proof and <strong>soft proof with a printer / paper ICC profile</strong> (own colour engine: lut8 / lut16 / lutAtoB / lutBtoA, perceptual or relative colorimetric, paper white).",
    "Export <strong>JPEG or PNG</strong>, quality and size choice; choose the <strong>save folder</strong> (default DCIM/AlcorCutPro).",
+   "<strong>Export tab like a delivery page</strong>: one EXPORT fold-out with format, quality, size, AI upscale and the export button; presets, colour &amp; sharpening, file name, metadata and batch each in their own fold-out.",
    "Also <strong>WebP</strong> and <strong>HEIC</strong>; Instagram / web / 4K sizes; <strong>Original (full resolution)</strong> with no size limit — big exports with AI noise reduction run piece by piece, noise reduction, clarity, texture and sharpening work in bands of rows, and the photo is always saved at the size you chose; <strong>AI upscale</strong> 2× / 4× in the export (up to 50 MP); keep or remove <strong>camera info and location</strong>.",
    "<strong>IPTC title, caption &amp; keywords</strong> in every export, and an optional <strong>.xmp sidecar</strong> (Camera Raw settings) with the edit."
   ]

@@ -5,6 +5,9 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 
 ## Unreleased
 
+## 1.0.546 — 2026-10-24
+
+
 ## 1.0.544 — 2026-10-24
 - Chromecast, more complete: the video editor's TV picture now includes titles and layers (below and above the video), and **sound** goes to the TV too — the video's, the music's and every extra track's, mixed (Capture sends the microphone). Leaving a screen no longer ends casting: the TV stays connected, shows the AlcorCut Pro card, and picks up the next screen with a cast button (e.g. Capture opened from an editor, then back to the editor).
 - The cast button follows the app colour (gear → App colour): outlined when idle, filled while casting; the card on the TV uses it too.

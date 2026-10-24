@@ -208,6 +208,33 @@ object Catalogs {
         return File(sub(context, "photos"), photoId(uri) + "." + ext)
     }
 
+    /**
+     * Packs a RAW / TIFF copy losslessly (deflate) when that makes it at least 10 % smaller; the
+     * unpacked file is byte-for-byte the original. Returns the file that was kept.
+     */
+    fun packIfWorthIt(f: File): File {
+        val ext = f.extension.lowercase()
+        if (ext !in listOf("dng", "tif", "tiff", "nef", "cr2", "cr3", "arw", "raf", "orf", "rw2", "pef", "srw")) return f
+        return try {
+            val gz = File(f.path + ".gz"); val tmp = File(gz.path + ".part")
+            f.inputStream().use { inp -> java.util.zip.GZIPOutputStream(tmp.outputStream().buffered(1 shl 16), 1 shl 16).use { inp.copyTo(it, 1 shl 16) } }
+            if (tmp.length() < f.length() * 0.9) { tmp.renameTo(gz); f.delete(); gz } else { tmp.delete(); f }
+        } catch (_: Throwable) { f }
+    }
+
+    /** A packed copy, unpacked (once) into the app's cache so it opens at full original quality. */
+    fun unpacked(context: Context, gz: File): File? = try {
+        val out = File(File(context.cacheDir, "catalog_open").apply { mkdirs() }, gz.name.removeSuffix(".gz"))
+        if (!out.exists() || out.lastModified() < gz.lastModified()) {
+            val tmp = File(out.path + ".part")
+            java.util.zip.GZIPInputStream(gz.inputStream().buffered(1 shl 16), 1 shl 16).use { inp -> tmp.outputStream().use { inp.copyTo(it, 1 shl 16) } }
+            tmp.renameTo(out)
+        } else out.setLastModified(System.currentTimeMillis())
+        // Only the most recently opened few stay unpacked.
+        out.parentFile?.listFiles()?.sortedByDescending { it.lastModified() }?.drop(4)?.forEach { it.delete() }
+        out
+    } catch (_: Throwable) { null }
+
     /** True when [u] can be read (the original still exists and the app may open it). */
     fun readable(context: Context, u: Uri): Boolean = try {
         context.contentResolver.openInputStream(u)?.use { true } ?: false

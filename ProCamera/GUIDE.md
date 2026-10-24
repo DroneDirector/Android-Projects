@@ -154,6 +154,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 **Mouse**
 - Wheel over the photo = next / previous filmstrip photo, right-click = before / after split, double-click = hide or show the tools. Right-click a filmstrip thumbnail for stars, flags and labels.
 **Filmstrip (many photos)**
+- The filmstrip is the open **catalog**: each photo keeps a copy, its edit and settings, ratings and AI results (saved as you work). ⚙ → Catalog: new / open / rename / delete catalogs, how many photos to remember (10 or more, or Unlimited), photo copies on / off, and where the catalog is stored (phone, shared storage, SD card). Storage is lossless only.
 - Hold the divider above the filmstrip, then drag it up or down to change the thumbnail size. Double-tap the divider to reset it.
 - Gallery photos / Browse files: select several photos at once. They line up in the filmstrip under the photo; tap one to edit it. Your edit is kept automatically when you switch or leave.
 - Switching is instant: a RAW shows straight away (its last render, or the camera's preview matched to the editor's colours) and the full RAW render fades in a moment later. The photos either side are prepared ahead.

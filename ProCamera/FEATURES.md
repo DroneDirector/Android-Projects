@@ -124,6 +124,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Keep settings after uninstall** (optional): settings, presets and LUTs saved to Documents/AlcorCutPro/Settings; restore from the first screen after reinstalling.
 
 ## Photo editor
+- **Catalogs**: every photo you edit is kept in a catalog — a copy of the photo, its edit and settings, ratings and the AI results (no AI re-runs). Several catalogs; choose how many photos each remembers (10 to any number, or unlimited); photo copies on / off; move catalogs to private storage, shared storage or an SD card. Lossless storage only (AI results as lossless PNG, RAW copies packed losslessly).
 - Open from the gallery, files or recent AlcorCut Pro photos; **saved projects** row on the start page.
 - **Skip to the editor** from the start page: open the editor without picking a photo first, then add one from inside (manual, every time).
 - **Pro develop**:

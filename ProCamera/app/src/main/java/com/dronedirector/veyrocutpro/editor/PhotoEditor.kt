@@ -187,6 +187,14 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
 
     val src = source
     var showLibrary by remember { mutableStateOf(false) }
+    var confirmClear by remember { mutableStateOf(false) }
+    if (confirmClear) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { confirmClear = false }, containerColor = Pro.PanelSolid,
+        title = { Text("Empty “${Catalogs.active(context).name}”?", color = Color.White) },
+        text = { Text("Removes all ${PhotoSession.items.size} photos from this catalog, with their edits, copies and AI results. Your original photos and exports are not touched.", color = Pro.Dim) },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = { PhotoSession.clear(context); confirmClear = false }) { Text("EMPTY CATALOG", color = Pro.Amber) } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmClear = false }) { Text("CANCEL", color = Color.White) } },
+    )
     if (src == null && showLibrary) {
         LibraryScreen(
             onBack = { showLibrary = false },
@@ -265,10 +273,10 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("Continue filmstrip (${PhotoSession.items.size} photos)", color = Pro.Amber, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                        Text("Each photo keeps its own edit.", color = Pro.Dim, fontSize = 11.sp)
+                        Text("Continue “${Catalogs.active(context).name}” (${PhotoSession.items.size} photos)", color = Pro.Amber, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Catalog: each photo keeps its edit, settings and AI results. Switch or manage catalogs in ⚙ → Catalog.", color = Pro.Dim, fontSize = 11.sp)
                     }
-                    Text("Clear", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.clip(RoundedCornerShape(50)).clickable { PhotoSession.clear(context) }.padding(8.dp))
+                    Text("Clear", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.clip(RoundedCornerShape(50)).clickable { confirmClear = true }.padding(8.dp))
                 }
                 }
             },
@@ -653,7 +661,7 @@ private fun PhotoWorkspace(
 
     // ---- Filmstrip: this photo's edit is kept automatically before switching or leaving.
     val sessionIdx = PhotoSession.current.takeIf { i ->
-        PhotoSession.items.getOrNull(i)?.let { sp -> sp.uri == uri.toString() || (uri.scheme == "file" && sp.copy != null && uri.path?.endsWith("/" + sp.copy) == true) } == true
+        PhotoSession.items.getOrNull(i)?.let { sp -> sp.uri == uri.toString() || (uri.scheme == "file" && sp.copy != null && uri.path?.endsWith("/" + sp.copy.removeSuffix(".gz")) == true) } == true
     } ?: -1
     /** The photo as the catalog knows it (its original uri, even when the catalog's copy is open). */
     val ownerUri = PhotoSession.items.getOrNull(sessionIdx)?.uri ?: uri.toString()
@@ -2279,6 +2287,7 @@ internal object AiDenoiseCache {
     // In the open catalog, with the photo (see Catalogs), so results are kept as long as the photo is.
     private fun dir(c: Context) = Catalogs.sub(c, "ai")
     private fun file(c: Context, key: String) = java.io.File(dir(c), "$key.px")
+    private fun png(c: Context, key: String) = java.io.File(dir(c), "$key.png")
     /** Why the full-size pass is running (shown in the AI progress badge); null when it isn't. */
     var note by mutableStateOf<String?>(null)
         private set
@@ -2286,7 +2295,7 @@ internal object AiDenoiseCache {
     private var lastSource: String? = null
     @Volatile private var runs = 0
 
-    fun has(c: Context, key: String) = file(c, key).length() > 8
+    fun has(c: Context, key: String) = png(c, key).length() > 8 || file(c, key).length() > 8
 
     /** Runs the AI on [decode]'s full-size picture once for [key] (any other unfinished one is dropped). */
     fun prepare(c: Context, key: String, source: String, decode: () -> Bitmap?) {
@@ -2317,32 +2326,42 @@ internal object AiDenoiseCache {
     suspend fun await(key: String) { synchronized(jobs) { jobs[key] }?.join() }
 
     fun store(c: Context, key: String, b: Bitmap) {
-        val f = file(c, key); val tmp = java.io.File(f.path + ".tmp")
-        val buf = java.nio.ByteBuffer.allocateDirect(b.width * b.height * 4)
-        b.copyPixelsToBuffer(buf); buf.rewind()
-        java.io.RandomAccessFile(tmp, "rw").use { r ->
-            r.setLength(0); r.writeInt(b.width); r.writeInt(b.height); r.channel.write(buf)
-        }
+        // Lossless PNG: exactly the same pixels back, at roughly a third of the raw size.
+        val f = png(c, key); val tmp = java.io.File(f.path + ".tmp")
+        tmp.outputStream().buffered(1 shl 16).use { b.compress(Bitmap.CompressFormat.PNG, 100, it) }
         tmp.renameTo(f)
+        file(c, key).delete()
         // Results of photos that aren't in the catalog (e.g. opened from a named project) are kept for 30 days of not being used.
         try {
             val ids = PhotoSession.items.map { Catalogs.photoId(it.uri) }.toSet()
             val old = System.currentTimeMillis() - 30L * 24 * 3600 * 1000
-            dir(c).listFiles()?.filter { it.name.endsWith(".px") && it.name.substringBefore('_') !in ids && it.lastModified() < old }?.forEach { it.delete() }
+            dir(c).listFiles()?.filter { (it.name.endsWith(".px") || it.name.endsWith(".png")) && it.name.substringBefore('_') !in ids && it.lastModified() < old }?.forEach { it.delete() }
             java.io.File(c.cacheDir, "ai_denoise").deleteRecursively()
         } catch (_: Throwable) {}
     }
 
     fun load(c: Context, key: String): Bitmap? = try {
+        val p = png(c, key)
+        if (p.exists()) {
+            p.setLastModified(System.currentTimeMillis())
+            BitmapFactory.decodeFile(p.path, BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888; inPremultiplied = true })
+        } else loadRaw(c, key)
+    } catch (_: Throwable) { null }
+
+    /** Older, uncompressed results (.px); packed losslessly the first time they're read. */
+    private fun loadRaw(c: Context, key: String): Bitmap? {
         val f = file(c, key)
-        if (!f.exists()) null else java.io.RandomAccessFile(f.also { it.setLastModified(System.currentTimeMillis()) }, "r").use { r ->
+        if (!f.exists()) return null
+        val bmp = java.io.RandomAccessFile(f, "r").use { r ->
             val w = r.readInt(); val h = r.readInt()
             val buf = java.nio.ByteBuffer.allocateDirect(w * h * 4)
             while (buf.hasRemaining()) if (r.channel.read(buf) < 0) break
             buf.rewind()
             Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).apply { copyPixelsFromBuffer(buf) }
         }
-    } catch (_: Throwable) { null }
+        try { store(c, key, bmp) } catch (_: Throwable) {}
+        return bmp
+    }
 }
 
 /** One photo export, handed to the export process as JSON. */

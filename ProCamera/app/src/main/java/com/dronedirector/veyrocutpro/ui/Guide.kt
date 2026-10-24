@@ -206,6 +206,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Color → EYEDROPPER sets white balance from a tap. POINT COLOR changes just one colour. Light → CLIPPING ⚠ shows blown highlights and crushed shadows.",
             "Pinch or double-tap the photo for a 1:1 zoom.",
             "With a mouse: the wheel over the photo goes to the next / previous filmstrip photo, right-click shows the before / after split, and double-click hides the tools.",
+            "The filmstrip is the open catalog: each photo keeps a copy, its edit and settings, ratings and AI results (saved as you work). ⚙ → Catalog: new / open / rename / delete catalogs, how many photos to remember (10 or more, or Unlimited), photo copies on / off, and where the catalog is stored (phone, shared storage, SD card). Storage is lossless only.",
             "Pick many photos at once: they go in the filmstrip under the photo. Tap to switch (each keeps its own edit), hold for stars / Pick / Reject / colour label, SELECT to sync the edit, export or remove several.",
             "Switching photos is instant: a RAW shows straight away (its last render, or the camera's preview matched to the editor's colours) and the full RAW render fades in a moment later. The photos either side are prepared ahead.",
             "Hold your finger on the photo to see the original.",

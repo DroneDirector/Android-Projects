@@ -110,7 +110,8 @@ object PhotoSession {
         val u = Uri.parse(p.uri)
         if (Catalogs.readable(context, u)) return u
         val c = p.copy?.let { File(Catalogs.sub(context, "photos"), it) }
-        return if (c != null && c.exists()) Uri.fromFile(c) else u
+        if (c == null || !c.exists()) return u
+        return Uri.fromFile(if (c.name.endsWith(".gz")) Catalogs.unpacked(context, c) ?: return u else c)
     }
 
     /** Lets go of the photos opened longest ago while the catalog holds more than its limit. */
@@ -132,14 +133,17 @@ object PhotoSession {
         Thread({
             for ((u, name) in todo) try {
                 val f = Catalogs.copyFile(app, u, name)
-                if (!f.exists()) {
+                var out = f
+                if (!f.exists() && !File(f.path + ".gz").exists()) {
                     val tmp = File(f.path + ".part")
                     app.contentResolver.openInputStream(Uri.parse(u))?.use { inp -> tmp.outputStream().use { inp.copyTo(it, 1 shl 16) } } ?: continue
                     tmp.renameTo(f)
-                }
+                    // RAW / TIFF copies are packed losslessly when that saves real space (JPEG / HEIC are already compressed).
+                    out = Catalogs.packIfWorthIt(f)
+                } else if (!f.exists()) out = File(f.path + ".gz")
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
                     val i = items.indexOfFirst { it.uri == u && it.copyId == null }
-                    if (i >= 0) { items[i] = items[i].copy(copy = f.name); save(app) }
+                    if (i >= 0) { items[i] = items[i].copy(copy = out.name); save(app) }
                 }
             } catch (_: Throwable) {}
         }, "catalog-copy").start()

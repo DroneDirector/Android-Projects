@@ -52,6 +52,8 @@ object CastFeed {
     private var seq = 0
     @Volatile var running = false
         private set
+    /** The app colour (gear → App colour), for the AlcorCut Pro card on the TV. */
+    @Volatile var accent: Int = 0xFFE8B04A.toInt()
     @Volatile private var sound = Sound.MIC
     @Volatile private var t0 = 0L
     private var ts = TsWriter()
@@ -144,7 +146,7 @@ object CastFeed {
         var frames = 0
         val info = MediaCodec.BufferInfo()
         val paint = Paint(Paint.FILTER_BITMAP_FLAG)
-        val card = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFE8B04A.toInt(); textSize = 54f; textAlign = Paint.Align.CENTER; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD) }
+        val card = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = accent; textSize = 54f; textAlign = Paint.Align.CENTER; typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD) }
         try {
             while (scope.isActive && running) {
                 val frameStart = System.nanoTime()
@@ -156,7 +158,7 @@ object CastFeed {
                         val k = minOf(W.toFloat() / b.width, H.toFloat() / b.height)
                         val dw = (b.width * k).toInt(); val dh = (b.height * k).toInt()
                         c.drawBitmap(b, null, Rect((W - dw) / 2, (H - dh) / 2, (W + dw) / 2, (H + dh) / 2), paint)
-                    } else c.drawText("AlcorCut Pro", W / 2f, H / 2f + 18f, card)
+                    } else { card.color = accent; c.drawText("AlcorCut Pro", W / 2f, H / 2f + 18f, card) }
                     surface.unlockCanvasAndPost(c)
                 } catch (_: Throwable) {}
                 b?.recycle()

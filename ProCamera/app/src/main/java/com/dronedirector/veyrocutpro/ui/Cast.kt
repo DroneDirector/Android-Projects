@@ -3,6 +3,7 @@ package com.dronedirector.veyrocutpro.ui
 import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -167,13 +168,18 @@ fun CastButton(source: suspend () -> Bitmap?, modifier: Modifier = Modifier, sma
     }
     var picking by remember { mutableStateOf(false) }
     val on = CastLink.device != null
+    // In the app colour (gear → App colour): outline when idle, filled while casting.
+    val accent = Pro.Amber
+    CastFeed.accent = android.graphics.Color.argb((accent.alpha * 255).toInt(), (accent.red * 255).toInt(), (accent.green * 255).toInt(), (accent.blue * 255).toInt())
     Box(
-        modifier.size(if (small) 34.dp else 40.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f))
+        modifier.size(if (small) 34.dp else 40.dp).clip(CircleShape)
+            .background(if (on) accent else Color.Black.copy(alpha = 0.45f))
+            .border(1.5.dp, accent.copy(alpha = if (on || CastLink.connecting) 1f else 0.6f), CircleShape)
             .clickable { picking = true },
         contentAlignment = Alignment.Center,
     ) {
         Icon(if (on) Icons.Filled.CastConnected else Icons.Filled.Cast, contentDescription = "Cast to TV",
-            tint = if (on || CastLink.connecting) Pro.Amber else Color.White, modifier = Modifier.size(if (small) 18.dp else 22.dp))
+            tint = if (on) Color.Black else accent, modifier = Modifier.size(if (small) 18.dp else 22.dp))
     }
     if (picking) CastPicker(onDismiss = { picking = false })
 }

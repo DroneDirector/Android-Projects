@@ -1,0 +1,5 @@
+200 https://dronedirector.github.io/Android-Projects/ (14 sections)
+200 https://dronedirector.github.io/Android-Projects/capture-features/ (5 sections)
+200 https://dronedirector.github.io/Android-Projects/photo-editor-features/ (5 sections)
+200 https://dronedirector.github.io/Android-Projects/video-editor-features/ (5 sections)
+broken files: 0

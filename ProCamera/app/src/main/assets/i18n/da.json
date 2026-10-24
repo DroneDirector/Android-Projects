@@ -3183,5 +3183,9 @@
 "No camera app found": "Ingen kamera-app fundet",
 "Camera permission is needed to take photos and videos": "Der kræves kameratilladelse for at tage billeder og videoer",
 "Couldn't read the photo": "Kunne ikke læse billedet",
-"Couldn't use that photo": "Kunne ikke bruge det billede"
+"Couldn't use that photo": "Kunne ikke bruge det billede",
+"Videos go to the video editor — the photo editor takes photos": "Videoer hører til videoredigeringen — fotoredigeringen tager billeder",
+"← Back to ": "← Tilbage til ",
+"photo editor": "fotoredigering",
+"video editor": "videoredigering"
 }

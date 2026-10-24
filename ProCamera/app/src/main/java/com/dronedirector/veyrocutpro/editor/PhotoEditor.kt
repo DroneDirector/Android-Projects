@@ -165,13 +165,17 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
     }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(100)) { addMany(it) }
     val browse = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { addMany(it) }
-    // The phone's camera: the new photo goes straight into the filmstrip (and opens if nothing is open yet).
-    val camera = rememberDeviceCamera(onPhoto = { addMany(listOf(it), camera = true) })
+    // Capture (all its pro controls) opened over the editor: each photo taken goes straight into the
+    // filmstrip (and opens if nothing is open yet).
+    fun openCamera() = com.dronedirector.veyrocutpro.ui.CaptureForEditor.open("photo editor", video = false) { u, isVideo ->
+        if (!isVideo) addMany(listOf(u), camera = true)
+        else android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Videos go to the video editor — the photo editor takes photos"), android.widget.Toast.LENGTH_SHORT).show()
+    }
     var addFrom by remember { mutableStateOf(false) }
     if (addFrom) AddFromDialog("Add photos", listOf(
         Triple(Icons.Filled.PhotoLibrary, "Gallery") { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
         Triple(Icons.Filled.FolderOpen, "Browse files") { browse.launch(arrayOf("image/*")) },
-        Triple(Icons.Filled.PhotoCamera, "Camera — take a photo") { camera.takePhoto() },
+        Triple(Icons.Filled.PhotoCamera, "Camera — take a photo") { openCamera() },
     )) { addFrom = false }
     // Merge several photos (HDR, panorama, focus stack) into a new one, then edit it.
     val scope = rememberCoroutineScope()
@@ -262,7 +266,7 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
             onFiles = { browse.launch(arrayOf("image/*")) },
             onRecent = { project = null; addMany(listOf(it)) },
             onSkip = { project = null; PhotoSession.current = -1; source = Uri.EMPTY },
-            onCamera = { camera.takePhoto() },
+            onCamera = { openCamera() },
             banner = {
                 Row(
                     Modifier.padding(bottom = 10.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Ed.Raised)
@@ -302,7 +306,7 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
                 onOpenSession = { openSession(it) },
                 onAddGallery = { addFrom = true },
                 onAddFiles = { browse.launch(arrayOf("image/*")) },
-                onAddCamera = { camera.takePhoto() },
+                onAddCamera = { openCamera() },
                 onLoad = { id ->
                 val p = ProjectStore.loadPhoto(context, id)
                 if (p != null && p.uri != Uri.EMPTY) { PhotoSession.current = -1; project = p; source = p.uri }

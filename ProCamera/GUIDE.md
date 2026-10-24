@@ -154,7 +154,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 **Mouse**
 - Wheel over the photo = next / previous filmstrip photo, right-click = before / after split, double-click = hide or show the tools. Right-click a filmstrip thumbnail for stars, flags and labels.
 **Filmstrip (many photos)**
-- The + on the filmstrip offers Gallery, Browse files and Camera; a photo you take goes straight into the filmstrip.
+- The + on the filmstrip offers Gallery, Browse files and Camera. Camera opens the full Capture screen with all its pro controls; each photo you take goes straight into the filmstrip. "← Back to photo editor" (or Back) returns.
 - The filmstrip is the open **catalog**: each photo keeps a copy, its edit and settings, ratings and AI results (saved as you work). ⚙ → Catalog: new / open / rename / delete catalogs, how many photos to remember (10 or more, or Unlimited), photo copies on / off, and where the catalog is stored (phone, shared storage, SD card). Storage is lossless only.
 - Hold the divider above the filmstrip, then drag it up or down to change the thumbnail size. Double-tap the divider to reset it.
 - Gallery photos / Browse files: select several photos at once. They line up in the filmstrip under the photo; tap one to edit it. Your edit is kept automatically when you switch or leave.
@@ -235,7 +235,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 ## Video editor guide
 **Camera**
-- Media page → Camera → media list, or + Camera on the media strip: record a video or take a photo (becomes a 5 s clip). It goes into the media list; drag it to the timeline when you want it.
+- Media page → Camera → media list, or + Camera on the media strip: opens the full Capture screen with all its pro controls. Videos you record and photos you take (each becomes a 5 s clip) go into the media list; drag them to the timeline when you want them. "← Back to video editor" (or Back) returns.
 **Catalog**
 - ⚙ → Catalog: the video catalog remembers each clip you use — its last settings (given back when you add it to another project; switch it off there) and its proxies, stabilisation analysis, waveforms, render cache, cloud AI results and transcripts.
 - Create, name, rename, open and delete catalogs; choose how many clips to remember (10 or more, or Unlimited); keep copies of clips (off by default); move the catalog to private storage, shared storage or an SD card; Slim down frees what can be made again.

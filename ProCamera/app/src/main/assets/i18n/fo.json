@@ -3237,5 +3237,9 @@
 "No camera app found": "Eingin myndatólsapp funnin",
 "Camera permission is needed to take photos and videos": "Loyvi til myndatólið krevst fyri at taka myndir og sjónbond",
 "Couldn't read the photo": "Fekk ikki lisið myndina",
-"Couldn't use that photo": "Fekk ikki brúkt ta myndina"
+"Couldn't use that photo": "Fekk ikki brúkt ta myndina",
+"Videos go to the video editor — the photo editor takes photos": "Sjónbond hoyra til sjónbandsviðgerðina — myndaviðgerðin tekur myndir",
+"← Back to ": "← Aftur til ",
+"photo editor": "myndaviðgerð",
+"video editor": "sjónbandsviðgerð"
 }

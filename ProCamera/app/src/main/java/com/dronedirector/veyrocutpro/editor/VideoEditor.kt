@@ -345,18 +345,18 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     val libPick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(100)) { importToLibrary(it) }
-    // The phone's camera: what's captured goes into the media list (not onto the timeline).
-    val camera = rememberDeviceCamera(
-        onPhoto = { u ->
+    // Capture (all its pro controls) opened over the editor: what's taken goes into the media list, not onto the timeline.
+    fun openCamera(video: Boolean) = com.dronedirector.veyrocutpro.ui.CaptureForEditor.open("video editor", video) { u, isVideo ->
+        if (isVideo) importToLibrary(listOf(u))
+        else {
             es.message = "Making a clip from the photo…"
             Generators.photoClip(context, u, 5) { clip, err -> if (clip != null) importToLibrary(listOf(clip)) else es.message = err ?: "Couldn't use that photo" }
-        },
-        onVideo = { u -> importToLibrary(listOf(u)) },
-    )
+        }
+    }
     var cameraAsk by remember { mutableStateOf(false) }
     if (cameraAsk) AddFromDialog("Camera → media list", listOf(
-        Triple(Icons.Filled.Videocam, "Record a video") { camera.recordVideo() },
-        Triple(Icons.Filled.PhotoCamera, "Take a photo (becomes a 5 s clip)") { camera.takePhoto() },
+        Triple(Icons.Filled.Videocam, "Record a video") { openCamera(true) },
+        Triple(Icons.Filled.PhotoCamera, "Take a photo (becomes a 5 s clip)") { openCamera(false) },
     )) { cameraAsk = false }
     val libFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
         if (tree != null) {

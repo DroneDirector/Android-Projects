@@ -182,6 +182,8 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+                // Capture opened from an editor (its camera button): the full Capture screen over the editor.
+                com.dronedirector.veyrocutpro.ui.CaptureForEditorHost(controller) { content -> PermissionGate(content) }
                 // First launch: AI models and soundtracks are downloaded once (not inside the APK).
                 com.dronedirector.veyrocutpro.ui.FirstRunGate()
                 }

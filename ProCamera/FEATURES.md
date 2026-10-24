@@ -124,7 +124,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Keep settings after uninstall** (optional): settings, presets and LUTs saved to Documents/AlcorCutPro/Settings; restore from the first screen after reinstalling.
 
 ## Photo editor
-- **Camera in the editor**: take a photo from the filmstrip's +, the empty editor or the start page; it lands straight in the filmstrip.
+- **Camera in the editor**: the filmstrip's +, the empty editor and the start page open the full **Capture** screen (every mode and pro control) over the editor; each photo you take lands straight in the filmstrip, without any automatic watermark.
 - **Catalogs**: every photo you edit is kept in a catalog — a copy of the photo, its edit and settings, ratings and the AI results (no AI re-runs). Several catalogs; choose how many photos each remembers (10 to any number, or unlimited); photo copies on / off; move catalogs to private storage, shared storage or an SD card. Lossless storage only (AI results as lossless PNG, RAW copies packed losslessly).
 - Open from the gallery, files or recent AlcorCut Pro photos; **saved projects** row on the start page.
 - **Skip to the editor** from the start page: open the editor without picking a photo first, then add one from inside (manual, every time).
@@ -210,7 +210,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 
 ## Video editor
 ### Media & timeline
-- **Camera → media list**: record a video or take a photo (becomes a 5 s clip) from the Media page or the media strip's + Camera; it goes into the media list, not onto the timeline.
+- **Camera → media list**: the Media page and the media strip's + Camera open the full **Capture** screen (every mode and pro control) over the editor; videos you record and photos you take (each becomes a 5 s clip) go into the media list, not onto the timeline.
 - **Delete from the timeline**: a bin on the selected clip; choose Close gap (ripple) or Leave gap (black of the same length).
 - **Skip to the editor** from the start page: open an empty timeline without picking a video first (manual, every time).
 - Add clips from the gallery or files (MP4, MKV, MOV, WebM, SD card / USB).

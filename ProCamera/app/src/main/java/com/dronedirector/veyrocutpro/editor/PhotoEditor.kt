@@ -1558,7 +1558,7 @@ private fun PhotoWorkspace(
 
     Box(Modifier.fillMaxSize().background(Ed.Bg)) {
         com.dronedirector.veyrocutpro.ui.AiBadgeHost(
-            AiDenoiser.running, if (AiDenoiseCache.note != null) "AI NOISE REDUCTION · FULL SIZE" else "AI NOISE REDUCTION", 1, AiDenoiser.progress, onStop = { AiDenoiser.stop() },
+            AiDenoiser.running, "AI NOISE REDUCTION", 1, AiDenoiser.progress, onStop = { AiDenoiser.stop() },
             modifier = Modifier.align(Alignment.TopCenter).zIndex(20f), note = AiDenoiseCache.note,
         )
         com.dronedirector.veyrocutpro.ui.AiBadgeHost(
@@ -2308,8 +2308,7 @@ internal object AiDenoiseCache {
                 var src: Bitmap? = null
                 val again = lastSource == source
                 val run = ++runs
-                note = if (again) "Running again on the full-size photo: the RAW exposure, white balance or tones changed, and the AI works on the developed picture."
-                else "Second pass: the preview is done — now the full-size photo, so the export can use it without running the AI again."
+                note = if (again) "Cleaning again — RAW settings changed" else "Cleaning the full-size photo"
                 try {
                     src = decode() ?: return@launch
                     val job = coroutineContext[kotlinx.coroutines.Job]

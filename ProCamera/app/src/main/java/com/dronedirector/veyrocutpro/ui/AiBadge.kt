@@ -112,7 +112,8 @@ fun AiBadge(title: String, count: Int, progress: Int, onStop: (() -> Unit)? = nu
             }
             // Why this run happens (e.g. a second, full-size pass).
             if (note != null) Text(
-                note, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.75f), fontSize = 10.5.sp, lineHeight = 13.sp,
+                note, color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.75f), fontSize = 10.5.sp,
+                maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 modifier = Modifier.widthIn(max = 230.dp),
             )
         }

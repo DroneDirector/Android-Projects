@@ -125,12 +125,12 @@ object AiDenoiser {
      * [strength]). Only small tile buffers are used, so even very large photos fit in memory. If the
      * graphics chip fails part-way, the rest is done on the processor. Null when the model can't run.
      */
-    fun denoiseBitmap(context: Context, src: Bitmap, strength: Float): Bitmap? {
+    fun denoiseBitmap(context: Context, src: Bitmap, strength: Float, dropped: () -> Boolean = { false }): Bitmap? {
         val app = context.applicationContext
-        return worker.submit(Callable { runBitmap(app, src, strength) }).get()
+        return worker.submit(Callable { runBitmap(app, src, strength, dropped) }).get()
     }
 
-    private fun runBitmap(context: Context, src: Bitmap, strength: Float): Bitmap? {
+    private fun runBitmap(context: Context, src: Bitmap, strength: Float, dropped: () -> Boolean = { false }): Bitmap? {
         var m = ensure(context) ?: return null
         cancel.set(false)
         main.post { running = true; progress = 0 }
@@ -146,7 +146,7 @@ object AiDenoiser {
             val k = (strength.coerceIn(0f, 1f) * 256).toInt(); val ik = 256 - k
             var done = 0
             for (ty in 0 until rows) for (tx in 0 until cols) {
-                if (cancel.get()) throw Stopped()
+                if (cancel.get() || dropped()) throw Stopped()
                 val x0 = tx * step; val y0 = ty * step
                 // The tile with its padding, clamped to the photo (edges repeated).
                 val rx0 = (x0 - PAD).coerceAtLeast(0); val ry0 = (y0 - PAD).coerceAtLeast(0)

@@ -506,6 +506,8 @@ private fun PhotoWorkspace(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var base by remember { mutableStateOf<Bitmap?>(null) }
+    /** Which picture [base] was loaded from (set once that photo — and its RAW data — has loaded). */
+    var baseFor by remember { mutableStateOf<String?>(null) }
     var preview by remember { mutableStateOf<Bitmap?>(null) }
     var edit by remember {
         mutableStateOf(editOf(context, initial))
@@ -828,7 +830,7 @@ private fun PhotoWorkspace(
         if (r?.meta?.shadingEstimated == true && note == null) note = "This RAW has no lens-shading data — its dark corners were evened out automatically (Light → Lens corrections from the file turns it off)"
         note?.let { message = it }
         val b = r?.base ?: withContext(Dispatchers.IO) { GradeIO.decode(context, src, PhotoViewer.viewerPx(context)) }
-        if (b == null) failed = true else base = b
+        if (b == null) failed = true else { base = b; baseFor = src.toString() }
     }
     /** True while the edit works on the RAW data (not after AI erase, which makes a normal copy). */
     fun rawOn(e: PhotoEdit) = rawMeta != null && rawLin != null && e.baseFile == null
@@ -862,12 +864,18 @@ private fun PhotoWorkspace(
     val renderReq = remember { kotlinx.coroutines.channels.Channel<PhotoEdit>(kotlinx.coroutines.channels.Channel.CONFLATED) }
     LaunchedEffect(edit) { renderReq.trySend(edit) }
     // AI noise reduction: the AI cleans the preview image once; the strength slider then just blends.
+    // Both results (preview and full size) are kept on the phone, so reopening the photo — or the app —
+    // shows the cleaned photo straight away instead of running the AI again.
     var aiBase by remember { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(edit.baseFile) { aiBase = null }
     val aiOn = edit.detail.aiDenoise > 0f
-    LaunchedEffect(base, aiOn) {
+    // Only once this photo (and, for RAW, its sensor data) has finished loading.
+    val loaded = base != null && baseFor == sourceUri(edit).toString()
+    LaunchedEffect(base, aiOn, loaded) {
         val b = base ?: return@LaunchedEffect
-        if (!aiOn || aiBase != null) return@LaunchedEffect
+        if (!aiOn || aiBase != null || !loaded) return@LaunchedEffect
+        val pk = edit.aiPreviewKey(sourceUri(edit).toString(), rawOn(edit), b.width, b.height)
+        withContext(Dispatchers.IO) { AiDenoiseCache.load(context, pk) }?.let { aiBase = it; return@LaunchedEffect }
         val res = withContext(Dispatchers.IO) {
             try {
                 val px = IntArray(b.width * b.height).also { b.getPixels(it, 0, b.width, 0, 0, b.width, b.height) }
@@ -875,14 +883,14 @@ private fun PhotoWorkspace(
             } catch (_: AiDenoiser.Stopped) { "stopped" } catch (t: Throwable) { if (t.cause is AiDenoiser.Stopped) "stopped" else "unavailable" }
         }
         when (res) {
-            is Bitmap -> aiBase = res
+            is Bitmap -> { aiBase = res; withContext(Dispatchers.IO) { AiDenoiseCache.store(context, pk, res) } }
             "stopped" -> { edit = edit.copy(detail = edit.detail.copy(aiDenoise = 0f)); message = "AI noise reduction stopped" }
             else -> { edit = edit.copy(detail = edit.detail.copy(aiDenoise = 0f)); message = "AI noise reduction isn't available on this phone" }
         }
     }
     // The same AI at full size, once, in the background while you edit: kept, and used by the export
     // (so exporting never runs the AI again). Redone only when what goes into it changes (RAW develop).
-    val aiKey = if (aiOn && !com.dronedirector.veyrocutpro.camera.CloudAi.usePhotos(context)) edit.aiKey(sourceUri(edit).toString(), rawOn(edit)) else null
+    val aiKey = if (aiOn && loaded && !com.dronedirector.veyrocutpro.camera.CloudAi.usePhotos(context)) edit.aiKey(sourceUri(edit).toString(), rawOn(edit)) else null
     LaunchedEffect(aiKey) {
         val k = aiKey ?: return@LaunchedEffect
         if (AiDenoiseCache.has(context, k)) return@LaunchedEffect
@@ -2231,6 +2239,12 @@ internal object PhotoExportJob {
     }
 }
 
+/** The preview's AI noise reduction: the photo, its RAW develop and the preview size. */
+private fun PhotoEdit.aiPreviewKey(source: String, raw: Boolean, w: Int, h: Int): String {
+    val k = "pv|$source|${baseFile ?: ""}|$w|$h|" + (if (raw) ProjectStore.gson.toJson(this.raw) else "")
+    return java.security.MessageDigest.getInstance("SHA-1").digest(k.toByteArray()).joinToString("") { "%02x".format(it) }
+}
+
 /** What the AI noise reduction works on: the photo (and, for RAW, its develop and tonal sliders). */
 private fun PhotoEdit.aiKey(source: String, raw: Boolean): String {
     val g = grade
@@ -2246,13 +2260,15 @@ private fun PhotoEdit.aiKey(source: String, raw: Boolean): String {
 internal object AiDenoiseCache {
     private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
     private val jobs = HashMap<String, kotlinx.coroutines.Job>()
-    private fun dir(c: Context) = java.io.File(c.cacheDir, "ai_denoise").apply { mkdirs() }
+    // In the app's own storage (not the cache Android may clear), so results survive restarts.
+    private fun dir(c: Context) = java.io.File(c.filesDir, "ai_denoise").apply { mkdirs() }
     private fun file(c: Context, key: String) = java.io.File(dir(c), "$key.px")
     /** Why the full-size pass is running (shown in the AI progress badge); null when it isn't. */
     var note by mutableStateOf<String?>(null)
         private set
     /** The photo the last full-size pass was made for: a new pass for the same photo is a re-run. */
     private var lastSource: String? = null
+    @Volatile private var runs = 0
 
     fun has(c: Context, key: String) = file(c, key).length() > 8
 
@@ -2261,20 +2277,22 @@ internal object AiDenoiseCache {
         val app = c.applicationContext
         synchronized(jobs) {
             if (jobs[key]?.isActive == true) return
-            if (jobs.values.any { it.isActive }) { AiDenoiser.stop(); jobs.values.forEach { it.cancel() } }
+            jobs.values.forEach { it.cancel() }   // an unfinished pass for older settings stops at its next tile
             jobs.clear()
             jobs[key] = scope.launch {
                 var src: Bitmap? = null
                 val again = lastSource == source
+                val run = ++runs
                 note = if (again) "Running again on the full-size photo: the RAW exposure, white balance or tones changed, and the AI works on the developed picture."
                 else "Second pass: the preview is done — now the full-size photo, so the export can use it without running the AI again."
                 try {
                     src = decode() ?: return@launch
-                    val den = AiDenoiser.denoiseBitmap(app, src, 1f) ?: return@launch
-                    save(app, key, den); den.recycle()
+                    val job = coroutineContext[kotlinx.coroutines.Job]
+                    val den = AiDenoiser.denoiseBitmap(app, src, 1f) { job?.isActive == false } ?: return@launch
+                    store(app, key, den); den.recycle()
                     lastSource = source
                 } catch (_: Throwable) {
-                } finally { src?.recycle(); note = null }
+                } finally { src?.recycle(); if (runs == run) note = null }
             }
         }
     }
@@ -2282,7 +2300,7 @@ internal object AiDenoiseCache {
     /** Waits for the background job of [key], if one is running. */
     suspend fun await(key: String) { synchronized(jobs) { jobs[key] }?.join() }
 
-    private fun save(c: Context, key: String, b: Bitmap) {
+    fun store(c: Context, key: String, b: Bitmap) {
         val f = file(c, key); val tmp = java.io.File(f.path + ".tmp")
         val buf = java.nio.ByteBuffer.allocateDirect(b.width * b.height * 4)
         b.copyPixelsToBuffer(buf); buf.rewind()
@@ -2290,13 +2308,16 @@ internal object AiDenoiseCache {
             r.setLength(0); r.writeInt(b.width); r.writeInt(b.height); r.channel.write(buf)
         }
         tmp.renameTo(f)
-        // Keep the newest few only (each is a full-size picture).
-        dir(c).listFiles()?.filter { it.name.endsWith(".px") }?.sortedByDescending { it.lastModified() }?.drop(3)?.forEach { it.delete() }
+        // Keep the newest results only (a full-size one is large): 6 full-size, 30 previews.
+        val all = dir(c).listFiles()?.filter { it.name.endsWith(".px") }?.sortedByDescending { it.lastModified() }.orEmpty()
+        all.filter { it.length() > 40L * 1024 * 1024 }.drop(6).forEach { it.delete() }
+        all.filter { it.length() <= 40L * 1024 * 1024 }.drop(30).forEach { it.delete() }
+        try { java.io.File(c.cacheDir, "ai_denoise").deleteRecursively() } catch (_: Throwable) {}
     }
 
     fun load(c: Context, key: String): Bitmap? = try {
         val f = file(c, key)
-        if (!f.exists()) null else java.io.RandomAccessFile(f, "r").use { r ->
+        if (!f.exists()) null else java.io.RandomAccessFile(f.also { it.setLastModified(System.currentTimeMillis()) }, "r").use { r ->
             val w = r.readInt(); val h = r.readInt()
             val buf = java.nio.ByteBuffer.allocateDirect(w * h * 4)
             while (buf.hasRemaining()) if (r.channel.read(buf) < 0) break

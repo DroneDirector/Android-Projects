@@ -157,16 +157,16 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
     // Another catalog was opened: back to the start page (its photos are in the filmstrip).
     var seenCatalog by remember { mutableStateOf(Catalogs.version) }
     LaunchedEffect(Catalogs.version) { if (Catalogs.version != seenCatalog) { seenCatalog = Catalogs.version; source = null; project = null } }
-    fun addMany(list: List<Uri>) {
+    fun addMany(list: List<Uri>, camera: Boolean = false) {
         if (list.isEmpty()) return
-        val first = PhotoSession.add(context, list)
+        val first = PhotoSession.add(context, list, camera)
         // From inside the editor (+ on the filmstrip) the photos are only added; the current edit stays open.
         if (first >= 0 && (source == null || source == Uri.EMPTY)) openSession(first)
     }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(100)) { addMany(it) }
     val browse = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { addMany(it) }
     // The phone's camera: the new photo goes straight into the filmstrip (and opens if nothing is open yet).
-    val camera = rememberDeviceCamera(onPhoto = { addMany(listOf(it)) })
+    val camera = rememberDeviceCamera(onPhoto = { addMany(listOf(it), camera = true) })
     var addFrom by remember { mutableStateOf(false) }
     if (addFrom) AddFromDialog("Add photos", listOf(
         Triple(Icons.Filled.PhotoLibrary, "Gallery") { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
@@ -461,10 +461,10 @@ fun BigButton(icon: ImageVector, label: String, modifier: Modifier = Modifier, o
 }
 
 /** The edit a photo opens with: its saved project, or a fresh edit (with the remembered watermark). */
-private fun editOf(context: Context, initial: PhotoProjectData?): PhotoEdit =
+private fun editOf(context: Context, initial: PhotoProjectData?, autoWatermark: Boolean = true): PhotoEdit =
     @Suppress("USELESS_ELVIS")
     if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix(), initial.bg ?: PhotoBackground(), initial.baseFile, initial.texts ?: emptyList(), initial.sky ?: SkySwap(), initial.raw ?: RawDng.Dev(), initial.lensBlur, initial.retouch ?: Retouch())
-    else PhotoEdit(watermark = WatermarkMemory.load(context, false))
+    else PhotoEdit(watermark = if (autoWatermark) WatermarkMemory.load(context, false) else null)
 
 /** AI masks, sky and depth pictures an edit draws from (file → picture). */
 private fun PhotoEdit.aiFiles(): List<String> = masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(bg.maskFile, sky.maskFile, sky.imagePath, lensBlur?.depthFile) + retouch.files()
@@ -484,7 +484,7 @@ private fun prefetchAround(context: Context, idx: Int) {
             kotlinx.coroutines.yield()
             val sp = items[i]
             val p = sp.projectId?.let { ProjectStore.loadPhoto(app, it) }
-            val e = editOf(app, p)
+            val e = editOf(app, p, sp.camera != true)
             val sig = PhotoViewer.signature(e)
             val src = e.baseFile?.let { Uri.fromFile(java.io.File(it)) } ?: Uri.parse(sp.uri)
             val raw = if (e.baseFile == null) try { PhotoViewer.loadRaw(app, src).await() } catch (_: Throwable) { null } else null
@@ -537,7 +537,8 @@ private fun PhotoWorkspace(
     var baseFor by remember { mutableStateOf<String?>(null) }
     var preview by remember { mutableStateOf<Bitmap?>(null) }
     var edit by remember {
-        mutableStateOf(editOf(context, initial))
+        // Photos taken with the editor's camera start without the remembered watermark (add one by hand if wanted).
+        mutableStateOf(editOf(context, initial, PhotoSession.items.none { it.camera == true && it.uri == uri.toString() }))
     }
     // A filmstrip photo's hidden edit is not a named project: SAVE makes a separate one.
     var projectId by remember { mutableStateOf(initial?.id?.takeIf { initial.session != true && initial.autosave != true }) }

@@ -77,6 +77,8 @@ data class SessionPhoto(
     val opened: Long = 0L,
     /** File name of the photo's copy in the catalog (photos/), if one was made. */
     val copy: String? = null,
+    /** Taken with the camera from inside the editor: never gets the remembered watermark automatically. */
+    val camera: Boolean? = null,
 ) {
     /** Unique in the filmstrip (a photo and its virtual copies share the uri). */
     val key: String get() = uri + (copyId?.let { "#$it" } ?: "")
@@ -174,7 +176,7 @@ object PhotoSession {
     }
 
     /** Adds photos (skipping ones already there); returns the index of the first new one. */
-    fun add(context: Context, uris: List<Uri>): Int {
+    fun add(context: Context, uris: List<Uri>, camera: Boolean = false): Int {
         load(context)
         var first = -1
         for (u in uris) {
@@ -182,7 +184,7 @@ object PhotoSession {
             val s = u.toString()
             val at = items.indexOfFirst { it.uri == s && it.copyId == null }
             if (at >= 0) { if (first < 0) first = at; continue }
-            items.add(SessionPhoto(s, displayName(context, u), opened = System.currentTimeMillis()))
+            items.add(SessionPhoto(s, displayName(context, u), opened = System.currentTimeMillis(), camera = if (camera) true else null))
             if (first < 0) first = items.lastIndex
         }
         save(context)

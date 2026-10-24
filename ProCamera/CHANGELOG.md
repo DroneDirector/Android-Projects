@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor: photos taken with the editor's Camera no longer get the remembered watermark automatically — add a watermark by hand in the Watermark tab if you want one.
 
 ## 1.0.533 — 2026-10-24
 - **Camera inside the editors**: Photo editor — the filmstrip's + (and the empty editor and start page) offers Gallery, Browse files and **Camera**; a photo you take goes straight into the filmstrip. Video editor — Media page **Camera → media list** and the media strip's **+ Camera**: record a video or take a photo (it becomes a 5 s clip); both go into the media list, not onto the timeline. Captures are saved to DCIM/AlcorCutPro.

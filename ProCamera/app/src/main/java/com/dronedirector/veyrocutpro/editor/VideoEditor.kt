@@ -743,9 +743,17 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         c.drawColor(android.graphics.Color.BLACK)
         val all = android.graphics.RectF(0f, 0f, out.width.toFloat(), out.height.toFloat())
         val p = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
-        fun layerOn(img: androidx.compose.ui.graphics.ImageBitmap?) { img?.asAndroidBitmap()?.let { b -> c.drawBitmap(b, null, all, p) } }
+        // Layer pictures come back as GPU bitmaps; a copy in normal memory can be drawn here.
+        fun layerOn(img: androidx.compose.ui.graphics.ImageBitmap?) {
+            try {
+                val b = img?.asAndroidBitmap() ?: return
+                val sw = if (b.config == android.graphics.Bitmap.Config.HARDWARE) b.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else b
+                c.drawBitmap(sw, null, all, p)
+                if (sw !== b) sw.recycle()
+            } catch (_: Throwable) {}
+        }
         if (castHasBelow[0]) layerOn(try { castBelow.toImageBitmap() } catch (_: Throwable) { null })
-        (texViews[deck.active] as? android.view.TextureView)?.let { tv ->
+        try { (texViews[deck.active] as? android.view.TextureView)?.let { tv ->
             if (tv.isAvailable && tv.width > 0 && tv.height > 0) {
                 val loc = IntArray(2); tv.getLocationInWindow(loc)
                 val bw = minOf(tv.width, 1920)
@@ -756,7 +764,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     vb.recycle()
                 }
             }
-        }
+        } } catch (_: Throwable) {}
         layerOn(try { castAbove.toImageBitmap() } catch (_: Throwable) { null })
         out
     }

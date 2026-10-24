@@ -49,6 +49,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -2623,7 +2624,19 @@ private fun PhotoPanelContent(
             Text("Masking keeps sharpening off smooth areas (skin, sky): white in SHOW MASK is sharpened. Pinch or double-tap the photo for a 1:1 view.", color = Pro.Dim, fontSize = 11.sp)
             SectionTitle("AI NOISE REDUCTION")
             EdSlider("Strength", e.detail.aiDenoise, 0f..1f, format = { if (it <= 0f) "Off" else pct(it) }) { v -> detail { it.copy(aiDenoise = v) } }
-            Text("Built-in AI (NAFNet, trained on real phone-camera noise). Runs on the phone; cleaning the full photo takes a little longer when exporting.", color = Pro.Dim, fontSize = 11.sp)
+            Text("Built-in AI (NAFNet, trained on real phone-camera noise). Runs on the phone and cleans the full-size photo once while you edit; the export reuses it.", color = Pro.Dim, fontSize = 11.sp)
+            // When the AI has to run again: only what changes the picture it works on.
+            Row(
+                Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(10.dp)).background(Pro.Amber.copy(alpha = 0.12f)).padding(10.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Icon(Icons.Filled.Info, contentDescription = null, tint = Pro.Amber, modifier = Modifier.size(18.dp).padding(top = 1.dp))
+                Text(
+                    if (isRaw) "Use this last for RAW photos: first set exposure, white balance, highlights, shadows, whites and blacks. Changing those afterwards makes the AI noise reduction run again. Clarity, texture, colour grading, curves, masks and everything else can be changed freely."
+                    else "Clarity, texture, shadows, colour grading and every other slider can be changed freely afterwards — the AI noise reduction doesn't run again. Only AI object removal or AI expand (they make a new picture) needs a new run.",
+                    color = Color.White, fontSize = 11.5.sp, modifier = Modifier.padding(start = 8.dp),
+                )
+            }
             SectionTitle("NOISE REDUCTION")
             EdSlider("Luminance & colour", e.detail.denoise, 0f..1f, format = ::pct) { v -> detail { it.copy(denoise = v) } }
             EdSlider("Colour noise", e.detail.colorNoise, 0f..1f, 0f, ::pct) { v -> detail { it.copy(colorNoise = v) } }

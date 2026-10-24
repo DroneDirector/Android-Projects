@@ -3180,5 +3180,9 @@
 "Camera info": "Myndatólsupplýsingar",
 "Caption & keywords (IPTC)": "Myndatekstur og lyklaorð (IPTC)",
 "METADATA": "METADATA",
-"COLOUR & SHARPENING": "LITUR OG SKARPLEIKI"
+"COLOUR & SHARPENING": "LITUR OG SKARPLEIKI",
+"Built-in AI (NAFNet, trained on real phone-camera noise). Runs on the phone and cleans the full-size photo once while you edit; the export reuses it.": "Innbygd AI (NAFNet, venjað á veruligt larm frá telefonmyndatólum). Koyrir á telefonini og reinsar myndina í fullari stødd eina ferð, meðan tú viðgert; útflutningurin brúkar tað aftur.",
+"Use this last for RAW photos: first set exposure, white balance, highlights, shadows, whites and blacks. Changing those afterwards makes the AI noise reduction run again. Clarity, texture, colour grading, curves, masks and everything else can be changed freely.": "Brúka hetta seinast við RAW-myndum: set fyrst ljósmát, hvítjavnvág, ljósar partar, skuggar, hvítt og svart. Broytir tú tey aftaná, koyrir AI-larmminkingin aftur. Klárleiki, tekstur, litstigan, kurvar, maskur og alt annað kunnu broytast frítt.",
+"Clarity, texture, shadows, colour grading and every other slider can be changed freely afterwards — the AI noise reduction doesn't run again. Only AI object removal or AI expand (they make a new picture) needs a new run.": "Klárleiki, tekstur, skuggar, litstigan og allir aðrir skjúgvarar kunnu broytast frítt aftaná — AI-larmminkingin koyrir ikki aftur. Bert AI-lutstrikan ella AI-víðkan (tær gera eina nýggja mynd) krevja nýggja koyring.",
+"AI noise reduction is applied to the full-size photo while you edit; the export reuses it. With RAW, set exposure, white balance, highlights, shadows, whites and blacks first: changing those afterwards runs the AI again (clarity, texture, grading etc. never do).": "AI-larmminking verður gjørd á myndina í fullari stødd, meðan tú viðgert; útflutningurin brúkar hana aftur. Við RAW: set ljósmát, hvítjavnvág, ljósar partar, skuggar, hvítt og svart fyrst — broytast tey aftaná, koyrir AI aftur (klárleiki, tekstur, litstigan o.a. gera tað ongantíð)."
 }

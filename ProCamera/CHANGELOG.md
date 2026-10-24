@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor → Detail → AI NOISE REDUCTION: a note says when the AI has to run again. For RAW: use it last, after exposure, white balance, highlights, shadows, whites and blacks. Clarity, texture, colour grading, curves, masks and the rest never make it run again.
 
 ## 1.0.517 — 2026-10-24
 - Photo editor **Export tab** reorganised like a delivery page, each part in its own fold-out: **EXPORT** (format, quality, size, AI upscale and the EXPORT PHOTO button together), EXPORT PRESETS, COLOUR & SHARPENING, FILE NAME, METADATA (camera info, caption & keywords, .xmp sidecar) and BATCH. Nothing is duplicated.

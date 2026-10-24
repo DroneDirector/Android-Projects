@@ -233,6 +233,9 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Video editor guide
+**Catalog**
+- ⚙ → Catalog: the video catalog remembers each clip you use — its last settings (given back when you add it to another project; switch it off there) and its proxies, stabilisation analysis, waveforms, render cache, cloud AI results and transcripts.
+- Create, name, rename, open and delete catalogs; choose how many clips to remember (10 or more, or Unlimited); keep copies of clips (off by default); move the catalog to private storage, shared storage or an SD card; Slim down frees what can be made again.
 **Autosave**
 - Delete a clip: tap it on the timeline, then tap the red bin at its top. CLOSE GAP moves the clips after it left; LEAVE GAP puts black of the same length in its place. Undo brings it back.
 - Gear → AUTOSAVE: pick how often a copy of your project is saved, and how many copies (1–5) to keep. LOAD → AUTOSAVES opens one.

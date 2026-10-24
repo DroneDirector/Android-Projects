@@ -268,6 +268,10 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
     )
     GuideVariant.VIDEO -> listOf(
         cloudSection(v),
+        GuideSection(GuideTopic.PHONE_AI, "Catalog", Icons.Filled.AutoAwesome, null, listOf(
+            "⚙ → Catalog: the video catalog remembers each clip you use — its last settings (given back when you add it to another project) and its proxies, stabilisation analysis, waveforms, render cache, cloud AI results and transcripts.",
+            "Create, name, rename, open and delete catalogs; choose how many clips to remember (10 or more, or Unlimited); keep copies of clips (off by default); move the catalog to private storage, shared storage or an SD card; Slim down frees what can be made again.",
+        ), numbered = false),
         GuideSection(GuideTopic.PHONE_AI, "AI noise reduction", Icons.Filled.AutoAwesome, null, listOf(
             "Color → Detail → AI NOISE REDUCTION → move Strength above Off.",
             "It's applied when exporting; the preview shows the normal noise reduction.",

@@ -3157,5 +3157,15 @@
 "Catalog name": "Katalognavn",
 "Rename catalog": "Omdøb katalog",
 "EMPTY CATALOG": "TØM KATALOG",
-"Catalog: each photo keeps its edit, settings and AI results. Switch or manage catalogs in ⚙ → Catalog.": "Katalog: hvert billede beholder sin redigering, indstillinger og AI-resultater. Skift eller administrer kataloger i ⚙ → Katalog."
+"Catalog: each photo keeps its edit, settings and AI results. Switch or manage catalogs in ⚙ → Catalog.": "Katalog: hvert billede beholder sin redigering, indstillinger og AI-resultater. Skift eller administrer kataloger i ⚙ → Katalog.",
+"Clips remembered": "Huskede klip",
+"Keep a copy of each clip": "Behold en kopi af hvert klip",
+"Give clips their last settings": "Giv klip deres seneste indstillinger",
+"When you add a clip you've used before, it gets its last grade, detail, stabilisation, film look and audio settings.": "Når du tilføjer et klip, du har brugt før, får det sin seneste farvegradering, detalje, stabilisering, filmlook og lydindstillinger.",
+"Off by default: videos are large. When on, a project still opens if a clip's original is moved or deleted. Copies are exact (videos are already compressed, so they're kept as they are).": "Fra som standard: videoer er store. Når slået til, åbner et projekt stadig, selv om et klips original flyttes eller slettes. Kopier er nøjagtige (videoer er allerede komprimerede, så de gemmes som de er).",
+"Removes what can be made again — proxies, analysis, waveforms, render cache, cloud AI results — and keeps every clip's settings and copies. They're made again when needed.": "Fjerner det, der kan laves igen — proxyer, analyse, bølgeformer, render-cache, cloud-AI-resultater — og beholder alle klips indstillinger og kopier. De laves igen, når der er brug for dem.",
+"Removes the AI results (they're made again when a photo needs them) and keeps every photo, copy, edit and setting.": "Fjerner AI-resultaterne (de laves igen, når et billede skal bruge dem) og beholder alle billeder, kopier, redigeringer og indstillinger.",
+"SLIMMING DOWN…": "SLANKER…",
+"Catalogs, clips remembered, their settings, proxies and analysis, copies, location": "Kataloger, huskede klip, deres indstillinger, proxyer og analyse, kopier, placering",
+"A catalog remembers every clip you use: its last settings (grade, detail, stabilisation, film look, audio) — given back when you add the clip to another project — and the slow work done for it: proxies, stabilisation analysis, waveforms, render cache, cloud AI results and transcripts. Nothing has to be made twice for a clip in the catalog.": "Et katalog husker hvert klip, du bruger: dets seneste indstillinger (farvegradering, detalje, stabilisering, filmlook, lyd) — givet tilbage, når du tilføjer klippet til et andet projekt — og det langsomme arbejde for det: proxyer, stabiliseringsanalyse, bølgeformer, render-cache, cloud-AI-resultater og transskriptioner. Intet skal laves to gange for et klip i kataloget."
 }

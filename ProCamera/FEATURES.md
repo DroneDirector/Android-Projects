@@ -372,6 +372,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Send to desktop editor**: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) and **OpenTimelineIO .otio** (cuts, dissolves, speed, markers) for desktop editing software.
 
 ### Projects & workflow
+- **Video catalogs**: every clip you use is remembered — its last settings (given back when added to another project), proxies, stabilisation analysis, waveforms, render cache, cloud AI results and transcripts, so nothing is made twice. Several named catalogs; clips remembered (10 to any number, or unlimited); optional clip copies; move to private storage, shared storage or an SD card; slim down. Lossless only.
 - **Several timelines per project**: new, duplicate, rename and switch between cuts of the same project (shared media strip).
 - **LOAD / SAVE projects** next to Export; **Save & leave** when exiting; saved projects on the start page.
 - **Copy / Paste settings** between clips (or from a photo), optionally onto every clip.

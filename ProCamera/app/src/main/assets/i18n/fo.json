@@ -3211,5 +3211,15 @@
 "Catalog name": "Navn á skrá",
 "Rename catalog": "Gev skránni nýtt navn",
 "EMPTY CATALOG": "TØM SKRÁNNA",
-"Catalog: each photo keeps its edit, settings and AI results. Switch or manage catalogs in ⚙ → Catalog.": "Skrá: hvør mynd varðveitir viðgerð, stillingar og AI-úrslit. Skift ella stýr skráum í ⚙ → Skrá."
+"Catalog: each photo keeps its edit, settings and AI results. Switch or manage catalogs in ⚙ → Catalog.": "Skrá: hvør mynd varðveitir viðgerð, stillingar og AI-úrslit. Skift ella stýr skráum í ⚙ → Skrá.",
+"Clips remembered": "Brot í minninum",
+"Keep a copy of each clip": "Goym eitt avrit av hvørjum broti",
+"Give clips their last settings": "Gev brotum seinastu stillingar teirra",
+"When you add a clip you've used before, it gets its last grade, detail, stabilisation, film look and audio settings.": "Tá ið tú leggur afturat eitt brot, tú hevur brúkt áður, fær tað seinastu litstigan, detalju, støðgan, filmsútsjónd og ljóðstillingar.",
+"Off by default: videos are large. When on, a project still opens if a clip's original is moved or deleted. Copies are exact (videos are already compressed, so they're kept as they are).": "Sløkt sum standard: sjónbond eru stór. Tá ið tendrað, letur ein verkætlan enn upp, hóast upprunaliga brotið verður flutt ella strikað. Avrit eru nágreinilig (sjónbond eru longu samanpressaði, so tey verða goymd sum tey eru).",
+"Removes what can be made again — proxies, analysis, waveforms, render cache, cloud AI results — and keeps every clip's settings and copies. They're made again when needed.": "Strikar tað, ið kann gerast aftur — proxyir, greining, bylgjuformar, render-goymslu, cloud-AI-úrslit — og varðveitir stillingar og avrit hjá øllum brotum. Tey verða gjørd aftur, tá ið tørvur er á.",
+"Removes the AI results (they're made again when a photo needs them) and keeps every photo, copy, edit and setting.": "Strikar AI-úrslitini (tey verða gjørd aftur, tá ið ein mynd hevur tørv á teimum) og varðveitir allar myndir, avrit, viðgerðir og stillingar.",
+"SLIMMING DOWN…": "MINKAR…",
+"Catalogs, clips remembered, their settings, proxies and analysis, copies, location": "Skráir, brot í minninum, stillingar teirra, proxyir og greining, avrit, staðseting",
+"A catalog remembers every clip you use: its last settings (grade, detail, stabilisation, film look, audio) — given back when you add the clip to another project — and the slow work done for it: proxies, stabilisation analysis, waveforms, render cache, cloud AI results and transcripts. Nothing has to be made twice for a clip in the catalog.": "Ein skrá minnist hvørt brot, tú brúkar: seinastu stillingar tess (litstigan, detalja, støðgan, filmsútsjónd, ljóð) — givnar aftur, tá ið tú leggur brotið í eina aðra verkætlan — og tað seinføra arbeiðið fyri tað: proxyir, støðgangreining, bylgjuformar, render-goymslu, cloud-AI-úrslit og avskriftir. Einki skal gerast tvær ferðir fyri eitt brot í skránni."
 }

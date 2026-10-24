@@ -206,6 +206,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Color → EYEDROPPER sets white balance from a tap. POINT COLOR changes just one colour. Light → CLIPPING ⚠ shows blown highlights and crushed shadows.",
             "Pinch or double-tap the photo for a 1:1 zoom.",
             "With a mouse: the wheel over the photo goes to the next / previous filmstrip photo, right-click shows the before / after split, and double-click hides the tools.",
+            "The + on the filmstrip offers Gallery, Browse files and Camera; a photo you take goes straight into the filmstrip.",
             "The filmstrip is the open catalog: each photo keeps a copy, its edit and settings, ratings and AI results (saved as you work). ⚙ → Catalog: new / open / rename / delete catalogs, how many photos to remember (10 or more, or Unlimited), photo copies on / off, and where the catalog is stored (phone, shared storage, SD card). Storage is lossless only.",
             "Pick many photos at once: they go in the filmstrip under the photo. Tap to switch (each keeps its own edit), hold for stars / Pick / Reject / colour label, SELECT to sync the edit, export or remove several.",
             "Switching photos is instant: a RAW shows straight away (its last render, or the camera's preview matched to the editor's colours) and the full RAW render fades in a moment later. The photos either side are prepared ahead.",
@@ -269,6 +270,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
     GuideVariant.VIDEO -> listOf(
         cloudSection(v),
         GuideSection(GuideTopic.PHONE_AI, "Catalog", Icons.Filled.AutoAwesome, null, listOf(
+            "Media page → Camera → media list, or + Camera on the media strip: record a video or take a photo (becomes a 5 s clip). It goes into the media list, not onto the timeline.",
             "⚙ → Catalog: the video catalog remembers each clip you use — its last settings (given back when you add it to another project) and its proxies, stabilisation analysis, waveforms, render cache, cloud AI results and transcripts.",
             "Create, name, rename, open and delete catalogs; choose how many clips to remember (10 or more, or Unlimited); keep copies of clips (off by default); move the catalog to private storage, shared storage or an SD card; Slim down frees what can be made again.",
         ), numbered = false),

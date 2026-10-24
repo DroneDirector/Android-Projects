@@ -3169,5 +3169,19 @@
 "Catalogs, clips remembered, their settings, proxies and analysis, copies, location": "Kataloger, huskede klip, deres indstillinger, proxyer og analyse, kopier, placering",
 "A catalog remembers every clip you use: its last settings (grade, detail, stabilisation, film look, audio) — given back when you add the clip to another project — and the slow work done for it: proxies, stabilisation analysis, waveforms, render cache, cloud AI results and transcripts. Nothing has to be made twice for a clip in the catalog.": "Et katalog husker hvert klip, du bruger: dets seneste indstillinger (farvegradering, detalje, stabilisering, filmlook, lyd) — givet tilbage, når du tilføjer klippet til et andet projekt — og det langsomme arbejde for det: proxyer, stabiliseringsanalyse, bølgeformer, render-cache, cloud-AI-resultater og transskriptioner. Intet skal laves to gange for et klip i kataloget.",
 "Cleaning the full-size photo": "Renser billedet i fuld størrelse",
-"Cleaning again — RAW settings changed": "Renser igen — RAW-indstillinger ændret"
+"Cleaning again — RAW settings changed": "Renser igen — RAW-indstillinger ændret",
+"Add photos": "Tilføj billeder",
+"Camera — take a photo": "Kamera — tag et billede",
+"Take a photo": "Tag et billede",
+"Camera → media list": "Kamera → medieliste",
+"Record a video": "Optag en video",
+"Take a photo (becomes a 5 s clip)": "Tag et billede (bliver et klip på 5 s)",
+"Camera → media list (video or photo)": "Kamera → medieliste (video eller billede)",
+"+ Camera": "+ Kamera",
+"Making a clip from the photo…": "Laver et klip af billedet…",
+"Couldn't open the camera": "Kunne ikke åbne kameraet",
+"No camera app found": "Ingen kamera-app fundet",
+"Camera permission is needed to take photos and videos": "Der kræves kameratilladelse for at tage billeder og videoer",
+"Couldn't read the photo": "Kunne ikke læse billedet",
+"Couldn't use that photo": "Kunne ikke bruge det billede"
 }

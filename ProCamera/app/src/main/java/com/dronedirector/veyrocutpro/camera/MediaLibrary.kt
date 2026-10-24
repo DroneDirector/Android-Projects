@@ -26,7 +26,7 @@ data class MediaItem(
 /** Reads the photos and videos AlcorCut Pro saved (DCIM/AlcorCutPro, and older folders, on internal storage and SD cards). */
 @Suppress("DEPRECATION")
 object MediaLibrary {
-    private const val FOLDER = "DCIM/AlcorCutPro"
+    const val FOLDER = "DCIM/AlcorCutPro"
     /** Where earlier versions saved (VeyroCut Pro, AcluxPro) — still shown in the gallery. */
     private val LEGACY_FOLDERS = listOf("DCIM/VeyroCutPro", "DCIM/AcluxPro")
 

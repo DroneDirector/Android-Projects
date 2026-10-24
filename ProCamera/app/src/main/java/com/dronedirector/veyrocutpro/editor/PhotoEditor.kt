@@ -49,6 +49,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -164,6 +165,14 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
     }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(100)) { addMany(it) }
     val browse = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { addMany(it) }
+    // The phone's camera: the new photo goes straight into the filmstrip (and opens if nothing is open yet).
+    val camera = rememberDeviceCamera(onPhoto = { addMany(listOf(it)) })
+    var addFrom by remember { mutableStateOf(false) }
+    if (addFrom) AddFromDialog("Add photos", listOf(
+        Triple(Icons.Filled.PhotoLibrary, "Gallery") { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+        Triple(Icons.Filled.FolderOpen, "Browse files") { browse.launch(arrayOf("image/*")) },
+        Triple(Icons.Filled.PhotoCamera, "Camera — take a photo") { camera.takePhoto() },
+    )) { addFrom = false }
     // Merge several photos (HDR, panorama, focus stack) into a new one, then edit it.
     val scope = rememberCoroutineScope()
     var mergeKind by remember { mutableStateOf<MergeKind?>(null) }
@@ -253,6 +262,7 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
             onFiles = { browse.launch(arrayOf("image/*")) },
             onRecent = { project = null; addMany(listOf(it)) },
             onSkip = { project = null; PhotoSession.current = -1; source = Uri.EMPTY },
+            onCamera = { camera.takePhoto() },
             banner = {
                 Row(
                     Modifier.padding(bottom = 10.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Ed.Raised)
@@ -290,8 +300,9 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
         androidx.compose.runtime.key(src, project?.id) {
             PhotoWorkspace(src, project, onClose = { source = null; project = null },
                 onOpenSession = { openSession(it) },
-                onAddGallery = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                onAddGallery = { addFrom = true },
                 onAddFiles = { browse.launch(arrayOf("image/*")) },
+                onAddCamera = { camera.takePhoto() },
                 onLoad = { id ->
                 val p = ProjectStore.loadPhoto(context, id)
                 if (p != null && p.uri != Uri.EMPTY) { PhotoSession.current = -1; project = p; source = p.uri }
@@ -318,6 +329,8 @@ fun MediaChooser(
     onSkip: (() -> Unit)? = null,
     /** Optional card under the subtitle (e.g. recover an unsaved edit). */
     banner: (@Composable () -> Unit)? = null,
+    /** Shown only when set: take a photo with the phone's camera. */
+    onCamera: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     var settings by remember { mutableStateOf(false) }
@@ -339,6 +352,7 @@ fun MediaChooser(
             BigButton(Icons.Filled.PhotoLibrary, if (videos) "Gallery videos" else "Gallery photos", Modifier.weight(1f), onGallery)
             BigButton(Icons.Filled.FolderOpen, "Browse files", Modifier.weight(1f), onFiles)
         }
+        if (onCamera != null) BigButton(Icons.Filled.PhotoCamera, "Take a photo", Modifier.fillMaxWidth().padding(top = 10.dp), onCamera)
         if (onSkip != null) {
             Row(
                 Modifier
@@ -512,7 +526,7 @@ private class ViewerState(val key: String, val sig: Int) {
 private fun PhotoWorkspace(
     uri: Uri, initial: PhotoProjectData?, onClose: () -> Unit, onLoad: (String) -> Unit,
     /** Opened with SKIP (no photo yet, uri = Uri.EMPTY): pick one from the gallery / files. */
-    onAddGallery: () -> Unit = {}, onAddFiles: () -> Unit = {},
+    onAddGallery: () -> Unit = {}, onAddFiles: () -> Unit = {}, onAddCamera: () -> Unit = {},
     /** Switch to another photo of the filmstrip (index in [PhotoSession.items]). */
     onOpenSession: (Int) -> Unit = {},
 ) {
@@ -1647,8 +1661,9 @@ private fun PhotoWorkspace(
                             Text("No photo yet", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                             Text("Add a photo to start editing.", color = Pro.Dim, fontSize = 12.sp)
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Text("Gallery", color = Color.Black, fontWeight = FontWeight.SemiBold, modifier = Modifier.clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(onClick = onAddGallery).padding(horizontal = 18.dp, vertical = 10.dp))
+                                Text("Add photos", color = Color.Black, fontWeight = FontWeight.SemiBold, modifier = Modifier.clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(onClick = onAddGallery).padding(horizontal = 18.dp, vertical = 10.dp))
                                 Text("Browse files", color = Pro.Amber, fontWeight = FontWeight.SemiBold, modifier = Modifier.clip(RoundedCornerShape(50)).border(1.dp, Pro.Amber, RoundedCornerShape(50)).clickable(onClick = onAddFiles).padding(horizontal = 18.dp, vertical = 10.dp))
+                                Text("Camera", color = Pro.Amber, fontWeight = FontWeight.SemiBold, modifier = Modifier.clip(RoundedCornerShape(50)).border(1.dp, Pro.Amber, RoundedCornerShape(50)).clickable(onClick = onAddCamera).padding(horizontal = 18.dp, vertical = 10.dp))
                             }
                         }
                         RefView.shown && refImg != null && shown != null -> {

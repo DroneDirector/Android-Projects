@@ -143,6 +143,42 @@ object Generators {
         main.postDelayed(tick, 200)
         return { if (!done) { done = true; try { tr.cancel() } catch (_: Throwable) {}; out.delete() } }
     }
+
+    /**
+     * A photo as a video clip of [seconds] (its own shape, long side at most 3840), so it can sit in
+     * the media list and on the timeline like any clip. Saved in the app's files. Calls [onDone] on the
+     * main thread with the clip, or an error.
+     */
+    fun photoClip(context: Context, photo: Uri, seconds: Int, onDone: (Uri?, String?) -> Unit) {
+        val opts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        try { context.contentResolver.openInputStream(photo)?.use { android.graphics.BitmapFactory.decodeStream(it, null, opts) } } catch (_: Throwable) {}
+        var pw = opts.outWidth; var ph = opts.outHeight
+        if (pw <= 0 || ph <= 0) { onDone(null, "Couldn't read the photo"); return }
+        val rot = try {
+            context.contentResolver.openInputStream(photo)?.use { androidx.exifinterface.media.ExifInterface(it).rotationDegrees } ?: 0
+        } catch (_: Throwable) { 0 }
+        if (rot == 90 || rot == 270) { val t = pw; pw = ph; ph = t }
+        val k = minOf(1f, 3840f / maxOf(pw, ph))
+        val w = even((pw * k).toInt()); val h = even((ph * k).toInt())
+        val dir = File(context.filesDir, "generated").apply { mkdirs() }
+        val out = File(dir, "AC_PHOTO_" + java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date()) + ".mp4")
+        val item = EditedMediaItem.Builder(MediaItem.Builder().setUri(photo).setImageDurationMs(seconds.coerceIn(1, 60) * 1000L).build())
+            .setFrameRate(30)
+            .setEffects(Effects(emptyList(), listOf(Presentation.createForWidthAndHeight(w, h, Presentation.LAYOUT_SCALE_TO_FIT))))
+            .build()
+        val seq = EditedMediaItemSequence.Builder(listOf(item)).experimentalSetForceAudioTrack(true).build()
+        Transformer.Builder(context)
+            .setVideoMimeType(MimeTypes.VIDEO_H264)
+            .setAudioMimeType(MimeTypes.AUDIO_AAC)
+            .addListener(object : Transformer.Listener {
+                override fun onCompleted(composition: Composition, exportResult: ExportResult) { onDone(Uri.fromFile(out), null) }
+                override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
+                    out.delete(); onDone(null, "Couldn't make a clip from the photo: ${exportException.errorCodeName}")
+                }
+            })
+            .build()
+            .start(Composition.Builder(seq).build(), out.path)
+    }
 }
 
 /** Mode 1: animated TV noise. Mode 2: the countdown's clock sweep over the still. */

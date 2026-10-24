@@ -147,6 +147,7 @@ fun MediaStrip(
     onRemove: (List<Clip>) -> Unit,
     onImport: () -> Unit,
     onImportFolder: () -> Unit,
+    onCamera: () -> Unit = {},
     modifier: Modifier = Modifier,
     /** Mouse drag: is this window position a drop target (the timeline)? */
     onDragOver: (Offset) -> Boolean = { false },
@@ -237,6 +238,9 @@ fun MediaStrip(
                     }
                     Box(Modifier.width(70.dp).weight(1f).clip(RoundedCornerShape(6.dp)).border(1.dp, Pro.Amber.copy(alpha = 0.5f), RoundedCornerShape(6.dp)).clickable(onClick = onImportFolder), contentAlignment = Alignment.Center) {
                         Text("+ Folder", color = Pro.Amber, fontSize = 11.sp)
+                    }
+                    Box(Modifier.width(70.dp).weight(1f).clip(RoundedCornerShape(6.dp)).border(1.dp, Pro.Amber.copy(alpha = 0.5f), RoundedCornerShape(6.dp)).clickable(onClick = onCamera), contentAlignment = Alignment.Center) {
+                        Text("+ Camera", color = Pro.Amber, fontSize = 11.sp)
                     }
                 }
         }

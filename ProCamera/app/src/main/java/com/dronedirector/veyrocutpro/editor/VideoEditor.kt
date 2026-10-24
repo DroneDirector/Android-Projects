@@ -19,6 +19,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Settings
@@ -343,6 +345,19 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     val libPick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(100)) { importToLibrary(it) }
+    // The phone's camera: what's captured goes into the media list (not onto the timeline).
+    val camera = rememberDeviceCamera(
+        onPhoto = { u ->
+            es.message = "Making a clip from the photo…"
+            Generators.photoClip(context, u, 5) { clip, err -> if (clip != null) importToLibrary(listOf(clip)) else es.message = err ?: "Couldn't use that photo" }
+        },
+        onVideo = { u -> importToLibrary(listOf(u)) },
+    )
+    var cameraAsk by remember { mutableStateOf(false) }
+    if (cameraAsk) AddFromDialog("Camera → media list", listOf(
+        Triple(Icons.Filled.Videocam, "Record a video") { camera.recordVideo() },
+        Triple(Icons.Filled.PhotoCamera, "Take a photo (becomes a 5 s clip)") { camera.takePhoto() },
+    )) { cameraAsk = false }
     val libFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
         if (tree != null) {
             try { context.contentResolver.takePersistableUriPermission(tree, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
@@ -3125,6 +3140,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         if (used.isNotEmpty()) es.message = "${used.size} clip(s) are on the timeline — delete them in the Media page to remove them"
                     },
                     onImport = { libPick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
+                    onCamera = { cameraAsk = true },
                     onImportFolder = { try { libFolder.launch(null) } catch (_: Throwable) {} },
                     onDragOver = { at -> es.tlBounds.contains(at) },
                     onDrop = { c, at -> if (es.tlBounds.contains(at)) dropAt(c, at.x) },
@@ -3197,6 +3213,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             }
                             MediaPage(
                                 clips, onAddGallery, onAddFiles,
+                                onCamera = { cameraAsk = true },
                                 audioPool = audioPool,
                                 audioUses = { a -> (if (es.music?.uri == a.uri) 1 else 0) + extraAudio.count { it.uri == a.uri } },
                                 onAddAudio = { pickAudio.launch(arrayOf("audio/*")) },
@@ -3888,6 +3905,7 @@ private fun ProxyPage(
 @Composable
 private fun MediaPage(
     clips: List<Clip>, onAddGallery: () -> Unit, onAddFiles: () -> Unit,
+    onCamera: () -> Unit = {},
     audioPool: List<PoolAudio>, audioUses: (PoolAudio) -> Int, onAddAudio: () -> Unit,
     onPlaceAudio: (PoolAudio) -> Unit, onRemoveAudio: (PoolAudio) -> Unit,
     proxyState: (Clip) -> String?, onProxyToggle: (Clip) -> Unit, onRemove: (Clip) -> Unit,
@@ -3950,6 +3968,7 @@ private fun MediaPage(
         BigButton(Icons.Filled.PhotoLibrary, "Gallery", Modifier.weight(1f), onAddGallery)
         BigButton(Icons.Filled.FolderOpen, "Files (MKV…)", Modifier.weight(1f), onAddFiles)
     }
+    BigButton(Icons.Filled.Videocam, "Camera → media list (video or photo)", Modifier.fillMaxWidth().padding(top = 8.dp), onCamera)
     BigButton(Icons.Filled.MusicNote, "Audio (MP3, WAV, AAC…)", Modifier.fillMaxWidth().padding(top = 8.dp), onAddAudio)
     if (clips.distinctBy { it.uri.toString() }.size >= 2) {
         BigButton(Icons.Filled.Movie, "Multicam (2–4 angles)", Modifier.fillMaxWidth().padding(top = 8.dp), onMulticam)

@@ -3223,5 +3223,19 @@
 "Catalogs, clips remembered, their settings, proxies and analysis, copies, location": "Skráir, brot í minninum, stillingar teirra, proxyir og greining, avrit, staðseting",
 "A catalog remembers every clip you use: its last settings (grade, detail, stabilisation, film look, audio) — given back when you add the clip to another project — and the slow work done for it: proxies, stabilisation analysis, waveforms, render cache, cloud AI results and transcripts. Nothing has to be made twice for a clip in the catalog.": "Ein skrá minnist hvørt brot, tú brúkar: seinastu stillingar tess (litstigan, detalja, støðgan, filmsútsjónd, ljóð) — givnar aftur, tá ið tú leggur brotið í eina aðra verkætlan — og tað seinføra arbeiðið fyri tað: proxyir, støðgangreining, bylgjuformar, render-goymslu, cloud-AI-úrslit og avskriftir. Einki skal gerast tvær ferðir fyri eitt brot í skránni.",
 "Cleaning the full-size photo": "Reinsar myndina í fullari stødd",
-"Cleaning again — RAW settings changed": "Reinsar aftur — RAW-stillingar broyttar"
+"Cleaning again — RAW settings changed": "Reinsar aftur — RAW-stillingar broyttar",
+"Add photos": "Legg myndir afturat",
+"Camera — take a photo": "Myndatól — tak eina mynd",
+"Take a photo": "Tak eina mynd",
+"Camera → media list": "Myndatól → miðlalisti",
+"Record a video": "Tak upp eitt sjónband",
+"Take a photo (becomes a 5 s clip)": "Tak eina mynd (verður eitt 5 s brot)",
+"Camera → media list (video or photo)": "Myndatól → miðlalisti (sjónband ella mynd)",
+"+ Camera": "+ Myndatól",
+"Making a clip from the photo…": "Ger eitt brot úr myndini…",
+"Couldn't open the camera": "Fekk ikki latið myndatólið upp",
+"No camera app found": "Eingin myndatólsapp funnin",
+"Camera permission is needed to take photos and videos": "Loyvi til myndatólið krevst fyri at taka myndir og sjónbond",
+"Couldn't read the photo": "Fekk ikki lisið myndina",
+"Couldn't use that photo": "Fekk ikki brúkt ta myndina"
 }

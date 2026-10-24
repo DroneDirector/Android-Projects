@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.511 — 2026-10-24
 - Photo editor: exports with **AI noise reduction** no longer fail with "Couldn't export — try a smaller size" on big photos. The AI now works through the photo piece by piece (far less memory), falls back to the phone's processor if the graphics chip gives up, and if a photo still doesn't fit, the export steps down a little and saves anyway — telling you the size it saved at.
 - New export size **Original (full resolution)**: the photo's own full size, with no 4800 px limit.
 - AI upscale on export now goes up to **50 MP** (was 24 MP).

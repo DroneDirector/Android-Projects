@@ -4,9 +4,10 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Chromecast fix: the TV connected but showed nothing. The phone now waits until a few seconds of stream are ready before telling the TV to play, answers the TV's requests fully (no dropped connections), gives exact segment lengths, and tries again by itself if the TV reports an error.
 
 ## 1.0.546 — 2026-10-24
-
+- Rebuild of 1.0.544, no changes.
 
 ## 1.0.544 — 2026-10-24
 - Chromecast, more complete: the video editor's TV picture now includes titles and layers (below and above the video), and **sound** goes to the TV too — the video's, the music's and every extra track's, mixed (Capture sends the microphone). Leaving a screen no longer ends casting: the TV stays connected, shows the AlcorCut Pro card, and picks up the next screen with a cast button (e.g. Capture opened from an editor, then back to the editor).

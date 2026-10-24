@@ -92,6 +92,7 @@ object CastLink {
     private fun listen(c: Context) {
         if (listening) return
         val cc = cast(c) ?: return
+        cast = cc
         cc.sessionManager.addSessionManagerListener(listener, CastSession::class.java)
         listening = true
     }
@@ -112,17 +113,50 @@ object CastLink {
         sources.lastOrNull()?.let { CastFeed.setSound(it.sound) }
     }
 
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
+    private var tries = 0
+
     private fun play(s: CastSession) {
         CastFeed.start { frame() }
+        tries = 0
+        loadWhenReady(s)
+    }
+
+    /** The TV is told to play once the phone has a few seconds of stream ready (an empty live list makes it give up). */
+    private fun loadWhenReady(s: CastSession, waited: Int = 0) {
+        if (!CastFeed.running || !s.isConnected) return
+        if (CastFeed.ready() < 3 && waited < 40) { main.postDelayed({ loadWhenReady(s, waited + 1) }, 250); return }
+        load(s)
+    }
+
+    private val watch = object : com.google.android.gms.cast.framework.media.RemoteMediaClient.Callback() {
+        override fun onStatusUpdated() {
+            val s = cast?.sessionManager?.currentCastSession ?: return
+            val st = s.remoteMediaClient?.mediaStatus ?: return
+            // The TV stopped with an error: try again a little later (a few times).
+            if (st.playerState == com.google.android.gms.cast.MediaStatus.PLAYER_STATE_IDLE &&
+                st.idleReason == com.google.android.gms.cast.MediaStatus.IDLE_REASON_ERROR && CastFeed.running && tries < 5) {
+                tries++
+                main.postDelayed({ if (s.isConnected) load(s) }, 2000)
+            }
+        }
+    }
+    private var cast: CastContext? = null
+
+    private fun load(s: CastSession) {
         val url = CastFeed.url() ?: return
+        val client = s.remoteMediaClient ?: return
+        try { client.unregisterCallback(watch) } catch (_: Throwable) {}
+        client.registerCallback(watch)
         val meta = MediaMetadata(MediaMetadata.MEDIA_TYPE_MOVIE).apply { putString(MediaMetadata.KEY_TITLE, "AlcorCut Pro") }
         val info = MediaInfo.Builder(url)
             .setContentType("application/x-mpegURL")
             .setStreamType(MediaInfo.STREAM_TYPE_LIVE)
             .setHlsSegmentFormat(HlsSegmentFormat.TS)
+            .setHlsVideoSegmentFormat(com.google.android.gms.cast.HlsVideoSegmentFormat.MPEG2_TS)
             .setMetadata(meta)
             .build()
-        try { s.remoteMediaClient?.load(MediaLoadRequestData.Builder().setMediaInfo(info).setAutoplay(true).build()) } catch (_: Throwable) {}
+        try { client.load(MediaLoadRequestData.Builder().setMediaInfo(info).setAutoplay(true).build()) } catch (_: Throwable) {}
     }
 
     fun stop(c: Context) {

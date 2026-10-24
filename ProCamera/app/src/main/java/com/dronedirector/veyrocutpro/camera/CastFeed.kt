@@ -49,6 +49,8 @@ object CastFeed {
     private var job: Job? = null
     @Volatile private var server: ServerSocket? = null
     private val segments = ArrayDeque<Pair<Int, ByteArray>>()
+    private val durations = HashMap<Int, Double>()
+    private var segStartPts = -1L
     private var seq = 0
     @Volatile var running = false
         private set
@@ -82,7 +84,7 @@ object CastFeed {
     fun start(source: suspend () -> Bitmap?) {
         if (running) return
         running = true
-        synchronized(segments) { segments.clear(); seq = 0 }
+        synchronized(segments) { segments.clear(); durations.clear(); seq = 0 }
         ts = TsWriter()
         t0 = System.nanoTime()
         val ss = try { ServerSocket(PORT) } catch (_: Throwable) { running = false; return }
@@ -171,9 +173,11 @@ object CastFeed {
                         if (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0) config = data
                         else {
                             val key = info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0
-                            if (key && frames >= SEG_FRAMES) { finishSegment(); frames = 0 }
+                            val pts = now90()
+                            if (key && frames >= SEG_FRAMES) { finishSegment(pts); frames = 0 }
                             if (key || frames > 0) {
-                                ts.video(if (key && config != null) config!! + data else data, now90(), key)
+                                if (frames == 0) segStartPts = pts
+                                ts.video(if (key && config != null) config!! + data else data, pts, key)
                                 frames++
                             }
                         }
@@ -192,14 +196,18 @@ object CastFeed {
 
     private fun now90() = (System.nanoTime() - t0) / 1_000_000L * 90 + 90_000   // starts at 1 s
 
-    private fun finishSegment() {
+    private fun finishSegment(endPts: Long) {
         val bytes = ts.take()
         if (bytes.isEmpty()) return
         synchronized(segments) {
+            durations[seq] = ((endPts - segStartPts) / 90000.0).coerceIn(0.2, 10.0)
             segments.addLast(seq++ to bytes)
-            while (segments.size > KEEP) segments.removeFirst()
+            while (segments.size > KEEP) durations.remove(segments.removeFirst().first)
         }
     }
+
+    /** Segments ready on the phone (the TV is told to play once there are a few). */
+    fun ready(): Int = synchronized(segments) { segments.size }
 
     // ---- sound (AAC, 48 kHz stereo)
 
@@ -289,7 +297,11 @@ object CastFeed {
 
     private fun serve(s: Socket) = s.use { sock ->
         try {
-            val line = sock.getInputStream().bufferedReader().readLine() ?: return
+            sock.soTimeout = 10_000
+            val reader = sock.getInputStream().bufferedReader()
+            val line = reader.readLine() ?: return
+            // Read the whole request first: closing with unread bytes would reset the connection on the TV's side.
+            while (true) { val h = reader.readLine() ?: break; if (h.isEmpty()) break }
             val path = line.split(' ').getOrNull(1) ?: "/"
             val out = sock.getOutputStream()
             fun reply(code: String, type: String, body: ByteArray) {
@@ -297,12 +309,18 @@ object CastFeed {
                     "Access-Control-Allow-Origin: *\r\nCache-Control: no-cache\r\nConnection: close\r\n\r\n").toByteArray())
                 out.write(body); out.flush()
             }
+            val method = line.substringBefore(' ')
             when {
+                method == "OPTIONS" -> {
+                    out.write(("HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, HEAD, OPTIONS\r\n" +
+                        "Access-Control-Allow-Headers: *\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").toByteArray()); out.flush()
+                }
                 path.startsWith("/live.m3u8") -> {
-                    val list = synchronized(segments) { segments.toList() }
+                    val (list, durs) = synchronized(segments) { segments.toList() to HashMap(durations) }
                     val first = list.firstOrNull()?.first ?: 0
-                    val sb = StringBuilder("#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:2\n#EXT-X-MEDIA-SEQUENCE:$first\n")
-                    list.forEach { (n, _) -> sb.append("#EXTINF:1.000,\nseg$n.ts\n") }
+                    val target = kotlin.math.ceil(durs.values.maxOrNull() ?: 1.0).toInt().coerceAtLeast(1) + 1
+                    val sb = StringBuilder("#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:$target\n#EXT-X-MEDIA-SEQUENCE:$first\n")
+                    list.forEach { (n, _) -> sb.append("#EXTINF:%.3f,\nseg$n.ts\n".format(java.util.Locale.US, durs[n] ?: 1.0)) }
                     reply("200 OK", "application/vnd.apple.mpegurl", sb.toString().toByteArray())
                 }
                 path.startsWith("/seg") -> {

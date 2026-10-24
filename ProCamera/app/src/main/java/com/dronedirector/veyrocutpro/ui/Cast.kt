@@ -187,7 +187,7 @@ private fun CastPicker(onDismiss: () -> Unit) {
             override fun onRouteRemoved(r: MediaRouter, route: MediaRouter.RouteInfo) = refresh()
             override fun onRouteChanged(r: MediaRouter, route: MediaRouter.RouteInfo) = refresh()
         }
-        if (ok) { router.addCallback(sel, cb, MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_DISCOVERY); refresh() }
+        if (ok) { router.addCallback(sel, cb, MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN); refresh() }
         onDispose { if (ok) router.removeCallback(cb) }
     }
     androidx.compose.material3.AlertDialog(

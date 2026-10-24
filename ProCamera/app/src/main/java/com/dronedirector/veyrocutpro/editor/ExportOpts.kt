@@ -75,6 +75,16 @@ object ExportOpts {
         } catch (_: Throwable) {}
     }
 
+    /** The options one export needs, handed to the export process. */
+    class Snapshot(val space: Int, val sharpenFor: Int, val sharpenAmount: Int, val template: String, val seq: Int, val presetName: String, val hdr: Int)
+    fun snapshot() = Snapshot(space, sharpenFor, sharpenAmount, template, seq, presetName, hdr)
+    /** Uses [s] for this process's exports (presets etc. still come from the saved settings). */
+    fun apply(c: Context, s: Snapshot) {
+        load(c)
+        space = s.space; sharpenFor = s.sharpenFor; sharpenAmount = s.sharpenAmount; template = s.template
+        seq = s.seq; presetName = s.presetName; hdr = s.hdr
+    }
+
     fun save(c: Context) {
         c.getSharedPreferences("procam", Context.MODE_PRIVATE).edit()
             .putInt("ex_space", space).putInt("ex_sharp_for", sharpenFor).putInt("ex_sharp_amt", sharpenAmount)

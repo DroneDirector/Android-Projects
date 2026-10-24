@@ -90,6 +90,12 @@
             android:exported="false"
             android:foregroundServiceType="dataSync|mediaProcessing" />
 
+        <!-- Photo exports run in their own process, with all of its memory free for the photo. -->
+        <service
+            android:name=".editor.PhotoExportProcess"
+            android:exported="false"
+            android:process=":export" />
+
         <service
             android:name=".CameraTileService"
             android:exported="true"

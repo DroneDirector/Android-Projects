@@ -3116,5 +3116,9 @@
 "not enough memory for this size with these settings": "ikke nok hukommelse til denne størrelse med disse indstillinger",
 "the largest this phone's memory allowed with these settings": "det største telefonens hukommelse tillod med disse indstillinger",
 "Always saved at that size, however heavy the edit.": "Gemmes altid i den størrelse, uanset hvor tung redigeringen er.",
-"The photo's own full size, as big as the sensor or file goes. Always saved at that size, however heavy the edit.": "Billedets egen fulde størrelse, så stor som sensoren eller filen. Gemmes altid i den størrelse, uanset hvor tung redigeringen er."
+"The photo's own full size, as big as the sensor or file goes. Always saved at that size, however heavy the edit.": "Billedets egen fulde størrelse, så stor som sensoren eller filen. Gemmes altid i den størrelse, uanset hvor tung redigeringen er.",
+"JPEG at maximum: full colour detail (4:4:4) and almost no compression — the largest, highest-quality files.": "JPEG i maksimum: fuld farvedetalje (4:4:4) og næsten ingen komprimering — de største filer i højeste kvalitet.",
+"JPEG keeps full colour detail (4:4:4). 100 % = maximum quality.": "JPEG beholder fuld farvedetalje (4:4:4). 100 % = maksimal kvalitet.",
+"the export stopped unexpectedly — please try again": "eksporten stoppede uventet — prøv igen",
+"the export didn't report back": "eksporten svarede ikke"
 }

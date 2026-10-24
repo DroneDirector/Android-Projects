@@ -585,7 +585,7 @@ private fun PhotoWorkspace(
 
     // Export options
     var format by remember { mutableStateOf(initial?.format ?: 0) }       // JPEG, PNG
-    var quality by remember { mutableStateOf(initial?.quality ?: 0.95f) }
+    var quality by remember { mutableStateOf(initial?.quality ?: 1f) }
     var sizeIdx by remember { mutableStateOf(initial?.sizeIdx ?: 0) }       // see `sizes`
     var aiScale by remember { mutableStateOf(0) }                          // 0 = off, 2, 4
     var keepExif by remember { mutableStateOf(true) }
@@ -987,88 +987,22 @@ private fun PhotoWorkspace(
         exportEstMs = (mp * per * (if (aiScale > 1) 4 else 1)).toLong()
         val e = edit
         PhotoExportJob.scope.launch {
-            // The size you chose is always the size saved. If the phone's memory can't hold every step at
-            // that size, the heavy steps run a little smaller and the result is enlarged back to your size.
-            var savedPx = 0; var wantPx = 0
-            fun attempt(maxPx: Int): Any? {
-                    val raw = rawOn(e)
-                    var full = (if (raw) rawExport(e, maxPx) else GradeIO.decode(context, sourceUri(e), maxPx)) ?: return null
-                    savedPx = maxOf(full.width, full.height)
-                    if (wantPx == 0) wantPx = savedPx
-                    if (e.detail.aiDenoise > 0f) {
-                        // Full-resolution AI noise reduction, tile by tile into a new picture (very little memory).
-                        var den: Bitmap? = null
-                        // Cloud AI (Topaz Denoise) when chosen in settings; otherwise / on failure the on-phone AI.
-                        if (com.dronedirector.veyrocutpro.camera.CloudAi.usePhotos(context)) {
-                            try {
-                                val jpeg = java.io.ByteArrayOutputStream().also { full.compress(Bitmap.CompressFormat.JPEG, 96, it) }.toByteArray()
-                                val res = com.dronedirector.veyrocutpro.camera.CloudAi.denoisePhoto(context, jpeg)
-                                BitmapFactory.decodeByteArray(res, 0, res.size)?.let { b ->
-                                    // Blend with the original at the chosen strength (drawn, not copied into arrays).
-                                    val o = full.copy(Bitmap.Config.ARGB_8888, true)
-                                    android.graphics.Canvas(o).drawBitmap(b, null, android.graphics.Rect(0, 0, o.width, o.height),
-                                        android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG).apply { alpha = (e.detail.aiDenoise.coerceIn(0f, 1f) * 255).toInt() })
-                                    b.recycle(); den = o
-                                }
-                            } catch (t: com.dronedirector.veyrocutpro.camera.CloudAi.Stopped) { throw AiDenoiser.Stopped() } catch (_: Throwable) {}
-                        }
-                        if (den == null) den = AiDenoiser.denoiseBitmap(context, full, e.detail.aiDenoise)
-                        den?.let { full.recycle(); full = it }
-                    }
-                    val eg = if (raw) e.grade.rawRest() else e.grade
-                    val tables = if (eg.isIdentity) null else eg.tables()
-                    var out = ImageOps.renderPhoto(full, eg, e.detail, e.geometry, tables, e.lens, e.spots, e.masks, aiMasks.toMap(), e.bg, e.sky, e.lensBlur, e.retouch)
-                    full.recycle()
-                    // Back to the chosen size when the steps above had to run smaller (drawn in native memory).
-                    if (wantPx > savedPx) {
-                        val k = wantPx.toFloat() / savedPx
-                        val big = Bitmap.createBitmap((out.width * k).toInt().coerceAtLeast(1), (out.height * k).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
-                        android.graphics.Canvas(big).drawBitmap(out, null, android.graphics.Rect(0, 0, big.width, big.height), android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG or android.graphics.Paint.DITHER_FLAG))
-                        if (out.hasAlpha()) big.setHasAlpha(true)
-                        out.recycle(); out = big
-                    }
-                    // AI upscale (×2 / ×4, at most 50 MP).
-                    if (aiScale > 1) {
-                        val k = minOf(aiScale.toFloat(), kotlin.math.sqrt(50e6f / (out.width.toFloat() * out.height)))
-                        if (k > 1.05f) {
-                            val up = com.dronedirector.veyrocutpro.camera.Upscaler.upscaleBitmap(context, out, (out.width * k).toInt() / 2 * 2, (out.height * k).toInt() / 2 * 2)
-                                ?: throw AiDenoiser.Stopped()
-                            out.recycle(); out = up
-                        }
-                    }
-                    for (t in e.texts) out = stampLayer(context, out, t)
-                    e.watermark?.let { out = stampLayer(context, out, it) }
-                    // A removed background needs a format with transparency.
-                    val fmt = if (e.bg.active && e.bg.mode == 2 && format !in listOf(1, 2, 4, 5)) 1 else format
-                    return savePhotoAs(context, out, fmt, (quality * 100).toInt(), if (keepExif) uri else null, stripGps).also { saved ->
-                        // Camera Raw (.xmp) sidecar for the original, with the closest matching settings.
-                        if (saved != null && PhotoMeta.sidecar && uri != Uri.EMPTY) {
-                            val where = PhotoMeta.writeSidecar(context, uri, PhotoMeta.sidecarXmp(e.grade, e.detail, e.geometry, raw))
-                            if (where == null) scope.launch { message = "Photo saved, but the .xmp sidecar couldn't be written" }
-                        }
-                    }
-            }
-            val ok = withContext(Dispatchers.IO) {
-                PhotoExportError.last = null
-                var px = sizes[sizeIdx]
-                var result: Any? = null
-                for (tryNo in 0 until 6) {
-                    try { result = attempt(px); break }
-                    catch (_: OutOfMemoryError) {
-                        System.gc()
-                        // Start from what the photo really is, then step down.
-                        val real = if (savedPx > 0) savedPx else px.coerceAtMost(8000)
-                        px = (minOf(px, real) * 0.8f).toInt()
-                        PhotoExportError.last = "not enough memory for this size with these settings"
-                        if (px < 1000) break
-                    } catch (t: Throwable) {
-                        result = if (t is AiDenoiser.Stopped || t.cause is AiDenoiser.Stopped) "stopped" else {
-                            PhotoExportError.last = (t.message ?: t.javaClass.simpleName).take(80); null
-                        }
-                        break
-                    }
-                }
-                if (result != null && result != "stopped" && wantPx > savedPx) "smaller" else result
+            // The export runs in its own process (all of its memory free for the photo); see PhotoExportProcess.
+            val req = PhotoExportReq(
+                edit = ProjectStore.gson.toJson(e), uri = uri.toString(), source = sourceUri(e).toString(), raw = rawOn(e),
+                maxPx = sizes[sizeIdx], aiScale = aiScale, format = format, quality = quality, keepExif = keepExif, stripGps = stripGps,
+                opts = ExportOpts.snapshot(),
+            )
+            val res = PhotoExportRemote.run(context, req)
+            ExportOpts.seq = maxOf(ExportOpts.seq, res.seq); ExportOpts.save(context)
+            if (res.sidecarFailed) message = "Photo saved, but the .xmp sidecar couldn't be written"
+            val savedPx = res.savedPx; val wantPx = res.wantPx
+            PhotoExportError.last = res.error
+            val ok: Any? = when {
+                res.stopped -> "stopped"
+                res.saved == null -> null
+                wantPx > savedPx -> "smaller"
+                else -> res.saved
             }
             busy = false
             // Learn how long exports take on this phone (plain exports only, no AI steps).
@@ -2280,6 +2214,130 @@ internal object PhotoExportJob {
     }
 }
 
+/** One photo export, handed to the export process as JSON. */
+internal class PhotoExportReq(
+    val edit: String, val uri: String, val source: String, val raw: Boolean, val maxPx: Int, val aiScale: Int,
+    val format: Int, val quality: Float, val keepExif: Boolean, val stripGps: Boolean, val opts: ExportOpts.Snapshot,
+)
+
+/** What came of it: the saved picture, the size it was saved at, or why not. */
+internal class PhotoExportRes(
+    var saved: String? = null, var savedPx: Int = 0, var wantPx: Int = 0, var error: String? = null,
+    var stopped: Boolean = false, var sidecarFailed: Boolean = false, var seq: Int = 0,
+)
+
+/**
+ * Renders and saves one photo at the chosen size. The size chosen is always the size saved: if the
+ * memory can't hold every step at that size, the heavy steps run a little smaller and the result is
+ * enlarged back. The decoded, AI-cleaned picture is kept, so a retry never runs the AI again.
+ */
+internal fun runPhotoExport(context: Context, req: PhotoExportReq): PhotoExportRes {
+    val res = PhotoExportRes()
+    ExportOpts.apply(context, req.opts)
+    PhotoExportError.last = null
+    val e = ProjectStore.gson.fromJson(req.edit, PhotoEdit::class.java)
+    val uri = Uri.parse(req.uri); val source = Uri.parse(req.source)
+    val aiMasks = HashMap<String, Bitmap>()
+    for (f in e.aiFiles()) try { BitmapFactory.decodeFile(f)?.let { aiMasks[f] = it } } catch (_: Throwable) {}
+    val meta = if (req.raw) try { RawDng.open(context, uri) } catch (_: Throwable) { null } else null
+    var cached: Bitmap? = null
+    var savedPx = 0; var wantPx = 0
+
+    fun attempt(maxPx: Int): Uri? {
+        val c = cached
+        var full: Bitmap = if (c != null) {
+            val long = maxOf(c.width, c.height)
+            if (long <= maxPx) c else { val k = maxPx.toFloat() / long; Bitmap.createScaledBitmap(c, (c.width * k).toInt().coerceAtLeast(1), (c.height * k).toInt().coerceAtLeast(1), true) }
+        } else {
+            var f = (if (meta != null) {
+                val g = e.grade
+                RawDng.export(context, meta, e.raw, g.exposure, g.highlights, g.shadows, g.whites, g.blacks, g.temperature, g.tint, maxPx)
+            } else GradeIO.decode(context, source, maxPx)) ?: return null
+            if (e.detail.aiDenoise > 0f) {
+                // Full-resolution AI noise reduction, tile by tile into a new picture (very little memory).
+                var den: Bitmap? = null
+                // Cloud AI (Topaz Denoise) when chosen in settings; otherwise / on failure the on-phone AI.
+                if (com.dronedirector.veyrocutpro.camera.CloudAi.usePhotos(context)) {
+                    try {
+                        val jpeg = java.io.ByteArrayOutputStream().also { f.compress(Bitmap.CompressFormat.JPEG, 100, it) }.toByteArray()
+                        val r = com.dronedirector.veyrocutpro.camera.CloudAi.denoisePhoto(context, jpeg)
+                        BitmapFactory.decodeByteArray(r, 0, r.size)?.let { b ->
+                            // Blend with the original at the chosen strength (drawn, not copied into arrays).
+                            val o = f.copy(Bitmap.Config.ARGB_8888, true)
+                            android.graphics.Canvas(o).drawBitmap(b, null, android.graphics.Rect(0, 0, o.width, o.height),
+                                android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG).apply { alpha = (e.detail.aiDenoise.coerceIn(0f, 1f) * 255).toInt() })
+                            b.recycle(); den = o
+                        }
+                    } catch (t: com.dronedirector.veyrocutpro.camera.CloudAi.Stopped) { throw AiDenoiser.Stopped() } catch (_: Throwable) {}
+                }
+                if (den == null) den = AiDenoiser.denoiseBitmap(context, f, e.detail.aiDenoise)
+                den?.let { f.recycle(); f = it }
+            }
+            cached = f
+            f
+        }
+        savedPx = maxOf(full.width, full.height)
+        if (wantPx == 0) wantPx = savedPx
+        val eg = if (meta != null) e.grade.rawRest() else e.grade
+        val tables = if (eg.isIdentity) null else eg.tables()
+        var out = ImageOps.renderPhoto(full, eg, e.detail, e.geometry, tables, e.lens, e.spots, e.masks, aiMasks, e.bg, e.sky, e.lensBlur, e.retouch)
+        if (full !== cached) full.recycle()
+        full = out
+        // Back to the chosen size when the steps above had to run smaller (drawn in native memory).
+        if (wantPx > savedPx) {
+            val k = wantPx.toFloat() / savedPx
+            val big = Bitmap.createBitmap((out.width * k).toInt().coerceAtLeast(1), (out.height * k).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+            android.graphics.Canvas(big).drawBitmap(out, null, android.graphics.Rect(0, 0, big.width, big.height), android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG or android.graphics.Paint.DITHER_FLAG))
+            if (out.hasAlpha()) big.setHasAlpha(true)
+            out.recycle(); out = big
+        }
+        // AI upscale (×2 / ×4, at most 50 MP).
+        if (req.aiScale > 1) {
+            val k = minOf(req.aiScale.toFloat(), kotlin.math.sqrt(50e6f / (out.width.toFloat() * out.height)))
+            if (k > 1.05f) {
+                val up = com.dronedirector.veyrocutpro.camera.Upscaler.upscaleBitmap(context, out, (out.width * k).toInt() / 2 * 2, (out.height * k).toInt() / 2 * 2)
+                    ?: throw AiDenoiser.Stopped()
+                out.recycle(); out = up
+            }
+        }
+        for (t in e.texts) out = stampLayer(context, out, t)
+        e.watermark?.let { out = stampLayer(context, out, it) }
+        // A removed background needs a format with transparency.
+        val fmt = if (e.bg.active && e.bg.mode == 2 && req.format !in listOf(1, 2, 4, 5)) 1 else req.format
+        val saved = savePhotoAs(context, out, fmt, (req.quality * 100).toInt(), if (req.keepExif) uri else null, req.stripGps)
+        out.recycle()
+        // Camera Raw (.xmp) sidecar for the original, with the closest matching settings.
+        if (saved != null && PhotoMeta.sidecar && uri != Uri.EMPTY) {
+            if (PhotoMeta.writeSidecar(context, uri, PhotoMeta.sidecarXmp(e.grade, e.detail, e.geometry, meta != null)) == null) res.sidecarFailed = true
+        }
+        return saved
+    }
+
+    var px = req.maxPx
+    try {
+        for (tryNo in 0 until 6) {
+            try { res.saved = attempt(px)?.toString(); if (res.saved == null && res.error == null) res.error = PhotoExportError.last; break }
+            catch (_: OutOfMemoryError) {
+                System.gc()
+                // Start from what the photo really is, then step down.
+                val real = if (savedPx > 0) savedPx else px.coerceAtMost(8000)
+                px = (minOf(px, real) * 0.8f).toInt()
+                res.error = "not enough memory for this size with these settings"
+                if (px < 1000) break
+            } catch (t: Throwable) {
+                if (t is AiDenoiser.Stopped || t.cause is AiDenoiser.Stopped) res.stopped = true
+                else res.error = (t.message ?: t.javaClass.simpleName).take(80)
+                break
+            }
+        }
+    } finally {
+        cached?.recycle(); aiMasks.values.forEach { it.recycle() }
+    }
+    if (res.saved != null) res.error = null
+    res.savedPx = savedPx; res.wantPx = wantPx; res.seq = ExportOpts.seq
+    return res
+}
+
 private data class ExportState(val format: Int, val quality: Float, val sizeIdx: Int)
 
 @Composable
@@ -2658,6 +2716,7 @@ private fun PhotoPanelContent(
             if (exportState.format == 6) Text(if (AvifWriter.supported) "AVIF: often half the size of JPEG at the same quality; opens on Android 12+, current browsers and most photo apps." else "AVIF needs an AV1 encoder — this phone doesn't have one (Android 14+ has it built in).", color = Pro.Dim, fontSize = 11.sp)
             if (exportState.format == 7) Text("JPEG XL: high quality at small sizes, wide colour and HDR-ready; opens in newer photo software, Safari and on Apple devices. Few Android apps can show it yet.", color = Pro.Dim, fontSize = 11.sp)
             if (exportState.format != 1 && (exportState.format < 4 || exportState.format >= 6)) EdSlider("Quality", exportState.quality, 0.6f..1f, 0.95f, ::pct) { onExportState(exportState.format, it, exportState.sizeIdx) }
+            if (exportState.format == 0) Text(if (exportState.quality >= 0.995f) "JPEG at maximum: full colour detail (4:4:4) and almost no compression — the largest, highest-quality files." else "JPEG keeps full colour detail (4:4:4). 100 % = maximum quality.", color = Pro.Dim, fontSize = 11.sp)
             SectionTitle("SIZE (LONG EDGE)")
             Chips(listOf("Full (≤4800)", "4096", "2560", "1920", "Instagram 1080", "Web 2048", "4K 3840", "Original (full resolution)"), exportState.sizeIdx) { onExportState(exportState.format, exportState.quality, it) }
             if (exportState.sizeIdx == 7) Text("The photo's own full size, as big as the sensor or file goes. Always saved at that size, however heavy the edit.", color = Pro.Dim, fontSize = 11.sp)

@@ -36,7 +36,11 @@ object AiDenoiser {
     private var model: CompiledModel? = null
     private var failed = false
 
-    fun stop() = cancel.set(true)
+    /** Set while an export runs in the export process: Stop is passed on to it. */
+    @Volatile var onStop: (() -> Unit)? = null
+    fun stop() { cancel.set(true); onStop?.invoke() }
+    /** Shows the export process's AI progress here (its own state lives in that process). */
+    fun showRemote(on: Boolean, p: Int) { running = on; progress = p }
 
     /** The model is downloaded on first launch (app data). */
     fun available(context: Context): Boolean = AppData.has(context, ASSET)

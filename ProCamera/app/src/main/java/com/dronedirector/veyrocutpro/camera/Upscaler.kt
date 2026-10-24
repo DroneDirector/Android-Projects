@@ -81,7 +81,14 @@ object Upscaler {
     private val generation = java.util.concurrent.atomic.AtomicInteger(0)
     private class Stopped : RuntimeException()
 
+    /** Set while an export runs in the export process: Stop is passed on to it. */
+    @Volatile var onStop: (() -> Unit)? = null
+    /** Shows the export process's upscaling progress here. */
+    private var remoteOn = false
+    fun showRemote(on: Boolean, p: Int) { if (on != remoteOn) { remoteOn = on; pending += if (on) 1 else -1 }; progress = p }
+
     fun cancelAll() {
+        onStop?.invoke()
         generation.incrementAndGet()
         lastNote = "AI upscaling stopped"
     }

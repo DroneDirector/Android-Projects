@@ -579,14 +579,20 @@ fun savePhotoAs(context: Context, bmp0: Bitmap, format: Int, quality: Int, exifF
                     .setQuality(quality.coerceIn(1, 100)).build()
                 w.start(); w.addBitmap(bmp); w.stop(60_000); w.close()
             }
+            0 -> {
+                // Ultra HDR (Export → OUTPUT) keeps the system encoder (the gain map lives inside its JPEG);
+                // otherwise the app's own encoder: full colour detail (4:4:4) and true maximum quality at 100 %.
+                val gm = ExportOpts.withGainmap(bmp)
+                if (gm !== bmp) tmp.outputStream().use { os -> gm.compress(Bitmap.CompressFormat.JPEG, quality, os) }
+                else writeJpegMax(bmp, tmp, quality)
+            }
             else -> tmp.outputStream().use { os ->
                 val cf = when (f) {
                     1 -> Bitmap.CompressFormat.PNG
                     2 -> if (Build.VERSION.SDK_INT >= 30) Bitmap.CompressFormat.WEBP_LOSSY else @Suppress("DEPRECATION") Bitmap.CompressFormat.WEBP
                     else -> Bitmap.CompressFormat.JPEG
                 }
-                // Ultra HDR (Export → OUTPUT): the gain map is written inside the JPEG.
-                (if (f == 0) ExportOpts.withGainmap(bmp) else bmp).compress(cf, quality, os)
+                bmp.compress(cf, quality, os)
             }
         }
         // Camera details (EXIF) for JPEG / WebP.
@@ -680,3 +686,45 @@ fun LiquifyOverlay(imgW: Int, imgH: Int, tool: Int, size: Float, strength: Float
         }
     }
 }
+
+/** Writes [bmp] with the app's own JPEG encoder ([JpegMax]), its colour space embedded. Pixels are read in native memory. */
+internal fun writeJpegMax(bmp: Bitmap, file: File, quality: Int) {
+    val w = bmp.width; val h = bmp.height
+    val src = if (bmp.config == Bitmap.Config.ARGB_8888) bmp else bmp.copy(Bitmap.Config.ARGB_8888, false)
+    // Raw RGBA bytes in the picture's own colour space (getPixels would convert to sRGB).
+    val buf = java.nio.ByteBuffer.allocateDirect(w * h * 4)
+    src.copyPixelsToBuffer(buf); buf.rewind()
+    if (src !== bmp) src.recycle()
+    val icc = if (Build.VERSION.SDK_INT >= 26) bmp.colorSpace?.takeIf { it != android.graphics.ColorSpace.get(android.graphics.ColorSpace.Named.SRGB) }?.let { iccOf(it) } else null
+    val row = ByteArray(w * 4)
+    file.outputStream().buffered(1 shl 16).use { os ->
+        JpegMax.write(os, w, h, quality, icc) { y, n, dst ->
+            for (r in 0 until n) {
+                buf.position((y + r) * w * 4); buf.get(row)
+                val o = r * w
+                for (x in 0 until w) {
+                    val i = x * 4
+                    dst[o + x] = (0xFF shl 24) or ((row[i].toInt() and 0xFF) shl 16) or ((row[i + 1].toInt() and 0xFF) shl 8) or (row[i + 2].toInt() and 0xFF)
+                }
+            }
+        }
+    }
+}
+
+/** The ICC profile Android writes for [cs]: taken from a tiny JPEG the system encodes in that colour space. */
+@androidx.annotation.RequiresApi(26)
+private fun iccOf(cs: android.graphics.ColorSpace): ByteArray? = try {
+    val t = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888, false, cs)
+    val b = java.io.ByteArrayOutputStream().also { t.compress(Bitmap.CompressFormat.JPEG, 90, it) }.toByteArray()
+    t.recycle()
+    val parts = java.util.TreeMap<Int, ByteArray>()
+    var i = 2
+    while (i + 4 <= b.size && (b[i].toInt() and 0xFF) == 0xFF) {
+        val m = b[i + 1].toInt() and 0xFF
+        if (m == 0xDA || m == 0xD9) break
+        val len = ((b[i + 2].toInt() and 0xFF) shl 8) or (b[i + 3].toInt() and 0xFF)
+        if (m == 0xE2 && len > 16 && String(b, i + 4, 11, Charsets.US_ASCII) == "ICC_PROFILE") parts[b[i + 16].toInt() and 0xFF] = b.copyOfRange(i + 18, i + 2 + len)
+        i += 2 + len
+    }
+    if (parts.isEmpty()) null else parts.values.fold(ByteArray(0)) { acc, p -> acc + p }
+} catch (_: Throwable) { null }

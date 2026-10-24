@@ -4,6 +4,9 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo export now runs in a **process of its own**, with all of its memory free for the photo (none taken by the editor, previews or Capture) — full-resolution exports with AI noise reduction no longer need to step down.
+- AI noise reduction runs **once** per export (a retry reuses the cleaned picture instead of running the AI again).
+- New **maximum-quality JPEG**: the app's own encoder keeps full colour detail (4:4:4 instead of halved colour) and at 100 % quality hardly compresses at all — true pro-size files. Colour space profiles (Display P3, Adobe RGB) are embedded. Quality now starts at 100 %.
 
 ## 1.0.513 — 2026-10-24
 - Photo export: the size you choose is now **always** the size saved, however heavy the edit. Noise reduction, clarity, texture and sharpening work through the photo in bands, so full-size photos need far less memory; if a phone still runs short, the heaviest steps run a little smaller and the photo is brought back to your exact size (the app tells you).

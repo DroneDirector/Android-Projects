@@ -93,6 +93,7 @@
    "<strong>Real-time preview</strong> while dragging sliders; the viewer shows the photo at full screen resolution (full size when zoomed in).",
    "<strong>Copy / Paste settings</strong> (choose what to paste) — also between photos and video clips.",
    "<strong>LOAD / SAVE projects</strong> next to Export; SAVE lists your saved projects to overwrite one, or save as new.",
+   "<strong>Maximum-quality JPEG</strong>: own encoder with full colour detail (4:4:4) — at 100 % hardly any compression; colour profile embedded. Exports run in their own process with all memory free for the photo.",
    "<strong>Batch export</strong>: apply the current edit to up to 50 photos at once; photo exports (single, batch and export selected) keep running in other apps or with the screen off, with a progress notification.",
    "<strong>Resizable panels</strong> (hold the divider, then drag; double-tap to reset).",
    "<strong>Panels menu</strong> (icon next to the gear): show / hide the tools panel, copy / paste bar, histogram and before / after buttons — the photo fills freed space and returns to its saved size; presets <strong>Full / View / Edit / Color</strong>; <strong>triple-tap</strong> the icon to restore the original layout. The histogram button (bar-chart icon) choice is now remembered.",

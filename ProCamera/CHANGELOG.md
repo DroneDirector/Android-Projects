@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.526 — 2026-10-24
 - **Photo catalogs**: the photo editor now keeps a catalog of every photo you edit — the photo itself (a copy), its edit and all settings, stars / flags / labels and the results of AI tools, so AI noise reduction never runs again for a photo in the catalog. Edits are saved as you work, not only when leaving. ⚙ → **Catalog**: create, open, rename and delete catalogs; choose how many photos a catalog remembers (10 or more, any number, or Unlimited — the photo opened longest ago is let go first); keep photo copies on or off (a photo still opens if the original is moved or deleted); move a catalog to the phone's private storage, shared storage or an SD card. Your existing filmstrip became the first catalog.
 - Catalog storage is **lossless only**: AI results are stored as lossless PNG (about a third of the raw size, identical pixels), and RAW / TIFF copies are packed with lossless compression when it saves space and unpacked byte-for-byte on opening. JPEG / HEIC copies are kept as they are.
 

@@ -73,6 +73,10 @@ data class SessionPhoto(
     val copyId: String? = null,
     /** AI culling's note for this photo ("Blurry", "Best of 4"…), shown on the thumbnail. */
     val cull: String? = null,
+    /** When it was last opened (the catalog lets go of the photo opened longest ago first). */
+    val opened: Long = 0L,
+    /** File name of the photo's copy in the catalog (photos/), if one was made. */
+    val copy: String? = null,
 ) {
     /** Unique in the filmstrip (a photo and its virtual copies share the uri). */
     val key: String get() = uri + (copyId?.let { "#$it" } ?: "")
@@ -87,7 +91,59 @@ object PhotoSession {
     var current by mutableStateOf(-1)
     private var loaded = false
 
-    private fun file(context: Context) = File(context.filesDir, "photo_session.json")
+    // The open catalog's photo list (see Catalogs).
+    private fun file(context: Context) = File(Catalogs.dir(context), "session.json")
+
+    /** Reads the photo list again (another catalog was opened or moved). */
+    fun reload(context: Context) {
+        loaded = false; current = -1; items.clear(); load(context)
+    }
+
+    /** Marks photo [i] as just opened. */
+    fun touch(context: Context, i: Int) {
+        if (i !in items.indices) return
+        items[i] = items[i].copy(opened = System.currentTimeMillis()); save(context)
+    }
+
+    /** The photo to open: the original, or the catalog's copy when the original can't be read any more. */
+    fun openUri(context: Context, p: SessionPhoto): Uri {
+        val u = Uri.parse(p.uri)
+        if (Catalogs.readable(context, u)) return u
+        val c = p.copy?.let { File(Catalogs.sub(context, "photos"), it) }
+        return if (c != null && c.exists()) Uri.fromFile(c) else u
+    }
+
+    /** Lets go of the photos opened longest ago while the catalog holds more than its limit. */
+    fun enforceLimit(context: Context) {
+        load(context)
+        val lim = Catalogs.limit
+        if (lim <= 0 || items.size <= lim) return
+        val cur = items.getOrNull(current)?.key
+        val drop = items.indices.filter { items[it].key != cur }.sortedBy { items[it].opened }.take(items.size - lim)
+        if (drop.isNotEmpty()) remove(context, drop)
+    }
+
+    /** Copies photos that have no copy in the catalog yet (in the background). */
+    fun copyMissing(context: Context) {
+        if (!Catalogs.keepCopies) return
+        val app = context.applicationContext
+        val todo = items.filter { it.copyId == null && it.copy == null }.map { it.uri to it.name }
+        if (todo.isEmpty()) return
+        Thread({
+            for ((u, name) in todo) try {
+                val f = Catalogs.copyFile(app, u, name)
+                if (!f.exists()) {
+                    val tmp = File(f.path + ".part")
+                    app.contentResolver.openInputStream(Uri.parse(u))?.use { inp -> tmp.outputStream().use { inp.copyTo(it, 1 shl 16) } } ?: continue
+                    tmp.renameTo(f)
+                }
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    val i = items.indexOfFirst { it.uri == u && it.copyId == null }
+                    if (i >= 0) { items[i] = items[i].copy(copy = f.name); save(app) }
+                }
+            } catch (_: Throwable) {}
+        }, "catalog-copy").start()
+    }
 
     fun load(context: Context) {
         if (loaded) return
@@ -114,11 +170,15 @@ object PhotoSession {
             val s = u.toString()
             val at = items.indexOfFirst { it.uri == s && it.copyId == null }
             if (at >= 0) { if (first < 0) first = at; continue }
-            items.add(SessionPhoto(s, displayName(context, u)))
+            items.add(SessionPhoto(s, displayName(context, u), opened = System.currentTimeMillis()))
             if (first < 0) first = items.lastIndex
         }
         save(context)
-        return first
+        // Keep the catalog within its size (the new photos count as just opened), then copy them in.
+        val keys = first.takeIf { it >= 0 }?.let { items[it].key }
+        enforceLimit(context)
+        copyMissing(context)
+        return keys?.let { k -> items.indexOfFirst { it.key == k } } ?: -1
     }
 
     /** A virtual copy of [uri]: same photo, its own edit (starting from the original's edit). Returns its index. */
@@ -147,8 +207,14 @@ object PhotoSession {
     fun remove(context: Context, idx: Collection<Int>) {
         val keep = items.filterIndexed { i, _ -> i !in idx }
         val cur = items.getOrNull(current)
-        // The hidden per-photo edits go too.
+        // The hidden per-photo edits go too, and — once no copy of the photo is left — its catalog copy and AI results.
         idx.mapNotNull { items.getOrNull(it)?.projectId }.forEach { ProjectStore.delete(context, false, it) }
+        val gone = idx.mapNotNull { items.getOrNull(it) }.map { it.uri }.toSet().filter { u -> keep.none { it.uri == u } }
+        for (u in gone) try {
+            val id = Catalogs.photoId(u)
+            Catalogs.sub(context, "photos").listFiles()?.filter { it.name.startsWith(id) }?.forEach { it.delete() }
+            Catalogs.sub(context, "ai").listFiles()?.filter { it.name.startsWith(id + "_") }?.forEach { it.delete() }
+        } catch (_: Throwable) {}
         items.clear(); items.addAll(keep)
         current = cur?.let { c -> items.indexOfFirst { it.key == c.key } } ?: -1
         save(context)
@@ -190,7 +256,7 @@ object PhotoSession {
 
     private fun make(context: Context, p: SessionPhoto): Bitmap? {
         p.projectId?.let { id -> ProjectStore.thumbFile(context, id)?.let { f -> BitmapFactory.decodeFile(f.path)?.let { return it } } }
-        val u = Uri.parse(p.uri)
+        val u = openUri(context, p)
         return try {
             (if (RawDng.isRaw(context, u)) RawDng.embedded(context, u, 240)?.let { e -> small(PhotoViewer.matched(context, e), 320) } else null)
                 ?: com.dronedirector.veyrocutpro.camera.GradeIO.decode(context, u, 240)

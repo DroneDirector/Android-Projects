@@ -115,12 +115,12 @@ object ProjectStore {
         }
     }
 
-    private fun saveThumb(context: Context, video: Boolean, id: String, bmp: Bitmap?) {
+    private fun saveThumb(context: Context, video: Boolean, id: String, bmp: Bitmap?, into: File? = null) {
         bmp ?: return
         try {
             val s = 320f / maxOf(bmp.width, bmp.height)
             val t = if (s < 1f) Bitmap.createScaledBitmap(bmp, (bmp.width * s).toInt().coerceAtLeast(1), (bmp.height * s).toInt().coerceAtLeast(1), true) else bmp
-            File(dir(context, video), "$id.jpg").outputStream().use { t.compress(Bitmap.CompressFormat.JPEG, 85, it) }
+            File(into ?: dir(context, video), "$id.jpg").outputStream().use { t.compress(Bitmap.CompressFormat.JPEG, 85, it) }
         } catch (_: Throwable) {}
     }
 
@@ -137,8 +137,10 @@ object ProjectStore {
     fun savePhoto(context: Context, p: PhotoProjectData, thumb: Bitmap?): PhotoProjectData {
         val out = p.copy(savedAt = System.currentTimeMillis())
         keepAccess(context, listOf(out.uri, out.watermark?.imageUri))
-        File(dir(context, false), "${out.id}.json").writeText(gson.toJson(out))
-        saveThumb(context, false, out.id, thumb)
+        // A filmstrip photo's edit lives in the open catalog; named projects in the project list.
+        val d = if (out.session == true) Catalogs.sub(context, "projects") else dir(context, false)
+        File(d, "${out.id}.json").writeText(gson.toJson(out))
+        saveThumb(context, false, out.id, thumb, d)
         return out
     }
 
@@ -220,8 +222,12 @@ object ProjectStore {
         p
     } catch (_: Throwable) { null }
 
+    /** A photo edit's file: in the open catalog, else in the project list. */
+    private fun photoFile(context: Context, id: String, ext: String): File =
+        File(Catalogs.sub(context, "projects"), "$id.$ext").takeIf { it.exists() } ?: File(dir(context, false), "$id.$ext")
+
     fun loadPhoto(context: Context, id: String): PhotoProjectData? = try {
-        val p = gson.fromJson(File(dir(context, false), "$id.json").readText(), PhotoProjectData::class.java)
+        val p = gson.fromJson(photoFile(context, id, "json").readText(), PhotoProjectData::class.java)
         Defaults.fix(p, PhotoProjectData())
         p.watermark?.let { Defaults.fix(it, Layer()) }
         p
@@ -245,11 +251,12 @@ object ProjectStore {
     }
 
     /** A photo project's thumbnail, if one was saved. */
-    fun thumbFile(context: Context, id: String): File? = File(dir(context, false), "$id.jpg").takeIf { it.exists() }
+    fun thumbFile(context: Context, id: String): File? = photoFile(context, id, "jpg").takeIf { it.exists() }
 
     fun delete(context: Context, video: Boolean, id: String) {
         File(dir(context, video), "$id.json").delete()
         File(dir(context, video), "$id.jpg").delete()
+        if (!video) { File(Catalogs.sub(context, "projects"), "$id.json").delete(); File(Catalogs.sub(context, "projects"), "$id.jpg").delete() }
     }
 }
 

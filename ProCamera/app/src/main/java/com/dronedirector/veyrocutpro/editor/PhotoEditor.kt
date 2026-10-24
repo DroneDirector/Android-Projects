@@ -148,9 +148,14 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
     fun openSession(i: Int) {
         val sp = PhotoSession.items.getOrNull(i) ?: return
         PhotoSession.current = i
+        PhotoSession.touch(context, i)
         project = sp.projectId?.let { ProjectStore.loadPhoto(context, it) }
-        source = Uri.parse(sp.uri)
+        // The original, or the catalog's copy if the original was moved or deleted.
+        source = PhotoSession.openUri(context, sp)
     }
+    // Another catalog was opened: back to the start page (its photos are in the filmstrip).
+    var seenCatalog by remember { mutableStateOf(Catalogs.version) }
+    LaunchedEffect(Catalogs.version) { if (Catalogs.version != seenCatalog) { seenCatalog = Catalogs.version; source = null; project = null } }
     fun addMany(list: List<Uri>) {
         if (list.isEmpty()) return
         val first = PhotoSession.add(context, list)
@@ -647,7 +652,11 @@ private fun PhotoWorkspace(
     val sizes = listOf(4800, 4096, 2560, 1920, 1080, 2048, 3840, 30000)
 
     // ---- Filmstrip: this photo's edit is kept automatically before switching or leaving.
-    val sessionIdx = PhotoSession.current.takeIf { i -> PhotoSession.items.getOrNull(i)?.uri == uri.toString() } ?: -1
+    val sessionIdx = PhotoSession.current.takeIf { i ->
+        PhotoSession.items.getOrNull(i)?.let { sp -> sp.uri == uri.toString() || (uri.scheme == "file" && sp.copy != null && uri.path?.endsWith("/" + sp.copy) == true) } == true
+    } ?: -1
+    /** The photo as the catalog knows it (its original uri, even when the catalog's copy is open). */
+    val ownerUri = PhotoSession.items.getOrNull(sessionIdx)?.uri ?: uri.toString()
     fun sessionSave() {
         val sp = PhotoSession.items.getOrNull(sessionIdx) ?: return
         val changed = undo.size > 1 || sp.edited
@@ -665,6 +674,12 @@ private fun PhotoWorkspace(
         } catch (_: Throwable) {}
     }
     fun switchTo(i: Int) { if (busy) return; sessionSave(); onOpenSession(i) }
+    // The edit is kept in the catalog as you work (a moment after each change), not only when leaving.
+    LaunchedEffect(edit) { delay(2500); sessionSave() }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        Catalogs.beforeSwitch = { sessionSave() }
+        onDispose { Catalogs.beforeSwitch = null }
+    }
     fun closeEditor() { sessionSave(); onClose() }
 
     BackHandler { if (!busy) closeEditor() }
@@ -874,7 +889,7 @@ private fun PhotoWorkspace(
     LaunchedEffect(base, aiOn, loaded) {
         val b = base ?: return@LaunchedEffect
         if (!aiOn || aiBase != null || !loaded) return@LaunchedEffect
-        val pk = edit.aiPreviewKey(sourceUri(edit).toString(), rawOn(edit), b.width, b.height)
+        val pk = edit.aiPreviewKey(ownerUri, sourceUri(edit).toString(), rawOn(edit), b.width, b.height)
         withContext(Dispatchers.IO) { AiDenoiseCache.load(context, pk) }?.let { aiBase = it; return@LaunchedEffect }
         val res = withContext(Dispatchers.IO) {
             try {
@@ -890,7 +905,7 @@ private fun PhotoWorkspace(
     }
     // The same AI at full size, once, in the background while you edit: kept, and used by the export
     // (so exporting never runs the AI again). Redone only when what goes into it changes (RAW develop).
-    val aiKey = if (aiOn && loaded && !com.dronedirector.veyrocutpro.camera.CloudAi.usePhotos(context)) edit.aiKey(sourceUri(edit).toString(), rawOn(edit)) else null
+    val aiKey = if (aiOn && loaded && !com.dronedirector.veyrocutpro.camera.CloudAi.usePhotos(context)) edit.aiKey(ownerUri, sourceUri(edit).toString(), rawOn(edit)) else null
     LaunchedEffect(aiKey) {
         val k = aiKey ?: return@LaunchedEffect
         if (AiDenoiseCache.has(context, k)) return@LaunchedEffect
@@ -1008,9 +1023,9 @@ private fun PhotoWorkspace(
         PhotoExportJob.scope.launch {
             // The export runs in its own process (all of its memory free for the photo); see PhotoExportProcess.
             // AI noise reduction made while editing: let it finish, then the export simply uses it.
-            if (e.detail.aiDenoise > 0f) AiDenoiseCache.await(e.aiKey(sourceUri(e).toString(), rawOn(e)))
+            if (e.detail.aiDenoise > 0f) AiDenoiseCache.await(e.aiKey(ownerUri, sourceUri(e).toString(), rawOn(e)))
             val req = PhotoExportReq(
-                edit = ProjectStore.gson.toJson(e), uri = uri.toString(), source = sourceUri(e).toString(), raw = rawOn(e),
+                edit = ProjectStore.gson.toJson(e), uri = uri.toString(), owner = ownerUri, source = sourceUri(e).toString(), raw = rawOn(e),
                 maxPx = sizes[sizeIdx], aiScale = aiScale, format = format, quality = quality, keepExif = keepExif, stripGps = stripGps,
                 opts = ExportOpts.snapshot(),
             )
@@ -2240,17 +2255,18 @@ internal object PhotoExportJob {
 }
 
 /** The preview's AI noise reduction: the photo, its RAW develop and the preview size. */
-private fun PhotoEdit.aiPreviewKey(source: String, raw: Boolean, w: Int, h: Int): String {
+private fun PhotoEdit.aiPreviewKey(owner: String, source: String, raw: Boolean, w: Int, h: Int): String {
     val k = "pv|$source|${baseFile ?: ""}|$w|$h|" + (if (raw) ProjectStore.gson.toJson(this.raw) else "")
-    return java.security.MessageDigest.getInstance("SHA-1").digest(k.toByteArray()).joinToString("") { "%02x".format(it) }
+    return Catalogs.photoId(owner) + "_" + java.security.MessageDigest.getInstance("SHA-1").digest(k.toByteArray()).joinToString("") { "%02x".format(it) }
 }
 
 /** What the AI noise reduction works on: the photo (and, for RAW, its develop and tonal sliders). */
-private fun PhotoEdit.aiKey(source: String, raw: Boolean): String {
+private fun PhotoEdit.aiKey(owner: String, source: String, raw: Boolean): String {
     val g = grade
     val k = if (raw) "$source|raw|${ProjectStore.gson.toJson(this.raw)}|${g.exposure}|${g.highlights}|${g.shadows}|${g.whites}|${g.blacks}|${g.temperature}|${g.tint}"
     else "$source|${baseFile ?: ""}"
-    return java.security.MessageDigest.getInstance("SHA-1").digest(k.toByteArray()).joinToString("") { "%02x".format(it) }
+    // Named after the photo, so the catalog can let go of a photo's AI results together with the photo.
+    return Catalogs.photoId(owner) + "_" + java.security.MessageDigest.getInstance("SHA-1").digest(k.toByteArray()).joinToString("") { "%02x".format(it) }
 }
 
 /**
@@ -2260,8 +2276,8 @@ private fun PhotoEdit.aiKey(source: String, raw: Boolean): String {
 internal object AiDenoiseCache {
     private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
     private val jobs = HashMap<String, kotlinx.coroutines.Job>()
-    // In the app's own storage (not the cache Android may clear), so results survive restarts.
-    private fun dir(c: Context) = java.io.File(c.filesDir, "ai_denoise").apply { mkdirs() }
+    // In the open catalog, with the photo (see Catalogs), so results are kept as long as the photo is.
+    private fun dir(c: Context) = Catalogs.sub(c, "ai")
     private fun file(c: Context, key: String) = java.io.File(dir(c), "$key.px")
     /** Why the full-size pass is running (shown in the AI progress badge); null when it isn't. */
     var note by mutableStateOf<String?>(null)
@@ -2308,11 +2324,13 @@ internal object AiDenoiseCache {
             r.setLength(0); r.writeInt(b.width); r.writeInt(b.height); r.channel.write(buf)
         }
         tmp.renameTo(f)
-        // Keep the newest results only (a full-size one is large): 6 full-size, 30 previews.
-        val all = dir(c).listFiles()?.filter { it.name.endsWith(".px") }?.sortedByDescending { it.lastModified() }.orEmpty()
-        all.filter { it.length() > 40L * 1024 * 1024 }.drop(6).forEach { it.delete() }
-        all.filter { it.length() <= 40L * 1024 * 1024 }.drop(30).forEach { it.delete() }
-        try { java.io.File(c.cacheDir, "ai_denoise").deleteRecursively() } catch (_: Throwable) {}
+        // Results of photos that aren't in the catalog (e.g. opened from a named project) are kept for 30 days of not being used.
+        try {
+            val ids = PhotoSession.items.map { Catalogs.photoId(it.uri) }.toSet()
+            val old = System.currentTimeMillis() - 30L * 24 * 3600 * 1000
+            dir(c).listFiles()?.filter { it.name.endsWith(".px") && it.name.substringBefore('_') !in ids && it.lastModified() < old }?.forEach { it.delete() }
+            java.io.File(c.cacheDir, "ai_denoise").deleteRecursively()
+        } catch (_: Throwable) {}
     }
 
     fun load(c: Context, key: String): Bitmap? = try {
@@ -2329,7 +2347,7 @@ internal object AiDenoiseCache {
 
 /** One photo export, handed to the export process as JSON. */
 internal class PhotoExportReq(
-    val edit: String, val uri: String, val source: String, val raw: Boolean, val maxPx: Int, val aiScale: Int,
+    val edit: String, val uri: String, val owner: String, val source: String, val raw: Boolean, val maxPx: Int, val aiScale: Int,
     val format: Int, val quality: Float, val keepExif: Boolean, val stripGps: Boolean, val opts: ExportOpts.Snapshot,
 )
 
@@ -2366,7 +2384,7 @@ internal fun runPhotoExport(context: Context, req: PhotoExportReq): PhotoExportR
                 val g = e.grade
                 RawDng.export(context, meta, e.raw, g.exposure, g.highlights, g.shadows, g.whites, g.blacks, g.temperature, g.tint, maxPx)
             } else GradeIO.decode(context, source, maxPx)) ?: return null
-            val ready = if (e.detail.aiDenoise > 0f) AiDenoiseCache.load(context, e.aiKey(req.source, req.raw)) else null
+            val ready = if (e.detail.aiDenoise > 0f) AiDenoiseCache.load(context, e.aiKey(req.owner, req.source, req.raw)) else null
             if (ready != null) {
                 // Already cleaned while editing: blend it in at the chosen strength — the AI doesn't run again.
                 val o = f.copy(Bitmap.Config.ARGB_8888, true)

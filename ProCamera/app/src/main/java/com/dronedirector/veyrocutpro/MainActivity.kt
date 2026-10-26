@@ -153,6 +153,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             ProCamTheme {
                 com.dronedirector.veyrocutpro.ui.CrashReportDialog()
+                com.dronedirector.veyrocutpro.ui.AppExitLayer {
                 com.dronedirector.veyrocutpro.ui.MousePointerHost {
                 val current = screen.value
                 androidx.compose.animation.Crossfade(current, label = "screen") { s ->
@@ -186,6 +187,9 @@ class MainActivity : ComponentActivity() {
                 com.dronedirector.veyrocutpro.ui.CaptureForEditorHost(controller) { content -> PermissionGate(content) }
                 // First launch: AI models and soundtracks are downloaded once (not inside the APK).
                 com.dronedirector.veyrocutpro.ui.FirstRunGate()
+                // Capture's keyboard shortcuts (Ctrl + / or Settings → Keyboard shortcuts).
+                if (com.dronedirector.veyrocutpro.camera.CaptureKeys.show) com.dronedirector.veyrocutpro.editor.ShortcutsDialog(com.dronedirector.veyrocutpro.editor.CaptureShortcuts) { com.dronedirector.veyrocutpro.camera.CaptureKeys.show = false }
+                }
                 }
             }
         }
@@ -258,6 +262,8 @@ class MainActivity : ComponentActivity() {
         if (screen.value != com.dronedirector.veyrocutpro.ui.AppScreen.CAPTURE && com.dronedirector.veyrocutpro.editor.KeyBus.dispatch(event)) return true
         if (!::controller.isInitialized || screen.value != com.dronedirector.veyrocutpro.ui.AppScreen.CAPTURE) return super.onKeyDown(keyCode, event)
         val volume = keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP
+        // Keyboard shortcuts in Capture (changeable).
+        if (!volume && keyCode != KeyEvent.KEYCODE_CAMERA && com.dronedirector.veyrocutpro.camera.CaptureKeys.run(this, controller, event)) return true
         val liveMode = controller.state.value.mode == CaptureMode.LIVE
         // The side (volume) buttons: shutter / record, zoom, or just volume (Settings → Side buttons).
         val side = com.dronedirector.veyrocutpro.camera.SideKeys.get(this)

@@ -77,18 +77,68 @@ data class KeyCombo(val code: Int, val ctrl: Boolean = false, val shift: Boolean
     }
 }
 
+/** One keyboard action: its id, what it's called, its group and its standard keys. */
+class KeyAction(val id: String, val label: String, val group: String, vararg val defaults: KeyCombo)
+
+private fun k(code: Int, ctrl: Boolean = false, shift: Boolean = false, alt: Boolean = false) = KeyCombo(code, ctrl, shift, alt)
+
 /**
- * Keyboard shortcuts in the video editor (Bluetooth / USB keyboard): a list of actions with
- * sensible default keys, each changeable (keyboard icon in the top bar). Own code.
+ * Keyboard shortcuts (Bluetooth / USB keyboard) for one part of the app: a list of actions with
+ * sensible standard keys, each changeable (keyboard icon). Own code.
  */
-object Shortcuts {
-    private const val PREFS = "procam_keys"
+class ShortcutSet(private val prefs: String, val title: String, val ALL: List<KeyAction>) {
+    /** Current keys per action (changes are kept). */
+    private val keys = HashMap<String, List<KeyCombo>>()
+    var version by mutableIntStateOf(0)
+        private set
+    private var loaded = false
 
-    class Action(val id: String, val label: String, val group: String, vararg val defaults: KeyCombo)
+    fun load(c: Context) {
+        if (loaded) return
+        loaded = true
+        val p = c.getSharedPreferences(prefs, Context.MODE_PRIVATE)
+        for (a in ALL) {
+            val s = p.getString(a.id, null)
+            keys[a.id] = if (s == null) a.defaults.toList() else s.split(',').mapNotNull { KeyCombo.load(it) }
+        }
+        version++
+    }
 
-    private fun k(code: Int, ctrl: Boolean = false, shift: Boolean = false, alt: Boolean = false) = KeyCombo(code, ctrl, shift, alt)
+    fun keysOf(id: String): List<KeyCombo> = keys[id] ?: ALL.firstOrNull { it.id == id }?.defaults?.toList().orEmpty()
 
-    val ALL: List<Action> = listOf(
+    /** The action [e] runs, if any. */
+    fun actionFor(e: KeyEvent): String? {
+        val k = KeyCombo.of(e)
+        return ALL.firstOrNull { a -> keysOf(a.id).any { it == k } }?.id
+    }
+
+    fun owner(k: KeyCombo): KeyAction? = ALL.firstOrNull { a -> keysOf(a.id).any { it == k } }
+
+    private fun store(c: Context, id: String, l: List<KeyCombo>) {
+        keys[id] = l
+        c.getSharedPreferences(prefs, Context.MODE_PRIVATE).edit().putString(id, l.joinToString(",") { it.save() }).apply()
+        version++
+    }
+
+    /** Gives [k] to [id] (taking it away from any other action). [replace] = it becomes the only key. */
+    fun assign(c: Context, id: String, k: KeyCombo, replace: Boolean) {
+        owner(k)?.takeIf { it.id != id }?.let { o -> store(c, o.id, keysOf(o.id).filter { it != k }) }
+        store(c, id, if (replace) listOf(k) else (keysOf(id) + k).distinct())
+    }
+
+    fun clear(c: Context, id: String, k: KeyCombo) = store(c, id, keysOf(id).filter { it != k })
+
+    fun resetAll(c: Context) {
+        c.getSharedPreferences(prefs, Context.MODE_PRIVATE).edit().clear().apply()
+        for (a in ALL) keys[a.id] = a.defaults.toList()
+        version++
+    }
+}
+
+private typealias Action = KeyAction
+
+/** The video editor's shortcuts. */
+val Shortcuts = ShortcutSet("procam_keys", "Video editor", listOf(
         // Playback
         Action("play", "Play / pause", "Playback", k(KeyEvent.KEYCODE_SPACE), k(KeyEvent.KEYCODE_K)),
         Action("back5", "Back 5 seconds", "Playback", k(KeyEvent.KEYCODE_J)),
@@ -154,62 +204,88 @@ object Shortcuts {
         Action("projectsettings", "Project settings", "File", k(KeyEvent.KEYCODE_P, ctrl = true, shift = true)),
         Action("settings", "Settings", "File", k(KeyEvent.KEYCODE_COMMA, ctrl = true)),
         Action("shortcuts", "Keyboard shortcuts", "File", k(KeyEvent.KEYCODE_SLASH, ctrl = true)),
-    )
+    ))
 
-    /** Current keys per action (changes are kept). */
-    private val keys = HashMap<String, List<KeyCombo>>()
-    var version by mutableIntStateOf(0)
-        private set
-    private var loaded = false
+/** The photo editor's shortcuts. */
+val PhotoShortcuts = ShortcutSet("procam_keys_photo", "Photo editor", listOf(
+    Action("undo", "Undo", "Editing", k(KeyEvent.KEYCODE_Z, ctrl = true)),
+    Action("redo", "Redo", "Editing", k(KeyEvent.KEYCODE_Z, ctrl = true, shift = true), k(KeyEvent.KEYCODE_Y, ctrl = true)),
+    Action("copy", "Copy settings", "Editing", k(KeyEvent.KEYCODE_C, ctrl = true)),
+    Action("paste", "Paste the look", "Editing", k(KeyEvent.KEYCODE_V, ctrl = true)),
+    Action("pasteall", "Paste all settings", "Editing", k(KeyEvent.KEYCODE_V, ctrl = true, shift = true)),
+    Action("split", "Before / after", "View", k(KeyEvent.KEYCODE_BACKSLASH), k(KeyEvent.KEYCODE_Y)),
+    Action("zoom", "Zoom in / out", "View", k(KeyEvent.KEYCODE_Z)),
+    Action("resetview", "Whole photo again", "View", k(KeyEvent.KEYCODE_ESCAPE)),
+    Action("controls", "Show / hide the tools", "View", k(KeyEvent.KEYCODE_TAB)),
+    Action("reference", "Reference photo", "View", k(KeyEvent.KEYCODE_R, shift = true)),
+    Action("clipping", "Clipping warning", "View", k(KeyEvent.KEYCODE_J)),
+    Action("prev", "Previous photo", "Filmstrip", k(KeyEvent.KEYCODE_DPAD_LEFT), k(KeyEvent.KEYCODE_PAGE_UP)),
+    Action("next", "Next photo", "Filmstrip", k(KeyEvent.KEYCODE_DPAD_RIGHT), k(KeyEvent.KEYCODE_PAGE_DOWN)),
+    Action("first", "First photo", "Filmstrip", k(KeyEvent.KEYCODE_MOVE_HOME)),
+    Action("last", "Last photo", "Filmstrip", k(KeyEvent.KEYCODE_MOVE_END)),
+    Action("rate0", "No stars", "Rating", k(KeyEvent.KEYCODE_0)),
+    Action("rate1", "1 star", "Rating", k(KeyEvent.KEYCODE_1)),
+    Action("rate2", "2 stars", "Rating", k(KeyEvent.KEYCODE_2)),
+    Action("rate3", "3 stars", "Rating", k(KeyEvent.KEYCODE_3)),
+    Action("rate4", "4 stars", "Rating", k(KeyEvent.KEYCODE_4)),
+    Action("rate5", "5 stars", "Rating", k(KeyEvent.KEYCODE_5)),
+    Action("red", "Red label", "Rating", k(KeyEvent.KEYCODE_6)),
+    Action("yellow", "Yellow label", "Rating", k(KeyEvent.KEYCODE_7)),
+    Action("green", "Green label", "Rating", k(KeyEvent.KEYCODE_8)),
+    Action("blue", "Blue label", "Rating", k(KeyEvent.KEYCODE_9)),
+    Action("pick", "Pick", "Rating", k(KeyEvent.KEYCODE_P)),
+    Action("reject", "Reject", "Rating", k(KeyEvent.KEYCODE_X)),
+    Action("unflag", "Remove flag", "Rating", k(KeyEvent.KEYCODE_U)),
+    Action("crop", "Crop & perspective", "Panels", k(KeyEvent.KEYCODE_R)),
+    Action("heal", "Heal", "Panels", k(KeyEvent.KEYCODE_Q)),
+    Action("masks", "Masks", "Panels", k(KeyEvent.KEYCODE_M)),
+    Action("light", "Light", "Panels", k(KeyEvent.KEYCODE_L)),
+    Action("color", "Colour", "Panels", k(KeyEvent.KEYCODE_C)),
+    Action("detail", "Detail", "Panels", k(KeyEvent.KEYCODE_D)),
+    Action("exportpanel", "Export panel", "Panels", k(KeyEvent.KEYCODE_E)),
+    Action("history", "History", "Panels", k(KeyEvent.KEYCODE_H)),
+    Action("filemenu", "File menu", "File", k(KeyEvent.KEYCODE_F, alt = true)),
+    Action("open", "Open project", "File", k(KeyEvent.KEYCODE_O, ctrl = true)),
+    Action("save", "Save project changes", "File", k(KeyEvent.KEYCODE_S, ctrl = true)),
+    Action("saveas", "Save as", "File", k(KeyEvent.KEYCODE_S, ctrl = true, shift = true)),
+    Action("import", "Import photos", "File", k(KeyEvent.KEYCODE_I, ctrl = true)),
+    Action("capture", "Capture", "File", k(KeyEvent.KEYCODE_C, ctrl = true, shift = true)),
+    Action("export", "Export", "File", k(KeyEvent.KEYCODE_E, ctrl = true)),
+    Action("settings", "Settings", "File", k(KeyEvent.KEYCODE_COMMA, ctrl = true)),
+    Action("shortcuts", "Keyboard shortcuts", "File", k(KeyEvent.KEYCODE_SLASH, ctrl = true), k(KeyEvent.KEYCODE_SLASH), k(KeyEvent.KEYCODE_F1)),
+))
 
-    fun load(c: Context) {
-        if (loaded) return
-        loaded = true
-        val p = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        for (a in ALL) {
-            val s = p.getString(a.id, null)
-            keys[a.id] = if (s == null) a.defaults.toList() else s.split(',').mapNotNull { KeyCombo.load(it) }
-        }
-        version++
-    }
-
-    fun keysOf(id: String): List<KeyCombo> = keys[id] ?: ALL.firstOrNull { it.id == id }?.defaults?.toList().orEmpty()
-
-    /** The action [e] runs, if any. */
-    fun actionFor(e: KeyEvent): String? {
-        val k = KeyCombo.of(e)
-        return ALL.firstOrNull { a -> keysOf(a.id).any { it == k } }?.id
-    }
-
-    fun owner(k: KeyCombo): Action? = ALL.firstOrNull { a -> keysOf(a.id).any { it == k } }
-
-    private fun store(c: Context, id: String, l: List<KeyCombo>) {
-        keys[id] = l
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(id, l.joinToString(",") { it.save() }).apply()
-        version++
-    }
-
-    /** Gives [k] to [id] (taking it away from any other action). [replace] = it becomes the only key. */
-    fun assign(c: Context, id: String, k: KeyCombo, replace: Boolean) {
-        owner(k)?.takeIf { it.id != id }?.let { o -> store(c, o.id, keysOf(o.id).filter { it != k }) }
-        store(c, id, if (replace) listOf(k) else (keysOf(id) + k).distinct())
-    }
-
-    fun clear(c: Context, id: String, k: KeyCombo) = store(c, id, keysOf(id).filter { it != k })
-
-    fun resetAll(c: Context) {
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply()
-        for (a in ALL) keys[a.id] = a.defaults.toList()
-        version++
-    }
-}
+/** Capture's shortcuts. */
+val CaptureShortcuts = ShortcutSet("procam_keys_capture", "Capture", listOf(
+    Action("shutter", "Take photo / start or stop recording", "Shooting", k(KeyEvent.KEYCODE_SPACE), k(KeyEvent.KEYCODE_ENTER)),
+    Action("zoomin", "Zoom in", "Shooting", k(KeyEvent.KEYCODE_EQUALS), k(KeyEvent.KEYCODE_PLUS)),
+    Action("zoomout", "Zoom out", "Shooting", k(KeyEvent.KEYCODE_MINUS)),
+    Action("zoom1", "Zoom 1×", "Shooting", k(KeyEvent.KEYCODE_0)),
+    Action("evup", "Exposure up", "Shooting", k(KeyEvent.KEYCODE_RIGHT_BRACKET)),
+    Action("evdown", "Exposure down", "Shooting", k(KeyEvent.KEYCODE_LEFT_BRACKET)),
+    Action("aelock", "Exposure lock", "Shooting", k(KeyEvent.KEYCODE_L)),
+    Action("awblock", "White balance lock", "Shooting", k(KeyEvent.KEYCODE_W)),
+    Action("autofocus", "Back to autofocus", "Shooting", k(KeyEvent.KEYCODE_A)),
+    Action("flip", "Front / back camera", "Shooting", k(KeyEvent.KEYCODE_C)),
+    Action("flash", "Flash", "Shooting", k(KeyEvent.KEYCODE_F)),
+    Action("timer", "Self-timer", "Shooting", k(KeyEvent.KEYCODE_T)),
+    Action("nextmode", "Next mode", "Modes", k(KeyEvent.KEYCODE_TAB)),
+    Action("prevmode", "Previous mode", "Modes", k(KeyEvent.KEYCODE_TAB, shift = true)),
+    Action("grid", "Grid", "View", k(KeyEvent.KEYCODE_G)),
+    Action("level", "Level", "View", k(KeyEvent.KEYCODE_V)),
+    Action("histogram", "Histogram", "View", k(KeyEvent.KEYCODE_H)),
+    Action("zebras", "Zebras", "View", k(KeyEvent.KEYCODE_Z)),
+    Action("peaking", "Focus peaking", "View", k(KeyEvent.KEYCODE_K)),
+    Action("falsecolor", "False colour", "View", k(KeyEvent.KEYCODE_F, shift = true)),
+    Action("shortcuts", "Keyboard shortcuts", "View", k(KeyEvent.KEYCODE_SLASH, ctrl = true)),
+))
 
 /** Keyboard icon: every shortcut, changeable — tap one and press the new key. */
 @Composable
-fun ShortcutsDialog(onDismiss: () -> Unit) {
+fun ShortcutsDialog(set: ShortcutSet = Shortcuts, onDismiss: () -> Unit) {
     val context = LocalContext.current
-    Shortcuts.load(context)
-    val v = Shortcuts.version
+    set.load(context)
+    val v = set.version
     // Waiting for a key: the action, and whether the key replaces its keys or is added.
     var waiting by remember { mutableStateOf<Pair<String, Boolean>?>(null) }
     var note by remember { mutableStateOf<String?>(null) }
@@ -220,8 +296,8 @@ fun ShortcutsDialog(onDismiss: () -> Unit) {
         if (e.action != KeyEvent.ACTION_DOWN || KeyCombo.isModifier(e.keyCode)) return true
         if (e.keyCode == KeyEvent.KEYCODE_ESCAPE && !e.isShiftPressed && !e.isCtrlPressed) { waiting = null; return true }
         val k = KeyCombo.of(e)
-        val before = Shortcuts.owner(k)?.takeIf { it.id != w.first }
-        Shortcuts.assign(context, w.first, k, w.second)
+        val before = set.owner(k)?.takeIf { it.id != w.first }
+        set.assign(context, w.first, k, w.second)
         note = if (before != null) "${k.text()} was used for \"${before.label}\" — moved here" else null
         waiting = null
         return true
@@ -235,7 +311,7 @@ fun ShortcutsDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Pro.PanelSolid,
-        title = { Text("Keyboard shortcuts", color = Color.White) },
+        title = { Text("Keyboard shortcuts · " + set.title, color = Color.White) },
         text = {
             Column(
                 Modifier.heightIn(max = 520.dp)
@@ -250,7 +326,7 @@ fun ShortcutsDialog(onDismiss: () -> Unit) {
                 )
                 note?.let { Text(it, color = Pro.Amber, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp)) }
                 var group = ""
-                for (a in Shortcuts.ALL) {
+                for (a in set.ALL) {
                     if (a.group != group) {
                         group = a.group
                         Text(group.uppercase(), style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 12.dp, bottom = 2.dp))
@@ -267,14 +343,14 @@ fun ShortcutsDialog(onDismiss: () -> Unit) {
                         else {
                             v.let { }
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                val ks = Shortcuts.keysOf(a.id)
+                                val ks = set.keysOf(a.id)
                                 if (ks.isEmpty()) Text("—", color = Pro.Dim, fontSize = 12.sp)
                                 for (k in ks) Row(
                                     Modifier.clip(RoundedCornerShape(5.dp)).background(Color.Black.copy(alpha = 0.4f)).padding(start = 6.dp, end = 2.dp, top = 2.dp, bottom = 2.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Text(k.text(), color = Color.White, fontSize = 11.sp)
-                                    Box(Modifier.size(18.dp).clip(RoundedCornerShape(50)).clickable { Shortcuts.clear(context, a.id, k) }, contentAlignment = Alignment.Center) {
+                                    Box(Modifier.size(18.dp).clip(RoundedCornerShape(50)).clickable { set.clear(context, a.id, k) }, contentAlignment = Alignment.Center) {
                                         Icon(Icons.Filled.Close, "Remove key", tint = Pro.Dim, modifier = Modifier.size(12.dp))
                                     }
                                 }
@@ -288,6 +364,6 @@ fun ShortcutsDialog(onDismiss: () -> Unit) {
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Done", color = Pro.Amber) } },
-        dismissButton = { TextButton(onClick = { Shortcuts.resetAll(context); note = "Back to the standard keys" }) { Text("Reset all", color = Pro.Dim) } },
+        dismissButton = { TextButton(onClick = { set.resetAll(context); note = "Back to the standard keys" }) { Text("Reset all", color = Pro.Dim) } },
     )
 }

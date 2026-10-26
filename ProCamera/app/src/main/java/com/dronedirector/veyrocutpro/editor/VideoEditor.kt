@@ -136,6 +136,9 @@ import com.dronedirector.veyrocutpro.camera.GradeIO
 import com.dronedirector.veyrocutpro.ui.Pro
 import com.dronedirector.veyrocutpro.ui.hintedScroll
 import com.dronedirector.veyrocutpro.ui.pinchAndMove
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -227,7 +230,8 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
             open = { p, t, disk -> if (p != null) { clips.clear(); clips.addAll(p.clips) }; openInEditor(p, t, disk) },
             switchTo = { k -> stash(); host.open.firstOrNull { it.key == k }?.let { show(it) } },
             close = { k -> closeKey(k) },
-            exitApp = { releaseAll(); ProjectStore.clearAutosave(context); exiting = true },
+            exitApp = { releaseAll(); ProjectStore.clearAutosave(context); com.dronedirector.veyrocutpro.ui.AppExit.exiting = true },
+            reopen = { op -> show(op); host.reload++ },
         )
     }
     // Team projects: the "who has it open" note is kept fresh while they're open.
@@ -357,17 +361,18 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
                 onLoad = { id ->
                     val p = ProjectStore.loadVideo(context, id)
                     if (p == null || p.clips.isEmpty()) android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Couldn't open that project"), android.widget.Toast.LENGTH_SHORT).show()
-                    else { clips.clear(); clips.addAll(p.clips); project = p }
+                    else nav.open(p, null, true)
                 },
             )
             com.dronedirector.veyrocutpro.ui.EditorTourHost(com.dronedirector.veyrocutpro.ui.GuideVariant.VIDEO)
+          }
         }
     }
 }
 
 @OptIn(UnstableApi::class)
 @Composable
-private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAddGallery: () -> Unit, onAddFiles: () -> Unit, onAddNas: (List<Uri>) -> Unit, onExit: () -> Unit, onLoad: (String) -> Unit) {
+private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAddGallery: () -> Unit, onAddFiles: () -> Unit, onAddNas: (List<Uri>) -> Unit, onExit: () -> Unit, host: ProjectHost, nav: EditorNav, onLoad: (String) -> Unit) {
     val wx = remember { WorkspaceExtra() }
     val context = LocalContext.current
     val es = remember { EditorState(initial, context) }
@@ -1499,6 +1504,28 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     /** Saves the whole edit (clips, grades, layers, music, delivery settings) as a project. */
+    fun currentData(): VideoProjectData = VideoProjectData(
+            id = es.projectId ?: "", name = es.projectName,
+            clips = clips.toList(), layers = layers.toList(), music = es.music, deliver = es.deliver,
+            extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
+            videoMuted = es.videoMuted, videoLocked = es.videoLocked, videoHidden = es.videoHidden, markers = markers.toList(),
+            markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
+            timelines = otherTimelines.toList().takeIf { it.isNotEmpty() }, timelineName = es.timelineName,
+            proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
+            bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
+        )
+    // This edit in the list of open projects: its "last saved" look, and the live edit for switching.
+    val myOp = remember { host.activeProject() }
+    DisposableEffect(Unit) {
+        val f: () -> VideoProjectData = { currentData() }
+        host.snapshot = f
+        onDispose { if (host.snapshot === f) host.snapshot = null }
+    }
+    LaunchedEffect(Unit) {
+        Team.current?.let { if (es.projectName.isBlank()) es.projectName = it.name }
+        if (myOp?.savedSig == SIG_PENDING) { delay(1500); myOp.savedSig = ProjectHost.sig(currentData()) }
+    }
+    fun markSaved() { myOp?.let { it.savedSig = ProjectHost.sig(currentData()); it.name = es.projectName } }
     fun saveProject(name: String) {
         val p = VideoProjectData(
             id = es.projectId ?: java.util.UUID.randomUUID().toString(), name = name,
@@ -1511,7 +1538,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
         )
         val saved = try { ProjectStore.saveVideo(context, p, clips.firstOrNull()?.let { thumbs[it.id] }) } catch (_: Throwable) { null }
-        if (saved != null) { es.projectId = saved.id; es.projectName = saved.name; es.message = "Project \"${saved.name}\" saved" }
+        if (saved != null) { es.projectId = saved.id; es.projectName = saved.name; markSaved(); es.message = "Project \"${saved.name}\" saved" }
         else es.message = "Couldn't save the project"
     }
     // A recovered edit that has run for a while is fine: forget the recovery marker.
@@ -1570,7 +1597,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
     if (es.askName) ProjectNameDialog(
         es.projectName.ifBlank { ProjectStore.defaultName(true) },
-        onSave = { es.askName = false; es.projectId = null; saveProject(it); if (es.leaveAfterSave) onExit() },
+        onSave = {
+            es.askName = false; es.projectId = null
+            // Saved under a name on this phone: a team project becomes a normal project here.
+            Team.current?.let { t -> kotlin.concurrent.thread { Team.release(context, t) }; Team.current = null; host.activeProject()?.team = null }
+            saveProject(it); if (es.leaveAfterSave) onExit()
+        },
         onDismiss = { es.askName = false; es.leaveAfterSave = false },
         video = true, currentId = es.projectId,
         onOverwrite = { id, n -> es.askName = false; es.projectId = id; saveProject(n); if (es.leaveAfterSave) onExit() },
@@ -3046,6 +3078,314 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
     DisposableEffect(Unit) { onDispose { com.dronedirector.veyrocutpro.ExportService.end(context, "proxy") } }
 
+    // ---- File menu (file icon in the top bar) and keyboard shortcuts.
+    val fm = remember { FileMenuState() }
+    var showKeys by remember { mutableStateOf(false) }
+    var teamConflict by remember { mutableStateOf<Team.Saved.Newer?>(null) }
+    var teamReadOnlyNote by remember { mutableStateOf(false) }
+    var closeAsk by remember { mutableStateOf<Pair<List<OpenProject>, () -> Unit>?>(null) }
+    var closeBusy by remember { mutableStateOf(false) }
+    fun workspaceHasContent() = clips.isNotEmpty() || layers.isNotEmpty() || es.music != null || extraAudio.isNotEmpty() || library.isNotEmpty()
+    fun teamSave(force: Boolean = false) {
+        val s = Team.current ?: return
+        if (s.readOnly) { teamReadOnlyNote = true; return }
+        val p = currentData().copy(name = s.name)
+        Team.stop = false
+        layerScope.launch {
+            when (val r = withContext(Dispatchers.IO) { Team.save(context, s, p, force) }) {
+                is Team.Saved.Ok -> { es.projectName = s.name; markSaved(); es.message = "Saved to the team folder" }
+                is Team.Saved.Newer -> teamConflict = r
+                is Team.Saved.Failed -> es.message = "Couldn't save to the team folder — ${r.why}"
+            }
+        }
+    }
+    fun saveChanges() {
+        when {
+            Team.current != null -> teamSave()
+            es.projectId == null -> es.askName = true
+            else -> saveProject(es.projectName)
+        }
+    }
+    /** Saves one open project as it is (team folder or this phone). Blocking. */
+    fun saveOpen(op: OpenProject): Boolean {
+        val d = (if (op.key == host.active) currentData() else op.data) ?: return true
+        val t = op.team
+        return if (t != null) {
+            Team.save(context, t, d.copy(name = t.name), false) is Team.Saved.Ok
+        } else try {
+            val saved = ProjectStore.saveVideo(context, d.copy(id = d.id.ifBlank { java.util.UUID.randomUUID().toString() }, name = d.name.ifBlank { ProjectStore.defaultName(true) }), null)
+            if (op.key == host.active) { es.projectId = saved.id; es.projectName = saved.name }
+            true
+        } catch (_: Throwable) { false }
+    }
+    /** Runs [then] once [targets] are saved or their changes are let go (asks when something is unsaved). */
+    fun closeWith(targets: List<OpenProject>, then: () -> Unit) {
+        val d = targets.filter { host.dirty(it) }
+        if (d.isEmpty()) then() else closeAsk = d to then
+    }
+    fun leaveTeamProject(quiet: Boolean = false) {
+        val t = Team.current ?: return
+        kotlin.concurrent.thread { Team.release(context, t) }
+        Team.current = null; host.activeProject()?.team = null
+        es.projectId = null
+        if (!quiet) es.message = "\"${t.name}\" is now a normal project on this phone — SAVE keeps it here"
+    }
+    // Offline stand-ins: black, light video of the given length.
+    fun makeStandIn(seconds: Int, w0: Int, h0: Int, done: (Clip?) -> Unit) {
+        val k = 640f / minOf(w0, h0).coerceAtLeast(1)
+        val w = (w0 * k).toInt().coerceAtLeast(16); val h = (h0 * k).toInt().coerceAtLeast(16)
+        Generators.make(context, GenSpec(GenKind.BLACK, seconds = seconds.coerceIn(1, 600), width = w, height = h, fps = 10), onProgress = {}) { uri, _ ->
+            if (uri == null) { done(null); return@make }
+            layerScope.launch { done(withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }) }
+        }
+    }
+    val importFilesLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { importToLibrary(it) }
+    val collectTo = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+        if (tree == null) return@rememberLauncherForActivityResult
+        try { context.contentResolver.takePersistableUriPermission(tree, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION) } catch (_: Throwable) {}
+        val p = currentData()
+        val folder = (es.projectName.ifBlank { "Project" } + " files").replace(Regex("[\\\\/:*?\"<>|]"), "_")
+        Team.stop = false
+        layerScope.launch {
+            val n = withContext(Dispatchers.IO) {
+                val place = FolderPlace(context, tree)
+                val uris = LinkedHashSet<String>()
+                ProjectArchive.mapUris(p) { u -> if (u != Uri.EMPTY) uris += u.toString(); u }
+                var done = 0; val names = HashSet<String>()
+                try {
+                    uris.forEachIndexed { i, us ->
+                        if (Team.stop) return@forEachIndexed
+                        val u = Uri.parse(us)
+                        var name = ProjectArchive.displayName(context, u).replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                        var k = 2; val base = name
+                        while (!names.add(name)) { name = base.substringBeforeLast('.') + " ($k)." + base.substringAfterLast('.', "mp4"); k++ }
+                        Team.busy = "Collecting files ${i + 1} of ${uris.size}…"
+                        val total = ProjectArchive.sizeOf(context, u).coerceAtLeast(1)
+                        val ok = context.contentResolver.openInputStream(u)?.use { input -> place.upload("$folder/$name", input, { !Team.stop }) { b -> Team.progress = (i + b.toFloat() / total) / uris.size } } ?: false
+                        if (ok) done++
+                    }
+                    place.write("$folder/" + (es.projectName.ifBlank { "Project" }) + ".alcorproject.json", ProjectStore.gson.toJson(p).toByteArray())
+                } catch (_: Throwable) {}
+                Team.busy = null; Team.progress = 0f
+                done to uris.size
+            }
+            es.message = "Collected ${n.first} of ${n.second} files in \"$folder\""
+        }
+    }
+    val fa = remember { FileActions() }.apply {
+        hasContent = { workspaceHasContent() }
+        projectName = { es.projectName }
+        isTeam = { Team.current != null }
+        teamReadOnly = { Team.current?.readOnly == true }
+        teamLabel = { Team.current?.let { it.name + " · " + it.place.label } ?: "" }
+        openProjects = { host.open.map { it.key to (if (it.key == host.active) es.projectName else it.name) } }
+        activeKey = { host.active }
+        switchTo = { k -> deck.cur.pause(); nav.switchTo(k) }
+        newProject = { deck.cur.pause(); nav.open(null, null, false) }
+        newTeamProject = { place, name ->
+            val s = TeamSession(place, name, false, 0)
+            Team.stop = false
+            layerScope.launch {
+                when (val r = withContext(Dispatchers.IO) { Team.save(context, s, VideoProjectData(name = name), true) }) {
+                    is Team.Saved.Ok -> { deck.cur.pause(); nav.open(VideoProjectData(name = name), s, true) }
+                    is Team.Saved.Failed -> es.message = "Couldn't create the team project — ${r.why}"
+                    else -> {}
+                }
+            }
+        }
+        openProject = { es.showLoad = true }
+        openRecent = { id ->
+            layerScope.launch {
+                val p = withContext(Dispatchers.IO) { ProjectStore.loadVideo(context, id) }
+                if (p == null) es.message = "Couldn't open that project" else { deck.cur.pause(); nav.open(p, null, true) }
+            }
+        }
+        openTeam = { place, name, ro ->
+            Team.stop = false
+            layerScope.launch {
+                val (p, s) = withContext(Dispatchers.IO) { Team.open(context, place, name, ro).also { (_, s) -> if (s != null && !ro) Team.writeLock(context, s) } }
+                if (p == null || s == null) es.message = "Couldn't open \"$name\""
+                else { deck.cur.pause(); nav.open(p, s, true) }
+            }
+        }
+        shareAsTeam = { place, name ->
+            val s = TeamSession(place, name, false, 0)
+            Team.stop = false
+            val p = currentData().copy(name = name)
+            layerScope.launch {
+                when (val r = withContext(Dispatchers.IO) { Team.save(context, s, p, true) }) {
+                    is Team.Saved.Ok -> {
+                        Team.current = s; host.activeProject()?.team = s
+                        es.projectName = name; es.projectId = null; markSaved()
+                        es.message = "\"$name\" is now a team project in ${place.label}"
+                    }
+                    is Team.Saved.Failed -> es.message = "Couldn't share it — ${r.why}"
+                    else -> {}
+                }
+            }
+        }
+        leaveTeam = { leaveTeamProject() }
+        projectSettings = { es.showSettings = true }
+        close = { host.activeProject()?.let { op -> closeWith(listOf(op)) { deck.cur.pause(); nav.close(op.key) } } }
+        closeOthers = { val others = host.open.filter { it.key != host.active }; closeWith(others) { others.forEach { nav.close(it.key) } } }
+        closeAll = { val all = host.open.toList(); closeWith(all) { deck.cur.pause(); all.filter { it.key != host.active }.forEach { nav.close(it.key) }; host.active?.let { nav.close(it) } } }
+        save = { saveChanges() }
+        saveAs = { es.askName = true }
+        saveCopy = { n ->
+            val p = currentData().copy(id = java.util.UUID.randomUUID().toString(), name = n)
+            layerScope.launch {
+                val ok = withContext(Dispatchers.IO) { try { ProjectStore.saveVideo(context, p, clips.firstOrNull()?.let { thumbs[it.id] }); true } catch (_: Throwable) { false } }
+                es.message = if (ok) "Copy saved as \"$n\" — you're still in \"${es.projectName.ifBlank { "Untitled" }}\"" else "Couldn't save the copy"
+            }
+        }
+        canRevert = { es.projectId != null || Team.current != null }
+        revert = {
+            val op = host.activeProject()
+            val t = Team.current
+            val id = es.projectId
+            layerScope.launch {
+                if (t != null) {
+                    val (p, s) = withContext(Dispatchers.IO) { Team.open(context, t.place, t.name, t.readOnly) }
+                    if (p == null || s == null || op == null) { es.message = "Couldn't read the team project"; return@launch }
+                    op.data = p; op.team = s; op.savedSig = SIG_PENDING; deck.cur.pause(); nav.reopen(op)
+                } else if (id != null && op != null) {
+                    val p = withContext(Dispatchers.IO) { ProjectStore.loadVideo(context, id) }
+                    if (p == null) { es.message = "Couldn't read the saved project"; return@launch }
+                    op.data = p; op.savedSig = SIG_PENDING; deck.cur.pause(); nav.reopen(op)
+                }
+            }
+        }
+        capture = { cameraAsk = true }
+        importGallery = { try { libPick.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) } catch (_: Throwable) {} }
+        importFiles = { try { importFilesLauncher.launch(arrayOf("video/*")) } catch (_: Throwable) {} }
+        importFolder = { try { libFolder.launch(null) } catch (_: Throwable) {} }
+        importAudio = { try { pickAudio.launch(arrayOf("audio/*")) } catch (_: Throwable) {} }
+        importNas = { nasPool = true }
+        importArchive = { try { openArchive.launch(arrayOf("application/zip", "application/octet-stream")) } catch (_: Throwable) {} }
+        newSequence = { name, aspect, fps ->
+            openTimeline(SavedTimeline(uniqueTimelineName(name.ifBlank { "Sequence ${otherTimelines.size + 2}" }), deliver = es.deliver.copy(aspect = aspect, fps = fps)))
+        }
+        mediaClips = { (library + clips).filter { it.nested == null }.distinctBy { it.uri.toString() } }
+        sequenceFromClip = { c ->
+            val a = if (c.height > 0) c.width * (c.desqueeze ?: 1f) / c.height else 0f
+            openTimeline(SavedTimeline(uniqueTimelineName(c.name.substringBeforeLast('.')), clips = listOf(c.copy(id = java.util.UUID.randomUUID().toString())), deliver = es.deliver.copy(aspect = a, fps = 0)))
+        }
+        newBin = { n ->
+            if (n !in binNames) binNames.add(n)
+            es.page = Page.MEDIA
+            es.message = "Bin \"$n\" made — pick it on the Media page, then add media to it"
+        }
+        offlineFile = { name, seconds, aspect ->
+            val h = 1080; val w = (h * aspect).toInt()
+            es.message = "Making the offline stand-in…"
+            makeStandIn(seconds, w, h) { c ->
+                if (c == null) { es.message = "Couldn't make the offline file"; return@makeStandIn }
+                val oc = c.copy(name = name, offline = true, label = CLIP_LABELS[0])
+                library.add(oc)
+                if (!es.videoLocked) clips.add(oc.copy(id = java.util.UUID.randomUUID().toString()))
+                es.message = "Offline file \"$name\" added (media strip and end of the timeline) — Link media swaps in the real file"
+            }
+        }
+        hasTranscript = { wx.tWords.isNotEmpty() }
+        captionsAi = { makeCaptions(null, false, 0) }
+        captionsFromTranscript = { makeWordCaptions(1) }
+        captionsImport = { try { pickSubs.launch(arrayOf("*/*")) } catch (_: Throwable) {} }
+        captionEmpty = {
+            val l = Layer(kind = LayerKind.TEXT, text = "Caption", size = 0.046f, x = 0.5f, y = 0.84f, box = true, shadow = true, startMs = globalMs, endMs = globalMs + 3000, name = "Caption")
+            layers.add(l); es.selectedLayer = l.id; es.page = Page.LAYERS
+            es.message = "Caption added at ${tc(globalMs)} — type its text in Layers"
+        }
+        transcript = { es.page = Page.TEXT; if (wx.tWords.isEmpty() && clips.isNotEmpty()) transcribeAll() }
+        title = {
+            val l = Layer(kind = LayerKind.TEXT, text = "Title", size = 0.09f, x = 0.5f, y = 0.5f, shadow = true, startMs = globalMs, endMs = globalMs + 4000, name = "Title")
+            layers.add(l); es.selectedLayer = l.id; es.page = Page.LAYERS
+            es.message = "Title added at ${tc(globalMs)} — change it in Layers"
+        }
+        collectFiles = { try { collectTo.launch(null) } catch (_: Throwable) {} }
+        selectedOffline = { clips.getOrNull(es.selected)?.offline == true }
+        makeOffline = { all ->
+            val c = clips.getOrNull(es.selected)
+            if (c == null) es.message = "Select a clip on the timeline first"
+            else if (c.offline == true) es.message = "That clip is already offline"
+            else {
+                es.message = "Making the clip offline…"
+                makeStandIn(((c.durationMs + 999) / 1000).toInt(), c.width.coerceAtLeast(16), c.height.coerceAtLeast(16)) { nc ->
+                    if (nc == null) { es.message = "Couldn't make the stand-in"; return@makeStandIn }
+                    val from = c.uri.toString()
+                    var n = 0
+                    for (i in clips.indices) if ((all && clips[i].uri.toString() == from) || clips[i].id == c.id) {
+                        val o = clips[i]
+                        clips[i] = o.copy(uri = nc.uri, offline = true, offlineOf = from, mime = nc.mime, durationMs = maxOf(nc.durationMs, o.endMs))
+                        n++
+                    }
+                    if (es.current in clips.indices) load(es.current, 0, false)
+                    es.message = "$n clip(s) offline — Link media brings the file back"
+                }
+            }
+        }
+        linkMedia = {
+            val c = clips.getOrNull(es.selected)
+            val orig = c?.offlineOf?.let { Uri.parse(it) }
+            if (c == null) es.message = "Select an offline clip first"
+            else if (orig != null && ProjectArchive.readable(context, orig)) {
+                val ph = c.uri.toString()
+                for (i in clips.indices) if (clips[i].uri.toString() == ph) clips[i] = clips[i].copy(uri = orig, offline = null, offlineOf = null)
+                if (es.current in clips.indices) load(es.current, 0, false)
+                es.message = "Linked back to the original file"
+            } else { es.relinkFrom = c.uri.toString(); try { relink.launch(arrayOf("video/*")) } catch (_: Throwable) { es.relinkFrom = null } }
+        }
+        exit = { val all = host.open.toList(); closeWith(all) { deck.cur.pause(); nav.exitApp() } }
+    }
+    if (showKeys) ShortcutsDialog { showKeys = false }
+    TeamBusyOverlay()
+    closeAsk?.let { (list, then) ->
+        AlertDialog(
+            onDismissRequest = { if (!closeBusy) closeAsk = null }, containerColor = Pro.PanelSolid,
+            title = { Text(if (list.size == 1) "Save changes to \"${(if (list[0].key == host.active) es.projectName else list[0].name).ifBlank { "Untitled" }}\"?" else "${list.size} projects have unsaved changes", color = Color.White) },
+            text = {
+                Column {
+                    if (list.size > 1) for (op in list) Text("• " + (if (op.key == host.active) es.projectName else op.name).ifBlank { "Untitled" }, color = Color.White, fontSize = 13.sp)
+                    Text(if (closeBusy) "Saving…" else "Unsaved changes are lost if you don't save.", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+                }
+            },
+            confirmButton = {
+                Row {
+                    TextButton(enabled = !closeBusy, onClick = { closeAsk = null; then() }) { Text("Don't save", color = Pro.Red) }
+                    TextButton(enabled = !closeBusy, onClick = {
+                        closeBusy = true
+                        layerScope.launch {
+                            val ok = withContext(Dispatchers.IO) { list.all { saveOpen(it) } }
+                            closeBusy = false; closeAsk = null
+                            if (ok) then() else es.message = "Not everything could be saved — nothing was closed"
+                        }
+                    }) { Text("Save", color = Pro.Amber) }
+                }
+            },
+            dismissButton = { TextButton(enabled = !closeBusy, onClick = { closeAsk = null }) { Text("Cancel", color = Color.White) } },
+        )
+    }
+    teamConflict?.let { r ->
+        AlertDialog(
+            onDismissRequest = { teamConflict = null }, containerColor = Pro.PanelSolid,
+            title = { Text("${r.by} saved a newer version", color = Color.White) },
+            text = { Text("At " + java.text.SimpleDateFormat("d MMM HH:mm", java.util.Locale.getDefault()).format(java.util.Date(r.at)) + ", after you opened it. Save yours over it, or save yours as a project on this phone and open theirs later.", color = Pro.Dim) },
+            confirmButton = {
+                Row {
+                    TextButton(onClick = { teamConflict = null; teamSave(force = true) }) { Text("Save over it", color = Pro.Red) }
+                    TextButton(onClick = { teamConflict = null; es.askName = true }) { Text("Save on this phone", color = Pro.Amber) }
+                }
+            },
+            dismissButton = { TextButton(onClick = { teamConflict = null }) { Text("Cancel", color = Color.White) } },
+        )
+    }
+    if (teamReadOnlyNote) AlertDialog(
+        onDismissRequest = { teamReadOnlyNote = false }, containerColor = Pro.PanelSolid,
+        title = { Text("Open read-only", color = Color.White) },
+        text = { Text("Someone else has this team project open, so it can't be saved over. Save your version as a project on this phone instead?", color = Pro.Dim) },
+        confirmButton = { TextButton(onClick = { teamReadOnlyNote = false; es.askName = true }) { Text("Save on this phone", color = Pro.Amber) } },
+        dismissButton = { TextButton(onClick = { teamReadOnlyNote = false }) { Text("Cancel", color = Color.White) } },
+    )
+
     /** Pinch / move on the viewer: the framing (exported), or the magnified view (view only). */
     fun moveFrame(pan: androidx.compose.ui.geometry.Offset, zoom: Float, w: Float, h: Float) {
         if (w <= 0f || h <= 0f) return
@@ -3317,51 +3657,6 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     }
                 }
             }
-            // Keyboard shortcuts (Bluetooth / USB keyboard).
-            DisposableEffect(Unit) {
-                KeyBus.handler = handler@{ e ->
-                    if (e.action != android.view.KeyEvent.ACTION_DOWN) return@handler false
-                    val ctrl = e.isCtrlPressed || e.isMetaPressed
-                    val frame = 1000L / (if (es.deliver.fps > 0) es.deliver.fps else 30)
-                    val total = timelineLength(clips)
-                    fun go(ms: Long) { if (clips.isNotEmpty()) seekGlobal(ms.coerceIn(0, (total - 1).coerceAtLeast(0))) }
-                    when (e.keyCode) {
-                        android.view.KeyEvent.KEYCODE_SPACE, android.view.KeyEvent.KEYCODE_K -> { if (clips.isNotEmpty()) togglePlay(); true }
-                        android.view.KeyEvent.KEYCODE_J -> { go(globalMs - (if (e.isShiftPressed) 1000L else 5000L)); true }
-                        android.view.KeyEvent.KEYCODE_L -> { go(globalMs + (if (e.isShiftPressed) 1000L else 5000L)); true }
-                        android.view.KeyEvent.KEYCODE_DPAD_LEFT -> { go(globalMs - (if (e.isShiftPressed) frame * 10 else frame)); true }
-                        android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> { go(globalMs + (if (e.isShiftPressed) frame * 10 else frame)); true }
-                        android.view.KeyEvent.KEYCODE_DPAD_UP -> { val st = clipStarts(clips); go(st.lastOrNull { it < globalMs - 50 } ?: 0L); true }
-                        android.view.KeyEvent.KEYCODE_DPAD_DOWN -> { val st = clipStarts(clips); go(st.firstOrNull { it > globalMs + 50 } ?: total); true }
-                        android.view.KeyEvent.KEYCODE_MOVE_HOME -> { go(0); true }
-                        android.view.KeyEvent.KEYCODE_MOVE_END -> { go(total); true }
-                        android.view.KeyEvent.KEYCODE_Z -> if (ctrl) { if (e.isShiftPressed) redo() else undo(); true } else false
-                        android.view.KeyEvent.KEYCODE_Y -> if (ctrl) { redo(); true } else false
-                        android.view.KeyEvent.KEYCODE_S -> if (ctrl) { if (es.projectId == null) es.askName = true else saveProject(es.projectName); true } else { splitAtPlayhead(); true }
-                        android.view.KeyEvent.KEYCODE_B -> { splitAtPlayhead(); true }
-                        android.view.KeyEvent.KEYCODE_M -> {
-                            val near = markers.firstOrNull { kotlin.math.abs(it - globalMs) < 250 }
-                            if (near != null) { markers.remove(near); markerNotes.remove(near) } else { markers.add(globalMs); markers.sort() }
-                            true
-                        }
-                        android.view.KeyEvent.KEYCODE_I -> { es.deliver = es.deliver.copy(rangeStart = globalMs, rangeEnd = es.deliver.rangeEnd?.takeIf { it > globalMs }); es.message = "Export range in at ${tc(globalMs)}"; true }
-                        android.view.KeyEvent.KEYCODE_O -> { es.deliver = es.deliver.copy(rangeEnd = globalMs, rangeStart = es.deliver.rangeStart?.takeIf { it < globalMs } ?: 0L); es.message = "Export range out at ${tc(globalMs)}"; true }
-                        android.view.KeyEvent.KEYCODE_FORWARD_DEL, android.view.KeyEvent.KEYCODE_DEL -> {
-                            if (es.videoLocked || clips.isEmpty()) false else {
-                                clips.removeAt(es.selected.coerceIn(0, clips.lastIndex))
-                                es.selected = es.selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
-                                es.current = es.current.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
-                                if (clips.isNotEmpty()) load(es.current, 0, false)
-                                es.message = "Clip deleted (ripple) — Ctrl+Z to undo"
-                                true
-                            }
-                        }
-                        android.view.KeyEvent.KEYCODE_F -> { es.fullscreen = !es.fullscreen; true }
-                        else -> false
-                    }
-                }
-                onDispose { KeyBus.handler = null }
-            }
 
             fun prevClip() { if (deck.cur.currentPosition > 1500 || es.current == 0) deck.cur.seekTo(0) else load(es.current - 1, 0, deck.cur.isPlaying) }
             fun nextClip() { if (es.current < clips.lastIndex) load(es.current + 1, 0, deck.cur.isPlaying) }
@@ -3394,6 +3689,79 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 TransportBar.magnify = when (TransportBar.magnify) { 1f -> 2f; 2f -> 4f; else -> 1f }
                 if (TransportBar.magnify == 1f) { es.magX = 0f; es.magY = 0f }
                 es.message = if (TransportBar.magnify > 1f) "Magnified ${TransportBar.magnify.toInt()}× — view only, drag to look around" else "Magnification off"
+            }
+
+            // Keyboard shortcuts (Bluetooth / USB keyboard): each key runs its action (keyboard icon to change them).
+            remember { Shortcuts.load(context); 0 }
+            DisposableEffect(Unit) {
+                KeyBus.handler = handler@{ e ->
+                    if (e.action != android.view.KeyEvent.ACTION_DOWN) return@handler false
+                    val id = Shortcuts.actionFor(e) ?: return@handler false
+                    val frame = 1000L / (if (es.deliver.fps > 0) es.deliver.fps else 30)
+                    val total = timelineLength(clips)
+                    fun go(ms: Long) { if (clips.isNotEmpty()) seekGlobal(ms.coerceIn(0, (total - 1).coerceAtLeast(0))) }
+                    val st = clipStarts(clips)
+                    when (id) {
+                        "play" -> if (clips.isNotEmpty()) togglePlay()
+                        "back5" -> go(globalMs - 5000L); "fwd5" -> go(globalMs + 5000L)
+                        "back1" -> go(globalMs - 1000L); "fwd1" -> go(globalMs + 1000L)
+                        "frameback" -> stepFrame(-1); "framefwd" -> stepFrame(1)
+                        "back10f" -> go(globalMs - frame * 10); "fwd10f" -> go(globalMs + frame * 10)
+                        "prevcut" -> go(st.lastOrNull { it < globalMs - 50 } ?: 0L)
+                        "nextcut" -> go(st.firstOrNull { it > globalMs + 50 } ?: total)
+                        "start" -> go(0); "end" -> go(total)
+                        "full" -> es.fullscreen = !es.fullscreen
+                        "mute" -> es.previewMuted = !es.previewMuted
+                        "magnify" -> cycleMagnify()
+                        "safe" -> toggleSafe()
+                        "markin" -> markIn(); "markout" -> markOut()
+                        "goin" -> es.deliver.rangeStart?.let { go(it) }
+                        "goout" -> es.deliver.rangeEnd?.let { go(it) }
+                        "clearinout" -> { es.deliver = es.deliver.copy(rangeStart = null, rangeEnd = null); es.message = "In and out cleared" }
+                        "marker" -> toggleMarker()
+                        "prevmarker" -> markers.sorted().lastOrNull { it < globalMs - 50 }?.let { go(it) }
+                        "nextmarker" -> markers.sorted().firstOrNull { it > globalMs + 50 }?.let { go(it) }
+                        "split" -> splitAtPlayhead()
+                        "delete" -> if (!es.videoLocked && clips.isNotEmpty()) {
+                            clips.removeAt(es.selected.coerceIn(0, clips.lastIndex))
+                            es.selected = es.selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
+                            es.current = es.current.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
+                            if (clips.isNotEmpty()) load(es.current, 0, false)
+                            es.message = "Clip deleted (gap closed) — undo brings it back"
+                        }
+                        "duplicate" -> clips.getOrNull(es.selected)?.let { c -> if (!es.videoLocked) { clips.add(es.selected + 1, c.copy(id = java.util.UUID.randomUUID().toString())); es.message = "Clip duplicated" } }
+                        "undo" -> undo(); "redo" -> redo()
+                        "prevclip" -> if (clips.isNotEmpty()) { es.selected = (es.selected - 1).coerceAtLeast(0); go(st[es.selected]) }
+                        "nextclip" -> if (clips.isNotEmpty()) { es.selected = (es.selected + 1).coerceAtMost(clips.lastIndex); go(st[es.selected]) }
+                        "snap" -> {
+                            es.snapping = !es.snapping
+                            context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("tl_snap", es.snapping).apply()
+                            es.message = if (es.snapping) "Snapping on" else "Snapping off"
+                        }
+                        "title" -> fa.title()
+                        "frame" -> saveStill()
+                        "zoomin" -> zoom.zoomIn(); "zoomout" -> zoom.zoomOut(); "zoomfit" -> zoom.fit()
+                        "p_media" -> es.page = Page.MEDIA; "p_edit" -> es.page = Page.EDIT; "p_text" -> es.page = Page.TEXT
+                        "p_transitions" -> es.page = Page.TRANSITIONS; "p_color" -> es.page = Page.COLOR; "p_layers" -> es.page = Page.LAYERS
+                        "p_audio" -> es.page = Page.AUDIO; "p_deliver" -> es.page = Page.DELIVER
+                        "filemenu" -> fm.menu = true
+                        "newproject" -> if (workspaceHasContent()) fm.confirmNew = "new" else fa.newProject()
+                        "open" -> fa.openProject()
+                        "save" -> fa.save()
+                        "saveas" -> fa.saveAs()
+                        "import" -> fa.importFiles()
+                        "capture" -> fa.capture()
+                        "export" -> es.page = Page.DELIVER
+                        "close" -> fa.close()
+                        "nextproject" -> host.open.map { it.key }.let { keys -> if (keys.size > 1) fa.switchTo(keys[(keys.indexOf(host.active) + 1) % keys.size]) }
+                        "projectsettings" -> fa.projectSettings()
+                        "settings" -> es.showSettings = true
+                        "shortcuts" -> showKeys = true
+                        else -> return@handler false
+                    }
+                    true
+                }
+                onDispose { KeyBus.handler = null }
             }
 
             val transport = @Composable {
@@ -4024,6 +4392,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     TopIcon(Icons.AutoMirrored.Filled.ArrowBack, "Close", enabled = !es.exporting) { es.confirmExit = true }
                     // Phones: these icons scroll sideways (with hint arrows); LOAD, SAVE and EXPORT stay put.
                     BarIconGroup {
+                    FileMenuButton(fa, fm)
+                    TopIcon(Icons.Filled.Keyboard, "Keyboard shortcuts") { showKeys = true }
                     VideoPanelsButton(
                         onPage = { es.page = it },
                         onReset = {
@@ -4035,7 +4405,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     TopIcon(Icons.Filled.Settings, "Settings") { es.showSettings = true }
                     }
                     BarButton("LOAD", enabled = !es.exporting) { es.showLoad = true }
-                    BarButton("SAVE", enabled = !es.exporting) { es.askName = true }
+                    BarButton("SAVE", enabled = !es.exporting) { if (Team.current != null) teamSave() else es.askName = true }
                     Text(
                         "EXPORT", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp),
                         modifier = Modifier.padding(horizontal = 6.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = !es.exporting) { es.page = Page.DELIVER; com.dronedirector.veyrocutpro.ui.Panels.set(context, "ve.inspector", true) }.padding(horizontal = 14.dp, vertical = 7.dp),
@@ -4198,7 +4568,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     text = { Text(if (es.projectId != null) "Save your latest changes to \"${es.projectName}\" before leaving?" else "This timeline isn't saved yet. Save it as a project to continue later.", color = Pro.Dim) },
                     confirmButton = {
                         Row {
-                            androidx.compose.material3.TextButton(onClick = { es.confirmExit = false; onExit() }) { Text("Leave", color = Pro.Red) }
+                            androidx.compose.material3.TextButton(onClick = {
+                                es.confirmExit = false
+                                // Other open projects with unsaved changes are asked about first.
+                                val others = host.open.filter { it.key != host.active && host.dirty(it) }
+                                if (others.isEmpty()) onExit() else closeAsk = others to { onExit() }
+                            }) { Text("Leave", color = Pro.Red) }
                             androidx.compose.material3.TextButton(onClick = {
                                 es.confirmExit = false
                                 if (es.projectId == null) { es.leaveAfterSave = true; es.askName = true } else { saveProject(es.projectName); onExit() }

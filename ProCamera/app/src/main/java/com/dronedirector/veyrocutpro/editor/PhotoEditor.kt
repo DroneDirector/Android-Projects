@@ -2,6 +2,7 @@ package com.dronedirector.veyrocutpro.editor
 
 import com.dronedirector.veyrocutpro.ui.pinchAndMove
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Keyboard
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
@@ -314,6 +315,8 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
                 onAddGallery = { addFrom = true },
                 onAddFiles = { browse.launch(arrayOf("image/*")) },
                 onAddCamera = { openCamera() },
+                onAddNas = { nasOpen = true },
+                onPickGallery = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                 onLoad = { id ->
                 val p = ProjectStore.loadPhoto(context, id)
                 if (p != null && p.uri != Uri.EMPTY) { PhotoSession.current = -1; project = p; source = p.uri }
@@ -545,6 +548,8 @@ private fun PhotoWorkspace(
     uri: Uri, initial: PhotoProjectData?, onClose: () -> Unit, onLoad: (String) -> Unit,
     /** Opened with SKIP (no photo yet, uri = Uri.EMPTY): pick one from the gallery / files. */
     onAddGallery: () -> Unit = {}, onAddFiles: () -> Unit = {}, onAddCamera: () -> Unit = {},
+    /** File → Import → Network (NAS) and File → Import → Gallery straight away. */
+    onAddNas: () -> Unit = {}, onPickGallery: () -> Unit = {},
     /** Switch to another photo of the filmstrip (index in [PhotoSession.items]). */
     onOpenSession: (Int) -> Unit = {},
 ) {
@@ -649,6 +654,14 @@ private fun PhotoWorkspace(
     val aiMasks = remember { mutableStateMapOf<String, Bitmap>() }
     LaunchedEffect((edit.masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(edit.bg.maskFile, edit.sky.maskFile, edit.sky.imagePath, edit.lensBlur?.depthFile) + edit.retouch.files())) {
         for (f in (edit.masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(edit.bg.maskFile, edit.sky.maskFile, edit.sky.imagePath, edit.lensBlur?.depthFile) + edit.retouch.files())) if (aiMasks[f] == null) withContext(Dispatchers.IO) { BitmapFactory.decodeFile(f) }?.let { aiMasks[f] = it }
+    }
+    fun photoData(id: String, name: String): PhotoProjectData {
+        val e = edit
+        return PhotoProjectData(
+            id = id, name = name, uri = uri,
+            grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark,
+            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw, lensBlur = e.lensBlur, retouch = e.retouch,
+        )
     }
     fun saveProject(name: String) {
         val e = edit
@@ -1849,79 +1862,106 @@ private fun PhotoWorkspace(
                     }
                 }
             }
-            // Keyboard shortcuts (Bluetooth / USB keyboard, Samsung DeX).
+            // File menu (file icon in the top bar).
+            val fm = remember { FileMenuState() }
+            val curName = projectName
+            val fa = remember { FileActions() }.apply {
+                video = false
+                hasContent = { uri != Uri.EMPTY }
+                projectName = { curName }
+                newProject = { closeEditor() }
+                openProject = { showLoad = true }
+                openRecent = { id -> sessionSave(); onLoad(id) }
+                projectSettings = { showSettings = true }
+                save = { if (projectId == null) askName = true else saveProject(curName) }
+                saveAs = { askName = true }
+                saveCopy = { n ->
+                    val p = photoData(java.util.UUID.randomUUID().toString(), n)
+                    val thumb = preview
+                    scope.launch {
+                        val ok = withContext(Dispatchers.IO) { try { ProjectStore.savePhoto(context, p, thumb); true } catch (_: Throwable) { false } }
+                        message = if (ok) "Copy saved as \"$n\"" else "Couldn't save the copy"
+                    }
+                }
+                canRevert = { projectId != null }
+                revert = {
+                    val id = projectId
+                    if (id != null) scope.launch {
+                        val p = withContext(Dispatchers.IO) { ProjectStore.loadPhoto(context, id) }
+                        if (p == null) message = "Couldn't read the saved project"
+                        else { edit = editOf(context, p, false); message = "Back to the saved \"${p.name}\"" }
+                    }
+                }
+                capture = { onAddCamera() }
+                importGallery = { onPickGallery() }
+                importFiles = { onAddFiles() }
+                importNas = { onAddNas() }
+                exit = { sessionSave(); com.dronedirector.veyrocutpro.ui.AppExit.exiting = true }
+            }
+            // Keyboard shortcuts (Bluetooth / USB keyboard, Samsung DeX) — changeable under the keyboard icon.
+            remember { PhotoShortcuts.load(context); 0 }
             DisposableEffect(Unit) {
                 KeyBus.handler = handler@{ ev ->
                     if (ev.action != android.view.KeyEvent.ACTION_DOWN || askName) return@handler false
-                    val ctrl = ev.isCtrlPressed || ev.isMetaPressed
-                    val shift = ev.isShiftPressed
+                    val id = PhotoShortcuts.actionFor(ev) ?: return@handler false
                     val si = sessionIdx
-                    fun rate(f: (SessionPhoto) -> SessionPhoto, msg: String): Boolean {
-                        if (si < 0) { message = "Open the photo from the filmstrip to rate it"; return true }
-                        PhotoSession.update(context, si, f); message = msg; return true
+                    fun rate(f: (SessionPhoto) -> SessionPhoto, msg: String) {
+                        if (si < 0) { message = "Open the photo from the filmstrip to rate it"; return }
+                        PhotoSession.update(context, si, f); message = msg
                     }
-                    fun go(d: Int): Boolean { val n = PhotoSession.items.size; if (si < 0 || n < 2) return false; val to = (si + d).coerceIn(0, n - 1); if (to != si) switchTo(to); return true }
-                    fun open(pnl: PhotoPanel): Boolean { panel = if (panel == pnl && pnl != PhotoPanel.PRESETS) PhotoPanel.PRESETS else pnl; return true }
+                    fun go(d: Int) { val n = PhotoSession.items.size; if (si < 0 || n < 2) return; val to = (si + d).coerceIn(0, n - 1); if (to != si) switchTo(to) }
+                    fun open(pnl: PhotoPanel) { panel = if (panel == pnl && pnl != PhotoPanel.PRESETS) PhotoPanel.PRESETS else pnl }
                     val labels = listOf(0xFFFF3B30, 0xFFFFD60A, 0xFF34C759, 0xFF0A84FF).map { it.toInt() }
-                    val k = ev.keyCode
-                    when {
-                        ctrl && k == android.view.KeyEvent.KEYCODE_Z -> { if (shift) { if (undoPos < undo.lastIndex) { undoPos++; edit = undo[undoPos] } } else if (undoPos > 0) { undoPos--; edit = undo[undoPos] }; true }
-                        ctrl && k == android.view.KeyEvent.KEYCODE_Y -> { if (undoPos < undo.lastIndex) { undoPos++; edit = undo[undoPos] }; true }
-                        ctrl && k == android.view.KeyEvent.KEYCODE_C -> {
+                    fun label(i: Int) { val c = labels[i]; rate({ it.copy(label = if (it.label == c) null else c) }, "Colour label " + listOf("red", "yellow", "green", "blue")[i]) }
+                    when (id) {
+                        "undo" -> if (undoPos > 0) { undoPos--; edit = undo[undoPos] }
+                        "redo" -> if (undoPos < undo.lastIndex) { undoPos++; edit = undo[undoPos] }
+                        "copy" -> {
                             val e = edit
                             EditClipboard.copy(context, CopiedSettings(fromVideo = false, grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark))
-                            message = "Settings copied — Ctrl+V on another photo pastes the look"; true
+                            message = "Settings copied — paste them on another photo"
                         }
-                        ctrl && k == android.view.KeyEvent.KEYCODE_V -> {
+                        "paste", "pasteall" -> {
                             val c = EditClipboard.current
-                            if (c == null) message = "Nothing copied yet (Ctrl+C copies this photo's settings)"
+                            if (c == null) message = "Nothing copied yet"
                             else {
                                 var e = edit
                                 c.grade?.let { e = e.copy(grade = it) }; c.detail?.let { e = e.copy(detail = it) }
-                                if (shift) { c.geometry?.let { e = e.copy(geometry = it) }; c.watermark?.let { e = e.copy(watermark = it) } }
-                                edit = e; message = if (shift) "All settings pasted" else "Look pasted (Ctrl+Shift+V also pastes crop and watermark)"
+                                if (id == "pasteall") { c.geometry?.let { e = e.copy(geometry = it) }; c.watermark?.let { e = e.copy(watermark = it) } }
+                                edit = e; message = if (id == "pasteall") "All settings pasted" else "Look pasted"
                             }
-                            true
                         }
-                        ctrl && k == android.view.KeyEvent.KEYCODE_S -> { if (projectId == null) askName = true else saveProject(projectName); true }
-                        ctrl && k == android.view.KeyEvent.KEYCODE_E -> { if (!busy) export(); true }
-                        ctrl -> false
-                        k in android.view.KeyEvent.KEYCODE_0..android.view.KeyEvent.KEYCODE_5 -> { val n = k - android.view.KeyEvent.KEYCODE_0; rate({ it.copy(rating = n) }, if (n == 0) "Rating cleared" else "★".repeat(n)) }
-                        k in android.view.KeyEvent.KEYCODE_6..android.view.KeyEvent.KEYCODE_9 -> {
-                            val c = labels[k - android.view.KeyEvent.KEYCODE_6]
-                            rate({ it.copy(label = if (it.label == c) null else c) }, "Colour label " + listOf("red", "yellow", "green", "blue")[k - android.view.KeyEvent.KEYCODE_6])
-                        }
-                        k == android.view.KeyEvent.KEYCODE_P -> rate({ it.copy(flag = 1) }, "Flagged as pick")
-                        k == android.view.KeyEvent.KEYCODE_X -> rate({ it.copy(flag = -1) }, "Flagged as reject")
-                        k == android.view.KeyEvent.KEYCODE_U -> rate({ it.copy(flag = 0) }, "Flag removed")
-                        k == android.view.KeyEvent.KEYCODE_DPAD_LEFT || k == android.view.KeyEvent.KEYCODE_PAGE_UP -> go(-1)
-                        k == android.view.KeyEvent.KEYCODE_DPAD_RIGHT || k == android.view.KeyEvent.KEYCODE_PAGE_DOWN -> go(1)
-                        k == android.view.KeyEvent.KEYCODE_MOVE_HOME -> go(-10_000)
-                        k == android.view.KeyEvent.KEYCODE_MOVE_END -> go(10_000)
-                        k == android.view.KeyEvent.KEYCODE_BACKSLASH || k == android.view.KeyEvent.KEYCODE_Y -> { split = !split; true }
-                        k == android.view.KeyEvent.KEYCODE_Z -> {
-                            if (zoomK > 1f) resetZoom() else { zoomK = 3f; panX = 0f; panY = 0f }
-                            true
-                        }
-                        k == android.view.KeyEvent.KEYCODE_ESCAPE -> { picking = 0; split = false; resetZoom(); true }
-                        k == android.view.KeyEvent.KEYCODE_TAB -> { com.dronedirector.veyrocutpro.ui.Panels.set(context, "pe.controls", !showControls); true }
-                        k == android.view.KeyEvent.KEYCODE_R && shift -> { if (RefView.uri != null) RefView.shown = !RefView.shown else message = "Choose a reference first (REFERENCE on the photo)"; true }
-                        k == android.view.KeyEvent.KEYCODE_R -> open(PhotoPanel.CROP)
-                        k == android.view.KeyEvent.KEYCODE_Q -> open(PhotoPanel.HEAL)
-                        k == android.view.KeyEvent.KEYCODE_M -> open(PhotoPanel.MASKS)
-                        k == android.view.KeyEvent.KEYCODE_L -> open(PhotoPanel.LIGHT)
-                        k == android.view.KeyEvent.KEYCODE_C -> open(PhotoPanel.COLOR)
-                        k == android.view.KeyEvent.KEYCODE_D -> open(PhotoPanel.DETAIL)
-                        k == android.view.KeyEvent.KEYCODE_E -> open(PhotoPanel.EXPORT)
-                        k == android.view.KeyEvent.KEYCODE_H -> open(PhotoPanel.HISTORY)
-                        k == android.view.KeyEvent.KEYCODE_J -> { clipWarn = !clipWarn; message = if (clipWarn) "Clipping warning on" else "Clipping warning off"; true }
-                        k == android.view.KeyEvent.KEYCODE_SLASH || k == android.view.KeyEvent.KEYCODE_F1 -> { showShortcuts = true; true }
-                        else -> false
+                        "split" -> split = !split
+                        "zoom" -> if (zoomK > 1f) resetZoom() else { zoomK = 3f; panX = 0f; panY = 0f }
+                        "resetview" -> { picking = 0; split = false; resetZoom() }
+                        "controls" -> com.dronedirector.veyrocutpro.ui.Panels.set(context, "pe.controls", !showControls)
+                        "reference" -> if (RefView.uri != null) RefView.shown = !RefView.shown else message = "Choose a reference first (REFERENCE on the photo)"
+                        "clipping" -> { clipWarn = !clipWarn; message = if (clipWarn) "Clipping warning on" else "Clipping warning off" }
+                        "prev" -> go(-1); "next" -> go(1); "first" -> go(-10_000); "last" -> go(10_000)
+                        "rate0", "rate1", "rate2", "rate3", "rate4", "rate5" -> { val n = id.last() - '0'; rate({ it.copy(rating = n) }, if (n == 0) "Rating cleared" else "$n star" + if (n == 1) "" else "s") }
+                        "red" -> label(0); "yellow" -> label(1); "green" -> label(2); "blue" -> label(3)
+                        "pick" -> rate({ it.copy(flag = 1) }, "Flagged as pick")
+                        "reject" -> rate({ it.copy(flag = -1) }, "Flagged as reject")
+                        "unflag" -> rate({ it.copy(flag = 0) }, "Flag removed")
+                        "crop" -> open(PhotoPanel.CROP); "heal" -> open(PhotoPanel.HEAL); "masks" -> open(PhotoPanel.MASKS)
+                        "light" -> open(PhotoPanel.LIGHT); "color" -> open(PhotoPanel.COLOR); "detail" -> open(PhotoPanel.DETAIL)
+                        "exportpanel" -> open(PhotoPanel.EXPORT); "history" -> open(PhotoPanel.HISTORY)
+                        "filemenu" -> fm.menu = true
+                        "open" -> fa.openProject()
+                        "save" -> fa.save()
+                        "saveas" -> fa.saveAs()
+                        "import" -> fa.importFiles()
+                        "capture" -> fa.capture()
+                        "export" -> if (!busy) export()
+                        "settings" -> showSettings = true
+                        "shortcuts" -> showShortcuts = true
+                        else -> return@handler false
                     }
+                    true
                 }
                 onDispose { KeyBus.handler = null }
             }
-            if (showShortcuts) PhotoShortcutsDialog { showShortcuts = false }
+            if (showShortcuts) ShortcutsDialog(PhotoShortcuts) { showShortcuts = false }
             val controls = @Composable { mod: Modifier ->
                 Column(mod.background(Ed.Panel)) {
                     PanelTabs(panel) { panel = it }
@@ -2195,6 +2235,8 @@ private fun PhotoWorkspace(
                     }
                     // Phones: these icons scroll sideways (with hint arrows); LOAD, SAVE and EXPORT stay put.
                     BarIconGroup {
+                    FileMenuButton(fa, fm)
+                    BarIcon(Icons.Filled.Keyboard, "Keyboard shortcuts") { showShortcuts = true }
                     BarIcon(Icons.AutoMirrored.Filled.Undo, "Undo", enabled = undoPos > 0) { undoPos--; edit = undo[undoPos] }
                     BarIcon(Icons.AutoMirrored.Filled.Redo, "Redo", enabled = undoPos < undo.lastIndex) { undoPos++; edit = undo[undoPos] }
                     BarIcon(Icons.Filled.BarChart, "Scope", tint = if (showScope) Pro.Amber else Color.White) { com.dronedirector.veyrocutpro.ui.Panels.set(context, "pe.scope", !showScope) }

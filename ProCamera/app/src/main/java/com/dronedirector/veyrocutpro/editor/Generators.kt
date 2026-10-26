@@ -115,7 +115,7 @@ object Generators {
                 val n = s.seconds.coerceIn(3, 10)
                 (n downTo 1).map { d -> item(save(context, still(s, d), "cd$d"), 1000L, if (d > 1) 2 else 0) }
             } else {
-                listOf(item(save(context, still(s), s.kind.name), s.seconds.coerceIn(1, 60) * 1000L, if (s.kind == GenKind.NOISE) 1 else 0))
+                listOf(item(save(context, still(s), s.kind.name), s.seconds.coerceIn(1, 600) * 1000L, if (s.kind == GenKind.NOISE) 1 else 0))
             }
         } catch (t: Throwable) { onDone(null, "Couldn't draw the generator: ${t.message}"); return {} }
         val seq = EditedMediaItemSequence.Builder(items).experimentalSetForceAudioTrack(true).build()

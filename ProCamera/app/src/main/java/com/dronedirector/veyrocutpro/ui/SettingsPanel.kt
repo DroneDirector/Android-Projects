@@ -326,6 +326,17 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                         }
                     }
                 }
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = 0.06f))
+                        .clickable { com.dronedirector.veyrocutpro.camera.CaptureKeys.show = true }.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Keyboard shortcuts", color = Color.White, fontSize = 15.sp)
+                        Text("With a Bluetooth or USB keyboard: shutter, zoom, exposure, modes and more — choose your own keys", color = Pro.Dim, fontSize = 12.sp)
+                    }
+                    Text("›", color = Pro.Amber, fontSize = 20.sp)
+                }
                 ToggleRow(
                     "Shutter sound",
                     if (s.shutterSoundRequired) "Required by law in this region and can't be turned off"

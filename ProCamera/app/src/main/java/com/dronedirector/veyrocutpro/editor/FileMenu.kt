@@ -65,6 +65,8 @@ import kotlinx.coroutines.withContext
  * given by the editor in [FileActions]. Own code.
  */
 class FileActions {
+    /** Video editor (all groups) or photo editor (projects, saving, capture, import). */
+    var video = true
     var hasContent: () -> Boolean = { false }
     var projectName: () -> String = { "" }
     var isTeam: () -> Boolean = { false }
@@ -178,7 +180,7 @@ fun FileMenuButton(fa: FileActions, st: FileMenuState) {
 
             Group("project", "Project") {
                 Item("New project") { if (fa.hasContent()) st.confirmNew = "new" else fa.newProject() }
-                Item("New team project…") { if (fa.hasContent()) st.confirmNew = "team" else st.teamWhere = "new" }
+                if (fa.video) Item("New team project…") { if (fa.hasContent()) st.confirmNew = "team" else st.teamWhere = "new" }
                 Item("Open project…") { fa.openProject() }
                 var recentOpen by remember { mutableStateOf(false) }
                 Row(Modifier.fillMaxWidth().clickable { recentOpen = !recentOpen }.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -186,16 +188,16 @@ fun FileMenuButton(fa: FileActions, st: FileMenuState) {
                     Icon(if (recentOpen) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, tint = Pro.Dim, modifier = Modifier.size(16.dp))
                 }
                 if (recentOpen) {
-                    val recent by produceState(emptyList<ProjectEntry>()) { value = withContext(Dispatchers.IO) { try { ProjectStore.list(context, true).take(8) } catch (_: Throwable) { emptyList() } } }
+                    val recent by produceState(emptyList<ProjectEntry>()) { value = withContext(Dispatchers.IO) { try { ProjectStore.list(context, fa.video).take(8) } catch (_: Throwable) { emptyList() } } }
                     if (recent.isEmpty()) Text("No saved projects yet", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(start = 26.dp, top = 2.dp, bottom = 6.dp))
                     for (p in recent) Text(p.name, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.fillMaxWidth().clickable { go { fa.openRecent(p.id) } }.padding(start = 26.dp, end = 14.dp, top = 6.dp, bottom = 6.dp))
                 }
-                Item("Open team project…") { st.teamWhere = "open" }
+                if (fa.video) Item("Open team project…") { st.teamWhere = "open" }
                 Item("Project settings…") { fa.projectSettings() }
             }
             val open = fa.openProjects()
-            Group("open", "Open projects" + if (open.size > 1) " (${open.size})" else "") {
+            if (fa.video) Group("open", "Open projects" + if (open.size > 1) " (${open.size})" else "") {
                 for ((key, name) in open) {
                     val on = key == fa.activeKey()
                     Text((if (on) "● " else "    ") + name.ifBlank { "Untitled" }, color = if (on) Pro.Amber else Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -213,17 +215,17 @@ fun FileMenuButton(fa: FileActions, st: FileMenuState) {
                 Item("Revert to saved", enabled = fa.canRevert()) { st.revert = true }
             }
             Group("capture", "Capture") {
-                Item("Open Capture — shots go to the media strip") { fa.capture() }
+                Item(if (fa.video) "Open Capture — shots go to the media strip" else "Open Capture — photos go to the filmstrip") { fa.capture() }
             }
             Group("import", "Import") {
                 Item("Gallery") { fa.importGallery() }
-                Item("Files (MKV, MOV…)") { fa.importFiles() }
-                Item("A whole folder") { fa.importFolder() }
-                Item("Audio files") { fa.importAudio() }
+                Item(if (fa.video) "Files (MKV, MOV…)" else "Files (RAW, TIFF…)") { fa.importFiles() }
+                if (fa.video) Item("A whole folder") { fa.importFolder() }
+                if (fa.video) Item("Audio files") { fa.importAudio() }
                 Item("Network (NAS)") { fa.importNas() }
-                Item("Project archive (.zip)") { fa.importArchive() }
+                if (fa.video) Item("Project archive (.zip)") { fa.importArchive() }
             }
-            Group("new", "New") {
+            if (fa.video) Group("new", "New") {
                 Item("Sequence…") { st.sequence = true }
                 Item("Sequence from clip…") { st.fromClip = true }
                 Item("Bin…") { st.bin = true }
@@ -232,13 +234,13 @@ fun FileMenuButton(fa: FileActions, st: FileMenuState) {
                 Item("Transcript") { fa.transcript() }
                 Item("Title") { fa.title() }
             }
-            Group("team", "Team") {
+            if (fa.video) Group("team", "Team") {
                 Item("Open team project…") { st.teamWhere = "open" }
                 Item("Share this project as a team project…", enabled = !fa.isTeam()) { st.teamWhere = "share" }
                 Item("Let go of the team project", enabled = fa.isTeam()) { fa.leaveTeam() }
                 Item("Your name in team projects…") { st.teamName = true }
             }
-            Group("deps", "Dependencies") {
+            if (fa.video) Group("deps", "Dependencies") {
                 Item("Collect files…") { fa.collectFiles() }
                 Item("Make offline…") { st.makeOffline = true }
                 Item("Link media…", enabled = fa.selectedOffline()) { fa.linkMedia() }
@@ -258,7 +260,7 @@ private fun FileMenuDialogs(fa: FileActions, st: FileMenuState) {
         AlertDialog(
             onDismissRequest = { st.confirmNew = null }, containerColor = Pro.PanelSolid,
             title = { Text(if (kind == "team") "Are you sure you want to start a new team project?" else "Are you sure you want to start a new project?", color = Color.White) },
-            text = { Text("\"${fa.projectName().ifBlank { "Untitled" }}\" stays open — switch back to it under File → Open projects. Save it first if you want to keep your changes.", color = Pro.Dim) },
+            text = { Text(if (fa.video) "\"${fa.projectName().ifBlank { "Untitled" }}\" stays open — switch back to it under File → Open projects. Save it first if you want to keep your changes." else "The photo that's open now closes (its edit is kept in the catalog). Save it as a project first if you want a named copy.", color = Pro.Dim) },
             confirmButton = { TextButton(onClick = { st.confirmNew = null; if (kind == "team") st.teamWhere = "new" else fa.newProject() }) { Text("Start", color = Pro.Amber) } },
             dismissButton = { TextButton(onClick = { st.confirmNew = null }) { Text("Cancel", color = Color.White) } },
         )

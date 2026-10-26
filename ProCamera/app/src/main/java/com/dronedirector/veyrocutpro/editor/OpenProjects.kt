@@ -55,4 +55,6 @@ class EditorNav(
     val switchTo: (String) -> Unit,
     val close: (String) -> Unit,
     val exitApp: () -> Unit,
+    /** Opens [OpenProject] again from its (new) data — revert. */
+    val reopen: (OpenProject) -> Unit,
 )

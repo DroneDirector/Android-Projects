@@ -97,6 +97,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Capture tips", Icons.Filled.CameraAlt, null, listOf(
             "Keyboard: Space = shutter / record, + / − zoom, [ / ] exposure, Tab = next mode. Settings → Keyboard shortcuts changes them.",
+            "? icon next to the gear: the Capture guide, quick tour, troubleshooting and proof of purchase. Settings → Audio hardware picks the microphone.",
             "Read-outs: drag the histogram / scopes, exposure read-out or audio meter anywhere. Pinch one (or hold it and drag the amber grip) to resize it; double-tap to make it small but still live.",
             "Teleprompter: tap PROMPTER in the quick bar (it also opens by itself with the selfie camera once you've typed a text). ✎ types your text and sets its look — bold, italic, underline, narrow, left / centre / right, size, text colour, background colour and opacity, scroll speed, mirror for teleprompter glass. ▶ or AUTO-SCROLL makes it scroll by itself — set the speed with the slider at the bottom of the teleprompter (or it starts with recording); ↺ goes back to the top. Drag the top bar to move it and the corner to resize it; — shrinks it to a small TELEPROMPTER bar (▢ or PROMPTER opens it again), ✕ closes it. ⇅ / ⇆ (or ✎ → Scrolling) switches between scrolling up (the default) and sideways as one line, like a news ticker.",
             "Pro read-out bar: ISO, S, F, WB, EV and ZOOM show their live values — tap one to change it. EXP shows AUTO, S-PRI (shutter priority: set S, ISO follows the light), ISO-PRI (set ISO, shutter follows) or M (both manual). REC shows resolution, frame rate and bitrate in video.",
@@ -202,6 +203,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Photo editor tips", Icons.Filled.Photo, null, listOf(
             "File menu (file icon): new, open, open recent, save as, save a copy, revert, capture, import and exit. Keyboard icon: change any shortcut.",
+            "? icon: documentation, tutorials, troubleshooting and proof of purchase. Gear → Preferences and System Info.",
             "Network (NAS): + → Network (NAS) opens photos (RAW too) from your Synology or other NAS on the same Wi-Fi. A sign-in is asked for only when needed; remembering it is up to you (encrypted, never shown; gear → Network (NAS) → Remove).",
             "Pinch to zoom in on the photo and drag it; when you let go, the crop becomes what you see. Double-tap = whole photo again. In Masks, Heal and the Retouch brush two fingers only zoom the view.",
             "Crop & perspective → UPRIGHT straightens horizons and buildings for you. Heal → FIND DUST AUTOMATICALLY removes sensor dust.",
@@ -291,6 +293,9 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "File menu (file icon): new and open projects, several open at once (File → Open projects), save as / save a copy / revert, capture, import, new sequence, bin, offline file, captions, transcript, title, team projects, collect files, exit.",
             "Team projects: File → New team project puts the project in a shared folder on your NAS (or a shared folder); the team sees who has it open and can open it read-only meanwhile.",
             "Keyboard icon: every shortcut — tap one and press the key you want for it.",
+            "Under the picture: Speed / Duration, Time interpolation (optical flow slow motion), Link / unlink tracks, Group / ungroup and the Markers menu (go to, edit, clear, export / import lists).",
+            "File → Project settings: Ingest puts new media in a bin, makes proxies for heavy clips and labels them by kind; Label colours names the colours.",
+            "? icon: documentation, tutorials, troubleshooting and proof of purchase. Gear → Preferences → Audio hardware picks the microphone and speaker.",
             "Network (NAS): Media → Network (NAS) finds your Synology or other NAS on the same Wi-Fi (or type its address). Pick videos, photos and audio; they're copied into the app. Sign in only if the NAS asks — then choose whether to remember it (encrypted, never shown; gear → Network (NAS) → Remove). A saved sign-in opens with the phone's fingerprint, PIN or pattern — they stay in the phone.",
             "Buttons under the picture: frame steps, in / out, marker, safe margins, playback resolution (preview only), magnifier (view only), export frame, settings. The + at the end chooses which ones you see.",
             "Pinch on the picture to zoom in and drag it into place — the export is framed exactly as seen. Double-tap = whole picture again.",

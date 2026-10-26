@@ -5,6 +5,7 @@ also shown in the app: **Settings (gear) → © Open-source licences**.
 
 | Component | Copyright / author | Licence |
 |---|---|---|
+| Google Play Billing Library (proof of purchase) | Google LLC | [Android SDK License](https://developer.android.com/studio/terms) |
 | SMBJ (network storage / NAS) | Jeroen van Erp and contributors | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | smbj-rpc (NAS shared-folder list) | Rapid7, Inc. | [BSD 3-Clause](https://opensource.org/licenses/BSD-3-Clause) |
 | Bouncy Castle Crypto (used by SMBJ) | The Legion of the Bouncy Castle Inc. | [MIT](https://www.bouncycastle.org/licence.html) |

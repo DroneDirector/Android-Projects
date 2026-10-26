@@ -21,6 +21,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Capture guide
+**Help**
+- The ? icon next to the gear: the Capture guide, the quick tour, Troubleshooting and Proof of purchase. Settings → Audio hardware chooses the microphone; Settings → System Info shows the phone's hardware.
 **Keyboard**
 - With a keyboard connected: Space takes the photo or starts / stops recording, + / − zoom, [ / ] exposure, L / W lock exposure / white balance, Tab changes mode. Settings → Keyboard shortcuts changes any of them.
 **Read-outs**
@@ -114,6 +116,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Photo editor guide
+**Help and settings**
+- The ? icon: the photo editor's documentation and tutorials, Troubleshooting and Proof of purchase. File → Project settings: General and Storage. Gear → Preferences and System Info.
 **File menu and shortcuts**
 - The file icon: new, open, open recent, save as, save a copy, revert, capture, import (gallery, files, NAS) and exit. The keyboard icon lists the shortcuts — tap one and press a key to change it.
 **Network (NAS)**
@@ -251,6 +255,14 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - New → Sequence starts an empty timeline in the same project (with its own shape and frame rate); Sequence from clip starts one with a clip, set to that clip's shape.
 - New → Offline file: a black stand-in marked OFFLINE for a shot you don't have yet. Dependencies → Make offline unlinks a clip's media; Link media brings the file back (or another one) and keeps the trims.
 - Dependencies → Collect files copies every file of the project into one folder you choose.
+**Buttons under the picture**
+- Speed / Duration: type a speed in % or a length in seconds (they follow each other), or turn on Play backwards. Time interpolation: Optical flow makes smooth slow motion for slowed-down clips; Motion blur adds a shutter blur.
+- Link / unlink tracks: linked layers and audio move with the main video when you cut or delete clips; unlink music that must stay exactly where it is. Group / ungroup: pick layers and audio clips that should move together.
+- Markers (the bookmark icon): go to a marker, edit its note or move it to the playhead, clear one or all, and export or import marker lists (.csv: timecode, seconds, note).
+**Project settings**
+- File → Project settings: General, Project (names, shape, frame rate), Storage, Ingest (put new media in a bin, make proxies for heavy clips, colour label by kind) and Label colours (name the colours, a colour per kind of media).
+**Help and preferences**
+- The ? icon: the video editor's documentation and tutorials, Troubleshooting and Proof of purchase. Gear → Preferences: appearance, shutter sound, audio hardware, autosave, playback, timeline and editing. Gear → System Info shows the phone's hardware.
 **Reveal in Project**
 - Tools bar → Reveal in Project → Reveal in library picks the selected clip out in the media strip; Reveal on device shows which folder on the phone its file is in.
 **Team projects**

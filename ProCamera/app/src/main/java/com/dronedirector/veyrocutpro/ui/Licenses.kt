@@ -47,6 +47,7 @@ private val NOTICES = listOf(
     Notice("Segment Anything (mask decoder in MobileSAM)", "Meta Platforms, Inc.", "Apache License 2.0", "https://github.com/facebookresearch/segment-anything"),
     Notice("ONNX Runtime (runs the Magic Mask model)", "Microsoft Corporation", "MIT License", "https://github.com/microsoft/onnxruntime"),
     Notice("Lottie for Android (animation layers)", "Airbnb, Inc.", "Apache License 2.0", "https://github.com/airbnb/lottie-android"),
+    Notice("Google Play Billing Library (proof of purchase)", "Google LLC", "Android Software Development Kit License", "https://developer.android.com/google/play/billing"),
     Notice("SMBJ (network storage / NAS shared folders)", "Jeroen van Erp and contributors", "Apache License 2.0", "https://github.com/hierynomus/smbj"),
     Notice("smbj-rpc (list of a NAS's shared folders)", "Rapid7, Inc.", "BSD 3-Clause License", "https://github.com/rapid7/smbj-rpc"),
     Notice("Bouncy Castle Crypto (used by SMBJ)", "The Legion of the Bouncy Castle Inc.", "MIT License (Bouncy Castle Licence)", "https://www.bouncycastle.org/licence.html"),

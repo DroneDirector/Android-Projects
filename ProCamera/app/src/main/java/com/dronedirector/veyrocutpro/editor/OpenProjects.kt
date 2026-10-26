@@ -58,3 +58,12 @@ class EditorNav(
     /** Opens [OpenProject] again from its (new) data — revert. */
     val reopen: (OpenProject) -> Unit,
 )
+
+/** The video editor's File menu, keyboard and bar-dialog state, kept in one place (the editor function is near Android's size limit). */
+class WsFile {
+    val fa = FileActions()
+    val fm = FileMenuState()
+    var showKeys by mutableStateOf(false)
+    var barDlg by mutableStateOf<String?>(null)
+    var closeAsk by mutableStateOf<Pair<List<OpenProject>, () -> Unit>?>(null)
+}

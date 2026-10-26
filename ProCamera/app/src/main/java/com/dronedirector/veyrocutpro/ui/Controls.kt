@@ -318,6 +318,7 @@ fun QuickBar(s: CameraUiState, c: ProCameraController, vertical: Boolean, onSett
                 verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
             ) { QuickItems(s, c, onSettings) }
             panelsButton()
+            HelpButton(GuideVariant.CAPTURE)
             SettingsGear(onSettings)
         }
     } else {
@@ -328,6 +329,7 @@ fun QuickBar(s: CameraUiState, c: ProCameraController, vertical: Boolean, onSett
                 horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterHorizontally),
             ) { QuickItems(s, c, onSettings) }
             panelsButton()
+            HelpButton(GuideVariant.CAPTURE)
             SettingsGear(onSettings)
         }
     }

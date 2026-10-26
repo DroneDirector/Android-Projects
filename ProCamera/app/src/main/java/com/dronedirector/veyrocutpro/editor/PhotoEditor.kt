@@ -2244,6 +2244,7 @@ private fun PhotoWorkspace(
                     BarIconGroup {
                     FileMenuButton(fa, fm)
                     BarIcon(Icons.Filled.Keyboard, "Keyboard shortcuts") { showShortcuts = true }
+                    com.dronedirector.veyrocutpro.ui.HelpButton(com.dronedirector.veyrocutpro.ui.GuideVariant.PHOTO)
                     BarIcon(Icons.AutoMirrored.Filled.Undo, "Undo", enabled = undoPos > 0) { undoPos--; edit = undo[undoPos] }
                     BarIcon(Icons.AutoMirrored.Filled.Redo, "Redo", enabled = undoPos < undo.lastIndex) { undoPos++; edit = undo[undoPos] }
                     BarIcon(Icons.Filled.BarChart, "Scope", tint = if (showScope) Pro.Amber else Color.White) { com.dronedirector.veyrocutpro.ui.Panels.set(context, "pe.scope", !showScope) }

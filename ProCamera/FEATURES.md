@@ -63,6 +63,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Teleprompter** over the camera (selfie or back camera): your own text, scrolling at your speed or starting with the recording; bold, italic, underline, narrow, alignment, size, text and background colours with opacity, mirror for teleprompter glass; drag to move, drag the corner to resize, shrink to a small bar, close with ✕; opens by itself with the selfie camera.
 
 ### Pro controls
+- **Help** next to the gear (Capture guide, quick tour, troubleshooting, proof of purchase); **audio hardware** and **System Info** in Settings.
 - **Keyboard shortcuts** you can change (Settings → Keyboard shortcuts): shutter, zoom, exposure, locks, flash, timer, modes and overlays.
 - **Resizable read-outs**: the histogram / scopes, exposure read-out and audio meter can be dragged anywhere, resized (two fingers or the grip) and minimised (double tap) while staying live; each keeps its own size and place.
 - **Pro read-out bar**: live ISO, shutter, focus, white balance, EV and zoom — tap any to change it — plus the exposure mode (**auto, shutter priority, ISO priority, manual**; Android 15+ uses the camera's own priority modes, older phones are metered continuously by the app) and, in video, resolution · frame rate · bitrate.
@@ -127,6 +128,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Keep settings after uninstall** (optional): settings, presets and LUTs saved to Documents/AlcorCutPro/Settings; restore from the first screen after reinstalling.
 
 ## Photo editor
+- **Help** (documentation, tutorials, troubleshooting, proof of purchase), **Project settings**, **Preferences** and **System Info**.
 - **File menu**: new, open, open recent, save / save as / save a copy / revert, capture, import (gallery, files, NAS) and exit; **changeable keyboard shortcuts** (keyboard icon).
 - **Network (NAS)**: open photos — RAW included — from a Synology or any other NAS (or a computer sharing folders) on your network; guest first, sign-in only when needed, optional encrypted remembered sign-ins that are never shown and are unlocked with the phone's fingerprint, PIN or pattern.
 - **Pinch, move and double-tap**: zoom in on the photo and drag it; when your fingers lift, the crop becomes what you see (exported as seen). Double-tap = whole photo again. In Masks, Heal and the Retouch brush two fingers zoom the view only.
@@ -216,6 +218,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 
 ## Video editor
 ### Media & timeline
+- **Speed / Duration**, **time interpolation** (frame sampling, optical flow, motion blur), **link / unlink tracks**, **group / ungroup** and a **markers menu** (go to, edit, clear, export / import lists) under the picture.
 - **Network (NAS)**: add videos, photos and audio straight from a Synology or any other NAS (or a computer sharing folders over SMB) on your network — found automatically or by address; browse every shared folder; files are copied into the app with progress. Guest access first, sign-in only when the NAS asks; remembered sign-ins are optional, encrypted on the phone, never shown, unlocked with the phone's own fingerprint / PIN / pattern (can be turned off), removable in the gear menu.
 - **Buttons under the picture**: frame back / forward, go to in / out, mark in / out, add marker, safe margins, playback resolution (Full to 1/16, preview only), magnifier (2× / 4×, view only), export frame, settings — all icons; the **+** chooses which ones the bar shows.
 - **Pinch, move and double-tap on the picture**: zoom in and place the picture; the export is framed exactly as seen. Double-tap resets.
@@ -393,6 +396,9 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Send to desktop editor**: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) and **OpenTimelineIO .otio** (cuts, dissolves, speed, markers) for desktop editing software.
 
 ### Projects & workflow
+- **Project settings**: general switches, project and timeline names, shape and frame rate, storage, **ingest** (bin, proxies, labels for new media) and **label colours** with your own names.
+- **Help**: documentation and tutorials for the open part of the app, troubleshooting and **proof of purchase** from Google Play.
+- **Preferences** (gear): appearance, shutter sound, **audio hardware** choice with an unplug notice, autosave, playback, timeline and editing; **System Info** with the phone's hardware and drivers.
 - **Reveal in Project**: show the selected clip in the media strip, or where its file is on the phone (open the folder, copy the path).
 - **File menu**: projects (new, open, open recent, settings), several projects open at once with quick switching and close / close others / close all, save / save as / save a copy / revert, capture, import, new sequence / sequence from clip / bin / offline file / captions / transcript / title, team projects, collect files, make offline, link media, exit.
 - **Team projects**: kept in a shared folder (NAS or shared / cloud folder) with the media copied once; shows who has a project open, read-only opening meanwhile, and a warning before saving over a newer version.

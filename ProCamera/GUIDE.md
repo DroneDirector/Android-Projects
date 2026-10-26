@@ -242,7 +242,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 **AI noise reduction**
 - The first export cleans each clip with AI noise reduction once and keeps it in the video catalog; later exports reuse it, so they're much faster. Changing the strength cleans the clip again.
 **Cast to TV**
-- Tablets: tap the cast button (next to the zoom buttons below the picture) and pick your Chromecast / Google TV on the same Wi-Fi. The viewer shows on the TV a few seconds behind. Tap it again to stop. Hide the button in the layout menu.
+- Tap the cast button (tablets: next to the zoom buttons below the picture; phones: Deliver → CAST) and pick your Chromecast / Google TV on the same Wi-Fi. The viewer shows on the TV a few seconds behind. Tap it again to stop. Hide the button in the layout menu.
 **Camera**
 - Media page → Camera → media list, or + Camera on the media strip: opens the full Capture screen with all its pro controls. Videos you record and photos you take (each becomes a 5 s clip) go into the media list; drag them to the timeline when you want them. "← Back to video editor" (or Back) returns.
 **Catalog**

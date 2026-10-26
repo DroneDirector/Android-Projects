@@ -3205,5 +3205,7 @@
 "CAST TO TV": "CAST TIL TV",
 "Codec": "Codec",
 "Audio format": "Lydformat",
-"Estimated file size": "Anslået filstørrelse"
+"Estimated file size": "Anslået filstørrelse",
+"CAST": "CAST",
+"Show the viewer on a TV with a Chromecast or Google TV on the same Wi-Fi — picture, titles, layers and sound (a few seconds behind).": "Vis fremviseren på et TV med Chromecast eller Google TV på samme Wi-Fi — billede, titler, lag og lyd (nogle sekunder forsinket)."
 }

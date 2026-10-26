@@ -712,8 +712,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val stabCancels = remember { HashMap<String, () -> Unit>() }
     val frameViews = remember { arrayOfNulls<android.view.View>(2) }
     val texViews = remember { arrayOfNulls<android.view.View>(2) }
-    // Chromecast: tablets only.
-    val castPanel = com.dronedirector.veyrocutpro.ui.panelOn("ve.cast") && androidx.compose.ui.platform.LocalConfiguration.current.smallestScreenWidthDp >= 600
+    // Chromecast: tablets next to the zoom buttons below the picture; phones in the tools (Deliver → CAST).
+    val isTablet = androidx.compose.ui.platform.LocalConfiguration.current.smallestScreenWidthDp >= 600
+    val castPanel = com.dronedirector.veyrocutpro.ui.panelOn("ve.cast") && isTablet
+    val castOnPhone = !isTablet
     val transitionOn = remember { booleanArrayOf(false) }
     val gpuGrade = remember { GradePreview.supported }
     val filmOn = remember { booleanArrayOf(false, false) }
@@ -3632,7 +3634,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 MusicTools(hasMusic = es.music != null, onFit = { fitMusicToVideo() }, onAutoEdit = { autoEditToBeat(it) })
                             }
                             Page.DELIVER -> DeliverPage(
-                                es.deliver, clips, es.exporting, { es.deliver = it }, ::startExport, playheadMs = globalMs, onSaveFrame = { saveStill() },
+                                es.deliver, clips, es.exporting, { es.deliver = it }, ::startExport,
+                                castSlot = if (castOnPhone) ({ com.dronedirector.veyrocutpro.ui.CastButton(castSource, sound = com.dronedirector.veyrocutpro.camera.CastFeed.Sound.APP) }) else null, playheadMs = globalMs, onSaveFrame = { saveStill() },
                                 markers = markers.toList(), projectName = es.projectName, layers = layers.toList(), markerNotes = markerNotes.toMap(),
                                 smartWhy = if (es.deliver.smartRender) smartRenderBlocker(context, clips.let { l -> if (es.videoMuted) l.map { it.copy(muted = true) } else l }, es.deliver, layers.toList(), es.music, extraAudio.toList()) else null,
                                 queue = exportQueue.toList(), queueAt = es.queueAt,
@@ -5537,6 +5540,8 @@ private fun DeliverPage(
     queue: List<DeliverSettings> = emptyList(), queueAt: Int = -1,
     onQueueAdd: () -> Unit = {}, onQueueRemove: (Int) -> Unit = {}, onQueueStart: () -> Unit = {}, onQueueStop: () -> Unit = {},
     smartWhy: String? = null,
+    /** Phones: the cast button lives here (tablets have it next to the zoom buttons). */
+    castSlot: (@Composable () -> Unit)? = null,
 ) {
     // Send the edit to a desktop editor (EDL / FCPXML).
     val ictx = LocalContext.current
@@ -5565,6 +5570,14 @@ private fun DeliverPage(
     val saveXml = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/xml")) { u ->
         val (w, h) = outputSize(clips, s)
         writeTo(u, Interchange.fcpxml(title, clips, fpsX, w, h, markers, markerNotes))
+    }
+    if (castSlot != null) {
+        SectionTitle("CAST")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            castSlot()
+            Text("Show the viewer on a TV with a Chromecast or Google TV on the same Wi-Fi — picture, titles, layers and sound (a few seconds behind).",
+                color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(start = 10.dp))
+        }
     }
     SectionTitle("PRESETS")
     Chips(EXPORT_PRESETS.map { it.label }, EXPORT_PRESETS.indexOfFirst { p ->

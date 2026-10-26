@@ -2,6 +2,12 @@
  {
   "title": "Media & timeline",
   "items": [
+   "<strong>Network (NAS)</strong>: add videos, photos and audio straight from a Synology or any other NAS (or a computer sharing folders over SMB) on your network — found automatically or by address; browse every shared folder; files are copied into the app with progress. Guest access first, sign-in only when the NAS asks; remembered sign-ins are optional, encrypted on the phone, never shown, removable in the gear menu.",
+   "<strong>Buttons under the picture</strong>: frame back / forward, go to in / out, mark in / out, add marker, safe margins, playback resolution (Full to 1/16, preview only), magnifier (2× / 4×, view only), export frame, settings — all icons; the <strong>+</strong> chooses which ones the bar shows.",
+   "<strong>Pinch, move and double-tap on the picture</strong>: zoom in and place the picture; the export is framed exactly as seen. Double-tap resets.",
+   "<strong>In / out flags</strong> on the timeline ruler with the rest dimmed; <strong>shining markers and keyframes</strong> (Marker effects, can be turned off).",
+   "<strong>Start-edge trimming</strong> that follows your finger, with a choice: leave a black gap, or close it and move everything after it on every track.",
+   "<strong>Track switches</strong>: show / hide, mute and lock on the main video; show / hide and lock on every layer (sound on / off on video layers); mute and lock on audio tracks.",
    "<strong>Scrolling button bar</strong>: the bar under the picture (split, undo / redo, zoom, cast, play, full screen, playhead to start) scrolls sideways with animated arrows when it doesn't fit.",
    "<strong>Playhead to start</strong>: one tap on the transport bar puts the playhead at the very start of the timeline.",
    "<strong>AI noise reduction done once per clip</strong>: cleaned at full size on the first export, kept in the video catalog and reused by every later export (no AI run per export).",
@@ -195,7 +201,7 @@
    "<strong>LOAD / SAVE projects</strong> next to Export; <strong>Save &amp; leave</strong> when exiting; saved projects on the start page.",
    "<strong>Copy / Paste settings</strong> between clips (or from a photo), optionally onto every clip.",
    "<strong>Remember watermark</strong>; <strong>resizable panels</strong>; <strong>playback info</strong> read-out for troubleshooting.",
-   "<strong>Panels menu</strong> (icon next to the gear): show / hide the tools panel, transport bar, histogram, timecode and audio waveforms — the player and timeline grow into freed space and return to their saved sizes; presets <strong>Full / Cut / Color / Audio</strong>; <strong>triple-tap</strong> the icon to restore the original layout.",
+   "<strong>Panels menu</strong> (icon next to the gear): show / hide the tools panel, transport bar, histogram and audio waveforms — the player and timeline grow into freed space and return to their saved sizes; presets <strong>Full / Cut / Color / Audio</strong>; <strong>triple-tap</strong> the icon to restore the original layout.",
    "<strong>Fold-out tool sections</strong>: every section of the tool panels opens and closes, with a line listing what's inside; gear → Layout &amp; look sets how they start (remember, always closed, all open).",
    "<strong>Quick tour</strong> the first time the editor opens (skip, don't show again, replay from gear → App)."
   ]

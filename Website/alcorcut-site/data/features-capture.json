@@ -61,6 +61,7 @@
  {
   "title": "Pro controls",
   "items": [
+   "<strong>Resizable read-outs</strong>: the histogram / scopes, exposure read-out and audio meter can be dragged anywhere, resized (two fingers or the grip) and minimised (double tap) while staying live; each keeps its own size and place.",
    "<strong>Pro read-out bar</strong>: live ISO, shutter, focus, white balance, EV and zoom — tap any to change it — plus the exposure mode (<strong>auto, shutter priority, ISO priority, manual</strong>; Android 15+ uses the camera's own priority modes, older phones are metered continuously by the app) and, in video, resolution · frame rate · bitrate.",
    "<strong>Fn button</strong>: one assignable button (tap to run, hold to choose) — zebras, peaking, false colour, next scope, AE / AWB lock, split focus / exposure, pull to A / B, frame guide, safe areas, log assist, flip, torch, next lens, focus magnifier, clean feed.",
    "<strong>Pull points</strong>: A / B points for focus (rack focus), zoom and exposure, glided over 1–8 s, separately or all together.",

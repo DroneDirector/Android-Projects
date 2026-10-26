@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor tools bar: **Reveal in Project** — Reveal in library picks the selected clip out in the media strip; Reveal on device shows the folder on the phone where its file is (copy the path, or open the folder in the Files app).
 - **File menu** (file icon next to the layout and gear icons), with fold-out groups:
   - Video editor — **Project**: New project, New team project, Open project, Open recent, Open team project, Project settings. **Open projects**: several projects open at once — switch between them in a tap; Close project, Close other projects, Close all projects (unsaved changes are asked about). **Save**: Save project changes, Save as, Save a copy, Revert to saved. **Capture** (shots go to the media strip). **Import**: gallery, files, a whole folder, audio, NAS, project archive. **New**: Sequence (shape and frame rate), Sequence from clip, Bin, Offline file, Captions (from the transcript, AI, a subtitle file or empty), Transcript, Title. **Team**: open, share this project, let go, your name. **Dependencies**: Collect files, Make offline, Link media. **Exit**.
   - Photo editor — Project (new, open, open recent, settings), Save (changes, save as, save a copy, revert), Capture, Import (gallery, files, NAS), Exit.

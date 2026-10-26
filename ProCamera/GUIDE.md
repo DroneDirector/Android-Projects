@@ -251,6 +251,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - New → Sequence starts an empty timeline in the same project (with its own shape and frame rate); Sequence from clip starts one with a clip, set to that clip's shape.
 - New → Offline file: a black stand-in marked OFFLINE for a shot you don't have yet. Dependencies → Make offline unlinks a clip's media; Link media brings the file back (or another one) and keeps the trims.
 - Dependencies → Collect files copies every file of the project into one folder you choose.
+**Reveal in Project**
+- Tools bar → Reveal in Project → Reveal in library picks the selected clip out in the media strip; Reveal on device shows which folder on the phone its file is in.
 **Team projects**
 - File → New team project (or Team → Share this project): choose a folder on your NAS or a shared folder, give it a name and your name. The edit's files are copied there once.
 - Team → Open team project: pick the folder and the project. If someone else has it open, you can open it read-only. Saving when someone saved after you opened it asks whether to save over theirs or keep yours on the phone.

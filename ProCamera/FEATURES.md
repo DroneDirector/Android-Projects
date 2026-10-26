@@ -393,6 +393,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Send to desktop editor**: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) and **OpenTimelineIO .otio** (cuts, dissolves, speed, markers) for desktop editing software.
 
 ### Projects & workflow
+- **Reveal in Project**: show the selected clip in the media strip, or where its file is on the phone (open the folder, copy the path).
 - **File menu**: projects (new, open, open recent, settings), several projects open at once with quick switching and close / close others / close all, save / save as / save a copy / revert, capture, import, new sequence / sequence from clip / bin / offline file / captions / transcript / title, team projects, collect files, make offline, link media, exit.
 - **Team projects**: kept in a shared folder (NAS or shared / cloud folder) with the media copied once; shows who has a project open, read-only opening meanwhile, and a warning before saving over a newer version.
 - **Offline media**: offline stand-ins for missing shots, Make offline and Link media that keep trims and settings.

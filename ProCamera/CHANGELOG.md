@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: the button bar under the picture shows the app's small animated arrows at the side that has more buttons, like the other scrolling rows.
+- Scrolling rows and lists everywhere: when they don't fit, their ends keep an empty strip as wide as the arrow, so scrolled all the way to the left / right (or top / bottom), no button sits under an arrow. Rows that fit look exactly as before.
 - Video editor: exporting video with sound failed with "Export failed: null" when the edit had transitions and a clip without sound (drone footage, generated clips). Fixed — those clips get silence and the export runs. If an export ever can't start again, the message names the problem and a problem report is saved.
 - Problem reports: the app being closed by Android while in the background (low memory, another app open) is no longer reported as a crash.
 

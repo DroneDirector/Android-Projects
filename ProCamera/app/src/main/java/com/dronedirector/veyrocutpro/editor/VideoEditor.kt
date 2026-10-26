@@ -3172,7 +3172,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     BoxWithConstraints(Modifier.fillMaxWidth()) {
                         val barWidth = maxWidth
                         Row(
-                            Modifier.horizontalScroll(rememberScrollState()).widthIn(min = barWidth),
+                            // Scrolls with the app's hint arrows; the ends keep room for them.
+                            Modifier.hintedScroll(horizontal = true).widthIn(min = barWidth),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

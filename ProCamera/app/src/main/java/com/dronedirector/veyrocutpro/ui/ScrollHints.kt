@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.LaunchedEffect
@@ -30,9 +31,14 @@ import androidx.compose.ui.unit.dp
  * Scrolling with a visible hint: when there is more content in a direction, that edge fades out
  * softly and a tiny chevron appears there. The chevron nudges gently three times when it shows
  * up, then rests faintly. Nothing is drawn when everything fits.
+ *
+ * When the content is longer than the space, it gets an empty strip at both ends as wide as the
+ * chevron's place ([ARROW_SPACE]), so scrolled all the way to either end, no button or control
+ * sits under a chevron. When everything fits, the layout is unchanged.
  */
 fun Modifier.hintedScroll(horizontal: Boolean, fade: Dp = 22.dp, tint: Color = Color.White): Modifier = composed {
     val state = rememberScrollState()
+    val space = if (state.maxValue > 0) ARROW_SPACE else 0.dp
     val nudge = remember { Animatable(0f) }
     val canBack = state.canScrollBackward
     val canForward = state.canScrollForward
@@ -92,7 +98,11 @@ fun Modifier.hintedScroll(horizontal: Boolean, fade: Dp = 22.dp, tint: Color = C
             }
         }
         .then(if (horizontal) Modifier.horizontalScroll(state) else Modifier.verticalScroll(state))
+        .padding(horizontal = if (horizontal) space else 0.dp, vertical = if (horizontal) 0.dp else space)
 }
+
+/** Room for a chevron at a scrolling edge (it sits within this strip, including its nudge). */
+val ARROW_SPACE: Dp = 18.dp
 
 /** A small open chevron centred on [c]. direction: 0 = right, 1 = down, 2 = left, 3 = up. */
 private fun DrawScope.chevron(c: Offset, direction: Int, color: Color) {

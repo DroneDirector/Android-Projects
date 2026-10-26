@@ -3208,5 +3208,6 @@
 "Estimated file size": "Anslået filstørrelse",
 "CAST": "CAST",
 "Show the viewer on a TV with a Chromecast or Google TV on the same Wi-Fi — picture, titles, layers and sound (a few seconds behind).": "Vis fremviseren på et TV med Chromecast eller Google TV på samme Wi-Fi — billede, titler, lag og lyd (nogle sekunder forsinket).",
-"Playhead to start": "Afspilningshoved til start"
+"Playhead to start": "Afspilningshoved til start",
+"The button bar under the player (split, undo, zoom, play, full screen…) slides sideways when it doesn't fit the screen — small moving arrows show the side with more buttons; swipe it left / right to reach every button.": "Knaplinjen under afspilleren (klip, fortryd, zoom, afspil, fuld skærm…) glider til siden, når den ikke kan være på skærmen — små bevægelige pile viser den side, hvor der er flere knapper; stryg den til venstre / højre for at nå alle knapper."
 }

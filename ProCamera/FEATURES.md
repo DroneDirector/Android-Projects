@@ -211,6 +211,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 
 ## Video editor
 ### Media & timeline
+- **Scrolling button bar**: the bar under the picture (split, undo / redo, zoom, cast, play, full screen, playhead to start) scrolls sideways with animated arrows when it doesn't fit.
 - **Playhead to start**: one tap on the transport bar puts the playhead at the very start of the timeline.
 - **AI noise reduction done once per clip**: cleaned at full size on the first export, kept in the video catalog and reused by every later export (no AI run per export).
 - **Fast thumbnails**: covers appear at once, filmstrips fill in coarse to fine for several clips at a time, and thumbnails are kept in the video catalog so reopened projects show them straight away.
@@ -404,5 +405,6 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - Same dark "Pro" design across Capture and both editors.
 - **App colour** picker available in Capture settings and in both editors' settings.
 - **Folded settings menus**: the gear menus in Capture, the photo editor and the video editor group every setting in fold-out sections (e.g. Photo, Video, Audio, AI, Saving & backup, App); each line shows a short list of what is inside.
+- **Scroll arrows**: rows and lists that are wider or longer than the screen show small animated arrows at the side with more to see; their ends keep an empty strip for the arrows, so scrolled all the way, no button sits under an arrow.
 - **Quick tours**: Capture, the photo editor and the video editor each have a short first-run tour (skip, don't show again, or replay from the gear → App).
 - **Fold-out tool sections**: in the photo and video editors every tool panel section opens and closes (title + a line listing what's inside), inside the sliding tabs; gear → Layout & look sets how they start (remember, always closed, all open).

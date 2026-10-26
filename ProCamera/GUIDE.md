@@ -235,6 +235,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Video editor guide
+**AI noise reduction**
+- The first export cleans each clip with AI noise reduction once and keeps it in the video catalog; later exports reuse it, so they're much faster. Changing the strength cleans the clip again.
 **Cast to TV**
 - Tap the cast button (on the viewer, or next to Split — gear → Cast to TV) and pick your Chromecast / Google TV on the same Wi-Fi. The viewer shows on the TV a few seconds behind. Tap it again to stop. Hide the button in the layout menu.
 **Camera**

@@ -476,8 +476,15 @@ class TimelineExport(
         for (l in videoLayers.asReversed()) sequences += layerSequence(l, windows)
         val layerSettings = videoLayers.asReversed()
         val firstTimeline = sequences.size
+        // Clips without sound (drone footage, generated clips…): silence in their place, so sound exports don't fail.
+        val wantAudio = settings.audio || audioOnly
+        val silent = if (wantAudio) clips.map { !hasAudioTrack(context, CleanRender.sourceFor(context, it, settings) ?: it.uri) } else clips.map { false }
         if (!ab) {
-            sequences += EditedMediaItemSequence.Builder(items).build()
+            if (audioOnly) {
+                val seq = EditedMediaItemSequence.Builder(setOf(androidx.media3.common.C.TRACK_TYPE_AUDIO))
+                for (i in clips.indices) if (silent[i]) seq.addGap(clips[i].lengthMs * 1000) else seq.addItem(items[i])
+                sequences += seq.build()
+            } else sequences += EditedMediaItemSequence.Builder(items).experimentalSetForceAudioTrack(wantAudio && silent.any { it }).build()
         } else {
             val types = if (audioOnly) setOf(androidx.media3.common.C.TRACK_TYPE_AUDIO)
             else if (settings.audio) setOf(androidx.media3.common.C.TRACK_TYPE_AUDIO, androidx.media3.common.C.TRACK_TYPE_VIDEO)
@@ -489,10 +496,12 @@ class TimelineExport(
                 for (i in clips.indices) {
                     if (i % 2 != parity) continue
                     if (starts[i] > t) seq.addGap((starts[i] - t) * 1000)
-                    seq.addItem(items[i]); any = true
+                    if (audioOnly && silent[i]) seq.addGap(clips[i].lengthMs * 1000) else seq.addItem(items[i])
+                    any = true
                     t = starts[i] + clips[i].lengthMs
                 }
                 if (totalMs > t) seq.addGap((totalMs - t) * 1000)
+                if (!audioOnly && wantAudio && silent.any { it }) seq.experimentalSetForceAudioTrack(true)
                 if (any) sequences += seq.build()
             }
         }
@@ -826,4 +835,15 @@ internal fun audioInfo(context: Context, uri: Uri): String {
                 (if (f.containsKey("pcm-encoding")) " pcm${f.getInteger("pcm-encoding")}" else "")
         } ?: "no audio"
     } finally { ex.release() }
+}
+
+private val audioTrackCache = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
+/** Whether [uri] has a sound track (remembered per file). */
+internal fun hasAudioTrack(context: Context, uri: Uri): Boolean = audioTrackCache.getOrPut(uri.toString()) {
+    val ex = android.media.MediaExtractor()
+    try {
+        ex.setDataSource(context, uri, null)
+        (0 until ex.trackCount).any { ex.getTrackFormat(it).getString(android.media.MediaFormat.KEY_MIME)?.startsWith("audio/") == true }
+    } catch (_: Throwable) { true } finally { ex.release() }
 }

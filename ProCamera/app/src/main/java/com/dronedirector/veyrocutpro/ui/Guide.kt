@@ -278,7 +278,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
         ), numbered = false),
         GuideSection(GuideTopic.PHONE_AI, "AI noise reduction", Icons.Filled.AutoAwesome, null, listOf(
             "Color → Detail → AI NOISE REDUCTION → move Strength above Off.",
-            "It's applied when exporting; the preview shows the normal noise reduction.",
+            "It's applied when exporting; the preview shows the normal noise reduction. The first export cleans each clip once and keeps it in the video catalog — later exports reuse it and are much faster.",
             "On the phone it can take several minutes up to about an hour (tap ⓘ next to it); Cloud AI does it in minutes.",
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),

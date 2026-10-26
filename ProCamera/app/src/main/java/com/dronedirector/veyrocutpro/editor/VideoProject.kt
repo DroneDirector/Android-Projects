@@ -172,7 +172,15 @@ data class DeliverSettings(
     val reviewNotes: Boolean = true,
     /** Timecode shown in a review copy starts here (the export range's start). */
     val reviewTcStart: Long = 0L,
+    /**
+     * Framing set by pinching the viewer: zoom (1 = whole frame) and the shift of the picture as a
+     * share of the frame's width / height. The export shows exactly what the viewer shows.
+     */
+    val frameZoom: Float = 1f,
+    val frameX: Float = 0f,
+    val frameY: Float = 0f,
 ) {
+    val framed: Boolean get() = frameZoom > 1.001f || kotlin.math.abs(frameX) > 0.0005f || kotlin.math.abs(frameY) > 0.0005f
     val audioFmt: AudioExportFormat get() = audioFormat?.takeIf { it.available } ?: AudioExportFormat.M4A
 }
 
@@ -407,6 +415,13 @@ class TimelineExport(
         val global = mutableListOf<Effect>()
         // Project frame: size + shape, filling (crop) or fitting (bars).
         if (!audioOnly) global += Presentation.createForWidthAndHeight(outW, outH, layout)
+        // Framing from the viewer (pinch): the finished picture zoomed and moved the same way.
+        if (!audioOnly && settings.framed) {
+            val z = settings.frameZoom; val fx = settings.frameX; val fy = settings.frameY
+            global += androidx.media3.effect.MatrixTransformation { _ ->
+                android.graphics.Matrix().apply { postScale(z, z); postTranslate(2f * fx, -2f * fy) }
+            }
+        }
         if (settings.fps > 0 && !audioOnly) global += FrameDropEffect.createDefaultFrameDropEffect(settings.fps.toFloat())
         // Adjustment layers: a grade over everything under them, inside their time window.
         if (!audioOnly) {
@@ -785,6 +800,7 @@ fun smartRenderBlocker(context: Context, clips: List<Clip>, s: DeliverSettings, 
     if (s.videoGain != 1f || s.masterGain != 1f || s.videoPan != 0f) return "the mixer changes the sound"
     if (layers.any { it.visible }) return "there are layers (text, logos, video)"
     if (clips.any { it.hidden == true }) return "the video track is hidden"
+    if (s.framed) return "the picture is zoomed / moved in the viewer"
     if (s.audio && (music != null || extra.any { !it.muted })) return "there is music or an extra sound track"
     val anyMuted = clips.any { it.muted }
     if (s.audio && anyMuted && clips.any { !it.muted }) return "some clips are muted"

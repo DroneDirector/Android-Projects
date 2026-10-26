@@ -2934,7 +2934,22 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         Box(Modifier.width(fw).height(fh).clipToBounds().background(Color.Black)
                             .onGloballyPositioned { castFrame[0] = it.boundsInWindow() }
                             // Magnification (bar → magnifier): view only, never exported.
-                            .graphicsLayer { scaleX = TransportBar.magnify; scaleY = TransportBar.magnify; translationX = es.magX; translationY = es.magY }) {
+                            .graphicsLayer { scaleX = TransportBar.magnify; scaleY = TransportBar.magnify; translationX = es.magX; translationY = es.magY }
+                            // Two fingers: pinch to zoom and move the picture (framing — exported as seen);
+                            // one finger moves it while zoomed. When magnified, the gestures look around instead.
+                            .pointerInput(fw, fh) {
+                                com.dronedirector.veyrocutpro.ui.pinchAndMove(
+                                    minPointers = { if ((es.deliver.frameZoom > 1.001f || TransportBar.magnify > 1f) && es.page != Page.LAYERS) 1 else 2 },
+                                    onGesture = { _, pan, zoom -> moveFrame(pan, zoom, size.width.toFloat(), size.height.toFloat()) },
+                                )
+                            }
+                            // Double-tap: framing and magnification back to the whole picture.
+                            .pointerInput(Unit) { detectTapGestures(onDoubleTap = { resetFrame() }) }) {
+                          Box(Modifier.fillMaxSize().graphicsLayer {
+                              val z = es.deliver.frameZoom
+                              scaleX = z; scaleY = z
+                              translationX = es.deliver.frameX * size.width; translationY = es.deliver.frameY * size.height
+                          }) {
                             // Video layers placed below the main video are drawn first (underneath it).
                             val belowLayers = layers.filter { it.isBelow }
                             castHasBelow[0] = belowLayers.isNotEmpty()
@@ -3013,6 +3028,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 },
                             )
                             }
+                          }  // framing
                             // Before / after split (Color page, Android 13+): drag the divider across the picture.
                             if (es.page == Page.COLOR && gpuGrade && clips.isNotEmpty()) {
                                 if (es.abSplit > 0f) Box(
@@ -3204,6 +3220,29 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             fun toggleSafe() {
                 if (SafeZones.current != 0) { es.lastSafe = SafeZones.current; SafeZones.current = 0 }
                 else SafeZones.current = es.lastSafe.takeIf { it in 1 until SafeZones.zones.size } ?: SafeZones.zones.lastIndex
+            }
+            /** Pinch / move on the viewer: the framing (exported), or the magnified view (view only). */
+            fun moveFrame(pan: androidx.compose.ui.geometry.Offset, zoom: Float, w: Float, h: Float) {
+                if (w <= 0f || h <= 0f) return
+                val m = TransportBar.magnify
+                if (m > 1f) {
+                    es.magX = (es.magX + pan.x).coerceIn(-w * (m - 1f) / 2f, w * (m - 1f) / 2f)
+                    es.magY = (es.magY + pan.y).coerceIn(-h * (m - 1f) / 2f, h * (m - 1f) / 2f)
+                    return
+                }
+                val d = es.deliver
+                val z = (d.frameZoom * zoom).coerceIn(1f, 8f)
+                // Never past the picture's edge: the frame is always filled.
+                val lim = (z - 1f) / 2f
+                val x = ((d.frameX * w + pan.x) / w).coerceIn(-lim, lim)
+                val y = ((d.frameY * h + pan.y) / h).coerceIn(-lim, lim)
+                es.deliver = d.copy(frameZoom = z, frameX = if (z <= 1.001f) 0f else x, frameY = if (z <= 1.001f) 0f else y)
+            }
+            fun resetFrame() {
+                val was = es.deliver.framed || TransportBar.magnify > 1f
+                es.deliver = es.deliver.copy(frameZoom = 1f, frameX = 0f, frameY = 0f)
+                TransportBar.magnify = 1f; es.magX = 0f; es.magY = 0f
+                if (was) es.message = "Whole picture again"
             }
             fun cycleMagnify() {
                 TransportBar.magnify = when (TransportBar.magnify) { 1f -> 2f; 2f -> 4f; else -> 1f }

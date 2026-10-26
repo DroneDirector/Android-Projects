@@ -729,6 +729,25 @@ private fun PhotoWorkspace(
     LaunchedEffect(Unit) { ExportOpts.load(context) }
     LaunchedEffect(sharpMaskView, preview, edit.detail.sharpenMasking) { val pv = preview; sharpImg = if (sharpMaskView && pv != null) withContext(Dispatchers.Default) { Develop.sharpenMaskPreview(pv, edit.detail) } else null }
     fun resetZoom() { zoomK = 1f; panX = 0f; panY = 0f }
+    /** The pinch on the photo becomes its crop: the photo is exported exactly as it was framed. */
+    fun commitFraming() {
+        val b = base
+        val vw = viewSize.width.toFloat(); val vh = viewSize.height.toFloat()
+        if (b == null || vw <= 0f || vh <= 0f || (zoomK == 1f && panX == 0f && panY == 0f)) { resetZoom(); return }
+        // The shown photo's size inside the view (fitted), to turn the move into a share of the photo.
+        val pv = preview ?: b
+        val asp = pv.width.toFloat() / pv.height
+        val dw = if (vw / vh > asp) vh * asp else vw
+        val dh = if (vw / vh > asp) vh else vw / asp
+        edit = edit.copy(geometry = ImageOps.reframe(b.width, b.height, edit.geometry, zoomK, panX / dw, panY / dh))
+        resetZoom()
+    }
+    /** Double-tap: no framing, no zoom. */
+    fun resetFraming() {
+        resetZoom()
+        val g = edit.geometry
+        if (g.zoom != 1f || g.offsetX != 0f || g.offsetY != 0f) { edit = edit.copy(geometry = g.copy(zoom = 1f, offsetX = 0f, offsetY = 0f)); message = "Whole photo again" }
+    }
     LaunchedEffect(panel, split) { if (panel == PhotoPanel.MASKS || panel == PhotoPanel.HEAL || panel == PhotoPanel.RETOUCH || split) resetZoom(); if (panel != PhotoPanel.COLOR && panel != PhotoPanel.MASKS && panel != PhotoPanel.EFFECTS) picking = 0 }
     /** A tap on the photo (box coordinates) → pixel of the shown picture, undoing padding, fit and zoom. */
     fun tapToPixel(o: androidx.compose.ui.geometry.Offset, img: Bitmap, padPx: Float): Pair<Int, Int>? {
@@ -1614,17 +1633,24 @@ private fun PhotoWorkspace(
                         onRightClick = { split = !split },
                         onDoubleClick = { com.dronedirector.veyrocutpro.ui.Panels.set(context, "pe.controls", !showControls) },
                     ).pointerInput(split, panel, picking, retouchTab) {
-                        // Pinch to zoom in (1:1 loupe), drag to look around while zoomed. Off in Masks / Heal and the split view.
-                        if (!split && picking == 0 && panel != PhotoPanel.MASKS && panel != PhotoPanel.HEAL && !(panel == PhotoPanel.RETOUCH && retouchTab == 0)) detectTransformGestures { c, pan, z, _ ->
-                            val nz = (zoomK * z).coerceIn(1f, 8f)
-                            if (nz != zoomK || zoomK > 1f) {
+                        // Pinch / move the photo. Normal panels: framing — when the fingers lift, the crop
+                        // becomes what you see (exported as seen); one finger moves a framed photo. Painting
+                        // panels (Masks, Heal, Retouch brush) and the split view: two fingers zoom the view
+                        // only, so you can paint details; one finger stays the brush.
+                        val painting = split || picking != 0 || panel == PhotoPanel.MASKS || panel == PhotoPanel.HEAL || (panel == PhotoPanel.RETOUCH && retouchTab == 0)
+                        com.dronedirector.veyrocutpro.ui.pinchAndMove(
+                            minPointers = { if (!painting && (edit.geometry.zoom > 1.001f || zoomK > 1f)) 1 else 2 },
+                            onGesture = { c, pan, z ->
+                                val nz = (zoomK * z).coerceIn(if (painting) 1f else 1f / edit.geometry.zoom, 8f)
                                 val bw = viewSize.width.toFloat(); val bh = viewSize.height.toFloat()
-                                panX = ((panX + pan.x) - (c.x - bw / 2f - panX) * (nz / zoomK - 1f)).coerceIn(-bw * (nz - 1f) / 2f, bw * (nz - 1f) / 2f)
-                                panY = ((panY + pan.y) - (c.y - bh / 2f - panY) * (nz / zoomK - 1f)).coerceIn(-bh * (nz - 1f) / 2f, bh * (nz - 1f) / 2f)
+                                val lim = maxOf(nz - 1f, 0f) / 2f
+                                panX = ((panX + pan.x) - (c.x - bw / 2f - panX) * (nz / zoomK - 1f)).coerceIn(-bw * lim, bw * lim)
+                                panY = ((panY + pan.y) - (c.y - bh / 2f - panY) * (nz / zoomK - 1f)).coerceIn(-bh * lim, bh * lim)
                                 zoomK = nz
-                                if (zoomK <= 1.001f) resetZoom()
-                            }
-                        }
+                                if (painting && zoomK <= 1.001f) resetZoom()
+                            },
+                            onEnd = { if (!painting) commitFraming() },
+                        )
                     }.pointerInput(split, panel, picking, retouchTab) {
                         if (split) {
                             // Drag anywhere to move the before / after divider.
@@ -1641,13 +1667,8 @@ private fun PhotoWorkspace(
                         } else if (panel != PhotoPanel.MASKS && panel != PhotoPanel.HEAL && !(panel == PhotoPanel.RETOUCH && retouchTab == 0)) {
                             detectTapGestures(
                                 onPress = { if (zoomK <= 1f) { comparing = true; tryAwaitRelease(); comparing = false } },
-                                // Double-tap: 1:1 loupe at that spot, again to fit.
-                                onDoubleTap = { o ->
-                                    if (zoomK > 1f) resetZoom() else {
-                                        val bw = viewSize.width.toFloat(); val bh = viewSize.height.toFloat(); val z = 3f
-                                        zoomK = z; panX = (-(o.x - bw / 2f) * (z - 1f)).coerceIn(-bw, bw); panY = (-(o.y - bh / 2f) * (z - 1f)).coerceIn(-bh, bh)
-                                    }
-                                },
+                                // Double-tap: the whole photo again (framing and zoom reset).
+                                onDoubleTap = { resetFraming() },
                             )
                         }
                     },
@@ -1708,6 +1729,15 @@ private fun PhotoWorkspace(
                         }
                         shown != null || ph != null -> Box(
                             Modifier.fillMaxSize().padding(6.dp).onSizeChanged { viewSize = it }
+                                // The photo's frame: when zoomed or moved, nothing shows outside it.
+                                .drawWithContent {
+                                    val pic = shown ?: ph
+                                    if (pic == null || (zoomK == 1f && panX == 0f && panY == 0f)) { drawContent(); return@drawWithContent }
+                                    val asp = pic.width.toFloat() / pic.height
+                                    val dw = if (size.width / size.height > asp) size.height * asp else size.width
+                                    val dh = if (size.width / size.height > asp) size.height else size.width / asp
+                                    clipRect((size.width - dw) / 2f, (size.height - dh) / 2f, (size.width + dw) / 2f, (size.height + dh) / 2f) { this@drawWithContent.drawContent() }
+                                }
                                 .graphicsLayer(scaleX = zoomK, scaleY = zoomK, translationX = panX, translationY = panY),
                         ) {
                             if (ph != null) Image(ph.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())

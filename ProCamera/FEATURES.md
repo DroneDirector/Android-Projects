@@ -211,6 +211,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 
 ## Video editor
 ### Media & timeline
+- **Fast thumbnails**: covers appear at once, filmstrips fill in coarse to fine for several clips at a time, and thumbnails are kept in the video catalog so reopened projects show them straight away.
 - **Cast to TV (Chromecast)**: the viewer — with titles, layers and sound (video, music and extra tracks mixed) — on a TV with a Chromecast or Google TV (a few seconds behind); stays connected when you switch screens. Button on the picture or next to Split (gear → Cast to TV); hide it in the layout menu.
 - **Camera → media list**: the Media page and the media strip's + Camera open the full **Capture** screen (every mode and pro control) over the editor; videos you record and photos you take (each becomes a 5 s clip) go into the media list, not onto the timeline.
 - **Delete from the timeline**: a bin on the selected clip; choose Close gap (ripple) or Leave gap (black of the same length).

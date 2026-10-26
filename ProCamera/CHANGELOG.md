@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: **much faster thumbnails** on the timeline and in the media strip. Each clip shows a cover at once (the phone's own ready-made video thumbnail, or one quick frame), filmstrips fill in coarse to fine (whole clip first, then the gaps) for several clips at a time, and every thumbnail is kept on disk in the video catalog — a project you open again shows its thumbnails straight away.
 
 ## 1.0.549 — 2026-10-24
 - Chromecast fix: the video editor's picture now reaches the TV (it showed only the AlcorCut Pro card — the title / layer pictures couldn't be drawn into the TV frame, which dropped the whole frame).

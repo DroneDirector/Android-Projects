@@ -84,7 +84,7 @@ object Nas {
      * Opens [host]: with the given sign-in, else a saved one, else as a guest. Blocking — call off
      * the main thread.
      */
-    fun open(context: Context, host: String, user: String? = null, password: CharArray? = null, domain: String? = null): Opened {
+    fun open(context: Context, host: String, user: String? = null, password: CharArray? = null, domain: String? = null, useSaved: Boolean = true): Opened {
         val c = client()
         val conn = try { c.connect(host) } catch (t: Throwable) {
             c.close()
@@ -100,7 +100,7 @@ object Nas {
             val l = tryAuth(AuthenticationContext(user, password, domain?.ifBlank { null } ?: ""))
             return if (l != null) Opened.Ok(l) else { conn.close(); c.close(); Opened.NeedsSignIn(wrong = true) }
         }
-        NasSignIns.use(context, host) { u, p, d -> tryAuth(AuthenticationContext(u, p, d)) }?.let { return Opened.Ok(it) }
+        if (useSaved) NasSignIns.use(context, host) { u, p, d -> tryAuth(AuthenticationContext(u, p, d)) }?.let { return Opened.Ok(it) }
         (tryAuth(AuthenticationContext.guest()) ?: tryAuth(AuthenticationContext.anonymous()))?.let { return Opened.Ok(it) }
         try { conn.close() } catch (_: Throwable) {}
         c.close()

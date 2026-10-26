@@ -136,6 +136,8 @@ import com.dronedirector.veyrocutpro.camera.GradeIO
 import com.dronedirector.veyrocutpro.ui.Pro
 import com.dronedirector.veyrocutpro.ui.hintedScroll
 import com.dronedirector.veyrocutpro.ui.pinchAndMove
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.material.icons.filled.Storage
 import com.dronedirector.veyrocutpro.ui.BarIconGroup
 import kotlinx.coroutines.Dispatchers
@@ -3878,10 +3880,25 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 LaunchedEffect(controls, touch, es.playing) {
                     if (controls && es.playing) { delay(3000); controls = false }
                 }
-                fun poke() { controls = true; touch++ }
+                var shownAt by remember { mutableStateOf(0L) }
+                fun poke() { if (!controls) shownAt = System.currentTimeMillis(); controls = true; touch++ }
                 Box(
                     Modifier.fillMaxSize().background(Color.Black)
-                        .pointerInput(Unit) { detectTapGestures(onTap = { if (controls) controls = false else poke() }, onDoubleTap = { togglePlay(); poke() }) },
+                        // Any tap on the picture brings the controls back at once — also while playing, and
+                        // also when the picture itself uses the touch (framing, layers).
+                        .pointerInput(Unit) {
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false, pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                                val up = androidx.compose.foundation.gestures.waitForUpOrCancellation(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                                if (up != null && (up.position - down.position).getDistance() < viewConfiguration.touchSlop && !controls) poke()
+                            }
+                        }
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = { if (controls && System.currentTimeMillis() - shownAt > 700) controls = false },
+                                onDoubleTap = { togglePlay(); poke() },
+                            )
+                        },
                 ) {
                     viewer(Modifier.fillMaxSize())
                     androidx.compose.animation.AnimatedVisibility(

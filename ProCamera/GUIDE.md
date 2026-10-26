@@ -244,6 +244,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 **Network (NAS)**
 - Media → Network (NAS) (or Network (NAS) on the start page): your Synology or other NAS shows up by itself when the phone is on the same Wi-Fi — or type its address (e.g. 192.168.1.20). Tap it, open a shared folder, tap the videos, photos and audio you want, then Add. They're copied into the app, so the edit keeps working when the NAS is off.
 - If the NAS asks for a sign-in, type your NAS user name and password. Afterwards it asks "Remember this sign-in?" — Yes keeps it encrypted on the phone (never shown, not in backups), No forgets it. Gear → Network (NAS) lists the saved ones (server and user only) with Remove.
+- A saved sign-in is only used after the phone's own lock: your fingerprint, or the PIN / pattern / password set up on the phone. Your fingerprint stays in the phone — the app never sees it. No lock set up on the phone? The app says so, and the saved sign-in is then the only protection. Gear → Network (NAS) → Unlock with the phone's lock turns this off.
 **Buttons under the picture**
 - Frame back / forward, go to in / out point, mark in / out, add marker, safe margins, playback resolution (Full, 1/2, 1/4, 1/8, 1/16 — a lower one plays heavy clips smoother; the export is always full), magnifier (2× / 4×, drag to look around, never exported), export frame and settings. Tap + at the end of the bar to choose which buttons it shows; Show all brings them all back.
 **Pinch on the picture**

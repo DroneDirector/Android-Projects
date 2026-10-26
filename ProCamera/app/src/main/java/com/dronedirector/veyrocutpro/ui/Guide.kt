@@ -286,7 +286,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Video editor tips", Icons.Filled.Movie, null, listOf(
-            "Network (NAS): Media → Network (NAS) finds your Synology or other NAS on the same Wi-Fi (or type its address). Pick videos, photos and audio; they're copied into the app. Sign in only if the NAS asks — then choose whether to remember it (encrypted, never shown; gear → Network (NAS) → Remove).",
+            "Network (NAS): Media → Network (NAS) finds your Synology or other NAS on the same Wi-Fi (or type its address). Pick videos, photos and audio; they're copied into the app. Sign in only if the NAS asks — then choose whether to remember it (encrypted, never shown; gear → Network (NAS) → Remove). A saved sign-in opens with the phone's fingerprint, PIN or pattern — they stay in the phone.",
             "Buttons under the picture: frame steps, in / out, marker, safe margins, playback resolution (preview only), magnifier (view only), export frame, settings. The + at the end chooses which ones you see.",
             "Pinch on the picture to zoom in and drag it into place — the export is framed exactly as seen. Double-tap = whole picture again.",
             "Hold a clip's edge and drag — the edge follows your finger. Shortening leaves a black gap and everything stays put; gear → Trimming closes the gap moves everything after it left on every track.",

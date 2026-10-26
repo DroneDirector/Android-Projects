@@ -57,7 +57,7 @@ Files you open from a NAS on your own network are copied straight from the NAS t
 never go through any other server. If you choose to remember a NAS sign-in, the user name and
 password are stored **encrypted on your phone** (Android Keystore), are left out of backups, are sent
 only to that NAS, and the password is never shown in the app. You can remove a saved sign-in at any
-time (gear → Network (NAS) → Remove).
+time (gear → Network (NAS) → Remove). Before a saved sign-in is used, the phone's own lock (fingerprint, PIN, pattern or password) is asked for; the fingerprint and PIN are checked by the phone itself and never shared with the app.
 
 ## 4. Live streaming (optional)
 

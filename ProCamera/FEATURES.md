@@ -126,7 +126,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Keep settings after uninstall** (optional): settings, presets and LUTs saved to Documents/AlcorCutPro/Settings; restore from the first screen after reinstalling.
 
 ## Photo editor
-- **Network (NAS)**: open photos — RAW included — from a Synology or any other NAS (or a computer sharing folders) on your network; guest first, sign-in only when needed, optional encrypted remembered sign-ins that are never shown.
+- **Network (NAS)**: open photos — RAW included — from a Synology or any other NAS (or a computer sharing folders) on your network; guest first, sign-in only when needed, optional encrypted remembered sign-ins that are never shown and are unlocked with the phone's fingerprint, PIN or pattern.
 - **Pinch, move and double-tap**: zoom in on the photo and drag it; when your fingers lift, the crop becomes what you see (exported as seen). Double-tap = whole photo again. In Masks, Heal and the Retouch brush two fingers zoom the view only.
 - **Camera in the editor**: the filmstrip's +, the empty editor and the start page open the full **Capture** screen (every mode and pro control) over the editor; each photo you take lands straight in the filmstrip, without any automatic watermark.
 - **Catalogs**: every photo you edit is kept in a catalog — a copy of the photo, its edit and settings, ratings and the AI results (no AI re-runs). Several catalogs; choose how many photos each remembers (10 to any number, or unlimited); photo copies on / off; move catalogs to private storage, shared storage or an SD card. Lossless storage only (AI results as lossless PNG, RAW copies packed losslessly).
@@ -214,7 +214,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 
 ## Video editor
 ### Media & timeline
-- **Network (NAS)**: add videos, photos and audio straight from a Synology or any other NAS (or a computer sharing folders over SMB) on your network — found automatically or by address; browse every shared folder; files are copied into the app with progress. Guest access first, sign-in only when the NAS asks; remembered sign-ins are optional, encrypted on the phone, never shown, removable in the gear menu.
+- **Network (NAS)**: add videos, photos and audio straight from a Synology or any other NAS (or a computer sharing folders over SMB) on your network — found automatically or by address; browse every shared folder; files are copied into the app with progress. Guest access first, sign-in only when the NAS asks; remembered sign-ins are optional, encrypted on the phone, never shown, unlocked with the phone's own fingerprint / PIN / pattern (can be turned off), removable in the gear menu.
 - **Buttons under the picture**: frame back / forward, go to in / out, mark in / out, add marker, safe margins, playback resolution (Full to 1/16, preview only), magnifier (2× / 4×, view only), export frame, settings — all icons; the **+** chooses which ones the bar shows.
 - **Pinch, move and double-tap on the picture**: zoom in and place the picture; the export is framed exactly as seen. Double-tap resets.
 - **In / out flags** on the timeline ruler with the rest dimmed; **shining markers and keyframes** (Marker effects, can be turned off).

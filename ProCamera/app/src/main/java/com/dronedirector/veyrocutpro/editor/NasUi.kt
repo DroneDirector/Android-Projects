@@ -95,7 +95,8 @@ fun NasBrowserDialog(kinds: NasKinds, onDismiss: () -> Unit, onPicked: (List<Uri
     var stop by remember { mutableStateOf(false) }
     var address by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) { NasSignIns.load(context); finder.start(scope) }
+    LaunchedEffect(Unit) { NasSignIns.load(context); PhoneLock.load(context); finder.start(scope) }
+    val unlock = rememberPhoneUnlock()
     DisposableEffect(Unit) {
         onDispose {
             finder.stop()
@@ -116,11 +117,11 @@ fun NasBrowserDialog(kinds: NasKinds, onDismiss: () -> Unit, onPicked: (List<Uri
         }
     }
 
-    fun connect(s: NasServer, user: String? = null, pw: CharArray? = null, domain: String = "") {
+    fun connect(s: NasServer, user: String? = null, pw: CharArray? = null, domain: String = "", useSaved: Boolean = true) {
         finder.stop()
         busy = "Connecting to ${s.name}…"; error = null
         scope.launch {
-            val r = withContext(Dispatchers.IO) { Nas.open(context, s.host, user, pw, domain) }
+            val r = withContext(Dispatchers.IO) { Nas.open(context, s.host, user, pw, domain, useSaved) }
             busy = null
             when (r) {
                 is Nas.Opened.Ok -> {
@@ -135,6 +136,20 @@ fun NasBrowserDialog(kinds: NasKinds, onDismiss: () -> Unit, onPicked: (List<Uri
                 is Nas.Opened.NeedsSignIn -> { pw?.fill('\u0000'); wrong = r.wrong; signInFor = s }
                 is Nas.Opened.Failed -> { pw?.fill('\u0000'); error = r.why }
             }
+        }
+    }
+
+    // A saved sign-in is only used after the phone's own lock (fingerprint, PIN or pattern) — if one is set up.
+    fun openServer(s: NasServer) {
+        val saved = NasSignIns.has(context, s.host)
+        if (!saved || !PhoneLock.nasLock) { connect(s); return }
+        if (!PhoneLock.isSet(context)) {
+            error = "No fingerprint, PIN or pattern is set up on this phone, so there's no extra lock — only the saved sign-in protects your NAS. Set one up in the phone's settings to lock it."
+            connect(s); return
+        }
+        unlock("Unlock the sign-in for ${s.name}") { ok ->
+            if (ok) connect(s)
+            else error = "Not unlocked — the saved sign-in wasn't used."
         }
     }
 
@@ -194,7 +209,7 @@ fun NasBrowserDialog(kinds: NasKinds, onDismiss: () -> Unit, onPicked: (List<Uri
                         }
                         items(finder.found, key = { it.host }) { s ->
                             NasRow(Icons.Filled.Storage, s.name, if (s.name != s.host) s.host else null,
-                                trailing = if (NasSignIns.saved.any { it.host == s.host }) Icons.Filled.Lock else null) { connect(s) }
+                                trailing = if (NasSignIns.saved.any { it.host == s.host }) Icons.Filled.Lock else null) { openServer(s) }
                         }
                         if (!finder.searching && finder.found.isEmpty()) item {
                             Text("Nothing found. Check that the phone is on the same Wi-Fi as the NAS and that file sharing (SMB) is turned on, or type its address below.", color = Pro.Dim, fontSize = 13.sp, modifier = Modifier.padding(vertical = 8.dp))
@@ -206,7 +221,7 @@ fun NasBrowserDialog(kinds: NasKinds, onDismiss: () -> Unit, onPicked: (List<Uri
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), modifier = Modifier.weight(1f), colors = nasFieldColors())
                                 TextButton(onClick = {
                                     val a = address.removePrefix("smb://").removePrefix("\\\\").substringBefore('/').substringBefore('\\')
-                                    if (a.isNotBlank()) connect(NasServer(a, a))
+                                    if (a.isNotBlank()) openServer(NasServer(a, a))
                                 }) { Text("Connect", color = Pro.Amber) }
                             }
                             Text("Works with Synology and other NAS systems, and with computers sharing folders on the network (SMB).", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
@@ -261,7 +276,7 @@ fun NasBrowserDialog(kinds: NasKinds, onDismiss: () -> Unit, onPicked: (List<Uri
             onDismissRequest = {},
             containerColor = Pro.PanelSolid,
             title = { Text("Remember this sign-in?", color = Color.White) },
-            text = { Text("Saved encrypted on this phone, for $user on $host. The password is never shown, and you can remove the sign-in any time under the gear icon → Network sign-ins.", color = Pro.Dim) },
+            text = { Text("Saved encrypted on this phone, for $user on $host. The password is never shown, and you can remove the sign-in any time under the gear icon → Network (NAS). Next time the phone's own lock (fingerprint, PIN or pattern) is asked for before it's used — your fingerprint stays in the phone and is never shared with the app.", color = Pro.Dim) },
             confirmButton = { TextButton(onClick = {
                 pending?.let { NasSignIns.save(context, host, user, it, domain) }
                 pending?.fill('\u0000'); pending = null; rememberAsk = null
@@ -307,6 +322,18 @@ fun NasSignInsSettings() {
     Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
         Text("Network sign-ins", color = Color.White, fontSize = 15.sp)
         Text("NAS sign-ins you chose to remember. They're encrypted on this phone, left out of backups, and the passwords are never shown.", color = Pro.Dim, fontSize = 12.sp)
+        LaunchedEffect(Unit) { PhoneLock.load(context) }
+        val lockSet = remember { PhoneLock.isSet(context) }
+        Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Unlock with the phone's lock", color = Color.White, fontSize = 14.sp)
+                Text("Before a saved sign-in is used, the phone asks for your fingerprint, PIN or pattern — whatever you've set up on the phone.", color = Pro.Dim, fontSize = 12.sp)
+                Text(PhoneLock.NOTE, color = Pro.Dim, fontSize = 12.sp)
+                if (!lockSet) Text("No fingerprint, PIN or pattern is set up on this phone, so nothing but the sign-in itself protects your NAS. Set one up in the phone's settings to use this.", color = Pro.Amber, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
+            }
+            androidx.compose.material3.Switch(PhoneLock.nasLock, { PhoneLock.setNasLock(context, it) },
+                colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
+        }
         if (NasSignIns.saved.isEmpty()) Text("None saved.", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
         for (s in NasSignIns.saved) {
             Row(Modifier.fillMaxWidth().padding(top = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.599 — 2026-10-26
 - **Help** (question-mark icon next to the gear in both editors and Capture): the documentation and tutorials for the part of the app that's open (only that part), troubleshooting (common problems and fixes, check permissions, free space, reset the layout, share the last problem report, copy system info) and **Proof of purchase**.
 - **Proof of purchase**: the AlcorCut Pro purchase on your Google account as Google Play reports it — product, order number, date and state — with links to your Play order history and the Play Store.
 - **Project settings** (File → Project settings): General (the gear's main switches), Project (name, timeline name, shape and frame rate), Storage location (save location, NAS sign-ins, catalog, and the copies kept from the NAS and team projects with Clear), **Ingest** (new media into a bin, proxies for heavy clips, colour label by kind) and **Label colours** (name the eight colours; a colour per kind of media). Photo editor: General and Storage.

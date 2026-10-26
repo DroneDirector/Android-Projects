@@ -68,6 +68,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CropFree
+import androidx.compose.material.icons.filled.Hd
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
@@ -660,6 +664,16 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 androidx.compose.material3.Switch(es.wheelFx, {
                     es.wheelFx = it
                     context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("tl_wheel_fx", it).apply()
+                }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Marker effects", color = Color.White, fontSize = 15.sp)
+                    Text("Markers, keyframes and in / out flags on the timeline shine like the scroll wheels. Off = plain markers, no animation.", color = Pro.Dim, fontSize = 12.sp)
+                }
+                androidx.compose.material3.Switch(es.markerFx, {
+                    es.markerFx = it
+                    context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("tl_marker_fx", it).apply()
                 }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
             }
         },
@@ -3292,6 +3306,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     onLocked = { es.message = "Locked — tap the lock at the left of the timeline to unlock" },
                     waves = if (showWaves) waves else emptyMap(),
                     markers = markers, snapping = es.snapping,
+                    rangeIn = es.deliver.rangeStart?.takeIf { es.deliver.rangeEnd != null }, rangeOut = es.deliver.rangeEnd?.takeIf { es.deliver.rangeStart != null }, markerFx = es.markerFx,
                     onToggleMarker = {
                         val near = markers.firstOrNull { kotlin.math.abs(it - globalMs) < 250 }
                         if (near != null) { markers.remove(near); markerNotes.remove(near); es.message = "Marker removed" }

@@ -72,6 +72,8 @@ internal class EditorState(initial: VideoProjectData?, context: Context) {
     var proxyRun by mutableStateOf(0)  // bumps to restart the worker
     var showInfo by mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("ve_info", false))
     var wheelFx by mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_wheel_fx", true))
+    /** Markers, keyframes and in / out flags with the animated shine (gear → Layout & look). */
+    var markerFx by mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_marker_fx", true))
     var infoText by mutableStateOf("")
     var pendingRestore by mutableStateOf<java.io.File?>(null)
     var loadedId by mutableStateOf<String?>(null)

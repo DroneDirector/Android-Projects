@@ -96,7 +96,10 @@ jobs:
       - name: Report compile errors
         if: failure()
         run: |
-          grep -E "^e: |What went wrong|^   > |rror:|Lint found|Exception" build.log | grep -v "^> Task\|^> Configure" | head -30 | while IFS= read -r l; do echo "::error::$l"; done
+          grep -E "^e: |What went wrong|^   > |rror:|Lint found|Exception" build.log | grep -v "^> Task\|^> Configure" | head -80 > problems.txt || true
+          # One annotation with every line (a step shows at most 10 separate ones).
+          msg=$(sed -e 's/%/%25/g' -e 's|file:///home/runner/work/Android-Projects/Android-Projects/ProCamera/app/src/main/java/com/dronedirector/veyrocutpro/||' problems.txt | awk '{printf "%s%%0A", $0}')
+          echo "::error title=Compile problems::${msg}"
           mkdir -p /tmp/bl && cp build.log /tmp/bl/
           cd /tmp/bl && git init -q -b build-log && git add -A
           git -c user.name="github-actions" -c user.email="actions@github.com" commit -qm "Build log ${GITHUB_SHA::7}"

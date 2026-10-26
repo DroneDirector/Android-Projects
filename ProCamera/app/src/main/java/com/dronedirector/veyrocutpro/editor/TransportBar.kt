@@ -1,6 +1,25 @@
 package com.dronedirector.veyrocutpro.editor
 
 import android.content.Context
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.CropFree
+import androidx.compose.material.icons.filled.FitScreen
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.Hd
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.ZoomIn
+import androidx.compose.material.icons.filled.ZoomOut
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -115,32 +134,32 @@ fun TransportButtonEditor(context: Context, onDismiss: () -> Unit) {
 
 /** The icon of a bar button (also used in the + list). */
 fun transportIcon(id: String): ImageVector = when (id) {
-    "split" -> androidx.compose.material.icons.Icons.Filled.ContentCut
-    "undo" -> androidx.compose.material.icons.Icons.AutoMirrored.Filled.Undo
-    "redo" -> androidx.compose.material.icons.Icons.AutoMirrored.Filled.Redo
+    "split" -> Icons.Filled.ContentCut
+    "undo" -> Icons.AutoMirrored.Filled.Undo
+    "redo" -> Icons.AutoMirrored.Filled.Redo
     "markin" -> BarIcons.markIn
     "markout" -> BarIcons.markOut
     "marker" -> BarIcons.marker
-    "mute" -> androidx.compose.material.icons.Icons.Filled.VolumeUp
-    "tlout" -> androidx.compose.material.icons.Icons.Filled.ZoomOut
-    "tlfit" -> androidx.compose.material.icons.Icons.Filled.FitScreen
-    "tlin" -> androidx.compose.material.icons.Icons.Filled.ZoomIn
-    "cast" -> androidx.compose.material.icons.Icons.Filled.Cast
-    "safe" -> androidx.compose.material.icons.Icons.Filled.CropFree
-    "res" -> androidx.compose.material.icons.Icons.Filled.Hd
-    "magnify" -> androidx.compose.material.icons.Icons.Filled.Search
+    "mute" -> Icons.Filled.VolumeUp
+    "tlout" -> Icons.Filled.ZoomOut
+    "tlfit" -> Icons.Filled.FitScreen
+    "tlin" -> Icons.Filled.ZoomIn
+    "cast" -> Icons.Filled.Cast
+    "safe" -> Icons.Filled.CropFree
+    "res" -> Icons.Filled.Hd
+    "magnify" -> Icons.Filled.Search
     "goin" -> BarIcons.goIn
     "frameback" -> BarIcons.frameBack
-    "play" -> androidx.compose.material.icons.Icons.Filled.PlayArrow
+    "play" -> Icons.Filled.PlayArrow
     "framefwd" -> BarIcons.frameFwd
     "goout" -> BarIcons.goOut
-    "prev" -> androidx.compose.material.icons.Icons.Filled.SkipPrevious
-    "next" -> androidx.compose.material.icons.Icons.Filled.SkipNext
+    "prev" -> Icons.Filled.SkipPrevious
+    "next" -> Icons.Filled.SkipNext
     "start" -> BarIcons.toStart
-    "full" -> androidx.compose.material.icons.Icons.Filled.Fullscreen
-    "frame" -> androidx.compose.material.icons.Icons.Filled.AddAPhoto
-    "settings" -> androidx.compose.material.icons.Icons.Filled.Settings
-    else -> androidx.compose.material.icons.Icons.Filled.Add
+    "full" -> Icons.Filled.Fullscreen
+    "frame" -> Icons.Filled.AddAPhoto
+    "settings" -> Icons.Filled.Settings
+    else -> Icons.Filled.Add
 }
 
 /** The bar's own icons (24 × 24, drawn in white; the bar tints them). */

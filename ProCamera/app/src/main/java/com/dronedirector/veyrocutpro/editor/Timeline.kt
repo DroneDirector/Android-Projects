@@ -58,6 +58,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
@@ -139,6 +141,11 @@ fun TimelineView(
     waves: Map<String, FloatArray> = emptyMap(),
     /** Timeline markers (ms) and the marker / snapping buttons. */
     markers: List<Long> = emptyList(),
+    /** Export range (in / out points), drawn as flags with the rest dimmed; null = none. */
+    rangeIn: Long? = null,
+    rangeOut: Long? = null,
+    /** Markers, keyframes and in / out flags with the scroll wheels' animated shine (off = plain). */
+    markerFx: Boolean = true,
     snapping: Boolean = true,
     onToggleMarker: () -> Unit = {},
     onToggleSnap: () -> Unit = {},
@@ -210,6 +217,11 @@ fun TimelineView(
     val curAudioTime by rememberUpdatedState(onAudioTime)
     val curLocked by rememberUpdatedState(onLocked)
     val curMarkers by rememberUpdatedState(markers)
+    // The markers' shine: one slow sweep, only when the effect is on (plain = no animation at all).
+    val shinePhase = if (markerFx) {
+        val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "marks")
+        t.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(2400, easing = androidx.compose.animation.core.LinearEasing)), label = "mph").value
+    } else -1f
     val curSnap by rememberUpdatedState(snapping)
     val textPaint = remember { Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE; typeface = Typeface.DEFAULT_BOLD } }
     val dimPaint = remember { Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x99FFFFFF.toInt(); typeface = Typeface.MONOSPACE } }
@@ -763,7 +775,30 @@ fun TimelineView(
                         if (mx < leftPad - 4f || mx > size.width + 4f) continue
                         drawLine(accent.copy(alpha = 0.35f), Offset(mx, ruler), Offset(mx, size.height), 1.5f)
                         val tri = androidx.compose.ui.graphics.Path().apply { moveTo(mx - 6f, 0f); lineTo(mx + 6f, 0f); lineTo(mx, ruler * 0.6f); close() }
-                        drawPath(tri, accent)
+                        if (shinePhase >= 0f) shineMark(tri, Offset(mx, ruler * 0.3f), 8f, shinePhase) else drawPath(tri, accent)
+                    }
+
+                    // Export range: IN / OUT flags on the ruler, the part outside dimmed.
+                    if (rangeIn != null || rangeOut != null) {
+                        val xi = rangeIn?.let { xOf(it) }; val xo = rangeOut?.let { xOf(it) }
+                        val shade = Color.Black.copy(alpha = 0.42f)
+                        if (xi != null && xi > leftPad) drawRect(shade, Offset(leftPad, ruler), Size(xi - leftPad, size.height - ruler))
+                        if (xo != null && xo < size.width) drawRect(shade, Offset(xo.coerceAtLeast(leftPad), ruler), Size(size.width - xo.coerceAtLeast(leftPad), size.height - ruler))
+                        val fh = ruler * 0.62f; val fw = 9.dp.toPx()
+                        fun flag(x: Float, isIn: Boolean) {
+                            if (x < leftPad - fw || x > size.width + fw) return
+                            drawLine(accent, Offset(x, 0f), Offset(x, size.height), 2f)
+                            val p = androidx.compose.ui.graphics.Path().apply {
+                                if (isIn) { moveTo(x, 0f); lineTo(x + fw, 0f); lineTo(x + fw * 0.7f, fh / 2); lineTo(x + fw, fh); lineTo(x, fh); close() }
+                                else { moveTo(x, 0f); lineTo(x - fw, 0f); lineTo(x - fw * 0.7f, fh / 2); lineTo(x - fw, fh); lineTo(x, fh); close() }
+                            }
+                            if (shinePhase >= 0f) shineMark(p, Offset(x + if (isIn) fw / 2 else -fw / 2, fh / 2), fw, shinePhase) else drawPath(p, accent)
+                            textPaint.textSize = 8.sp.toPx()
+                            textPaint.textAlign = if (isIn) Paint.Align.LEFT else Paint.Align.RIGHT
+                            drawContext.canvas.nativeCanvas.drawText(if (isIn) "IN" else "OUT", x + if (isIn) fw + 3f else -fw - 3f, fh * 0.75f, textPaint)
+                            textPaint.textAlign = Paint.Align.LEFT
+                        }
+                        xi?.let { flag(it, true) }; xo?.let { flag(it, false) }
                     }
 
                     // Keyframes on the ruler: one easy-to-see lane along its bottom edge for every keyframe on the
@@ -778,8 +813,10 @@ fun TimelineView(
                             if (strong && rowY != null) drawLine(fill.copy(alpha = 0.45f), Offset(kx, ruler), Offset(kx, rowY), 1.dp.toPx())
                             val d = androidx.compose.ui.graphics.Path().apply { moveTo(kx, laneY - dr); lineTo(kx + dr, laneY); lineTo(kx, laneY + dr); lineTo(kx - dr, laneY); close() }
                             drawPath(d, Color.Black.copy(alpha = 0.6f), style = Stroke(outline * 2.2f))
-                            drawPath(d, if (strong) fill else fill.copy(alpha = 0.5f))
-                            drawPath(d, Color.White.copy(alpha = if (strong) 0.95f else 0.5f), style = Stroke(outline))
+                            if (shinePhase >= 0f && strong) shineMark(d, Offset(kx, laneY), dr, shinePhase) else {
+                                drawPath(d, if (strong) fill else fill.copy(alpha = 0.5f))
+                                drawPath(d, Color.White.copy(alpha = if (strong) 0.95f else 0.5f), style = Stroke(outline))
+                            }
                         }
                         clips.forEachIndexed { i, c ->
                             val strong = i == selectedClip
@@ -904,6 +941,25 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.lockHatch(x0: Float
             x += 9f
         }
     }
+}
+
+/**
+ * A marker drawn with the scroll wheels' look: a glowing gradient body, a bright band sweeping
+ * across it and an animated rim. [phase] runs 0..1.
+ */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.shineMark(path: androidx.compose.ui.graphics.Path, c: Offset, r: Float, phase: Float) {
+    val cyan = com.dronedirector.veyrocutpro.ui.CursorStyle.wheel
+    val violet = com.dronedirector.veyrocutpro.ui.CursorStyle.partner(cyan)
+    val tip = androidx.compose.ui.graphics.lerp(cyan, Color.White, 0.45f)
+    val rr = r.coerceAtLeast(2f)
+    drawPath(path, androidx.compose.ui.graphics.Brush.linearGradient(listOf(cyan, violet, tip), start = Offset(c.x - rr, c.y - rr), end = Offset(c.x + rr, c.y + rr)))
+    // The sweeping highlight, kept inside the mark.
+    clipPath(path) {
+        val sx = c.x - 2 * rr + 4 * rr * phase
+        drawRect(androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.85f), Color.Transparent), startX = sx - rr * 0.6f, endX = sx + rr * 0.6f),
+            Offset(sx - rr * 0.6f, c.y - 2 * rr), Size(rr * 1.2f, 4 * rr))
+    }
+    drawPath(path, androidx.compose.ui.graphics.Brush.sweepGradient(listOf(cyan, violet, tip, cyan), center = Offset(c.x, c.y - rr + 2 * rr * phase)), style = Stroke(1.4.dp.toPx()))
 }
 
 /** One switch in a track header: on (amber) when [active]. */

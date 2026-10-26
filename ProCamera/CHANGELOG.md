@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.568 — 2026-10-26
 - Video editor: new **playhead to start** button (own icon: the playhead jumping back to the timeline's start) on the right of the transport bar below the picture — one tap and the playhead is at 0:00.
 - Chromecast placement: in the video editor the cast button sits next to the zoom buttons below the picture on **tablets**; on **phones** it is in the tools, Deliver → **CAST**. Capture shows it on tablets only.
 - Video editor → Deliver: Audio, Audio format, Codec, Bitrate and Estimated file size are now one **RENDER & EXPORT** fold-out, together with the RENDER & EXPORT button — everything about the file in one place. Codec and bitrate show only for video exports.

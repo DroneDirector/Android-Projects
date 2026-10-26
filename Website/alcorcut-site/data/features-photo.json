@@ -2,7 +2,7 @@
  {
   "title": "RAW development",
   "items": [
-   "<strong>Network (NAS)</strong>: open photos — RAW included — from a Synology or any other NAS (or a computer sharing folders) on your network; guest first, sign-in only when needed, optional encrypted remembered sign-ins that are never shown.",
+   "<strong>Network (NAS)</strong>: open photos — RAW included — from a Synology or any other NAS (or a computer sharing folders) on your network; guest first, sign-in only when needed, optional encrypted remembered sign-ins that are never shown and are unlocked with the phone's fingerprint, PIN or pattern.",
    "<strong>Upright</strong> (Auto, Level, Vertical, Full), <strong>dust spot</strong> visualise and auto-heal, <strong>panorama</strong> projections (cylindrical / spherical / perspective), boundary warp and AI edge fill.",
    "<strong>DNG camera profiles (.dcp)</strong>: import and use instead of the RAW file's own colour (matrices, forward matrices, hue / sat maps, look table, tone curve).",
    "<strong>RAW (DNG) develop</strong>: the editor reads the sensor data itself (uncompressed and lossless-compressed DNGs, lens-shading maps, the camera's colour matrix) — exposure ±5 stops, highlights, shadows, whites, blacks and white balance work on the full-range data with a soft highlight roll-off; <strong>RAW profiles</strong> (Standard, Flat, Vivid, Portrait, Landscape, Mono) and <strong>white balance presets</strong> (As shot, Auto, Daylight, Cloudy, Shade, Tungsten, Fluorescent); full-quality demosaic on export; RAW files in a batch export are developed too.",

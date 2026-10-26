@@ -2,11 +2,11 @@
  {
   "title": "Media & timeline",
   "items": [
-   "<strong>Network (NAS)</strong>: add videos, photos and audio straight from a Synology or any other NAS (or a computer sharing folders over SMB) on your network — found automatically or by address; browse every shared folder; files are copied into the app with progress. Guest access first, sign-in only when the NAS asks; remembered sign-ins are optional, encrypted on the phone, never shown, removable in the gear menu.",
+   "<strong>Network (NAS)</strong>: add videos, photos and audio straight from a Synology or any other NAS (or a computer sharing folders over SMB) on your network — found automatically or by address; browse every shared folder; files are copied into the app with progress. Guest access first, sign-in only when the NAS asks; remembered sign-ins are optional, encrypted on the phone, never shown, unlocked with the phone's own fingerprint / PIN / pattern (can be turned off), removable in the gear menu.",
    "<strong>Buttons under the picture</strong>: frame back / forward, go to in / out, mark in / out, add marker, safe margins, playback resolution (Full to 1/16, preview only), magnifier (2× / 4×, view only), export frame, settings — all icons; the <strong>+</strong> chooses which ones the bar shows.",
    "<strong>Pinch, move and double-tap on the picture</strong>: zoom in and place the picture; the export is framed exactly as seen. Double-tap resets.",
    "<strong>In / out flags</strong> on the timeline ruler with the rest dimmed; <strong>shining markers and keyframes</strong> (Marker effects, can be turned off).",
-   "<strong>Start-edge trimming</strong> that follows your finger, with a choice: leave a black gap, or close it and move everything after it on every track.",
+   "<strong>Trimming that leaves a gap</strong>: drag either edge — the edge follows your finger and everything else stays put; or turn on <strong>Trimming closes the gap</strong> to move everything after it left on every track.",
    "<strong>Track switches</strong>: show / hide, mute and lock on the main video; show / hide and lock on every layer (sound on / off on video layers); mute and lock on audio tracks.",
    "<strong>Scrolling button bar</strong>: the bar under the picture (split, undo / redo, zoom, cast, play, full screen, playhead to start) scrolls sideways with animated arrows when it doesn't fit.",
    "<strong>Playhead to start</strong>: one tap on the transport bar puts the playhead at the very start of the timeline.",

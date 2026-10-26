@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.570 — 2026-10-26
 - Video editor: the whole button bar under the picture now scrolls sideways when it's wider than the screen (like the tool tabs), so every button — split, undo / redo, zoom, cast, play, full screen, playhead to start — can always be reached, and new buttons can be added there. When it all fits, the layout is unchanged.
 
 ## 1.0.568 — 2026-10-26

@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Chromecast is now for **tablets only** (hidden on phones). In the video editor the cast button sits next to the zoom buttons below the picture.
 - Video editor → Deliver: Audio, Audio format, Codec, Bitrate and Estimated file size are now one **RENDER & EXPORT** fold-out, together with the RENDER & EXPORT button — everything about the file in one place. Codec and bitrate show only for video exports.
 
 ## 1.0.562 — 2026-10-26

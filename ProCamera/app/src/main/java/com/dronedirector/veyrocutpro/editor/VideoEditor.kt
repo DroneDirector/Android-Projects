@@ -712,7 +712,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val stabCancels = remember { HashMap<String, () -> Unit>() }
     val frameViews = remember { arrayOfNulls<android.view.View>(2) }
     val texViews = remember { arrayOfNulls<android.view.View>(2) }
-    val castPanel = com.dronedirector.veyrocutpro.ui.panelOn("ve.cast")
+    // Chromecast: tablets only.
+    val castPanel = com.dronedirector.veyrocutpro.ui.panelOn("ve.cast") && androidx.compose.ui.platform.LocalConfiguration.current.smallestScreenWidthDp >= 600
     val transitionOn = remember { booleanArrayOf(false) }
     val gpuGrade = remember { GradePreview.supported }
     val filmOn = remember { booleanArrayOf(false, false) }
@@ -3059,9 +3060,6 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     )
                     // RGB histogram: a pull-out drawer on the right edge (never in full screen).
                     if (!es.fullscreen && showScope) ScopeDrawer(es.scopeHist, Modifier.align(Alignment.CenterEnd), frame = es.scopeFrame) { es.scopeOpen = it }
-                    // Cast to a TV: on the picture (default), unless the gear puts it next to Split.
-                    if (castPanel && !es.fullscreen && com.dronedirector.veyrocutpro.ui.CastPlace.get(context, "ve") == 0)
-                        com.dronedirector.veyrocutpro.ui.CastButton(castSource, Modifier.align(Alignment.BottomEnd).padding(end = 48.dp, bottom = 7.dp), small = true, sound = com.dronedirector.veyrocutpro.camera.CastFeed.Sound.APP)
                     if (showTimecode) Text(
                         "${tc(globalMs)} / ${tc(totalMs)}",
                         style = Pro.Value.copy(fontSize = 12.sp),
@@ -3159,8 +3157,6 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         // Split, undo and redo are always on screen; the zoom tools scroll if the row is narrow.
                         TransportIcon(Icons.Filled.ContentCut, "Split at playhead", accent = true) { splitAtPlayhead() }
-                        if (castPanel && com.dronedirector.veyrocutpro.ui.CastPlace.get(context, "ve") == 1)
-                            com.dronedirector.veyrocutpro.ui.CastButton(castSource, Modifier.padding(horizontal = 2.dp), small = true, sound = com.dronedirector.veyrocutpro.camera.CastFeed.Sound.APP)
                         TransportIcon(Icons.AutoMirrored.Filled.Undo, "Undo", tint = if (es.histPos > 0) Color.White else Pro.Dim) { undo() }
                         TransportIcon(Icons.AutoMirrored.Filled.Redo, "Redo", tint = if (es.histPos < history.lastIndex) Color.White else Pro.Dim) { redo() }
                       Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
@@ -3168,6 +3164,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         TransportIcon(Icons.Filled.ZoomOut, "Zoom timeline out") { zoom.zoomOut() }
                         TransportIcon(Icons.Filled.FitScreen, "Show whole timeline") { zoom.fit() }
                         TransportIcon(Icons.Filled.ZoomIn, "Zoom timeline in") { zoom.zoomIn() }
+                        // Cast to a TV (tablets), next to the zoom buttons below the picture.
+                        if (castPanel) com.dronedirector.veyrocutpro.ui.CastButton(castSource, Modifier.padding(horizontal = 4.dp), small = true, sound = com.dronedirector.veyrocutpro.camera.CastFeed.Sound.APP)
                       }
                         TransportIcon(Icons.Filled.SkipPrevious, "Previous clip") { prevClip() }
                         TransportIcon(if (es.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Pro.Amber) { togglePlay() }

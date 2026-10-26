@@ -467,7 +467,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                             )
                         }
                         // Cast to a TV: on the picture (default), unless the gear puts it below.
-                        if (!clean && panelOn("cap.cast") && CastPlace.get(context, "cap") == 0)
+                        if (!clean && tablet && panelOn("cap.cast") && CastPlace.get(context, "cap") == 0)
                             CastButton({ controller.castFrame() }, Modifier.align(Alignment.TopEnd).padding(top = 96.dp, end = 10.dp))
                         val hints = panelOn("cap.hints")
                         if (hints) SmartModeHint(s, Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp))
@@ -524,7 +524,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                 }
 
                 // Cast button below the picture (gear → Remote & output), just above the controls.
-                if (!clean && panelOn("cap.cast") && CastPlace.get(context, "cap") == 1) CastButton(
+                if (!clean && tablet && panelOn("cap.cast") && CastPlace.get(context, "cap") == 1) CastButton(
                     { controller.castFrame() }, small = true,
                     modifier = if (landscape) Modifier.align(Alignment.BottomEnd).padding(end = rail + 6.dp, bottom = 12.dp)
                     else Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = bottomBar + 6.dp),

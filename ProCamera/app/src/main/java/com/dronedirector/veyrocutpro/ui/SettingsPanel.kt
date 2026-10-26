@@ -476,8 +476,11 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                     Text("The 4-digit number at the end is the PIN — only devices with the full address can connect. No Wi-Fi? Turn on this phone's hotspot and join it from the other device. Turn this off when you're done.", color = Pro.Dim, fontSize = 12.sp)
                 }
 
-                Section("CAST TO TV")
-                CastPlaceSetting("cap")
+                // Chromecast: tablets only.
+                if (androidx.compose.ui.platform.LocalConfiguration.current.smallestScreenWidthDp >= 600) {
+                    Section("CAST TO TV")
+                    CastPlaceSetting("cap")
+                }
 
                 Section("OUTPUT")
                 Text(

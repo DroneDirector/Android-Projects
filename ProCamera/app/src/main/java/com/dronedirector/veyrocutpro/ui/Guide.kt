@@ -271,7 +271,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
     GuideVariant.VIDEO -> listOf(
         cloudSection(v),
         GuideSection(GuideTopic.PHONE_AI, "Catalog", Icons.Filled.AutoAwesome, null, listOf(
-            "Cast to TV: tap the cast button (on the viewer, or next to Split — gear → Cast to TV) and pick your Chromecast / Google TV on the same Wi-Fi. The viewer shows on the TV a few seconds behind; tap again to stop.",
+            "Cast to TV (tablets): tap the cast button (next to the zoom buttons below the picture) and pick your Chromecast / Google TV on the same Wi-Fi. The viewer shows on the TV a few seconds behind; tap again to stop.",
             "Media page → Camera → media list, or + Camera on the media strip: opens the full Capture screen with all its pro controls. Videos you record and photos you take (each becomes a 5 s clip) go into the media list, not onto the timeline. \"← Back to video editor\" (or Back) returns.",
             "⚙ → Catalog: the video catalog remembers each clip you use — its last settings (given back when you add it to another project) and its proxies, stabilisation analysis, waveforms, render cache, cloud AI results and transcripts.",
             "Create, name, rename, open and delete catalogs; choose how many clips to remember (10 or more, or Unlimited); keep copies of clips (off by default); move the catalog to private storage, shared storage or an SD card; Slim down frees what can be made again.",

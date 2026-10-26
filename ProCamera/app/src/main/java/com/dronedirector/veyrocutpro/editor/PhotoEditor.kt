@@ -144,6 +144,7 @@ private enum class PhotoPanel(val label: String) {
 
 @Composable
 fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
+    KeepScreenOnWhileEditing()
     val context = LocalContext.current
     var source by remember { mutableStateOf(initial) }
     var project by remember { mutableStateOf<PhotoProjectData?>(null) }
@@ -1865,6 +1866,12 @@ private fun PhotoWorkspace(
             // File menu (file icon in the top bar).
             val fm = remember { FileMenuState() }
             val curName = projectName
+            var photoProjectSettings by remember { mutableStateOf(false) }
+            if (photoProjectSettings) ProjectSettingsDialog(
+                video = false, onDismiss = { photoProjectSettings = false },
+                general = { EditorSettingsBody("Photo editor", com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR, only = setOf("look", "prefs", "app")) },
+                storage = { EditorSettingsBody("Photo editor", com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR, only = setOf("save", "nas", "catalog")) },
+            )
             val fa = remember { FileActions() }.apply {
                 video = false
                 hasContent = { uri != Uri.EMPTY }
@@ -1872,7 +1879,7 @@ private fun PhotoWorkspace(
                 newProject = { closeEditor() }
                 openProject = { showLoad = true }
                 openRecent = { id -> sessionSave(); onLoad(id) }
-                projectSettings = { showSettings = true }
+                projectSettings = { photoProjectSettings = true }
                 save = { if (projectId == null) askName = true else saveProject(curName) }
                 saveAs = { askName = true }
                 saveCopy = { n ->

@@ -34,6 +34,8 @@ internal class EditorState(initial: VideoProjectData?, context: Context) {
     var confirmExit by mutableStateOf(false)
     var fullscreen by mutableStateOf(false)
     var showSettings by mutableStateOf(false)
+    /** File → Project settings is open. */
+    var projectSettings by mutableStateOf(false)
     var cloudExport by mutableStateOf(false)
     var cloudJob by mutableStateOf<kotlinx.coroutines.Job?>(null)
     var previewMuted by mutableStateOf(false)

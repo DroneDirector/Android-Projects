@@ -139,6 +139,10 @@ import com.dronedirector.veyrocutpro.ui.pinchAndMove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.SlowMotionVideo
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Workspaces
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -149,7 +153,6 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.material.icons.filled.SlowMotionVideo
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.FastRewind
@@ -172,6 +175,7 @@ internal enum class ColorTab(val label: String) { INPUT("Input"), LUTS("LUTs"), 
 @Composable
 fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) {
     val context = LocalContext.current
+    KeepScreenOnWhileEditing()
     val scope = rememberCoroutineScope()
     val clips = remember { mutableStateListOf<Clip>() }
     var project by remember { mutableStateOf<VideoProjectData?>(null) }
@@ -272,7 +276,7 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
     fun addNas(uris: List<Uri>) {
         val (photos, videos) = uris.partition { (it.lastPathSegment ?: "").substringAfterLast('.', "").lowercase() in Nas.PHOTO }
         addUris(videos)
-        for (u in photos) Generators.photoClip(context, u, 5) { clip, _ -> if (clip != null) addUris(listOf(clip)) }
+        for (u in photos) Generators.photoClip(context, u, EditorPrefs.photoClipSeconds(context)) { clip, _ -> if (clip != null) addUris(listOf(clip)) }
     }
     var nasStart by remember { mutableStateOf(false) }
     if (nasStart) NasBrowserDialog(NasKinds.VIDEO_START, onDismiss = { nasStart = false }) { addNas(it) }
@@ -450,7 +454,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         if (isVideo) importToLibrary(listOf(u))
         else {
             es.message = "Making a clip from the photo…"
-            Generators.photoClip(context, u, 5) { clip, err -> if (clip != null) importToLibrary(listOf(clip)) else es.message = err ?: "Couldn't use that photo" }
+            Generators.photoClip(context, u, EditorPrefs.photoClipSeconds(context)) { clip, err -> if (clip != null) importToLibrary(listOf(clip)) else es.message = err ?: "Couldn't use that photo" }
         }
     }
     var cameraAsk by remember { mutableStateOf(false) }
@@ -752,9 +756,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             else -> "WAITING"
         }
     }
-    if (es.showSettings) EditorSettingsDialog(
-        "Video editor", com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR,
-        colourExtra = {
+    // The gear's settings (also in File → Project settings, by group).
+    val veSettings: @Composable (Set<String>?) -> Unit = { only ->
+        EditorSettingsBody(
+            "Video editor", com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR,
+        timelineExtra = {
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Scroll wheel effects", color = Color.White, fontSize = 15.sp)
@@ -820,7 +826,38 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 }
             }
         },
-    ) { es.showSettings = false }
+            only = only, onDismiss = { es.showSettings = false; es.projectSettings = false },
+        )
+    }
+    if (es.showSettings) EditorSettingsShell("Video editor settings", onDismiss = { es.showSettings = false }) { veSettings(null) }
+    if (es.projectSettings) ProjectSettingsDialog(
+        video = true, onDismiss = { es.projectSettings = false },
+        general = { veSettings(setOf("look", "prefs", "app")) },
+        storage = { veSettings(setOf("save", "nas", "catalog")) },
+        projectName = es.projectName, onRename = { es.projectName = it },
+        timelineName = es.timelineName, onRenameTimeline = { es.timelineName = it },
+        aspect = es.deliver.aspect, fps = es.deliver.fps, onShape = { a, f -> es.deliver = es.deliver.copy(aspect = a, fps = f) },
+        teamLabel = Team.current?.place?.label, bins = binNames.toList(),
+    )
+    // Ingest (File → Project settings): new media goes into a bin, gets a proxy or a colour label as it's added.
+    val ingestSeen = remember { HashSet<String>().apply { clips.forEach { add(it.uri.toString()) }; library.forEach { add(it.uri.toString()) } } }
+    LaunchedEffect(clips.size, library.size) {
+        val fresh = (clips + library).filter { ingestSeen.add(it.uri.toString()) }
+        if (fresh.isEmpty()) return@LaunchedEffect
+        val bin = Ingest.bin(context).takeIf { it.isNotEmpty() && it in binNames }
+        val px = Ingest.proxies(context); val lb = Ingest.labels(context)
+        for (c in fresh) {
+            if (bin != null && bins[c.uri.toString()] == null) bins[c.uri.toString()] = bin
+            if (px && Ingest.heavy(c) && c.offline != true) addToProxy(c)
+            if (lb && c.label == null) {
+                val k = LabelNames.forKind(context, Ingest.kind(c))
+                if (k >= 0) {
+                    for (i in clips.indices) if (clips[i].uri == c.uri && clips[i].label == null) clips[i] = clips[i].copy(label = CLIP_LABELS[k])
+                    for (i in library.indices) if (library[i].uri == c.uri && library[i].label == null) library[i] = library[i].copy(label = CLIP_LABELS[k])
+                }
+            }
+        }
+    }
     var videoAspect by remember { mutableStateOf(16f / 9f) }
     // Two players take turns: while one plays, the next clip is loaded and paused on its first
     // frame in the other, so the cut to the next clip is seamless.
@@ -2310,11 +2347,36 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     // ---- Deleting a clip (bin on the selected clip, or Delete in the clip tools): close the gap or leave one.
+    /**
+     * The main video got [d] ms shorter at [edgeAt]: linked layers, audio and markers after it move up
+     * too (never before [floor]). Locked and unlinked tracks stay where they are.
+     */
+    fun rippleLinked(edgeAt: Long, d: Long, floor: Long) {
+        fun moved(t: Long): Long = if (t < edgeAt) t else (t - d).coerceAtLeast(floor)
+        for (j in layers.indices) {
+            val l = layers[j]
+            if (l.wholeVideo || l.locked || l.linked == false || l.startMs < edgeAt) continue
+            val len = l.endMs - l.startMs
+            val ns = moved(l.startMs)
+            layers[j] = l.copy(startMs = ns, endMs = ns + len)
+        }
+        es.music?.let { m -> if (!m.locked && m.linked != false && m.startMs >= edgeAt) es.music = m.copy(startMs = moved(m.startMs)) }
+        for (j in extraAudio.indices) { val a = extraAudio[j]; if (!a.locked && a.linked != false && a.startMs >= edgeAt) extraAudio[j] = a.copy(startMs = moved(a.startMs)) }
+        for (j in markers.indices) markers[j] = moved(markers[j])
+    }
+    /** Moves the other members of [group] by [d] ms (layers and audio). */
+    fun moveGroup(group: String, d: Long, except: String) {
+        for (j in layers.indices) { val l = layers[j]; if (l.group == group && l.id != except && !l.locked) { val ns = (l.startMs + d).coerceAtLeast(0); layers[j] = l.copy(wholeVideo = false, startMs = ns, endMs = ns + (l.endMs - l.startMs)) } }
+        es.music?.let { m -> if (m.group == group && m.id != except && !m.locked) es.music = m.copy(startMs = (m.startMs + d).coerceAtLeast(0)) }
+        for (j in extraAudio.indices) { val a = extraAudio[j]; if (a.group == group && a.id != except && !a.locked) extraAudio[j] = a.copy(startMs = (a.startMs + d).coerceAtLeast(0)) }
+    }
     fun deleteClip(i: Int, leaveGap: Boolean) {
         if (es.videoLocked) { es.message = "The video track is locked"; return }
         if (i !in clips.indices) return
         val c = clips[i]
         if (!leaveGap) {
+            val st0 = clipStarts(clips)[i]
+            rippleLinked(st0 + c.lengthMs, c.lengthMs, st0)
             clips.removeAt(i)
             es.selected = es.selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
             es.current = es.current.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
@@ -2366,19 +2428,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
             return
         }
-        // Everything that starts after the trimmed edge moves with the video (locked tracks stay where they are).
-        val edgeAt = if (edge < 0) start else start + before.lengthMs
-        fun moved(t: Long): Long = if (t < edgeAt) t else (t - d).coerceAtLeast(if (edge < 0) start else 0L)
-        for (j in layers.indices) {
-            val l = layers[j]
-            if (l.wholeVideo || l.locked || l.startMs < edgeAt) continue
-            val len = l.endMs - l.startMs
-            val ns = moved(l.startMs)
-            layers[j] = l.copy(startMs = ns, endMs = ns + len)
-        }
-        es.music?.let { m -> if (!m.locked && m.startMs >= edgeAt) es.music = m.copy(startMs = moved(m.startMs)) }
-        for (j in extraAudio.indices) { val a = extraAudio[j]; if (!a.locked && a.startMs >= edgeAt) extraAudio[j] = a.copy(startMs = moved(a.startMs)) }
-        for (j in markers.indices) markers[j] = moved(markers[j])
+        // Everything linked that starts after the trimmed edge moves with the video.
+        rippleLinked(if (edge < 0) start else start + before.lengthMs, d, if (edge < 0) start else 0L)
     }
     es.deleteAsk?.let { di -> DeleteClipDialog(di, onClose = { es.deleteAsk = null }) { gap -> es.deleteAsk = null; deleteClip(di, gap) } }
     // ---- Generators (Media → GENERATORS)
@@ -3081,6 +3132,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     // ---- File menu (file icon in the top bar) and keyboard shortcuts.
     val fm = remember { FileMenuState() }
     var showKeys by remember { mutableStateOf(false) }
+    var barDlg by remember { mutableStateOf<String?>(null) }
     var teamConflict by remember { mutableStateOf<Team.Saved.Newer?>(null) }
     var teamReadOnlyNote by remember { mutableStateOf(false) }
     var closeAsk by remember { mutableStateOf<Pair<List<OpenProject>, () -> Unit>?>(null) }
@@ -3225,7 +3277,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
         }
         leaveTeam = { leaveTeamProject() }
-        projectSettings = { es.showSettings = true }
+        projectSettings = { es.projectSettings = true }
         close = { host.activeProject()?.let { op -> closeWith(listOf(op)) { deck.cur.pause(); nav.close(op.key) } } }
         closeOthers = { val others = host.open.filter { it.key != host.active }; closeWith(others) { others.forEach { nav.close(it.key) } } }
         closeAll = { val all = host.open.toList(); closeWith(all) { deck.cur.pause(); all.filter { it.key != host.active }.forEach { nav.close(it.key) }; host.active?.let { nav.close(it) } } }
@@ -3280,7 +3332,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             es.message = "Making the offline stand-in…"
             makeStandIn(seconds, w, h) { c ->
                 if (c == null) { es.message = "Couldn't make the offline file"; return@makeStandIn }
-                val oc = c.copy(name = name, offline = true, label = CLIP_LABELS[0])
+                val oc = c.copy(name = name, offline = true, label = LabelNames.forKind(context, "offline").takeIf { it >= 0 }?.let { CLIP_LABELS[it] })
                 library.add(oc)
                 if (!es.videoLocked) clips.add(oc.copy(id = java.util.UUID.randomUUID().toString()))
                 es.message = "Offline file \"$name\" added (media strip and end of the timeline) — Link media swaps in the real file"
@@ -3291,13 +3343,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         captionsFromTranscript = { makeWordCaptions(1) }
         captionsImport = { try { pickSubs.launch(arrayOf("*/*")) } catch (_: Throwable) {} }
         captionEmpty = {
-            val l = Layer(kind = LayerKind.TEXT, text = "Caption", size = 0.046f, x = 0.5f, y = 0.84f, box = true, shadow = true, startMs = globalMs, endMs = globalMs + 3000, name = "Caption")
+            val l = Layer(kind = LayerKind.TEXT, text = "Caption", size = 0.046f, x = 0.5f, y = 0.84f, box = true, shadow = true, startMs = globalMs, endMs = globalMs + EditorPrefs.titleSeconds(context) * 1000L, name = "Caption")
             layers.add(l); es.selectedLayer = l.id; es.page = Page.LAYERS
             es.message = "Caption added at ${tc(globalMs)} — type its text in Layers"
         }
         transcript = { es.page = Page.TEXT; if (wx.tWords.isEmpty() && clips.isNotEmpty()) transcribeAll() }
         title = {
-            val l = Layer(kind = LayerKind.TEXT, text = "Title", size = 0.09f, x = 0.5f, y = 0.5f, shadow = true, startMs = globalMs, endMs = globalMs + 4000, name = "Title")
+            val l = Layer(kind = LayerKind.TEXT, text = "Title", size = 0.09f, x = 0.5f, y = 0.5f, shadow = true, startMs = globalMs, endMs = globalMs + EditorPrefs.titleSeconds(context) * 1000L, name = "Title")
             layers.add(l); es.selectedLayer = l.id; es.page = Page.LAYERS
             es.message = "Title added at ${tc(globalMs)} — change it in Layers"
         }
@@ -3722,13 +3774,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         "prevmarker" -> markers.sorted().lastOrNull { it < globalMs - 50 }?.let { go(it) }
                         "nextmarker" -> markers.sorted().firstOrNull { it > globalMs + 50 }?.let { go(it) }
                         "split" -> splitAtPlayhead()
-                        "delete" -> if (!es.videoLocked && clips.isNotEmpty()) {
-                            clips.removeAt(es.selected.coerceIn(0, clips.lastIndex))
-                            es.selected = es.selected.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
-                            es.current = es.current.coerceAtMost(clips.lastIndex).coerceAtLeast(0)
-                            if (clips.isNotEmpty()) load(es.current, 0, false)
-                            es.message = "Clip deleted (gap closed) — undo brings it back"
-                        }
+                        "delete" -> if (clips.isNotEmpty()) deleteClip(es.selected.coerceIn(0, clips.lastIndex), false)
                         "duplicate" -> clips.getOrNull(es.selected)?.let { c -> if (!es.videoLocked) { clips.add(es.selected + 1, c.copy(id = java.util.UUID.randomUUID().toString())); es.message = "Clip duplicated" } }
                         "undo" -> undo(); "redo" -> redo()
                         "prevclip" -> if (clips.isNotEmpty()) { es.selected = (es.selected - 1).coerceAtLeast(0); go(st[es.selected]) }
@@ -3789,6 +3835,28 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 b("markin") { TransportIcon(BarIcons.markIn, "Mark in", tint = if (es.deliver.rangeStart != null) Pro.Amber else Color.White) { markIn() } }
                                 b("markout") { TransportIcon(BarIcons.markOut, "Mark out", tint = if (es.deliver.rangeEnd != null) Pro.Amber else Color.White) { markOut() } }
                                 b("marker") { TransportIcon(BarIcons.marker, "Add marker") { toggleMarker() } }
+                                b("markers") {
+                                    MarkersMenuButton(
+                                        markers.toList(), markerNotes.toMap(), globalMs, if (es.deliver.fps > 0) es.deliver.fps else 30,
+                                        onGo = { seekGlobal(it) },
+                                        onEdit = { old, new, note ->
+                                            if (new != old) { markers.remove(old); markerNotes.remove(old); if (new !in markers) { markers.add(new); markers.sort() } }
+                                            if (note.isBlank()) markerNotes.remove(new) else markerNotes[new] = note
+                                            es.message = "Marker saved"
+                                        },
+                                        onClear = { m -> markers.remove(m); markerNotes.remove(m); es.message = "Marker cleared" },
+                                        onClearAll = { markers.clear(); markerNotes.clear(); es.message = "All markers cleared" },
+                                        onImport = { l ->
+                                            for ((t, n) in l) { if (t !in markers) markers.add(t); if (n.isNotBlank()) markerNotes[t] = n }
+                                            markers.sort(); es.message = "${l.size} markers imported"
+                                        },
+                                        onMessage = { es.message = it },
+                                    )
+                                }
+                                b("speed") { TransportIcon(Icons.Filled.Speed, "Speed / Duration") { if (clips.getOrNull(es.selected) == null) es.message = "Select a clip first" else barDlg = "speed" } }
+                                b("interp") { TransportIcon(Icons.Filled.SlowMotionVideo, "Time interpolation") { if (clips.getOrNull(es.selected) == null) es.message = "Select a clip first" else barDlg = "interp" } }
+                                b("link") { TransportIcon(Icons.Filled.Link, "Link / unlink tracks") { barDlg = "link" } }
+                                b("group") { TransportIcon(Icons.Filled.Workspaces, "Group / ungroup") { barDlg = "group" } }
                             }
                             Row(Modifier.padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                 b("mute") { TransportIcon(if (es.previewMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute preview") { es.previewMuted = !es.previewMuted } }
@@ -3833,6 +3901,56 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 }
             }
             if (es.editBar) TransportButtonEditor(context) { es.editBar = false }
+            // Speed / Duration, time interpolation, linking and grouping (buttons under the picture).
+            val trackItems = layers.filter { !it.wholeVideo }.map { TrackItem(it.id, it.name ?: it.kind.label + (if (it.kind == LayerKind.TEXT) " · " + it.text.take(24) else ""), false, it.linked != false, it.group, it.locked) } +
+                listOfNotNull(es.music).map { TrackItem(it.id, it.name, true, it.linked != false, it.group, it.locked) } +
+                extraAudio.map { TrackItem(it.id, it.name, true, it.linked != false, it.group, it.locked) }
+            when (barDlg) {
+                "speed" -> clips.getOrNull(es.selected)?.let { c ->
+                    SpeedDurationDialog(c, onDismiss = { barDlg = null }) { sp, rev ->
+                        barDlg = null
+                        if (es.videoLocked) { es.message = "The video track is locked" }
+                        else {
+                            val i = es.selected
+                            clips[i] = clips[i].copy(speed = sp, ramp = null, rampName = null)
+                            if (rev) reverseClip(i)
+                            es.message = "Speed ${kotlin.math.round(sp * 100).toInt()} % — ${tc(clips[i].lengthMs)}"
+                        }
+                    }
+                } ?: run { barDlg = null }
+                "interp" -> clips.getOrNull(es.selected)?.let { c ->
+                    TimeInterpolationDialog(c, onDismiss = { barDlg = null }) { mode ->
+                        barDlg = null
+                        val slowest = (c.ramp?.minOrNull() ?: 1f) * c.speed
+                        when (mode) {
+                            0 -> es.message = "Frame sampling — the clip plays its own frames"
+                            1 -> if (slowest >= 0.95f) es.message = "Optical flow is for slowed-down clips — set a speed under 100 % first (Speed / Duration)"
+                                 else flowRetime(es.selected, kotlin.math.ceil(1f / slowest).toInt().coerceIn(2, 8), null, 0f)
+                            else -> flowRetime(es.selected, 1, null, 0.5f)
+                        }
+                    }
+                } ?: run { barDlg = null }
+                "link" -> LinkTracksDialog(trackItems, onDismiss = { barDlg = null }) { id, audio, on ->
+                    if (!audio) { val j = layers.indexOfFirst { it.id == id }; if (j >= 0) layers[j] = layers[j].copy(linked = on) }
+                    else if (es.music?.id == id) es.music = es.music?.copy(linked = on)
+                    else { val j = extraAudio.indexOfFirst { it.id == id }; if (j >= 0) extraAudio[j] = extraAudio[j].copy(linked = on) }
+                }
+                "group" -> GroupDialog(trackItems, onDismiss = { barDlg = null }, onGroup = { picked ->
+                    val g = java.util.UUID.randomUUID().toString().take(8)
+                    for (it in picked) {
+                        if (!it.audio) { val j = layers.indexOfFirst { l -> l.id == it.id }; if (j >= 0) layers[j] = layers[j].copy(group = g) }
+                        else if (es.music?.id == it.id) es.music = es.music?.copy(group = g)
+                        else { val j = extraAudio.indexOfFirst { a -> a.id == it.id }; if (j >= 0) extraAudio[j] = extraAudio[j].copy(group = g) }
+                    }
+                    es.message = "${picked.size} items grouped — drag one and they all move"
+                }, onUngroup = { g ->
+                    for (j in layers.indices) if (layers[j].group == g) layers[j] = layers[j].copy(group = null)
+                    if (es.music?.group == g) es.music = es.music?.copy(group = null)
+                    for (j in extraAudio.indices) if (extraAudio[j].group == g) extraAudio[j] = extraAudio[j].copy(group = null)
+                    es.message = "Ungrouped"
+                })
+                else -> {}
+            }
 
             val timeline = @Composable {
                 TimelineView(
@@ -3879,7 +3997,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     },
                     onLayerTime = { id, a, b ->
                         val i = layers.indexOfFirst { it.id == id }
-                        if (i >= 0) layers[i] = layers[i].copy(wholeVideo = false, startMs = a, endMs = b)
+                        if (i >= 0) {
+                            val o = layers[i]
+                            layers[i] = o.copy(wholeVideo = false, startMs = a, endMs = b)
+                            // A grouped item moved (not trimmed): the rest of its group moves the same way.
+                            if (o.group != null && !o.wholeVideo && b - a == o.endMs - o.startMs && a != o.startMs) moveGroup(o.group, a - o.startMs, o.id)
+                        }
                     },
                     onLayerOrder = { id, to ->
                         val i = layers.indexOfFirst { it.id == id }
@@ -3887,8 +4010,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     },
                     onAudioTime = { id, st, off, len ->
                         val m = es.music
+                        val o = if (m != null && m.id == id) m else extraAudio.firstOrNull { it.id == id }
                         if (m != null && m.id == id) es.music = m.copy(startMs = st, offsetMs = off, lengthMs = len)
                         else { val i = extraAudio.indexOfFirst { it.id == id }; if (i >= 0) extraAudio[i] = extraAudio[i].copy(startMs = st, offsetMs = off, lengthMs = len) }
+                        if (o?.group != null && off == o.offsetMs && len == o.lengthMs && st != o.startMs) moveGroup(o.group, st - o.startMs, o.id)
                     },
                 )
             }
@@ -4909,6 +5034,7 @@ private fun EditPage(
         CLIP_LABELS.forEach { col ->
             Box(Modifier.size(26.dp).clip(CircleShape).background(Color(col)).border(2.dp, if (c.label == col) Pro.Amber else Color.DarkGray, CircleShape).clickable { onChange { it.copy(label = col) } })
         }
+        LabelNames.nameOf(LocalContext.current, c.label)?.let { Text(it, color = Pro.Dim, fontSize = 12.sp) }
     }
     // Pro trim: slip / roll / slide in frames.
     run {
@@ -6623,7 +6749,7 @@ private val PlayheadToStart: androidx.compose.ui.graphics.vector.ImageVector by 
 }
 
 @Composable
-private fun TransportIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color = Color.White, accent: Boolean = false, onClick: () -> Unit) {
+internal fun TransportIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color = Color.White, accent: Boolean = false, onClick: () -> Unit) {
     Box(
         Modifier.size(34.dp).clip(CircleShape).then(if (accent) Modifier.background(Pro.Amber) else Modifier).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,

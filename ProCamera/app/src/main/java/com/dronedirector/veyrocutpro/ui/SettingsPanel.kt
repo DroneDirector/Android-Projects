@@ -337,6 +337,8 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                     }
                     Text("›", color = Pro.Amber, fontSize = 20.sp)
                 }
+                SettingsGroup("cap_hw", "Audio hardware", "Which microphone and speaker / headphones the app uses") { AudioHardwareSettings() }
+                SettingsGroup("cap_sysinfo", "System Info", "This phone's hardware and drivers") { SystemInfoSection() }
                 ToggleRow(
                     "Shutter sound",
                     if (s.shutterSoundRequired) "Required by law in this region and can't be turned off"

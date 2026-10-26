@@ -187,6 +187,8 @@ fun EditorSettingsDialog(
     playbackExtra: (@Composable () -> Unit)? = null,
     projectExtra: (@Composable () -> Unit)? = null,
     colourExtra: (@Composable () -> Unit)? = null,
+    /** Video editor: timeline switches (scroll wheel effects, trimming, marker effects) — under Preferences → Timeline. */
+    timelineExtra: (@Composable () -> Unit)? = null,
     onDismiss: () -> Unit,
 ) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
@@ -201,100 +203,7 @@ fun EditorSettingsDialog(
         title = { Text("$editorName settings", color = Color.White) },
         text = {
             Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
-                com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "look", "Layout & look", if (isVideo) "Simple layout, app colour, scroll wheel effects, mouse pointer, scroll wheel, fold-out sections" else "Simple layout, app colour, mouse pointer, fold-out sections") {
-                        Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text("Simple layout", color = Color.White, fontSize = 15.sp)
-                                Text("Shows the main tools only (fewer panels and colour tabs). Turn off for every Pro tool. Same switch in Capture settings.", color = Pro.Dim, fontSize = 12.sp)
-                            }
-                            androidx.compose.material3.Switch(
-                                checked = com.dronedirector.veyrocutpro.camera.SimpleMode.on,
-                                onCheckedChange = { com.dronedirector.veyrocutpro.camera.SimpleMode.set(ctx, it) },
-                                colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
-                            )
-                        }
-                        Text("APP COLOUR", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp, bottom = 4.dp))
-                        com.dronedirector.veyrocutpro.ui.AccentPicker()
-                        if (colourExtra != null) colourExtra()
-                        com.dronedirector.veyrocutpro.ui.PointerAndWheelSettings(showWheel = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR)
-                    com.dronedirector.veyrocutpro.ui.FoldModeSetting(if (isVideo) "video" else "photo")
-                }
-                com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "nas", "Network (NAS)", "Saved NAS sign-ins: see or remove them") {
-                    NasSignInsSettings()
-                }
-                com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "save", "Saving & backup", "Save location, autosave, backup and restore") {
-                        val video = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR
-                        Text("SAVE LOCATION", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
-                        com.dronedirector.veyrocutpro.ui.StorageChooser(
-                            if (video) com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO else com.dronedirector.veyrocutpro.camera.StorageArea.PHOTO,
-                        )
-                        if (screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR || screen == com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR) {
-                            val vid = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR
-                            var mins by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(AutoSave.minutes(ctx, vid)) }
-                            var keep by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(AutoSave.keep(ctx, vid)) }
-                            Text("AUTOSAVE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
-                            Text("Saves a copy of the open project automatically (only when something changed). Find them under LOAD → AUTOSAVES.", color = Pro.Dim, fontSize = 12.sp)
-                            Text("Every", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-                            Chips(AutoSave.INTERVALS.map { if (it == 0) "Off" else "$it min" }, AutoSave.INTERVALS.indexOf(mins).coerceAtLeast(0)) { i -> mins = AutoSave.INTERVALS[i]; AutoSave.setMinutes(ctx, vid, mins) }
-                            if (mins > 0) {
-                                Text("Autosaves to keep", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-                                Chips((1..5).map { "$it" }, keep - 1) { i -> keep = i + 1; AutoSave.setKeep(ctx, vid, keep) }
-                                Text("The newest $keep autosave" + (if (keep == 1) " is" else "s are") + " kept side by side; older ones are removed. Your own saved projects are never touched.", color = Pro.Dim, fontSize = 11.sp)
-                            }
-                        }
-                    com.dronedirector.veyrocutpro.ui.BackupSection()
-                }
-                if (screen == com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "catalog", "Catalog", "Catalogs, photos remembered, photo copies, location") { PhotoCatalogSettings() }
-                if (isVideo) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "catalog", "Catalog", "Catalogs, clips remembered, their settings, proxies and analysis, copies, location") { VideoCatalogSettings() }
-                if (projectExtra != null) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "project", "Project archive & versions", "Save or open a project archive (.zip), version history") { projectExtra() }
-                if (playbackExtra != null) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "playback", "Playback & proxies", "Playback info read-out, proxy media") { playbackExtra() }
-                if (screen != com.dronedirector.veyrocutpro.ui.AppScreen.EDITOR) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "wm", "Watermark", "Remember your watermark and add it to everything new") {
-                        if (screen != com.dronedirector.veyrocutpro.ui.AppScreen.EDITOR) {
-                            val v = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR
-                            Text("WATERMARK", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
-                            Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) {
-                                    Text("Remember watermark", color = Color.White, fontSize = 15.sp)
-                                    Text(
-                                        "Keeps your last watermark (text or logo, font, colour, size, position, opacity) and adds it to every new " +
-                                            (if (v) "video" else "photo") + " automatically.",
-                                        color = Pro.Dim, fontSize = 12.sp,
-                                    )
-                                }
-                                androidx.compose.material3.Switch(
-                                    checked = WatermarkMemory.isOn(ctx, v),
-                                    onCheckedChange = { WatermarkMemory.setOn(ctx, v, it) },
-                                    colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
-                                )
-                            }
-                        }
-                }
-                val gv = if (isVideo) com.dronedirector.veyrocutpro.ui.GuideVariant.VIDEO else com.dronedirector.veyrocutpro.ui.GuideVariant.PHOTO
-                com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "ai", "AI", "Cloud AI (fal.ai key, noise reduction, upscale and more)") {
-                    com.dronedirector.veyrocutpro.ui.CloudAiSettings(gv)
-                }
-                com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "app", "App", "Language, startup screen, quick tour, guide, licences, privacy") {
-                    com.dronedirector.veyrocutpro.ui.LanguagePicker()
-                        Text("STARTUP", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 10.dp))
-                        Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text("Always start in $editorName", color = Color.White, fontSize = 15.sp)
-                                Text("Open AlcorCut Pro straight into the $editorName. Turn off to show the start screen again.", color = Pro.Dim, fontSize = 12.sp)
-                            }
-                            androidx.compose.material3.Switch(
-                                checked = always,
-                                onCheckedChange = {
-                                    always = it
-                                    com.dronedirector.veyrocutpro.ui.StartScreen.set(ctx, if (it) screen else com.dronedirector.veyrocutpro.ui.AppScreen.HOME)
-                                },
-                                colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
-                            )
-                        }
-                    com.dronedirector.veyrocutpro.ui.EditorTourSettings(gv, onShow = onDismiss)
-                    com.dronedirector.veyrocutpro.ui.GuideButton(gv)
-                    com.dronedirector.veyrocutpro.ui.LicensesButton()
-                    com.dronedirector.veyrocutpro.ui.PrivacyButton()
-                }
+                EditorSettingsBody(editorName, screen, playbackExtra, projectExtra, colourExtra, timelineExtra, null, onDismiss)
             }
         },
         confirmButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Done", color = Pro.Amber) } },
@@ -404,4 +313,230 @@ fun CurveEditor(
         Text("RESET CURVE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable { onChange(null) }.padding(8.dp))
         Text("Tap to add a point · drag to move · double-tap to remove", color = Pro.Dim, fontSize = 10.sp, modifier = Modifier.padding(top = 8.dp))
     }
+}
+
+/** Gear → Preferences → Autosave. */
+@Composable
+fun AutoSaveSettings(vid: Boolean) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+                                                        var mins by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(AutoSave.minutes(ctx, vid)) }
+                            var keep by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(AutoSave.keep(ctx, vid)) }
+                            Text("AUTOSAVE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
+                            Text("Saves a copy of the open project automatically (only when something changed). Find them under LOAD → AUTOSAVES.", color = Pro.Dim, fontSize = 12.sp)
+                            Text("Every", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                            Chips(AutoSave.INTERVALS.map { if (it == 0) "Off" else "$it min" }, AutoSave.INTERVALS.indexOf(mins).coerceAtLeast(0)) { i -> mins = AutoSave.INTERVALS[i]; AutoSave.setMinutes(ctx, vid, mins) }
+                            if (mins > 0) {
+                                Text("Autosaves to keep", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                                Chips((1..5).map { "$it" }, keep - 1) { i -> keep = i + 1; AutoSave.setKeep(ctx, vid, keep) }
+                                Text("The newest $keep autosave" + (if (keep == 1) " is" else "s are") + " kept side by side; older ones are removed. Your own saved projects are never touched.", color = Pro.Dim, fontSize = 11.sp)
+                            }
+                        }
+
+/** Small editor preferences that aren't anywhere else. */
+object EditorPrefs {
+    private fun p(c: android.content.Context) = c.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE)
+    fun keepScreenOn(c: android.content.Context) = p(c).getBoolean("keep_screen_on", true)
+    fun setKeepScreenOn(c: android.content.Context, on: Boolean) = p(c).edit().putBoolean("keep_screen_on", on).apply()
+    /** Photos added to the video editor become clips this long (s). */
+    fun photoClipSeconds(c: android.content.Context) = p(c).getInt("photo_clip_s", 5).coerceIn(1, 60)
+    fun setPhotoClipSeconds(c: android.content.Context, s: Int) = p(c).edit().putInt("photo_clip_s", s).apply()
+    /** New titles, captions and text layers last this long (s). */
+    fun titleSeconds(c: android.content.Context) = p(c).getInt("title_s", 4).coerceIn(1, 30)
+    fun setTitleSeconds(c: android.content.Context, s: Int) = p(c).edit().putInt("title_s", s).apply()
+    /** Appearance: 0 dark, 1 light, 2 like the phone. */
+    fun theme(c: android.content.Context) = p(c).getInt("app_theme", 0)
+    fun setTheme(c: android.content.Context, t: Int) = p(c).edit().putInt("app_theme", t).apply()
+}
+
+/** Keeps the screen on while an editor is open (Preferences → Editing). */
+@Composable
+fun KeepScreenOnWhileEditing() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        val w = (ctx as? android.app.Activity)?.window
+        val on = EditorPrefs.keepScreenOn(ctx)
+        if (on) w?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose { if (on) w?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
+    }
+}
+
+/** Gear → Preferences: appearance, sound, audio hardware, autosave, playback, timeline and editing. */
+@Composable
+fun PreferencesSection(screen: com.dronedirector.veyrocutpro.ui.AppScreen, playbackExtra: (@Composable () -> Unit)?, timelineExtra: (@Composable () -> Unit)?) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val k = "pref_" + screen.name + "_"
+    val isVideo = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR
+    val isEditor = isVideo || screen == com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR
+    com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "look", "Appearance", "Dark, light or like the phone") {
+        var t by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(EditorPrefs.theme(ctx)) }
+        Chips(listOf("Dark", "Light", "Like the phone"), t) { t = it; EditorPrefs.setTheme(ctx, it) }
+        Text("The light look arrives in an update soon — until then the app stays dark, whatever is chosen here.", color = Pro.Dim, fontSize = 12.sp)
+    }
+    com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "sound", "Sound", "Shutter sound on or off, and which one") {
+        val required = android.os.Build.VERSION.SDK_INT >= 33 && android.media.MediaActionSound.mustPlayShutterSound()
+        var on by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(ctx.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("camera_sounds", true)) }
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Shutter sound", color = Color.White, fontSize = 15.sp)
+                Text(if (required) "Required by law in this region and can't be turned off" else "Click when taking photos, beeps when recording starts and stops", color = Pro.Dim, fontSize = 12.sp)
+            }
+            androidx.compose.material3.Switch(on || required, {
+                if (!required) { on = it; ctx.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("camera_sounds", it).apply() }
+            }, enabled = !required, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
+        }
+        if ((on || required) && !required) {
+            var style by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(com.dronedirector.veyrocutpro.camera.ShutterSounds.style(ctx)) }
+            Text("Shutter sound — tap to hear it", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+            Chips(com.dronedirector.veyrocutpro.camera.ShutterSounds.NAMES, style) { i ->
+                style = i; com.dronedirector.veyrocutpro.camera.ShutterSounds.setStyle(ctx, i)
+                if (i > 0) com.dronedirector.veyrocutpro.camera.ShutterSounds.play(i) else android.media.MediaActionSound().play(android.media.MediaActionSound.SHUTTER_CLICK)
+            }
+        }
+    }
+    com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "hw", "Audio hardware", "Which microphone and speaker / headphones the app uses") {
+        com.dronedirector.veyrocutpro.ui.AudioHardwareSettings()
+    }
+    if (isEditor) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "autosave", "Autosave", "Automatic project copies and how many to keep") { AutoSaveSettings(isVideo) }
+    if (playbackExtra != null) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "playback", "Playback", "Playback info read-out, proxy media") { playbackExtra() }
+    if (timelineExtra != null) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "timeline", "Timeline", "Scroll wheel effects, trimming, marker effects") { timelineExtra() }
+    if (isEditor) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "editing", "Editing", "Screen on while editing" + if (isVideo) ", photo clip and title lengths" else "") {
+        var keep by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(EditorPrefs.keepScreenOn(ctx)) }
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Keep the screen on", color = Color.White, fontSize = 15.sp)
+                Text("The screen doesn't dim or lock while an editor is open (takes effect when you next open it)", color = Pro.Dim, fontSize = 12.sp)
+            }
+            androidx.compose.material3.Switch(keep, { keep = it; EditorPrefs.setKeepScreenOn(ctx, it) },
+                colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
+        }
+        if (isVideo) {
+            var ph by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(EditorPrefs.photoClipSeconds(ctx)) }
+            Text("Photos become clips of", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp))
+            val ps = listOf(2, 3, 5, 8, 10, 15)
+            Chips(ps.map { "$it s" }, ps.indexOf(ph).coerceAtLeast(0)) { i -> ph = ps[i]; EditorPrefs.setPhotoClipSeconds(ctx, ps[i]) }
+            var tl by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(EditorPrefs.titleSeconds(ctx)) }
+            Text("New titles and captions last", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+            val ts = listOf(2, 3, 4, 5, 8, 10)
+            Chips(ts.map { "$it s" }, ts.indexOf(tl).coerceAtLeast(0)) { i -> tl = ts[i]; EditorPrefs.setTitleSeconds(ctx, ts[i]) }
+        }
+    }
+}
+
+/** The gear's settings, also shown in File → Project settings ([only] = just these groups). */
+@Composable
+fun EditorSettingsBody(
+    editorName: String,
+    screen: com.dronedirector.veyrocutpro.ui.AppScreen,
+    playbackExtra: (@Composable () -> Unit)? = null,
+    projectExtra: (@Composable () -> Unit)? = null,
+    colourExtra: (@Composable () -> Unit)? = null,
+    timelineExtra: (@Composable () -> Unit)? = null,
+    only: Set<String>? = null,
+    onDismiss: () -> Unit = {},
+) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var always by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(com.dronedirector.veyrocutpro.ui.StartScreen.get(ctx) == screen)
+    }
+    val isVideo = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR
+    val k = "ed_" + screen.name + "_"
+    fun show(g: String) = only == null || g in only
+                if (show("look")) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "look", "Layout & look", if (isVideo) "Simple layout, app colour, scroll wheel effects, mouse pointer, scroll wheel, fold-out sections" else "Simple layout, app colour, mouse pointer, fold-out sections") {
+                        Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Simple layout", color = Color.White, fontSize = 15.sp)
+                                Text("Shows the main tools only (fewer panels and colour tabs). Turn off for every Pro tool. Same switch in Capture settings.", color = Pro.Dim, fontSize = 12.sp)
+                            }
+                            androidx.compose.material3.Switch(
+                                checked = com.dronedirector.veyrocutpro.camera.SimpleMode.on,
+                                onCheckedChange = { com.dronedirector.veyrocutpro.camera.SimpleMode.set(ctx, it) },
+                                colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
+                            )
+                        }
+                        Text("APP COLOUR", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp, bottom = 4.dp))
+                        com.dronedirector.veyrocutpro.ui.AccentPicker()
+                        if (colourExtra != null) colourExtra()
+                        com.dronedirector.veyrocutpro.ui.PointerAndWheelSettings(showWheel = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR)
+                    com.dronedirector.veyrocutpro.ui.FoldModeSetting(if (isVideo) "video" else "photo")
+                }
+                if (show("nas")) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "nas", "Network (NAS)", "Saved NAS sign-ins: see or remove them") {
+                    NasSignInsSettings()
+                }
+                if (show("save")) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "save", "Saving & backup", "Save location, autosave, backup and restore") {
+                        val video = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR
+                        Text("SAVE LOCATION", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
+                        com.dronedirector.veyrocutpro.ui.StorageChooser(
+                            if (video) com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO else com.dronedirector.veyrocutpro.camera.StorageArea.PHOTO,
+                        )
+                    com.dronedirector.veyrocutpro.ui.BackupSection()
+                }
+                if (show("catalog") && (screen == com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR)) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "catalog", "Catalog", "Catalogs, photos remembered, photo copies, location") { PhotoCatalogSettings() }
+                if (show("catalog") && (isVideo)) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "catalog", "Catalog", "Catalogs, clips remembered, their settings, proxies and analysis, copies, location") { VideoCatalogSettings() }
+                if (show("project") && (projectExtra != null)) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "project", "Project archive & versions", "Save or open a project archive (.zip), version history") { projectExtra() }
+                if (show("prefs")) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "prefs", "Preferences", "Appearance, sound, audio hardware, autosave" + (if (isVideo) ", playback, timeline" else "") + ", editing") {
+                    PreferencesSection(screen, playbackExtra, timelineExtra)
+                }
+                if (show("sysinfo")) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "sysinfo", "System Info", "This phone's hardware and drivers") {
+                    com.dronedirector.veyrocutpro.ui.SystemInfoSection()
+                }
+                if (show("wm") && (screen != com.dronedirector.veyrocutpro.ui.AppScreen.EDITOR)) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "wm", "Watermark", "Remember your watermark and add it to everything new") {
+                        if (screen != com.dronedirector.veyrocutpro.ui.AppScreen.EDITOR) {
+                            val v = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR
+                            Text("WATERMARK", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))
+                            Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text("Remember watermark", color = Color.White, fontSize = 15.sp)
+                                    Text(
+                                        "Keeps your last watermark (text or logo, font, colour, size, position, opacity) and adds it to every new " +
+                                            (if (v) "video" else "photo") + " automatically.",
+                                        color = Pro.Dim, fontSize = 12.sp,
+                                    )
+                                }
+                                androidx.compose.material3.Switch(
+                                    checked = WatermarkMemory.isOn(ctx, v),
+                                    onCheckedChange = { WatermarkMemory.setOn(ctx, v, it) },
+                                    colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
+                                )
+                            }
+                        }
+                }
+                val gv = if (isVideo) com.dronedirector.veyrocutpro.ui.GuideVariant.VIDEO else com.dronedirector.veyrocutpro.ui.GuideVariant.PHOTO
+                if (show("ai")) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "ai", "AI", "Cloud AI (fal.ai key, noise reduction, upscale and more)") {
+                    com.dronedirector.veyrocutpro.ui.CloudAiSettings(gv)
+                }
+                if (show("app")) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "app", "App", "Language, startup screen, quick tour, guide, licences, privacy") {
+                    com.dronedirector.veyrocutpro.ui.LanguagePicker()
+                        Text("STARTUP", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 10.dp))
+                        Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Always start in $editorName", color = Color.White, fontSize = 15.sp)
+                                Text("Open AlcorCut Pro straight into the $editorName. Turn off to show the start screen again.", color = Pro.Dim, fontSize = 12.sp)
+                            }
+                            androidx.compose.material3.Switch(
+                                checked = always,
+                                onCheckedChange = {
+                                    always = it
+                                    com.dronedirector.veyrocutpro.ui.StartScreen.set(ctx, if (it) screen else com.dronedirector.veyrocutpro.ui.AppScreen.HOME)
+                                },
+                                colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
+                            )
+                        }
+                    com.dronedirector.veyrocutpro.ui.EditorTourSettings(gv, onShow = onDismiss)
+                    com.dronedirector.veyrocutpro.ui.GuideButton(gv)
+                    com.dronedirector.veyrocutpro.ui.LicensesButton()
+                    com.dronedirector.veyrocutpro.ui.PrivacyButton()
+                }
+            
+}
+
+/** The gear's dialog frame (title, scrolling content, Done). */
+@Composable
+fun EditorSettingsShell(title: String, onDismiss: () -> Unit, content: @Composable () -> Unit) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Pro.PanelSolid,
+        title = { Text(title, color = Color.White) },
+        text = { Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) { content() } },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Done", color = Pro.Amber) } },
+    )
 }

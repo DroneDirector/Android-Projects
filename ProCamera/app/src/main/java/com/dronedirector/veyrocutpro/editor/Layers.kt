@@ -62,6 +62,10 @@ data class Layer(
     val name: String? = null,
     /** Locked on the timeline: can't be moved, trimmed, dragged or deleted. */
     val locked: Boolean = false,
+    /** Linked to the main video: moves with it when clips are trimmed or deleted (null = linked). */
+    val linked: Boolean? = null,
+    /** Group: items with the same group move together on the timeline. */
+    val group: String? = null,
     /** Video layers: play their own sound (off by default, as before). */
     val soundOn: Boolean? = null,
     /** Keyframes (timeline ms) for position, size and opacity; null / empty = static. */
@@ -403,6 +407,9 @@ data class MusicTrack(
     /** Track switches on the timeline: silenced, and protected from edits. */
     val muted: Boolean = false,
     val locked: Boolean = false,
+    /** Linked to the main video (null = linked) and group, as for layers. */
+    val linked: Boolean? = null,
+    val group: String? = null,
 ) {
     /** Length on a timeline of [total] ms. */
     fun playLength(total: Long): Long {

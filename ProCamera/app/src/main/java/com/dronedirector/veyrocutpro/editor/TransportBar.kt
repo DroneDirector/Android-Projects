@@ -3,6 +3,11 @@ package com.dronedirector.veyrocutpro.editor
 import android.content.Context
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bookmarks
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.SlowMotionVideo
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Workspaces
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.ContentCut
@@ -69,7 +74,8 @@ object TransportBar {
     /** Every button the bar can show, in bar order (the + list shows them in this order too). */
     val ALL = listOf(
         Item("split", "Split at playhead"), Item("undo", "Undo"), Item("redo", "Redo"),
-        Item("markin", "Mark in"), Item("markout", "Mark out"), Item("marker", "Add marker"),
+        Item("markin", "Mark in"), Item("markout", "Mark out"), Item("marker", "Add marker"), Item("markers", "Markers (go to, edit, clear, lists)"),
+        Item("speed", "Speed / Duration"), Item("interp", "Time interpolation"), Item("link", "Link / unlink tracks"), Item("group", "Group / ungroup"),
         Item("mute", "Mute preview"), Item("tlout", "Zoom timeline out"), Item("tlfit", "Show whole timeline"), Item("tlin", "Zoom timeline in"),
         Item("cast", "Cast to a TV"), Item("safe", "Safe margins"), Item("res", "Playback resolution"), Item("magnify", "Magnification"),
         Item("goin", "Go to in point"), Item("frameback", "Step back one frame"), Item("play", "Play / pause"), Item("framefwd", "Step forward one frame"),
@@ -140,6 +146,11 @@ fun transportIcon(id: String): ImageVector = when (id) {
     "markin" -> BarIcons.markIn
     "markout" -> BarIcons.markOut
     "marker" -> BarIcons.marker
+    "markers" -> Icons.Filled.Bookmarks
+    "speed" -> Icons.Filled.Speed
+    "interp" -> Icons.Filled.SlowMotionVideo
+    "link" -> Icons.Filled.Link
+    "group" -> Icons.Filled.Workspaces
     "mute" -> Icons.Filled.VolumeUp
     "tlout" -> Icons.Filled.ZoomOut
     "tlfit" -> Icons.Filled.FitScreen

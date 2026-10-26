@@ -884,7 +884,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
         onDispose {
             players.forEachIndexed { i, p -> p.removeListener(listeners[i]); p.release() }
-            es.export?.cancel()
+            es.cloudJob?.cancel(); es.export?.cancel()
             es.proxyCancel?.invoke()
             stabCancels.values.forEach { it() }
         }
@@ -2665,6 +2665,60 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val list = if (g == 1f) cut.clips else cut.clips.map { it.copy(volume = it.volume * g) }
         val cutMusic = cut.music?.let { if (g == 1f) it else it.copy(volume = it.volume * g) }
         val cutExtra = if (g == 1f) cut.extra else cut.extra.map { it.copy(volume = it.volume * g) }
+        // Long films: rendered in parts (a failed part is done again on its own), then joined.
+        val parts = if (es.deliver.audioOnly || smartRenderBlocker(context, list, es.deliver, cut.layers, cutMusic, cutExtra) == null) listOf(0L, 0L)
+            else ChunkedExport.bounds(list)
+        if (parts.size > 2) {
+            val all = if (es.videoMuted) list.map { it.copy(muted = true) } else list
+            val (ow, oh) = outputSize(all, es.deliver)
+            // Every part the same size as the whole film (the first clip of a part may differ).
+            val fixed = es.deliver.copy(aspect = ow.toFloat() / oh, shortSide = minOf(ow, oh), rangeStart = null, rangeEnd = null)
+            val base = es.deliver.reviewTcStart
+            es.cloudJob = layerScope.launch {
+                val n = parts.size - 1
+                val files = ArrayList<java.io.File>()
+                var failed: String? = null
+                for (k in 0 until n) {
+                    val a = parts[k]; val b = parts[k + 1]
+                    val sub = cutRange(all, cut.layers, cutMusic, cutExtra, a, b)
+                    var ok = false
+                    for (attempt in 1..2) {
+                        val f = java.io.File(context.cacheDir, "part_${k}_${System.currentTimeMillis()}.mp4")
+                        es.message = if (attempt == 1) "Exporting part ${k + 1} of $n" else "Part ${k + 1} didn't finish — doing just that part again"
+                        ok = kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+                            val e = TimelineExport(
+                                context, sub.clips, fixed.copy(reviewTcStart = base + a), sub.layers, sub.music, sub.extra,
+                                onProgress = { p -> es.progress = (k * 100 + p) * 95 / 100 / n },
+                                onDone = { uri, err -> if (uri == null) failed = err; if (cont.isActive) cont.resumeWith(Result.success(uri != null)) },
+                                toFile = f,
+                            )
+                            es.export = e
+                            try { e.start() } catch (t: Throwable) { failed = t.message; if (cont.isActive) cont.resumeWith(Result.success(false)) }
+                            cont.invokeOnCancellation { try { e.cancel() } catch (_: Throwable) {} }
+                        }
+                        if (ok) { files += f; break } else f.delete()
+                    }
+                    if (!ok) break
+                }
+                es.export = null
+                if (files.size != n) {
+                    files.forEach { it.delete() }
+                    es.exporting = false; es.message = "Export failed in part ${files.size + 1} of $n" + (failed?.let { " — $it" } ?: ""); return@launch
+                }
+                es.message = "Joining the parts…"; es.progress = 96
+                val joined = java.io.File(context.cacheDir, "film_${System.currentTimeMillis()}.mp4")
+                val ok = ChunkedExport.join(context, files, joined, es.deliver.bitrateMbps * 1_000_000)
+                files.forEach { it.delete() }
+                val uri = if (!ok) null else withContext(Dispatchers.IO) {
+                    val name = "EDIT_" + java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date()) + ".mp4"
+                    (SaveFolder.write(context, true, name, "video/mp4") { os -> joined.inputStream().use { it.copyTo(os) } }
+                        ?: GradeIO.publishVideo(context, joined, com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO)).also { joined.delete() }
+                }
+                es.exporting = false; es.progress = 100
+                es.message = if (uri != null) "Exported ($n parts joined)" else "Couldn't join the parts"
+            }
+            return
+        }
         val e = TimelineExport(
             context, if (es.videoMuted) list.map { it.copy(muted = true) } else list, es.deliver, cut.layers, cutMusic, cutExtra,
             onProgress = { es.progress = if (es.deliver.loudness != null && (es.deliver.audio || es.deliver.audioOnly)) 20 + it * 4 / 5 else it },
@@ -3021,7 +3075,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             var now by remember { mutableStateOf(0L) }
                             LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
                             Text(if (now > 0) etaFromProgress(es.exportStartAt, es.progress) ?: "Estimating time left…" else "Estimating time left…", color = Pro.Dim, fontSize = 13.sp)
-                            Text("CANCEL", style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { es.export?.cancel(); es.export = null; es.exporting = false }.padding(10.dp))
+                            Text("CANCEL", style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { es.cloudJob?.cancel(); es.export?.cancel(); es.export = null; es.exporting = false }.padding(10.dp))
                         }
                     }
                     es.message?.let {
@@ -3587,7 +3641,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onQueueAdd = { exportQueue.add(es.deliver); es.message = "Added to the queue (${exportQueue.size})" },
                                 onQueueRemove = { i -> if (i in exportQueue.indices) exportQueue.removeAt(i) },
                                 onQueueStart = { if (!es.exporting) { es.queueBase = es.deliver; es.queueAt = 0 } },
-                                onQueueStop = { es.queueAt = -1; es.export?.cancel(); es.export = null; es.exporting = false; es.deliver = es.queueBase ?: es.deliver; es.message = "Queue stopped" },
+                                onQueueStop = { es.queueAt = -1; es.cloudJob?.cancel(); es.export?.cancel(); es.export = null; es.exporting = false; es.deliver = es.queueBase ?: es.deliver; es.message = "Queue stopped" },
                             )
                         }
                         if (clips.isEmpty() && es.page != Page.MEDIA && es.page != Page.DELIVER) Text("Add a clip in the Media page.", color = Pro.Dim, modifier = Modifier.padding(12.dp))

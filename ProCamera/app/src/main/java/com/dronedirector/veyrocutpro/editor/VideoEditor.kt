@@ -2741,7 +2741,22 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         es.exporting = true
         es.progress = 0
         es.cloudExport = !es.deliver.audioOnly && com.dronedirector.veyrocutpro.camera.CloudAi.useVideo(context) && clips.any { it.detail.aiDenoise > 0f }
-        if (!es.cloudExport) { runExport(clips.toList()); return }
+        if (!es.cloudExport) {
+            // AI noise reduction on the phone: clean each clip once (kept in the video catalog), then export from
+            // the cleaned clips — later exports of the same clips skip this step.
+            val todo = CleanRender.missing(context, clips.toList(), es.deliver)
+            if (todo.isEmpty()) { runExport(clips.toList()); return }
+            es.cloudJob = layerScope.launch {
+                for ((n, c) in todo.withIndex()) {
+                    es.message = "AI noise reduction — clip ${n + 1} of ${todo.size} (done once, reused next time)"
+                    val ok = CleanRender.make(context, c) { p -> es.progress = (n * 100 + p) / todo.size }
+                    if (!ok) es.message = "AI noise reduction couldn't be prepared for ${c.name} — it runs during the export instead"
+                }
+                es.progress = 0
+                runExport(clips.toList())
+            }
+            return
+        }
         // Cloud AI first (Topaz Nyx on fal.ai), then the normal export with the cleaned clips.
         es.cloudJob = layerScope.launch {
             val list = try {
@@ -2801,7 +2816,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     Box(Modifier.fillMaxSize().background(Ed.Bg)) {
         com.dronedirector.veyrocutpro.ui.AiBadgeHost(
             es.exporting && !es.cloudExport && clips.any { it.detail.aiDenoise > 0f }, "AI NOISE REDUCTION · EXPORT", 1, es.progress,
-            onStop = { es.export?.cancel(); es.export = null; es.exporting = false; AiDenoiser.stop(); es.message = "Export stopped" },
+            onStop = { es.cloudJob?.cancel(); es.export?.cancel(); es.export = null; es.exporting = false; AiDenoiser.stop(); es.message = "Export stopped" },
             modifier = Modifier.align(Alignment.TopCenter).zIndex(20f),
         )
         com.dronedirector.veyrocutpro.ui.AiBadgeHost(

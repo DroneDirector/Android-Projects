@@ -209,7 +209,7 @@ object MediaCatalog {
     fun slimDown(context: Context): Long {
         load(context)
         var n = 0L
-        for (d in listOf("proxies", "stab", "waves", "rendercache", "cloudai", "transcripts")) {
+        for (d in listOf("proxies", "stab", "waves", "rendercache", "cloudai", "transcripts", "thumbs", "aiclean")) {
             val dir = File(VideoCatalogs.dir(context), d)
             dir.walkTopDown().filter { it.isFile }.forEach { n += it.length(); it.delete() }
         }

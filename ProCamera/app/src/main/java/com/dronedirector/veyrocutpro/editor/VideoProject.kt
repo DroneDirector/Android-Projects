@@ -264,7 +264,7 @@ class TimelineExport(
 
     /** A clip's own picture effects (everything before its transition), for a clip starting [offsetMs] into it. */
     private fun clipChain(c: Clip, offsetMs: Long, outW: Int, outH: Int, layout: Int, sized: Boolean): List<Effect> = buildList {
-        if (c.detail.aiDenoise > 0f) add(AiDenoiseEffect(context, c.detail.aiDenoise))
+        if (c.detail.aiDenoise > 0f && CleanRender.sourceFor(context, c, settings) == null) add(AiDenoiseEffect(context, c.detail.aiDenoise))
         // Background (people or Magic Mask) on the picture as filmed, before any reframing.
         bgEffectFor(context, c, offsetMs)?.let { add(it) }
         // AI depth: lens blur, fog or background light, on the picture as filmed.
@@ -344,7 +344,8 @@ class TimelineExport(
         val compositing = !audioOnly && (allVideoLayers.isNotEmpty() || ab)
         val items = clips.mapIndexed { i, c ->
             val media = MediaItem.Builder()
-                .setUri(c.uri)
+                // A clip already cleaned by the AI (done once, kept in the video catalog) is read as it is.
+                .setUri(CleanRender.sourceFor(context, c, settings) ?: c.uri)
                 .setClippingConfiguration(
                     MediaItem.ClippingConfiguration.Builder().setStartPositionMs(c.startMs).setEndPositionMs(c.endMs).build()
                 )

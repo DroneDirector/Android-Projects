@@ -40,6 +40,13 @@ internal class EditorState(initial: VideoProjectData?, context: Context) {
     var videoMuted by mutableStateOf(initial?.videoMuted ?: false)
     var videoLocked by mutableStateOf(initial?.videoLocked ?: false)
     var videoHidden by mutableStateOf(initial?.videoHidden ?: false)
+    /** The + list of the button bar is open. */
+    var editBar by mutableStateOf(false)
+    /** The safe margins last shown (the bar's button switches them on and off). */
+    var lastSafe by mutableStateOf(0)
+    /** Where the magnified preview is looked at (pixels). */
+    var magX by mutableStateOf(0f)
+    var magY by mutableStateOf(0f)
     var archiveAction by mutableStateOf(0)
     var archiveBusy by mutableStateOf<Int?>(null)
     var snapping by mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_snap", true))

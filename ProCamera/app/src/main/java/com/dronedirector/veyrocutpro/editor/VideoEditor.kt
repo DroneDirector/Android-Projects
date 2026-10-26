@@ -2654,6 +2654,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
 
     /** The main video track's switches (sound off, picture hidden) applied to its clips for an export. */
     LaunchedEffect(es.previewMuted) { LayerSound.previewMuted = es.previewMuted }
+    remember { TransportBar.load(context); 0 }
 
     fun trackSwitches(l: List<Clip>): List<Clip> =
         if (!es.videoMuted && !es.videoHidden) l else l.map { it.copy(muted = it.muted || es.videoMuted, hidden = if (es.videoHidden) true else it.hidden) }
@@ -2917,7 +2918,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         val fw = if (boxAspect > projAspect) maxHeight * projAspect else maxWidth
                         val fh = if (boxAspect > projAspect) maxHeight else maxWidth / projAspect
                         Box(Modifier.width(fw).height(fh).clipToBounds().background(Color.Black)
-                            .onGloballyPositioned { castFrame[0] = it.boundsInWindow() }) {
+                            .onGloballyPositioned { castFrame[0] = it.boundsInWindow() }
+                            // Magnification (bar → magnifier): view only, never exported.
+                            .graphicsLayer { scaleX = TransportBar.magnify; scaleY = TransportBar.magnify; translationX = es.magX; translationY = es.magY }) {
                             // Video layers placed below the main video are drawn first (underneath it).
                             val belowLayers = layers.filter { it.isBelow }
                             castHasBelow[0] = belowLayers.isNotEmpty()
@@ -2936,6 +2939,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                             val tv = android.view.TextureView(ctx)
                                             frameViews[pi] = frame; texViews[pi] = tv
                                             frame.addView(tv, android.widget.FrameLayout.LayoutParams(-1, -1, android.view.Gravity.CENTER))
+                                            frame.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ -> v.post { applyPlaybackRes(v as android.widget.FrameLayout, tv, TransportBar.playbackDiv) } }
                                             addView(frame, android.widget.FrameLayout.LayoutParams(-1, -1, android.view.Gravity.CENTER))
                                             p.setVideoTextureView(tv)
                                         }
@@ -2948,6 +2952,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                         val shownClip = if (i == deck.active) clips.getOrNull(es.current) else clips.getOrNull(es.current + 1)
                                         frame.setAspectRatio(aspects[i] * (shownClip?.desqueeze ?: 1f))
                                         if (!transitionOn[0]) frame.alpha = if (i == deck.active) 1f else 0f
+                                        // Playback resolution (bar → HD button): the picture is drawn smaller, then scaled up.
+                                        val div = TransportBar.playbackDiv
+                                        texViews[i]?.let { tv -> frame.post { applyPlaybackRes(frame, tv, div) } }
                                     }
                                 },
                                 // The video track's eye: hidden = see-through (layers below show, else black).
@@ -3160,6 +3167,36 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             fun prevClip() { if (deck.cur.currentPosition > 1500 || es.current == 0) deck.cur.seekTo(0) else load(es.current - 1, 0, deck.cur.isPlaying) }
             fun nextClip() { if (es.current < clips.lastIndex) load(es.current + 1, 0, deck.cur.isPlaying) }
 
+            // The bar's actions (also on the keyboard: I, O, M, arrow keys).
+            fun markIn() {
+                es.deliver = es.deliver.copy(rangeStart = globalMs, rangeEnd = es.deliver.rangeEnd?.takeIf { it > globalMs } ?: timelineLength(clips))
+                es.message = "In point at ${tc(globalMs)}"
+            }
+            fun markOut() {
+                es.deliver = es.deliver.copy(rangeEnd = globalMs, rangeStart = es.deliver.rangeStart?.takeIf { it < globalMs } ?: 0L)
+                es.message = "Out point at ${tc(globalMs)}"
+            }
+            fun toggleMarker() {
+                val near = markers.firstOrNull { kotlin.math.abs(it - globalMs) < 250 }
+                if (near != null) { markers.remove(near); markerNotes.remove(near); es.message = "Marker removed" }
+                else { markers.add(globalMs); markers.sort(); es.message = "Marker at ${tc(globalMs)}" }
+            }
+            fun stepFrame(d: Int) {
+                if (clips.isEmpty()) return
+                if (es.playing) togglePlay()
+                val f = 1000L / (if (es.deliver.fps > 0) es.deliver.fps else 30)
+                seekGlobal((globalMs + d * f).coerceIn(0L, (timelineLength(clips) - 1).coerceAtLeast(0L)))
+            }
+            fun toggleSafe() {
+                if (SafeZones.current != 0) { es.lastSafe = SafeZones.current; SafeZones.current = 0 }
+                else SafeZones.current = es.lastSafe.takeIf { it in 1 until SafeZones.zones.size } ?: SafeZones.zones.lastIndex
+            }
+            fun cycleMagnify() {
+                TransportBar.magnify = when (TransportBar.magnify) { 1f -> 2f; 2f -> 4f; else -> 1f }
+                if (TransportBar.magnify == 1f) { es.magX = 0f; es.magY = 0f }
+                es.message = if (TransportBar.magnify > 1f) "Magnified ${TransportBar.magnify.toInt()}× — view only, drag to look around" else "Magnification off"
+            }
+
             val transport = @Composable {
                 Column(Modifier.fillMaxWidth().background(Ed.Panel).padding(horizontal = 8.dp)) {
                     Slider(
@@ -3168,43 +3205,67 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         modifier = Modifier.height(26.dp),
                         colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = Color.White.copy(alpha = 0.15f)),
                     )
-                    // The whole button row scrolls sideways (like the tool tabs) whenever it is wider
-                    // than the screen, so no button is ever out of reach — new buttons can simply be
-                    // added here. When everything fits, the three groups keep their places
-                    // (edit tools left, view tools middle, playback right).
+                    // The whole button row scrolls sideways (with the hint arrows) whenever it is wider
+                    // than the screen. Which buttons it shows is chosen with its + button.
                     BoxWithConstraints(Modifier.fillMaxWidth()) {
                         val barWidth = maxWidth
                         Row(
-                            // Scrolls with the app's hint arrows; the ends keep room for them.
                             Modifier.hintedScroll(horizontal = true).widthIn(min = barWidth),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            @Composable fun b(id: String, content: @Composable () -> Unit) { if (TransportBar.shown(id)) content() }
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                TransportIcon(Icons.Filled.ContentCut, "Split at playhead", accent = true) { splitAtPlayhead() }
-                                TransportIcon(Icons.AutoMirrored.Filled.Undo, "Undo", tint = if (es.histPos > 0) Color.White else Pro.Dim) { undo() }
-                                TransportIcon(Icons.AutoMirrored.Filled.Redo, "Redo", tint = if (es.histPos < history.lastIndex) Color.White else Pro.Dim) { redo() }
+                                b("split") { TransportIcon(Icons.Filled.ContentCut, "Split at playhead", accent = true) { splitAtPlayhead() } }
+                                b("undo") { TransportIcon(Icons.AutoMirrored.Filled.Undo, "Undo", tint = if (es.histPos > 0) Color.White else Pro.Dim) { undo() } }
+                                b("redo") { TransportIcon(Icons.AutoMirrored.Filled.Redo, "Redo", tint = if (es.histPos < history.lastIndex) Color.White else Pro.Dim) { redo() } }
+                                b("markin") { TransportIcon(BarIcons.markIn, "Mark in", tint = if (es.deliver.rangeStart != null) Pro.Amber else Color.White) { markIn() } }
+                                b("markout") { TransportIcon(BarIcons.markOut, "Mark out", tint = if (es.deliver.rangeEnd != null) Pro.Amber else Color.White) { markOut() } }
+                                b("marker") { TransportIcon(BarIcons.marker, "Add marker") { toggleMarker() } }
                             }
                             Row(Modifier.padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                TransportIcon(if (es.previewMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute preview") { es.previewMuted = !es.previewMuted }
-                                TransportIcon(Icons.Filled.ZoomOut, "Zoom timeline out") { zoom.zoomOut() }
-                                TransportIcon(Icons.Filled.FitScreen, "Show whole timeline") { zoom.fit() }
-                                TransportIcon(Icons.Filled.ZoomIn, "Zoom timeline in") { zoom.zoomIn() }
+                                b("mute") { TransportIcon(if (es.previewMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute preview") { es.previewMuted = !es.previewMuted } }
+                                b("tlout") { TransportIcon(Icons.Filled.ZoomOut, "Zoom timeline out") { zoom.zoomOut() } }
+                                b("tlfit") { TransportIcon(Icons.Filled.FitScreen, "Show whole timeline") { zoom.fit() } }
+                                b("tlin") { TransportIcon(Icons.Filled.ZoomIn, "Zoom timeline in") { zoom.zoomIn() } }
                                 // Cast to a TV (tablets), next to the zoom buttons below the picture.
-                                if (castPanel) com.dronedirector.veyrocutpro.ui.CastButton(castSource, Modifier.padding(horizontal = 4.dp), small = true, sound = com.dronedirector.veyrocutpro.camera.CastFeed.Sound.APP)
+                                b("cast") { if (castPanel) com.dronedirector.veyrocutpro.ui.CastButton(castSource, Modifier.padding(horizontal = 4.dp), small = true, sound = com.dronedirector.veyrocutpro.camera.CastFeed.Sound.APP) }
+                                b("safe") { TransportIcon(Icons.Filled.CropFree, "Safe margins", tint = if (SafeZones.current != 0) Pro.Amber else Color.White) { toggleSafe() } }
+                                b("res") {
+                                    Box {
+                                        var open by remember { mutableStateOf(false) }
+                                        TransportIcon(Icons.Filled.Hd, "Playback resolution", tint = if (TransportBar.playbackDiv > 1) Pro.Amber else Color.White) { open = true }
+                                        androidx.compose.material3.DropdownMenu(open, { open = false }, containerColor = Pro.PanelSolid) {
+                                            Text("PLAYBACK RESOLUTION", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp))
+                                            for ((d, label) in TransportBar.DIVS) androidx.compose.material3.DropdownMenuItem(
+                                                text = { Text(label, color = if (TransportBar.playbackDiv == d) Pro.Amber else Color.White) },
+                                                onClick = { TransportBar.playbackDiv = d; open = false; es.message = if (d == 1) "Preview at full resolution" else "Preview at $label resolution (the export is always full)" },
+                                            )
+                                        }
+                                    }
+                                }
+                                b("magnify") { TransportIcon(Icons.Filled.Search, "Magnification", tint = if (TransportBar.magnify > 1f) Pro.Amber else Color.White) { cycleMagnify() } }
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                TransportIcon(Icons.Filled.SkipPrevious, "Previous clip") { prevClip() }
-                                TransportIcon(if (es.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Pro.Amber) { togglePlay() }
-                                TransportIcon(Icons.Filled.SkipNext, "Next clip") { nextClip() }
-                                TransportIcon(Icons.Filled.Fullscreen, "Full screen") { es.fullscreen = true }
-                                // Playhead straight back to the very start of the timeline.
-                                TransportIcon(PlayheadToStart, "Playhead to start") { seekGlobal(0L) }
+                                b("goin") { TransportIcon(BarIcons.goIn, "Go to in point") { seekGlobal(es.deliver.rangeStart ?: 0L) } }
+                                b("frameback") { TransportIcon(BarIcons.frameBack, "Step back one frame") { stepFrame(-1) } }
+                                b("play") { TransportIcon(if (es.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Pro.Amber) { togglePlay() } }
+                                b("framefwd") { TransportIcon(BarIcons.frameFwd, "Step forward one frame") { stepFrame(1) } }
+                                b("goout") { TransportIcon(BarIcons.goOut, "Go to out point") { seekGlobal(((es.deliver.rangeEnd ?: timelineLength(clips)) - 1).coerceAtLeast(0L)) } }
+                                b("prev") { TransportIcon(Icons.Filled.SkipPrevious, "Previous clip") { prevClip() } }
+                                b("next") { TransportIcon(Icons.Filled.SkipNext, "Next clip") { nextClip() } }
+                                b("start") { TransportIcon(BarIcons.toStart, "Playhead to start") { seekGlobal(0L) } }
+                                b("full") { TransportIcon(Icons.Filled.Fullscreen, "Full screen") { es.fullscreen = true } }
+                                b("frame") { TransportIcon(Icons.Filled.AddAPhoto, "Export frame") { saveStill() } }
+                                b("settings") { TransportIcon(Icons.Filled.Settings, "Settings") { es.showSettings = true } }
+                                // + : choose which buttons the bar shows.
+                                TransportIcon(Icons.Filled.Add, "Edit the buttons") { es.editBar = true }
                             }
                         }
                     }
                 }
             }
+            if (es.editBar) TransportButtonEditor(context) { es.editBar = false }
 
             val timeline = @Composable {
                 TimelineView(
@@ -5858,6 +5919,23 @@ val ASPECTS = listOf(
     "Original" to 0f, "16:9" to 16f / 9f, "9:16" to 9f / 16f, "1:1" to 1f, "4:5" to 0.8f, "4:3" to 4f / 3f,
     "3:4" to 0.75f, "21:9" to 21f / 9f, "2.39:1" to 2.39f, "3:2" to 1.5f,
 )
+
+/**
+ * Playback resolution: [tv] is laid out at 1/[div] of its frame and scaled back up, so the preview
+ * (and the grade drawn on it) is rendered at that resolution. 1 = full size.
+ */
+internal fun applyPlaybackRes(frame: android.widget.FrameLayout, tv: android.view.View, div: Int) {
+    val fw = frame.width; val fh = frame.height
+    if (fw <= 0 || fh <= 0) return
+    val w = if (div <= 1) -1 else (fw / div).coerceAtLeast(2)
+    val h = if (div <= 1) -1 else (fh / div).coerceAtLeast(2)
+    val lp = tv.layoutParams as? android.widget.FrameLayout.LayoutParams ?: return
+    if (lp.width == w && lp.height == h) return
+    tv.layoutParams = android.widget.FrameLayout.LayoutParams(w, h, if (div <= 1) android.view.Gravity.CENTER else android.view.Gravity.TOP or android.view.Gravity.START)
+    tv.pivotX = 0f; tv.pivotY = 0f
+    tv.scaleX = if (div <= 1) 1f else fw.toFloat() / w
+    tv.scaleY = if (div <= 1) 1f else fh.toFloat() / h
+}
 
 /** The preview's mute switch, for the video layers' own players. */
 internal object LayerSound {

@@ -5622,35 +5622,9 @@ private fun DeliverPage(
     SectionTitle("FRAME RATE")
     val fps = listOf(0, 24, 25, 30, 60)
     Chips(fps.map { if (it == 0) "Source" else "$it fps" }, fps.indexOf(s.fps).coerceAtLeast(0)) { onChange(s.copy(fps = fps[it])) }
-    SectionTitle("CODEC")
-    Chips(listOf("H.264", "HEVC (H.265)"), if (s.hevc) 1 else 0) { onChange(s.copy(hevc = it == 1)) }
     SectionTitle("DYNAMIC RANGE")
     Chips(listOf("SDR (plays everywhere)", "Keep HDR (HLG / HDR10)"), if (s.keepHdr) 1 else 0) { onChange(s.copy(keepHdr = it == 1)) }
     Text(if (s.keepHdr) "HDR clips stay HDR in a 10-bit HEVC file — brighter highlights on HDR screens (YouTube, Instagram, newer phones). Works best with light grading; if the export fails on this phone, switch back to SDR." else "HDR clips are converted to standard range so they look right on every screen.", color = Pro.Dim, fontSize = 11.sp)
-    SectionTitle("BITRATE")
-    val rates = listOf(0, 20, 50, 80, 120, 200)
-    Chips(rates.map { if (it == 0) "Auto" else "$it Mbps" }, rates.indexOf(s.bitrateMbps).coerceAtLeast(0)) { onChange(s.copy(bitrateMbps = rates[it])) }
-    SectionTitle("AUDIO")
-    Chips(listOf("Video with audio", "Video, no audio", "Audio only"), if (s.audioOnly) 2 else if (s.audio) 0 else 1) {
-        onChange(s.copy(audio = it != 1, audioOnly = it == 2))
-    }
-    if (s.audioOnly) {
-        SectionTitle("AUDIO FORMAT")
-        val fmts = AudioExportFormat.entries.filter { it.available }
-        Chips(fmts.map { it.label }, fmts.indexOf(s.audioFmt).coerceAtLeast(0)) { onChange(s.copy(audioFormat = fmts[it])) }
-        Text(
-            when (s.audioFmt) {
-                AudioExportFormat.M4A -> "AAC 128 kbps — small, plays everywhere."
-                AudioExportFormat.WAV16 -> "Uncompressed CD quality (dithered) — opens in every audio and video program."
-                AudioExportFormat.WAV24 -> "Uncompressed studio quality — best for further mixing or mastering."
-                AudioExportFormat.WAV32F -> "Uncompressed 32-bit float — the mix exactly as rendered, with no clipping in the file."
-                AudioExportFormat.AIFF -> "Uncompressed 24-bit — the usual format on Mac (Logic, GarageBand, Final Cut)."
-                AudioExportFormat.FLAC -> "Lossless and about half the size of WAV — sounds identical."
-                AudioExportFormat.OPUS -> "Opus 160 kbps — very small for its quality, great for web and voice."
-            } + " Saves just the sound of the timeline — clips, music and audio tracks — to Music/AlcorCutPro (or your chosen save folder). Muted tracks are left out.",
-            color = Pro.Dim, fontSize = 11.sp,
-        )
-    }
     if (s.audio || s.audioOnly) {
         SectionTitle("LOUDNESS")
         val opts = listOf<Float?>(null) + Loudness.TARGETS
@@ -5715,7 +5689,37 @@ private fun DeliverPage(
         modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(enabled = gp == null && clips.isNotEmpty()) { saveGif.launch(title.replace(Regex("[^A-Za-z0-9 _-]"), "") + ".gif") }.padding(10.dp),
     )
     Text("Uses the RANGE above if set (up to 20 s). Includes the grade and text / logo layers; no sound.", color = Pro.Dim, fontSize = 11.sp)
-    SectionTitle("ESTIMATED FILE SIZE")
+    // Everything about the file itself, then the button: one place to set up and start the render.
+    SectionTitle("RENDER & EXPORT")
+    Text("Audio", color = Color.White, fontSize = 13.sp)
+    Chips(listOf("Video with audio", "Video, no audio", "Audio only"), if (s.audioOnly) 2 else if (s.audio) 0 else 1) {
+        onChange(s.copy(audio = it != 1, audioOnly = it == 2))
+    }
+    if (s.audioOnly) {
+        Text("Audio format", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+        val fmts = AudioExportFormat.entries.filter { it.available }
+        Chips(fmts.map { it.label }, fmts.indexOf(s.audioFmt).coerceAtLeast(0)) { onChange(s.copy(audioFormat = fmts[it])) }
+        Text(
+            when (s.audioFmt) {
+                AudioExportFormat.M4A -> "AAC 128 kbps — small, plays everywhere."
+                AudioExportFormat.WAV16 -> "Uncompressed CD quality (dithered) — opens in every audio and video program."
+                AudioExportFormat.WAV24 -> "Uncompressed studio quality — best for further mixing or mastering."
+                AudioExportFormat.WAV32F -> "Uncompressed 32-bit float — the mix exactly as rendered, with no clipping in the file."
+                AudioExportFormat.AIFF -> "Uncompressed 24-bit — the usual format on Mac (Logic, GarageBand, Final Cut)."
+                AudioExportFormat.FLAC -> "Lossless and about half the size of WAV — sounds identical."
+                AudioExportFormat.OPUS -> "Opus 160 kbps — very small for its quality, great for web and voice."
+            } + " Saves just the sound of the timeline — clips, music and audio tracks — to Music/AlcorCutPro (or your chosen save folder). Muted tracks are left out.",
+            color = Pro.Dim, fontSize = 11.sp,
+        )
+    }
+    if (!s.audioOnly) {
+        Text("Codec", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+        Chips(listOf("H.264", "HEVC (H.265)"), if (s.hevc) 1 else 0) { onChange(s.copy(hevc = it == 1)) }
+        Text("Bitrate", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+        val rates = listOf(0, 20, 50, 80, 120, 200)
+        Chips(rates.map { if (it == 0) "Auto" else "$it Mbps" }, rates.indexOf(s.bitrateMbps).coerceAtLeast(0)) { onChange(s.copy(bitrateMbps = rates[it])) }
+    }
+    Text("Estimated file size", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp, bottom = 4.dp))
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Ed.Raised).border(1.dp, Pro.Amber.copy(alpha = 0.5f), RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,

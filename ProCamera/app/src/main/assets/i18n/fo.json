@@ -3256,5 +3256,8 @@
 "Chromecast button: show the live picture on a TV": "Chromecast-knøttur: vís livandi myndina á einum sjónvarpi",
 "Chromecast button: show the viewer on a TV": "Chromecast-knøttur: vís sýnaran á einum sjónvarpi",
 "Chromecast button on the picture or next to Split": "Chromecast-knøttur á myndini ella við síðuna av Kluta",
-"CAST TO TV": "CAST TIL SJÓNVARP"
+"CAST TO TV": "CAST TIL SJÓNVARP",
+"Codec": "Codec",
+"Audio format": "Ljóðsnið",
+"Estimated file size": "Mett fílstødd"
 }

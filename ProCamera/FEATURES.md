@@ -355,6 +355,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Track groups (VCA)** in the mixer: Dialogue, Music, Effects — group fader and group mute.
 
 ### Deliver
+- **RENDER & EXPORT fold-out**: audio choice, audio format, codec, bitrate, estimated file size and the export button in one place.
 - **Long exports in parts**: films over 4 minutes are rendered in parts (split at plain cuts), each retried on its own if it fails, then joined without re-encoding.
 - **Background export**: keeps running in other apps or with the screen off (foreground service, progress notification, "finished" notification).
 - **Background tasks notification**: one notification in the pull-down shade lists every background task with its progress — photo and video exports, edit sync, proxies, AI noise reduction, AI upscale, AI cull, Cloud AI and first-launch downloads.

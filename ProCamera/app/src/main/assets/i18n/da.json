@@ -3202,5 +3202,8 @@
 "Chromecast button: show the live picture on a TV": "Chromecast-knap: vis det levende billede på et TV",
 "Chromecast button: show the viewer on a TV": "Chromecast-knap: vis fremviseren på et TV",
 "Chromecast button on the picture or next to Split": "Chromecast-knap på billedet eller ved siden af Del",
-"CAST TO TV": "CAST TIL TV"
+"CAST TO TV": "CAST TIL TV",
+"Codec": "Codec",
+"Audio format": "Lydformat",
+"Estimated file size": "Anslået filstørrelse"
 }

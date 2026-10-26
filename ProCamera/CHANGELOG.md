@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor → Deliver: Audio, Audio format, Codec, Bitrate and Estimated file size are now one **RENDER & EXPORT** fold-out, together with the RENDER & EXPORT button — everything about the file in one place. Codec and bitrate show only for video exports.
 
 ## 1.0.562 — 2026-10-26
 - **Long exports in parts**: films over 4 minutes are rendered in parts of about 2½ minutes (split only at plain cuts, never inside a transition), each on its own, then joined into one video without re-encoding. If a part fails it's done again on its own ("Part 3 didn't finish — doing just that part again") instead of restarting the whole film.

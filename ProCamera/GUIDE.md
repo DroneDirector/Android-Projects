@@ -235,6 +235,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Video editor guide
+**Render & export**
+- Deliver → RENDER & EXPORT: choose audio (with / without / audio only), the audio format (audio only), codec and bitrate (video), check the estimated file size, then tap RENDER & EXPORT.
 **Long exports**
 - Films over 4 minutes export in parts ("Exporting part 2 of 5"), joined at the end into one video. If a part fails, only that part is done again.
 **AI noise reduction**

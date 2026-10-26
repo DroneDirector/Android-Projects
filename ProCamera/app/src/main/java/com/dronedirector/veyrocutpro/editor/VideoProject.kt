@@ -643,7 +643,18 @@ class TimelineExport(
                     freeMorphs()
                     out.delete()
                     tap?.close(); rawFile.delete()
-                    onDone(null, "Export failed: ${exportException.errorCodeName}")
+                    // Full details (what failed inside) kept for a report — shown with COPY / SHARE.
+                    com.dronedirector.veyrocutpro.ui.CrashReport.problem(context, "export failed (${if (audioOnly) "audio only" else if (settings.audio) "video + sound" else "video"})", exportException,
+                        "clips ${clips.size}, music ${if (music != null) 1 else 0}, extra tracks ${extraAudio.size}, audio formats: " +
+                            clips.take(8).joinToString { c -> try { audioInfo(context, c.uri) } catch (_: Throwable) { "?" } })
+                    var why = ""
+                    var cause: Throwable? = exportException.cause
+                    for (k in 0 until 8) {
+                        val c0 = cause ?: break
+                        why = (c0.javaClass.simpleName + (c0.message?.let { ": $it" } ?: "")).take(120)
+                        cause = c0.cause
+                    }
+                    onDone(null, "Export failed: ${exportException.errorCodeName}" + if (why.isNotBlank()) " — $why" else "")
                 }
             })
             .build()
@@ -802,4 +813,16 @@ class TimecodeOverlay(outW: Int, outH: Int, private val startMs: Long, private v
     }
 
     override fun getOverlaySettings(presentationTimeUs: Long): androidx.media3.common.OverlaySettings = settings
+}
+
+/** The audio track of [uri] as the decoder sees it (for problem reports). */
+internal fun audioInfo(context: Context, uri: Uri): String {
+    val ex = android.media.MediaExtractor()
+    return try {
+        ex.setDataSource(context, uri, null)
+        (0 until ex.trackCount).map { ex.getTrackFormat(it) }.firstOrNull { it.getString(android.media.MediaFormat.KEY_MIME)?.startsWith("audio/") == true }?.let { f ->
+            "${f.getString(android.media.MediaFormat.KEY_MIME)} ${f.getInteger(android.media.MediaFormat.KEY_SAMPLE_RATE)}Hz ${f.getInteger(android.media.MediaFormat.KEY_CHANNEL_COUNT)}ch" +
+                (if (f.containsKey("pcm-encoding")) " pcm${f.getInteger("pcm-encoding")}" else "")
+        } ?: "no audio"
+    } finally { ex.release() }
 }

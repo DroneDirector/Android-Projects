@@ -232,7 +232,7 @@ object CastFeed {
                         if (mic == null) mic = try {
                             AudioRecord(MediaRecorder.AudioSource.CAMCORDER, RATE, AudioFormat.CHANNEL_IN_STEREO, AudioFormat.ENCODING_PCM_16BIT,
                                 maxOf(AudioRecord.getMinBufferSize(RATE, AudioFormat.CHANNEL_IN_STEREO, AudioFormat.ENCODING_PCM_16BIT), 16384))
-                                .takeIf { it.state == AudioRecord.STATE_INITIALIZED }?.also { it.startRecording() }
+                                .takeIf { it.state == AudioRecord.STATE_INITIALIZED }?.also { com.dronedirector.veyrocutpro.ui.AudioHardware.applyTo(it); it.startRecording() }
                         } catch (_: Throwable) { null }
                         val m = mic
                         if (m != null) { val n = m.read(chunk, 0, chunk.size); if (n > 0) chunk.copyOf(n) else ShortArray(0) }

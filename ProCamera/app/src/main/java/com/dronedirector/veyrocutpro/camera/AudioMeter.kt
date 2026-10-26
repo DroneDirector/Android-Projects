@@ -70,6 +70,7 @@ class AudioMeter(private val context: Context) {
                 return try {
                     AudioRecord(MediaRecorder.AudioSource.CAMCORDER, rate, mask, AudioFormat.ENCODING_PCM_16BIT, max(minBuf, 8192))
                         .takeIf { it.state == AudioRecord.STATE_INITIALIZED && (!stereo || it.channelCount == 2) }
+                        ?.also { com.dronedirector.veyrocutpro.ui.AudioHardware.applyTo(it) }
                 } catch (_: Throwable) { null }
             }
             val record = open(true) ?: open(false)

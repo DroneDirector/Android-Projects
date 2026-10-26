@@ -41,7 +41,7 @@ class WavRecorder(private val context: Context, private val onLevel: (Float) -> 
             val min = AudioRecord.getMinBufferSize(rate, mask, AudioFormat.ENCODING_PCM_FLOAT)
             if (min <= 0) continue
             val r = try { AudioRecord(source, rate, mask, AudioFormat.ENCODING_PCM_FLOAT, maxOf(min * 2, rate / 10 * ch * 4)) } catch (_: Throwable) { null }
-            if (r != null && r.state == AudioRecord.STATE_INITIALIZED) { rec = r; break }
+            if (r != null && r.state == AudioRecord.STATE_INITIALIZED) { com.dronedirector.veyrocutpro.ui.AudioHardware.applyTo(r); rec = r; break }
             r?.release()
         }
         val ar = rec ?: return false

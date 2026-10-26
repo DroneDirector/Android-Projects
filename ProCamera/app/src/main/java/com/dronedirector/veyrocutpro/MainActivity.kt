@@ -153,6 +153,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             ProCamTheme {
                 com.dronedirector.veyrocutpro.ui.CrashReportDialog()
+                com.dronedirector.veyrocutpro.ui.AudioHardwareNotice()
+                androidx.compose.runtime.LaunchedEffect(Unit) { com.dronedirector.veyrocutpro.ui.AudioHardware.start(this@MainActivity) }
                 com.dronedirector.veyrocutpro.ui.AppExitLayer {
                 com.dronedirector.veyrocutpro.ui.MousePointerHost {
                 val current = screen.value

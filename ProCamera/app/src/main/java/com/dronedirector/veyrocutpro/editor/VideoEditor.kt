@@ -6648,7 +6648,7 @@ private fun fxPlayer(context: android.content.Context, fx: AudioFxProcessor): Ex
     }
     // Originals that need a special decoder (4:2:2) play with it when they aren't on a proxy.
     rf.setMediaCodecSelector(Chroma.selector(liveDecoders)).setEnableDecoderFallback(true)
-    return ExoPlayer.Builder(context, rf).build()
+    return ExoPlayer.Builder(context, rf).build().also { com.dronedirector.veyrocutpro.ui.AudioHardware.track(context, it) }
 }
 
 /** Hands what a player is playing to the TV feed (only while casting). */

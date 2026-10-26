@@ -153,12 +153,16 @@ fun TimelineView(
     onAddVideoLayer: (() -> Unit)? = null,
     /** A V1 clip's in / out point changed by dragging its edge (source ms). */
     onClipTrim: (index: Int, startMs: Long, endMs: Long) -> Unit = { _, _, _ -> },
+    /** A V1 edge drag ended: [before] is the clip as it was, [edge] -1 = start, 1 = end (gap or ripple is decided there). */
+    onClipTrimDone: (index: Int, before: Clip, edge: Int) -> Unit = { _, _, _ -> },
     /** The bin on the selected clip: delete that clip. */
     onDeleteClip: ((Int) -> Unit)? = null,
 ) {
     val density = LocalDensity.current
     val totalMs = timelineLength(clips).coerceAtLeast(1)
-    val starts = clipStarts(clips)
+    // While a clip's start is dragged its left edge follows the finger and the clips after it stay put.
+    var trimShift by remember { mutableStateOf<Pair<Int, Long>?>(null) }
+    val starts = clipStarts(clips).also { s -> trimShift?.let { (i, d) -> for (j in i until s.size) s[j] += d } }
     // Zoom in pixels per second.
     var pxPerSec by zoom::pxPerSec
     var dragging by remember { mutableStateOf(false) }
@@ -235,6 +239,7 @@ fun TimelineView(
     val curClipTop by rememberUpdatedState(clipTop)
     val curAudioTop by rememberUpdatedState(audioTop)
     val curClipTrim by rememberUpdatedState(onClipTrim)
+    val curClipTrimDone by rememberUpdatedState(onClipTrimDone)
     val curVideoLocked by rememberUpdatedState(videoLocked)
     val curTotal by rememberUpdatedState(totalMs)
     val curSelectClip by rememberUpdatedState(onSelectClip)
@@ -379,11 +384,17 @@ fun TimelineView(
                                     val c = ev.changes.first()
                                     val dSrc = ((c.position.x - down.position.x) / pxPerSec * 1000f * sp).toLong()
                                     // A clip already shorter than the minimum (e.g. a tiny piece left by a split) can be lengthened, never shortened further.
-                                    if (clipEdge < 0) curClipTrim(idx, (c0.startMs + dSrc).coerceIn(0, maxOf(c0.endMs - minSrc, c0.startMs, 0)), c0.endMs)
+                                    if (clipEdge < 0) {
+                                        val ns = (c0.startMs + dSrc).coerceIn(0, maxOf(c0.endMs - minSrc, c0.startMs, 0))
+                                        curClipTrim(idx, ns, c0.endMs)
+                                        trimShift = idx to (c0.lengthMs - c0.copy(startMs = ns).lengthMs)
+                                    }
                                     else curClipTrim(idx, c0.startMs, (c0.endMs + dSrc).coerceIn(minOf(c0.startMs + minSrc, c0.endMs), maxOf(c0.durationMs, c0.endMs)))
                                     ev.changes.forEach { it.consume() }
                                 } while (ev.changes.any { it.pressed })
+                                trimShift = null
                                 editingClip = -1
+                                curClipTrimDone(idx, c0, clipEdge)
                                 return@awaitEachGesture
                             }
                         }

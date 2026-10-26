@@ -74,6 +74,8 @@ internal class EditorState(initial: VideoProjectData?, context: Context) {
     var wheelFx by mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_wheel_fx", true))
     /** Markers, keyframes and in / out flags with the animated shine (gear → Layout & look). */
     var markerFx by mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_marker_fx", true))
+    /** Shortening a main-video clip: true = a black gap is left, false = everything after moves up (all tracks). */
+    var trimGap by mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_trim_gap", false))
     var infoText by mutableStateOf("")
     var pendingRestore by mutableStateOf<java.io.File?>(null)
     var loadedId by mutableStateOf<String?>(null)

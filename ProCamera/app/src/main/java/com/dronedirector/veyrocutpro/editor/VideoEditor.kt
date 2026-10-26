@@ -668,6 +668,16 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
+                    Text("Trimming leaves a gap", color = Color.White, fontSize = 15.sp)
+                    Text("Shortening a clip on the main video leaves black where the cut-off part was, so everything after it stays in place. Off = the gap closes and everything after it moves up on every track.", color = Pro.Dim, fontSize = 12.sp)
+                }
+                androidx.compose.material3.Switch(es.trimGap, {
+                    es.trimGap = it
+                    context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("tl_trim_gap", it).apply()
+                }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
                     Text("Marker effects", color = Color.White, fontSize = 15.sp)
                     Text("Markers, keyframes and in / out flags on the timeline shine like the scroll wheels. Off = plain markers, no animation.", color = Pro.Dim, fontSize = 12.sp)
                 }
@@ -2203,6 +2213,42 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
         }
     }
+    // ---- After dragging a main-video clip's edge: leave a black gap, or move everything after it (all tracks) by the same amount.
+    fun afterTrim(i: Int, before: Clip, edge: Int) {
+        if (i !in clips.indices || es.videoLocked) return
+        val after = clips[i]
+        val d = before.lengthMs - after.lengthMs   // > 0: shorter
+        if (d == 0L) return
+        val start = clipStarts(clips)[i]
+        if (es.trimGap && d > 0) {
+            val fps = if (es.deliver.fps > 0) es.deliver.fps else 30
+            val w = (after.width.takeIf { it > 0 } ?: 1920).coerceAtMost(1920); val h = (after.height.takeIf { it > 0 } ?: 1080).coerceAtMost(1920)
+            Generators.make(context, GenSpec(GenKind.BLACK, seconds = ((d + 999) / 1000).toInt().coerceAtLeast(1), width = w, height = h, fps = fps), onProgress = {}) { uri, err ->
+                if (uri == null) { es.message = err ?: "Couldn't make the gap"; return@make }
+                layerScope.launch {
+                    val nc = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }
+                    val at = clips.indexOfFirst { it.id == after.id }
+                    if (nc == null || at < 0) { es.message = "Couldn't make the gap"; return@launch }
+                    clips.add(if (edge < 0) at else at + 1, nc.copy(name = "Gap", startMs = 0L, endMs = d.coerceAtMost(nc.durationMs.takeIf { it > 0 } ?: d)))
+                    es.message = "Gap left — the rest stays in place"
+                }
+            }
+            return
+        }
+        // Everything that starts after the trimmed edge moves with the video (locked tracks stay where they are).
+        val edgeAt = if (edge < 0) start else start + before.lengthMs
+        fun moved(t: Long): Long = if (t < edgeAt) t else (t - d).coerceAtLeast(if (edge < 0) start else 0L)
+        for (j in layers.indices) {
+            val l = layers[j]
+            if (l.wholeVideo || l.locked || l.startMs < edgeAt) continue
+            val len = l.endMs - l.startMs
+            val ns = moved(l.startMs)
+            layers[j] = l.copy(startMs = ns, endMs = ns + len)
+        }
+        es.music?.let { m -> if (!m.locked && m.startMs >= edgeAt) es.music = m.copy(startMs = moved(m.startMs)) }
+        for (j in extraAudio.indices) { val a = extraAudio[j]; if (!a.locked && a.startMs >= edgeAt) extraAudio[j] = a.copy(startMs = moved(a.startMs)) }
+        for (j in markers.indices) markers[j] = moved(markers[j])
+    }
     es.deleteAsk?.let { di -> DeleteClipDialog(di, onClose = { es.deleteAsk = null }) { gap -> es.deleteAsk = null; deleteClip(di, gap) } }
     // ---- Generators (Media → GENERATORS)
     fun makeGenerator(kind: GenKind, c1: Int, c2: Int, seconds: Int) {
@@ -3355,6 +3401,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     onClipTrim = { i, a, b ->
                         if (i in clips.indices && !es.videoLocked) clips[i] = clips[i].copy(startMs = a, endMs = b)
                     },
+                    onClipTrimDone = { i, before, edge -> afterTrim(i, before, edge) },
                     onToggleSnap = {
                         es.snapping = !es.snapping
                         context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("tl_snap", es.snapping).apply()

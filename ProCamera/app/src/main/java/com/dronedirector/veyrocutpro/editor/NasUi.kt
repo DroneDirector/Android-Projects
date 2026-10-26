@@ -227,7 +227,7 @@ fun NasBrowserDialog(kinds: NasKinds, onDismiss: () -> Unit, onPicked: (List<Uri
                                 val on = k in picked
                                 val ext = e.name.substringAfterLast('.', "").lowercase()
                                 val icon = when { ext in Nas.AUDIO -> Icons.Filled.AudioFile; ext in Nas.VIDEO -> Icons.Filled.Movie; else -> Icons.Filled.Image }
-                                NasRow(icon, e.name, sizeText(e.size), trailing = if (on) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked, selected = on) {
+                                NasRow(icon, e.name, nasSize(e.size), trailing = if (on) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked, selected = on) {
                                     if (on) picked.remove(k) else picked[k] = NasPick(sh, full, e.name, e.size)
                                 }
                             }
@@ -237,7 +237,7 @@ fun NasBrowserDialog(kinds: NasKinds, onDismiss: () -> Unit, onPicked: (List<Uri
             }
             if (link != null && !copying) {
                 Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (picked.isEmpty()) "Tap files to pick them" else "${picked.size} picked · ${sizeText(picked.values.sumOf { it.size })}", color = Pro.Dim, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                    Text(if (picked.isEmpty()) "Tap files to pick them" else "${picked.size} picked · ${nasSize(picked.values.sumOf { it.size })}", color = Pro.Dim, fontSize = 13.sp, modifier = Modifier.weight(1f))
                     if (picked.isNotEmpty()) TextButton(onClick = { picked.clear() }) { Text("Clear", color = Pro.Dim) }
                     TextButton(enabled = picked.isNotEmpty(), onClick = {
                         val l = link ?: return@TextButton
@@ -353,7 +353,7 @@ private fun nasFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor = Pro.Amber, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,
 )
 
-private fun sizeText(b: Long): String = when {
+private fun nasSize(b: Long): String = when {
     b >= 1L shl 30 -> String.format(java.util.Locale.US, "%.1f GB", b / (1L shl 30).toFloat())
     b >= 1L shl 20 -> String.format(java.util.Locale.US, "%.0f MB", b / (1L shl 20).toFloat())
     else -> "${(b / 1024).coerceAtLeast(1)} KB"

@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -3156,25 +3157,39 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         modifier = Modifier.height(26.dp),
                         colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = Color.White.copy(alpha = 0.15f)),
                     )
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        // Split, undo and redo are always on screen; the zoom tools scroll if the row is narrow.
-                        TransportIcon(Icons.Filled.ContentCut, "Split at playhead", accent = true) { splitAtPlayhead() }
-                        TransportIcon(Icons.AutoMirrored.Filled.Undo, "Undo", tint = if (es.histPos > 0) Color.White else Pro.Dim) { undo() }
-                        TransportIcon(Icons.AutoMirrored.Filled.Redo, "Redo", tint = if (es.histPos < history.lastIndex) Color.White else Pro.Dim) { redo() }
-                      Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
-                        TransportIcon(if (es.previewMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute preview") { es.previewMuted = !es.previewMuted }
-                        TransportIcon(Icons.Filled.ZoomOut, "Zoom timeline out") { zoom.zoomOut() }
-                        TransportIcon(Icons.Filled.FitScreen, "Show whole timeline") { zoom.fit() }
-                        TransportIcon(Icons.Filled.ZoomIn, "Zoom timeline in") { zoom.zoomIn() }
-                        // Cast to a TV (tablets), next to the zoom buttons below the picture.
-                        if (castPanel) com.dronedirector.veyrocutpro.ui.CastButton(castSource, Modifier.padding(horizontal = 4.dp), small = true, sound = com.dronedirector.veyrocutpro.camera.CastFeed.Sound.APP)
-                      }
-                        TransportIcon(Icons.Filled.SkipPrevious, "Previous clip") { prevClip() }
-                        TransportIcon(if (es.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Pro.Amber) { togglePlay() }
-                        TransportIcon(Icons.Filled.SkipNext, "Next clip") { nextClip() }
-                        TransportIcon(Icons.Filled.Fullscreen, "Full screen") { es.fullscreen = true }
-                        // Playhead straight back to the very start of the timeline.
-                        TransportIcon(PlayheadToStart, "Playhead to start") { seekGlobal(0L) }
+                    // The whole button row scrolls sideways (like the tool tabs) whenever it is wider
+                    // than the screen, so no button is ever out of reach — new buttons can simply be
+                    // added here. When everything fits, the three groups keep their places
+                    // (edit tools left, view tools middle, playback right).
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        val barWidth = maxWidth
+                        Row(
+                            Modifier.horizontalScroll(rememberScrollState()).widthIn(min = barWidth),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                TransportIcon(Icons.Filled.ContentCut, "Split at playhead", accent = true) { splitAtPlayhead() }
+                                TransportIcon(Icons.AutoMirrored.Filled.Undo, "Undo", tint = if (es.histPos > 0) Color.White else Pro.Dim) { undo() }
+                                TransportIcon(Icons.AutoMirrored.Filled.Redo, "Redo", tint = if (es.histPos < history.lastIndex) Color.White else Pro.Dim) { redo() }
+                            }
+                            Row(Modifier.padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                TransportIcon(if (es.previewMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute preview") { es.previewMuted = !es.previewMuted }
+                                TransportIcon(Icons.Filled.ZoomOut, "Zoom timeline out") { zoom.zoomOut() }
+                                TransportIcon(Icons.Filled.FitScreen, "Show whole timeline") { zoom.fit() }
+                                TransportIcon(Icons.Filled.ZoomIn, "Zoom timeline in") { zoom.zoomIn() }
+                                // Cast to a TV (tablets), next to the zoom buttons below the picture.
+                                if (castPanel) com.dronedirector.veyrocutpro.ui.CastButton(castSource, Modifier.padding(horizontal = 4.dp), small = true, sound = com.dronedirector.veyrocutpro.camera.CastFeed.Sound.APP)
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                TransportIcon(Icons.Filled.SkipPrevious, "Previous clip") { prevClip() }
+                                TransportIcon(if (es.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Pro.Amber) { togglePlay() }
+                                TransportIcon(Icons.Filled.SkipNext, "Next clip") { nextClip() }
+                                TransportIcon(Icons.Filled.Fullscreen, "Full screen") { es.fullscreen = true }
+                                // Playhead straight back to the very start of the timeline.
+                                TransportIcon(PlayheadToStart, "Playhead to start") { seekGlobal(0L) }
+                            }
+                        }
                     }
                 }
             }

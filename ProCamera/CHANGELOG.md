@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: the whole button bar under the picture now scrolls sideways when it's wider than the screen (like the tool tabs), so every button — split, undo / redo, zoom, cast, play, full screen, playhead to start — can always be reached, and new buttons can be added there. When it all fits, the layout is unchanged.
 
 ## 1.0.568 — 2026-10-26
 - Video editor: new **playhead to start** button (own icon: the playhead jumping back to the timeline's start) on the right of the transport bar below the picture — one tap and the playhead is at 0:00.

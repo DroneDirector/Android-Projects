@@ -135,6 +135,7 @@ import com.dronedirector.veyrocutpro.camera.Filter
 import com.dronedirector.veyrocutpro.camera.GradeIO
 import com.dronedirector.veyrocutpro.ui.Pro
 import com.dronedirector.veyrocutpro.ui.hintedScroll
+import com.dronedirector.veyrocutpro.ui.pinchAndMove
 import com.dronedirector.veyrocutpro.ui.BarIconGroup
 import kotlinx.coroutines.Dispatchers
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -2946,6 +2947,29 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
     DisposableEffect(Unit) { onDispose { com.dronedirector.veyrocutpro.ExportService.end(context, "proxy") } }
 
+    /** Pinch / move on the viewer: the framing (exported), or the magnified view (view only). */
+    fun moveFrame(pan: androidx.compose.ui.geometry.Offset, zoom: Float, w: Float, h: Float) {
+        if (w <= 0f || h <= 0f) return
+        val m = TransportBar.magnify
+        if (m > 1f) {
+            es.magX = (es.magX + pan.x).coerceIn(-w * (m - 1f) / 2f, w * (m - 1f) / 2f)
+            es.magY = (es.magY + pan.y).coerceIn(-h * (m - 1f) / 2f, h * (m - 1f) / 2f)
+            return
+        }
+        val d = es.deliver
+        val z = (d.frameZoom * zoom).coerceIn(1f, 8f)
+        // Never past the picture's edge: the frame is always filled.
+        val lim = (z - 1f) / 2f
+        val x = ((d.frameX * w + pan.x) / w).coerceIn(-lim, lim)
+        val y = ((d.frameY * h + pan.y) / h).coerceIn(-lim, lim)
+        es.deliver = d.copy(frameZoom = z, frameX = if (z <= 1.001f) 0f else x, frameY = if (z <= 1.001f) 0f else y)
+    }
+    fun resetFrame() {
+        val was = es.deliver.framed || TransportBar.magnify > 1f
+        es.deliver = es.deliver.copy(frameZoom = 1f, frameX = 0f, frameY = 0f)
+        TransportBar.magnify = 1f; es.magX = 0f; es.magY = 0f
+        if (was) es.message = "Whole picture again"
+    }
     Box(Modifier.fillMaxSize().background(Ed.Bg)) {
         com.dronedirector.veyrocutpro.ui.AiBadgeHost(
             es.exporting && !es.cloudExport && clips.any { it.detail.aiDenoise > 0f }, "AI NOISE REDUCTION · EXPORT", 1, es.progress,
@@ -2984,7 +3008,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             // Two fingers: pinch to zoom and move the picture (framing — exported as seen);
                             // one finger moves it while zoomed. When magnified, the gestures look around instead.
                             .pointerInput(fw, fh) {
-                                com.dronedirector.veyrocutpro.ui.pinchAndMove(
+                                pinchAndMove(
                                     minPointers = { if ((es.deliver.frameZoom > 1.001f || TransportBar.magnify > 1f) && es.page != Page.LAYERS) 1 else 2 },
                                     onGesture = { _, pan, zoom -> moveFrame(pan, zoom, size.width.toFloat(), size.height.toFloat()) },
                                 )
@@ -3266,29 +3290,6 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             fun toggleSafe() {
                 if (SafeZones.current != 0) { es.lastSafe = SafeZones.current; SafeZones.current = 0 }
                 else SafeZones.current = es.lastSafe.takeIf { it in 1 until SafeZones.zones.size } ?: SafeZones.zones.lastIndex
-            }
-            /** Pinch / move on the viewer: the framing (exported), or the magnified view (view only). */
-            fun moveFrame(pan: androidx.compose.ui.geometry.Offset, zoom: Float, w: Float, h: Float) {
-                if (w <= 0f || h <= 0f) return
-                val m = TransportBar.magnify
-                if (m > 1f) {
-                    es.magX = (es.magX + pan.x).coerceIn(-w * (m - 1f) / 2f, w * (m - 1f) / 2f)
-                    es.magY = (es.magY + pan.y).coerceIn(-h * (m - 1f) / 2f, h * (m - 1f) / 2f)
-                    return
-                }
-                val d = es.deliver
-                val z = (d.frameZoom * zoom).coerceIn(1f, 8f)
-                // Never past the picture's edge: the frame is always filled.
-                val lim = (z - 1f) / 2f
-                val x = ((d.frameX * w + pan.x) / w).coerceIn(-lim, lim)
-                val y = ((d.frameY * h + pan.y) / h).coerceIn(-lim, lim)
-                es.deliver = d.copy(frameZoom = z, frameX = if (z <= 1.001f) 0f else x, frameY = if (z <= 1.001f) 0f else y)
-            }
-            fun resetFrame() {
-                val was = es.deliver.framed || TransportBar.magnify > 1f
-                es.deliver = es.deliver.copy(frameZoom = 1f, frameX = 0f, frameY = 0f)
-                TransportBar.magnify = 1f; es.magX = 0f; es.magY = 0f
-                if (was) es.message = "Whole picture again"
             }
             fun cycleMagnify() {
                 TransportBar.magnify = when (TransportBar.magnify) { 1f -> 2f; 2f -> 4f; else -> 1f }

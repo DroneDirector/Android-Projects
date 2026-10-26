@@ -1,5 +1,6 @@
 package com.dronedirector.veyrocutpro.editor
 
+import com.dronedirector.veyrocutpro.ui.pinchAndMove
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
@@ -1638,7 +1639,7 @@ private fun PhotoWorkspace(
                         // panels (Masks, Heal, Retouch brush) and the split view: two fingers zoom the view
                         // only, so you can paint details; one finger stays the brush.
                         val painting = split || picking != 0 || panel == PhotoPanel.MASKS || panel == PhotoPanel.HEAL || (panel == PhotoPanel.RETOUCH && retouchTab == 0)
-                        com.dronedirector.veyrocutpro.ui.pinchAndMove(
+                        pinchAndMove(
                             minPointers = { if (!painting && (edit.geometry.zoom > 1.001f || zoomK > 1f)) 1 else 2 },
                             onGesture = { c, pan, z ->
                                 val nz = (zoomK * z).coerceIn(if (painting) 1f else 1f / edit.geometry.zoom, 8f)

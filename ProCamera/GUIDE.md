@@ -235,6 +235,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Video editor guide
+**Long exports**
+- Films over 4 minutes export in parts ("Exporting part 2 of 5"), joined at the end into one video. If a part fails, only that part is done again.
 **AI noise reduction**
 - The first export cleans each clip with AI noise reduction once and keeps it in the video catalog; later exports reuse it, so they're much faster. Changing the strength cleans the clip again.
 **Cast to TV**

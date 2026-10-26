@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- **Long exports in parts**: films over 4 minutes are rendered in parts of about 2½ minutes (split only at plain cuts, never inside a transition), each on its own, then joined into one video without re-encoding. If a part fails it's done again on its own ("Part 3 didn't finish — doing just that part again") instead of restarting the whole film.
+- Sound exports: a clip is only treated as having no sound after two separate checks agree, so no clip's sound can be dropped by mistake.
 
 ## 1.0.559 — 2026-10-26
 - Fix: exports with sound (and sound-only exports) failed or closed the app when the timeline had clips **without a sound track** (e.g. drone footage or generated clips) — "no audio or video track to output". Those clips now get silence in their place.

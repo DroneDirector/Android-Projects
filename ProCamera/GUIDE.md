@@ -250,7 +250,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Pinch to zoom in on the picture and drag it into place — the export is framed exactly like that (what's outside is cut off). Double-tap = whole picture again.
 **Timeline**
 - In / out points show as IN / OUT flags on the ruler, the rest is dimmed. Markers and keyframes shine like the scroll wheels; gear → Marker effects turns that off.
-- Hold a clip's start edge and drag: the edge follows your finger. Gear → Trimming leaves a gap: on = the cut-off part becomes black and everything after stays where it was; off = the gap closes and everything after it — on every track — moves up by the same amount (locked tracks stay).
+- Hold a clip's edge and drag: the edge follows your finger. Shortening a clip leaves a black gap and everything else stays where it was. Gear → Trimming closes the gap: the gap closes and everything after it — on every track — moves left by the same amount (locked tracks stay).
 - Track headers: the eye hides a track (main video, layers, texts, watermarks), the speaker mutes it (main video, audio, video layers' own sound), the lock protects it from edits.
 **Render & export**
 - Deliver → RENDER & EXPORT: choose audio (with / without / audio only), the audio format (audio only), codec and bitrate (video), check the estimated file size, then tap RENDER & EXPORT.

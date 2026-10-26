@@ -3299,5 +3299,7 @@
 "Exports keep running if you switch apps or lock the screen — a notification shows the progress and tells you when it's done.": "Eksporter kører videre, hvis du skifter app eller låser skærmen — en notifikation viser fremskridtet og siger til, når den er færdig.",
 " Saves just the sound of the timeline — clips, music and audio tracks — to Music/AlcorCutPro (or your chosen save folder). Muted tracks are left out.": " Gemmer kun tidslinjens lyd — klip, musik og lydspor — i Music/AlcorCutPro (eller din valgte gemmemappe). Slåede-fra spor udelades.",
 "Edit the buttons": "Redigér knapperne",
-"Trimming": "Trimning"
+"Trimming": "Trimning",
+"Trimming closes the gap": "Trimning lukker mellemrummet",
+"Off (normal): shortening a clip on the main video leaves a black gap where the cut-off part was, and everything after it stays in place. On: the gap closes — the clip and everything after it move up to the left, on every track.": "Fra (normalt): når et klip på hovedvideoen gøres kortere, bliver der et sort mellemrum, hvor den afskårne del var, og alt efter det bliver på plads. Til: mellemrummet lukkes — klippet og alt efter det rykker til venstre på alle spor."
 }

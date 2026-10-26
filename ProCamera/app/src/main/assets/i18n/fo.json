@@ -3352,5 +3352,7 @@
 "Exports keep running if you switch apps or lock the screen — a notification shows the progress and tells you when it's done.": "Útflytingar halda fram, um tú skiftir app ella læsir skíggjan — ein fráboðan vísir framgongdina og sigur frá, tá ið hon er liðug.",
 " Saves just the sound of the timeline — clips, music and audio tracks — to Music/AlcorCutPro (or your chosen save folder). Muted tracks are left out.": " Goymir bert ljóðið á tíðarlinjuni — klipp, tónleik og ljóðspor — í Music/AlcorCutPro (ella tína valdu goymslumappu). Sløkt spor verða ikki tikin við.",
 "Edit the buttons": "Broyt knøttarnar",
-"Trimming": "Stytting"
+"Trimming": "Stytting",
+"Trimming closes the gap": "Stytting lukkar holið",
+"Off (normal): shortening a clip on the main video leaves a black gap where the cut-off part was, and everything after it stays in place. On: the gap closes — the clip and everything after it move up to the left, on every track.": "Sløkt (vanligt): tá ið eitt klipp á høvuðssjónbandinum verður stytt, verður eitt svart hol, har avskorni parturin var, og alt aftaná verður verandi. Tendrað: holið verður lukkað — klippið og alt aftaná flyta til vinstru á øllum sporum."
 }

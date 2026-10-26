@@ -289,7 +289,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Network (NAS): Media → Network (NAS) finds your Synology or other NAS on the same Wi-Fi (or type its address). Pick videos, photos and audio; they're copied into the app. Sign in only if the NAS asks — then choose whether to remember it (encrypted, never shown; gear → Network (NAS) → Remove).",
             "Buttons under the picture: frame steps, in / out, marker, safe margins, playback resolution (preview only), magnifier (view only), export frame, settings. The + at the end chooses which ones you see.",
             "Pinch on the picture to zoom in and drag it into place — the export is framed exactly as seen. Double-tap = whole picture again.",
-            "Hold a clip's start edge and drag — the edge follows your finger. Gear → Trimming leaves a gap: on = black gap, everything stays; off = the gap closes and everything after it moves up on every track.",
+            "Hold a clip's edge and drag — the edge follows your finger. Shortening leaves a black gap and everything stays put; gear → Trimming closes the gap moves everything after it left on every track.",
             "Track headers: eye = hide, speaker = mute (video layers have their own sound switch), lock = protect from edits. IN / OUT flags on the ruler show the export range; gear → Marker effects turns the shine off.",
             "Delete a clip: tap it, then tap the red bin on top of it — CLOSE GAP moves the next clips left, LEAVE GAP keeps them in place.",
             "Media strip above the timeline: hover (mouse) or hold and slide to skim, tap to pick, double-tap to append. Stars and reject help you sort; USED marks what's already on the timeline. + Folder imports a whole folder.",

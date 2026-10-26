@@ -4,7 +4,9 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.LaunchedEffect
@@ -129,9 +131,19 @@ private fun DrawScope.chevron(c: Offset, direction: Int, color: Color) {
 @androidx.compose.runtime.Composable
 fun androidx.compose.foundation.layout.RowScope.BarIconGroup(content: @androidx.compose.runtime.Composable androidx.compose.foundation.layout.RowScope.() -> Unit) {
     val phone = androidx.compose.ui.platform.LocalConfiguration.current.smallestScreenWidthDp < 600
-    androidx.compose.foundation.layout.Box(Modifier.weight(1f), contentAlignment = androidx.compose.ui.Alignment.CenterEnd) {
+    if (!phone) {
+        androidx.compose.foundation.layout.Box(Modifier.weight(1f), contentAlignment = androidx.compose.ui.Alignment.CenterEnd) {
+            androidx.compose.foundation.layout.Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, content = content)
+        }
+        return
+    }
+    // Phones: the whole free width (and height) of the bar is the scroll area, so it's easy to swipe;
+    // the icons still line up at its right end when they fit.
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.weight(1f).fillMaxHeight()) {
+        val w = maxWidth
         androidx.compose.foundation.layout.Row(
-            if (phone) Modifier.hintedScroll(horizontal = true) else Modifier,
+            Modifier.fillMaxHeight().hintedScroll(horizontal = true).widthIn(min = w),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End,
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             content = content,
         )

@@ -146,6 +146,10 @@ fun TimelineView(
     rangeOut: Long? = null,
     /** Markers, keyframes and in / out flags with the scroll wheels' animated shine (off = plain). */
     markerFx: Boolean = true,
+    /** A gap still being made: clips from this index on are drawn this many ms later (they don't jump left meanwhile). */
+    holdFrom: Pair<Int, Long>? = null,
+    /** Shortening a clip leaves a gap (true) or closes it (false) — the drag shows which. */
+    trimLeavesGap: Boolean = true,
     snapping: Boolean = true,
     onToggleMarker: () -> Unit = {},
     onToggleSnap: () -> Unit = {},
@@ -162,7 +166,10 @@ fun TimelineView(
     val totalMs = timelineLength(clips).coerceAtLeast(1)
     // While a clip's start is dragged its left edge follows the finger and the clips after it stay put.
     var trimShift by remember { mutableStateOf<Pair<Int, Long>?>(null) }
-    val starts = clipStarts(clips).also { s -> trimShift?.let { (i, d) -> for (j in i until s.size) s[j] += d } }
+    val starts = clipStarts(clips).also { s ->
+        trimShift?.let { (i, d) -> for (j in i until s.size) s[j] += d }
+        holdFrom?.let { (i, d) -> for (j in i until s.size) s[j] += d }
+    }
     // Zoom in pixels per second.
     var pxPerSec by zoom::pxPerSec
     var dragging by remember { mutableStateOf(false) }
@@ -240,6 +247,7 @@ fun TimelineView(
     val curAudioTop by rememberUpdatedState(audioTop)
     val curClipTrim by rememberUpdatedState(onClipTrim)
     val curClipTrimDone by rememberUpdatedState(onClipTrimDone)
+    val curLeavesGap by rememberUpdatedState(trimLeavesGap)
     val curVideoLocked by rememberUpdatedState(videoLocked)
     val curTotal by rememberUpdatedState(totalMs)
     val curSelectClip by rememberUpdatedState(onSelectClip)
@@ -389,7 +397,13 @@ fun TimelineView(
                                         curClipTrim(idx, ns, c0.endMs)
                                         trimShift = idx to (c0.lengthMs - c0.copy(startMs = ns).lengthMs)
                                     }
-                                    else curClipTrim(idx, c0.startMs, (c0.endMs + dSrc).coerceIn(minOf(c0.startMs + minSrc, c0.endMs), maxOf(c0.durationMs, c0.endMs)))
+                                    else {
+                                        val ne = (c0.endMs + dSrc).coerceIn(minOf(c0.startMs + minSrc, c0.endMs), maxOf(c0.durationMs, c0.endMs))
+                                        curClipTrim(idx, c0.startMs, ne)
+                                        // Leaving a gap: the clips after it stay where they are while the end is dragged in.
+                                        val sh = c0.lengthMs - c0.copy(endMs = ne).lengthMs
+                                        trimShift = if (curLeavesGap && sh > 0 && idx < curClips.lastIndex) (idx + 1) to sh else null
+                                    }
                                     ev.changes.forEach { it.consume() }
                                 } while (ev.changes.any { it.pressed })
                                 trimShift = null

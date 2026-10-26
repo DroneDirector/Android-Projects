@@ -688,12 +688,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Trimming leaves a gap", color = Color.White, fontSize = 15.sp)
-                    Text("Shortening a clip on the main video leaves black where the cut-off part was, so everything after it stays in place. Off = the gap closes and everything after it moves up on every track.", color = Pro.Dim, fontSize = 12.sp)
+                    Text("Trimming closes the gap", color = Color.White, fontSize = 15.sp)
+                    Text("Off (normal): shortening a clip on the main video leaves a black gap where the cut-off part was, and everything after it stays in place. On: the gap closes — the clip and everything after it move up to the left, on every track.", color = Pro.Dim, fontSize = 12.sp)
                 }
-                androidx.compose.material3.Switch(es.trimGap, {
-                    es.trimGap = it
-                    context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("tl_trim_gap", it).apply()
+                androidx.compose.material3.Switch(es.trimRipple, {
+                    es.trimRipple = it
+                    context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("tl_trim_ripple", it).apply()
                 }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -2240,14 +2240,19 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val d = before.lengthMs - after.lengthMs   // > 0: shorter
         if (d == 0L) return
         val start = clipStarts(clips)[i]
-        if (es.trimGap && d > 0) {
+        if (!es.trimRipple && d > 0) {
+            if (edge > 0 && i == clips.lastIndex) return   // nothing after the last clip to keep in place
+            // Until the black gap is made, the timeline keeps the clips where they were (no jump to the left).
+            val holdId = if (edge < 0) after.id else clips.getOrNull(i + 1)?.id
+            if (holdId != null) es.gapHold = holdId to d
             val fps = if (es.deliver.fps > 0) es.deliver.fps else 30
             val w = (after.width.takeIf { it > 0 } ?: 1920).coerceAtMost(1920); val h = (after.height.takeIf { it > 0 } ?: 1080).coerceAtMost(1920)
             Generators.make(context, GenSpec(GenKind.BLACK, seconds = ((d + 999) / 1000).toInt().coerceAtLeast(1), width = w, height = h, fps = fps), onProgress = {}) { uri, err ->
-                if (uri == null) { es.message = err ?: "Couldn't make the gap"; return@make }
+                if (uri == null) { es.gapHold = null; es.message = err ?: "Couldn't make the gap"; return@make }
                 layerScope.launch {
                     val nc = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }
                     val at = clips.indexOfFirst { it.id == after.id }
+                    es.gapHold = null
                     if (nc == null || at < 0) { es.message = "Couldn't make the gap"; return@launch }
                     clips.add(if (edge < 0) at else at + 1, nc.copy(name = "Gap", startMs = 0L, endMs = d.coerceAtMost(nc.durationMs.takeIf { it > 0 } ?: d)))
                     es.message = "Gap left — the rest stays in place"
@@ -3412,6 +3417,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     waves = if (showWaves) waves else emptyMap(),
                     markers = markers, snapping = es.snapping,
                     rangeIn = es.deliver.rangeStart?.takeIf { es.deliver.rangeEnd != null }, rangeOut = es.deliver.rangeEnd?.takeIf { es.deliver.rangeStart != null }, markerFx = es.markerFx,
+                    trimLeavesGap = !es.trimRipple,
+                    holdFrom = es.gapHold?.let { (id, d) -> clips.indexOfFirst { it.id == id }.takeIf { it >= 0 }?.let { it to d } },
                     onToggleMarker = {
                         val near = markers.firstOrNull { kotlin.math.abs(it - globalMs) < 250 }
                         if (near != null) { markers.remove(near); markerNotes.remove(near); es.message = "Marker removed" }
@@ -3925,9 +3932,6 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             } else Column(Modifier.fillMaxSize()) {
                 Row(Modifier.fillMaxWidth().height(50.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     TopIcon(Icons.AutoMirrored.Filled.ArrowBack, "Close", enabled = !es.exporting) { es.confirmExit = true }
-                    Column(Modifier.padding(start = 4.dp)) {
-                        Text("${clips.size} CLIPS · ${tc(totalMs)}", style = Pro.Label, maxLines = 1, softWrap = false)
-                    }
                     // Phones: these icons scroll sideways (with hint arrows); LOAD, SAVE and EXPORT stay put.
                     BarIconGroup {
                     VideoPanelsButton(

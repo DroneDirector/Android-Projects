@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor timeline: shortening a clip from either edge now **leaves a gap** by default — the clip and everything after it stay exactly where they are (no jump to the left, also while the gap is being made). Gear → **Trimming closes the gap** turns on the old way: the gap closes and everything after it moves left on every track.
+- Video editor on phones: the top bar's icon area now reaches from the back arrow to LOAD, so it's easy to swipe; the clip count and length text there is gone.
 
 ## 1.0.587 — 2026-10-26
 - **Network (NAS)** in both editors: the add lists (video editor: start page and Media page; photo editor: start page and +) can open a **Synology or any other NAS** — or a computer sharing folders — on your Wi-Fi. Found automatically (or type its address), every shared folder and sub-folder can be browsed, and the picked videos, photos (RAW too in the photo editor) and audio are copied into the app with progress, so the edit keeps working when the NAS is off. It connects as a guest first; only when the NAS asks for it you sign in, and then choose whether to **remember the sign-in**. Remembered sign-ins are encrypted on the phone, left out of backups, and the password is never shown — gear → **Network (NAS)** lists server and user only, with **Remove**.

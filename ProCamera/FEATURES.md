@@ -218,7 +218,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Buttons under the picture**: frame back / forward, go to in / out, mark in / out, add marker, safe margins, playback resolution (Full to 1/16, preview only), magnifier (2× / 4×, view only), export frame, settings — all icons; the **+** chooses which ones the bar shows.
 - **Pinch, move and double-tap on the picture**: zoom in and place the picture; the export is framed exactly as seen. Double-tap resets.
 - **In / out flags** on the timeline ruler with the rest dimmed; **shining markers and keyframes** (Marker effects, can be turned off).
-- **Start-edge trimming** that follows your finger, with a choice: leave a black gap, or close it and move everything after it on every track.
+- **Trimming that leaves a gap**: drag either edge — the edge follows your finger and everything else stays put; or turn on **Trimming closes the gap** to move everything after it left on every track.
 - **Track switches**: show / hide, mute and lock on the main video; show / hide and lock on every layer (sound on / off on video layers); mute and lock on audio tracks.
 - **Scrolling button bar**: the bar under the picture (split, undo / redo, zoom, cast, play, full screen, playhead to start) scrolls sideways with animated arrows when it doesn't fit.
 - **Playhead to start**: one tap on the transport bar puts the playhead at the very start of the timeline.

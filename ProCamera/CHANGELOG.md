@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.555 — 2026-10-26
 - Export problems now come with full details: when a video or audio export fails, the message says what failed inside, and a report (with the clips' audio formats, no media) opens at once with COPY / SHARE. On Android 11+ the app also reports crashes in native code on the next start, so they can be fixed too.
 
 ## 1.0.552 — 2026-10-26

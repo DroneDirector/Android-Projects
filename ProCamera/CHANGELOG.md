@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.559 — 2026-10-26
 - Fix: exports with sound (and sound-only exports) failed or closed the app when the timeline had clips **without a sound track** (e.g. drone footage or generated clips) — "no audio or video track to output". Those clips now get silence in their place.
 - **AI noise reduction done once per clip**: on the first export, each clip with AI noise reduction is cleaned once at full size and kept in the video catalog ("AI noise reduction — clip 1 of 2 (done once, reused next time)"); that export and every later one read the cleaned clip instead of running the AI on every frame again. Changing the strength cleans it anew; Slim down frees them. Stored at a very high bitrate so it looks the same as the AI's output.
 

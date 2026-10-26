@@ -63,6 +63,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Teleprompter** over the camera (selfie or back camera): your own text, scrolling at your speed or starting with the recording; bold, italic, underline, narrow, alignment, size, text and background colours with opacity, mirror for teleprompter glass; drag to move, drag the corner to resize, shrink to a small bar, close with ✕; opens by itself with the selfie camera.
 
 ### Pro controls
+- **Resizable read-outs**: the histogram / scopes, exposure read-out and audio meter can be dragged anywhere, resized (two fingers or the grip) and minimised (double tap) while staying live; each keeps its own size and place.
 - **Pro read-out bar**: live ISO, shutter, focus, white balance, EV and zoom — tap any to change it — plus the exposure mode (**auto, shutter priority, ISO priority, manual**; Android 15+ uses the camera's own priority modes, older phones are metered continuously by the app) and, in video, resolution · frame rate · bitrate.
 - **Fn button**: one assignable button (tap to run, hold to choose) — zebras, peaking, false colour, next scope, AE / AWB lock, split focus / exposure, pull to A / B, frame guide, safe areas, log assist, flip, torch, next lens, focus magnifier, clean feed.
 - **Pull points**: A / B points for focus (rack focus), zoom and exposure, glided over 1–8 s, separately or all together.
@@ -125,6 +126,8 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Keep settings after uninstall** (optional): settings, presets and LUTs saved to Documents/AlcorCutPro/Settings; restore from the first screen after reinstalling.
 
 ## Photo editor
+- **Network (NAS)**: open photos — RAW included — from a Synology or any other NAS (or a computer sharing folders) on your network; guest first, sign-in only when needed, optional encrypted remembered sign-ins that are never shown.
+- **Pinch, move and double-tap**: zoom in on the photo and drag it; when your fingers lift, the crop becomes what you see (exported as seen). Double-tap = whole photo again. In Masks, Heal and the Retouch brush two fingers zoom the view only.
 - **Camera in the editor**: the filmstrip's +, the empty editor and the start page open the full **Capture** screen (every mode and pro control) over the editor; each photo you take lands straight in the filmstrip, without any automatic watermark.
 - **Catalogs**: every photo you edit is kept in a catalog — a copy of the photo, its edit and settings, ratings and the AI results (no AI re-runs). Several catalogs; choose how many photos each remembers (10 to any number, or unlimited); photo copies on / off; move catalogs to private storage, shared storage or an SD card. Lossless storage only (AI results as lossless PNG, RAW copies packed losslessly).
 - Open from the gallery, files or recent AlcorCut Pro photos; **saved projects** row on the start page.
@@ -211,6 +214,12 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 
 ## Video editor
 ### Media & timeline
+- **Network (NAS)**: add videos, photos and audio straight from a Synology or any other NAS (or a computer sharing folders over SMB) on your network — found automatically or by address; browse every shared folder; files are copied into the app with progress. Guest access first, sign-in only when the NAS asks; remembered sign-ins are optional, encrypted on the phone, never shown, removable in the gear menu.
+- **Buttons under the picture**: frame back / forward, go to in / out, mark in / out, add marker, safe margins, playback resolution (Full to 1/16, preview only), magnifier (2× / 4×, view only), export frame, settings — all icons; the **+** chooses which ones the bar shows.
+- **Pinch, move and double-tap on the picture**: zoom in and place the picture; the export is framed exactly as seen. Double-tap resets.
+- **In / out flags** on the timeline ruler with the rest dimmed; **shining markers and keyframes** (Marker effects, can be turned off).
+- **Start-edge trimming** that follows your finger, with a choice: leave a black gap, or close it and move everything after it on every track.
+- **Track switches**: show / hide, mute and lock on the main video; show / hide and lock on every layer (sound on / off on video layers); mute and lock on audio tracks.
 - **Scrolling button bar**: the bar under the picture (split, undo / redo, zoom, cast, play, full screen, playhead to start) scrolls sideways with animated arrows when it doesn't fit.
 - **Playhead to start**: one tap on the transport bar puts the playhead at the very start of the timeline.
 - **AI noise reduction done once per clip**: cleaned at full size on the first export, kept in the video catalog and reused by every later export (no AI run per export).
@@ -387,7 +396,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **LOAD / SAVE projects** next to Export; **Save & leave** when exiting; saved projects on the start page.
 - **Copy / Paste settings** between clips (or from a photo), optionally onto every clip.
 - **Remember watermark**; **resizable panels**; **playback info** read-out for troubleshooting.
-- **Panels menu** (icon next to the gear): show / hide the tools panel, transport bar, histogram, timecode and audio waveforms — the player and timeline grow into freed space and return to their saved sizes; presets **Full / Cut / Color / Audio**; **triple-tap** the icon to restore the original layout.
+- **Panels menu** (icon next to the gear): show / hide the tools panel, transport bar, histogram and audio waveforms — the player and timeline grow into freed space and return to their saved sizes; presets **Full / Cut / Color / Audio**; **triple-tap** the icon to restore the original layout.
 
 ---
 - **Fold-out tool sections**: every section of the tool panels opens and closes, with a line listing what's inside; gear → Layout & look sets how they start (remember, always closed, all open).

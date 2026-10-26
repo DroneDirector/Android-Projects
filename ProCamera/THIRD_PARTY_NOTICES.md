@@ -5,6 +5,11 @@ also shown in the app: **Settings (gear) → © Open-source licences**.
 
 | Component | Copyright / author | Licence |
 |---|---|---|
+| SMBJ (network storage / NAS) | Jeroen van Erp and contributors | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| smbj-rpc (NAS shared-folder list) | Rapid7, Inc. | [BSD 3-Clause](https://opensource.org/licenses/BSD-3-Clause) |
+| Bouncy Castle Crypto (used by SMBJ) | The Legion of the Bouncy Castle Inc. | [MIT](https://www.bouncycastle.org/licence.html) |
+| Guava, Apache Commons IO / Lang (used by smbj-rpc) | Google LLC / The Apache Software Foundation | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| ASN-One, MBassador, SLF4J API (used by SMBJ) | Jeroen van Erp / Benjamin Diedrichsen / QOS.ch | Apache 2.0 / MIT |
 | AndroidX — CameraX, Media3 (ExoPlayer, Transformer, Effect), Jetpack Compose, Material 3, Material Icons, Activity, Lifecycle, Core, Security Crypto, ExifInterface, HeifWriter | The Android Open Source Project / Google LLC | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | LiteRT (TensorFlow Lite runtime) | Google LLC | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | Kotlin standard library, kotlinx.coroutines | JetBrains s.r.o. and contributors | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |

@@ -114,7 +114,7 @@ dependencies {
     implementation("androidx.security:security-crypto:1.0.0")
     // Network storage (NAS / SMB shares): smbj (Apache 2.0) and smbj-rpc for the share list (BSD 3-Clause).
     implementation("com.hierynomus:smbj:0.13.0")
-    implementation("com.rapid7.client:dcerpc:0.12.13")
+    implementation("com.rapid7.client:dcerpc:0.12.13") { exclude(group = "org.bouncycastle", module = "bcprov-jdk18on") }
     implementation("androidx.exifinterface:exifinterface:1.3.7")
     implementation("androidx.heifwriter:heifwriter:1.0.0")
     // On-device face detection for the privacy face blur (ML Kit, bundled model; free for commercial apps).

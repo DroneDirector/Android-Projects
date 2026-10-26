@@ -47,6 +47,9 @@ change "Shared" to **Yes → recipient: fal.ai (service provider), purpose: App 
   the user's request (a user-initiated transfer, not collection by the developer).
 - **fal.ai API key / stream keys**: stored encrypted on the device only; sent only to fal.ai / the
   chosen streaming server for authentication.
+- **NAS sign-ins** (optional, only if the user chooses to remember one): stored encrypted on the
+  device only, excluded from backups, sent only to that NAS on the local network; passwords are never
+  displayed.
 
 ## Security practices
 

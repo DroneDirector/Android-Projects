@@ -51,31 +51,39 @@ needed for that task** directly from your phone to fal.ai, using your fal.ai acc
   to authorise your requests. You can delete it in the app at any time.
 - The "Wi-Fi only" option (on by default) stops uploads over mobile data.
 
-## 3. Live streaming (optional)
+## 3. Network storage (NAS, optional)
+
+Files you open from a NAS on your own network are copied straight from the NAS to your phone; they
+never go through any other server. If you choose to remember a NAS sign-in, the user name and
+password are stored **encrypted on your phone** (Android Keystore), are left out of backups, are sent
+only to that NAS, and the password is never shown in the app. You can remove a saved sign-in at any
+time (gear → Network (NAS) → Remove).
+
+## 4. Live streaming (optional)
 
 When you start a live stream, the camera picture and sound are sent **directly from your phone**
 to the streaming service and server you choose (for example YouTube, Twitch, TikTok, Facebook or
 your own RTMP / SRT server), using the stream key you enter. That service's privacy policy applies.
 Stream keys are stored only on your phone.
 
-## 4. What we do not do
+## 5. What we do not do
 
 - We do not collect, store or sell personal data, and we have no servers that receive your media.
 - No advertising, no analytics or tracking SDKs, no crash-reporting services, no user accounts.
 - The app does not request your location. In the Library's Map view it asks to read the locations already saved inside your photos (Android's "photo locations" permission); they are read on the phone and never sent anywhere.
 
-## 5. Children
+## 6. Children
 
 The app is not directed at children under 13 and does not knowingly collect their data.
 
-## 6. Deleting your data
+## 7. Deleting your data
 
 Everything the app keeps is on your phone. Uninstalling the app, or clearing its storage in
 Android settings, deletes its projects, presets, LUTs, settings and your fal.ai key. Photos and
 videos you saved stay in your gallery until you delete them. Files you sent to fal.ai can be
 managed or deleted through your fal.ai account.
 
-## 7. Changes
+## 8. Changes
 
 If this policy changes, the new version will be published at this address with a new date, and
 mentioned in the app's release notes.

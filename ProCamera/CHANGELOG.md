@@ -4,6 +4,17 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- **Network (NAS)** in both editors: the add lists (video editor: start page and Media page; photo editor: start page and +) can open a **Synology or any other NAS** — or a computer sharing folders — on your Wi-Fi. Found automatically (or type its address), every shared folder and sub-folder can be browsed, and the picked videos, photos (RAW too in the photo editor) and audio are copied into the app with progress, so the edit keeps working when the NAS is off. It connects as a guest first; only when the NAS asks for it you sign in, and then choose whether to **remember the sign-in**. Remembered sign-ins are encrypted on the phone, left out of backups, and the password is never shown — gear → **Network (NAS)** lists server and user only, with **Remove**.
+- Video editor: **more buttons under the picture** — step back / forward one frame, go to in / out point, mark in / out, add marker, safe margins on / off, **playback resolution** (Full, 1/2, 1/4, 1/8, 1/16 — the preview only, the export is always full), **magnification** (2× / 4×, view only, drag to look around), export frame and settings. All are icons; the **+** at the end chooses which buttons the bar shows.
+- **Pinch, move and double-tap on the picture** in both editors: pinch to zoom in on the picture and drag to place it — the export is framed exactly as you see it (what's outside the frame is cut off). Double-tap = the whole picture again. In the photo editor's painting tools (Masks, Heal, Retouch brush) and the split view two fingers zoom the view only, so you can paint details.
+- Timeline: the **in and out points** show as IN / OUT flags on the ruler, with the rest dimmed. **Markers** and strong keyframes shine like the scroll wheels — gear → **Marker effects** turns it off.
+- Timeline: dragging a clip's **start edge** now moves that edge with your finger. Gear → **Trimming leaves a gap**: on = the cut-off part becomes black and everything after stays in place; off (normal) = the gap closes and **everything after it moves up on every track** (layers, audio, markers; locked tracks stay).
+- Timeline **track switches**: the main video has **show / hide (eye), mute and lock**; every layer (titles, texts, watermarks, stickers, video layers) has show / hide and lock, and video layers also **sound on / off**; audio tracks have mute and lock.
+- Video editor → Deliver: **RENDER & EXPORT** is the very first thing in Deliver, with the **resolution** choice inside it.
+- Video editor: the time read-out is shown only below the picture (no longer on the picture).
+- Capture: the histogram / scopes, exposure read-out and audio meter can now be **resized** (two fingers, or hold one for a resize grip) and **minimised** (double tap) — still live, just small. Size and position are kept for each one.
+- Photo editor: the add buttons on the empty editor fit on phones (icon and a short name each). On **tablets** the photo editor has a back arrow at the top left, like the video editor.
+- Phones: the editors' top-bar icons (gear, layout and the others) scroll sideways with the small arrows when they don't fit; Load, Save and Export stay put.
 
 ## 1.0.574 — 2026-10-26
 - Video editor: the button bar under the picture shows the app's small animated arrows at the side that has more buttons, like the other scrolling rows.

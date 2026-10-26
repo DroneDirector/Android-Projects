@@ -21,6 +21,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Capture guide
+**Read-outs**
+- Drag the histogram / scopes, exposure read-out or audio meter anywhere. Pinch one with two fingers (or hold it and drag the amber grip) to resize it; double-tap to make it small but still live, double-tap again for full size.
 **Mouse**
 - Gallery: hold a photo or video to select it, then tap more. Share, Delete (to the trash for 30 days), ♥ Favourite, ✓ Pick or ✕ Reject them together; Done ends the selection.
 - Settings → Side buttons: Off (normal volume), Shutter / record, or Zoom (volume up zooms in, down zooms out).
@@ -110,6 +112,10 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Photo editor guide
+**Network (NAS)**
+- + → Network (NAS) (or Network (NAS) on the start page): pick photos (RAW too) from your Synology or other NAS on the same Wi-Fi; they're copied into the app. A sign-in is only asked for when the NAS needs one, and remembering it is up to you (encrypted, never shown; remove it under gear → Network (NAS)).
+**Pinch on the photo**
+- Pinch to zoom in and drag the photo; when you let go, the crop becomes what you see. Double-tap = whole photo again. In Masks, Heal and the Retouch brush, two fingers only zoom the view so you can paint details.
 **Autosave**
 - SAVE: type a name and tap Save as new, or tap one of your saved projects and choose Overwrite (it asks first). The project that's open now is marked.
 - Gear → AUTOSAVE: pick how often a copy of your project is saved, and how many copies (1–5) to keep. LOAD → AUTOSAVES opens one; SAVE then asks for a name, so the autosave stays as it was.
@@ -235,6 +241,17 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Video editor guide
+**Network (NAS)**
+- Media → Network (NAS) (or Network (NAS) on the start page): your Synology or other NAS shows up by itself when the phone is on the same Wi-Fi — or type its address (e.g. 192.168.1.20). Tap it, open a shared folder, tap the videos, photos and audio you want, then Add. They're copied into the app, so the edit keeps working when the NAS is off.
+- If the NAS asks for a sign-in, type your NAS user name and password. Afterwards it asks "Remember this sign-in?" — Yes keeps it encrypted on the phone (never shown, not in backups), No forgets it. Gear → Network (NAS) lists the saved ones (server and user only) with Remove.
+**Buttons under the picture**
+- Frame back / forward, go to in / out point, mark in / out, add marker, safe margins, playback resolution (Full, 1/2, 1/4, 1/8, 1/16 — a lower one plays heavy clips smoother; the export is always full), magnifier (2× / 4×, drag to look around, never exported), export frame and settings. Tap + at the end of the bar to choose which buttons it shows; Show all brings them all back.
+**Pinch on the picture**
+- Pinch to zoom in on the picture and drag it into place — the export is framed exactly like that (what's outside is cut off). Double-tap = whole picture again.
+**Timeline**
+- In / out points show as IN / OUT flags on the ruler, the rest is dimmed. Markers and keyframes shine like the scroll wheels; gear → Marker effects turns that off.
+- Hold a clip's start edge and drag: the edge follows your finger. Gear → Trimming leaves a gap: on = the cut-off part becomes black and everything after stays where it was; off = the gap closes and everything after it — on every track — moves up by the same amount (locked tracks stay).
+- Track headers: the eye hides a track (main video, layers, texts, watermarks), the speaker mutes it (main video, audio, video layers' own sound), the lock protects it from edits.
 **Render & export**
 - Deliver → RENDER & EXPORT: choose audio (with / without / audio only), the audio format (audio only), codec and bitrate (video), check the estimated file size, then tap RENDER & EXPORT.
 **Long exports**
@@ -372,7 +389,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Layers → AI DUBBING: the captions spoken as a new audio track at their times, in a woman's or man's voice; the original voice is turned down or muted in the mixer. English is made on the phone; Danish, German, Spanish and more use Cloud AI. Translate the captions first for another language.
 - Deliver → SMART RENDER → Fast copy: a cut-only edit (no grade, effects, layers, transitions, speed or sound changes, Source size and frame rate) is copied straight from the clips — no quality loss, much faster. Each clip then starts on the key frame at or just before its in point.
 - Media → TIMELINES: keep several timelines in one project (e.g. a long and a short cut). NEW TIMELINE starts an empty one, DUPLICATE copies the open one, tap a name to switch. Rename the open one in its field.
-- Panels icon (next to the settings gear): hide or show the tools panel, transport bar, histogram, timecode and audio waveforms — the player and timeline grow into the space and shrink back when a panel returns. Presets: Full, Cut, Color, Audio. Triple-tap the icon to reset the whole layout (panels and divider sizes).
+- Panels icon (next to the settings gear): hide or show the tools panel, transport bar, histogram and audio waveforms — the player and timeline grow into the space and shrink back when a panel returns. Presets: Full, Cut, Color, Audio. Triple-tap the icon to reset the whole layout (panels and divider sizes).
 - SAVE / LOAD projects; "Save & leave" when exiting.
 
 **General**

@@ -84,6 +84,9 @@ data class Clip(
     val depth: DepthFx? = null,
     /** Picture hidden (the main video track's eye): see-through in the preview and the export. */
     val hidden: Boolean? = null,
+    /** Offline: a black stand-in whose real media isn't linked (yet); [offlineOf] = the file it stood for, if any. */
+    val offline: Boolean? = null,
+    val offlineOf: String? = null,
 ) {
     val is422: Boolean get() = (chroma ?: 1) >= 2
 

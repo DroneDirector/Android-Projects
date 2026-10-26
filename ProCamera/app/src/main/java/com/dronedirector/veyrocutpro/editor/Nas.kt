@@ -57,6 +57,8 @@ enum class NasKinds(val ext: Set<String>) {
     VIDEO_EDITOR(Nas.VIDEO + Nas.PHOTO + Nas.AUDIO),
     /** The video editor's start page: clips (photos become clips). */
     VIDEO_START(Nas.VIDEO + Nas.PHOTO),
+    /** Choosing a folder (team projects): folders only. */
+    FOLDERS(emptySet()),
     PHOTO_EDITOR(Nas.PHOTO + Nas.RAW),
 }
 
@@ -159,6 +161,64 @@ class NasLink(val host: String, private val client: SMBClient, private val conn:
         } finally {
             try { f.close() } catch (_: Throwable) {}
             if (part.exists()) part.delete()
+        }
+    }
+
+    // ---- Writing (team projects in a shared folder on the NAS).
+
+    /** Size of a file, or -1 when it isn't there. */
+    fun size(shareName: String, path: String): Long = try {
+        val sh = share(shareName)
+        if (!sh.fileExists(path)) -1L else sh.getFileInformation(path).standardInformation.endOfFile
+    } catch (_: Throwable) { -1L }
+
+    /** Every file and folder in a folder (no filter). */
+    fun listAll(shareName: String, path: String): List<NasEntry> =
+        share(shareName).list(path).mapNotNull {
+            val n = it.fileName
+            if (n == "." || n == "..") null
+            else NasEntry(n, (it.fileAttributes and FileAttributes.FILE_ATTRIBUTE_DIRECTORY.value) != 0L, it.endOfFile)
+        }
+
+    fun readBytes(shareName: String, path: String): ByteArray? = try {
+        val sh = share(shareName)
+        if (!sh.fileExists(path)) null
+        else sh.openFile(path, EnumSet.of(AccessMask.GENERIC_READ), null, SMB2ShareAccess.ALL, SMB2CreateDisposition.FILE_OPEN, null)
+            .use { f -> f.inputStream.use { it.readBytes() } }
+    } catch (_: Throwable) { null }
+
+    /** Writes [input] to [path] (replacing it); false when stopped. */
+    fun write(shareName: String, path: String, input: java.io.InputStream, keepGoing: () -> Boolean = { true }, onBytes: (Long) -> Unit = {}): Boolean {
+        val sh = share(shareName)
+        mkdirs(shareName, path.substringBeforeLast('\\', ""))
+        val f = sh.openFile(path, EnumSet.of(AccessMask.GENERIC_WRITE), null, SMB2ShareAccess.ALL, SMB2CreateDisposition.FILE_OVERWRITE_IF, null)
+        f.use {
+            it.outputStream.use { out ->
+                val buf = ByteArray(1 shl 20)
+                var total = 0L
+                while (true) {
+                    if (!keepGoing()) return false
+                    val r = input.read(buf)
+                    if (r < 0) break
+                    out.write(buf, 0, r); total += r; onBytes(total)
+                }
+            }
+        }
+        return true
+    }
+
+    fun writeBytes(shareName: String, path: String, data: ByteArray) { write(shareName, path, data.inputStream()) }
+
+    fun delete(shareName: String, path: String) { try { share(shareName).rm(path) } catch (_: Throwable) {} }
+
+    fun mkdirs(shareName: String, path: String) {
+        if (path.isEmpty()) return
+        val sh = share(shareName)
+        var cur = ""
+        for (part in path.split('\\')) {
+            if (part.isEmpty()) continue
+            cur = if (cur.isEmpty()) part else "$cur\\$part"
+            try { if (!sh.folderExists(cur)) sh.mkdir(cur) } catch (_: Throwable) {}
         }
     }
 

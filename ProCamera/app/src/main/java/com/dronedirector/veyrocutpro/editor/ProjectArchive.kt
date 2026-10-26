@@ -27,6 +27,15 @@ object ProjectArchive {
             music = p.music?.let { it.copy(uri = f(it.uri)) },
             extraAudio = p.extraAudio.map { it.copy(uri = f(it.uri)) },
             audioPool = p.audioPool.map { it.copy(uri = f(it.uri)) },
+            library = p.library?.map { clip(it) },
+            timelines = p.timelines?.map { t ->
+                t.copy(
+                    clips = t.clips.map { clip(it) },
+                    layers = t.layers.map { l -> l.copy(imageUri = l.imageUri?.let(f), videoUri = l.videoUri?.let(f)) },
+                    music = t.music?.let { it.copy(uri = f(it.uri)) },
+                    extraAudio = t.extraAudio.map { it.copy(uri = f(it.uri)) },
+                )
+            },
         )
     }
 
@@ -36,11 +45,11 @@ object ProjectArchive {
         return out.map { Uri.parse(it) }
     }
 
-    private fun displayName(context: Context, u: Uri): String = try {
+    internal fun displayName(context: Context, u: Uri): String = try {
         context.contentResolver.query(u, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
     } catch (_: Throwable) { null } ?: u.lastPathSegment?.substringAfterLast('/') ?: "media"
 
-    private fun sizeOf(context: Context, u: Uri): Long = try {
+    internal fun sizeOf(context: Context, u: Uri): Long = try {
         context.contentResolver.openFileDescriptor(u, "r")?.use { it.statSize } ?: 0L
     } catch (_: Throwable) { 0L }
 

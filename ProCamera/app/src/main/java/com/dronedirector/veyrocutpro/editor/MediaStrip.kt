@@ -160,6 +160,9 @@ fun MediaStrip(
     onZoom: ((Float) -> Unit)? = null,
     /** Monitor layouts: a tall column (grid) instead of a strip. */
     vertical: Boolean = false,
+    /** File → Reveal in library: this file (uri text) is shown, picked out and scrolled to (each new [revealTick]). */
+    reveal: String? = null,
+    revealTick: Int = 0,
 ) {
     var filter by remember { mutableStateOf(0) }       // 0 all, 1 unused, 2 used, 3 ★3+, 4 no rejects
     var bin by remember { mutableStateOf<String?>(null) }
@@ -172,6 +175,14 @@ fun MediaStrip(
         (bin == null || bins[k] == bin) && when (filter) { 1 -> u == 0; 2 -> u > 0; 3 -> r >= 3; 4 -> r != -1; else -> true }
     }
     val focused = library.firstOrNull { it.uri.toString() == focus }
+    val rowState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+    androidx.compose.runtime.LaunchedEffect(revealTick) {
+        if (reveal == null || revealTick == 0) return@LaunchedEffect
+        filter = 0; bin = null; focus = reveal
+        val i = library.indexOfFirst { it.uri.toString() == reveal }
+        if (i >= 0) try { if (vertical) gridState.animateScrollToItem(i) else rowState.animateScrollToItem(i) } catch (_: Throwable) {}
+    }
     Column(modifier.fillMaxWidth().background(Color(0xFF0B0D12))) {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("MEDIA ${library.size}", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.padding(end = 6.dp))
@@ -248,11 +259,11 @@ fun MediaStrip(
         if (vertical) {
             // Monitor layout: a tall column of clips (grid), the add buttons on top.
             Row(Modifier.padding(horizontal = 6.dp, vertical = 3.dp)) { addButtons() }
-            LazyVerticalGrid(GridCells.Adaptive(thumbHeight * 1.6f + 5.dp), Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(6.dp),
+            LazyVerticalGrid(GridCells.Adaptive(thumbHeight * 1.6f + 5.dp), Modifier.weight(1f).fillMaxWidth(), state = gridState, contentPadding = PaddingValues(6.dp),
                 horizontalArrangement = Arrangement.spacedBy(5.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 gridItems(shown, key = { it.uri.toString() }) { c -> cell(c) }
             }
-        } else LazyRow(contentPadding = PaddingValues(horizontal = 6.dp, vertical = 3.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        } else LazyRow(state = rowState, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 3.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             items(shown, key = { it.uri.toString() }) { c -> cell(c) }
             item { addButtons() }
         }

@@ -174,6 +174,70 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
     var project by remember { mutableStateOf<VideoProjectData?>(null) }
     var loading by remember { mutableStateOf(false) }
     var started by remember { mutableStateOf(false) }
+    // Several projects open at once (File → Open projects).
+    val host = remember { ProjectHost() }
+    var exiting by remember { mutableStateOf(false) }
+    fun stash() {
+        val op = host.activeProject() ?: return
+        host.snapshot?.invoke()?.let { op.data = it; op.name = it.name }
+        op.team = Team.current
+    }
+    fun show(op: OpenProject) {
+        host.snapshot = null
+        host.active = op.key
+        clips.clear(); op.data?.let { clips.addAll(it.clips) }
+        project = op.data
+        Team.current = op.team
+        started = true
+    }
+    fun openInEditor(p: VideoProjectData?, team: TeamSession?, fromDisk: Boolean) {
+        stash()
+        // An untouched, empty project is replaced rather than kept.
+        host.activeProject()?.let { cur ->
+            val d = cur.data
+            val empty = d == null || (d.clips.isEmpty() && d.layers.isEmpty() && d.music == null && d.extraAudio.isEmpty())
+            if (empty && cur.team == null && !host.dirty(cur)) host.open.remove(cur)
+        }
+        val op = OpenProject(java.util.UUID.randomUUID().toString(), p, team, if (fromDisk) SIG_PENDING else null)
+        host.open.add(op)
+        show(op)
+    }
+    fun closeKey(key: String) {
+        val op = host.open.firstOrNull { it.key == key } ?: return
+        op.team?.let { t -> kotlin.concurrent.thread { Team.release(context, t) } }
+        host.open.remove(op)
+        if (key == host.active) {
+            host.snapshot = null; host.active = null
+            val next = host.open.lastOrNull()
+            if (next != null) show(next)
+            else { started = false; project = null; clips.clear(); Team.current = null; ProjectStore.clearAutosave(context) }
+        }
+    }
+    fun releaseAll() {
+        val teams = host.open.mapNotNull { it.team }
+        if (teams.isNotEmpty()) kotlin.concurrent.thread { teams.forEach { Team.release(context, it) } }
+        Team.current = null
+    }
+    val leave by androidx.compose.animation.core.animateFloatAsState(
+        if (exiting) 1f else 0f, androidx.compose.animation.core.tween(520),
+        finishedListener = { if (it >= 1f) (context as? android.app.Activity)?.finishAndRemoveTask() }, label = "leave",
+    )
+    val nav = remember {
+        EditorNav(
+            open = { p, t, disk -> if (p != null) { clips.clear(); clips.addAll(p.clips) }; openInEditor(p, t, disk) },
+            switchTo = { k -> stash(); host.open.firstOrNull { it.key == k }?.let { show(it) } },
+            close = { k -> closeKey(k) },
+            exitApp = { releaseAll(); ProjectStore.clearAutosave(context); exiting = true },
+        )
+    }
+    // Team projects: the "who has it open" note is kept fresh while they're open.
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(60_000)
+            val teams = host.open.mapNotNull { it.team }.filter { !it.readOnly }
+            if (teams.isNotEmpty()) withContext(Dispatchers.IO) { teams.forEach { Team.writeLock(context, it) } }
+        }
+    }
 
     fun addUris(uris: List<Uri>) {
         if (uris.isEmpty()) return
@@ -280,9 +344,16 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
             if (loading) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Pro.Amber) }
         }
     } else {
-        androidx.compose.runtime.key(project?.id) {
+        // The editor opened from the start page: it's the first open project.
+        if (host.active == null) {
+            val op = OpenProject(java.util.UUID.randomUUID().toString(), project, Team.current, if (project != null) SIG_PENDING else null)
+            host.open.add(op); host.active = op.key
+        }
+        androidx.compose.runtime.key(host.active, host.reload) {
+          Box(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - leave; scaleX = 1f - leave * 0.08f; scaleY = 1f - leave * 0.08f }) {
             Workspace(
-                clips, project, onAddGallery = pickGallery, onAddFiles = pickFiles, onAddNas = { addNas(it) }, onExit = { ProjectStore.clearAutosave(context); onExit() },
+                clips, project, onAddGallery = pickGallery, onAddFiles = pickFiles, onAddNas = { addNas(it) }, onExit = { releaseAll(); host.open.clear(); host.active = null; ProjectStore.clearAutosave(context); onExit() },
+                host = host, nav = nav,
                 onLoad = { id ->
                     val p = ProjectStore.loadVideo(context, id)
                     if (p == null || p.clips.isEmpty()) android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Couldn't open that project"), android.widget.Toast.LENGTH_SHORT).show()
@@ -2379,10 +2450,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             for (i in clips.indices) if (clips[i].uri.toString() == from) {
                 val o = clips[i]
                 val end = o.endMs.coerceAtMost(nc.durationMs)
-                clips[i] = o.copy(uri = uri, name = nc.name, durationMs = nc.durationMs, width = nc.width, height = nc.height, mime = nc.mime, startMs = o.startMs.coerceAtMost((end - 100).coerceAtLeast(0)), endMs = end)
+                clips[i] = o.copy(uri = uri, offline = null, offlineOf = null, name = nc.name, durationMs = nc.durationMs, width = nc.width, height = nc.height, mime = nc.mime, startMs = o.startMs.coerceAtMost((end - 100).coerceAtLeast(0)), endMs = end)
                 n++
             }
             for (i in layers.indices) if (layers[i].videoUri?.toString() == from) layers[i] = layers[i].copy(videoUri = uri, videoDurationMs = nc.durationMs)
+            for (i in library.indices) if (library[i].uri.toString() == from) library[i] = library[i].copy(uri = uri, offline = null, offlineOf = null, name = nc.name, durationMs = nc.durationMs, width = nc.width, height = nc.height, mime = nc.mime)
             bins.remove(from)?.let { bins[uri.toString()] = it }
             missing.remove(from)
             if (clips.isNotEmpty()) load(es.current.coerceIn(0, clips.lastIndex), 0, false)

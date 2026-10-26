@@ -72,7 +72,12 @@ import kotlinx.coroutines.withContext
  * files and copy them in. [onPicked] gets the copies. Own code.
  */
 @Composable
-fun NasBrowserDialog(kinds: NasKinds, onDismiss: () -> Unit, onPicked: (List<Uri>) -> Unit) {
+fun NasBrowserDialog(
+    kinds: NasKinds, onDismiss: () -> Unit, onPicked: (List<Uri>) -> Unit,
+    /** Folder mode (team projects): only folders are shown, and "Use this folder" hands the open NAS over. */
+    pickFolder: ((link: NasLink, share: String, path: String) -> Unit)? = null,
+) {
+    var handedOver by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val finder = remember { NasFinder(context) }
@@ -102,7 +107,7 @@ fun NasBrowserDialog(kinds: NasKinds, onDismiss: () -> Unit, onPicked: (List<Uri
             finder.stop()
             stop = true
             val l = link
-            if (l != null) kotlin.concurrent.thread { l.close() }
+            if (l != null && !handedOver) kotlin.concurrent.thread { l.close() }
             pending?.fill('\u0000')
         }
     }
@@ -250,7 +255,18 @@ fun NasBrowserDialog(kinds: NasKinds, onDismiss: () -> Unit, onPicked: (List<Uri
                     }
                 }
             }
-            if (link != null && !copying) {
+            if (pickFolder != null && link != null && share != null) {
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("The team project is kept in the folder that's open now.", color = Pro.Dim, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                    TextButton(onClick = {
+                        val l = link ?: return@TextButton
+                        handedOver = true
+                        pickFolder(l, share!!, path.joinToString("\\"))
+                        onDismiss()
+                    }) { Text("Use this folder", color = Pro.Amber, fontSize = 16.sp) }
+                }
+            }
+            if (pickFolder == null && link != null && !copying) {
                 Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(if (picked.isEmpty()) "Tap files to pick them" else "${picked.size} picked · ${nasSize(picked.values.sumOf { it.size })}", color = Pro.Dim, fontSize = 13.sp, modifier = Modifier.weight(1f))
                     if (picked.isNotEmpty()) TextButton(onClick = { picked.clear() }) { Text("Clear", color = Pro.Dim) }

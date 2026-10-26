@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.587 — 2026-10-26
 - **Network (NAS)** in both editors: the add lists (video editor: start page and Media page; photo editor: start page and +) can open a **Synology or any other NAS** — or a computer sharing folders — on your Wi-Fi. Found automatically (or type its address), every shared folder and sub-folder can be browsed, and the picked videos, photos (RAW too in the photo editor) and audio are copied into the app with progress, so the edit keeps working when the NAS is off. It connects as a guest first; only when the NAS asks for it you sign in, and then choose whether to **remember the sign-in**. Remembered sign-ins are encrypted on the phone, left out of backups, and the password is never shown — gear → **Network (NAS)** lists server and user only, with **Remove**.
 - Video editor: **more buttons under the picture** — step back / forward one frame, go to in / out point, mark in / out, add marker, safe margins on / off, **playback resolution** (Full, 1/2, 1/4, 1/8, 1/16 — the preview only, the export is always full), **magnification** (2× / 4×, view only, drag to look around), export frame and settings. All are icons; the **+** at the end chooses which buttons the bar shows.
 - **Pinch, move and double-tap on the picture** in both editors: pinch to zoom in on the picture and drag to place it — the export is framed exactly as you see it (what's outside the frame is cut off). Double-tap = the whole picture again. In the photo editor's painting tools (Masks, Heal, Retouch brush) and the split view two fingers zoom the view only, so you can paint details.

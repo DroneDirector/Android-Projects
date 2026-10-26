@@ -1243,43 +1243,31 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     LaunchedEffect(es.current) { if (es.page != Page.MEDIA) es.selected = es.current.coerceIn(0, (clips.size - 1).coerceAtLeast(0)) }
-    // Timeline thumbnails.
+    // Timeline thumbnails: the cover at once (the phone's ready thumbnail or a kept one), several clips at a time.
     LaunchedEffect(clips.map { it.id to it.startMs }) {
-        for (c in clips.toList()) {
-            if (thumbs[c.id] == null) {
-                val src = proxyFor(c) ?: c.uri
-                val b = withContext(Dispatchers.IO) { GradeIO.videoFrame(context, src, c.startMs * 1000 + 500_000, 240) ?: if (src != c.uri) GradeIO.videoFrame(context, c.uri, c.startMs * 1000 + 500_000, 240) else null }
+        kotlinx.coroutines.coroutineScope {
+            for (c in clips.toList()) if (thumbs[c.id] == null) launch {
+                val b = withContext(VideoThumbs.io) { VideoThumbs.cover(context, c.uri, c.startMs + 500, 240) }
                 if (b != null) thumbs[c.id] = b
             }
         }
     }
-    // Filmstrips for the timeline (one per source file).
+    // Filmstrips for the timeline (one per source file): shown at once, filled in coarse to fine, kept on disk.
     LaunchedEffect(clips.map { it.uri }.distinct()) {
-        for (c in clips.toList()) {
-            val key = c.uri.toString()
-            if (strips[key] != null) continue
-            val n = (c.durationMs / 1000).toInt().coerceIn(4, 40)
-            val frames = withContext(Dispatchers.IO) {
-                val out = mutableListOf<Bitmap>()
-                try {
-                    val mmr = android.media.MediaMetadataRetriever()
-                    // A ready proxy is much lighter to read than the original (same timestamps).
-                    val ps = proxyFor(c)
-                    try { mmr.setDataSource(context, ps ?: c.uri) } catch (t: Throwable) { if (ps != null) mmr.setDataSource(context, c.uri) else throw t }
+        kotlinx.coroutines.coroutineScope {
+            for (c in clips.distinctBy { it.uri.toString() }) {
+                val key = c.uri.toString()
+                if (strips[key]?.frames?.size?.let { it >= 4 } == true && strips[key]?.complete == true) continue
+                launch {
+                    val n = (c.durationMs / 1000).toInt().coerceIn(4, 40)
                     val h = 96
                     val w = if (c.height > 0) (h * c.width / c.height).coerceIn(48, 200) else 160
-                    for (i in 0 until n) {
-                        val t = (c.durationMs * (i + 0.5) / n * 1000).toLong()
-                        val f = if (android.os.Build.VERSION.SDK_INT >= 27)
-                            mmr.getScaledFrameAtTime(t, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC, w, h)
-                        else mmr.getFrameAtTime(t, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)?.let { Bitmap.createScaledBitmap(it, w, h, true) }
-                        if (f != null) out += f
+                    VideoThumbs.strip(context, c.uri, proxyFor(c) ?: c.uri, c.durationMs, n, h, w) { frames ->
+                        strips[key] = Filmstrip(frames, c.durationMs)
                     }
-                    mmr.release()
-                } catch (_: Throwable) {}
-                out
+                    strips[key]?.let { strips[key] = Filmstrip(it.frames, c.durationMs, complete = true) }
+                }
             }
-            if (frames.isNotEmpty()) strips[key] = Filmstrip(frames, c.durationMs)
         }
     }
     // Scope: graded still of the paused frame.

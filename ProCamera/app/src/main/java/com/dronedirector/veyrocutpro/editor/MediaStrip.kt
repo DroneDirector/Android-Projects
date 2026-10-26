@@ -81,6 +81,7 @@ internal object SkimFrames {
     private var mmr: MediaMetadataRetriever? = null
 
     fun cached(uri: Uri, step: Int): Bitmap? = cache.get("$uri#$step")
+    fun putCover(uri: Uri, b: Bitmap) { cache.put("$uri#-1", b) }
 
     /** Frame at skim step [step] (0 until STEPS), or the cover for −1. Call on [io]. */
     fun frame(context: Context, uri: Uri, durationMs: Long, step: Int): Bitmap? {
@@ -273,8 +274,10 @@ private fun StripThumb(
     val tw = th * 1.6f
     val wPx = with(density) { tw.toPx() }
     var skim by remember { mutableStateOf<Float?>(null) }
-    val cover by produceState<Bitmap?>(SkimFrames.cached(c.uri, -1), c.uri) {
-        if (value == null) value = withContext(SkimFrames.io) { SkimFrames.frame(context, c.uri, c.durationMs, -1) }
+    val cover by produceState<Bitmap?>(SkimFrames.cached(c.uri, -1) ?: VideoThumbs.cached(c.uri, "c${minOf(1000L, c.durationMs / 3) / 1000}_240"), c.uri) {
+        // The cover comes from the fast thumbnails (phone's ready thumbnail / kept on disk), many clips at a time.
+        if (value == null) value = withContext(VideoThumbs.io) { VideoThumbs.cover(context, c.uri, minOf(1000L, c.durationMs / 3), 240) }
+            ?.also { SkimFrames.putCover(c.uri, it) }
     }
     val step = skim?.let { (it * (SkimFrames.STEPS - 1)).toInt().coerceIn(0, SkimFrames.STEPS - 1) }
     var skimFrame by remember { mutableStateOf<Bitmap?>(null) }

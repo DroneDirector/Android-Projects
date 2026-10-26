@@ -73,7 +73,7 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 /** Evenly spaced frames of a clip's whole source, for the filmstrip. */
-class Filmstrip(val frames: List<Bitmap>, val sourceDurationMs: Long) {
+class Filmstrip(val frames: List<Bitmap>, val sourceDurationMs: Long, val complete: Boolean = false) {
     fun frameAt(sourceMs: Long): Bitmap? {
         if (frames.isEmpty()) return null
         val i = ((sourceMs.toFloat() / sourceDurationMs) * frames.size).toInt().coerceIn(0, frames.lastIndex)

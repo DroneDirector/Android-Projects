@@ -67,6 +67,7 @@
  {
   "title": "Library & workflow",
   "items": [
+   "<strong>File menu</strong>: new, open, open recent, save / save as / save a copy / revert, capture, import (gallery, files, NAS) and exit; <strong>changeable keyboard shortcuts</strong> (keyboard icon).",
    "<strong>Pinch, move and double-tap</strong>: zoom in on the photo and drag it; when your fingers lift, the crop becomes what you see (exported as seen). Double-tap = whole photo again. In Masks, Heal and the Retouch brush two fingers zoom the view only.",
    "<strong>Camera in the editor</strong>: the filmstrip's +, the empty editor and the start page open the full <strong>Capture</strong> screen (every mode and pro control) over the editor; each photo you take lands straight in the filmstrip, without any automatic watermark.",
    "<strong>Catalogs</strong>: every photo you edit is kept in a catalog — a copy of the photo, its edit and settings, ratings and the AI results (no AI re-runs). Several catalogs; choose how many photos each remembers (10 to any number, or unlimited); photo copies on / off; move catalogs to private storage, shared storage or an SD card. Lossless storage only (AI results as lossless PNG, RAW copies packed losslessly).",

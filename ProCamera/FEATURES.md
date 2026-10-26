@@ -211,6 +211,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 
 ## Video editor
 ### Media & timeline
+- **Playhead to start**: one tap on the transport bar puts the playhead at the very start of the timeline.
 - **AI noise reduction done once per clip**: cleaned at full size on the first export, kept in the video catalog and reused by every later export (no AI run per export).
 - **Fast thumbnails**: covers appear at once, filmstrips fill in coarse to fine for several clips at a time, and thumbnails are kept in the video catalog so reopened projects show them straight away.
 - **Cast to TV (Chromecast, tablets)**: the viewer — with titles, layers and sound (video, music and extra tracks mixed) — on a TV with a Chromecast or Google TV (a few seconds behind); stays connected when you switch screens. Button on the picture or next to Split (gear → Cast to TV); hide it in the layout menu.

@@ -3173,6 +3173,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         TransportIcon(if (es.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Pro.Amber) { togglePlay() }
                         TransportIcon(Icons.Filled.SkipNext, "Next clip") { nextClip() }
                         TransportIcon(Icons.Filled.Fullscreen, "Full screen") { es.fullscreen = true }
+                        // Playhead straight back to the very start of the timeline.
+                        TransportIcon(PlayheadToStart, "Playhead to start") { seekGlobal(0L) }
                     }
                 }
             }
@@ -5883,6 +5885,20 @@ private class Deck(val players: List<ExoPlayer>) {
     var active by mutableStateOf(0)
     val cur: ExoPlayer get() = players[active]
     val spare: ExoPlayer get() = players[1 - active]
+}
+
+/** Icon: the playhead (marker and line, right) jumping along an arrow to the start of the timeline (bar, left). Own drawing. */
+private val PlayheadToStart: androidx.compose.ui.graphics.vector.ImageVector by lazy {
+    androidx.compose.ui.graphics.vector.ImageVector.Builder("PlayheadToStart", 24.dp, 24.dp, 24f, 24f).apply {
+        val fill = androidx.compose.ui.graphics.SolidColor(Color.White)
+        // Start of the timeline.
+        addPath(androidx.compose.ui.graphics.vector.PathParser().parsePathString("M2.5,4h2v16h-2z").toNodes(), fill = fill)
+        // Arrow towards it.
+        addPath(androidx.compose.ui.graphics.vector.PathParser().parsePathString("M6.5,12l4.5,-4.2v3.2h4.5v2h-4.5v3.2z").toNodes(), fill = fill)
+        // The playhead: marker on top and its line.
+        addPath(androidx.compose.ui.graphics.vector.PathParser().parsePathString("M16.5,3h5v3.6l-2.5,2.6l-2.5,-2.6z").toNodes(), fill = fill)
+        addPath(androidx.compose.ui.graphics.vector.PathParser().parsePathString("M18.4,8.5h1.2v12.5h-1.2z").toNodes(), fill = fill)
+    }.build()
 }
 
 @Composable

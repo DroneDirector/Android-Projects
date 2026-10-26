@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo and video editor start pages: the whole page now scrolls when it's taller than the screen, so the recent photos / videos at the bottom are always reachable.
 
 ## 1.0.590 — 2026-10-26
 - **Network (NAS)**: a remembered NAS sign-in is now only used after the **phone's own lock** — fingerprint, or the PIN / pattern / password you've set up on the phone. Your fingerprint and PIN stay in the phone; the app only learns whether it was unlocked. If the phone has no fingerprint, PIN or pattern set up, the app tells you, and the saved sign-in is then the only protection. Gear → Network (NAS) → **Unlock with the phone's lock** turns the check off (both editors).

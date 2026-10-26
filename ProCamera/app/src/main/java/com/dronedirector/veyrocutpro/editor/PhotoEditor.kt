@@ -351,7 +351,8 @@ fun MediaChooser(
     val recent by produceState<List<com.dronedirector.veyrocutpro.camera.MediaItem>>(emptyList()) {
         value = withContext(Dispatchers.IO) { MediaLibrary.query(context).filter { it.isVideo == videos }.take(60) }
     }
-    Column(Modifier.fillMaxSize().background(Ed.Bg).windowInsetsPadding(WindowInsets.displayCutout).padding(16.dp)) {
+    // The whole page scrolls when it's taller than the screen (the recent photos / videos are at the bottom).
+    Column(Modifier.fillMaxSize().background(Ed.Bg).windowInsetsPadding(WindowInsets.displayCutout).hintedScroll(horizontal = false).padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(44.dp).clip(CircleShape).clickable(onClick = onBack), contentAlignment = Alignment.Center) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -404,12 +405,12 @@ fun MediaChooser(
         if (recent.isEmpty()) {
             Text("Nothing yet.", color = Pro.Dim, fontSize = 13.sp)
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(96.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                items(recent, key = { it.uri.toString() }) { item ->
+            // A plain grid (not a lazy one) so it scrolls with the rest of the page.
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val cols = ((maxWidth.value + 4f) / 100f).toInt().coerceAtLeast(1)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    for (row in recent.chunked(cols)) Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        for (item in row) androidx.compose.runtime.key(item.uri.toString()) { Box(Modifier.weight(1f)) {
                     val thumb by produceState<ImageBitmap?>(null, item.uri) {
                         value = withContext(Dispatchers.IO) {
                             try {
@@ -421,6 +422,9 @@ fun MediaChooser(
                     Box(Modifier.aspectRatio(1f).clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { onRecent(item.uri) }) {
                         thumb?.let { Image(it, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
                         FormatTag(item, Modifier.align(Alignment.BottomStart).padding(4.dp))
+                    }
+                        } }
+                        repeat(cols - row.size) { Box(Modifier.weight(1f)) }
                     }
                 }
             }

@@ -138,6 +138,7 @@ import com.dronedirector.veyrocutpro.ui.hintedScroll
 import com.dronedirector.veyrocutpro.ui.pinchAndMove
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.material.icons.filled.Storage
 import com.dronedirector.veyrocutpro.ui.BarIconGroup
 import kotlinx.coroutines.Dispatchers
@@ -3889,7 +3890,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         .pointerInput(Unit) {
                             awaitEachGesture {
                                 val down = awaitFirstDown(requireUnconsumed = false, pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial)
-                                val up = androidx.compose.foundation.gestures.waitForUpOrCancellation(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                                val up = waitForUpOrCancellation(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
                                 if (up != null && (up.position - down.position).getDistance() < viewConfiguration.touchSlop && !controls) poke()
                             }
                         }

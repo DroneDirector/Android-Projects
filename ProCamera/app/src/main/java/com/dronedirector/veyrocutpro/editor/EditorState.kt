@@ -39,6 +39,7 @@ internal class EditorState(initial: VideoProjectData?, context: Context) {
     var previewMuted by mutableStateOf(false)
     var videoMuted by mutableStateOf(initial?.videoMuted ?: false)
     var videoLocked by mutableStateOf(initial?.videoLocked ?: false)
+    var videoHidden by mutableStateOf(initial?.videoHidden ?: false)
     var archiveAction by mutableStateOf(0)
     var archiveBusy by mutableStateOf<Int?>(null)
     var snapping by mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_snap", true))

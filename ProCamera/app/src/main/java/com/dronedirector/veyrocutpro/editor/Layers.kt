@@ -62,6 +62,8 @@ data class Layer(
     val name: String? = null,
     /** Locked on the timeline: can't be moved, trimmed, dragged or deleted. */
     val locked: Boolean = false,
+    /** Video layers: play their own sound (off by default, as before). */
+    val soundOn: Boolean? = null,
     /** Keyframes (timeline ms) for position, size and opacity; null / empty = static. */
     val keys: List<LayerKey>? = null,
     /** Blend mode for picture layers. */
@@ -117,6 +119,8 @@ data class Layer(
         ?: when (kind) { LayerKind.TEXT, LayerKind.WATERMARK, LayerKind.STICKER -> text.replace('\n', ' '); LayerKind.LOGO, LayerKind.IMAGE -> "Image"; else -> kind.label }
     val isMedia get() = kind == LayerKind.VIDEO || kind == LayerKind.IMAGE || kind == LayerKind.LOGO || kind == LayerKind.SHAPE || kind == LayerKind.LOTTIE
     fun activeAt(ms: Long) = visible && (wholeVideo || ms in startMs..endMs)
+    /** Loudness of a video layer's own sound (full by default). */
+    fun soundVolume(): Float = 1f
 }
 
 /** In / out animations for layers (Layers → ANIMATION). */

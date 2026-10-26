@@ -120,3 +120,20 @@ private fun DrawScope.chevron(c: Offset, direction: Int, color: Color) {
     drawPath(path, Color.Black.copy(alpha = color.alpha * 0.5f), style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
     drawPath(path, color, style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
 }
+
+/**
+ * A group of top-bar icons that scrolls sideways (with the hint arrows) on phones, so the bar's
+ * fixed buttons always keep their room; on tablets the icons sit in a plain row. Put it where a
+ * weighted spacer would go: it takes the free width and lines the icons up at its end.
+ */
+@androidx.compose.runtime.Composable
+fun androidx.compose.foundation.layout.RowScope.BarIconGroup(content: @androidx.compose.runtime.Composable androidx.compose.foundation.layout.RowScope.() -> Unit) {
+    val phone = androidx.compose.ui.platform.LocalConfiguration.current.smallestScreenWidthDp < 600
+    androidx.compose.foundation.layout.Box(Modifier.weight(1f), contentAlignment = androidx.compose.ui.Alignment.CenterEnd) {
+        androidx.compose.foundation.layout.Row(
+            if (phone) Modifier.hintedScroll(horizontal = true) else Modifier,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            content = content,
+        )
+    }
+}

@@ -127,6 +127,8 @@ fun TimelineView(
     /** Track header switches: mute / lock the video track, show / lock layers, mute / lock audio. */
     videoMuted: Boolean = false,
     videoLocked: Boolean = false,
+    videoHidden: Boolean = false,
+    onVideoHide: () -> Unit = {},
     onVideoMute: () -> Unit = {},
     onVideoLock: () -> Unit = {},
     onLayerFlags: (Layer) -> Unit = {},
@@ -806,116 +808,61 @@ fun TimelineView(
             // Track headers: one row per track, with its switches.
             Column(Modifier.width(with(density) { headerW.toDp() }).background(Ed.Panel)) {
                 Box(Modifier.fillMaxWidth().height(with(density) { ruler.toDp() }))
+                // Every track: eye where there is a picture, speaker where there is sound, lock always.
                 val layerHeader = @Composable { l: Layer ->
-                    TrackHeader(with(density) { layerRow.toDp() }, null,
-                        if (l.visible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, !l.visible, "Show layer", { onLayerFlags(l.copy(visible = !l.visible)) },
-                        l.locked, { onLayerFlags(l.copy(locked = !l.locked)) })
+                    TrackHeader(with(density) { layerRow.toDp() }, null, listOfNotNull(
+                        TrackSwitch(if (l.visible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff, "Show layer", !l.visible) { onLayerFlags(l.copy(visible = !l.visible)) },
+                        if (l.kind == LayerKind.VIDEO) TrackSwitch(if (l.soundOn == true) Icons.Filled.VolumeUp else Icons.Filled.VolumeOff, "Layer sound", l.soundOn != true) { onLayerFlags(l.copy(soundOn = l.soundOn != true)) } else null,
+                        lockSwitch(l.locked) { onLayerFlags(l.copy(locked = !l.locked)) },
+                    ))
                 }
                 for (l in aboveRows) {
                     layerHeader(l)
                     Box(Modifier.height(with(density) { gap.toDp() }))
                 }
-                TrackHeader(with(density) { clipRow.toDp() }, "V1",
-                    if (videoMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, videoMuted, "Mute video track", onVideoMute,
-                    videoLocked, onVideoLock, vertical = true)
+                TrackHeader(with(density) { clipRow.toDp() }, "V1", listOf(
+                    TrackSwitch(if (videoHidden) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, "Show video track", videoHidden, onVideoHide),
+                    TrackSwitch(if (videoMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute video track", videoMuted, onVideoMute),
+                    lockSwitch(videoLocked, onVideoLock),
+                ), vertical = true)
                 for (l in belowRows) {
                     Box(Modifier.height(with(density) { gap.toDp() }))
                     layerHeader(l)
                 }
                 for (m in audioRows) {
                     Box(Modifier.height(with(density) { gap.toDp() }))
-                    TrackHeader(with(density) { musicRow.toDp() }, null,
-                        if (m.muted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, m.muted, "Mute audio track", { onAudioFlags(m.copy(muted = !m.muted)) },
-                        m.locked, { onAudioFlags(m.copy(locked = !m.locked)) })
+                    TrackHeader(with(density) { musicRow.toDp() }, null, listOf(
+                        TrackSwitch(if (m.muted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute audio track", m.muted) { onAudioFlags(m.copy(muted = !m.muted)) },
+                        lockSwitch(m.locked) { onAudioFlags(m.copy(locked = !m.locked)) },
+                    ))
                 }
             }
         }
     }
 }
 
-/** Loudest peak (0..1) over [spanMs] starting at [ms]. */
-private fun peakAt(peaks: FloatArray, ms: Long, spanMs: Long): Float {
-    val a = (ms / Waveforms.BUCKET_MS).toInt()
-    val b = ((ms + spanMs.coerceAtLeast(1)) / Waveforms.BUCKET_MS).toInt().coerceAtLeast(a)
-    var p = 0f
-    for (i in a..b) if (i in peaks.indices && peaks[i] > p) p = peaks[i]
-    return p
-}
+/** One switch in a track header: on (amber) when [active]. */
+private class TrackSwitch(val icon: androidx.compose.ui.graphics.vector.ImageVector, val label: String, val active: Boolean, val onClick: () -> Unit)
 
-/**
- * Trim handles at both ends of a bar: a raised tab with a bracket
- * and grip lines, brighter when the item is selected or being trimmed.
- */
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.trimHandles(x0: Float, x1: Float, top: Float, h: Float, active: Boolean, accent: Color) {
-    val wBar = x1 - x0
-    if (wBar < 14f) return
-    val gw = min(22.dp.toPx(), wBar / 3f)
-    val tab = if (active) accent else Color.White.copy(alpha = 0.32f)
-    val line = if (active) Color.Black.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.45f)
-    for (left in listOf(true, false)) {
-        val xa = if (left) x0 else x1 - gw
-        if (xa + gw < 0f || xa > size.width) continue
-        // Tab
-        drawRoundRect(tab, Offset(xa, top), Size(gw, h), CornerRadius(4f))
-        // Bracket on the outer edge
-        val bx = if (left) xa + 1.5f else xa + gw - 1.5f
-        val inward = if (left) 3.dp.toPx() else -3.dp.toPx()
-        val bc = if (active) Color.White else Color.White.copy(alpha = 0.85f)
-        drawLine(bc, Offset(bx, top + 2f), Offset(bx, top + h - 2f), 2.2f)
-        drawLine(bc, Offset(bx, top + 2f), Offset(bx + inward, top + 2f), 2.2f)
-        drawLine(bc, Offset(bx, top + h - 2f), Offset(bx + inward, top + h - 2f), 2.2f)
-        // Grip lines
-        val cx = xa + gw / 2f + (if (left) 1f else -1f)
-        for (k in -1..1) drawLine(line, Offset(cx + k * 1.6f, top + h * 0.32f), Offset(cx + k * 1.6f, top + h * 0.68f), 1f)
-    }
-}
-
-/** While trimming: the item's length above the bar. */
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.lengthTag(x0: Float, x1: Float, top: Float, lenMs: Long, paint: Paint, accent: Color) {
-    val txt = if (lenMs < 60_000) "%.1f s".format(lenMs / 1000f) else "%d:%02d".format(lenMs / 60_000, (lenMs / 1000) % 60)
-    paint.textSize = 10.sp.toPx()
-    val tw = paint.measureText(txt) + 10f
-    val cx = ((max(x0, 0f) + min(x1, size.width)) / 2f).coerceIn(tw / 2f, size.width - tw / 2f)
-    val th = 15.dp.toPx()
-    val ty = (top - th - 2f).coerceAtLeast(0f)
-    drawRoundRect(accent, Offset(cx - tw / 2f, ty), Size(tw, th), CornerRadius(th / 2f))
-    val c = paint.color
-    paint.color = android.graphics.Color.BLACK
-    drawContext.canvas.nativeCanvas.drawText(txt, cx - tw / 2f + 5f, ty + th * 0.72f, paint)
-    paint.color = c
-}
-
-/** Diagonal stripes over a locked item. */
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.lockHatch(x0: Float, x1: Float, top: Float, h: Float) {
-    val a = max(x0, 0f); val b = min(x1, size.width)
-    if (b <= a) return
-    clipRect(a, top, b, top + h) {
-        var x = a - h
-        while (x < b) {
-            drawLine(Color.Black.copy(alpha = 0.35f), Offset(x, top + h), Offset(x + h, top), 2f)
-            x += 9f
-        }
-    }
-}
+private fun lockSwitch(locked: Boolean, onClick: () -> Unit) =
+    TrackSwitch(if (locked) Icons.Filled.Lock else Icons.Filled.LockOpen, "Lock track", locked, onClick)
 
 /** A row's switches in the timeline's track header. */
 @Composable
-private fun TrackHeader(
-    height: androidx.compose.ui.unit.Dp, label: String?,
-    icon: androidx.compose.ui.graphics.vector.ImageVector, iconOff: Boolean, iconLabel: String, onIcon: () -> Unit,
-    locked: Boolean, onLock: () -> Unit, vertical: Boolean = false,
-) {
-    val btn = @Composable { ic: androidx.compose.ui.graphics.vector.ImageVector, desc: String, active: Boolean, on: () -> Unit ->
-        Box(Modifier.size(24.dp).clip(RoundedCornerShape(5.dp)).background(if (active) Pro.Amber.copy(alpha = 0.22f) else Color.Transparent).clickable(onClick = on), contentAlignment = Alignment.Center) {
-            Icon(ic, contentDescription = desc, tint = if (active) Pro.Amber else Color.White.copy(alpha = 0.8f), modifier = Modifier.size(15.dp))
+private fun TrackHeader(height: androidx.compose.ui.unit.Dp, label: String?, switches: List<TrackSwitch>, vertical: Boolean = false) {
+    // Slim rows fit three switches by making them a little smaller; the tall video row stacks them.
+    val sz = if (vertical) 20.dp else if (switches.size > 2) 16.dp else 24.dp
+    val btn = @Composable { t: TrackSwitch ->
+        Box(Modifier.size(sz).clip(RoundedCornerShape(5.dp)).background(if (t.active) Pro.Amber.copy(alpha = 0.22f) else Color.Transparent).clickable(onClick = t.onClick), contentAlignment = Alignment.Center) {
+            Icon(t.icon, contentDescription = t.label, tint = if (t.active) Pro.Amber else Color.White.copy(alpha = 0.8f), modifier = Modifier.size(sz * 0.62f))
         }
     }
-    val lockIcon = if (locked) Icons.Filled.Lock else Icons.Filled.LockOpen
     Box(Modifier.fillMaxWidth().height(height).background(Ed.Raised.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
         if (vertical) Column(horizontalAlignment = Alignment.CenterHorizontally) {
             if (label != null) Text(label, style = Pro.Label.copy(fontSize = 8.sp))
-            Row { btn(icon, iconLabel, iconOff, onIcon); btn(lockIcon, "Lock track", locked, onLock) }
-        } else Row { btn(icon, iconLabel, iconOff, onIcon); btn(lockIcon, "Lock track", locked, onLock) }
+            Row { switches.take(2).forEach { btn(it) } }
+            if (switches.size > 2) Row { switches.drop(2).forEach { btn(it) } }
+        } else Row { switches.forEach { btn(it) } }
     }
 }
 

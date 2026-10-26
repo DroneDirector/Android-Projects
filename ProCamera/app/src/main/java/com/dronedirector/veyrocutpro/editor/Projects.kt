@@ -30,6 +30,7 @@ data class VideoProjectData(
     /** Main video track switches on the timeline. */
     val videoMuted: Boolean = false,
     val videoLocked: Boolean = false,
+    val videoHidden: Boolean = false,
     /** Timeline markers (ms). */
     val markers: List<Long> = emptyList(),
     /** Notes on markers, keyed by the marker's time (ms) as text. */
@@ -61,6 +62,7 @@ data class SavedTimeline(
     val markerNotes: Map<String, String>? = null,
     val deliver: DeliverSettings = DeliverSettings(),
     val videoMuted: Boolean = false,
+    val videoHidden: Boolean = false,
 )
 
 data class PhotoProjectData(

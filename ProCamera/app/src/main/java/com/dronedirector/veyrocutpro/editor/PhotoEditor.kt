@@ -103,6 +103,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.dronedirector.veyrocutpro.ui.hintedScroll
+import com.dronedirector.veyrocutpro.ui.BarIconGroup
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -1665,10 +1666,17 @@ private fun PhotoWorkspace(
                         ) {
                             Text("No photo yet", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                             Text("Add a photo to start editing.", color = Pro.Dim, fontSize = 12.sp)
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Text("Add photos", color = Color.Black, fontWeight = FontWeight.SemiBold, modifier = Modifier.clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(onClick = onAddGallery).padding(horizontal = 18.dp, vertical = 10.dp))
-                                Text("Browse files", color = Pro.Amber, fontWeight = FontWeight.SemiBold, modifier = Modifier.clip(RoundedCornerShape(50)).border(1.dp, Pro.Amber, RoundedCornerShape(50)).clickable(onClick = onAddFiles).padding(horizontal = 18.dp, vertical = 10.dp))
-                                Text("Camera", color = Pro.Amber, fontWeight = FontWeight.SemiBold, modifier = Modifier.clip(RoundedCornerShape(50)).border(1.dp, Pro.Amber, RoundedCornerShape(50)).clickable(onClick = onAddCamera).padding(horizontal = 18.dp, vertical = 10.dp))
+                            // The buttons never break inside a word: they move to a second line when the
+                            // space is narrow, and keep clear of the histogram handle at the right edge.
+                            @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+                            androidx.compose.foundation.layout.FlowRow(
+                                Modifier.padding(start = 8.dp, end = 44.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                EmptyAddButton(Icons.Filled.PhotoLibrary, "Add photos", filled = true, onClick = onAddGallery)
+                                EmptyAddButton(Icons.Filled.FolderOpen, "Browse files", onClick = onAddFiles)
+                                EmptyAddButton(Icons.Filled.PhotoCamera, "Camera", onClick = onAddCamera)
                             }
                         }
                         RefView.shown && refImg != null && shown != null -> {
@@ -2138,8 +2146,12 @@ private fun PhotoWorkspace(
             Column(Modifier.fillMaxSize()) {
                 // Top bar
                 Row(Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    // No back arrow here (it squeezed EXPORT); the phone's back gesture / button closes the editor.
-                    androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+                    // Back arrow on tablets (on phones it squeezed EXPORT; the back gesture / button closes the editor there).
+                    if (androidx.compose.ui.platform.LocalConfiguration.current.smallestScreenWidthDp >= 600) {
+                        BarIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back", enabled = !busy) { closeEditor() }
+                    }
+                    // Phones: these icons scroll sideways (with hint arrows); LOAD, SAVE and EXPORT stay put.
+                    BarIconGroup {
                     BarIcon(Icons.AutoMirrored.Filled.Undo, "Undo", enabled = undoPos > 0) { undoPos--; edit = undo[undoPos] }
                     BarIcon(Icons.AutoMirrored.Filled.Redo, "Redo", enabled = undoPos < undo.lastIndex) { undoPos++; edit = undo[undoPos] }
                     BarIcon(Icons.Filled.BarChart, "Scope", tint = if (showScope) Pro.Amber else Color.White) { com.dronedirector.veyrocutpro.ui.Panels.set(context, "pe.scope", !showScope) }
@@ -2153,6 +2165,7 @@ private fun PhotoWorkspace(
                         },
                     )
                     BarIcon(Icons.Filled.Settings, "Settings") { showSettings = true }
+                    }
                     BarButton("LOAD", enabled = !busy) { showLoad = true }
                     BarButton("SAVE", enabled = !busy) { askName = true }
                     Text(
@@ -3316,5 +3329,20 @@ private fun LightPad(x: Float, y: Float, onChange: (Float, Float) -> Unit) {
             drawLine(Pro.Amber.copy(alpha = 0.6f), p, c, 2f)
             drawCircle(Pro.Amber, 9.dp.toPx(), p)
         }
+    }
+}
+
+/** A start button on the empty photo view: icon and label on one line, never split inside a word. */
+@Composable
+private fun EmptyAddButton(icon: ImageVector, label: String, filled: Boolean = false, onClick: () -> Unit) {
+    val fg = if (filled) Color.Black else Pro.Amber
+    Row(
+        Modifier.clip(RoundedCornerShape(50))
+            .then(if (filled) Modifier.background(Pro.Amber) else Modifier.border(1.dp, Pro.Amber, RoundedCornerShape(50)))
+            .clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, tint = fg, modifier = Modifier.size(18.dp))
+        Text(label, color = fg, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false, modifier = Modifier.padding(start = 6.dp))
     }
 }

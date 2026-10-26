@@ -82,6 +82,8 @@ data class Clip(
     val label: Int? = null,
     /** AI depth effect (lens blur, fog, background light); null = off. */
     val depth: DepthFx? = null,
+    /** Picture hidden (the main video track's eye): see-through in the preview and the export. */
+    val hidden: Boolean? = null,
 ) {
     val is422: Boolean get() = (chroma ?: 1) >= 2
 
@@ -279,6 +281,8 @@ class TimelineExport(
         if (PenMask.active(c).isNotEmpty()) add(PenMaskEffect(c, offsetMs))
         // When compositing, every clip is sized to the project frame first.
         if (sized) add(Presentation.createForWidthAndHeight(outW, outH, layout))
+        // Hidden video track: see-through (layers below show; otherwise black).
+        if (c.hidden == true) add(androidx.media3.effect.AlphaScale(0f))
     }
 
     fun start() {
@@ -446,8 +450,9 @@ class TimelineExport(
                     .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder().setStartPositionMs(l.videoStartMs).setEndPositionMs(l.videoStartMs + lenMs).build())
                     .build()
             )
-                .setRemoveAudio(true)
-                .setEffects(Effects(emptyList(), buildList {
+                // A video layer's own sound only when switched on (its track's speaker on the timeline).
+                .setRemoveAudio(!(l.soundOn == true && settings.audio))
+                .setEffects(Effects(if (l.soundOn == true && settings.audio) listOf(AudioFxProcessor(AudioFx(), l.soundVolume() * settings.masterGain, lenMs)) else emptyList(), buildList {
                     add(Presentation.createForWidthAndHeight(pw, ph, if (l.cellAspect != null) Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP else Presentation.LAYOUT_SCALE_TO_FIT))
                     if (l.bgRemove == true) {
                         val mm = l.layerMagic
@@ -465,7 +470,10 @@ class TimelineExport(
                     if (!l.pin.isNullOrEmpty()) add(PinWarpEffect(l, outW, outH, startMs))
                 }))
                 .build()
-            val seq = EditedMediaItemSequence.Builder(setOf(androidx.media3.common.C.TRACK_TYPE_VIDEO))
+            val seq = EditedMediaItemSequence.Builder(
+                if (l.soundOn == true && settings.audio) setOf(androidx.media3.common.C.TRACK_TYPE_VIDEO, androidx.media3.common.C.TRACK_TYPE_AUDIO)
+                else setOf(androidx.media3.common.C.TRACK_TYPE_VIDEO)
+            )
             if (startMs > 0) seq.addGap(startMs * 1000)
             seq.addItem(item)
             val after = totalMs - startMs - lenMs
@@ -776,6 +784,7 @@ fun smartRenderBlocker(context: Context, clips: List<Clip>, s: DeliverSettings, 
     if (s.bitrateMbps != 0) return "a bitrate is chosen (choose Auto)"
     if (s.videoGain != 1f || s.masterGain != 1f || s.videoPan != 0f) return "the mixer changes the sound"
     if (layers.any { it.visible }) return "there are layers (text, logos, video)"
+    if (clips.any { it.hidden == true }) return "the video track is hidden"
     if (s.audio && (music != null || extra.any { !it.muted })) return "there is music or an extra sound track"
     val anyMuted = clips.any { it.muted }
     if (s.audio && anyMuted && clips.any { !it.muted }) return "some clips are muted"

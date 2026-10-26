@@ -131,6 +131,7 @@ import com.dronedirector.veyrocutpro.camera.Filter
 import com.dronedirector.veyrocutpro.camera.GradeIO
 import com.dronedirector.veyrocutpro.ui.Pro
 import com.dronedirector.veyrocutpro.ui.hintedScroll
+import com.dronedirector.veyrocutpro.ui.BarIconGroup
 import kotlinx.coroutines.Dispatchers
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.geometry.Offset
@@ -1386,7 +1387,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             id = es.projectId ?: java.util.UUID.randomUUID().toString(), name = name,
             clips = clips.toList(), layers = layers.toList(), music = es.music, deliver = es.deliver,
             extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
-            videoMuted = es.videoMuted, videoLocked = es.videoLocked, markers = markers.toList(),
+            videoMuted = es.videoMuted, videoLocked = es.videoLocked, videoHidden = es.videoHidden, markers = markers.toList(),
             markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
             timelines = otherTimelines.toList().takeIf { it.isNotEmpty() }, timelineName = es.timelineName,
             proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
@@ -1408,7 +1409,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 id = es.projectId ?: "", name = es.projectName,
                 clips = clips.toList(), layers = layers.toList(), music = es.music, deliver = es.deliver,
                 extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
-                videoMuted = es.videoMuted, videoLocked = es.videoLocked, markers = markers.toList(),
+                videoMuted = es.videoMuted, videoLocked = es.videoLocked, videoHidden = es.videoHidden, markers = markers.toList(),
                 markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
                 timelines = otherTimelines.toList().takeIf { it.isNotEmpty() }, timelineName = es.timelineName,
             proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
@@ -1437,7 +1438,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 name = AutoSave.nameFor(es.projectName),
                 clips = clips.toList(), layers = layers.toList(), music = es.music, deliver = es.deliver,
                 extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
-                videoMuted = es.videoMuted, videoLocked = es.videoLocked, markers = markers.toList(),
+                videoMuted = es.videoMuted, videoLocked = es.videoLocked, videoHidden = es.videoHidden, markers = markers.toList(),
                 markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
                 timelines = otherTimelines.toList().takeIf { it.isNotEmpty() }, timelineName = es.timelineName,
                 proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
@@ -2324,7 +2325,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             id = es.projectId ?: java.util.UUID.randomUUID().toString(), name = es.projectName.ifBlank { "Project" },
             clips = clips.toList(), layers = layers.toList(), music = es.music, deliver = es.deliver,
             extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
-            videoMuted = es.videoMuted, videoLocked = es.videoLocked, markers = markers.toList(),
+            videoMuted = es.videoMuted, videoLocked = es.videoLocked, videoHidden = es.videoHidden, markers = markers.toList(),
             markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
             bins = bins.toMap().takeIf { it.isNotEmpty() }, binNames = binNames.toList().takeIf { it.isNotEmpty() },
         )
@@ -2513,7 +2514,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 id = pid, name = es.projectName, savedAt = System.currentTimeMillis(),
                 clips = clips.toList(), layers = layers.toList(), music = es.music, deliver = es.deliver,
                 extraAudio = extraAudio.toList(), audioPool = audioPool.toList(), library = library.toList(), ratings = ratings.toMap(),
-                videoMuted = es.videoMuted, videoLocked = es.videoLocked, markers = markers.toList(),
+                videoMuted = es.videoMuted, videoLocked = es.videoLocked, videoHidden = es.videoHidden, markers = markers.toList(),
                 markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() },
                 timelines = otherTimelines.toList().takeIf { it.isNotEmpty() }, timelineName = es.timelineName,
                 proxyMedia = proxyMedia.toList().takeIf { it.isNotEmpty() },
@@ -2607,7 +2608,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     fun currentTimeline() = SavedTimeline(
         name = es.timelineName, clips = clips.toList(), layers = layers.toList(), music = es.music, extraAudio = extraAudio.toList(),
         markers = markers.toList(), markerNotes = markerNotes.filterKeys { it in markers }.mapKeys { it.key.toString() }.takeIf { it.isNotEmpty() },
-        deliver = es.deliver, videoMuted = es.videoMuted,
+        deliver = es.deliver, videoMuted = es.videoMuted, videoHidden = es.videoHidden,
     )
     fun openTimeline(t: SavedTimeline, keepCurrent: Boolean = true) {
         if (keepCurrent) otherTimelines.add(currentTimeline())
@@ -2620,7 +2621,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         extraAudio.clear(); extraAudio.addAll(t.extraAudio)
         markers.clear(); markers.addAll(t.markers)
         markerNotes.clear(); t.markerNotes?.forEach { (k, v) -> k.toLongOrNull()?.let { markerNotes[it] = v } }
-        es.deliver = t.deliver; es.videoMuted = t.videoMuted
+        es.deliver = t.deliver; es.videoMuted = t.videoMuted; es.videoHidden = t.videoHidden
         es.selectedLayer = null
         history.clear(); es.histPos = -1
         if (clips.isNotEmpty()) { es.selected = 0; es.current = 0; load(0, 0, false) } else deck.cur.clearMediaItems()
@@ -2652,6 +2653,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         seekGlobal(ms)
     }
 
+    /** The main video track's switches (sound off, picture hidden) applied to its clips for an export. */
+    LaunchedEffect(es.previewMuted) { LayerSound.previewMuted = es.previewMuted }
+
+    fun trackSwitches(l: List<Clip>): List<Clip> =
+        if (!es.videoMuted && !es.videoHidden) l else l.map { it.copy(muted = it.muted || es.videoMuted, hidden = if (es.videoHidden) true else it.hidden) }
+
     fun runExportNow(list0: List<Clip>, loudGain: Float) {
         // Export range: cut the edit down to the chosen part first.
         val ra = es.deliver.rangeStart; val rb = es.deliver.rangeEnd
@@ -2673,7 +2680,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val parts = if (es.deliver.audioOnly || smartRenderBlocker(context, list, es.deliver, cut.layers, cutMusic, cutExtra) == null) listOf(0L, 0L)
             else ChunkedExport.bounds(list)
         if (parts.size > 2) {
-            val all = if (es.videoMuted) list.map { it.copy(muted = true) } else list
+            val all = trackSwitches(list)
             val (ow, oh) = outputSize(all, es.deliver)
             // Every part the same size as the whole film (the first clip of a part may differ).
             val fixed = es.deliver.copy(aspect = ow.toFloat() / oh, shortSide = minOf(ow, oh), rangeStart = null, rangeEnd = null)
@@ -2728,7 +2735,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             return
         }
         val e = TimelineExport(
-            context, if (es.videoMuted) list.map { it.copy(muted = true) } else list, es.deliver, cut.layers, cutMusic, cutExtra,
+            context, trackSwitches(list), es.deliver, cut.layers, cutMusic, cutExtra,
             onProgress = { es.progress = if (es.deliver.loudness != null && (es.deliver.audio || es.deliver.audioOnly)) 20 + it * 4 / 5 else it },
             onDone = { uri, err ->
                 es.exporting = false; es.export = null
@@ -2759,7 +2766,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         else RangeCut(list0, layers.toList(), es.music, extraAudio.toList())
         if (cut.clips.isEmpty()) { runExportNow(list0, 1f); return }
         val probe = TimelineExport(
-            context, if (es.videoMuted) cut.clips.map { it.copy(muted = true) } else cut.clips,
+            context, trackSwitches(cut.clips),
             es.deliver.copy(audioOnly = true, audio = true, loudness = null, rangeStart = null, rangeEnd = null),
             emptyList(), cut.music, cut.extra,
             onProgress = { es.progress = it / 5 },
@@ -2944,7 +2951,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                         if (!transitionOn[0]) frame.alpha = if (i == deck.active) 1f else 0f
                                     }
                                 },
-                                modifier = Modifier.fillMaxSize(),
+                                // The video track's eye: hidden = see-through (layers below show, else black).
+                                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (es.videoHidden) 0f else 1f },
                             )
                             es.morphFrame?.let { mf ->
                                 val img = remember(mf) { mf.asImageBitmap() }
@@ -3215,7 +3223,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     zoom = zoom,
                     onSelectTransition = { es.selected = it; es.page = Page.TRANSITIONS },
                     extraAudio = extraAudio,
-                    videoMuted = es.videoMuted, videoLocked = es.videoLocked,
+                    videoMuted = es.videoMuted, videoLocked = es.videoLocked, videoHidden = es.videoHidden,
+                    onVideoHide = { es.videoHidden = !es.videoHidden; es.message = if (es.videoHidden) "Video track hidden" else "Video track shown" },
                     onVideoMute = { es.videoMuted = !es.videoMuted; es.message = if (es.videoMuted) "Video track sound muted" else "Video track sound on" },
                     onVideoLock = { es.videoLocked = !es.videoLocked; es.message = if (es.videoLocked) "Video track locked" else "Video track unlocked" },
                     onLayerFlags = { l -> val i = layers.indexOfFirst { it.id == l.id }; if (i >= 0) layers[i] = l },
@@ -3738,9 +3747,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             } else Column(Modifier.fillMaxSize()) {
                 Row(Modifier.fillMaxWidth().height(50.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     TopIcon(Icons.AutoMirrored.Filled.ArrowBack, "Close", enabled = !es.exporting) { es.confirmExit = true }
-                    Column(Modifier.weight(1f).padding(start = 4.dp)) {
-                        Text("${clips.size} CLIPS · ${tc(totalMs)}", style = Pro.Label)
+                    Column(Modifier.padding(start = 4.dp)) {
+                        Text("${clips.size} CLIPS · ${tc(totalMs)}", style = Pro.Label, maxLines = 1, softWrap = false)
                     }
+                    // Phones: these icons scroll sideways (with hint arrows); LOAD, SAVE and EXPORT stay put.
+                    BarIconGroup {
                     VideoPanelsButton(
                         onPage = { es.page = it },
                         onReset = {
@@ -3750,6 +3761,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         },
                     )
                     TopIcon(Icons.Filled.Settings, "Settings") { es.showSettings = true }
+                    }
                     BarButton("LOAD", enabled = !es.exporting) { es.showLoad = true }
                     BarButton("SAVE", enabled = !es.exporting) { es.askName = true }
                     Text(
@@ -5852,7 +5864,12 @@ val ASPECTS = listOf(
     "3:4" to 0.75f, "21:9" to 21f / 9f, "2.39:1" to 2.39f, "3:2" to 1.5f,
 )
 
-/** Live preview of a video layer: its own muted player, kept in step with the timeline. */
+/** The preview's mute switch, for the video layers' own players. */
+internal object LayerSound {
+    var previewMuted by mutableStateOf(false)
+}
+
+/** Live preview of a video layer: its own player (silent unless its sound is on), kept in step with the timeline. */
 @OptIn(UnstableApi::class)
 @Composable
 private fun VideoLayerView(l: Layer, timeMs: Long, play: Boolean, pin: FloatArray? = null) {
@@ -5864,6 +5881,8 @@ private fun VideoLayerView(l: Layer, timeMs: Long, play: Boolean, pin: FloatArra
         }
     }
     DisposableEffect(p) { onDispose { p.release() } }
+    // Its own sound only when switched on for this layer (and the preview isn't muted).
+    LaunchedEffect(l.soundOn, LayerSound.previewMuted) { p.volume = if (l.soundOn == true && !LayerSound.previewMuted) l.soundVolume() else 0f }
     val target = l.videoStartMs + (timeMs - (if (l.wholeVideo) 0L else l.startMs)).coerceAtLeast(0)
     LaunchedEffect(play) { if (play) p.play() else p.pause() }
     LaunchedEffect(target / 300, play) {

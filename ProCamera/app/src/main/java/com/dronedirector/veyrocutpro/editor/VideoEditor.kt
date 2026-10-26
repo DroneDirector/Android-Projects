@@ -301,7 +301,6 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     val showInspector = com.dronedirector.veyrocutpro.ui.panelOn("ve.inspector")
     val showTransport = com.dronedirector.veyrocutpro.ui.panelOn("ve.transport")
     val showScope = com.dronedirector.veyrocutpro.ui.panelOn("ve.scope")
-    val showTimecode = com.dronedirector.veyrocutpro.ui.panelOn("ve.timecode")
     val showWaves = com.dronedirector.veyrocutpro.ui.panelOn("ve.waves")
     LaunchedEffect(showScope) { if (!showScope) es.scopeOpen = false }
     val layers = remember { mutableStateListOf<Layer>().apply { initial?.layers?.let { addAll(it) } } }
@@ -3079,11 +3078,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     )
                     // RGB histogram: a pull-out drawer on the right edge (never in full screen).
                     if (!es.fullscreen && showScope) ScopeDrawer(es.scopeHist, Modifier.align(Alignment.CenterEnd), frame = es.scopeFrame) { es.scopeOpen = it }
-                    if (showTimecode) Text(
-                        "${tc(globalMs)} / ${tc(totalMs)}",
-                        style = Pro.Value.copy(fontSize = 12.sp),
-                        modifier = Modifier.align(Alignment.TopStart).padding(8.dp).clip(RoundedCornerShape(6.dp)).background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 8.dp, vertical = 3.dp),
-                    )
+                    // The time read-out is in the timeline's bar below the picture only (not on the picture).
                     if (es.exporting) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             CircularProgressIndicator(color = Pro.Amber)
@@ -5609,6 +5604,77 @@ private fun DeliverPage(
         val (w, h) = outputSize(clips, s)
         writeTo(u, Interchange.fcpxml(title, clips, fpsX, w, h, markers, markerNotes))
     }
+    val total = if (s.rangeStart != null && s.rangeEnd != null) (s.rangeEnd - s.rangeStart).coerceAtLeast(0) else timelineLength(clips)
+    // Estimated file size: video bitrate (chosen, or what the encoder picks on Auto) + AAC audio.
+    val (ow, oh) = outputSize(clips, s)
+    val outFps = if (s.fps > 0) s.fps else 30
+    val autoMbps = ow.toDouble() * oh * outFps * 0.14 / 1_000_000
+    val videoMbps = if (s.audioOnly) 0.0 else if (s.bitrateMbps > 0) s.bitrateMbps.toDouble() else autoMbps
+    val audioMbps = if (s.audioOnly) s.audioFmt.bytesPerSecond() * 8 / 1_000_000 else if (s.audio) 0.13 else 0.0
+    val bytes = (videoMbps + audioMbps) * 1_000_000 / 8 * (total / 1000.0) * 1.01
+    // First in Deliver: everything about the file itself, then the button — one place to set up and start the render.
+    SectionTitle("RENDER & EXPORT")
+    Text("Audio", color = Color.White, fontSize = 13.sp)
+    Chips(listOf("Video with audio", "Video, no audio", "Audio only"), if (s.audioOnly) 2 else if (s.audio) 0 else 1) {
+        onChange(s.copy(audio = it != 1, audioOnly = it == 2))
+    }
+    if (s.audioOnly) {
+        Text("Audio format", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+        val fmts = AudioExportFormat.entries.filter { it.available }
+        Chips(fmts.map { it.label }, fmts.indexOf(s.audioFmt).coerceAtLeast(0)) { onChange(s.copy(audioFormat = fmts[it])) }
+        Text(
+            when (s.audioFmt) {
+                AudioExportFormat.M4A -> "AAC 128 kbps — small, plays everywhere."
+                AudioExportFormat.WAV16 -> "Uncompressed CD quality (dithered) — opens in every audio and video program."
+                AudioExportFormat.WAV24 -> "Uncompressed studio quality — best for further mixing or mastering."
+                AudioExportFormat.WAV32F -> "Uncompressed 32-bit float — the mix exactly as rendered, with no clipping in the file."
+                AudioExportFormat.AIFF -> "Uncompressed 24-bit — the usual format on Mac (Logic, GarageBand, Final Cut)."
+                AudioExportFormat.FLAC -> "Lossless and about half the size of WAV — sounds identical."
+                AudioExportFormat.OPUS -> "Opus 160 kbps — very small for its quality, great for web and voice."
+            } + " Saves just the sound of the timeline — clips, music and audio tracks — to Music/AlcorCutPro (or your chosen save folder). Muted tracks are left out.",
+            color = Pro.Dim, fontSize = 11.sp,
+        )
+    }
+    if (!s.audioOnly) {
+        Text("Resolution", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+        val res = listOf(0 to "Source", 720 to "720p", 1080 to "1080p", 1440 to "1440p", 2160 to "4K UHD")
+        Chips(res.map { it.second }, res.indexOfFirst { it.first == s.shortSide }.coerceAtLeast(0)) { onChange(s.copy(shortSide = res[it].first)) }
+        Text("Codec", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+        Chips(listOf("H.264", "HEVC (H.265)"), if (s.hevc) 1 else 0) { onChange(s.copy(hevc = it == 1)) }
+        Text("Bitrate", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+        val rates = listOf(0, 20, 50, 80, 120, 200)
+        Chips(rates.map { if (it == 0) "Auto" else "$it Mbps" }, rates.indexOf(s.bitrateMbps).coerceAtLeast(0)) { onChange(s.copy(bitrateMbps = rates[it])) }
+    }
+    Text("Estimated file size", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp, bottom = 4.dp))
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Ed.Raised).border(1.dp, Pro.Amber.copy(alpha = 0.5f), RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("≈ ${fileSizeText(bytes)}", style = Pro.Value.copy(color = Pro.Amber, fontSize = 22.sp), modifier = Modifier.weight(1f))
+        Column(horizontalAlignment = Alignment.End) {
+            if (s.audioOnly) {
+                Text("Audio only · ${s.audioFmt.label}", style = Pro.Label)
+                Text(tc(total), style = Pro.Label)
+            } else {
+                Text("${ow}×${oh} · ${if (s.fps > 0) "${s.fps} fps" else "source fps"}", style = Pro.Label)
+                Text("%.0f Mbps${if (s.bitrateMbps == 0) " (auto)" else ""} · ${tc(total)}".format(videoMbps + audioMbps), style = Pro.Label)
+            }
+        }
+    }
+    Text(
+        "Timeline ${tc(total)} · ${clips.size} clips. The real size can differ a little${if (s.bitrateMbps == 0) " (on Auto the phone's encoder decides the bitrate)" else ""}. If the phone's encoder can't do the chosen size or bitrate, the closest supported setting is used.",
+        color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 8.dp),
+    )
+    Text(
+        if (exporting) "RENDERING…" else if (s.audioOnly) "EXPORT AUDIO" else "RENDER & EXPORT",
+        style = Pro.Value.copy(color = Color.Black, fontSize = 14.sp),
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (exporting || clips.isEmpty()) Pro.Amber.copy(alpha = 0.4f) else Pro.Amber)
+            .clickable(enabled = !exporting && clips.isNotEmpty(), onClick = onExport).padding(14.dp),
+    )
+    Text(
+        "Exports keep running if you switch apps or lock the screen — a notification shows the progress and tells you when it's done.",
+        color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp),
+    )
     if (castSlot != null) {
         SectionTitle("CAST")
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -5665,9 +5731,6 @@ private fun DeliverPage(
         modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable(onClick = onSaveFrame).padding(10.dp),
     )
     Text("Saves the frame under the playhead, with its grade and text / logo layers, as a full-size JPEG.", color = Pro.Dim, fontSize = 11.sp)
-    SectionTitle("RESOLUTION")
-    val res = listOf(0 to "Source", 720 to "720p", 1080 to "1080p", 1440 to "1440p", 2160 to "4K UHD")
-    Chips(res.map { it.second }, res.indexOfFirst { it.first == s.shortSide }.coerceAtLeast(0)) { onChange(s.copy(shortSide = res[it].first)) }
     SectionTitle("FRAME RATE")
     val fps = listOf(0, 24, 25, 30, 60)
     Chips(fps.map { if (it == 0) "Source" else "$it fps" }, fps.indexOf(s.fps).coerceAtLeast(0)) { onChange(s.copy(fps = fps[it])) }
@@ -5680,14 +5743,6 @@ private fun DeliverPage(
         Chips(listOf("As mixed", "−14 LUFS (YouTube, Instagram, Spotify)", "−16 LUFS (Apple, podcasts)", "−23 LUFS (TV broadcast)"), opts.indexOf(s.loudness).coerceAtLeast(0)) { i -> onChange(s.copy(loudness = opts[i])) }
         Text("Makes every export equally loud, so it sounds right next to other videos. The sound is measured first (a few seconds), then the whole mix is turned up or down; a limiter stops it from clipping.", color = Pro.Dim, fontSize = 11.sp)
     }
-    val total = if (s.rangeStart != null && s.rangeEnd != null) (s.rangeEnd - s.rangeStart).coerceAtLeast(0) else timelineLength(clips)
-    // Estimated file size: video bitrate (chosen, or what the encoder picks on Auto) + AAC audio.
-    val (ow, oh) = outputSize(clips, s)
-    val outFps = if (s.fps > 0) s.fps else 30
-    val autoMbps = ow.toDouble() * oh * outFps * 0.14 / 1_000_000
-    val videoMbps = if (s.audioOnly) 0.0 else if (s.bitrateMbps > 0) s.bitrateMbps.toDouble() else autoMbps
-    val audioMbps = if (s.audioOnly) s.audioFmt.bytesPerSecond() * 8 / 1_000_000 else if (s.audio) 0.13 else 0.0
-    val bytes = (videoMbps + audioMbps) * 1_000_000 / 8 * (total / 1000.0) * 1.01
     SectionTitle("SEND TO DESKTOP EDITOR")
     Text("Continue the edit on a computer: the cuts (and dissolves / speed in the EDL) open in desktop editing software that reads EDL or FCPXML. Grades, effects and layers stay here. Copy the original clips to the computer too.", color = Pro.Dim, fontSize = 11.sp)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
@@ -5738,66 +5793,6 @@ private fun DeliverPage(
         modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(enabled = gp == null && clips.isNotEmpty()) { saveGif.launch(title.replace(Regex("[^A-Za-z0-9 _-]"), "") + ".gif") }.padding(10.dp),
     )
     Text("Uses the RANGE above if set (up to 20 s). Includes the grade and text / logo layers; no sound.", color = Pro.Dim, fontSize = 11.sp)
-    // Everything about the file itself, then the button: one place to set up and start the render.
-    SectionTitle("RENDER & EXPORT")
-    Text("Audio", color = Color.White, fontSize = 13.sp)
-    Chips(listOf("Video with audio", "Video, no audio", "Audio only"), if (s.audioOnly) 2 else if (s.audio) 0 else 1) {
-        onChange(s.copy(audio = it != 1, audioOnly = it == 2))
-    }
-    if (s.audioOnly) {
-        Text("Audio format", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-        val fmts = AudioExportFormat.entries.filter { it.available }
-        Chips(fmts.map { it.label }, fmts.indexOf(s.audioFmt).coerceAtLeast(0)) { onChange(s.copy(audioFormat = fmts[it])) }
-        Text(
-            when (s.audioFmt) {
-                AudioExportFormat.M4A -> "AAC 128 kbps — small, plays everywhere."
-                AudioExportFormat.WAV16 -> "Uncompressed CD quality (dithered) — opens in every audio and video program."
-                AudioExportFormat.WAV24 -> "Uncompressed studio quality — best for further mixing or mastering."
-                AudioExportFormat.WAV32F -> "Uncompressed 32-bit float — the mix exactly as rendered, with no clipping in the file."
-                AudioExportFormat.AIFF -> "Uncompressed 24-bit — the usual format on Mac (Logic, GarageBand, Final Cut)."
-                AudioExportFormat.FLAC -> "Lossless and about half the size of WAV — sounds identical."
-                AudioExportFormat.OPUS -> "Opus 160 kbps — very small for its quality, great for web and voice."
-            } + " Saves just the sound of the timeline — clips, music and audio tracks — to Music/AlcorCutPro (or your chosen save folder). Muted tracks are left out.",
-            color = Pro.Dim, fontSize = 11.sp,
-        )
-    }
-    if (!s.audioOnly) {
-        Text("Codec", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-        Chips(listOf("H.264", "HEVC (H.265)"), if (s.hevc) 1 else 0) { onChange(s.copy(hevc = it == 1)) }
-        Text("Bitrate", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-        val rates = listOf(0, 20, 50, 80, 120, 200)
-        Chips(rates.map { if (it == 0) "Auto" else "$it Mbps" }, rates.indexOf(s.bitrateMbps).coerceAtLeast(0)) { onChange(s.copy(bitrateMbps = rates[it])) }
-    }
-    Text("Estimated file size", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp, bottom = 4.dp))
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Ed.Raised).border(1.dp, Pro.Amber.copy(alpha = 0.5f), RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text("≈ ${fileSizeText(bytes)}", style = Pro.Value.copy(color = Pro.Amber, fontSize = 22.sp), modifier = Modifier.weight(1f))
-        Column(horizontalAlignment = Alignment.End) {
-            if (s.audioOnly) {
-                Text("Audio only · ${s.audioFmt.label}", style = Pro.Label)
-                Text(tc(total), style = Pro.Label)
-            } else {
-                Text("${ow}×${oh} · ${if (s.fps > 0) "${s.fps} fps" else "source fps"}", style = Pro.Label)
-                Text("%.0f Mbps${if (s.bitrateMbps == 0) " (auto)" else ""} · ${tc(total)}".format(videoMbps + audioMbps), style = Pro.Label)
-            }
-        }
-    }
-    Text(
-        "Timeline ${tc(total)} · ${clips.size} clips. The real size can differ a little${if (s.bitrateMbps == 0) " (on Auto the phone's encoder decides the bitrate)" else ""}. If the phone's encoder can't do the chosen size or bitrate, the closest supported setting is used.",
-        color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(vertical = 8.dp),
-    )
-    Text(
-        if (exporting) "RENDERING…" else if (s.audioOnly) "EXPORT AUDIO" else "RENDER & EXPORT",
-        style = Pro.Value.copy(color = Color.Black, fontSize = 14.sp),
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (exporting || clips.isEmpty()) Pro.Amber.copy(alpha = 0.4f) else Pro.Amber)
-            .clickable(enabled = !exporting && clips.isNotEmpty(), onClick = onExport).padding(14.dp),
-    )
-    Text(
-        "Exports keep running if you switch apps or lock the screen — a notification shows the progress and tells you when it's done.",
-        color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp),
-    )
     // Render queue: several exports of the same edit, one after another.
     SectionTitle("YOUTUBE CHAPTERS")
     Text("Your markers (with their notes as titles) as a chapter list for the YouTube description — starts at 0:00, chapters at least 10 s apart.", color = Pro.Dim, fontSize = 11.sp)
@@ -6044,7 +6039,6 @@ private fun VideoPanelsButton(onPage: (Page) -> Unit, onReset: () -> Unit) {
         com.dronedirector.veyrocutpro.ui.PanelDef("ve.inspector", "Tools panel", "Media, Edit, Color, Layers, Audio and Deliver pages"),
         com.dronedirector.veyrocutpro.ui.PanelDef("ve.transport", "Transport bar", "Play, split, undo / redo, timeline zoom"),
         com.dronedirector.veyrocutpro.ui.PanelDef("ve.scope", "Histogram pull-out", "Show or hide the RGB histogram tab on the right edge of the player"),
-        com.dronedirector.veyrocutpro.ui.PanelDef("ve.timecode", "Timecode", "Time read-out on the viewer"),
         com.dronedirector.veyrocutpro.ui.PanelDef("ve.waves", "Audio waveforms", "Sound waves drawn on the timeline clips"),
         com.dronedirector.veyrocutpro.ui.PanelDef("ve.cast", "Cast button", "Chromecast button: show the viewer on a TV"),
         com.dronedirector.veyrocutpro.ui.PanelDef("ve.mediastrip", "Media strip", "Imported clips above the timeline: skim, rate, add to the timeline"),
@@ -6055,9 +6049,9 @@ private fun VideoPanelsButton(onPage: (Page) -> Unit, onReset: () -> Unit) {
         panels = panels,
         presets = listOf(
             com.dronedirector.veyrocutpro.ui.PanelPreset("Full", all),
-            com.dronedirector.veyrocutpro.ui.PanelPreset("Cut", setOf("ve.transport", "ve.timecode")),
-            com.dronedirector.veyrocutpro.ui.PanelPreset("Color", setOf("ve.inspector", "ve.transport", "ve.scope", "ve.timecode")) { onPage(Page.COLOR) },
-            com.dronedirector.veyrocutpro.ui.PanelPreset("Audio", setOf("ve.inspector", "ve.transport", "ve.timecode", "ve.waves")) { onPage(Page.AUDIO) },
+            com.dronedirector.veyrocutpro.ui.PanelPreset("Cut", setOf("ve.transport")),
+            com.dronedirector.veyrocutpro.ui.PanelPreset("Color", setOf("ve.inspector", "ve.transport", "ve.scope")) { onPage(Page.COLOR) },
+            com.dronedirector.veyrocutpro.ui.PanelPreset("Audio", setOf("ve.inspector", "ve.transport", "ve.waves")) { onPage(Page.AUDIO) },
         ),
         onReset = onReset,
     )

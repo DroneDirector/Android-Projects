@@ -2,6 +2,7 @@
  {
   "title": "Media & timeline",
   "items": [
+   "<strong>Speed / Duration</strong>, <strong>time interpolation</strong> (frame sampling, optical flow, motion blur), <strong>link / unlink tracks</strong>, <strong>group / ungroup</strong> and a <strong>markers menu</strong> (go to, edit, clear, export / import lists) under the picture.",
    "<strong>Network (NAS)</strong>: add videos, photos and audio straight from a Synology or any other NAS (or a computer sharing folders over SMB) on your network — found automatically or by address; browse every shared folder; files are copied into the app with progress. Guest access first, sign-in only when the NAS asks; remembered sign-ins are optional, encrypted on the phone, never shown, unlocked with the phone's own fingerprint / PIN / pattern (can be turned off), removable in the gear menu.",
    "<strong>Buttons under the picture</strong>: frame back / forward, go to in / out, mark in / out, add marker, safe margins, playback resolution (Full to 1/16, preview only), magnifier (2× / 4×, view only), export frame, settings — all icons; the <strong>+</strong> chooses which ones the bar shows.",
    "<strong>Pinch, move and double-tap on the picture</strong>: zoom in and place the picture; the export is framed exactly as seen. Double-tap resets.",
@@ -196,6 +197,10 @@
  {
   "title": "Projects & workflow",
   "items": [
+   "<strong>Project settings</strong>: general switches, project and timeline names, shape and frame rate, storage, <strong>ingest</strong> (bin, proxies, labels for new media) and <strong>label colours</strong> with your own names.",
+   "<strong>Help</strong>: documentation and tutorials for the open part of the app, troubleshooting and <strong>proof of purchase</strong> from Google Play.",
+   "<strong>Preferences</strong> (gear): appearance, shutter sound, <strong>audio hardware</strong> choice with an unplug notice, autosave, playback, timeline and editing; <strong>System Info</strong> with the phone's hardware and drivers.",
+   "<strong>Reveal in Project</strong>: show the selected clip in the media strip, or where its file is on the phone (open the folder, copy the path).",
    "<strong>File menu</strong>: projects (new, open, open recent, settings), several projects open at once with quick switching and close / close others / close all, save / save as / save a copy / revert, capture, import, new sequence / sequence from clip / bin / offline file / captions / transcript / title, team projects, collect files, make offline, link media, exit.",
    "<strong>Team projects</strong>: kept in a shared folder (NAS or shared / cloud folder) with the media copied once; shows who has a project open, read-only opening meanwhile, and a warning before saving over a newer version.",
    "<strong>Offline media</strong>: offline stand-ins for missing shots, Make offline and Link media that keep trims and settings.",

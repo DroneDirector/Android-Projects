@@ -61,6 +61,7 @@
  {
   "title": "Pro controls",
   "items": [
+   "<strong>Help</strong> next to the gear (Capture guide, quick tour, troubleshooting, proof of purchase); <strong>audio hardware</strong> and <strong>System Info</strong> in Settings.",
    "<strong>Keyboard shortcuts</strong> you can change (Settings → Keyboard shortcuts): shutter, zoom, exposure, locks, flash, timer, modes and overlays.",
    "<strong>Resizable read-outs</strong>: the histogram / scopes, exposure read-out and audio meter can be dragged anywhere, resized (two fingers or the grip) and minimised (double tap) while staying live; each keeps its own size and place.",
    "<strong>Pro read-out bar</strong>: live ISO, shutter, focus, white balance, EV and zoom — tap any to change it — plus the exposure mode (<strong>auto, shutter priority, ISO priority, manual</strong>; Android 15+ uses the camera's own priority modes, older phones are metered continuously by the app) and, in video, resolution · frame rate · bitrate.",

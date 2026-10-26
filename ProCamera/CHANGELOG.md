@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.592 — 2026-10-26
 - Photo and video editor start pages: the whole page now scrolls when it's taller than the screen, so the recent photos / videos at the bottom are always reachable.
 
 ## 1.0.590 — 2026-10-26

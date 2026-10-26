@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.590 — 2026-10-26
 - **Network (NAS)**: a remembered NAS sign-in is now only used after the **phone's own lock** — fingerprint, or the PIN / pattern / password you've set up on the phone. Your fingerprint and PIN stay in the phone; the app only learns whether it was unlocked. If the phone has no fingerprint, PIN or pattern set up, the app tells you, and the saved sign-in is then the only protection. Gear → Network (NAS) → **Unlock with the phone's lock** turns the check off (both editors).
 - Video editor, full screen: tapping the picture while it plays brings the controls back straight away (before, they only came back after pausing).
 - Video editor timeline: shortening a clip from either edge now **leaves a gap** by default — the clip and everything after it stay exactly where they are (no jump to the left, also while the gap is being made). Gear → **Trimming closes the gap** turns on the old way: the gap closes and everything after it moves left on every track.

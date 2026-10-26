@@ -500,8 +500,8 @@ class TimelineExport(
                     any = true
                     t = starts[i] + clips[i].lengthMs
                 }
+                // The sound track is part of [types], so clips without sound get silence here too.
                 if (totalMs > t) seq.addGap((totalMs - t) * 1000)
-                if (!audioOnly && wantAudio && silent.any { it }) seq.experimentalSetForceAudioTrack(true)
                 if (any) sequences += seq.build()
             }
         }

@@ -76,7 +76,9 @@ object CrashReport {
             val p = context.getSharedPreferences("procam", Context.MODE_PRIVATE)
             val seen = p.getLong("exit_seen", 0L)
             val e = am.getHistoricalProcessExitReasons(context.packageName, 0, 5)
-                .firstOrNull { it.timestamp > seen && (it.reason == android.app.ApplicationExitInfo.REASON_CRASH_NATIVE || it.reason == android.app.ApplicationExitInfo.REASON_CRASH || it.reason == android.app.ApplicationExitInfo.REASON_LOW_MEMORY) }
+                .firstOrNull { it.timestamp > seen && (it.reason == android.app.ApplicationExitInfo.REASON_CRASH_NATIVE || it.reason == android.app.ApplicationExitInfo.REASON_CRASH || (it.reason == android.app.ApplicationExitInfo.REASON_LOW_MEMORY &&
+                    // Closed while in the background (another app was open): normal on Android, not a problem.
+                    it.importance <= android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE)) }
             am.getHistoricalProcessExitReasons(context.packageName, 0, 1).firstOrNull()?.let { p.edit().putLong("exit_seen", it.timestamp).apply() }
             if (e == null || seen == 0L) return
             val kind = when (e.reason) {

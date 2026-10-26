@@ -2697,7 +2697,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 toFile = f,
                             )
                             es.export = e
-                            try { e.start() } catch (t: Throwable) { failed = t.message; if (cont.isActive) cont.resumeWith(Result.success(false)) }
+                            try { e.start() } catch (t: Throwable) {
+                                failed = t.message ?: t.javaClass.simpleName
+                                com.dronedirector.veyrocutpro.ui.CrashReport.problem(context, "export couldn't start (part ${k + 1})", t)
+                                if (cont.isActive) cont.resumeWith(Result.success(false))
+                            }
                             cont.invokeOnCancellation { try { e.cancel() } catch (_: Throwable) {} }
                         }
                         if (ok) { files += f; break } else f.delete()
@@ -2737,7 +2741,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             },
         )
         es.export = e
-        try { e.start() } catch (t: Throwable) { es.exporting = false; es.export = null; es.message = "Export failed: ${t.message}" }
+        try { e.start() } catch (t: Throwable) {
+            es.exporting = false; es.export = null
+            es.message = "Export failed: ${t.message ?: t.javaClass.simpleName}"
+            com.dronedirector.veyrocutpro.ui.CrashReport.problem(context, "export couldn't start", t)
+        }
     }
 
     /** Loudness: render the sound once, measure it, then export with every track turned up / down to the target. */

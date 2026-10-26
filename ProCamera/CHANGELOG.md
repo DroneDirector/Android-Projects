@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: exporting video with sound failed with "Export failed: null" when the edit had transitions and a clip without sound (drone footage, generated clips). Fixed — those clips get silence and the export runs. If an export ever can't start again, the message names the problem and a problem report is saved.
+- Problem reports: the app being closed by Android while in the background (low memory, another app open) is no longer reported as a crash.
 
 ## 1.0.570 — 2026-10-26
 - Video editor: the whole button bar under the picture now scrolls sideways when it's wider than the screen (like the tool tabs), so every button — split, undo / redo, zoom, cast, play, full screen, playhead to start — can always be reached, and new buttons can be added there. When it all fits, the layout is unchanged.

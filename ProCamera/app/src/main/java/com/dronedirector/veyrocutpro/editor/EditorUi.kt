@@ -219,6 +219,9 @@ fun EditorSettingsDialog(
                         com.dronedirector.veyrocutpro.ui.PointerAndWheelSettings(showWheel = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR)
                     com.dronedirector.veyrocutpro.ui.FoldModeSetting(if (isVideo) "video" else "photo")
                 }
+                com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "nas", "Network (NAS)", "Saved NAS sign-ins: see or remove them") {
+                    NasSignInsSettings()
+                }
                 com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "save", "Saving & backup", "Save location, autosave, backup and restore") {
                         val video = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR
                         Text("SAVE LOCATION", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp))

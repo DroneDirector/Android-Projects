@@ -5,13 +5,16 @@
     <cloud-backup>
         <include domain="sharedpref" path="." />
         <exclude domain="sharedpref" path="acluxpro_secure.xml" />
+        <exclude domain="sharedpref" path="acluxpro_nas_secure.xml" />
     </cloud-backup>
     <device-transfer>
         <include domain="sharedpref" path="." />
         <include domain="file" path="." />
         <exclude domain="sharedpref" path="acluxpro_secure.xml" />
+        <exclude domain="sharedpref" path="acluxpro_nas_secure.xml" />
         <exclude domain="file" path="models/" />
         <exclude domain="file" path="whisper/" />
         <exclude domain="file" path="sound_library/" />
+        <exclude domain="file" path="nas/" />
     </device-transfer>
 </data-extraction-rules>

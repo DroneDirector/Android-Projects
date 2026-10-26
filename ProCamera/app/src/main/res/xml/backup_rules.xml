@@ -4,4 +4,5 @@
 <full-backup-content>
     <include domain="sharedpref" path="." />
     <exclude domain="sharedpref" path="acluxpro_secure.xml" />
+        <exclude domain="sharedpref" path="acluxpro_nas_secure.xml" />
 </full-backup-content>

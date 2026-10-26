@@ -1,6 +1,7 @@
 package com.dronedirector.veyrocutpro.editor
 
 import com.dronedirector.veyrocutpro.ui.pinchAndMove
+import androidx.compose.material.icons.filled.Storage
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
@@ -174,11 +175,14 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
         else android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Videos go to the video editor — the photo editor takes photos"), android.widget.Toast.LENGTH_SHORT).show()
     }
     var addFrom by remember { mutableStateOf(false) }
+    var nasOpen by remember { mutableStateOf(false) }
     if (addFrom) AddFromDialog("Add photos", listOf(
         Triple(Icons.Filled.PhotoLibrary, "Gallery") { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
         Triple(Icons.Filled.FolderOpen, "Browse files") { browse.launch(arrayOf("image/*")) },
         Triple(Icons.Filled.PhotoCamera, "Camera — take a photo") { openCamera() },
+        Triple(Icons.Filled.Storage, "Network (NAS)") { nasOpen = true },
     )) { addFrom = false }
+    if (nasOpen) NasBrowserDialog(NasKinds.PHOTO_EDITOR, onDismiss = { nasOpen = false }) { addMany(it) }
     // Merge several photos (HDR, panorama, focus stack) into a new one, then edit it.
     val scope = rememberCoroutineScope()
     var mergeKind by remember { mutableStateOf<MergeKind?>(null) }
@@ -269,6 +273,7 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
             onRecent = { project = null; addMany(listOf(it)) },
             onSkip = { project = null; PhotoSession.current = -1; source = Uri.EMPTY },
             onCamera = { openCamera() },
+            onNetwork = { nasOpen = true },
             banner = {
                 Row(
                     Modifier.padding(bottom = 10.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Ed.Raised)
@@ -337,6 +342,8 @@ fun MediaChooser(
     banner: (@Composable () -> Unit)? = null,
     /** Shown only when set: take a photo with the phone's camera. */
     onCamera: (() -> Unit)? = null,
+    /** Shown only when set: files from a NAS on the network. */
+    onNetwork: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     var settings by remember { mutableStateOf(false) }
@@ -359,6 +366,7 @@ fun MediaChooser(
             BigButton(Icons.Filled.FolderOpen, "Browse files", Modifier.weight(1f), onFiles)
         }
         if (onCamera != null) BigButton(Icons.Filled.PhotoCamera, "Take a photo", Modifier.fillMaxWidth().padding(top = 10.dp), onCamera)
+        if (onNetwork != null) BigButton(Icons.Filled.Storage, "Network (NAS)", Modifier.fillMaxWidth().padding(top = 10.dp), onNetwork)
         if (onSkip != null) {
             Row(
                 Modifier

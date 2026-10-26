@@ -136,6 +136,7 @@ import com.dronedirector.veyrocutpro.camera.GradeIO
 import com.dronedirector.veyrocutpro.ui.Pro
 import com.dronedirector.veyrocutpro.ui.hintedScroll
 import com.dronedirector.veyrocutpro.ui.pinchAndMove
+import androidx.compose.material.icons.filled.Storage
 import com.dronedirector.veyrocutpro.ui.BarIconGroup
 import kotlinx.coroutines.Dispatchers
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -161,6 +162,7 @@ import kotlinx.coroutines.withContext
 internal enum class Page(val label: String) { STRIP("Media strip"), MEDIA("Media"), PROXY("Proxy"), EDIT("Edit"), TEXT("Text"), TRANSITIONS("Transitions"), COLOR("Color"), LAYERS("Layers"), AUDIO("Audio"), DELIVER("Deliver") }
 internal enum class ColorTab(val label: String) { INPUT("Input"), LUTS("LUTs"), WHEELS("Wheels"), PRIMARIES("Primaries"), CURVES("Curves"), HSL("HSL"), MASKS("Masks"), DETAIL("Detail"), FILM("Film & lens"), EFFECTS("Effects"), LOOKS("Looks") }
 
+@OptIn(UnstableApi::class)
 @Composable
 fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) {
     val context = LocalContext.current
@@ -195,6 +197,14 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
     val browse = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { addUris(it) }
     val pickGallery = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) }
     val pickFiles = { browse.launch(arrayOf("video/*")) }
+    // Files from a NAS: videos go straight in, photos become 5 s clips first.
+    fun addNas(uris: List<Uri>) {
+        val (photos, videos) = uris.partition { (it.lastPathSegment ?: "").substringAfterLast('.', "").lowercase() in Nas.PHOTO }
+        addUris(videos)
+        for (u in photos) Generators.photoClip(context, u, 5) { clip, _ -> if (clip != null) addUris(listOf(clip)) }
+    }
+    var nasStart by remember { mutableStateOf(false) }
+    if (nasStart) NasBrowserDialog(NasKinds.VIDEO_START, onDismiss = { nasStart = false }) { addNas(it) }
 
     if (!started) {
         BackHandler { onExit() }
@@ -206,6 +216,7 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
                 onBack = onExit,
                 onGallery = pickGallery,
                 onFiles = pickFiles,
+                onNetwork = { nasStart = true },
                 onRecent = { addUris(listOf(it)) },
                 onSkip = { started = true },
                 banner = {
@@ -268,7 +279,7 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
     } else {
         androidx.compose.runtime.key(project?.id) {
             Workspace(
-                clips, project, onAddGallery = pickGallery, onAddFiles = pickFiles, onExit = { ProjectStore.clearAutosave(context); onExit() },
+                clips, project, onAddGallery = pickGallery, onAddFiles = pickFiles, onAddNas = { addNas(it) }, onExit = { ProjectStore.clearAutosave(context); onExit() },
                 onLoad = { id ->
                     val p = ProjectStore.loadVideo(context, id)
                     if (p == null || p.clips.isEmpty()) android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Couldn't open that project"), android.widget.Toast.LENGTH_SHORT).show()
@@ -282,7 +293,7 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
 
 @OptIn(UnstableApi::class)
 @Composable
-private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAddGallery: () -> Unit, onAddFiles: () -> Unit, onExit: () -> Unit, onLoad: (String) -> Unit) {
+private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAddGallery: () -> Unit, onAddFiles: () -> Unit, onAddNas: (List<Uri>) -> Unit, onExit: () -> Unit, onLoad: (String) -> Unit) {
     val wx = remember { WorkspaceExtra() }
     val context = LocalContext.current
     val es = remember { EditorState(initial, context) }
@@ -390,14 +401,22 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     DisposableEffect(Unit) { onDispose { audioPlayers.values.forEach { it.release() } } }
-    val pickAudio = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+    fun addAudio(uris: List<Uri>) {
         for (uri in uris) {
             try { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
             val mmr = android.media.MediaMetadataRetriever()
             val dur = try { mmr.setDataSource(context, uri); mmr.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L } catch (_: Throwable) { 0L } finally { try { mmr.release() } catch (_: Throwable) {} }
-            val name = context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null } ?: "Audio"
+            val name = context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null } ?: uri.lastPathSegment?.takeIf { uri.scheme == "file" } ?: "Audio"
             if (dur > 0 && audioPool.none { it.uri == uri }) audioPool.add(PoolAudio(uri, name, dur))
         }
+    }
+    val pickAudio = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { addAudio(it) }
+    var nasPool by remember { mutableStateOf(false) }
+    if (nasPool) NasBrowserDialog(NasKinds.VIDEO_EDITOR, onDismiss = { nasPool = false }) { uris ->
+        val (audio, rest) = uris.partition { Nas.isAudio(it.lastPathSegment ?: "") }
+        addAudio(audio)
+        onAddNas(rest)
+        if (audio.isNotEmpty()) es.message = "${audio.size} audio file(s) added to the audio list"
     }
     val musicFxProc = remember { AudioFxProcessor(live = true) }
     val musicPlayer = remember { fxPlayer(context, musicFxProc) }
@@ -3528,6 +3547,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 audioPool = audioPool,
                                 audioUses = { a -> (if (es.music?.uri == a.uri) 1 else 0) + extraAudio.count { it.uri == a.uri } },
                                 onAddAudio = { pickAudio.launch(arrayOf("audio/*")) },
+                                onAddNas = { nasPool = true },
                                 onMulticam = { es.showMulticam = true },
                                 bins = bins.toMap(), binNames = binNames.toList(),
                                 onNewBin = { b -> if (b !in binNames) binNames.add(b) },
@@ -4229,6 +4249,7 @@ private fun MediaPage(
     bins: Map<String, String> = emptyMap(), binNames: List<String> = emptyList(),
     onNewBin: (String) -> Unit = {}, onSetBin: (Clip, String?) -> Unit = { _, _ -> },
     onSource: (Clip) -> Unit = {}, onPickSource: () -> Unit = {},
+    onAddNas: () -> Unit = {},
     missing: List<String> = emptyList(), onRelink: (Clip) -> Unit = {},
 ) {
     var confirm by remember { mutableStateOf<Clip?>(null) }
@@ -4285,6 +4306,7 @@ private fun MediaPage(
     }
     BigButton(Icons.Filled.Videocam, "Camera → media list (video or photo)", Modifier.fillMaxWidth().padding(top = 8.dp), onCamera)
     BigButton(Icons.Filled.MusicNote, "Audio (MP3, WAV, AAC…)", Modifier.fillMaxWidth().padding(top = 8.dp), onAddAudio)
+    BigButton(Icons.Filled.Storage, "Network (NAS) — videos, photos, audio", Modifier.fillMaxWidth().padding(top = 8.dp), onAddNas)
     if (clips.distinctBy { it.uri.toString() }.size >= 2) {
         BigButton(Icons.Filled.Movie, "Multicam (2–4 angles)", Modifier.fillMaxWidth().padding(top = 8.dp), onMulticam)
     }

@@ -24,7 +24,10 @@ android {
     // Automatic RAW sample tests (app/src/test): run on the computer, with Robolectric standing in for Android.
     testOptions { unitTests { isIncludeAndroidResources = true; isReturnDefaultValues = true; all { it.maxHeapSize = "4g"; it.systemProperty("rawSamples", System.getenv("RAW_SAMPLES") ?: ""); it.systemProperty("rawReport", System.getenv("RAW_REPORT") ?: ""); System.getenv("LIBRAW_HOST")?.let { p -> it.systemProperty("java.library.path", p) } } } }
     // Several native libraries ship the same C++ runtime; one copy is enough.
-    packaging { jniLibs { pickFirsts += listOf("**/libc++_shared.so") } }
+    packaging {
+        jniLibs { pickFirsts += listOf("**/libc++_shared.so") }
+        resources { excludes += listOf("META-INF/versions/9/OSGI-INF/MANIFEST.MF", "META-INF/DEPENDENCIES", "META-INF/INDEX.LIST", "META-INF/LICENSE*", "META-INF/NOTICE*", "META-INF/*.kotlin_module") }
+    }
 
     lint {
         // The audio gain stage uses a CameraX hook that is still marked library-internal.
@@ -109,6 +112,9 @@ dependencies {
     // Magic Mask: ONNX Runtime (MIT) runs MobileSAM (Apache 2.0) on the phone.
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.19.2")
     implementation("androidx.security:security-crypto:1.0.0")
+    // Network storage (NAS / SMB shares): smbj (Apache 2.0) and smbj-rpc for the share list (BSD 3-Clause).
+    implementation("com.hierynomus:smbj:0.13.0")
+    implementation("com.rapid7.client:dcerpc:0.12.13")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
     implementation("androidx.heifwriter:heifwriter:1.0.0")
     // On-device face detection for the privacy face blur (ML Kit, bundled model; free for commercial apps).

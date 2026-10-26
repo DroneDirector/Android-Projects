@@ -160,6 +160,7 @@
  {
   "title": "Deliver",
   "items": [
+   "<strong>RENDER &amp; EXPORT fold-out</strong>: audio choice, audio format, codec, bitrate, estimated file size and the export button in one place.",
    "<strong>Long exports in parts</strong>: films over 4 minutes are rendered in parts (split at plain cuts), each retried on its own if it fails, then joined without re-encoding.",
    "<strong>Background export</strong>: keeps running in other apps or with the screen off (foreground service, progress notification, \"finished\" notification).",
    "<strong>Background tasks notification</strong>: one notification in the pull-down shade lists every background task with its progress — photo and video exports, edit sync, proxies, AI noise reduction, AI upscale, AI cull, Cloud AI and first-launch downloads.",

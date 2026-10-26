@@ -1868,7 +1868,7 @@ private fun PhotoWorkspace(
             val fa = remember { FileActions() }.apply {
                 video = false
                 hasContent = { uri != Uri.EMPTY }
-                projectName = { curName }
+                this.projectName = { curName }
                 newProject = { closeEditor() }
                 openProject = { showLoad = true }
                 openRecent = { id -> sessionSave(); onLoad(id) }

@@ -21,6 +21,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Capture guide
+**Keyboard**
+- With a keyboard connected: Space takes the photo or starts / stops recording, + / − zoom, [ / ] exposure, L / W lock exposure / white balance, Tab changes mode. Settings → Keyboard shortcuts changes any of them.
 **Read-outs**
 - Drag the histogram / scopes, exposure read-out or audio meter anywhere. Pinch one with two fingers (or hold it and drag the amber grip) to resize it; double-tap to make it small but still live, double-tap again for full size.
 **Mouse**
@@ -112,6 +114,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Photo editor guide
+**File menu and shortcuts**
+- The file icon: new, open, open recent, save as, save a copy, revert, capture, import (gallery, files, NAS) and exit. The keyboard icon lists the shortcuts — tap one and press a key to change it.
 **Network (NAS)**
 - + → Network (NAS) (or Network (NAS) on the start page): pick photos (RAW too) from your Synology or other NAS on the same Wi-Fi; they're copied into the app. A sign-in is only asked for when the NAS needs one, and remembering it is up to you (encrypted, never shown; remove it under gear → Network (NAS)).
 **Pinch on the photo**
@@ -241,6 +245,17 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Video editor guide
+**File menu**
+- The file icon (next to the layout and gear icons) opens the File menu; tap a group to fold it out. New project keeps the open one open — File → Open projects switches between them; Close other projects keeps only the one you're in.
+- Save as gives the project a new name; Save a copy saves a copy and keeps you in the original; Revert throws away everything since the last save.
+- New → Sequence starts an empty timeline in the same project (with its own shape and frame rate); Sequence from clip starts one with a clip, set to that clip's shape.
+- New → Offline file: a black stand-in marked OFFLINE for a shot you don't have yet. Dependencies → Make offline unlinks a clip's media; Link media brings the file back (or another one) and keeps the trims.
+- Dependencies → Collect files copies every file of the project into one folder you choose.
+**Team projects**
+- File → New team project (or Team → Share this project): choose a folder on your NAS or a shared folder, give it a name and your name. The edit's files are copied there once.
+- Team → Open team project: pick the folder and the project. If someone else has it open, you can open it read-only. Saving when someone saved after you opened it asks whether to save over theirs or keep yours on the phone.
+**Keyboard shortcuts**
+- The keyboard icon lists every shortcut. Tap one and press the new key (Ctrl, Shift and Alt work too); + adds a second key, ✕ removes one, Reset all brings back the standard keys.
 **Network (NAS)**
 - Media → Network (NAS) (or Network (NAS) on the start page): your Synology or other NAS shows up by itself when the phone is on the same Wi-Fi — or type its address (e.g. 192.168.1.20). Tap it, open a shared folder, tap the videos, photos and audio you want, then Add. They're copied into the app, so the edit keeps working when the NAS is off.
 - If the NAS asks for a sign-in, type your NAS user name and password. Afterwards it asks "Remember this sign-in?" — Yes keeps it encrypted on the phone (never shown, not in backups), No forgets it. Gear → Network (NAS) lists the saved ones (server and user only) with Remove.

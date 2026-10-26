@@ -63,6 +63,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Teleprompter** over the camera (selfie or back camera): your own text, scrolling at your speed or starting with the recording; bold, italic, underline, narrow, alignment, size, text and background colours with opacity, mirror for teleprompter glass; drag to move, drag the corner to resize, shrink to a small bar, close with ✕; opens by itself with the selfie camera.
 
 ### Pro controls
+- **Keyboard shortcuts** you can change (Settings → Keyboard shortcuts): shutter, zoom, exposure, locks, flash, timer, modes and overlays.
 - **Resizable read-outs**: the histogram / scopes, exposure read-out and audio meter can be dragged anywhere, resized (two fingers or the grip) and minimised (double tap) while staying live; each keeps its own size and place.
 - **Pro read-out bar**: live ISO, shutter, focus, white balance, EV and zoom — tap any to change it — plus the exposure mode (**auto, shutter priority, ISO priority, manual**; Android 15+ uses the camera's own priority modes, older phones are metered continuously by the app) and, in video, resolution · frame rate · bitrate.
 - **Fn button**: one assignable button (tap to run, hold to choose) — zebras, peaking, false colour, next scope, AE / AWB lock, split focus / exposure, pull to A / B, frame guide, safe areas, log assist, flip, torch, next lens, focus magnifier, clean feed.
@@ -126,6 +127,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Keep settings after uninstall** (optional): settings, presets and LUTs saved to Documents/AlcorCutPro/Settings; restore from the first screen after reinstalling.
 
 ## Photo editor
+- **File menu**: new, open, open recent, save / save as / save a copy / revert, capture, import (gallery, files, NAS) and exit; **changeable keyboard shortcuts** (keyboard icon).
 - **Network (NAS)**: open photos — RAW included — from a Synology or any other NAS (or a computer sharing folders) on your network; guest first, sign-in only when needed, optional encrypted remembered sign-ins that are never shown and are unlocked with the phone's fingerprint, PIN or pattern.
 - **Pinch, move and double-tap**: zoom in on the photo and drag it; when your fingers lift, the crop becomes what you see (exported as seen). Double-tap = whole photo again. In Masks, Heal and the Retouch brush two fingers zoom the view only.
 - **Camera in the editor**: the filmstrip's +, the empty editor and the start page open the full **Capture** screen (every mode and pro control) over the editor; each photo you take lands straight in the filmstrip, without any automatic watermark.
@@ -391,6 +393,10 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Send to desktop editor**: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) and **OpenTimelineIO .otio** (cuts, dissolves, speed, markers) for desktop editing software.
 
 ### Projects & workflow
+- **File menu**: projects (new, open, open recent, settings), several projects open at once with quick switching and close / close others / close all, save / save as / save a copy / revert, capture, import, new sequence / sequence from clip / bin / offline file / captions / transcript / title, team projects, collect files, make offline, link media, exit.
+- **Team projects**: kept in a shared folder (NAS or shared / cloud folder) with the media copied once; shows who has a project open, read-only opening meanwhile, and a warning before saving over a newer version.
+- **Offline media**: offline stand-ins for missing shots, Make offline and Link media that keep trims and settings.
+- **Changeable keyboard shortcuts** for every common action (keyboard icon).
 - **Video catalogs**: every clip you use is remembered — its last settings (given back when added to another project), proxies, stabilisation analysis, waveforms, render cache, cloud AI results and transcripts, so nothing is made twice. Several named catalogs; clips remembered (10 to any number, or unlimited); optional clip copies; move to private storage, shared storage or an SD card; slim down. Lossless only.
 - **Several timelines per project**: new, duplicate, rename and switch between cuts of the same project (shared media strip).
 - **LOAD / SAVE projects** next to Export; **Save & leave** when exiting; saved projects on the start page.

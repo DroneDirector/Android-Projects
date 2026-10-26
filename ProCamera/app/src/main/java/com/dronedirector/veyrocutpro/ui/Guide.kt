@@ -96,6 +96,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Capture tips", Icons.Filled.CameraAlt, null, listOf(
+            "Keyboard: Space = shutter / record, + / − zoom, [ / ] exposure, Tab = next mode. Settings → Keyboard shortcuts changes them.",
             "Read-outs: drag the histogram / scopes, exposure read-out or audio meter anywhere. Pinch one (or hold it and drag the amber grip) to resize it; double-tap to make it small but still live.",
             "Teleprompter: tap PROMPTER in the quick bar (it also opens by itself with the selfie camera once you've typed a text). ✎ types your text and sets its look — bold, italic, underline, narrow, left / centre / right, size, text colour, background colour and opacity, scroll speed, mirror for teleprompter glass. ▶ or AUTO-SCROLL makes it scroll by itself — set the speed with the slider at the bottom of the teleprompter (or it starts with recording); ↺ goes back to the top. Drag the top bar to move it and the corner to resize it; — shrinks it to a small TELEPROMPTER bar (▢ or PROMPTER opens it again), ✕ closes it. ⇅ / ⇆ (or ✎ → Scrolling) switches between scrolling up (the default) and sideways as one line, like a news ticker.",
             "Pro read-out bar: ISO, S, F, WB, EV and ZOOM show their live values — tap one to change it. EXP shows AUTO, S-PRI (shutter priority: set S, ISO follows the light), ISO-PRI (set ISO, shutter follows) or M (both manual). REC shows resolution, frame rate and bitrate in video.",
@@ -200,6 +201,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "AI erase on a RAW makes a normal copy to work on; after that, the photo is edited like a JPEG.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Photo editor tips", Icons.Filled.Photo, null, listOf(
+            "File menu (file icon): new, open, open recent, save as, save a copy, revert, capture, import and exit. Keyboard icon: change any shortcut.",
             "Network (NAS): + → Network (NAS) opens photos (RAW too) from your Synology or other NAS on the same Wi-Fi. A sign-in is asked for only when needed; remembering it is up to you (encrypted, never shown; gear → Network (NAS) → Remove).",
             "Pinch to zoom in on the photo and drag it; when you let go, the crop becomes what you see. Double-tap = whole photo again. In Masks, Heal and the Retouch brush two fingers only zoom the view.",
             "Crop & perspective → UPRIGHT straightens horizons and buildings for you. Heal → FIND DUST AUTOMATICALLY removes sensor dust.",
@@ -286,6 +288,9 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Video editor tips", Icons.Filled.Movie, null, listOf(
+            "File menu (file icon): new and open projects, several open at once (File → Open projects), save as / save a copy / revert, capture, import, new sequence, bin, offline file, captions, transcript, title, team projects, collect files, exit.",
+            "Team projects: File → New team project puts the project in a shared folder on your NAS (or a shared folder); the team sees who has it open and can open it read-only meanwhile.",
+            "Keyboard icon: every shortcut — tap one and press the key you want for it.",
             "Network (NAS): Media → Network (NAS) finds your Synology or other NAS on the same Wi-Fi (or type its address). Pick videos, photos and audio; they're copied into the app. Sign in only if the NAS asks — then choose whether to remember it (encrypted, never shown; gear → Network (NAS) → Remove). A saved sign-in opens with the phone's fingerprint, PIN or pattern — they stay in the phone.",
             "Buttons under the picture: frame steps, in / out, marker, safe margins, playback resolution (preview only), magnifier (view only), export frame, settings. The + at the end chooses which ones you see.",
             "Pinch on the picture to zoom in and drag it into place — the export is framed exactly as seen. Double-tap = whole picture again.",

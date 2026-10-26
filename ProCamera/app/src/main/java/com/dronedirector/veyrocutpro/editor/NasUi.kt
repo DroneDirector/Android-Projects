@@ -73,9 +73,10 @@ import kotlinx.coroutines.withContext
  */
 @Composable
 fun NasBrowserDialog(
-    kinds: NasKinds, onDismiss: () -> Unit, onPicked: (List<Uri>) -> Unit,
+    kinds: NasKinds, onDismiss: () -> Unit,
     /** Folder mode (team projects): only folders are shown, and "Use this folder" hands the open NAS over. */
     pickFolder: ((link: NasLink, share: String, path: String) -> Unit)? = null,
+    onPicked: (List<Uri>) -> Unit = {},
 ) {
     var handedOver by remember { mutableStateOf(false) }
     val context = LocalContext.current

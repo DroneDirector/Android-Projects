@@ -77,6 +77,9 @@ internal class EditorState(initial: VideoProjectData?, context: Context) {
     /** Shortening a main-video clip: false (normal) = a black gap is left; true = the gap closes and everything after moves up (all tracks). */
     var trimRipple by mutableStateOf(context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("tl_trim_ripple", false))
     /** A gap being made after a trim: clips from this index on are drawn this much later until it's in. */
+    /** Tools bar → Reveal in library: the file to pick out in the media strip, and a counter to do it again. */
+    var revealUri by mutableStateOf<String?>(null)
+    var revealTick by mutableStateOf(0)
     var gapHold by mutableStateOf<Pair<String, Long>?>(null)
     var infoText by mutableStateOf("")
     var pendingRestore by mutableStateOf<java.io.File?>(null)

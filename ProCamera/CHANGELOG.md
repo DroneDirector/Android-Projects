@@ -4,6 +4,14 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- **File menu** (file icon next to the layout and gear icons), with fold-out groups:
+  - Video editor — **Project**: New project, New team project, Open project, Open recent, Open team project, Project settings. **Open projects**: several projects open at once — switch between them in a tap; Close project, Close other projects, Close all projects (unsaved changes are asked about). **Save**: Save project changes, Save as, Save a copy, Revert to saved. **Capture** (shots go to the media strip). **Import**: gallery, files, a whole folder, audio, NAS, project archive. **New**: Sequence (shape and frame rate), Sequence from clip, Bin, Offline file, Captions (from the transcript, AI, a subtitle file or empty), Transcript, Title. **Team**: open, share this project, let go, your name. **Dependencies**: Collect files, Make offline, Link media. **Exit**.
+  - Photo editor — Project (new, open, open recent, settings), Save (changes, save as, save a copy, revert), Capture, Import (gallery, files, NAS), Exit.
+- **Team projects**: a video project kept in a shared folder — on your NAS or a shared / cloud folder — that the whole team opens. Every file the edit uses is copied there once; opening copies it down once. The others see who has it open (they can open it read-only meanwhile), and saving over a newer version asks first.
+- **Offline media**: New → Offline file makes a black stand-in (marked OFFLINE on the timeline) for a shot you don't have yet; Make offline unlinks a clip's media but keeps its trims and settings; Link media brings the file back or swaps in another.
+- **Collect files**: copies every file the project uses (and the project itself) into one folder.
+- **Keyboard shortcuts you can change** (keyboard icon in both editors; Capture → Settings → Keyboard shortcuts): tap an action and press the key (with Ctrl, Shift or Alt) — standard keys for playback, marking, editing, timeline, pages and the File menu in the video editor; rating, labels, panels and the File menu in the photo editor; shutter, zoom, exposure, locks, modes and overlays in Capture.
+- **Exit** in the File menu closes the app with the same fade as the home screen's EXIT.
 
 ## 1.0.592 — 2026-10-26
 - Photo and video editor start pages: the whole page now scrolls when it's taller than the screen, so the recent photos / videos at the bottom are always reachable.

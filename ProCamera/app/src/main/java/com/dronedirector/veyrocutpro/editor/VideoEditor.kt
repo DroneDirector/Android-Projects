@@ -3906,6 +3906,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 thumbHeight = h,
                 vertical = vertical,
                 modifier = if (vertical) Modifier.fillMaxSize() else Modifier,
+                reveal = es.revealUri, revealTick = es.revealTick,
                 onZoom = { step -> stripPane.dp = (stripH + step).coerceIn(40f, 240f); stripPane.save() },
                     library = library, uses = { c -> clips.count { it.uri == c.uri } }, ratings = ratings,
                     bins = bins, binNames = binNames,
@@ -3934,7 +3935,18 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     val pages = (if (stripTab) listOf(Page.STRIP) else emptyList()) + (if (com.dronedirector.veyrocutpro.camera.SimpleMode.on)
                         listOf(Page.MEDIA, Page.PROXY, Page.EDIT, Page.TEXT, Page.TRANSITIONS, Page.COLOR, Page.LAYERS, Page.AUDIO, Page.DELIVER)
                     else Page.entries.filter { it != Page.STRIP })
-                    Chips(pages.map { it.label }, pages.indexOf(es.page)) { es.page = pages[it] }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.weight(1f)) { Chips(pages.map { it.label }, pages.indexOf(es.page)) { es.page = pages[it] } }
+                        RevealMenu(clips.getOrNull(es.selected)) {
+                            val c = clips.getOrNull(es.selected) ?: return@RevealMenu
+                            // The clip is put in the media strip if it isn't there yet, then picked out there.
+                            if (library.none { it.uri == c.uri }) library.add(c.copy(id = java.util.UUID.randomUUID().toString(), startMs = 0, endMs = c.durationMs, speed = 1f, ramp = null, rampName = null, volKeys = null, transition = Transition()))
+                            if (!showStrip) com.dronedirector.veyrocutpro.ui.Panels.set(context, "ve.mediastrip", true)
+                            if (stripTab) es.page = Page.STRIP
+                            es.revealUri = c.uri.toString(); es.revealTick++
+                            es.message = "\"${c.name}\" is picked out in the media strip"
+                        }
+                    }
                     if (clips.isNotEmpty() && (es.page == Page.EDIT || es.page == Page.COLOR || es.page == Page.AUDIO)) CopyPasteBar(
                         video = true,
                         onCopy = {

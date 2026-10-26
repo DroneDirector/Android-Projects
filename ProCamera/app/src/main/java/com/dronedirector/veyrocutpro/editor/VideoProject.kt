@@ -846,4 +846,9 @@ internal fun hasAudioTrack(context: Context, uri: Uri): Boolean = audioTrackCach
         ex.setDataSource(context, uri, null)
         (0 until ex.trackCount).any { ex.getTrackFormat(it).getString(android.media.MediaFormat.KEY_MIME)?.startsWith("audio/") == true }
     } catch (_: Throwable) { true } finally { ex.release() }
+        // A second opinion before treating a clip as silent (its sound must never be dropped by mistake).
+        || try {
+            val m = android.media.MediaMetadataRetriever()
+            try { m.setDataSource(context, uri); m.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO) == "yes" } finally { m.release() }
+        } catch (_: Throwable) { true }
 }

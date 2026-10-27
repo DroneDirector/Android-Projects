@@ -11,7 +11,7 @@ import androidx.media3.effect.BaseGlShaderProgram
 import androidx.media3.effect.GlEffect
 import androidx.media3.effect.GlShaderProgram
 
-enum class TransitionGroup(val label: String) { BASIC("Basic"), WIPES("Wipes & shapes"), MOTION("Motion"), FANCY("Stylized"), CINEMATIC("Cinematic") }
+enum class TransitionGroup(val label: String) { BASIC("Basic"), WIPES("Wipes & shapes"), MOTION("Motion"), FANCY("Stylized"), CINEMATIC("Cinematic"), TRAVEL("Drone & travel") }
 
 /** How the incoming clip is combined with the outgoing one. */
 enum class TransitionKind { UNIFORM, MASK, MOVE }
@@ -74,6 +74,19 @@ enum class TransitionType(val id: Float, val label: String, val group: Transitio
     SUN_RAYS(62f, "Sun rays", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),
     NEON(64f, "Neon edges", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),
     EMBERS(65f, "Ember drift", TransitionGroup.CINEMATIC, TransitionKind.MASK),
+    RACK_FOCUS(67f, "Rack focus", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),
+    LUMA_FADE(70f, "Luma fade", TransitionGroup.CINEMATIC, TransitionKind.MASK),
+    SHINE(72f, "Shine sweep", TransitionGroup.CINEMATIC, TransitionKind.MASK),
+    BOKEH(74f, "Bokeh lights", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),
+    PRISM(75f, "Prism split", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),
+
+    // Drone & travel set (original shaders).
+    CLOUD_PASS(66f, "Cloud pass", TransitionGroup.TRAVEL, TransitionKind.UNIFORM),
+    WARP_ZOOM(68f, "Warp zoom", TransitionGroup.TRAVEL, TransitionKind.UNIFORM),
+    DRONE_ROLL(69f, "Drone roll", TransitionGroup.TRAVEL, TransitionKind.UNIFORM),
+    DOLLY_ZOOM(71f, "Dolly zoom", TransitionGroup.TRAVEL, TransitionKind.UNIFORM),
+    FILM_GATE(73f, "Film gate roll", TransitionGroup.TRAVEL, TransitionKind.MOVE),
+    HEAT_HAZE(76f, "Heat haze", TransitionGroup.TRAVEL, TransitionKind.UNIFORM),
 }
 
 /**
@@ -106,14 +119,20 @@ enum class AudioTransitionType(val label: String, val detail: String) {
     DIP("Dip to silence", "Outgoing fades out, a short silence, then the next clip fades in."),
     QUICK_OUT("Quick out, slow in", "Old sound disappears fast; new sound eases in."),
     QUICK_IN("Slow out, quick in", "Old sound lingers and fades; new sound arrives fast."),
+    S_CURVE("S-curve", "Eases out and in at both ends, quick in the middle. The softest crossfade, for dialogue and ambience."),
+    PAUSE("Dramatic pause", "Old sound fades fast, a beat of silence, then the new sound lands. For big reveals."),
+    LATE_SWAP("Late swap", "Keeps the old sound until near the end of the transition, then swaps quickly."),
+    EARLY_SWAP("Early swap", "The new clip's sound takes over at the start of the transition; the picture follows the sound."),
+    SWELL("Swell", "The new sound rises slowly and blooms at the end while the old one fades evenly. Lovely into music."),
 }
 
-enum class FadeCurve { LINEAR, POWER, EXP }
+enum class FadeCurve { LINEAR, POWER, EXP, SMOOTH }
 
 private fun curveIn(c: FadeCurve, p: Float): Float = when (c) {
     FadeCurve.LINEAR -> p
     FadeCurve.POWER -> kotlin.math.sin(p * (Math.PI / 2).toFloat())
     FadeCurve.EXP -> p * p
+    FadeCurve.SMOOTH -> 0.5f - 0.5f * kotlin.math.cos(p * Math.PI.toFloat())
 }
 
 /** Fade at the end of the outgoing clip: starts [fromEndMs] before its end, takes [lenMs], then silence. */
@@ -161,6 +180,11 @@ object AudioXfade {
             AudioTransitionType.DIP -> FadeOut(w, h, FadeCurve.POWER) to FadeIn(h, h, FadeCurve.POWER)
             AudioTransitionType.QUICK_OUT -> FadeOut(w, q, FadeCurve.LINEAR) to FadeIn(0, w, FadeCurve.POWER)
             AudioTransitionType.QUICK_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, q, FadeCurve.LINEAR)
+            AudioTransitionType.S_CURVE -> FadeOut(w, w, FadeCurve.SMOOTH) to FadeIn(0, w, FadeCurve.SMOOTH)
+            AudioTransitionType.PAUSE -> FadeOut(w, q, FadeCurve.POWER) to FadeIn(w * 3 / 5, (w * 2 / 5).coerceAtLeast(1), FadeCurve.POWER)
+            AudioTransitionType.LATE_SWAP -> FadeOut(q, q, FadeCurve.POWER) to FadeIn(w - q, q, FadeCurve.POWER)
+            AudioTransitionType.EARLY_SWAP -> FadeOut(w, q, FadeCurve.POWER) to FadeIn(0, q, FadeCurve.POWER)
+            AudioTransitionType.SWELL -> FadeOut(w, w, FadeCurve.LINEAR) to FadeIn(0, w, FadeCurve.EXP)
         }
     }
 
@@ -219,6 +243,11 @@ object TransitionMath {
         54 -> ss(0.45f, 0.55f, p)
         55, 56 -> ss(0.49f, 0.51f, p)
         62 -> ss(0.35f, 0.65f, p)
+        66 -> ss(0.42f, 0.58f, p)
+        67, 74 -> ss(0.35f, 0.65f, p)
+        68, 69 -> ss(0.45f, 0.55f, p)
+        71, 75 -> ss(0.4f, 0.6f, p)
+        76 -> ss(0.3f, 0.7f, p)
         else -> 1f
     }
 
@@ -228,7 +257,7 @@ object TransitionMath {
         return when (t) {
             TransitionType.PUSH_LEFT, TransitionType.WHIP_LEFT -> (if (incoming) 1 - e else -e) to 0f
             TransitionType.PUSH_RIGHT, TransitionType.WHIP_RIGHT -> (if (incoming) -(1 - e) else e) to 0f
-            TransitionType.PUSH_UP -> 0f to (if (incoming) 1 - e else -e)
+            TransitionType.PUSH_UP, TransitionType.FILM_GATE -> 0f to (if (incoming) 1 - e else -e)
             TransitionType.PUSH_DOWN -> 0f to (if (incoming) -(1 - e) else e)
             else -> 0f to 0f
         }
@@ -350,6 +379,9 @@ object TransitionMath {
             return res;
         }
 
+        float shineX(vec2 uv, float aspect) { return (uv.x * aspect + (1.0 - uv.y) * 0.5) / (aspect + 0.5); }
+        vec2 rot2(vec2 q, float a) { float cs = cos(a); float sn = sin(a); return vec2(q.x * cs - q.y * sn, q.x * sn + q.y * cs); }
+
         float revealC(vec2 uv) {
             float p = uP; float aspect = uSize.x / uSize.y;
             if (isT(50.0)) return 1.0 - smoothstep(-0.015, 0.015, burnField(uv, aspect) - burnEdge(p));
@@ -363,6 +395,13 @@ object TransitionMath {
             if (isT(60.0)) return boxFace(uv, aspect, p, 1.0).z;
             if (isT(61.0)) return step(0.5, p) * flipFace(uv, aspect, p).z;
             if (isT(65.0)) return step(emberField(uv, aspect), mix(-0.1, 1.1, p));
+            if (isT(66.0)) return sstep(0.42, 0.58, p);
+            if (isT(67.0) || isT(74.0)) return sstep(0.35, 0.65, p);
+            if (isT(68.0) || isT(69.0)) return sstep(0.45, 0.55, p);
+            if (isT(70.0)) { float th = mix(1.15, -0.15, p); return smoothstep(th - 0.12, th + 0.12, lum(tex(uv).rgb)); }
+            if (isT(71.0) || isT(75.0)) return sstep(0.4, 0.6, p);
+            if (isT(72.0)) return cover(shineX(uv, aspect), mix(-0.15, 1.15, p), 0.035);
+            if (isT(76.0)) return sstep(0.3, 0.7, p);
             return 1.0;
         }
 
@@ -557,6 +596,121 @@ object TransitionMath {
                 col += vec3(1.0, 0.45, 0.1) * ember * flick * 1.8;
                 float sp = step(0.994, rnd(floor((uv0 - vec2(0.0, p * 0.35)) * uSize / 4.0)));
                 col += vec3(1.0, 0.55, 0.15) * sp * (1.0 - smoothstep(0.0, 0.3, -ahead)) * step(ahead, 0.0) * 2.0;
+            } else if (isT(66.0)) {
+                // Cloud pass: flying forward into a cloud bank, out of it into the next shot.
+                float z = inc ? mix(1.25, 1.0, easeF(p)) : mix(1.0, 1.35, easeF(p));
+                col = mtex(c / z + 0.5).rgb;
+                vec2 q = uv0 * vec2(aspect, 1.0);
+                float n1 = fbm(q * 2.4 + vec2(p * 1.6, p * 0.5));
+                float n2 = fbm(q * 5.5 - vec2(p * 2.4, p * 0.2));
+                float dens = clamp(k * 1.7 - 0.3 + (n1 * 0.7 + n2 * 0.3 - 0.5) * 1.3, 0.0, 1.0);
+                vec3 cloud = mix(vec3(0.74, 0.79, 0.86), vec3(1.0, 0.99, 0.97), smoothstep(0.3, 0.8, n2 + uv0.y * 0.3));
+                col = mix(col, cloud, smoothstep(0.0, 1.0, dens));
+            } else if (isT(67.0)) {
+                // Rack focus: the shot melts into soft bokeh, the next one pulls into focus.
+                float r = 0.022 * pow(k, 1.4);
+                vec2 b = c / (1.0 + 0.025 * k) + 0.5;
+                vec3 acc = vec3(0.0); float ws = 0.0;
+                for (int i = 0; i < 24; i++) {
+                    float fi = float(i);
+                    float a = fi * 2.39996;
+                    float rr = sqrt((fi + 0.5) / 24.0) * r;
+                    vec3 s = mtex(b + vec2(cos(a), sin(a)) * rr * vec2(1.0 / aspect, 1.0)).rgb;
+                    float w = 1.0 + pow(lum(s), 4.0) * 8.0 * k;
+                    acc += s * w; ws += w;
+                }
+                col = acc / ws;
+            } else if (isT(68.0)) {
+                // Warp zoom: a fast zoom with motion blur that punches through into the next shot.
+                float s = inc ? mix(0.35, 1.0, easeF(p)) : mix(1.0, 3.0, easeF(p));
+                vec2 b = c / s;
+                vec3 acc = vec3(0.0);
+                for (int i = 0; i < 16; i++) {
+                    float f = float(i) / 15.0 - 0.5;
+                    vec2 o = b * (1.0 + f * 0.55 * k);
+                    acc += vec3(mtex(o * (1.0 + 0.02 * k) + 0.5).r, mtex(o + 0.5).g, mtex(o * (1.0 - 0.02 * k) + 0.5).b);
+                }
+                col = acc / 16.0 + vec3(pow(k, 4.0) * 0.7);
+            } else if (isT(69.0)) {
+                // Drone roll: the horizon rolls over with motion blur into the next shot.
+                float ang = inc ? -(1.0 - easeF(p)) * 3.14159265 : easeF(p) * 3.14159265;
+                vec2 q = c * vec2(aspect, 1.0);
+                vec3 acc = vec3(0.0);
+                for (int i = 0; i < 12; i++) {
+                    float f = float(i) / 11.0 - 0.5;
+                    vec2 r = rot2(q, ang + f * 0.5 * k);
+                    acc += mtex(r / vec2(aspect, 1.0) / (1.0 + k * 0.7) + 0.5).rgb;
+                }
+                col = acc / 12.0;
+            } else if (isT(70.0)) {
+                // Luma fade: the brightest parts change first, the shadows last, with a soft glow on the edge.
+                col = tex(uv0).rgb;
+                float th = mix(1.15, -0.15, p);
+                col += vec3(1.0, 0.95, 0.85) * (1.0 - smoothstep(0.0, 0.12, abs(lum(col) - th))) * 0.35 * k;
+            } else if (isT(71.0)) {
+                // Dolly zoom: the middle holds still while the background stretches away.
+                vec2 q = c * vec2(aspect, 1.0);
+                float d2 = dot(q, q);
+                float z = inc ? mix(1.15, 1.0, easeF(p)) : mix(1.0, 1.15, easeF(p));
+                vec3 acc = vec3(0.0);
+                for (int i = 0; i < 6; i++) {
+                    float kk = k * (0.85 + 0.05 * float(i));
+                    vec2 w = c * mix(1.0, 1.0 / (1.0 + 1.6 * d2), kk) / z;
+                    acc += mtex(w + 0.5).rgb;
+                }
+                col = acc / 6.0;
+                col *= 1.0 - 0.35 * k * d2;
+            } else if (isT(72.0)) {
+                // Shine sweep: a streak of light sweeps across and leaves the next shot behind it.
+                col = tex(uv0).rgb;
+                float d = shineX(uv0, aspect) - mix(-0.15, 1.15, p);
+                col += vec3(1.0, 0.96, 0.88) * exp(-d * d * 500.0) * 1.6 + vec3(0.7, 0.8, 1.0) * exp(-d * d * 30.0) * 0.25;
+            } else if (isT(73.0)) {
+                // Film gate roll: the frame slips up like film off its sprockets, with the frame line and flicker.
+                vec3 acc = vec3(0.0);
+                for (int i = 0; i < 8; i++) acc += tex(uv0 + vec2(0.0, (float(i) / 7.0 - 0.5) * 0.06 * k)).rgb;
+                col = acc / 8.0;
+                col *= 0.85 + 0.15 * rnd(vec2(floor(p * 24.0), 3.0)) * k + 0.15 * (1.0 - k);
+                float line = inc ? smoothstep(0.955, 0.965, uv0.y) : 1.0 - smoothstep(0.035, 0.045, uv0.y);
+                col = mix(col, vec3(0.02), line);
+                col += (rnd(uv0 * uSize + p * 50.0) - 0.5) * 0.08 * k;
+            } else if (isT(74.0)) {
+                // Bokeh lights: the shot softens behind floating out-of-focus lights.
+                vec3 acc = vec3(0.0);
+                for (int i = 0; i < 8; i++) { float a = float(i) * 0.785398; acc += mtex(uv0 + vec2(cos(a), sin(a)) * 0.012 * k * vec2(1.0 / aspect, 1.0)).rgb; }
+                col = mix(tex(uv0).rgb, acc / 8.0, smoothstep(0.0, 0.5, k));
+                vec2 g = vec2(7.0, 4.0);
+                vec2 q = uv0 + vec2(p * 0.12, -p * 0.05);
+                vec2 cell = floor(q * g);
+                for (int j = -1; j <= 1; j++) {
+                    for (int i = -1; i <= 1; i++) {
+                        vec2 cl = cell + vec2(float(i), float(j));
+                        vec2 cen = (cl + vec2(rnd(cl + 1.7), rnd(cl + 8.3))) / g;
+                        float rad = mix(0.035, 0.09, rnd(cl + 4.4));
+                        float d = length((q - cen) * vec2(aspect, 1.0));
+                        float disc = 1.0 - smoothstep(rad * 0.85, rad, d);
+                        float rim = (1.0 - smoothstep(0.0, rad * 0.12, abs(d - rad * 0.9))) * 0.4;
+                        vec3 tint = mix(vec3(1.0, 0.72, 0.38), vec3(1.0, 0.92, 0.7), rnd(cl + 2.2));
+                        col += tint * (disc * 0.28 + rim * 0.3) * k * step(0.35, rnd(cl + 6.1));
+                    }
+                }
+            } else if (isT(75.0)) {
+                // Prism split: the colours split apart and turn like light through a prism.
+                vec3 o = vec3(0.0);
+                for (int ch = 0; ch < 3; ch++) {
+                    float a = float(ch) * 2.0943951 + p * 4.0;
+                    vec2 off = vec2(cos(a), sin(a)) * 0.035 * k * vec2(1.0 / aspect, 1.0);
+                    vec3 s = mtex(c / (1.0 + 0.08 * k) + 0.5 + off).rgb;
+                    if (ch == 0) o.r = s.r; else if (ch == 1) o.g = s.g; else o.b = s.b;
+                }
+                col = o + max(o - 0.65, 0.0) * k * 1.2;
+            } else if (isT(76.0)) {
+                // Heat haze: the shot shimmers like air over hot ground, warms and blooms.
+                float n = fbm(uv0 * vec2(aspect, 1.0) * 6.0 + vec2(0.0, -p * 3.0));
+                vec2 w = vec2(sin(uv0.y * 45.0 + p * 25.0 + n * 6.0) * 0.006, cos(uv0.x * 30.0 + p * 18.0) * 0.003) * k * (0.5 + n);
+                col = mtex(uv0 + w).rgb;
+                col = mix(col, col * vec3(1.1, 0.98, 0.84), k * 0.6);
+                col += max(col - 0.6, 0.0) * k * 1.4;
             } else {
                 col = tex(uv0).rgb;
             }
@@ -696,6 +850,12 @@ object TransitionMath {
         }
     """
 
+    /** The export shader with only [a] and [b] in it: the other transitions' code is dropped when it's compiled. */
+    fun glslFor(a: TransitionType, b: TransitionType): String = GLSL_FRAGMENT.replace(
+        "bool isT(float id) { return abs(uType - id) < 0.5; }",
+        "bool isT(float id) { return (abs(${a.id} - id) < 0.5 || abs(${b.id} - id) < 0.5) && abs(uType - id) < 0.5; }",
+    )
+
     const val GLSL_VERTEX = """
         attribute vec4 aFramePosition;
         varying vec2 vTexSamplingCoord;
@@ -738,7 +898,7 @@ class TransitionEffect(private val w: TransitionWindows) : GlEffect {
 @UnstableApi
 private class TransitionProgram(private val w: TransitionWindows, useHdr: Boolean) : BaseGlShaderProgram(useHdr, 1) {
     private val program: GlProgram = try {
-        GlProgram(TransitionMath.GLSL_VERTEX, TransitionMath.GLSL_FRAGMENT)
+        GlProgram(TransitionMath.GLSL_VERTEX, TransitionMath.glslFor(w.inType, w.outType))
     } catch (e: GlUtil.GlException) {
         throw VideoFrameProcessingException(e)
     }

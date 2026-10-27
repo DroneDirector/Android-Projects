@@ -315,17 +315,19 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 ### Transitions
 Two sub-menus on the Transitions page: **Video transitions** and **Audio transitions**.
 
-**Video transitions (50)**
+**Video transitions (61)**
 - **Basic**: cross dissolve, dip to black, dip to white, flash, blur dissolve.
 - **Wipes & shapes**: wipe left / right / up / down, diagonal, iris, clock, blinds, barn door, mosaic.
 - **Motion**: push left / right / up / down, whip pan left / right, zoom in, zoom out, spin.
 - **Stylized**: light leak, ink bleed, sparkle dissolve, glitch, pixelate, chromatic, ripple, light speed, swirl.
 - **Cinematic** (13, original shaders written for AlcorCut Pro): film burn, anamorphic flare, lens warp, letterbox close, aperture (iris blades), smoke, shatter, kaleidoscope, cube turn (3D), card flip (3D), sun rays, neon edges, ember drift.
+- **More cinematic**: rack focus (melts into bokeh, pulls into focus), luma fade (brightest parts change first), shine sweep, bokeh lights, prism split.
+- **Drone & travel** (original shaders): cloud pass (fly through a cloud bank), warp zoom (zoom punch with motion blur), drone roll (horizon roll with motion blur), dolly zoom (vertigo effect), film gate roll, heat haze.
 - **More glitches** (Stylized): Glitch 2 · Datamosh, Glitch 3 · VHS rewind, Glitch 4 · Pixel sort.
 - Animated previews with your own clips, adjustable duration, apply to all cuts.
 
-**Audio transitions (8)**
-- Match video (default), hard cut, constant gain, constant power, exponential fade, dip to silence, quick out / slow in, slow out / quick in — each with a small volume-curve picture.
+**Audio transitions (13)**
+- Match video (default), hard cut, constant gain, constant power, exponential fade, dip to silence, quick out / slow in, slow out / quick in, S-curve, dramatic pause, late swap, early swap, swell — each with a small volume-curve picture.
 - Work over the video transition, or on a plain cut as a fade out / in around the cut (adjustable 0.1–3 s); in the preview and the export; apply to all cuts.
 
 **Sound effects on cuts (24)**

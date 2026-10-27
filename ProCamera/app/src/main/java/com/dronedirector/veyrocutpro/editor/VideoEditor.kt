@@ -3964,8 +3964,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 TimelineView(
                     onDeleteClip = { i -> if (es.videoLocked) es.message = "The video track is locked" else es.deleteAsk = i },
                     pick = wf.pick,
+                    onDetachAudio = {
+                        val ids = if (wf.pick.on && wf.pick.ids.isNotEmpty()) wf.pick.ids.toSet() else setOfNotNull(clips.getOrNull(es.selected)?.id)
+                        clips.indices.filter { clips[it].id in ids && !clips[it].muted }.forEach { detachAudio(it) }
+                        if (ids.isNotEmpty() && clips.none { it.id in ids && !it.muted }.not()) es.message = "Some clips couldn't be detached (speed changed or ramped)"
+                    },
                     clipMenu = {
                         ClipMenu(clips, wf.pick, ClipActs(
+                            select = { i -> es.selected = i; es.message = "Tap clips to pick them — Color changes go to every picked clip" },
                             splitHere = { i -> if (es.current == i) splitAtPlayhead() else es.message = "Move the playhead into this clip to split it" },
                             duplicate = { list ->
                                 if (es.videoLocked) es.message = "The video track is locked"
@@ -3978,6 +3984,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             reverse = { i -> reverseClip(i) },
                             mute = { list -> val on = list.all { clips[it].muted }; list.forEach { k -> update(k) { it.copy(muted = !on) } }; es.message = if (on) "Sound on" else "Sound muted" },
                             nest = { from, n -> nestClips(from, n) },
+                            detach = { list -> list.forEach { detachAudio(it) } },
                             delete = { i -> if (es.videoLocked) es.message = "The video track is locked" else es.deleteAsk = i },
                             deleteMany = { list ->
                                 if (es.videoLocked) es.message = "The video track is locked"
@@ -4382,7 +4389,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 }
                                 Text("For clips filmed with an anamorphic lens or adapter: stretches the picture back to its real shape (preview and export).", color = Pro.Dim, fontSize = 11.sp)
                             }
-                            Page.COLOR -> if (sc != null) ColorPage(sc, es.colorTab, { es.colorTab = it }, maskTools = maskTools, posUs = (if (es.selected == es.current) sc.startMs + es.posMs else sc.startMs) * 1000, onChange = { f -> update(es.selected, f) },
+                            Page.COLOR -> if (sc != null) ColorPage(sc, es.colorTab, { es.colorTab = it }, maskTools = maskTools, posUs = (if (es.selected == es.current) sc.startMs + es.posMs else sc.startMs) * 1000, onChange = { f -> wf.pick.applyTo(clips, es.selected, f) },
                                 onTrackPen = { m -> trackPen(es.selected, m.id) }, penTracking = wx.penTrackingId,
                                 onErase = {
                                     val st = clipStarts(clips).getOrNull(es.selected) ?: 0L
@@ -5275,7 +5282,7 @@ private fun ColorPage(
             WheelControl("Highlight tint", g.gradeHighlights, showLuma = false) { w -> grade { it.copy(gradeHighlights = w) } }
         }
         ColorTab.PRIMARIES -> {
-            SectionTitle("PRIMARIES") { grade { it.copy(exposure = 0f, contrast = 0f, pivot = 0.435f, temperature = 0f, tint = 0f, saturation = 0f, vibrance = 0f, highlights = 0f, shadows = 0f, whites = 0f, blacks = 0f, dehaze = 0f) } }
+            SectionTitle("PRIMARIES") { grade { it.copy(exposure = 0f, contrast = 0f, pivot = 0.435f, temperature = 0f, tint = 0f, saturation = 0f, vibrance = 0f, highlights = 0f, shadows = 0f, whites = 0f, blacks = 0f, dehaze = 0f) }; detail { it.copy(clarity = 0f, texture = 0f) } }
             EdSlider("Exposure", g.exposure, -3f..3f, format = ::ev) { v -> grade { it.copy(exposure = v) } }
             EdSlider("Contrast", g.contrast) { v -> grade { it.copy(contrast = v) } }
             EdSlider("Pivot", g.pivot, 0.2f..0.7f, 0.435f, ::pct) { v -> grade { it.copy(pivot = v) } }
@@ -5288,6 +5295,8 @@ private fun ColorPage(
             EdSlider("Whites", g.whites) { v -> grade { it.copy(whites = v) } }
             EdSlider("Blacks", g.blacks) { v -> grade { it.copy(blacks = v) } }
             EdSlider("Dehaze", g.dehaze) { v -> grade { it.copy(dehaze = v) } }
+            EdSlider("Clarity", c.detail.clarity) { v -> detail { it.copy(clarity = v) } }
+            EdSlider("Texture", c.detail.texture) { v -> detail { it.copy(texture = v) } }
         }
         ColorTab.CURVES -> {
             var ch by remember { mutableStateOf(0) }

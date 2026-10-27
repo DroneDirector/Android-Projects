@@ -13,6 +13,8 @@ import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -164,6 +166,8 @@ fun TimelineView(
     /** Hold a clip for its menu; picking several clips at once. */
     pick: ClipPick? = null,
     clipMenu: (@Composable () -> Unit)? = null,
+    /** "DETACH AUDIO": the selected (or picked) clips' sound becomes its own audio track below. */
+    onDetachAudio: (() -> Unit)? = null,
 ) {
     val density = LocalDensity.current
     val totalMs = timelineLength(clips).coerceAtLeast(1)
@@ -261,26 +265,43 @@ fun TimelineView(
     val curSelectTransition by rememberUpdatedState(onSelectTransition)
 
     Column(Modifier.fillMaxWidth().background(Ed.DarkBg)) {
-        // Toolbar
+        // Toolbar (the buttons scroll sideways when the screen is narrow).
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(tc(headMs), style = Pro.Value.copy(color = accent, fontSize = 13.sp))
-            Text(" / ${tc(totalMs)}", style = Pro.Value.copy(color = Pro.Dim, fontSize = 11.sp), modifier = Modifier.weight(1f))
+            Text(tc(headMs), style = Pro.Value.copy(color = accent, fontSize = 13.sp), maxLines = 1)
+            Text(" / ${tc(totalMs)}", style = Pro.Value.copy(color = Pro.Dim, fontSize = 11.sp), maxLines = 1)
+            Box(Modifier.weight(1f).padding(start = 6.dp), contentAlignment = Alignment.CenterEnd) {
+            Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
             if (pick != null && pick.on) Text(
-                "${pick.ids.size} SELECTED  ✕", style = Pro.Label.copy(color = Color.Black, fontSize = 10.sp),
+                "${pick.ids.size} SELECTED  ✕", style = Pro.Label.copy(color = Color.Black, fontSize = 10.sp), maxLines = 1,
                 modifier = Modifier.padding(end = 4.dp).clip(RoundedCornerShape(50)).background(accent).clickable { pick.clear() }.padding(horizontal = 8.dp, vertical = 4.dp),
             )
+            if (pick != null && clips.isNotEmpty()) {
+                val all = pick.on && clips.all { it.id in pick.ids }
+                Text(
+                    if (all) "DESELECT ALL" else "SELECT ALL", style = Pro.Label.copy(color = Color.White, fontSize = 10.sp), maxLines = 1,
+                    modifier = Modifier.padding(end = 4.dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.1f))
+                        .clickable { if (all) pick.clear() else { pick.ids.clear(); pick.ids.addAll(clips.map { it.id }); pick.on = true } }
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+            }
+            if (onDetachAudio != null && clips.isNotEmpty()) Text(
+                "♪ DETACH AUDIO", style = Pro.Label.copy(color = Color(0xFF7FE0A8), fontSize = 10.sp), maxLines = 1,
+                modifier = Modifier.padding(end = 4.dp).clip(RoundedCornerShape(50)).background(Color(0xFF7FE0A8).copy(alpha = 0.14f)).clickable(onClick = onDetachAudio).padding(horizontal = 8.dp, vertical = 4.dp),
+            )
             if (onAddVideoLayer != null) Text(
-                "+ VIDEO", style = Pro.Label.copy(color = Color(0xFF7FA8FF), fontSize = 10.sp),
+                "+ VIDEO", style = Pro.Label.copy(color = Color(0xFF7FA8FF), fontSize = 10.sp), maxLines = 1,
                 modifier = Modifier.padding(end = 4.dp).clip(RoundedCornerShape(50)).background(Color(0xFF3D7BFF).copy(alpha = 0.18f)).clickable(onClick = onAddVideoLayer).padding(horizontal = 8.dp, vertical = 4.dp),
             )
             Text(
-                "◆ MARKER", style = Pro.Label.copy(color = accent, fontSize = 10.sp),
+                "◆ MARKER", style = Pro.Label.copy(color = accent, fontSize = 10.sp), maxLines = 1,
                 modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onToggleMarker).padding(horizontal = 8.dp, vertical = 4.dp),
             )
             Text(
-                if (snapping) "SNAP ✓" else "SNAP", style = Pro.Label.copy(color = if (snapping) Color.Black else Color.White, fontSize = 10.sp),
+                if (snapping) "SNAP ✓" else "SNAP", style = Pro.Label.copy(color = if (snapping) Color.Black else Color.White, fontSize = 10.sp), maxLines = 1,
                 modifier = Modifier.padding(start = 4.dp).clip(RoundedCornerShape(50)).background(if (snapping) accent else Color.White.copy(alpha = 0.1f)).clickable(onClick = onToggleSnap).padding(horizontal = 8.dp, vertical = 4.dp),
             )
+            }
+            }
         }
         BoxWithConstraints(
             Modifier

@@ -35,15 +35,23 @@ class ClipPick {
     fun start(id: String) { ids.clear(); ids.add(id); on = true }
     fun toggle(id: String) { if (id in ids) ids.remove(id) else ids.add(id) }
     fun clear() { ids.clear(); on = false }
+    /** A colour change: to the clip on screen and, while picking, to every picked clip the same way. */
+    fun applyTo(clips: MutableList<Clip>, selected: Int, f: (Clip) -> Clip) {
+        if (selected in clips.indices) clips[selected] = f(clips[selected])
+        if (on) for (k in clips.indices) if (k != selected && clips[k].id in ids) clips[k] = f(clips[k])
+    }
 }
 
 /** What the clip menu can do; the editor fills these in. */
 class ClipActs(
+    /** Makes clip [i] the one on screen (its colour is shown and edited). */
+    val select: (Int) -> Unit,
     val splitHere: (Int) -> Unit,
     val duplicate: (List<Int>) -> Unit,
     val speed: (Int) -> Unit,
     val reverse: (Int) -> Unit,
     val mute: (List<Int>) -> Unit,
+    val detach: (List<Int>) -> Unit,
     val nest: (from: Int, count: Int) -> Unit,
     val delete: (Int) -> Unit,
     val deleteMany: (List<Int>) -> Unit,
@@ -64,13 +72,14 @@ fun ClipMenu(clips: List<Clip>, pick: ClipPick, act: ClipActs) {
         DropdownMenu(true, onDismissRequest = { close() }, containerColor = Pro.PanelSolid) {
             if (!pick.on) {
                 Text("${i + 1}  ${c.name}", color = Pro.Dim, fontSize = 11.sp, maxLines = 1, modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp))
-                item("Select multiple") { pick.start(c.id) }
+                item("Select multiple") { pick.start(c.id); act.select(i) }
                 HorizontalDivider(color = Pro.Fg.copy(alpha = 0.1f))
                 item("Split at the playhead") { act.splitHere(i) }
                 item("Duplicate") { act.duplicate(listOf(i)) }
                 item("Speed / Duration…") { act.speed(i) }
                 item("Reverse") { act.reverse(i) }
                 item(if (c.muted) "Turn sound on" else "Mute sound") { act.mute(listOf(i)) }
+                if (!c.muted) item("Detach audio") { act.detach(listOf(i)) }
                 HorizontalDivider(color = Pro.Fg.copy(alpha = 0.1f))
                 item("Delete", Pro.Red) { act.delete(i) }
             } else {
@@ -83,6 +92,7 @@ fun ClipMenu(clips: List<Clip>, pick: ClipPick, act: ClipActs) {
                     HorizontalDivider(color = Pro.Fg.copy(alpha = 0.1f))
                     item("Duplicate") { act.duplicate(idx) }
                     item(if (idx.all { clips[it].muted }) "Turn sound on" else "Mute sound") { act.mute(idx) }
+                    item("Detach audio") { act.detach(idx) }
                     // Nesting needs clips side by side.
                     if (idx.size >= 2 && idx.last() - idx.first() == idx.size - 1) item("Nest into one clip") { act.nest(idx.first(), idx.size); pick.clear() }
                     HorizontalDivider(color = Pro.Fg.copy(alpha = 0.1f))

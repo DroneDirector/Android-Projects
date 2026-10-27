@@ -3733,5 +3733,14 @@
 "Remove selected from strip": "Fjern valgte fra strimlen",
 "Export this photo": "Eksportér dette foto",
 "Sound muted": "Lyd fra",
-"Move the playhead into this clip to split it": "Flyt afspilningshovedet ind i dette klip for at dele det"
+"Move the playhead into this clip to split it": "Flyt afspilningshovedet ind i dette klip for at dele det",
+"Video editor: while clips are picked (Select multiple or SELECT ALL), every change on the Color page — primaries, wheels, curves, LUTs, looks — is made the same way on all picked clips.": "Videoredigering: mens klip er valgt (Vælg flere eller VÆLG ALLE), laves hver ændring på Farve-siden — primære, hjul, kurver, LUT'er, looks — på samme måde på alle valgte klip.",
+"Photo editor: while photos are picked in the filmstrip, whatever you change on the open photo changes the same way on the picked photos (only the settings you touch; each keeps the rest of its own edit).": "Fotoredigering: mens fotos er valgt i filmstrimlen, ændres det, du ændrer på det åbne foto, på samme måde på de valgte fotos (kun de indstillinger, du rører; hvert beholder resten af sin egen redigering).",
+"Color → Primaries: Clarity and Texture under Dehaze — clarity is broad mid-tone punch (or a softer, dreamier look below 0), texture brings out or smooths fine detail like skin, leaves and fabric.": "Farve → Primære: Klarhed og Tekstur under Dis — klarhed giver bred kraft i mellemtonerne (eller et blødere, drømmende look under 0), tekstur fremhæver eller udglatter fine detaljer som hud, blade og stof.",
+"Timeline bar: SELECT ALL / DESELECT ALL next to + VIDEO, ◆ MARKER and SNAP, and ♪ DETACH AUDIO — the selected clip's (or every picked clip's) sound becomes its own audio track below the video. Holding a clip offers Detach audio too.": "Tidslinjens bjælke: VÆLG ALLE / FRAVÆLG ALLE ved siden af + VIDEO, ◆ MARKØR og SNAP, og ♪ ADSKIL LYD — det valgte klips (eller hvert valgt klips) lyd bliver sit eget lydspor under videoen. Hold et klip for også at få Adskil lyd.",
+"SELECT ALL": "VÆLG ALLE",
+"DESELECT ALL": "FRAVÆLG ALLE",
+"♪ DETACH AUDIO": "♪ ADSKIL LYD",
+"Tap clips to pick them — Color changes go to every picked clip": "Tryk på klip for at vælge dem — farveændringer gælder alle valgte klip",
+"Some clips couldn't be detached (speed changed or ramped)": "Nogle klip kunne ikke adskilles (ændret hastighed eller rampe)"
 }

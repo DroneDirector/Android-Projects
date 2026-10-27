@@ -3785,5 +3785,14 @@
 "Remove selected from strip": "Tak valt úr strimlinum",
 "Export this photo": "Útflyt hesa myndina",
 "Sound muted": "Ljóð sløkt",
-"Move the playhead into this clip to split it": "Flyt spælihøvdið inn í hetta klippið fyri at klúgva tað"
+"Move the playhead into this clip to split it": "Flyt spælihøvdið inn í hetta klippið fyri at klúgva tað",
+"Video editor: while clips are picked (Select multiple or SELECT ALL), every change on the Color page — primaries, wheels, curves, LUTs, looks — is made the same way on all picked clips.": "Videoklipping: meðan klipp eru vald (Vel fleiri ella VEL ØLL), verður hvør broyting á Lit-síðuni — primerar, hjól, kurvar, LUT'ar, útsjónir — gjørd á sama hátt á øllum valdu klippunum.",
+"Photo editor: while photos are picked in the filmstrip, whatever you change on the open photo changes the same way on the picked photos (only the settings you touch; each keeps the rest of its own edit).": "Myndaklipping: meðan myndir eru valdar í filmsstrimlinum, broytist tað, tú broytir á opnu myndini, á sama hátt á valdu myndunum (bert tær stillingar, tú nertir við; hvør heldur restina av síni egnu tillaging).",
+"Color → Primaries: Clarity and Texture under Dehaze — clarity is broad mid-tone punch (or a softer, dreamier look below 0), texture brings out or smooths fine detail like skin, leaves and fabric.": "Litur → Primerar: Klárleiki og Tekstur undir Dis — klárleiki gevur breiða kraft í miðtónunum (ella ein bleytari, dreymandi útsjónd undir 0), tekstur dregur fram ella sléttar fínar smálutir sum húð, lauv og tekstil.",
+"Timeline bar: SELECT ALL / DESELECT ALL next to + VIDEO, ◆ MARKER and SNAP, and ♪ DETACH AUDIO — the selected clip's (or every picked clip's) sound becomes its own audio track below the video. Holding a clip offers Detach audio too.": "Tíðarlinjubjálkin: VEL ØLL / STRIKA ALT VALT við síðuna av + VIDEO, ◆ MERKI og SNAP, og ♪ SKIL LJÓÐ — ljóðið í valda klippinum (ella í hvørjum valdum klippi) verður sítt egna ljóðspor undir videoini. At halda eitt klipp gevur eisini Skil ljóð.",
+"SELECT ALL": "VEL ØLL",
+"DESELECT ALL": "STRIKA ALT VALT",
+"♪ DETACH AUDIO": "♪ SKIL LJÓÐ",
+"Tap clips to pick them — Color changes go to every picked clip": "Trýst á klipp fyri at velja tey — litbroytingar galda øll valdu klippini",
+"Some clips couldn't be detached (speed changed or ramped)": "Summi klipp kundu ikki skiljast (broytt ferð ella rampa)"
 }

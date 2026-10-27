@@ -91,6 +91,9 @@ data class SessionPhoto(
 object PhotoSession {
     val items = mutableStateListOf<SessionPhoto>()
     var current by mutableStateOf(-1)
+    /** Filmstrip → Select multiple: on, and the picked photos (by file). Edits on the open photo follow to them. */
+    var selecting by mutableStateOf(false)
+    val picked = mutableStateListOf<String>()
     private var loaded = false
 
     // The open catalog's photo list (see Catalogs).
@@ -311,9 +314,9 @@ fun Filmstrip(
 ) {
     val context = LocalContext.current
     val items = PhotoSession.items
-    var selecting by remember { mutableStateOf(false) }
+    var selecting by PhotoSession::selecting
     // Everything here works by the photo's file (uri), never by its position: positions change when photos are removed.
-    val picked = remember { mutableStateListOf<String>() }
+    val picked = PhotoSession.picked
     var filter by remember { mutableStateOf(0) }   // 0 all, 1 ★3+, 2 picks, 3 edited, 4 not rejected
     var menuFor by remember { mutableStateOf<String?>(null) }
     var askCull by remember { mutableStateOf(false) }

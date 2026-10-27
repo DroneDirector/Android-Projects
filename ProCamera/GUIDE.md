@@ -170,6 +170,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Wheel over the photo = next / previous filmstrip photo, right-click = before / after split, double-click = hide or show the tools. Right-click a filmstrip thumbnail for stars, flags and labels.
 **Filmstrip (many photos)**
 - Hold a photo in the filmstrip → Select multiple: tap photos to tick them, hold any photo for the selection's menu (stars, flags, apply the open photo's edit, export, rename, remove), and Deselect all goes back to one photo. Holding a photo also offers Apply the open photo's edit and Export this photo.
+- Photo editor: while photos are picked in the filmstrip, whatever you change on the open photo changes the same way on the picked photos (only the settings you touch; each keeps the rest of its own edit).
 - The + on the filmstrip offers Gallery, Browse files and Camera. Camera opens the full Capture screen with all its pro controls; each photo you take goes straight into the filmstrip. "← Back to photo editor" (or Back) returns.
 - The filmstrip is the open **catalog**: each photo keeps a copy, its edit and settings, ratings and AI results (saved as you work). ⚙ → Catalog: new / open / rename / delete catalogs, how many photos to remember (10 or more, or Unlimited), photo copies on / off, and where the catalog is stored (phone, shared storage, SD card). Storage is lossless only.
 - Hold the divider above the filmstrip, then drag it up or down to change the thumbnail size. Double-tap the divider to reset it.
@@ -284,6 +285,9 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 **Timeline**
 - In / out points show as IN / OUT flags on the ruler, the rest is dimmed. Markers and keyframes shine like the scroll wheels; gear → Marker effects turns that off.
 - Hold the middle of a clip on the timeline for its menu: Select multiple, Split at the playhead, Duplicate, Speed / Duration, Reverse, Mute sound, Delete. While selecting, tap clips to tick them; hold any clip for Deselect all, Select all, Duplicate, Mute, Nest into one clip and Delete selected. The ✕ on the timeline's SELECTED badge also ends it.
+- Video editor: while clips are picked (Select multiple or SELECT ALL), every change on the Color page — primaries, wheels, curves, LUTs, looks — is made the same way on all picked clips.
+- Color → Primaries: Clarity and Texture under Dehaze — clarity is broad mid-tone punch (or a softer, dreamier look below 0), texture brings out or smooths fine detail like skin, leaves and fabric.
+- Timeline bar: SELECT ALL / DESELECT ALL next to + VIDEO, ◆ MARKER and SNAP, and ♪ DETACH AUDIO — the selected clip's (or every picked clip's) sound becomes its own audio track below the video. Holding a clip offers Detach audio too.
 - Hold a clip's edge and drag: the edge follows your finger. Shortening a clip leaves a black gap and everything else stays where it was. Gear → Trimming closes the gap: the gap closes and everything after it — on every track — moves left by the same amount (locked tracks stay).
 - Track headers: the eye hides a track (main video, layers, texts, watermarks), the speaker mutes it (main video, audio, video layers' own sound), the lock protects it from edits.
 **Render & export**

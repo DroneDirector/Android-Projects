@@ -321,3 +321,21 @@ object AutoSave {
         all.drop(keep(c, video)).forEach { ProjectStore.delete(c, video, it.id) }
     }
 }
+
+/** Applies only the settings that changed between [prev] and [now] to [target] (each picked photo keeps the rest of its own edit). */
+object EditDiff {
+    fun <T : Any> apply(prev: T, now: T, target: T): T {
+        if (prev == now) return target
+        val g = ProjectStore.gson
+        val a = g.toJsonTree(prev).asJsonObject; val b = g.toJsonTree(now).asJsonObject; val t = g.toJsonTree(target).asJsonObject
+        for (k in a.keySet() + b.keySet()) if (a.get(k) != b.get(k)) { if (b.has(k)) t.add(k, b.get(k)) else t.remove(k) }
+        @Suppress("UNCHECKED_CAST")
+        return g.fromJson(t, now.javaClass) as T
+    }
+    fun <T : Any> applyOrNull(prev: T?, now: T?, target: T?): T? = when {
+        prev == now -> target
+        now == null -> null
+        prev == null || target == null -> now
+        else -> apply(prev, now, target)
+    }
+}

@@ -349,8 +349,8 @@ fun hueRgb(h: Float): Triple<Float, Float, Float> {
 data class Detail(
     val sharpen: Float = 0f,    // 0..1
     val denoise: Float = 0f,    // 0..1
-    val clarity: Float = 0f,    // -1..1 (photo only)
-    val texture: Float = 0f,    // -1..1 (photo only)
+    val clarity: Float = 0f,    // -1..1
+    val texture: Float = 0f,    // -1..1
     val vignette: Float = 0f,   // -1..1 (negative darkens)
     val grain: Float = 0f,      // 0..1
     /** Image detail / local contrast for video (-1..1). */
@@ -387,7 +387,7 @@ data class Detail(
     val vigFeather get() = 0.5f + vignetteFeather
     val isZero get() = this == Detail()
     /** Parts the video GPU effect handles. */
-    val needsVideoPass get() = sharpen != 0f || denoise != 0f || vignette != 0f || grain != 0f || localDetail != 0f || fx != VideoFx.NONE
+    val needsVideoPass get() = sharpen != 0f || denoise != 0f || clarity != 0f || texture != 0f || vignette != 0f || grain != 0f || localDetail != 0f || fx != VideoFx.NONE
 }
 
 enum class VideoFx(val label: String) {

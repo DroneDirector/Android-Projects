@@ -11,7 +11,7 @@ import androidx.media3.effect.BaseGlShaderProgram
 import androidx.media3.effect.GlEffect
 import androidx.media3.effect.GlShaderProgram
 
-/** GPU sharpen, denoise, vignette and film grain for video (preview and export). */
+/** GPU sharpen, denoise, texture, clarity, vignette and film grain for video (preview and export). */
 @UnstableApi
 class DetailEffect(private val d: Detail) : GlEffect {
     override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram = DetailProgram(d, useHdr)
@@ -55,6 +55,8 @@ private class DetailProgram(private val d: Detail, useHdr: Boolean) :
             program.setFloatUniform("uAspect", aspect)
             program.setFloatUniform("uTime", (presentationTimeUs % 10_000_000L) / 1_000_000f)
             program.setFloatUniform("uDetail", d.localDetail)
+            program.setFloatUniform("uClarity", d.clarity)
+            program.setFloatUniform("uTexture", d.texture)
             program.setIntUniform("uFx", d.fx.ordinal)
             program.setFloatUniform("uFxAmt", d.fxAmount)
             program.bindAttributesAndUniforms()
@@ -90,6 +92,8 @@ private class DetailProgram(private val d: Detail, useHdr: Boolean) :
             uniform float uAspect;
             uniform float uTime;
             uniform float uDetail;
+            uniform float uClarity;
+            uniform float uTexture;
             uniform int uFx;
             uniform float uFxAmt;
             varying vec2 vTexSamplingCoord;
@@ -141,6 +145,20 @@ private class DetailProgram(private val d: Detail, useHdr: Boolean) :
                     float l = dot(rgb, vec3(0.299, 0.587, 0.114));
                     float mid = 1.0 - abs(l - 0.5) * 2.0;
                     rgb += (rgb - wide) * uDetail * 1.2 * mid;
+                }
+                // Texture: fine detail (skin, foliage, fabric) up or smoothed, larger shapes untouched.
+                if (uTexture != 0.0) {
+                    vec3 fine = blur9(uv, 1.6);
+                    if (uTexture > 0.0) rgb += (rgb - fine) * uTexture * 1.6;
+                    else rgb = mix(rgb, fine, -uTexture * 0.85);
+                }
+                // Clarity: wide local contrast in the mid-tones (punchier, or softer and dreamier).
+                if (uClarity != 0.0) {
+                    vec3 broad = (blur9(uv, 10.0) + blur9(uv, 18.0)) * 0.5;
+                    float l = dot(rgb, vec3(0.299, 0.587, 0.114));
+                    float mid = clamp(1.0 - abs(l - 0.5) * 1.6, 0.0, 1.0);
+                    if (uClarity > 0.0) rgb += (rgb - broad) * uClarity * 1.1 * mid;
+                    else rgb = mix(rgb, broad, -uClarity * 0.6 * mid);
                 }
                 if (uFx == 1) { float l = dot(rgb, vec3(0.299, 0.587, 0.114)); rgb = mix(rgb, vec3(l), uFxAmt); }
                 if (uFx == 2) { rgb = mix(rgb, blur9(uv, 2.0 + 8.0 * uFxAmt), 0.85); }

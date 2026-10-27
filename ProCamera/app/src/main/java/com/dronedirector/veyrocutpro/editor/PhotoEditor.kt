@@ -560,6 +560,7 @@ private fun PhotoWorkspace(
     /** Which picture [base] was loaded from (set once that photo — and its RAW data — has loaded). */
     var baseFor by remember { mutableStateOf<String?>(null) }
     var preview by remember { mutableStateOf<Bitmap?>(null) }
+    val liveSyncLock = remember { kotlinx.coroutines.sync.Mutex() }
     var edit by remember {
         // Photos taken with the editor's camera start without the remembered watermark (add one by hand if wanted).
         mutableStateOf(editOf(context, initial, PhotoSession.items.none { it.camera == true && it.uri == uri.toString() }))
@@ -1583,6 +1584,51 @@ private fun PhotoWorkspace(
             message = "Edit synced to ${targets.size} photo" + (if (targets.size == 1) "" else "s")
             com.dronedirector.veyrocutpro.ExportService.end(context, "photo-sync")
         }
+    }
+    /** Select multiple in the filmstrip: whatever changes on the open photo changes the same way on every picked photo. */
+    fun followTo(list: List<Int>, prev: PhotoEdit, now: PhotoEdit) {
+        val targets = list.filter { it != sessionIdx }
+        if (targets.isEmpty()) return
+        scope.launch {
+            liveSyncLock.lock()
+            try {
+                for (i in targets) withContext(Dispatchers.IO) {
+                    try {
+                        val p = sessionProject(i) ?: return@withContext
+                        val q = p.copy(
+                            grade = EditDiff.apply(prev.grade, now.grade, p.grade),
+                            detail = EditDiff.apply(prev.detail, now.detail, p.detail),
+                            lens = EditDiff.apply(prev.lens, now.lens, p.lens),
+                            raw = EditDiff.applyOrNull(prev.raw, now.raw, p.raw),
+                            session = true,
+                        )
+                        if (q == p) return@withContext
+                        val small = GradeIO.decode(context, q.uri, 320)
+                        val thumb = small?.let { b ->
+                            val tables = if (q.grade.isIdentity) null else q.grade.tables()
+                            ImageOps.renderPhoto(b, q.grade, q.detail.copy(aiDenoise = 0f), q.geometry, tables, q.lens, null, null).also { if (it !== b) b.recycle() }
+                        }
+                        val saved = ProjectStore.savePhoto(context, q, thumb)
+                        withContext(Dispatchers.Main) { PhotoSession.update(context, i) { it.copy(projectId = saved.id, edited = true, version = System.currentTimeMillis()) } }
+                    } catch (_: Throwable) {}
+                }
+            } finally { liveSyncLock.unlock() }
+        }
+    }
+    // The open photo's edit when last passed on (and which photo it was: switching photos is not a change).
+    var followBase by remember { mutableStateOf<Pair<Int, PhotoEdit>?>(null) }
+    LaunchedEffect(edit.grade, edit.detail, edit.lens, edit.raw, PhotoSession.selecting, sessionIdx) {
+        val others = PhotoSession.picked.count { k -> PhotoSession.items.getOrNull(sessionIdx)?.key != k }
+        val fb = followBase
+        val base = fb?.second
+        if (!PhotoSession.selecting || others == 0 || base == null || fb.first != sessionIdx || sessionIdx < 0 ||
+            (base.grade == edit.grade && base.detail == edit.detail && base.lens == edit.lens && base.raw == edit.raw)) {
+            followBase = sessionIdx to edit; return@LaunchedEffect
+        }
+        delay(600)
+        val now = edit
+        followBase = sessionIdx to now
+        followTo(PhotoSession.picked.map { k -> PhotoSession.items.indexOfFirst { it.key == k } }.filter { it >= 0 }, base, now)
     }
     /** Exports the selected filmstrip photos, each with its own edit, using the export settings here. */
     fun exportSession(list: List<Int>) {

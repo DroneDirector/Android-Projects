@@ -4,6 +4,10 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: while clips are picked (Select multiple or SELECT ALL), every change on the Color page — primaries, wheels, curves, LUTs, looks — is made the same way on all picked clips.
+- Photo editor: while photos are picked in the filmstrip, whatever you change on the open photo changes the same way on the picked photos (only the settings you touch; each keeps the rest of its own edit).
+- Color → Primaries: Clarity and Texture under Dehaze — clarity is broad mid-tone punch (or a softer, dreamier look below 0), texture brings out or smooths fine detail like skin, leaves and fabric.
+- Timeline bar: SELECT ALL / DESELECT ALL next to + VIDEO, ◆ MARKER and SNAP, and ♪ DETACH AUDIO — the selected clip's (or every picked clip's) sound becomes its own audio track below the video. Holding a clip offers Detach audio too.
 
 ## 1.0.610 — 2026-10-27
 - **Select multiple** in the photo filmstrip: hold a photo in the filmstrip → Select multiple: tap photos to tick them, hold any photo for the selection's menu (stars, flags, apply the open photo's edit, export, rename, remove), and Deselect all goes back to one photo. Holding a photo also offers Apply the open photo's edit and Export this photo.

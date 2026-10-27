@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.626 — 2026-10-27
 - The Play button effect switch is under gear → Layout & look, and also under gear → Playback.
 
 ## 1.0.624 — 2026-10-27

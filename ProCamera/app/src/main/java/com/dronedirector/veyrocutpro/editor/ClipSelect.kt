@@ -35,10 +35,21 @@ class ClipPick {
     fun start(id: String) { ids.clear(); ids.add(id); on = true }
     fun toggle(id: String) { if (id in ids) ids.remove(id) else ids.add(id) }
     fun clear() { ids.clear(); on = false }
-    /** A colour change: to the clip on screen and, while picking, to every picked clip the same way. */
+    /** A change to the clip on screen; while picking, the same change goes to every picked clip (its own media and trims stay). */
     fun applyTo(clips: MutableList<Clip>, selected: Int, f: (Clip) -> Clip) {
-        if (selected in clips.indices) clips[selected] = f(clips[selected])
-        if (on) for (k in clips.indices) if (k != selected && clips[k].id in ids) clips[k] = f(clips[k])
+        val before = clips.getOrNull(selected) ?: return
+        val after = f(before)
+        clips[selected] = after
+        if (!on || before == after) return
+        for (k in clips.indices) if (k != selected && clips[k].id in ids) {
+            clips[k] = try { EditDiff.apply(before, after, clips[k], OWN) } catch (_: Throwable) { clips[k] }
+        }
+    }
+
+    companion object {
+        /** What belongs to each clip itself and is never copied to the others. */
+        val OWN = setOf("id", "uri", "name", "durationMs", "width", "height", "startMs", "endMs", "mime", "hdr", "tenBit",
+            "chroma", "bitDepth", "decoder", "undecodable", "nested", "offline", "offlineOf", "volKeys")
     }
 }
 

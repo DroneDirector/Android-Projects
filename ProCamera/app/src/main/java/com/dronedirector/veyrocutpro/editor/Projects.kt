@@ -322,20 +322,35 @@ object AutoSave {
     }
 }
 
-/** Applies only the settings that changed between [prev] and [now] to [target] (each picked photo keeps the rest of its own edit). */
+/**
+ * Applies only the settings that changed between [prev] and [now] to [target], down to single values inside
+ * groups (one slider moved = only that value), so each picked photo or clip keeps the rest of its own edit.
+ * [prev] / [now] may be another type with the same field names (the photo editor's edit vs a saved photo).
+ */
 object EditDiff {
-    fun <T : Any> apply(prev: T, now: T, target: T): T {
+    fun <T : Any> apply(prev: Any, now: Any, target: T, skip: Set<String> = emptySet()): T {
         if (prev == now) return target
         val g = ProjectStore.gson
-        val a = g.toJsonTree(prev).asJsonObject; val b = g.toJsonTree(now).asJsonObject; val t = g.toJsonTree(target).asJsonObject
-        for (k in a.keySet() + b.keySet()) if (a.get(k) != b.get(k)) { if (b.has(k)) t.add(k, b.get(k)) else t.remove(k) }
-        @Suppress("UNCHECKED_CAST")
-        return g.fromJson(t, now.javaClass) as T
+        val t = g.toJsonTree(target).asJsonObject
+        if (!merge(g.toJsonTree(prev).asJsonObject, g.toJsonTree(now).asJsonObject, t, skip)) return target
+        return g.fromJson(t, target.javaClass)
     }
-    fun <T : Any> applyOrNull(prev: T?, now: T?, target: T?): T? = when {
-        prev == now -> target
-        now == null -> null
-        prev == null || target == null -> now
-        else -> apply(prev, now, target)
+
+    private fun merge(a: com.google.gson.JsonObject, b: com.google.gson.JsonObject, t: com.google.gson.JsonObject, skip: Set<String>): Boolean {
+        var changed = false
+        for (k in a.keySet() + b.keySet()) {
+            if (k in skip) continue
+            val av = a.get(k); val bv = b.get(k)
+            if (av == bv) continue
+            val tv = t.get(k)
+            if (av is com.google.gson.JsonObject && bv is com.google.gson.JsonObject && tv is com.google.gson.JsonObject) {
+                val copy = tv.deepCopy()
+                if (merge(av, bv, copy, emptySet())) { t.add(k, copy); changed = true }
+            } else {
+                if (bv == null) t.remove(k) else t.add(k, bv.deepCopy())
+                changed = true
+            }
+        }
+        return changed
     }
 }

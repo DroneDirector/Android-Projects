@@ -1595,13 +1595,9 @@ private fun PhotoWorkspace(
                 for (i in targets) withContext(Dispatchers.IO) {
                     try {
                         val p = sessionProject(i) ?: return@withContext
-                        val q = p.copy(
-                            grade = EditDiff.apply(prev.grade, now.grade, p.grade),
-                            detail = EditDiff.apply(prev.detail, now.detail, p.detail),
-                            lens = EditDiff.apply(prev.lens, now.lens, p.lens),
-                            raw = EditDiff.applyOrNull(prev.raw, now.raw, p.raw),
-                            session = true,
-                        )
+                        // Every change follows; the photo's own AI-erased copy and AI-made masks stay its own.
+                        var q = EditDiff.apply(prev, now, p, setOf("baseFile", "id", "name", "uri", "savedAt", "session", "autosave")).copy(session = true)
+                        if (q.masks != p.masks) q = q.copy(masks = q.masks.filter { it.maskFile == null } + p.masks.filter { it.maskFile != null })
                         if (q == p) return@withContext
                         val small = GradeIO.decode(context, q.uri, 320)
                         val thumb = small?.let { b ->
@@ -1617,12 +1613,12 @@ private fun PhotoWorkspace(
     }
     // The open photo's edit when last passed on (and which photo it was: switching photos is not a change).
     var followBase by remember { mutableStateOf<Pair<Int, PhotoEdit>?>(null) }
-    LaunchedEffect(edit.grade, edit.detail, edit.lens, edit.raw, PhotoSession.selecting, sessionIdx) {
+    LaunchedEffect(edit, PhotoSession.selecting, sessionIdx) {
         val others = PhotoSession.picked.count { k -> PhotoSession.items.getOrNull(sessionIdx)?.key != k }
         val fb = followBase
         val base = fb?.second
         if (!PhotoSession.selecting || others == 0 || base == null || fb.first != sessionIdx || sessionIdx < 0 ||
-            (base.grade == edit.grade && base.detail == edit.detail && base.lens == edit.lens && base.raw == edit.raw)) {
+            base == edit) {
             followBase = sessionIdx to edit; return@LaunchedEffect
         }
         delay(600)

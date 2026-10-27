@@ -467,9 +467,9 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                                 modifier = Modifier.align(Alignment.TopCenter).padding(top = 38.dp).clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 8.dp, vertical = 2.dp),
                             )
                         }
-                        // Cast to a TV: on the picture (default), unless the gear puts it below.
+                        // Cast to a TV: on the picture (default; drag it anywhere, pinch to resize, double tap to make it small), unless the gear puts it below.
                         if (!clean && tablet && panelOn("cap.cast") && CastPlace.get(context, "cap") == 0)
-                            CastButton({ controller.castFrame() }, Modifier.align(Alignment.TopEnd).padding(top = 96.dp, end = 10.dp))
+                            DraggableOverlay("cast", Alignment.CenterEnd, s.layoutVersion) { CastButton({ controller.castFrame() }) }
                         val hints = panelOn("cap.hints")
                         if (hints) SmartModeHint(s, Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp))
                         ProcessingBadge(s, Modifier.align(Alignment.Center))

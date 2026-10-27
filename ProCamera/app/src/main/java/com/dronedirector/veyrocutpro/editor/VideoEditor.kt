@@ -4313,7 +4313,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             )
                             Page.TRANSITIONS -> TransitionsPanel(
                                 clips, es.selected, thumbs,
-                                onChange = { t -> update(es.selected, { it.copy(transition = t) }) },
+                                onChange = { t -> wf.pick.applyTo(clips, es.selected) { it.copy(transition = t) } },
                                 onApplyAll = { t -> for (i in 0 until clips.lastIndex) clips[i] = clips[i].copy(transition = t); es.message = "${t.type.label} on every cut" },
                                 onApplyAllAudio = { t ->
                                     for (i in 0 until clips.lastIndex) clips[i] = clips[i].copy(transition = clips[i].transition.copy(audio = t.audio, audioMs = t.audioMs, sfx = t.sfx, sfxVol = t.sfxVol, userSfx = t.userSfx))
@@ -4328,7 +4328,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             Page.EDIT -> if (sc != null) com.dronedirector.veyrocutpro.ui.FoldColumn {
                                 EditPage(
                                 sc, es.selected, clips.size, es.posMs, es.deliver, { es.deliver = it },
-                                onChange = { f -> if (es.videoLocked) es.message = "The video track is locked" else update(es.selected, f) },
+                                onChange = { f -> if (es.videoLocked) es.message = "The video track is locked" else wf.pick.applyTo(clips, es.selected, f) },
                                 onSplit = { splitAtPlayhead() },
                                 onFreeze = { freezeAtPlayhead() },
                                 onReverse = { reverseClip(es.selected) },
@@ -4386,7 +4386,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                         if (on && es.selected != es.current) load(es.selected, 0, false)
                                         if (on) deck.cur.pause()
                                     },
-                                    onChange = { f -> update(es.selected, f) },
+                                    onChange = { f -> wf.pick.applyTo(clips, es.selected, f) },
                                     onAnalyze = { analyze(sc) },
                                     playheadRel = if (es.selected == es.current) es.posMs else 0L,
                                     onSeekRel = { t ->
@@ -4477,7 +4477,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     { audioFx.maxOf { it.peak } }, { musicFxProc.peak }, { id -> extraFx[id]?.peak ?: 0f },
                                 ),
                                 onTts = { t, v, sp -> makeTts(t, v, sp) }, ttsProgress = wx.ttsProgress, ttsStatus = wx.ttsStatus, onStopTts = { wx.ttsJob?.cancel(); wx.ttsJob = null; wx.ttsProgress = null; wx.ttsStatus = null },
-                                onChange = { f -> update(es.selected, f) },
+                                onChange = { f -> wf.pick.applyTo(clips, es.selected, f) },
                                 onPickMusic = { pickMusic.launch(arrayOf("audio/*")) },
                                 onMusic = { es.music = it; if (it == null) musicPlayer.stop() },
                                 extra = extraAudio,

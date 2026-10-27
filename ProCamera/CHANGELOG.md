@@ -4,9 +4,10 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Capture: the Cast button on the picture (tablets) can be dragged anywhere, pinched to resize and double-tapped to make it small, like the other read-outs.
 - Video editor, buttons under the picture: Play is bigger (an amber circle) and sits in the middle of the playback buttons — mute, go to in, previous clip and frame back on its left, frame forward, next clip, go to out and start on its right — and the row starts with Play centred under the picture; swipe the row for the rest.
-- Video editor: while clips are picked (Select multiple or SELECT ALL), every change on the Color page — primaries, wheels, curves, LUTs, looks — is made the same way on all picked clips.
-- Photo editor: while photos are picked in the filmstrip, whatever you change on the open photo changes the same way on the picked photos (only the settings you touch; each keeps the rest of its own edit).
+- Video editor: while clips are picked (Select multiple or SELECT ALL), every change you make — colour, primaries, wheels, curves, LUTs, detail, effects, speed, audio, transitions, crop and more — is made the same way on all picked clips (only the settings you touch; each clip keeps its own media, trims and the rest of its edit).
+- Photo editor: while photos are picked in the filmstrip, every change you make on the open photo — light, colour, detail, effects, lens, crop, masks, text and more — is made the same way on the picked photos (only the settings you touch; AI-made masks and AI-erased copies stay each photo's own).
 - Color → Primaries: Clarity and Texture under Dehaze — clarity is broad mid-tone punch (or a softer, dreamier look below 0), texture brings out or smooths fine detail like skin, leaves and fabric.
 - Timeline bar: SELECT ALL / DESELECT ALL next to + VIDEO, ◆ MARKER and SNAP, and ♪ DETACH AUDIO — the selected clip's (or every picked clip's) sound becomes its own audio track below the video. Holding a clip offers Detach audio too.
 

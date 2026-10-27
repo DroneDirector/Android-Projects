@@ -144,7 +144,7 @@
   /**
    * Port of the app's MousePointerHost (ui/MousePointer.kt): an arrow with a gradient fill, a soft
    * breathing halo, a comet trail (260 ms), a click ripple (450 ms) and a spark orbiting at 13 px
-   * every 2.4 s. Colour #4FE3FF and its partner (hue + 70°), as in the app.
+   * every 2.4 s. Colour #74def8 and its partner (hue + 70°), as in the app.
    */
   function pointer() {
     var cv = doc.createElement("canvas"); cv.className = "acs-pointer"; cv.setAttribute("aria-hidden", "true");

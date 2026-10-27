@@ -220,7 +220,7 @@ class ACS_Video extends ACS_Base {
     /** Vimeo player address from a vimeo.com link (also private links with a hash). Do Not Track is on. */
     public static function player($url) {
         if (!preg_match('~vimeo\.com/(?:video/|channels/[^/]+/|groups/[^/]+/videos/)?(\d+)(?:/([0-9a-f]+))?~i', (string) $url, $m)) return '';
-        $q = ['dnt' => 1, 'title' => 0, 'byline' => 0, 'portrait' => 0, 'color' => 'ffb300', 'autoplay' => 1];
+        $q = ['dnt' => 1, 'title' => 0, 'byline' => 0, 'portrait' => 0, 'color' => 'f2b544', 'autoplay' => 1];
         if (!empty($m[2])) $q['h'] = $m[2];
         if (preg_match('~[?&]h=([0-9a-f]+)~i', (string) $url, $h)) $q['h'] = $h[1];
         return 'https://player.vimeo.com/video/' . $m[1] . '?' . http_build_query($q);

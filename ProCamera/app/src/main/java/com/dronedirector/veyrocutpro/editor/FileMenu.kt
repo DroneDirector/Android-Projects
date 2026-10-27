@@ -154,9 +154,7 @@ fun FileMenuButton(fa: FileActions, st: FileMenuState) {
     var group by remember { mutableStateOf<String?>("project") }
     Box {
         TopIcon(Icons.Filled.InsertDriveFile, "File") { st.menu = true }
-        // Never taller than the screen: it scrolls, and an opened group is scrolled into view (nothing jumps away).
-        val maxH = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.8f).dp
-        DropdownMenu(st.menu, onDismissRequest = { st.menu = false }, containerColor = Pro.PanelSolid, modifier = Modifier.widthIn(min = 260.dp).heightIn(max = maxH)) {
+        com.dronedirector.veyrocutpro.ui.ScrollMenu(st.menu, onDismissRequest = { st.menu = false }, width = 300.dp) {
             fun go(a: () -> Unit) { st.menu = false; a() }
             if (fa.isTeam()) Text(
                 "Team project · " + fa.teamLabel() + if (fa.teamReadOnly()) " · read-only" else "",

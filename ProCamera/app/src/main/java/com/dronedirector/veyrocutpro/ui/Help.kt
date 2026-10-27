@@ -52,7 +52,7 @@ fun HelpButton(v: GuideVariant, size: androidx.compose.ui.unit.Dp = 22.dp) {
         Box(Modifier.clip(CircleShape).clickable { open = true }.padding(10.dp)) {
             Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Help", tint = Color.White, modifier = Modifier.size(size))
         }
-        DropdownMenu(open, onDismissRequest = { open = false }, containerColor = Pro.PanelSolid, modifier = Modifier.widthIn(min = 240.dp).heightIn(max = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.8f).dp)) {
+        ScrollMenu(open, onDismissRequest = { open = false }, width = 280.dp) {
             @Composable
             fun Item(t: String, sub: Boolean = false, a: () -> Unit) {
                 Text(t, color = Color.White, fontSize = if (sub) 13.sp else 14.sp,

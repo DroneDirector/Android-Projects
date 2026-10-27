@@ -215,7 +215,7 @@ fun MarkersMenuButton(
     }
     Box {
         TransportIcon(Icons.Filled.Bookmarks, "Markers") { open = true; sub = null }
-        DropdownMenu(open, onDismissRequest = { open = false }, containerColor = Pro.PanelSolid, modifier = Modifier.heightIn(max = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.8f).dp)) {
+        com.dronedirector.veyrocutpro.ui.ScrollMenu(open, onDismissRequest = { open = false }, width = 280.dp) {
             @Composable
             fun Item(t: String, enabled: Boolean = true, a: () -> Unit) {
                 Text(t, color = if (enabled) Color.White else Pro.Dim, fontSize = 14.sp,

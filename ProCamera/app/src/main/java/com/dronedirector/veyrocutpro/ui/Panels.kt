@@ -160,10 +160,7 @@ fun PanelsButton(
             )
         }
         if (tablet) {
-            DropdownMenu(
-                expanded = open, onDismissRequest = { open = false },
-                modifier = Modifier.width(320.dp).background(Pro.PanelSolid),
-            ) { content() }
+            ScrollMenu(open, onDismissRequest = { open = false }, width = 320.dp) { content() }
         } else if (open) {
             ModalBottomSheet(
                 onDismissRequest = { open = false },

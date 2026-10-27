@@ -4,8 +4,12 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+<<<<<<< Updated upstream
 
 ## 1.0.669 — 2026-10-27
+=======
+- File, Help, Panels and Markers menus: they always open right under their button and stay on the screen; when their content is taller than the room below, they scroll (with arrows). Closing a group inside them brings everything back into view, and the menu no longer changes width.
+>>>>>>> Stashed changes
 - Video editor → Transitions: 11 new picture transitions — Rack focus, Luma fade, Shine sweep, Bokeh lights and Prism split (Cinematic), and a new Drone & travel group: Cloud pass, Warp zoom, Drone roll, Dolly zoom, Film gate roll and Heat haze.
 - Video editor → Transitions → Audio: S-curve, Dramatic pause, Late swap, Early swap and Swell.
 - Exports with transitions build a smaller GPU program (only the transitions each clip uses), so they work on more phones.

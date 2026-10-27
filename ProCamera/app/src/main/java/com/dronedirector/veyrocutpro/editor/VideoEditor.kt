@@ -284,8 +284,12 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
                 // Like moving the sliders: the clip is already showing, then clarity and texture change.
                 delay(8000)
                 val i = clips.indexOfFirst { it.id == c.id }
-                if (i >= 0) clips[i] = clips[i].copy(detail = clips[i].detail.copy(clarity = amt, texture = amt))
-                android.util.Log.i("FxTest", "clarity / texture set to $amt on the open clip")
+                if (i >= 0) clips[i] = if (amt >= 2f) clips[i].copy(
+                    // 2 = film look and a privacy blur spot in the middle, set on the open clip.
+                    film = FilmLook(bloom = 0.8f, halation = 0.8f, grain = 0.8f, lensVig = 1f, lensCa = 1f),
+                    privacy = PrivacyBlur(tracks = listOf(BlurTrack(false, listOf(0L, 600_000L), listOf(0.5f, 0.5f, 0.35f, 0.35f, 0.5f, 0.5f, 0.35f, 0.35f)))),
+                ) else clips[i].copy(detail = clips[i].detail.copy(clarity = amt, texture = amt))
+                android.util.Log.i("FxTest", "test effects ($amt) set on the open clip")
             }
         }
     }
@@ -970,7 +974,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         if (gpuGrade) {
             // Android 13+: the grade is drawn on the view; the player only decodes plain video.
             texViews[pi]?.let { if (es.effectsOk) GradePreview.apply(it, adjOf(c), 0f, ClipPreviewFx.extra(context, it, pvc(c), c.startMs + startMs)) else GradePreview.clear(it) }
-            // Film / lens / deflicker need the frame itself: they run in the player (only when used).
+            // Deflicker needs to measure the frames: it runs in the player (only when used). Film looks and privacy blur are drawn on the view.
             val ff = if (es.effectsOk) liveEffects(c) else emptyList()
             if (ff.isNotEmpty() || filmOn[pi]) {
                 try { p.setVideoEffects(ff); filmOn[pi] = ff.isNotEmpty(); filmShown[pi] = liveKey(c) } catch (_: Throwable) { filmOn[pi] = false }

@@ -69,7 +69,7 @@ shot 52-phone-video-editor-dark --es screen video --es theme dark
 adb shell input tap 540 980; sleep 7
 adb shell input tap 412 1630; sleep 3   # the tour's SKIP
 # Clarity / texture test: the same test clip with them off and fully on (the pictures must differ).
-for amt in 0 1; do
+for amt in 0 1 2; do
   adb shell am force-stop "$PKG"
   adb shell am start -W -n "$ACT" --ez skipsetup true --es screen video --es fxtest $amt >/dev/null
   sleep 40; adb shell input tap 412 1630; sleep 5

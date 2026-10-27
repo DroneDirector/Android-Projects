@@ -290,7 +290,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Shape layers** (rectangle, rounded, ellipse, line, arrow, triangle, star, heart; filled or outline) and **Lottie animation layers** (.json / .zip; lottie-android, Apache 2.0).
 - **Shape (pen) masks** on clips: a smooth curve with a soft edge and its own grade, planar-tracked to follow what it covers.
 - **Object removal (AI)**: tap anything and it's removed from the whole clip — filled from the real background in nearby frames (own optical flow), with LaMa (Apache 2.0) painting only what's never seen.
-- **Privacy blur**: faces found automatically and any spot you tap (number plates, screens, signs), followed through the clip, blurred or pixelated.
+- **Privacy blur**: faces found automatically and any spot you tap (number plates, screens, signs), followed through the clip, blurred or pixelated, shown live in the preview while you adjust it.
 - **AI depth** (Depth Anything V2 Small, Apache 2.0): lens blur with real depth of field, fog / haze by distance, or a darker, calmer background.
 - **AI voiceover from text**: 12 natural English voices (Kokoro 82M, Apache 2.0; misaki dictionaries), made on the phone and added as an audio track.
 - **Studio voice (AI)**: DeepFilterNet3 (MIT / Apache 2.0) voice clean-up; **de-click** and **de-reverb** (own code).

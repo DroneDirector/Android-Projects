@@ -161,7 +161,11 @@ object PenMask {
 object ClipPreviewFx {
     fun extra(context: Context, v: View, c: Clip, srcMs: Long): RenderEffect? {
         // Inner first: depth, then pen masks, then the background cut-out.
-        val fx = listOfNotNull(DepthPreview.effect(context, v, c, srcMs), PenMask.preview(v, c, srcMs), CutoutPreview.forClip(context, v, c, srcMs))
+        val fx = listOfNotNull(
+            DepthPreview.effect(context, v, c, srcMs), PenMask.preview(v, c, srcMs), CutoutPreview.forClip(context, v, c, srcMs),
+            // Privacy blur, then the film look over everything (as in the export).
+            PrivacyPreview.effect(v, c, srcMs), FilmPreview.effect(v, c, srcMs),
+        )
         if (fx.isEmpty()) return null
         return fx.drop(1).fold(fx[0]) { inner, outer -> RenderEffect.createChainEffect(outer, inner) }
     }

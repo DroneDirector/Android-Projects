@@ -80,8 +80,8 @@ fun filmEffects(c: Clip): List<androidx.media3.common.Effect> = c.film?.takeIf {
 /** Effects the preview player runs itself on Android 13+ (the grade and the background cut-out are drawn on the view): film / lens. */
 @UnstableApi
 fun liveEffects(c: Clip): List<androidx.media3.common.Effect> =
-    (if (c.privacy?.active == true) listOf(PrivacyBlurEffect(c, 0L, preview = true)) else emptyList()) +
-    filmEffects(c)
+    // Film looks and privacy blur are drawn on the view (LivePreviewFx); only deflicker needs the frames themselves.
+    c.film?.deflicker?.takeIf { it > 0f }?.let { listOf(FilmEffect(FilmLook(deflicker = it))) } ?: emptyList()
 
 /** Just the local-contrast part of a clip's detail (texture, clarity, image detail), or null when unused. */
 fun localDetailOf(c: Clip): Detail? = c.detail.let { d ->
@@ -89,7 +89,7 @@ fun localDetailOf(c: Clip): Detail? = c.detail.let { d ->
 }
 
 /** What [liveEffects] depends on (to know when to rebuild them). */
-fun liveKey(c: Clip): Any? = listOf(c.film?.takeIf { !it.isZero }, c.privacy?.takeIf { it.active }).takeIf { it.any { x -> x != null } }
+fun liveKey(c: Clip): Any? = c.film?.deflicker?.takeIf { it > 0f }
 
 /** Preview before Android 13 (effects in the player): people background removal first, then the rest. */
 @UnstableApi

@@ -3,6 +3,7 @@
 @font-face { font-family: "ACS Grotesk"; src: url("../fonts/spacegrotesk-var.woff") format("woff"); font-weight: 300 700; font-display: swap; }
 
 :root {
+  color-scheme: dark only;
   --acs-bg: #07080a;
   --acs-panel: #111317;
   --acs-raised: #1a1d22;
@@ -22,7 +23,8 @@
 }
 
 /* ---------------------------------------------------------------- page */
-body.acs-page { background: var(--acs-bg); color: var(--acs-text); font-family: var(--acs-body); margin: 0; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+html:has(body.acs-page) { color-scheme: dark only; background: #07080a; }
+body.acs-page { color-scheme: dark only; background: var(--acs-bg); color: var(--acs-text); font-family: var(--acs-body); margin: 0; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 body.acs-page .e-con, body.acs-page .e-con-inner { --padding-top: 0; --padding-bottom: 0; --padding-left: 0; --padding-right: 0; --gap: 0; --row-gap: 0; --column-gap: 0; padding: 0; max-width: none; }
 body.acs-page .elementor-widget[class*="elementor-widget-acs-"] { margin: 0; width: 100%; }
 body.acs-page ::selection { background: var(--acs-amber); color: #000; }

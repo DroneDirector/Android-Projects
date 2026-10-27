@@ -2,7 +2,7 @@
 /**
  * Plugin Name: AlcorCut Pro Website
  * Description: The AlcorCut Pro website for Elementor: a showcase home page and full feature lists for Capture, the Photo editor and the Video editor, with the app's own look, glowing pointer, scroll-to-top, share row, beta section and Vimeo player.
- * Version: 1.0.2
+ * Version: 1.0.3
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: elementor
@@ -13,7 +13,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('ACS_VERSION', '1.0.2');
+define('ACS_VERSION', '1.0.3');
 define('ACS_FILE', __FILE__);
 define('ACS_DIR', plugin_dir_path(__FILE__));
 define('ACS_URL', plugin_dir_url(__FILE__));
@@ -84,6 +84,14 @@ function acs_is_site_page() {
 }
 
 add_filter('body_class', function ($c) { if (acs_is_site_page()) $c[] = 'acs-page'; return $c; });
+/** The pages are dark already: browsers' own dark modes (Samsung Internet, Chrome) must not recolour them. */
+add_action('wp_head', function () {
+    if (!acs_is_site_page()) return;
+    echo '<meta name="color-scheme" content="dark only">' . "\n";
+    echo '<meta name="supported-color-schemes" content="dark">' . "\n";
+    echo '<meta name="darkreader-lock">' . "\n";
+    echo '<meta name="theme-color" content="#07080a">' . "\n";
+}, 1);
 
 /** Scroll-to-top button on every plugin page (the pointer is drawn by site.js). */
 add_action('wp_footer', function () {

@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.630 — 2026-10-27
 - Color → Curves → HUE CURVES (photo and video editors): Hue vs Hue, Hue vs Sat, Hue vs Bright and Bright vs Sat — drag a colour's point up or down (e.g. orange leaves → red, only the greens less saturated, a darker blue sky, less colour in the shadows); double-tap a point to reset it.
 - Video editor → Edit → PRIVACY BLUR: FIND FACES finds every face in the clip on the phone and blurs it as it moves; + SPOT — tap anything else (a number plate, a screen, a sign) on the frame at the playhead and it's followed to the end of the clip. Blur or pixelate, strength and extra room; in the preview and the export.
 - Video editor → Audio → PITCH & VOICE: raise or lower a clip's voice up to an octave without changing its speed, and Robot, Radio, Phone or Megaphone voices — heard live in the preview and in the export.

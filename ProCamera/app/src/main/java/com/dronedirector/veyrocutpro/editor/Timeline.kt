@@ -35,7 +35,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
-import androidx.compose.material3.Icon
+import com.dronedirector.veyrocutpro.ui.Icon
 import com.dronedirector.veyrocutpro.ui.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -256,7 +256,7 @@ fun TimelineView(
     val curSelectLayer by rememberUpdatedState(onSelectLayer)
     val curSelectTransition by rememberUpdatedState(onSelectTransition)
 
-    Column(Modifier.fillMaxWidth().background(Ed.Bg)) {
+    Column(Modifier.fillMaxWidth().background(Ed.DarkBg)) {
         // Toolbar
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(tc(headMs), style = Pro.Value.copy(color = accent, fontSize = 13.sp))
@@ -602,7 +602,7 @@ fun TimelineView(
                 fun xOf(ms: Long) = leftPad + (ms - scroll) * pxPerMs
 
                 // Ruler
-                drawRect(Ed.Panel, Offset(0f, 0f), Size(size.width, ruler))
+                drawRect(Ed.DarkPanel, Offset(0f, 0f), Size(size.width, ruler))
                 val step = tickStep(pxPerSec)
                 val firstTick = ((scroll / step) * step).coerceAtLeast(0)
                 textPaint.textSize = 9.sp.toPx()
@@ -624,7 +624,7 @@ fun TimelineView(
                         val x0 = xOf(starts[i]); val x1 = xOf(starts[i] + c.lengthMs)
                         if (x1 < 0 || x0 > size.width) return@forEachIndexed
                         val rectW = (x1 - x0).coerceAtLeast(2f)
-                        drawRoundRect(Ed.Raised, Offset(x0, top), Size(rectW, clipRow), CornerRadius(6f))
+                        drawRoundRect(Ed.DarkRaised, Offset(x0, top), Size(rectW, clipRow), CornerRadius(6f))
                         // Filmstrip
                         val strip = strips[c.uri.toString()]
                         if (strip != null) {
@@ -876,7 +876,7 @@ fun TimelineView(
                 drawCircle(accent, 6.dp.toPx(), Offset(headX, 6.dp.toPx()))
             }
             // Track headers: one row per track, with its switches.
-            Column(Modifier.width(with(density) { headerW.toDp() }).background(Ed.Panel)) {
+            Column(Modifier.width(with(density) { headerW.toDp() }).background(Ed.DarkPanel)) {
                 Box(Modifier.fillMaxWidth().height(with(density) { ruler.toDp() }))
                 // Every track: eye where there is a picture, speaker where there is sound, lock always.
                 val layerHeader = @Composable { l: Layer ->
@@ -1011,7 +1011,7 @@ private fun TrackHeader(height: androidx.compose.ui.unit.Dp, label: String?, swi
             Icon(t.icon, contentDescription = t.label, tint = if (t.active) Pro.Amber else Color.White.copy(alpha = 0.8f), modifier = Modifier.size(sz * 0.62f))
         }
     }
-    Box(Modifier.fillMaxWidth().height(height).background(Ed.Raised.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxWidth().height(height).background(Ed.DarkRaised.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
         if (vertical) Column(horizontalAlignment = Alignment.CenterHorizontally) {
             if (label != null) Text(label, style = Pro.Label.copy(fontSize = 8.sp))
             Row { switches.take(2).forEach { btn(it) } }

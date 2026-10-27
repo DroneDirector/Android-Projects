@@ -3,7 +3,6 @@ package com.dronedirector.veyrocutpro.ui
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.Icon
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -722,7 +721,7 @@ private fun AeLockOverlay(s: CameraUiState, c: ProCameraController) {
                     Modifier.clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 10.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    androidx.compose.material3.Icon(
+                    com.dronedirector.veyrocutpro.ui.Icon(
                         androidx.compose.material.icons.Icons.Filled.Lock, contentDescription = "Exposure locked",
                         tint = if (s.aeLock) Pro.Amber else Color.White, modifier = Modifier.size(16.dp),
                     )
@@ -893,7 +892,7 @@ private fun ProStatus(s: CameraUiState) {
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                androidx.compose.material3.Icon(
+                com.dronedirector.veyrocutpro.ui.Icon(
                     if (locked) androidx.compose.material.icons.Icons.Filled.Lock else androidx.compose.material.icons.Icons.Filled.LockOpen,
                     contentDescription = if (locked) "Screen locked — hold to unlock" else "Lock the screen", tint = Color.White, modifier = Modifier.size(20.dp),
                 )

@@ -44,7 +44,6 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import com.dronedirector.veyrocutpro.ui.Text

@@ -96,7 +96,7 @@ fun MagicMaskDialog(target: MagicTarget, onDismiss: () -> Unit, onTrack: (MagicS
             }
             val f = frame
             val aspect = if (f != null) f.width.toFloat() / f.height else 16f / 9f
-            Box(Modifier.fillMaxWidth().aspectRatio(aspect.coerceIn(0.4f, 3f)).padding(top = 6.dp).background(Color.Black)) {
+            com.dronedirector.veyrocutpro.ui.ForceDark { Box(Modifier.fillMaxWidth().aspectRatio(aspect.coerceIn(0.4f, 3f)).padding(top = 6.dp).background(Color.Black)) {
                 if (f != null) {
                     val img = remember(f) { f.asImageBitmap() }
                     Image(img, null, Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
@@ -136,7 +136,7 @@ fun MagicMaskDialog(target: MagicTarget, onDismiss: () -> Unit, onTrack: (MagicS
                     val a = boxStart; val b = boxEnd
                     if (a != null && b != null) drawRect(Color.White, Offset(minOf(a.x, b.x), minOf(a.y, b.y)), Size(kotlin.math.abs(b.x - a.x), kotlin.math.abs(b.y - a.y)), style = Stroke(2f))
                 }
-            }
+            } }
             Text(status, color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
             Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 PillChip("+ The object", tool == 0) { tool = 0 }

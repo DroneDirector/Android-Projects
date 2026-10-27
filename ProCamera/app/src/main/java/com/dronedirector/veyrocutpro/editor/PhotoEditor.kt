@@ -66,7 +66,7 @@ import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
+import com.dronedirector.veyrocutpro.ui.Icon
 import com.dronedirector.veyrocutpro.ui.Text
 import com.dronedirector.veyrocutpro.ui.mouseActions
 import androidx.compose.runtime.Composable
@@ -1640,7 +1640,7 @@ private fun PhotoWorkspace(
         BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.displayCutout)) {
             val wide = maxWidth > maxHeight || maxWidth >= 720.dp
             val boxW = maxWidth.value; val boxH = maxHeight.value
-            val previewBox = @Composable { mod: Modifier ->
+            val previewBoxInner = @Composable { mod: Modifier ->
                 Box(
                     // Mouse: wheel = next / previous filmstrip photo, right-click = before / after split, double-click = hide / show the tools.
                     // clipToBounds: a zoomed-in photo stays inside the viewer (never over the top bar or the corners).
@@ -1969,6 +1969,8 @@ private fun PhotoWorkspace(
                 onDispose { KeyBus.handler = null }
             }
             if (showShortcuts) ShortcutsDialog(PhotoShortcuts) { showShortcuts = false }
+            // The photo stays on a dark background in the light look.
+            val previewBox = @Composable { mod: Modifier -> com.dronedirector.veyrocutpro.ui.ForceDark { previewBoxInner(mod.background(Ed.DarkBg)) } }
             val controls = @Composable { mod: Modifier ->
                 Column(mod.background(Ed.Panel)) {
                     PanelTabs(panel) { panel = it }
@@ -2945,7 +2947,7 @@ private fun PhotoPanelContent(
                         value = wm.text, onValueChange = { set(e.copy(watermark = wm.copy(text = it))) },
                         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), label = { Text("Watermark text") },
                         colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                            focusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, unfocusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg,
                             focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,
                         ),
                     )
@@ -3053,7 +3055,7 @@ private fun PhotoPanelContent(
                 androidx.compose.material3.OutlinedTextField(
                     value = ExportOpts.template, onValueChange = { ExportOpts.template = it.take(80); ExportOpts.save(ctx) }, singleLine = true,
                     modifier = Modifier.fillMaxWidth(), label = { Text("Template") },
-                    colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber),
+                    colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(focusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, unfocusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber),
                 )
                 Row(Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     ExportOpts.TOKENS.forEach { t -> PillChip(t, false) { ExportOpts.template = ExportOpts.template + (if (ExportOpts.template.isEmpty() || t == "{name}") "" else "_") + t; ExportOpts.save(ctx) } }
@@ -3071,7 +3073,7 @@ private fun PhotoPanelContent(
                         value = value, onValueChange = { onChange(it.take(if (single) 200 else 2000)); PhotoMeta.save(ctx) },
                         label = { Text(label) }, singleLine = single,
                         colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                            focusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, unfocusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg,
                             focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,
                         ),
                         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
@@ -3303,7 +3305,7 @@ private fun FoldRow(title: String, sub: String, open: Boolean, highlight: Boolea
             Text(title, color = if (highlight) Pro.Amber else Color.White, fontSize = if (big) 13.sp else 12.sp, maxLines = 1)
             Text(sub, color = Pro.Dim, fontSize = 10.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
-        androidx.compose.material3.Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, tint = Pro.Dim)
+        com.dronedirector.veyrocutpro.ui.Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, tint = Pro.Dim)
     }
 }
 

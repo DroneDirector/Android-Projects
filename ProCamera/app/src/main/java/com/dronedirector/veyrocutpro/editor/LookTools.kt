@@ -18,7 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
+import com.dronedirector.veyrocutpro.ui.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import com.dronedirector.veyrocutpro.ui.Text

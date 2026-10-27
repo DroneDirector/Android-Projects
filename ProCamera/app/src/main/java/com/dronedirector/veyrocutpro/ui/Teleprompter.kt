@@ -281,7 +281,7 @@ private fun PrompterEditor(onClose: () -> Unit) {
             OutlinedTextField(
                 Prompter.text, { Prompter.text = it }, Modifier.fillMaxWidth().heightIn(min = 140.dp),
                 placeholder = { Text("Type what you want to say…") },
-                textStyle = TextStyle(color = Color.White, fontSize = 16.sp),
+                textStyle = TextStyle(color = com.dronedirector.veyrocutpro.ui.Pro.Fg, fontSize = 16.sp),
                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Pro.Amber, cursorColor = Pro.Amber),
             )
             // Preview of the look.

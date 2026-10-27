@@ -346,7 +346,7 @@ fun Filmstrip(
     LaunchedEffect(items.size) { picked.retainAll(items.map { it.key }.toSet()); if (menuFor != null && idx(menuFor!!) < 0) menuFor = null }
     val state = rememberLazyListState()
     LaunchedEffect(curUri, filter) { val k = shown.indexOfFirst { it.key == curUri }; if (k >= 0) state.animateScrollToItem((k - 2).coerceAtLeast(0)) }
-    Column(modifier.fillMaxWidth().background(Color(0xFF0B0D12))) {
+    com.dronedirector.veyrocutpro.ui.ForceDark { Column(modifier.fillMaxWidth().background(Color(0xFF0B0D12))) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(if (PhotoSession.current >= 0) "${PhotoSession.current + 1} / ${items.size}" else "${items.size}", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), modifier = Modifier.padding(end = 8.dp))
             listOf("All", "★3+", "Picks", "Edited", "No rejects").forEachIndexed { i, n ->
@@ -534,7 +534,7 @@ fun Filmstrip(
             items(shown, key = { it.key }) { p -> cell(p) }
             item { addTile() }
         }
-    }
+    } }
 }
 
 @OptIn(ExperimentalFoundationApi::class)

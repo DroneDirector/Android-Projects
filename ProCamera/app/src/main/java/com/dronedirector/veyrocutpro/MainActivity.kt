@@ -123,6 +123,8 @@ class MainActivity : ComponentActivity() {
         com.dronedirector.veyrocutpro.ui.AccentStore.load(applicationContext)
         val openSettings = applyLaunchOptions(intent)
         val openGallery = intent?.extras?.getBoolean("gallery", false) == true
+        // Test runs: --es theme light / dark.
+        intent?.extras?.getString("theme")?.let { t -> com.dronedirector.veyrocutpro.ui.AppTheme.set(applicationContext, if (t == "light") 1 else 0) }
         intent?.extras?.getString("accent")?.let { a ->
             com.dronedirector.veyrocutpro.ui.Accent.entries.firstOrNull { it.name == a }
                 ?.let { com.dronedirector.veyrocutpro.ui.AccentStore.save(applicationContext, it) }
@@ -150,7 +152,12 @@ class MainActivity : ComponentActivity() {
         if (shared.isEmpty()) savedInstanceState?.getString(KEY_SCREEN)?.let { n ->
             com.dronedirector.veyrocutpro.ui.AppScreen.entries.firstOrNull { it.name == n }?.let { screen.value = it }
         }
+        com.dronedirector.veyrocutpro.ui.AppTheme.load(this)
         setContent {
+            // Light look (Preferences → Appearance) only in the editors; Capture and the start screens stay dark.
+            com.dronedirector.veyrocutpro.ui.AppTheme.screenAllowsLight =
+                (screen.value == com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR || screen.value == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR) &&
+                    com.dronedirector.veyrocutpro.ui.CaptureForEditor.request == null
             ProCamTheme {
                 com.dronedirector.veyrocutpro.ui.CrashReportDialog()
                 com.dronedirector.veyrocutpro.ui.AudioHardwareNotice()

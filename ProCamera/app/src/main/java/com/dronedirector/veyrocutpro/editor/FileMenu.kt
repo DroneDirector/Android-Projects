@@ -27,7 +27,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import com.dronedirector.veyrocutpro.ui.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -548,7 +548,7 @@ fun NameDialog(title: String, info: String, start: String, ok: String, onDone: (
 
 @Composable
 fun fieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+    focusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, unfocusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg,
     focusedBorderColor = Pro.Amber, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,
 )
 

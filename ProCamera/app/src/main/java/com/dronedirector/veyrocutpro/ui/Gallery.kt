@@ -75,7 +75,6 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import com.dronedirector.veyrocutpro.ui.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable

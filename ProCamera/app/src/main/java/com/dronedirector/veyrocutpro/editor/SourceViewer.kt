@@ -74,9 +74,9 @@ fun SourceViewerDialog(
                 Text("✕", color = Color.White, fontSize = 18.sp, modifier = Modifier.clickable { p.pause(); onDismiss() }.padding(6.dp))
             }
             val aspect = if (source.height > 0) (source.width.toFloat() / source.height).coerceIn(0.4f, 3f) else 16f / 9f
-            Box(Modifier.fillMaxWidth().aspectRatio(aspect).padding(top = 6.dp).background(Color.Black)) {
+            com.dronedirector.veyrocutpro.ui.ForceDark { Box(Modifier.fillMaxWidth().aspectRatio(aspect).padding(top = 6.dp).background(Color.Black)) {
                 AndroidView(factory = { ctx -> android.view.TextureView(ctx).also { p.setVideoTextureView(it) } }, modifier = Modifier.fillMaxSize())
-            }
+            } }
             // Scrub bar with the marked range.
             Box(
                 Modifier.fillMaxWidth().height(34.dp).padding(top = 8.dp)

@@ -61,7 +61,7 @@ fun CloudAiSettings(variant: GuideVariant) {
             value = keyText, onValueChange = { keyText = it.trim() }, singleLine = true,
             label = { Text("fal.ai API key") }, visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = Pro.Amber, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber),
+            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, unfocusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, focusedBorderColor = Pro.Amber, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("SAVE KEY", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp),

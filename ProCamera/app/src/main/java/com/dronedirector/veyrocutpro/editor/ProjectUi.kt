@@ -22,7 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
+import com.dronedirector.veyrocutpro.ui.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import com.dronedirector.veyrocutpro.ui.Text
@@ -163,7 +163,7 @@ fun ProjectNameDialog(
                     value = name, onValueChange = { name = it.take(60) }, singleLine = true,
                     label = { Text(fieldLabel) }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                        focusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, unfocusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg,
                         focusedBorderColor = Pro.Amber, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,
                     ),
                 )
@@ -228,13 +228,13 @@ fun SavedProjects(video: Boolean, onOpen: (String) -> Unit) {
                 value = withContext(Dispatchers.IO) { p.thumb?.let { BitmapFactory.decodeFile(it.path)?.asImageBitmap() } }
             }
             Column(Modifier.width(150.dp).clip(RoundedCornerShape(10.dp)).background(Ed.Raised).clickable { onOpen(p.id) }) {
-                Box(Modifier.fillMaxWidth().height(84.dp).background(Color.Black)) {
+                com.dronedirector.veyrocutpro.ui.ForceDark { Box(Modifier.fillMaxWidth().height(84.dp).background(Color.Black)) {
                     thumb?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
                     Box(
                         Modifier.align(Alignment.TopEnd).padding(4.dp).size(26.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.6f)).clickable { confirm = p },
                         contentAlignment = Alignment.Center,
                     ) { Icon(Icons.Filled.Close, contentDescription = "Delete project", tint = Color.White, modifier = Modifier.size(16.dp)) }
-                }
+                } }
                 Column(Modifier.padding(8.dp)) {
                     Text(p.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(p.detail + " · " + SimpleDateFormat("d MMM HH:mm", Locale.getDefault()).format(Date(p.savedAt)), style = Pro.Label.copy(fontSize = 10.sp), maxLines = 1)

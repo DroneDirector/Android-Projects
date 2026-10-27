@@ -23,7 +23,7 @@ import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import com.dronedirector.veyrocutpro.ui.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults

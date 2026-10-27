@@ -162,7 +162,7 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
         OutlinedTextField(
             value = text, onValueChange = { text = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
             placeholder = { Text("Search: dog, beach, sunset, a keyword or a file name…", color = Pro.Dim, fontSize = 13.sp) },
-            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, cursorColor = Pro.Amber),
+            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, unfocusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, cursorColor = Pro.Amber),
         )
         // Filters.
         Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -214,6 +214,7 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
                 val k = p.uri.toString()
                 val m = LibraryStore.get(k)
                 val on = k in picked
+                com.dronedirector.veyrocutpro.ui.ForceDark {
                 Box(
                     Modifier.aspectRatio(1f).clip(RoundedCornerShape(6.dp)).background(Ed.Raised)
                         .border(if (on) 2.dp else 0.dp, if (on) Pro.Amber else Color.Transparent, RoundedCornerShape(6.dp))
@@ -234,7 +235,7 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
                     if (stack > 1) Text("▣ $stack", style = Pro.Label.copy(color = Color.Black, fontSize = 10.sp), modifier = Modifier.align(Alignment.TopEnd).padding(3.dp).clip(RoundedCornerShape(4.dp)).background(Pro.Amber).padding(horizontal = 4.dp, vertical = 1.dp))
                     if (stack < -1) Text("▣ ${-stack} ▾", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.align(Alignment.TopEnd).padding(3.dp).clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.6f)).clickable { expanded.remove(k) }.padding(horizontal = 6.dp, vertical = 3.dp))
                     if (stack == -1) Box(Modifier.align(Alignment.TopEnd).padding(4.dp).size(6.dp).clip(CircleShape).background(Pro.Amber))
-                }
+                } }
             }
         }
     }
@@ -365,7 +366,7 @@ private fun NameDialog(title: String, existing: List<String>, onDone: (String?) 
         title = { Text(title, color = Color.White, fontSize = 16.sp) },
         text = {
             Column {
-                OutlinedTextField(t, { t = it.take(60) }, singleLine = true, colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = Pro.Amber, cursorColor = Pro.Amber))
+                OutlinedTextField(t, { t = it.take(60) }, singleLine = true, colors = OutlinedTextFieldDefaults.colors(focusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, unfocusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, focusedBorderColor = Pro.Amber, cursorColor = Pro.Amber))
                 if (existing.isNotEmpty()) Row(Modifier.hintedScroll(horizontal = true).padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     existing.forEach { e -> PillChip(e, false) { onDone(e) } }
                 }
@@ -403,7 +404,7 @@ private fun PhotoDetail(p: LibPhoto, onClose: () -> Unit, onEdit: () -> Unit, on
                 }
                 OutlinedTextField(kw, { kw = it; LibraryStore.update(context, listOf(k)) { mm -> mm.copy(keywords = it.split(',').map { s -> s.trim().lowercase() }.filter { s -> s.isNotEmpty() }) } },
                     label = { Text("Keywords (comma separated)") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = Pro.Amber, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber))
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, unfocusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, focusedBorderColor = Pro.Amber, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber))
                 if (LibraryStore.albums.isNotEmpty()) Row(Modifier.hintedScroll(horizontal = true).padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     LibraryStore.albums.forEach { a -> PillChip("▣ $a", a in m.albums) { LibraryStore.update(context, listOf(k)) { it.copy(albums = if (a in it.albums) it.albums - a else it.albums + a) } } }
                 }
@@ -427,7 +428,7 @@ private fun CompareView(list: List<LibPhoto>, onClose: () -> Unit) {
     var px by remember { mutableStateOf(0f) }
     var py by remember { mutableStateOf(0f) }
     androidx.compose.ui.window.Dialog(onDismissRequest = onClose, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
-        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black).padding(8.dp)) {
+        com.dronedirector.veyrocutpro.ui.ForceDark { androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black).padding(8.dp)) {
             val wide = maxWidth > maxHeight
             val pane = @Composable { p: LibPhoto, mod: Modifier ->
                 Column(mod.padding(4.dp)) {
@@ -452,7 +453,7 @@ private fun CompareView(list: List<LibPhoto>, onClose: () -> Unit) {
                 if (wide) Row(Modifier.fillMaxWidth().weight(1f)) { pane(list[0], Modifier.weight(1f)); pane(list[1], Modifier.weight(1f)) }
                 else Column(Modifier.fillMaxWidth().weight(1f)) { pane(list[0], Modifier.weight(1f)); pane(list[1], Modifier.weight(1f)) }
             }
-        }
+        } }
     }
 }
 

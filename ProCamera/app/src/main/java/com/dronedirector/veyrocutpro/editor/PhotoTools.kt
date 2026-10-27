@@ -40,7 +40,7 @@ import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Icon
+import com.dronedirector.veyrocutpro.ui.Icon
 import com.dronedirector.veyrocutpro.ui.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect

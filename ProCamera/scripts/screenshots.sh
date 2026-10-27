@@ -62,6 +62,9 @@ record_test() { # name, seconds
 
 # ---- phone (Pixel-size emulator)
 rotate 0
+shot 50-phone-video-editor-light --es screen video --es theme light
+shot 51-phone-photo-editor-light --es screen photo --es theme light
+shot 52-phone-video-editor-dark --es screen video --es theme dark
 shot 01-phone-photo-filters --es mode PHOTO --es filter VIVID --ez filters true
 shot 02-phone-pro-photo-iso --es mode PRO_PHOTO --es param ISO
 shot 03-phone-pro-photo-peaking --es mode PRO_PHOTO --es param FOCUS --ez peaking true --ez zebras true

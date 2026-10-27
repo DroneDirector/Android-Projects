@@ -16,7 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloseFullscreen
 import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material.icons.filled.OpenWith
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset

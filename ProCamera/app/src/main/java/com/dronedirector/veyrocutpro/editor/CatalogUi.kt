@@ -108,7 +108,7 @@ private fun CatalogSettings(store: CatalogStore, video: Boolean, about: String) 
             value = custom, onValueChange = { custom = it.filter(Char::isDigit).take(6) }, singleLine = true,
             label = { Text("Other number (10 or more)") }, modifier = Modifier.weight(1f),
             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber),
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(focusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, unfocusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber),
         )
         PillChip("SET", false, accentText = true) {
             custom.toIntOrNull()?.let { n -> Catalogs.setLimit(ctx, n.coerceAtLeast(Catalogs.MIN_LIMIT)); custom = Catalogs.limit.toString(); refresh++ }

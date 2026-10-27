@@ -44,9 +44,13 @@ import kotlin.math.roundToInt
 
 /** Same look as the camera: dark panels, accent highlights. */
 object Ed {
-    val Bg = Color(0xFF07080A)
-    val Panel = Color(0xFF111317)
-    val Raised = Color(0xFF1A1D22)
+    val Bg: Color get() = if (com.dronedirector.veyrocutpro.ui.AppTheme.light) Color(0xFFE9EBEE) else DarkBg
+    val Panel: Color get() = if (com.dronedirector.veyrocutpro.ui.AppTheme.light) Color(0xFFF4F5F7) else DarkPanel
+    val Raised: Color get() = if (com.dronedirector.veyrocutpro.ui.AppTheme.light) Color(0xFFFFFFFF) else DarkRaised
+    /** Always dark (picture, timeline and media-strip areas). */
+    val DarkBg = Color(0xFF07080A)
+    val DarkPanel = Color(0xFF111317)
+    val DarkRaised = Color(0xFF1A1D22)
 }
 
 @Composable
@@ -368,9 +372,8 @@ fun PreferencesSection(screen: com.dronedirector.veyrocutpro.ui.AppScreen, playb
     val isVideo = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR
     val isEditor = isVideo || screen == com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR
     com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "look", "Appearance", "Dark, light or like the phone") {
-        var t by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(EditorPrefs.theme(ctx)) }
-        Chips(listOf("Dark", "Light", "Like the phone"), t) { t = it; EditorPrefs.setTheme(ctx, it) }
-        Text("The light look arrives in an update soon — until then the app stays dark, whatever is chosen here.", color = Pro.Dim, fontSize = 12.sp)
+        Chips(listOf("Dark", "Light", "Like the phone"), com.dronedirector.veyrocutpro.ui.AppTheme.pref) { com.dronedirector.veyrocutpro.ui.AppTheme.set(ctx, it) }
+        Text("The light look is used in the photo and video editors. The picture, the timeline and the media strip stay dark so colours are judged right, and Capture stays dark because it sits on the camera picture.", color = Pro.Dim, fontSize = 12.sp)
     }
     com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "sound", "Sound", "Shutter sound on or off, and which one") {
         val required = android.os.Build.VERSION.SDK_INT >= 33 && android.media.MediaActionSound.mustPlayShutterSound()

@@ -93,7 +93,7 @@ import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import com.dronedirector.veyrocutpro.ui.Icon
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -3486,7 +3486,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val mon = com.dronedirector.veyrocutpro.ui.monitorClass(boxW, boxH)
             val monCols = mon == com.dronedirector.veyrocutpro.ui.MonitorClass.ULTRA_WIDE || mon == com.dronedirector.veyrocutpro.ui.MonitorClass.SUPER_ULTRA_WIDE
 
-            val viewer = @Composable { mod: Modifier ->
+            val viewerInner = @Composable { mod: Modifier ->
                 // Mouse: double-click the player for full screen, wheel steps through frames.
                 Box(mod.background(Color.Black).mouseActions(
                     onDoubleClick = { es.fullscreen = true },
@@ -3958,7 +3958,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 else -> {}
             }
 
-            val timeline = @Composable {
+            // The picture stays dark in the light look.
+            val viewer = @Composable { mod: Modifier -> com.dronedirector.veyrocutpro.ui.ForceDark { viewerInner(mod) } }
+            val timeline = @Composable { com.dronedirector.veyrocutpro.ui.ForceDark {
                 TimelineView(
                     onDeleteClip = { i -> if (es.videoLocked) es.message = "The video track is locked" else es.deleteAsk = i },
                     clips = clips, layers = layers, music = es.music, strips = strips,
@@ -4022,7 +4024,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         if (o?.group != null && off == o.offsetMs && len == o.lengthMs && st != o.startMs) moveGroup(o.group, st - o.startMs, o.id)
                     },
                 )
-            }
+            } }
 
             val showStrip = com.dronedirector.veyrocutpro.ui.panelOn("ve.mediastrip")
             val stripPane = rememberPane("ve_strip_h", es.paneVersion)
@@ -4032,7 +4034,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             // Phones and tablets, any rotation: the media strip is the first tab of the tools panel.
             // (Monitors use their own layouts; with the tools panel hidden it sits above the timeline.)
             val stripInTools = mon == com.dronedirector.veyrocutpro.ui.MonitorClass.NONE && showInspector
-            val stripView = @Composable { h: androidx.compose.ui.unit.Dp, vertical: Boolean ->
+            val stripView = @Composable { h: androidx.compose.ui.unit.Dp, vertical: Boolean -> com.dronedirector.veyrocutpro.ui.ForceDark {
             MediaStrip(
                 thumbHeight = h,
                 vertical = vertical,
@@ -4057,7 +4059,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     onDragOver = { at -> es.tlBounds.contains(at) },
                     onDrop = { c, at -> if (es.tlBounds.contains(at)) dropAt(c, at.x) },
                 )
-            }
+            } }
             val inspector = @Composable { mod: Modifier ->
                 Column(mod.background(Ed.Panel)) {
                     // Landscape / tablet: the media strip is the first tab, on the left.
@@ -4126,7 +4128,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                         androidx.compose.material3.OutlinedTextField(
                                             value = markerNotes[m] ?: "", onValueChange = { v -> if (v.isBlank()) markerNotes.remove(m) else markerNotes[m] = v.take(120) },
                                             placeholder = { Text("Note", color = Pro.Dim, fontSize = 12.sp) }, singleLine = true,
-                                            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 13.sp),
+                                            textStyle = androidx.compose.ui.text.TextStyle(color = com.dronedirector.veyrocutpro.ui.Pro.Fg, fontSize = 13.sp),
                                             modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
                                         )
                                         Text("✕", color = Pro.Red, fontSize = 13.sp, modifier = Modifier.clickable { markers.remove(m); markerNotes.remove(m) }.padding(8.dp))
@@ -4456,7 +4458,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 }
             }
 
-            if (es.fullscreen) {
+            if (es.fullscreen) com.dronedirector.veyrocutpro.ui.ForceDark {
                 BackHandler { es.fullscreen = false }
                 var controls by remember { mutableStateOf(true) }
                 var touch by remember { mutableStateOf(0) }
@@ -5428,7 +5430,7 @@ private fun AudioPage(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), minLines = 2,
         label = { Text("What should the voice say? (English)") },
         colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-            focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+            focusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, unfocusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg,
             focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,
         ),
     )
@@ -6129,7 +6131,7 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
         label = { Text(if (l.kind == LayerKind.WATERMARK) "Watermark name (list & timeline)" else "Layer name (list & timeline)") },
         placeholder = { Text(l.displayName, color = Pro.Dim) },
         colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                focusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, unfocusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg,
                 focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,
             ),
     )
@@ -6159,7 +6161,7 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
             label = { Text(if (l.kind == LayerKind.WATERMARK) "Watermark text (shown on the video)" else "Text") },
             colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                focusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg, unfocusedTextColor = com.dronedirector.veyrocutpro.ui.Pro.Fg,
                 focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,
             ),
         )
@@ -7319,7 +7321,7 @@ private fun TimelinesSection(
     androidx.compose.material3.OutlinedTextField(
         value = edit, onValueChange = { edit = it.take(40); onRename(edit) }, singleLine = true,
         label = { Text("Open timeline", fontSize = 11.sp) },
-        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 13.sp),
+        textStyle = androidx.compose.ui.text.TextStyle(color = com.dronedirector.veyrocutpro.ui.Pro.Fg, fontSize = 13.sp),
         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
     )
     others.forEachIndexed { i, n ->

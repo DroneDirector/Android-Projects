@@ -27,6 +27,11 @@ data class LibMeta(
     val faces: Int? = null,
     /** Where it was taken: [lat, lon], empty = no location, null = not looked yet. */
     val place: List<Double>? = null,
+    /** Duplicates: a 64-bit picture fingerprint (difference hash) and how sharp the photo is; null = not looked yet. */
+    val dhash: Long? = null,
+    val sharp: Float? = null,
+    /** True when [place] came from a GPS track here (then exports get it too). */
+    val geotagged: Boolean? = null,
 )
 
 /** A saved search: shows every photo that matches. */
@@ -166,6 +171,65 @@ object LibraryStore {
                 if (n % 25 == 24) save(c)
             }
         } finally { try { det.close() } catch (_: Throwable) {}; scanning = null; save(c) }
+    }
+
+    /** Fingerprints every photo not looked at yet (for the Duplicates view). On the phone, own code. */
+    fun indexDupes(c: Context, list: List<LibPhoto>, stop: () -> Boolean) {
+        val todo = list.filter { meta[it.uri.toString()]?.dhash == null }
+        if (todo.isEmpty()) return
+        try {
+            scanning = 0 to todo.size
+            for ((n, p) in todo.withIndex()) {
+                if (stop()) break
+                val b = try { com.dronedirector.veyrocutpro.camera.GradeIO.decode(c, p.uri, 160) } catch (_: Throwable) { null }
+                if (b != null) {
+                    // Difference hash: 9×8 grey picture, each bit = is this pixel brighter than its right neighbour.
+                    val s9 = Bitmap.createScaledBitmap(b, 9, 8, true)
+                    var h = 0L
+                    for (y in 0 until 8) for (x in 0 until 8) {
+                        fun l(c: Int) = ((c shr 16) and 0xFF) * 3 + ((c shr 8) and 0xFF) * 6 + (c and 0xFF)
+                        if (l(s9.getPixel(x, y)) > l(s9.getPixel(x + 1, y))) h = h or (1L shl (y * 8 + x))
+                    }
+                    if (s9 !== b) s9.recycle()
+                    // Sharpness: variance of the Laplacian on the small picture.
+                    val w = b.width; val hh = b.height
+                    val px = IntArray(w * hh); b.getPixels(px, 0, w, 0, 0, w, hh)
+                    fun g(i: Int) = ((px[i] shr 16) and 0xFF) * 0.3f + ((px[i] shr 8) and 0xFF) * 0.59f + (px[i] and 0xFF) * 0.11f
+                    var sum = 0.0; var sq = 0.0; var cnt = 0
+                    for (y in 1 until hh - 1) for (x in 1 until w - 1) {
+                        val i = y * w + x
+                        val lap = 4 * g(i) - g(i - 1) - g(i + 1) - g(i - w) - g(i + w)
+                        sum += lap; sq += lap * lap; cnt++
+                    }
+                    val varL = if (cnt > 0) (sq / cnt - (sum / cnt) * (sum / cnt)).toFloat() else 0f
+                    b.recycle()
+                    val k = p.uri.toString(); meta[k] = get(k).copy(dhash = h, sharp = varL)
+                } else { val k = p.uri.toString(); meta[k] = get(k).copy(dhash = 0L, sharp = 0f) }
+                scanning = n + 1 to todo.size
+                if (n % 25 == 24) save(c)
+            }
+        } finally { scanning = null; save(c) }
+    }
+
+    /** Groups of near-identical photos (fingerprints at most [maxBits] apart), sharpest first in each group. */
+    fun dupes(list: List<LibPhoto>, maxBits: Int = 6): List<List<LibPhoto>> {
+        val withHash = list.mapNotNull { p -> get(p.uri.toString()).dhash?.takeIf { it != 0L }?.let { p to it } }
+        val used = HashSet<String>()
+        val out = ArrayList<List<LibPhoto>>()
+        for ((i, a) in withHash.withIndex()) {
+            if (a.first.uri.toString() in used) continue
+            val g = mutableListOf(a.first)
+            for (j in i + 1 until withHash.size) {
+                val b = withHash[j]
+                if (b.first.uri.toString() in used) continue
+                if (java.lang.Long.bitCount(a.second xor b.second) <= maxBits) g += b.first
+            }
+            if (g.size >= 2) {
+                g.forEach { used += it.uri.toString() }
+                out += g.sortedByDescending { (get(it.uri.toString()).sharp ?: 0f) + it.w.toFloat() * it.h / 1e9f }
+            }
+        }
+        return out
     }
 
     /** Reads where each photo was taken (GPS in its camera details) for the Map view. */

@@ -66,7 +66,8 @@ data class PhotoMask(
 )
 
 /** A healed spot: centre and radius (share of the width) and where the patch is taken from (offset, same units). */
-data class Spot(val x: Float, val y: Float, val r: Float, val dx: Float, val dy: Float, val clone: Boolean = false)
+/** A healed spot; [eye] 1 = red-eye fix, 2 = pet-eye fix (then the spot isn't a patch copy). */
+data class Spot(val x: Float, val y: Float, val r: Float, val dx: Float, val dy: Float, val clone: Boolean = false, val eye: Int = 0)
 
 /** What to do with everything except the subject (needs an AI subject selection). */
 data class PhotoBackground(val mode: Int = 0, val blur: Float = 0.5f, val color: Int = 0xFFFFFFFF.toInt(), val maskFile: String? = null) {
@@ -388,6 +389,7 @@ object PhotoLocal {
         val N = 64
         val cr = FloatArray(N); val cg = FloatArray(N); val cb = FloatArray(N)
         for (s in spots) {
+            if (s.eye > 0) { fixEye(px, w, h, s); continue }
             val R = (s.r * w).coerceAtLeast(1.5f)
             val cx = s.x * w; val cy = s.y * h
             val ox = s.dx * w; val oy = s.dy * w
@@ -443,6 +445,68 @@ object PhotoLocal {
             for (y in y0..y1) System.arraycopy(out, (y - y0) * ow, px, y * w + x0, ow)
         }
         return Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
+    }
+
+    /**
+     * Red eye: red pixels in the pupil get the red of their green / blue (dark, natural pupil). Pet eye: the bright
+     * green / yellow / white glow is darkened to a black pupil, keeping a tiny catchlight. Soft round edge.
+     */
+    private fun fixEye(px: IntArray, w: Int, h: Int, s: Spot) {
+        val R = (s.r * w).coerceAtLeast(2f)
+        val cx = s.x * w; val cy = s.y * h
+        val x0 = max(0, (cx - R).toInt()); val x1 = min(w - 1, (cx + R).toInt())
+        val y0 = max(0, (cy - R).toInt()); val y1 = min(h - 1, (cy + R).toInt())
+        for (y in y0..y1) for (x in x0..x1) {
+            val dx = x - cx; val dy = y - cy
+            val d = sqrt(dx * dx + dy * dy) / R
+            if (d >= 1f) continue
+            val t = 1f - ((d - 0.7f) / 0.3f).coerceIn(0f, 1f).let { it * it * (3 - 2 * it) }
+            val c = px[y * w + x]
+            val r = ((c shr 16) and 0xFF).toFloat(); val g = ((c shr 8) and 0xFF).toFloat(); val b = (c and 0xFF).toFloat()
+            var nr = r; var ng = g; var nb = b
+            if (s.eye == 1) {
+                val gb = (g + b) / 2f
+                // How red: only clearly red pixels change, so the iris and skin round the pupil stay.
+                val red = ((r - gb) / (r + 1f) - 0.15f).coerceIn(0f, 0.5f) * 2f
+                if (red > 0f) { nr = r + (gb * 0.9f - r) * red; ng = g * (1f - 0.1f * red); nb = b * (1f - 0.1f * red) }
+            } else {
+                val v = maxOf(r, g, b) / 255f
+                if (v > 0.97f && d < 0.35f) continue      // the catchlight
+                val k = ((v - 0.25f) / 0.45f).coerceIn(0f, 1f)
+                if (k > 0f) { val l = (r * 0.3f + g * 0.59f + b * 0.11f) * 0.12f + 6f; nr = r + (l - r) * k; ng = g + (l - g) * k; nb = b + (l - b) * k }
+            }
+            val fr = (r + (nr - r) * t).toInt().coerceIn(0, 255); val fg = (g + (ng - g) * t).toInt().coerceIn(0, 255); val fb = (b + (nb - b) * t).toInt().coerceIn(0, 255)
+            px[y * w + x] = (c and 0xFF000000.toInt()) or (fr shl 16) or (fg shl 8) or fb
+        }
+    }
+
+    /** Eyes of every face in [b] (ML Kit landmarks), as red-eye spots where the pupil is clearly red. */
+    fun findRedEyes(b: Bitmap): List<Spot> {
+        val det = com.google.mlkit.vision.face.FaceDetection.getClient(
+            com.google.mlkit.vision.face.FaceDetectorOptions.Builder()
+                .setLandmarkMode(com.google.mlkit.vision.face.FaceDetectorOptions.LANDMARK_MODE_ALL)
+                .setPerformanceMode(com.google.mlkit.vision.face.FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE).build(),
+        )
+        val w = b.width; val h = b.height
+        return try {
+            val faces = com.google.android.gms.tasks.Tasks.await(det.process(com.google.mlkit.vision.common.InputImage.fromBitmap(b, 0)))
+            val out = ArrayList<Spot>()
+            for (f in faces) {
+                val r = f.boundingBox.width() * 0.075f
+                for (lm in listOf(com.google.mlkit.vision.face.FaceLandmark.LEFT_EYE, com.google.mlkit.vision.face.FaceLandmark.RIGHT_EYE)) {
+                    val p = f.getLandmark(lm)?.position ?: continue
+                    // Only eyes that really are red.
+                    var red = 0; var n = 0
+                    for (y in (p.y - r).toInt()..(p.y + r).toInt()) for (x in (p.x - r).toInt()..(p.x + r).toInt()) {
+                        if (x !in 0 until w || y !in 0 until h) continue
+                        val c = b.getPixel(x, y); val cr = (c shr 16) and 0xFF; val cg = (c shr 8) and 0xFF; val cb = c and 0xFF
+                        n++; if (cr > 80 && cr > (cg + cb) * 0.8f) red++
+                    }
+                    if (n > 0 && red > n * 0.08f) out += Spot(p.x / w, p.y / h, r * 1.1f / w, 0f, 0f, eye = 1)
+                }
+            }
+            out
+        } catch (_: Throwable) { emptyList() } finally { try { det.close() } catch (_: Throwable) {} }
     }
 
     // ------------------------------------------------------------------ masks

@@ -79,14 +79,16 @@ fun filmEffects(c: Clip): List<androidx.media3.common.Effect> = c.film?.takeIf {
 
 /** Effects the preview player runs itself on Android 13+ (the grade and the background cut-out are drawn on the view): film / lens. */
 @UnstableApi
-fun liveEffects(c: Clip): List<androidx.media3.common.Effect> = filmEffects(c)
+fun liveEffects(c: Clip): List<androidx.media3.common.Effect> =
+    (if (c.privacy?.active == true) listOf(PrivacyBlurEffect(c, 0L, preview = true)) else emptyList()) + filmEffects(c)
 
 /** What [liveEffects] depends on (to know when to rebuild them). */
-fun liveKey(c: Clip): Any? = c.film?.takeIf { !it.isZero }
+fun liveKey(c: Clip): Any? = listOf(c.film?.takeIf { !it.isZero }, c.privacy?.takeIf { it.active }).takeIf { it.any { x -> x != null } }
 
 /** Preview before Android 13 (effects in the player): people background removal first, then the rest. */
 @UnstableApi
 fun olderPreviewEffects(c: Clip): List<androidx.media3.common.Effect> =
+    (if (c.privacy?.active == true) listOf(PrivacyBlurEffect(c, 0L, preview = true)) else emptyList()) +
     (c.bg?.takeIf { it.magic == null }?.let { listOf(BgRemoveEffect(it.mode, it.color, it.invert == true)) } ?: emptyList()) + clipEffects(c)
 
 @UnstableApi

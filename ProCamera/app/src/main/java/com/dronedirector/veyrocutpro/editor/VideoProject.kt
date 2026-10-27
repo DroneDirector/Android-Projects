@@ -87,6 +87,8 @@ data class Clip(
     /** Offline: a black stand-in whose real media isn't linked (yet); [offlineOf] = the file it stood for, if any. */
     val offline: Boolean? = null,
     val offlineOf: String? = null,
+    /** Privacy blur: faces and tapped spots blurred or pixelated, followed through the clip. */
+    val privacy: PrivacyBlur? = null,
 ) {
     val is422: Boolean get() = (chroma ?: 1) >= 2
 
@@ -280,6 +282,8 @@ class TimelineExport(
         if (c.detail.aiDenoise > 0f && CleanRender.sourceFor(context, c, settings) == null) add(AiDenoiseEffect(context, c.detail.aiDenoise))
         // Background (people or Magic Mask) on the picture as filmed, before any reframing.
         bgEffectFor(context, c, offsetMs)?.let { add(it) }
+        // Privacy blur, on the picture as filmed (its boxes are in the clip's own frame).
+        if (c.privacy?.active == true) add(PrivacyBlurEffect(c, offsetMs, preview = false))
         // AI depth: lens blur, fog or background light, on the picture as filmed.
         depthEffectFor(context, c, offsetMs)?.let { add(it) }
         val motion = if (c.stab.enabled) Stabilizer.cached(context, c) else null
@@ -814,7 +818,7 @@ fun smartRenderBlocker(context: Context, clips: List<Clip>, s: DeliverSettings, 
         if (c.decoder != null) return "$n needs its own decoder"
         if (c.hdr && !s.keepHdr) return "$n is HDR and HDR is turned into SDR"
         if (c.detail.aiDenoise > 0f || c.bg != null || c.depth != null || !c.reframe.isIdentity || c.reframe.hasOpacity ||
-            c.stab.enabled || (c.desqueeze ?: 1f) > 1f || clipEffects(c).isNotEmpty() || PenMask.active(c).isNotEmpty() || !c.masks.isNullOrEmpty()) return "$n has a grade, effect, crop or mask"
+            c.stab.enabled || (c.desqueeze ?: 1f) > 1f || clipEffects(c).isNotEmpty() || PenMask.active(c).isNotEmpty() || !c.masks.isNullOrEmpty() || c.privacy?.active == true) return "$n has a grade, effect, crop or mask"
         if (s.audio && !c.muted && (c.volume != 1f || !c.audio.isNeutral || !c.volKeys.isNullOrEmpty())) return "$n has sound changes"
         if (i < clips.lastIndex && overlapMs(clips, i) > 0) return "there is a transition after $n"
     }

@@ -129,12 +129,16 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - SAVE: type a name and tap Save as new, or tap one of your saved projects and choose Overwrite (it asks first). The project that's open now is marked.
 - Gear → AUTOSAVE: pick how often a copy of your project is saved, and how many copies (1–5) to keep. LOAD → AUTOSAVES opens one; SAVE then asks for a name, so the autosave stays as it was.
 **Library**
+- Library → Duplicates: near-identical photos grouped, the sharpest first (✓ KEEP); reject or select the extra copies in one tap. Nothing is deleted.
+- Library → select photos → 📍 Geotag from GPX: each photo gets the position a GPS track (GPX from a GPS logger, phone app or drone log) had when it was taken; set the photos' time zone if the camera doesn't store one. Shown on the Map and written into exports — the original files aren't changed.
 - Start page → Library shows every photo on your phone (allow photo access the first time). Search finds file names, keywords, albums and what's in the photo (the AI labels your photos in the background — the counter at the top shows how far it is).
 - Filters: ★ (tap to raise the minimum), Picks, Rejected, colour labels; albums and smart albums underneath (hold one to delete it). "+ Smart album" saves the current filters and search.
 - Tap a photo for a big view with stars, flag, label, keywords, albums and camera INFO; EDIT opens it, VIRTUAL COPY gives it a second, separate edit.
 - SELECT (or hold a photo): rate, flag, add to an album, add keywords, Compare (2 photos, pinch zooms both), Survey (2–12: tap ✕ to drop the weaker ones) or Edit them together in the filmstrip.
 
 **Pro develop**
+- Color → Curves → HUE CURVES (photo and video editors): Hue vs Hue, Hue vs Sat, Hue vs Bright and Bright vs Sat — drag a colour's point up or down (e.g. orange leaves → red, only the greens less saturated, a darker blue sky, less colour in the shadows); double-tap a point to reset it.
+- Photo editor → Heal → Red eye / Pet eye: tap each pupil (FIND RED EYES finds them in faces automatically) — red pupils turn dark and natural, a pet's glowing eyes become dark pupils with a small catchlight.
 - Crop & perspective → UPRIGHT: Auto (balanced), Level (horizon), Vertical (buildings upright too) or Full (both perspectives). Off undoes it.
 - Heal → DUST SPOTS: VISUALISE SPOTS shows dust as white specks; FIND DUST AUTOMATICALLY heals them (check and hold any wrong spot to delete it). Sensitivity finds fainter or only clear specks.
 - Start page → MERGE PHOTOS → Panorama asks for the projection, Boundary warp (stretch to fill the frame) and Fill edges (AI) before you pick the photos.
@@ -284,6 +288,8 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 **Pinch on the picture**
 - Pinch to zoom in on the picture and drag it into place — the export is framed exactly like that (what's outside is cut off). Double-tap = whole picture again.
 **Timeline**
+- Video editor → Edit → PRIVACY BLUR: FIND FACES finds every face in the clip on the phone and blurs it as it moves; + SPOT — tap anything else (a number plate, a screen, a sign) on the frame at the playhead and it's followed to the end of the clip. Blur or pixelate, strength and extra room; in the preview and the export.
+- Video editor → Audio → PITCH & VOICE: raise or lower a clip's voice up to an octave without changing its speed, and Robot, Radio, Phone or Megaphone voices — heard live in the preview and in the export.
 - In / out points show as IN / OUT flags on the ruler, the rest is dimmed. Markers and keyframes shine like the scroll wheels; gear → Marker effects turns that off.
 - Video editor: the Play button effect has its own colour, apart from the scroll wheels — gear → Layout & look (or Playback) → Play button colour.
 - Video editor: with Play button effect on, the Play button looks like the scroll wheels — their glass gradient in the wheel colours, a turning rim, and flickering "upscale" pixels and sparkles while playing. Gear → Layout & look (or gear → Playback) → Play button effect: on = the animated look, off = the plain amber button. The row under the picture starts with Play in the middle until you scroll it.

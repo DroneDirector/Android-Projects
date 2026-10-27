@@ -1133,7 +1133,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     // Live grade while dragging: the newest value is applied every ~80 ms (not only after letting go),
     // the colour table is built off the main thread, and a paused frame is redrawn.
     val gradeReq = remember { kotlinx.coroutines.channels.Channel<Clip>(kotlinx.coroutines.channels.Channel.CONFLATED) }
-    LaunchedEffect(cur?.grade, cur?.detail, cur?.masks, cur?.film, cur?.bg, cur?.depth, es.effectsOk) { cur?.let { gradeReq.trySend(it) } }
+    LaunchedEffect(cur?.grade, cur?.detail, cur?.masks, cur?.film, cur?.bg, cur?.depth, cur?.privacy, es.effectsOk) { cur?.let { gradeReq.trySend(it) } }
     LaunchedEffect(Unit) {
         for (c in gradeReq) {
             if (gpuGrade) {
@@ -1178,6 +1178,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     LaunchedEffect(Unit) {
         while (true) {
             es.posMs = deck.cur.currentPosition
+            PreviewClock.posMs = es.posMs; PreviewClock.at = android.os.SystemClock.uptimeMillis(); PreviewClock.playing = deck.cur.isPlaying
             val c0 = clips.getOrNull(es.current)
             if (es.showInfo) {
                 fun st(p: ExoPlayer) = when (p.playbackState) { Player.STATE_IDLE -> "IDLE"; Player.STATE_BUFFERING -> "LOAD"; Player.STATE_READY -> "READY"; else -> "END" } +
@@ -5211,6 +5212,7 @@ private fun EditPage(
     SectionTitle("SPEED")
     val speeds = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 4f)
     Chips(speeds.map { if (it == 1f) "1x" else "${it}x" }, speeds.indexOf(c.speed).coerceAtLeast(0)) { i -> onChange { it.copy(speed = speeds[i]) } }
+    PrivacySection(c, c.startMs + posMs, onChange)
     SectionTitle("AUTO-REFRAME (AI)")
     Chips(listOf("9:16", "1:1", "4:5", "Clear"), -1) { i -> onReframe(listOf(9f / 16f, 1f, 0.8f, null)[i]) }
     Text("Changes the project to the chosen shape and makes every clip follow its subject (people, animals, vehicles…) so nothing important is cut off.", color = Pro.Dim, fontSize = 11.sp)
@@ -5322,6 +5324,8 @@ private fun ColorPage(
             EdSlider("Darks", g.curveDarks) { v -> grade { it.copy(curveDarks = v) } }
             EdSlider("Shadows", g.curveShadows) { v -> grade { it.copy(curveShadows = v) } }
             EdSlider("Fade (lift blacks)", g.fade, 0f..1f, format = ::pct) { v -> grade { it.copy(fade = v) } }
+            SectionTitle("HUE CURVES") { grade { it.copy(hueCurves = null) } }
+            HueCurvesEditor(g.hueCurves) { hc -> grade { it.copy(hueCurves = hc) } }
         }
         ColorTab.HSL -> HslMixer(g.hsl) { list -> grade { it.copy(hsl = list) } }
         ColorTab.MASKS -> {
@@ -5604,6 +5608,11 @@ private fun AudioPage(
         Chips(AudioChannels.entries.map { it.label }, fx.channels.ordinal) { i -> setFx { it.copy(channels = AudioChannels.entries[i]) } }
         EdSlider("Fade in", fx.fadeInMs / 1000f, 0f..5f, 0f, { "%.1f s".format(it) }) { v -> setFx { it.copy(fadeInMs = (v * 1000).toLong()) } }
         EdSlider("Fade out", fx.fadeOutMs / 1000f, 0f..5f, 0f, { "%.1f s".format(it) }) { v -> setFx { it.copy(fadeOutMs = (v * 1000).toLong()) } }
+
+        SectionTitle("PITCH & VOICE", onReset = { setFx { it.copy(pitch = 0f, voiceFx = 0) } })
+        EdSlider("Pitch", fx.pitch, -12f..12f, 0f, { v -> if (kotlin.math.abs(v) < 0.05f) "Normal" else "%+.1f semitones".format(v) }) { v -> setFx { it.copy(pitch = (kotlin.math.round(v * 2f) / 2f)) } }
+        Text("Higher or lower voice without changing the speed (+12 = an octave up, −12 = an octave down).", color = Pro.Dim, fontSize = 11.sp)
+        Chips(listOf("Normal", "Robot", "Radio", "Phone", "Megaphone"), fx.voiceFx) { i -> setFx { it.copy(voiceFx = i) } }
 
         SectionTitle("PRESETS")
         Chips(AudioPreset.entries.map { it.label }, AudioPreset.entries.indexOfFirst { p ->

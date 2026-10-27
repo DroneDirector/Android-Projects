@@ -139,6 +139,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Skip to the editor** from the start page: open the editor without picking a photo first, then add one from inside (manual, every time).
 - **Pro develop**:
   - **Library**: all phone photos with stars, flags, colour labels, keywords, albums, smart albums, on-device AI content search, EXIF info, compare (2, linked zoom) and survey (up to 12) views, virtual copies, **contact sheet PDF** (A4 / Letter, 3–6 per row, names and stars), **print layout PDF** (exact print sizes, borders, crop marks), **collage** (5 templates, 2–9 photos), and multi-photo editing in the filmstrip.
+  - **Duplicates** view in the Library (near-identical photos, sharpest kept) and **geotagging from a GPX track** (shown on the Map, written into exports).
   - **Upright** (Auto, Level, Vertical, Full), **dust spot** visualise and auto-heal, **panorama** projections (cylindrical / spherical / perspective), boundary warp and AI edge fill.
   - **Export**: **AVIF** (phone's AV1 encoder, Android 14+) and **JPEG XL**, TIFF 16 / 8-bit, sRGB / Display P3 / Adobe RGB with embedded profile, output sharpening (screen / matte / glossy), file-name templates, export presets, **export recipes** (several presets in one go), a matte-print soft proof and **soft proof with a printer / paper ICC profile** (own colour engine: lut8 / lut16 / lutAtoB / lutBtoA, perceptual or relative colorimetric, paper white).
   - **DNG camera profiles (.dcp)**: import and use instead of the RAW file's own colour (matrices, forward matrices, hue / sat maps, look table, tone curve).
@@ -187,6 +188,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Lens corrections**: distortion, vignetting, colour fringes.
 - **Masks**: linear gradient, radial and brush, each with its own light and colour settings.
 - **Heal / spot removal**: tap to remove dust, blemishes and small objects; **clone stamp** for exact copies from a source you pick.
+- **Red-eye and pet-eye fix**: tap the pupils, or find red eyes in faces automatically.
 - **AI masks**: subject and sky selected automatically.
 - **Colour-range and brightness-range masks**: tap the photo to pick a colour or brightness (e.g. only the blues, only the highlights), with range and softness.
 - **Background (AI)**: portrait blur, transparent background or colour fill behind the subject.
@@ -288,6 +290,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Shape layers** (rectangle, rounded, ellipse, line, arrow, triangle, star, heart; filled or outline) and **Lottie animation layers** (.json / .zip; lottie-android, Apache 2.0).
 - **Shape (pen) masks** on clips: a smooth curve with a soft edge and its own grade, planar-tracked to follow what it covers.
 - **Object removal (AI)**: tap anything and it's removed from the whole clip — filled from the real background in nearby frames (own optical flow), with LaMa (Apache 2.0) painting only what's never seen.
+- **Privacy blur**: faces found automatically and any spot you tap (number plates, screens, signs), followed through the clip, blurred or pixelated.
 - **AI depth** (Depth Anything V2 Small, Apache 2.0): lens blur with real depth of field, fog / haze by distance, or a darker, calmer background.
 - **AI voiceover from text**: 12 natural English voices (Kokoro 82M, Apache 2.0; misaki dictionaries), made on the phone and added as an audio track.
 - **Studio voice (AI)**: DeepFilterNet3 (MIT / Apache 2.0) voice clean-up; **de-click** and **de-reverb** (own code).
@@ -336,6 +339,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **AI noise reduction** per clip (built-in NAFNet), applied on export with a stoppable progress badge.
 - **Colour masks** (up to 3 per clip): gradient, radial, colour range and brightness range, each with its own grade; handles on the player; live preview and export.
 - **HDR levels in nits** (HLG / HDR10): nits waveform from the real 10-bit frame, 100 / 203 / 1000-nit guides, peak / average / above-203 / above-1000.
+- **Hue curves** (also in the photo editor): hue vs hue, hue vs saturation, hue vs brightness and brightness vs saturation.
 - **Export a look as a .cube LUT** (33-point) (also in the photo editor), also added to My LUTs.
 
 ### Crop, zoom & stabilization
@@ -366,6 +370,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Voiceover** recording onto its own audio track.
 - **Volume keyframes** per clip.
 - Per clip: volume, pan, channels (stereo / mono / left / right / swap), fades.
+- **Pitch & voice**: pitch up or down without changing speed (±12 semitones); Robot, Radio, Phone and Megaphone voices.
 - **Voice noise reduction** per clip (Light / Strong / **Voice isolation (AI)** — RNNoise, BSD-3, on the phone; on export).
 - **3-band EQ**, low cut, voice enhance, **compressor, noise gate, limiter**; presets (Voice, Interview, Wind cut, Warm, Bright, Bass boost, Radio, Loud & punchy); live **level meter**.
 - **Parametric EQ**: up to 8 bands (bell, shelves, low / high cut) dragged over a live spectrum; **de-esser**.

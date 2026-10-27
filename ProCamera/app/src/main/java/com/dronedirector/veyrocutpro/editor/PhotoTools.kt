@@ -602,6 +602,8 @@ fun savePhotoAs(context: Context, bmp0: Bitmap, format: Int, quality: Int, exifF
                 val dst = androidx.exifinterface.media.ExifInterface(tmp.path)
                 for (t in EXIF_KEEP) src.getAttribute(t)?.let { dst.setAttribute(t, it) }
                 if (!stripGps) for (t in EXIF_GPS) src.getAttribute(t)?.let { dst.setAttribute(t, it) }
+                // No location in the photo but geotagged from a GPS track in the Library: write that.
+                if (!stripGps && src.latLong == null) Geotag.placeFor(context, exifFrom)?.let { (la, lo) -> dst.setLatLong(la, lo) }
                 dst.setAttribute(androidx.exifinterface.media.ExifInterface.TAG_SOFTWARE, "AlcorCut Pro")
                 dst.saveAttributes()
             }

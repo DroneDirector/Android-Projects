@@ -109,7 +109,7 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
     var compare by remember { mutableStateOf<List<LibPhoto>?>(null) }
     var survey by remember { mutableStateOf<List<LibPhoto>?>(null) }
     var dialog by remember { mutableStateOf<String?>(null) }   // "album", "keywords", "newAlbum", "newSmart"
-    // Views: 0 grid, 1 stacks (bursts together), 2 people, 3 map.
+    // Views: 0 grid, 1 stacks (bursts together), 2 people, 3 map, 4 duplicates.
     var view by remember { mutableStateOf(0) }
     var peopleF by remember { mutableStateOf(-1) }   // -1 all, 0 no people, 1 one person, 2 two, 3 groups
     var mapPick by remember { mutableStateOf<Set<String>?>(null) }
@@ -118,6 +118,7 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
     LaunchedEffect(view, all) {
         if (all.isEmpty()) return@LaunchedEffect
         if (view == 2) withContext(Dispatchers.Default) { LibraryStore.indexFaces(context, all) { stopIndex } }
+        if (view == 4) withContext(Dispatchers.Default) { LibraryStore.indexDupes(context, all) { stopIndex } }
         if (view == 3) {
             if (Build.VERSION.SDK_INT >= 29 && ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_MEDIA_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 try { locPerm.launch(Manifest.permission.ACCESS_MEDIA_LOCATION) } catch (_: Throwable) {}
@@ -138,13 +139,18 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
             (mapPick == null || p.uri.toString() in mapPick!!) &&
             LibraryStore.matches(p, text)
     }
+    // Duplicates: each group of near-identical photos, the sharpest (kept) first.
+    val dupGroups = if (view == 4) LibraryStore.dupes(shown) else emptyList()
+    val dupKeep = dupGroups.map { it[0].uri.toString() }.toSet()
     // Stacks: bursts shown as one photo with a count, until tapped open.
-    val gridList: List<Pair<LibPhoto, Int>> = if (view != 1) shown.map { it to 0 } else LibraryStore.stacks(shown).flatMap { g ->
+    val gridList: List<Pair<LibPhoto, Int>> = if (view == 4) dupGroups.flatten().map { it to 0 } else if (view != 1) shown.map { it to 0 } else LibraryStore.stacks(shown).flatMap { g ->
         if (g.size == 1) listOf(g[0] to 0)
         else if (g[0].uri.toString() in expanded) g.mapIndexed { i, p -> p to (if (i == 0) -g.size else -1) }
         else listOf(g[0] to g.size)
     }
     val sel = all.filter { it.uri.toString() in picked }
+    var gpxFile by remember { mutableStateOf<Uri?>(null) }
+    val pickGpx = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { u -> if (u != null) gpxFile = u }
 
     Column(Modifier.fillMaxSize().background(Ed.Bg).windowInsetsPadding(WindowInsets.displayCutout).padding(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -180,12 +186,21 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
             PillChip("+ Smart album", false, accentText = true) { dialog = "newSmart" }
         }
         Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            listOf("Grid", "Stacks", "People", "Map").forEachIndexed { i, n -> PillChip(n, view == i) { view = i; if (i != 3) mapPick = null } }
+            listOf("Grid", "Stacks", "People", "Map", "Duplicates").forEachIndexed { i, n -> PillChip(n, view == i) { view = i; if (i != 3) mapPick = null } }
             if (view == 2) listOf("Everyone", "No people", "1 person", "2 people", "Groups").forEachIndexed { i, n -> PillChip(n, peopleF == i - 1) { peopleF = i - 1 } }
             if (mapPick != null) PillChip("📍 ${mapPick!!.size} here ✕", true) { mapPick = null }
-            LibraryStore.scanning?.let { (d, t) -> Text(if (view == 3) "Reading locations $d / $t" else "Finding people $d / $t", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp)) }
+            LibraryStore.scanning?.let { (d, t) -> Text(if (view == 3) "Reading locations $d / $t" else if (view == 4) "Comparing photos $d / $t" else "Finding people $d / $t", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp)) }
         }
         if (view == 2) Text("Groups photos by how many people are in them (faces found on the phone). It doesn't recognise who they are.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(bottom = 4.dp))
+        if (view == 4) {
+            Text("Near-identical photos side by side; the sharpest of each group (✓ KEEP) comes first. Nothing is deleted — reject the extra copies, then hide or delete them in your gallery.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(bottom = 4.dp))
+            if (dupGroups.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 6.dp)) {
+                val extra = dupGroups.flatMap { it.drop(1) }.map { it.uri.toString() }
+                Text("${dupGroups.size} group(s) · ${extra.size} extra cop" + (if (extra.size == 1) "y" else "ies"), style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.align(Alignment.CenterVertically))
+                PillChip("✕ Reject the extra copies", false, accentText = true) { LibraryStore.update(context, extra) { it.copy(flag = -1) }; flagF = 0 }
+                PillChip("Select the extra copies", false) { selecting = true; picked.clear(); picked.addAll(extra) }
+            } else if (LibraryStore.scanning == null) Text("No duplicates found.", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
+        }
         if (selecting) Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("${picked.size} selected", style = Pro.Label.copy(color = Color.White, fontSize = 11.sp))
             PillChip("Select all", false) { picked.clear(); picked.addAll(shown.map { it.uri.toString() }) }
@@ -202,6 +217,7 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
                 PillChip("Contact sheet PDF", false) { dialog = "sheet" }
                 PillChip("Print layout", false) { dialog = "print" }
                 if (picked.size in 2..9) PillChip("Collage", false) { dialog = "collage" }
+                PillChip("📍 Geotag from GPX", false) { try { pickGpx.launch(arrayOf("*/*")) } catch (_: Throwable) {} }
             }
         }
         Text("${shown.size} photo" + (if (shown.size == 1) "" else "s"), style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), modifier = Modifier.padding(bottom = 4.dp))
@@ -235,6 +251,7 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
                     if (stack > 1) Text("▣ $stack", style = Pro.Label.copy(color = Color.Black, fontSize = 10.sp), modifier = Modifier.align(Alignment.TopEnd).padding(3.dp).clip(RoundedCornerShape(4.dp)).background(Pro.Amber).padding(horizontal = 4.dp, vertical = 1.dp))
                     if (stack < -1) Text("▣ ${-stack} ▾", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.align(Alignment.TopEnd).padding(3.dp).clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.6f)).clickable { expanded.remove(k) }.padding(horizontal = 6.dp, vertical = 3.dp))
                     if (stack == -1) Box(Modifier.align(Alignment.TopEnd).padding(4.dp).size(6.dp).clip(CircleShape).background(Pro.Amber))
+                    if (view == 4 && k in dupKeep) Text("✓ KEEP", style = Pro.Label.copy(color = Color.Black, fontSize = 9.sp), modifier = Modifier.align(Alignment.TopEnd).padding(3.dp).clip(RoundedCornerShape(4.dp)).background(Pro.Amber).padding(horizontal = 4.dp, vertical = 1.dp))
                 } }
             }
         }
@@ -316,6 +333,9 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
         confirmButton = { Text("SAVE PDF", style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.clickable { dialog = null; savePrint.launch("Print layout.pdf") }.padding(10.dp)) },
         dismissButton = { Text("CANCEL", style = Pro.Label.copy(color = Pro.Dim, fontSize = 12.sp), modifier = Modifier.clickable { dialog = null }.padding(10.dp)) },
     )
+
+    // ---- Geotag from a GPS track
+    gpxFile?.let { g -> GeotagDialog(g, sel) { msg -> gpxFile = null; if (msg != null) { android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show(); reload++ } } }
 
     // ---- Collage
     if (dialog == "collage") CollageDialog(sheetUris, onDone = { msg -> dialog = null; if (msg != null) android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show() })

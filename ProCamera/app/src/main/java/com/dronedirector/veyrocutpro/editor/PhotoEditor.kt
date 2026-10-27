@@ -1491,11 +1491,14 @@ private fun PhotoWorkspace(
 
     /** Heal: tap a spot; the patch source is picked automatically. */
     var cloneMode by remember { mutableStateOf(false) }
+    /** Heal panel: 0 heal / clone, 1 red eye, 2 pet eye. */
+    var eyeMode by remember { mutableStateOf(0) }
     var cloneSrc by remember { mutableStateOf<Pair<Float, Float>?>(null) }
     var cloneOff by remember { mutableStateOf<Pair<Float, Float>?>(null) }
     fun addSpot(x: Float, y: Float) {
         val b = base ?: return
         val r = tools.healSize
+        if (eyeMode > 0) { edit = edit.copy(spots = edit.spots + Spot(x, y, r, 0f, 0f, eye = eyeMode)); return }
         // Clone stamp: first tap picks the source, then each tap paints a copy from the same offset.
         if (cloneMode) {
             val src = cloneSrc
@@ -2041,7 +2044,22 @@ private fun PhotoWorkspace(
                             PhotoPanel.MASKS -> MasksPanel(edit.masks, tools, { edit = edit.copy(masks = it) }, onAi = aiMaskAction, onAiSub = aiSubAction, onPeople = peopleAction)
                             PhotoPanel.HEAL -> {
                                 SectionTitle("HEAL / CLONE") { edit = edit.copy(spots = emptyList()) }
-                                Chips(listOf("Heal", "Clone stamp"), if (cloneMode) 1 else 0) { cloneMode = it == 1; cloneSrc = null; cloneOff = null }
+                                Chips(listOf("Heal", "Clone stamp", "Red eye", "Pet eye"), if (eyeMode > 0) eyeMode + 1 else if (cloneMode) 1 else 0) {
+                                    cloneMode = it == 1; eyeMode = if (it >= 2) it - 1 else 0; cloneSrc = null; cloneOff = null
+                                }
+                                if (eyeMode > 0) {
+                                    Text(if (eyeMode == 1) "Tap each red pupil (set the size to the pupil). The red turns dark and natural; the iris and skin stay." else "Tap each glowing pet eye: the green / yellow glow becomes a dark pupil with a small catchlight.", color = Pro.Amber, fontSize = 11.sp)
+                                    if (eyeMode == 1) PillChip("FIND RED EYES", false, accentText = true) {
+                                        val b = base
+                                        if (b != null) scope.launch {
+                                            message = "Looking for red eyes…"
+                                            val found = withContext(Dispatchers.Default) { PhotoLocal.findRedEyes(b) }
+                                            val fresh = found.filter { n -> edit.spots.none { it.eye > 0 && kotlin.math.hypot((it.x - n.x).toDouble(), (it.y - n.y).toDouble()) < (it.r + n.r) } }
+                                            edit = edit.copy(spots = edit.spots + fresh)
+                                            message = if (fresh.isEmpty()) "No red eyes found — tap them by hand if there are any" else "${fresh.size} red eye(s) fixed"
+                                        }
+                                    }
+                                }
                                 if (cloneMode) {
                                     Text(if (cloneSrc == null) "Tap the spot to copy FROM." else "Tap where to paint the copy; more taps keep the same offset.", color = Pro.Amber, fontSize = 11.sp)
                                     Text("NEW SOURCE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable { cloneSrc = null; cloneOff = null }.padding(8.dp))
@@ -2775,6 +2793,8 @@ private fun PhotoPanelContent(
             EdSlider("Shadows", g.curveShadows) { v -> grade { it.copy(curveShadows = v) } }
             SectionTitle("CONTRAST PIVOT")
             EdSlider("Pivot", g.pivot, 0.2f..0.7f, 0.435f, ::pct) { v -> grade { it.copy(pivot = v) } }
+            SectionTitle("HUE CURVES") { grade { it.copy(hueCurves = null) } }
+            HueCurvesEditor(g.hueCurves) { hc -> grade { it.copy(hueCurves = hc) } }
         }
         PhotoPanel.COLOR -> {
             SectionTitle("WHITE BALANCE") { set(e.copy(raw = if (isRaw) e.raw.copy(wb = 0) else e.raw, grade = g.copy(temperature = 0f, tint = 0f))) }

@@ -43,6 +43,10 @@ data class AudioFx(
     val bands: List<EqBand>? = null,
     /** De-esser (0..1): tames sharp "s" and "sh" sounds. */
     val deess: Float = 0f,
+    /** Pitch in semitones (−12..12), without changing the speed. */
+    val pitch: Float = 0f,
+    /** Voice effect: 0 none, 1 robot, 2 radio, 3 phone, 4 megaphone. */
+    val voiceFx: Int = 0,
 ) {
     val isNeutral get() = this == AudioFx() || this == AudioFx(limiter = false)
 }
@@ -218,6 +222,33 @@ private class Biquad {
 }
 
 /**
+ * Pitch shifter (own code): two read heads glide through a short delay line at the new speed and cross-fade,
+ * so the pitch changes but the length doesn't. Good for voices; [ratio] 0.5..2.
+ */
+private class PitchShift(private val ch: Int, rate: Int) {
+    private val size = (rate * 0.05).toInt().coerceAtLeast(256)       // 50 ms window
+    private val buf = Array(ch) { DoubleArray(size * 2) }
+    private var w = 0
+    private var phase = 0.0
+    fun process(frame: DoubleArray, ratio: Double) {
+        val n = buf[0].size
+        for (c in 0 until ch) buf[c][w] = frame[c]
+        phase = (phase + (1.0 - ratio) / size).let { it - kotlin.math.floor(it) }
+        val p2 = (phase + 0.5) % 1.0
+        val g1 = sin(PI * phase).let { it * it }; val g2 = sin(PI * p2).let { it * it }
+        val d1 = phase * size + 1; val d2 = p2 * size + 1
+        for (c in 0 until ch) {
+            fun tap(d: Double): Double {
+                val pos = (w - d + n * 4) % n; val i = pos.toInt(); val f = pos - i
+                return buf[c][i] * (1 - f) + buf[c][(i + 1) % n] * f
+            }
+            frame[c] = tap(d1) * g1 + tap(d2) * g2
+        }
+        w = (w + 1) % n
+    }
+}
+
+/**
  * 16-bit PCM processor used both for the export (fixed settings, with fades and ducking)
  * and for the live preview (settings can change while playing; set [fx]).
  */
@@ -257,6 +288,9 @@ class AudioFxProcessor(
     private val dsHp = Biquad(); private var dsEnv = 0.0; private var dsAll = 0.0
     private var frames = 0L
     private var env = 0.0; private var gateGain = 1.0; private var duck = 1.0
+    private var pitchShift: PitchShift? = null
+    private val vHp = Biquad(); private val vLp = Biquad(); private val vPk = Biquad()
+    private var ringPhase = 0.0
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT) return AudioProcessor.AudioFormat.NOT_SET
@@ -275,6 +309,13 @@ class AudioFxProcessor(
         val bs = f.bands.orEmpty()
         for (i in peq.indices) { val b = bs.getOrNull(i); if (b == null || !b.on) peq[i].on = false else { peq[i].setNormalized(EqMath.normalized(b, r)) } }
         dsHp.highPass(4500.0, r, 0.707)
+        // Voice effects: a band of the voice (radio, phone, megaphone).
+        val band = when (f.voiceFx) { 2 -> Triple(300.0, 3400.0, 3.0); 3 -> Triple(450.0, 2800.0, 0.0); 4 -> Triple(600.0, 4500.0, 6.0); else -> null }
+        if (band == null) { vHp.on = false; vLp.on = false; vPk.on = false } else {
+            vHp.highPass(band.first, r, 0.8)
+            vLp.setNormalized(EqMath.normalized(EqBand(type = 4, freq = band.second.toFloat(), q = 0.8f), r))
+            vPk.peak(1800.0, r, band.third, 1.0)
+        }
         built = f; builtRate = rate
     }
 
@@ -351,6 +392,26 @@ class AudioFxProcessor(
                 }
                 frame[0] *= panL; frame[1] *= panR
             } else if (livePan != 0f && ch == 1) { /* mono: pan has no effect */ }
+            // Pitch (same length) and voice effects.
+            if (f.pitch != 0f) {
+                val ps = pitchShift ?: PitchShift(ch, rate).also { pitchShift = it }
+                ps.process(frame, 2.0.pow(f.pitch / 12.0))
+            }
+            if (f.voiceFx == 1) {
+                // Robot: ring modulation at 55 Hz with a little of the voice kept.
+                ringPhase += 2 * PI * 55.0 / rate; if (ringPhase > 2 * PI) ringPhase -= 2 * PI
+                val m = sin(ringPhase)
+                for (c in 0 until ch) frame[c] = frame[c] * (0.25 + 0.75 * m) * 1.3
+            } else if (f.voiceFx >= 2) {
+                val drive = when (f.voiceFx) { 2 -> 2.2; 3 -> 1.6; else -> 3.2 }
+                for (c in 0 until ch) {
+                    var x = frame[c]
+                    if (vHp.on) x = vHp.process(x, c)
+                    if (vLp.on) x = vLp.process(x, c)
+                    if (vPk.on) x = vPk.process(x, c)
+                    frame[c] = tanh(x * drive) / tanh(drive) * 0.9
+                }
+            }
             // EQ
             for (c in 0 until ch) {
                 var x = frame[c]
@@ -428,7 +489,7 @@ class AudioFxProcessor(
         }
     }
 
-    private fun clear() { lev = 1.0; levRms = 0.0; kSum = 0.0; kN = 0; kHist.clear(); kShelf.reset(); kHp.reset(); frames = 0; env = 0.0; gateGain = 1.0; duck = 1.0; nr = null; vi?.release(); vi = null; dc = null; dr = null; nrDrop = 0; held = 0; flushing = false; listOf(hp, ls, pk, hs, pres, dsHp).forEach { it.reset() }; peq.forEach { it.reset() }; dsEnv = 0.0; dsAll = 0.0 }
+    private fun clear() { pitchShift = null; ringPhase = 0.0; vHp.reset(); vLp.reset(); vPk.reset(); lev = 1.0; levRms = 0.0; kSum = 0.0; kN = 0; kHist.clear(); kShelf.reset(); kHp.reset(); frames = 0; env = 0.0; gateGain = 1.0; duck = 1.0; nr = null; vi?.release(); vi = null; dc = null; dr = null; nrDrop = 0; held = 0; flushing = false; listOf(hp, ls, pk, hs, pres, dsHp).forEach { it.reset() }; peq.forEach { it.reset() }; dsEnv = 0.0; dsAll = 0.0 }
     override fun onQueueEndOfStream() {
         // Push silence through so the last moment of sound comes out of the processors' delay.
         if (held > 0 && !flushing) {

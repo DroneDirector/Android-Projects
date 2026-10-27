@@ -180,7 +180,7 @@ object FxLayers {
                     for (q in 0 until 4) c.drawCircle(x1 - bh * 4f * hash(q, 7, step), bh * hash(q, 11, step), (bh * 0.07f).coerceAtLeast(1f) * (0.6f + hash(q, 3, step)), spk)
                 }
                 val rim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    style = Paint.Style.STROKE; strokeWidth = (bh * 0.09f).coerceAtLeast(1f)
+                    this.style = Paint.Style.STROKE; strokeWidth = (bh * 0.09f).coerceAtLeast(1f)
                     shader = android.graphics.SweepGradient(w * ((step % 60) / 60f), bh / 2f, intArrayOf(cyan, violet, tip, cyan), null)
                     alpha = 170
                 }

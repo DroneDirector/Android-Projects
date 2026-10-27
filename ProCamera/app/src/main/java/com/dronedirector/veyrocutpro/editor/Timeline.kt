@@ -817,6 +817,7 @@ fun TimelineView(
                             LayerKind.ADJUST -> Color(0xFFFFB300)
                             LayerKind.SHAPE -> Color(0xFFFF9500)
                             LayerKind.LOTTIE -> Color(0xFF00C7BE)
+                            LayerKind.FX -> Color(0xFFB0B8C8)
                         }.copy(alpha = if (l.visible) 0.85f else 0.3f)
                         drawRoundRect(col, Offset(x0, rowTop), Size((x1 - x0).coerceAtLeast(3f), layerRow), CornerRadius(5f))
                         if (l.locked) lockHatch(x0, x1, rowTop, layerRow)

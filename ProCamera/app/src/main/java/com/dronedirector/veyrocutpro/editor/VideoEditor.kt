@@ -24,6 +24,9 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.LinearScale
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.Image

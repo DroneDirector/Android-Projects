@@ -76,14 +76,121 @@ object FxLayers {
         return out
     }
 
+    val PROGRESS_STYLES = listOf("Plain", "Rounded", "Glowing tip", "Gradient", "Segments", "Dots", "Thin + dot", "Scroll wheel")
+
+    private fun hash(a: Int, b: Int, c: Int): Float {
+        var h = a * 374761393 + b * 668265263 + c * 1274126177
+        h = (h xor (h ushr 13)) * 1274126177
+        return ((h xor (h ushr 16)) and 0xFFFF) / 65535f
+    }
+
     private fun progress(l: Layer, w: Int, h: Int, ms: Long): Bitmap {
         val th = ((l.fxA ?: 0.008f) * h).coerceAtLeast(2f)
-        val out = Bitmap.createBitmap(w, th.toInt().coerceAtLeast(2), Bitmap.Config.ARGB_8888)
+        val style = (l.fxB ?: 0f).toInt()
+        // Room above and below the bar for glows, dots and handles (the bar stays centred on the layer's place).
+        val tall = when (style) { 2 -> 4f; 5 -> 2.2f; 6 -> 3.2f; 7 -> 1.6f; else -> 1f }
+        val bh = (th * tall).toInt().coerceAtLeast(2)
+        val out = Bitmap.createBitmap(w, bh, Bitmap.Config.ARGB_8888)
         val c = Canvas(out)
-        c.drawRect(0f, 0f, w.toFloat(), out.height.toFloat(), Paint().apply { color = 0x40FFFFFF })
         val len = (l.endMs - l.startMs).coerceAtLeast(1)
         val k = if (ms < 0) 0.35f else ((ms - l.startMs).toFloat() / len).coerceIn(0f, 1f)
-        c.drawRect(0f, 0f, w * k, out.height.toFloat(), Paint().apply { color = l.color or 0xFF000000.toInt() })
+        val col = l.color or 0xFF000000.toInt()
+        val col2 = com.dronedirector.veyrocutpro.ui.CursorStyle.partner(androidx.compose.ui.graphics.Color(col)).let { android.graphics.Color.argb(255, (it.red * 255).toInt(), (it.green * 255).toInt(), (it.blue * 255).toInt()) }
+        val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x40FFFFFF }
+        val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = col }
+        val cy = bh / 2f; val top = cy - th / 2f; val bot = cy + th / 2f
+        val x1 = w * k
+        val step = ((ms.coerceAtLeast(0)) / STEP_MS).toInt()
+        when (style) {
+            1 -> { // Rounded: a pill inset from the sides.
+                val m = w * 0.03f; val r = th / 2f
+                c.drawRoundRect(RectF(m, top, w - m, bot), r, r, track)
+                if (k > 0f) c.drawRoundRect(RectF(m, top, m + (w - 2 * m) * k, bot).also { if (it.width() < th) it.right = it.left + th }, r, r, fill)
+            }
+            2 -> { // Glowing tip: a soft glow travels at the front edge.
+                c.drawRect(0f, top, w.toFloat(), bot, track)
+                c.drawRect(0f, top, x1, bot, fill)
+                val gr = bh / 2f
+                c.drawCircle(x1, cy, gr, Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = RadialGradient(x1, cy, gr, intArrayOf(0xFFFFFFFF.toInt(), col and 0x99FFFFFF.toInt(), 0), floatArrayOf(0f, 0.35f, 1f), Shader.TileMode.CLAMP) })
+            }
+            3 -> { // Gradient: from the colour into its partner colour.
+                c.drawRect(0f, top, w.toFloat(), bot, track)
+                if (x1 > 1f) c.drawRect(0f, top, x1, bot, Paint().apply { shader = LinearGradient(0f, 0f, w.toFloat(), 0f, col, col2, Shader.TileMode.CLAMP) })
+            }
+            4 -> { // Segments: the length split into equal parts with small gaps.
+                val n = (l.fxX ?: 5f).toInt().coerceIn(2, 12)
+                val gap = (w * 0.004f).coerceAtLeast(2f)
+                for (i in 0 until n) {
+                    val a = w * i / n.toFloat() + (if (i > 0) gap / 2 else 0f); val b = w * (i + 1) / n.toFloat() - (if (i < n - 1) gap / 2 else 0f)
+                    c.drawRect(a, top, b, bot, track)
+                    if (x1 > a) c.drawRect(a, top, minOf(b, x1), bot, fill)
+                }
+            }
+            5 -> { // Dots: a row of dots lighting up one by one.
+                val r = bh / 2f * 0.8f
+                val n = (w / (r * 3.2f)).toInt().coerceIn(8, 120)
+                for (i in 0 until n) {
+                    val x = (i + 0.5f) * w / n
+                    c.drawCircle(x, cy, r, if (x <= x1) fill else track)
+                }
+            }
+            6 -> { // Thin + dot: a hairline with a round handle, like a video player.
+                val lt = (th * 0.35f).coerceAtLeast(1.5f)
+                c.drawRect(0f, cy - lt / 2, w.toFloat(), cy + lt / 2, track)
+                c.drawRect(0f, cy - lt / 2, x1, cy + lt / 2, fill)
+                val r = bh / 2f * 0.85f
+                c.drawCircle(x1.coerceIn(r, w - r), cy, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt() })
+                c.drawCircle(x1.coerceIn(r, w - r), cy, r * 0.6f, fill)
+            }
+            7 -> { // Scroll wheel: the look of the timeline's scroll bar — dark track, rolling ridges, glowing gradient, pixel sparkle and rim.
+                val wc = com.dronedirector.veyrocutpro.ui.CursorStyle.wheel
+                fun argb(cc: androidx.compose.ui.graphics.Color, a: Float = 1f) = android.graphics.Color.argb((a * 255).toInt(), (cc.red * 255).toInt(), (cc.green * 255).toInt(), (cc.blue * 255).toInt())
+                val cyan = argb(wc); val violet = argb(com.dronedirector.veyrocutpro.ui.CursorStyle.partner(wc))
+                val tip = argb(androidx.compose.ui.graphics.lerp(wc, androidx.compose.ui.graphics.Color.White, 0.45f))
+                val r = bh / 2f
+                val full = RectF(0.5f, 0.5f, w - 0.5f, bh - 0.5f)
+                c.drawRoundRect(full, r, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xCC0D1016.toInt() })
+                val sp = (bh * 0.45f).coerceAtLeast(3f)
+                var x = -((step * 2f) % sp)
+                val ridge = Paint().apply { strokeWidth = (bh * 0.06f).coerceAtLeast(1f) }
+                while (x < w) {
+                    val edge = 1f - kotlin.math.abs(x / w - 0.5f) * 2f
+                    ridge.color = android.graphics.Color.argb(((0.06f + 0.10f * edge) * 255).toInt(), 255, 255, 255)
+                    c.drawLine(x, bh * 0.3f, x, bh * 0.7f, ridge); x += sp
+                }
+                if (x1 > 1f) {
+                    // Pixel blocks shimmering near the front edge.
+                    val cell = (bh / 3f).coerceAtLeast(2f)
+                    var px = maxOf(0f, x1 - bh * 6f); var i = (px / cell).toInt()
+                    val pp = Paint()
+                    while (px < x1) {
+                        var py = 0f; var j = 0
+                        while (py < bh) {
+                            val v = hash(i, j, step / 2)
+                            val near = 1f - ((x1 - px) / (bh * 6f)).coerceIn(0f, 1f)
+                            val a = near * near * (0.15f + 0.45f * v)
+                            if (a > 0.03f) { pp.color = if (v > 0.5f) (cyan and 0x00FFFFFF) or ((a * 255).toInt() shl 24) else (violet and 0x00FFFFFF) or ((a * 255).toInt() shl 24); c.drawRect(px, py, px + cell - 1f, py + cell - 1f, pp) }
+                            py += cell; j++
+                        }
+                        px += cell; i++
+                    }
+                    c.drawRoundRect(RectF(1f, bh * 0.18f, x1.coerceAtLeast(bh.toFloat()), bh * 0.82f), bh * 0.32f, bh * 0.32f,
+                        Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = LinearGradient(0f, 0f, x1.coerceAtLeast(2f), 0f, intArrayOf(cyan and 0xD9FFFFFF.toInt(), violet and 0xD9FFFFFF.toInt(), tip and 0xE6FFFFFF.toInt()), null, Shader.TileMode.CLAMP) })
+                    val spk = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xE6FFFFFF.toInt() }
+                    for (q in 0 until 4) c.drawCircle(x1 - bh * 4f * hash(q, 7, step), bh * hash(q, 11, step), (bh * 0.07f).coerceAtLeast(1f) * (0.6f + hash(q, 3, step)), spk)
+                }
+                val rim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    style = Paint.Style.STROKE; strokeWidth = (bh * 0.09f).coerceAtLeast(1f)
+                    shader = android.graphics.SweepGradient(w * ((step % 60) / 60f), bh / 2f, intArrayOf(cyan, violet, tip, cyan), null)
+                    alpha = 170
+                }
+                c.drawRoundRect(full, r, r, rim)
+            }
+            else -> { // Plain.
+                c.drawRect(0f, top, w.toFloat(), bot, track)
+                c.drawRect(0f, top, x1, bot, fill)
+            }
+        }
         return out
     }
 

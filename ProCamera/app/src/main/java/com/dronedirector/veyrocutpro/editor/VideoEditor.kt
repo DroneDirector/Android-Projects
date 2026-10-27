@@ -6350,6 +6350,11 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
             FxLayers.PROGRESS -> {
                 Chips(listOf("Top", "Bottom"), if (l.y < 0.5f) 0 else 1) { val th = l.fxA ?: 0.008f; onUpdate(l.copy(y = if (it == 0) th / 2f else 1f - th / 2f)) }
                 EdSlider("Thickness", (l.fxA ?: 0.008f) * 100f, 0.3f..3f, 0.8f, { "%.1f%%".format(it) }) { v -> val th = v / 100f; onUpdate(l.copy(fxA = th, y = if (l.y < 0.5f) th / 2f else 1f - th / 2f)) }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
+                    FxLayers.PROGRESS_STYLES.forEachIndexed { i, n -> PillChip(n, (l.fxB ?: 0f).toInt() == i) { onUpdate(l.copy(fxB = i.toFloat())) } }
+                }
+                if ((l.fxB ?: 0f).toInt() == 4) EdSlider("Segments", l.fxX ?: 5f, 2f..12f, 5f, { "%.0f".format(it) }) { onUpdate(l.copy(fxX = kotlin.math.round(it))) }
+                if ((l.fxB ?: 0f).toInt() == 7) Text("Scroll wheel uses the scroll wheels' own colour (gear → SCROLL WHEELS).", color = Pro.Dim, fontSize = 11.sp)
                 Text("Fills from left to right over the layer's length (the whole video when added). Drawn into the exported video.", color = Pro.Dim, fontSize = 11.sp)
             }
             FxLayers.FLARE -> {

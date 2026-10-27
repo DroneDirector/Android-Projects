@@ -973,12 +973,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             // Film / lens / deflicker need the frame itself: they run in the player (only when used).
             val ff = if (es.effectsOk) liveEffects(c) else emptyList()
             android.util.Log.i("FxTest", "prepare: ${ff.size} player effects")
-            // The player builds its effects stage only the first time, so it always gets one (a pass-through
-            // when nothing is used) — then clarity, texture, film looks and privacy blur can be added later.
-            try {
-                p.setVideoEffects(ff.ifEmpty { listOf(androidx.media3.effect.Contrast(0f)) })
-                filmOn[pi] = ff.isNotEmpty(); filmShown[pi] = liveKey(c)
-            } catch (_: Throwable) { filmOn[pi] = false }
+            if (ff.isNotEmpty() || filmOn[pi]) {
+                try { p.setVideoEffects(ff); filmOn[pi] = ff.isNotEmpty(); filmShown[pi] = liveKey(c) } catch (_: Throwable) { filmOn[pi] = false }
+            }
         } else {
             try { p.setVideoEffects(if (es.effectsOk) olderPreviewEffects(adjOf(c)) else emptyList()) } catch (_: Throwable) { es.effectsOk = false }
         }

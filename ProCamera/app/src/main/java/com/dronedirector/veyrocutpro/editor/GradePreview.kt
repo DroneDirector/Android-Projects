@@ -90,10 +90,10 @@ object GradePreview {
         sh.setFloatUniform("uN", N.toFloat())
         sh.setFloatUniform("uHasLut", if (hasLut) 1f else 0f)
         sh.setFloatUniform("uSharpen", d.sharpen)
-        // Texture, clarity and image detail run in the player (liveEffects), not here.
-        sh.setFloatUniform("uDetail", 0f)
-        sh.setFloatUniform("uClarity", 0f)
-        sh.setFloatUniform("uTexture", 0f)
+        // Texture, clarity and image detail are drawn here (live while dragging, like the grade).
+        sh.setFloatUniform("uDetail", d.localDetail)
+        sh.setFloatUniform("uClarity", d.clarity)
+        sh.setFloatUniform("uTexture", d.texture)
         sh.setFloatUniform("uDenoise", d.denoise)
         sh.setFloatUniform("uVignette", d.vignette)
         sh.setFloatUniform("uGrain", d.grain)

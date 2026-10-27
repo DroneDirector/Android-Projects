@@ -73,7 +73,7 @@
    "<strong>Shape layers</strong> (rectangle, rounded, ellipse, line, arrow, triangle, star, heart; filled or outline) and <strong>Lottie animation layers</strong> (.json / .zip; lottie-android, Apache 2.0).",
    "<strong>Shape (pen) masks</strong> on clips: a smooth curve with a soft edge and its own grade, planar-tracked to follow what it covers.",
    "<strong>Object removal (AI)</strong>: tap anything and it's removed from the whole clip — filled from the real background in nearby frames (own optical flow), with LaMa (Apache 2.0) painting only what's never seen.",
-   "<strong>Privacy blur</strong>: faces found automatically and any spot you tap (number plates, screens, signs), followed through the clip, blurred or pixelated.",
+   "<strong>Privacy blur</strong>: faces found automatically and any spot you tap (number plates, screens, signs), followed through the clip, blurred or pixelated, shown live in the preview while you adjust it.",
    "<strong>AI depth</strong> (Depth Anything V2 Small, Apache 2.0): lens blur with real depth of field, fog / haze by distance, or a darker, calmer background.",
    "<strong>AI voiceover from text</strong>: 12 natural English voices (Kokoro 82M, Apache 2.0; misaki dictionaries), made on the phone and added as an audio track.",
    "<strong>Studio voice (AI)</strong>: DeepFilterNet3 (MIT / Apache 2.0) voice clean-up; <strong>de-click</strong> and <strong>de-reverb</strong> (own code).",

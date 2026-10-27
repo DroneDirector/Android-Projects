@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: Clarity, Texture and Image detail now run in the video player itself during preview — the same code as the export — so they show on every Android 13+ phone and tablet.
 - Video editor: Clarity and Texture are sized to the picture like in the photo editor (they were far too weak on 4K and log footage such as D-Log), in the preview and the export.
 
 ## 1.0.632 — 2026-10-27

@@ -80,10 +80,18 @@ fun filmEffects(c: Clip): List<androidx.media3.common.Effect> = c.film?.takeIf {
 /** Effects the preview player runs itself on Android 13+ (the grade and the background cut-out are drawn on the view): film / lens. */
 @UnstableApi
 fun liveEffects(c: Clip): List<androidx.media3.common.Effect> =
-    (if (c.privacy?.active == true) listOf(PrivacyBlurEffect(c, 0L, preview = true)) else emptyList()) + filmEffects(c)
+    (if (c.privacy?.active == true) listOf(PrivacyBlurEffect(c, 0L, preview = true)) else emptyList()) +
+    // Texture, clarity and image detail: the export's own GPU code, run in the player (same result on every phone).
+    (localDetailOf(c)?.let { listOf(DetailEffect(it)) } ?: emptyList()) +
+    filmEffects(c)
+
+/** Just the local-contrast part of a clip's detail (texture, clarity, image detail), or null when unused. */
+fun localDetailOf(c: Clip): Detail? = c.detail.let { d ->
+    if (d.clarity == 0f && d.texture == 0f && d.localDetail == 0f) null else Detail(clarity = d.clarity, texture = d.texture, localDetail = d.localDetail)
+}
 
 /** What [liveEffects] depends on (to know when to rebuild them). */
-fun liveKey(c: Clip): Any? = listOf(c.film?.takeIf { !it.isZero }, c.privacy?.takeIf { it.active }).takeIf { it.any { x -> x != null } }
+fun liveKey(c: Clip): Any? = listOf(c.film?.takeIf { !it.isZero }, c.privacy?.takeIf { it.active }, localDetailOf(c)).takeIf { it.any { x -> x != null } }
 
 /** Preview before Android 13 (effects in the player): people background removal first, then the rest. */
 @UnstableApi

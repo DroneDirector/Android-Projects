@@ -3794,5 +3794,6 @@
 "DESELECT ALL": "STRIKA ALT VALT",
 "♪ DETACH AUDIO": "♪ SKIL LJÓÐ",
 "Tap clips to pick them — Color changes go to every picked clip": "Trýst á klipp fyri at velja tey — litbroytingar galda øll valdu klippini",
-"Some clips couldn't be detached (speed changed or ramped)": "Summi klipp kundu ikki skiljast (broytt ferð ella rampa)"
+"Some clips couldn't be detached (speed changed or ramped)": "Summi klipp kundu ikki skiljast (broytt ferð ella rampa)",
+"Video editor, buttons under the picture: Play is bigger (an amber circle) and sits in the middle of the playback buttons — mute, go to in, previous clip and frame back on its left, frame forward, next clip, go to out and start on its right — and the row starts with Play centred under the picture; swipe the row for the rest.": "Videoklipping, knøttarnir undir myndini: Spæl er størri (ein gulur ringur) og situr mitt í spæliknøttunum — sløkk ljóð, far til inn, undanfarna klipp og ein mynd aftur til vinstru, ein mynd fram, næsta klipp, far til út og byrjan til høgru — og røðin byrjar við Spæl mitt undir myndini; strúka røðina fyri restina."
 }

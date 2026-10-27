@@ -3825,83 +3825,95 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.15f)),
                     )
                     // The whole button row scrolls sideways (with the hint arrows) whenever it is wider
-                    // than the screen. Which buttons it shows is chosen with its + button.
+                    // than the screen. Which buttons it shows is chosen with its + button. Play sits in the
+                    // middle of the playback buttons and starts centred under the picture.
                     BoxWithConstraints(Modifier.fillMaxWidth()) {
-                        val barWidth = maxWidth
-                        Row(
-                            Modifier.hintedScroll(horizontal = true).widthIn(min = barWidth),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
+                        val barPx = constraints.maxWidth.toFloat()
+                        val bc = wf.bar
+                        val lead = (barPx / 2f - bc.playX).coerceAtLeast(0f)
+                        val trail = (barPx / 2f - (bc.rowW - bc.playX)).coerceAtLeast(0f)
+                        val dens = androidx.compose.ui.platform.LocalDensity.current
+                        LaunchedEffect(barPx, bc.playX >= 0f) {
+                            if (bc.playX < 0f) return@LaunchedEffect
+                            androidx.compose.runtime.withFrameNanos { }
+                            bc.scroll.scrollTo((lead + bc.playX - barPx / 2f).toInt().coerceAtLeast(0))
+                        }
+                        Row(Modifier.hintedScroll(horizontal = true, scroll = bc.scroll), verticalAlignment = Alignment.CenterVertically) {
                             @Composable fun b(id: String, content: @Composable () -> Unit) { if (TransportBar.shown(id)) content() }
+                            androidx.compose.foundation.layout.Spacer(Modifier.width(with(dens) { lead.toDp() }))
+                            Row(
+                                Modifier.onGloballyPositioned { c -> bc.rowAt = c.positionInRoot().x; bc.rowW = c.size.width.toFloat() },
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                b("split") { TransportIcon(Icons.Filled.ContentCut, "Split at playhead", accent = true) { splitAtPlayhead() } }
-                                b("undo") { TransportIcon(Icons.AutoMirrored.Filled.Undo, "Undo", tint = if (es.histPos > 0) Color.White else Pro.Dim) { undo() } }
-                                b("redo") { TransportIcon(Icons.AutoMirrored.Filled.Redo, "Redo", tint = if (es.histPos < history.lastIndex) Color.White else Pro.Dim) { redo() } }
-                                b("markin") { TransportIcon(BarIcons.markIn, "Mark in", tint = if (es.deliver.rangeStart != null) Pro.Amber else Color.White) { markIn() } }
-                                b("markout") { TransportIcon(BarIcons.markOut, "Mark out", tint = if (es.deliver.rangeEnd != null) Pro.Amber else Color.White) { markOut() } }
-                                b("marker") { TransportIcon(BarIcons.marker, "Add marker") { toggleMarker() } }
-                                b("markers") {
-                                    MarkersMenuButton(
-                                        markers.toList(), markerNotes.toMap(), globalMs, if (es.deliver.fps > 0) es.deliver.fps else 30,
-                                        onGo = { seekGlobal(it) },
-                                        onEdit = { old, new, note ->
-                                            if (new != old) { markers.remove(old); markerNotes.remove(old); if (new !in markers) { markers.add(new); markers.sort() } }
-                                            if (note.isBlank()) markerNotes.remove(new) else markerNotes[new] = note
-                                            es.message = "Marker saved"
-                                        },
-                                        onClear = { m -> markers.remove(m); markerNotes.remove(m); es.message = "Marker cleared" },
-                                        onClearAll = { markers.clear(); markerNotes.clear(); es.message = "All markers cleared" },
-                                        onImport = { l ->
-                                            for ((t, n) in l) { if (t !in markers) markers.add(t); if (n.isNotBlank()) markerNotes[t] = n }
-                                            markers.sort(); es.message = "${l.size} markers imported"
-                                        },
-                                        onMessage = { es.message = it },
-                                    )
-                                }
-                                b("speed") { TransportIcon(Icons.Filled.Speed, "Speed / Duration") { if (clips.getOrNull(es.selected) == null) es.message = "Select a clip first" else wf.barDlg = "speed" } }
-                                b("interp") { TransportIcon(Icons.Filled.SlowMotionVideo, "Time interpolation") { if (clips.getOrNull(es.selected) == null) es.message = "Select a clip first" else wf.barDlg = "interp" } }
-                                b("link") { TransportIcon(Icons.Filled.Link, "Link / unlink tracks") { wf.barDlg = "link" } }
-                                b("group") { TransportIcon(Icons.Filled.Workspaces, "Group / ungroup") { wf.barDlg = "group" } }
+                                    b("split") { TransportIcon(Icons.Filled.ContentCut, "Split at playhead", accent = true) { splitAtPlayhead() } }
+                                    b("undo") { TransportIcon(Icons.AutoMirrored.Filled.Undo, "Undo", tint = if (es.histPos > 0) Color.White else Pro.Dim) { undo() } }
+                                    b("redo") { TransportIcon(Icons.AutoMirrored.Filled.Redo, "Redo", tint = if (es.histPos < history.lastIndex) Color.White else Pro.Dim) { redo() } }
+                                    b("markin") { TransportIcon(BarIcons.markIn, "Mark in", tint = if (es.deliver.rangeStart != null) Pro.Amber else Color.White) { markIn() } }
+                                    b("markout") { TransportIcon(BarIcons.markOut, "Mark out", tint = if (es.deliver.rangeEnd != null) Pro.Amber else Color.White) { markOut() } }
+                                    b("marker") { TransportIcon(BarIcons.marker, "Add marker") { toggleMarker() } }
+                                    b("markers") {
+                                        MarkersMenuButton(
+                                            markers.toList(), markerNotes.toMap(), globalMs, if (es.deliver.fps > 0) es.deliver.fps else 30,
+                                            onGo = { seekGlobal(it) },
+                                            onEdit = { old, new, note ->
+                                                if (new != old) { markers.remove(old); markerNotes.remove(old); if (new !in markers) { markers.add(new); markers.sort() } }
+                                                if (note.isBlank()) markerNotes.remove(new) else markerNotes[new] = note
+                                                es.message = "Marker saved"
+                                            },
+                                            onClear = { m -> markers.remove(m); markerNotes.remove(m); es.message = "Marker cleared" },
+                                            onClearAll = { markers.clear(); markerNotes.clear(); es.message = "All markers cleared" },
+                                            onImport = { l ->
+                                                for ((t, n) in l) { if (t !in markers) markers.add(t); if (n.isNotBlank()) markerNotes[t] = n }
+                                                markers.sort(); es.message = "${l.size} markers imported"
+                                            },
+                                            onMessage = { es.message = it },
+                                        )
+                                    }
+                                    b("speed") { TransportIcon(Icons.Filled.Speed, "Speed / Duration") { if (clips.getOrNull(es.selected) == null) es.message = "Select a clip first" else wf.barDlg = "speed" } }
+                                    b("interp") { TransportIcon(Icons.Filled.SlowMotionVideo, "Time interpolation") { if (clips.getOrNull(es.selected) == null) es.message = "Select a clip first" else wf.barDlg = "interp" } }
+                                    b("link") { TransportIcon(Icons.Filled.Link, "Link / unlink tracks") { wf.barDlg = "link" } }
+                                    b("group") { TransportIcon(Icons.Filled.Workspaces, "Group / ungroup") { wf.barDlg = "group" } }
                             }
                             Row(Modifier.padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                b("mute") { TransportIcon(if (es.previewMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute preview") { es.previewMuted = !es.previewMuted } }
-                                b("tlout") { TransportIcon(Icons.Filled.ZoomOut, "Zoom timeline out") { zoom.zoomOut() } }
-                                b("tlfit") { TransportIcon(Icons.Filled.FitScreen, "Show whole timeline") { zoom.fit() } }
-                                b("tlin") { TransportIcon(Icons.Filled.ZoomIn, "Zoom timeline in") { zoom.zoomIn() } }
-                                // Cast to a TV (tablets), next to the zoom buttons below the picture.
-                                b("cast") { if (castPanel) com.dronedirector.veyrocutpro.ui.CastButton(castSource, Modifier.padding(horizontal = 4.dp), small = true, sound = com.dronedirector.veyrocutpro.camera.CastFeed.Sound.APP) }
-                                b("safe") { TransportIcon(Icons.Filled.CropFree, "Safe margins", tint = if (SafeZones.current != 0) Pro.Amber else Color.White) { toggleSafe() } }
-                                b("res") {
-                                    Box {
-                                        var open by remember { mutableStateOf(false) }
-                                        TransportIcon(Icons.Filled.Hd, "Playback resolution", tint = if (TransportBar.playbackDiv > 1) Pro.Amber else Color.White) { open = true }
-                                        androidx.compose.material3.DropdownMenu(open, { open = false }, containerColor = Pro.PanelSolid) {
-                                            Text("PLAYBACK RESOLUTION", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp))
-                                            for ((d, label) in TransportBar.DIVS) androidx.compose.material3.DropdownMenuItem(
-                                                text = { Text(label, color = if (TransportBar.playbackDiv == d) Pro.Amber else Color.White) },
-                                                onClick = { TransportBar.playbackDiv = d; open = false; es.message = if (d == 1) "Preview at full resolution" else "Preview at $label resolution (the export is always full)" },
-                                            )
-                                        }
-                                    }
-                                }
-                                b("magnify") { TransportIcon(Icons.Filled.Search, "Magnification", tint = if (TransportBar.magnify > 1f) Pro.Amber else Color.White) { cycleMagnify() } }
+                                    b("mute") { TransportIcon(if (es.previewMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp, "Mute preview") { es.previewMuted = !es.previewMuted } }
+                                    b("goin") { TransportIcon(BarIcons.goIn, "Go to in point") { seekGlobal(es.deliver.rangeStart ?: 0L) } }
+                                    b("prev") { TransportIcon(Icons.Filled.SkipPrevious, "Previous clip") { prevClip() } }
+                                    b("frameback") { TransportIcon(BarIcons.frameBack, "Step back one frame") { stepFrame(-1) } }
+                                    b("play") { Box(Modifier.onGloballyPositioned { c -> wf.bar.playAt = c.positionInRoot().x + c.size.width / 2f }) { TransportIcon(if (es.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", accent = true, size = 46.dp, iconSize = 30.dp) { togglePlay() } } }
+                                    b("framefwd") { TransportIcon(BarIcons.frameFwd, "Step forward one frame") { stepFrame(1) } }
+                                    b("next") { TransportIcon(Icons.Filled.SkipNext, "Next clip") { nextClip() } }
+                                    b("goout") { TransportIcon(BarIcons.goOut, "Go to out point") { seekGlobal(((es.deliver.rangeEnd ?: timelineLength(clips)) - 1).coerceAtLeast(0L)) } }
+                                    b("start") { TransportIcon(BarIcons.toStart, "Playhead to start") { seekGlobal(0L) } }
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                b("goin") { TransportIcon(BarIcons.goIn, "Go to in point") { seekGlobal(es.deliver.rangeStart ?: 0L) } }
-                                b("frameback") { TransportIcon(BarIcons.frameBack, "Step back one frame") { stepFrame(-1) } }
-                                b("play") { TransportIcon(if (es.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Pro.Amber) { togglePlay() } }
-                                b("framefwd") { TransportIcon(BarIcons.frameFwd, "Step forward one frame") { stepFrame(1) } }
-                                b("goout") { TransportIcon(BarIcons.goOut, "Go to out point") { seekGlobal(((es.deliver.rangeEnd ?: timelineLength(clips)) - 1).coerceAtLeast(0L)) } }
-                                b("prev") { TransportIcon(Icons.Filled.SkipPrevious, "Previous clip") { prevClip() } }
-                                b("next") { TransportIcon(Icons.Filled.SkipNext, "Next clip") { nextClip() } }
-                                b("start") { TransportIcon(BarIcons.toStart, "Playhead to start") { seekGlobal(0L) } }
-                                b("full") { TransportIcon(Icons.Filled.Fullscreen, "Full screen") { es.fullscreen = true } }
-                                b("frame") { TransportIcon(Icons.Filled.AddAPhoto, "Export frame") { saveStill() } }
-                                b("settings") { TransportIcon(Icons.Filled.Settings, "Settings") { es.showSettings = true } }
+                                    b("tlout") { TransportIcon(Icons.Filled.ZoomOut, "Zoom timeline out") { zoom.zoomOut() } }
+                                    b("tlfit") { TransportIcon(Icons.Filled.FitScreen, "Show whole timeline") { zoom.fit() } }
+                                    b("tlin") { TransportIcon(Icons.Filled.ZoomIn, "Zoom timeline in") { zoom.zoomIn() } }
+                                    b("cast") { if (castPanel) com.dronedirector.veyrocutpro.ui.CastButton(castSource, Modifier.padding(horizontal = 4.dp), small = true, sound = com.dronedirector.veyrocutpro.camera.CastFeed.Sound.APP) }
+                                    b("safe") { TransportIcon(Icons.Filled.CropFree, "Safe margins", tint = if (SafeZones.current != 0) Pro.Amber else Color.White) { toggleSafe() } }
+                                    b("res") {
+                                        Box {
+                                            var open by remember { mutableStateOf(false) }
+                                            TransportIcon(Icons.Filled.Hd, "Playback resolution", tint = if (TransportBar.playbackDiv > 1) Pro.Amber else Color.White) { open = true }
+                                            androidx.compose.material3.DropdownMenu(open, { open = false }, containerColor = Pro.PanelSolid) {
+                                                Text("PLAYBACK RESOLUTION", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp))
+                                                for ((d, label) in TransportBar.DIVS) androidx.compose.material3.DropdownMenuItem(
+                                                    text = { Text(label, color = if (TransportBar.playbackDiv == d) Pro.Amber else Color.White) },
+                                                    onClick = { TransportBar.playbackDiv = d; open = false; es.message = if (d == 1) "Preview at full resolution" else "Preview at $label resolution (the export is always full)" },
+                                                )
+                                            }
+                                        }
+                                    }
+                                    b("magnify") { TransportIcon(Icons.Filled.Search, "Magnification", tint = if (TransportBar.magnify > 1f) Pro.Amber else Color.White) { cycleMagnify() } }
+                                    b("full") { TransportIcon(Icons.Filled.Fullscreen, "Full screen") { es.fullscreen = true } }
+                                    b("frame") { TransportIcon(Icons.Filled.AddAPhoto, "Export frame") { saveStill() } }
+                                    b("settings") { TransportIcon(Icons.Filled.Settings, "Settings") { es.showSettings = true } }
                                 // + : choose which buttons the bar shows.
                                 TransportIcon(Icons.Filled.Add, "Edit the buttons") { es.editBar = true }
                             }
+                            }
+                            androidx.compose.foundation.layout.Spacer(Modifier.width(with(dens) { trail.toDp() }))
                         }
                     }
                 }
@@ -6800,12 +6812,12 @@ private val PlayheadToStart: androidx.compose.ui.graphics.vector.ImageVector by 
 }
 
 @Composable
-internal fun TransportIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color = Color.White, accent: Boolean = false, onClick: () -> Unit) {
+internal fun TransportIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color = Color.White, accent: Boolean = false, size: androidx.compose.ui.unit.Dp = 34.dp, iconSize: androidx.compose.ui.unit.Dp = 20.dp, onClick: () -> Unit) {
     Box(
-        Modifier.size(34.dp).clip(CircleShape).then(if (accent) Modifier.background(Pro.Amber) else Modifier).clickable(onClick = onClick),
+        Modifier.size(size).clip(CircleShape).then(if (accent) Modifier.background(Pro.Amber) else Modifier).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = label, tint = if (accent) Color.Black else tint, modifier = Modifier.size(20.dp))
+        Icon(icon, contentDescription = label, tint = if (accent) Color.Black else tint, modifier = Modifier.size(iconSize))
     }
 }
 

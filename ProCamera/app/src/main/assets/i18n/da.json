@@ -3742,5 +3742,6 @@
 "DESELECT ALL": "FRAVÆLG ALLE",
 "♪ DETACH AUDIO": "♪ ADSKIL LYD",
 "Tap clips to pick them — Color changes go to every picked clip": "Tryk på klip for at vælge dem — farveændringer gælder alle valgte klip",
-"Some clips couldn't be detached (speed changed or ramped)": "Nogle klip kunne ikke adskilles (ændret hastighed eller rampe)"
+"Some clips couldn't be detached (speed changed or ramped)": "Nogle klip kunne ikke adskilles (ændret hastighed eller rampe)",
+"Video editor, buttons under the picture: Play is bigger (an amber circle) and sits in the middle of the playback buttons — mute, go to in, previous clip and frame back on its left, frame forward, next clip, go to out and start on its right — and the row starts with Play centred under the picture; swipe the row for the rest.": "Videoredigering, knapperne under billedet: Afspil er større (en gul cirkel) og sidder midt i afspilningsknapperne — lyd fra, gå til ind, forrige klip og et billede tilbage til venstre, et billede frem, næste klip, gå til ud og start til højre — og rækken starter med Afspil midt under billedet; stryg rækken for resten."
 }

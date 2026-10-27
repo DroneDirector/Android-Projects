@@ -38,8 +38,8 @@ import androidx.compose.ui.unit.dp
  * chevron's place ([ARROW_SPACE]), so scrolled all the way to either end, no button or control
  * sits under a chevron. When everything fits, the layout is unchanged.
  */
-fun Modifier.hintedScroll(horizontal: Boolean, fade: Dp = 22.dp, tint: Color = Color.White): Modifier = composed {
-    val state = rememberScrollState()
+fun Modifier.hintedScroll(horizontal: Boolean, fade: Dp = 22.dp, tint: Color = Color.White, scroll: androidx.compose.foundation.ScrollState? = null): Modifier = composed {
+    val state = scroll ?: rememberScrollState()
     val space = if (state.maxValue > 0) ARROW_SPACE else 0.dp
     val nudge = remember { Animatable(0f) }
     val canBack = state.canScrollBackward

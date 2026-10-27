@@ -284,6 +284,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Pinch to zoom in on the picture and drag it into place — the export is framed exactly like that (what's outside is cut off). Double-tap = whole picture again.
 **Timeline**
 - In / out points show as IN / OUT flags on the ruler, the rest is dimmed. Markers and keyframes shine like the scroll wheels; gear → Marker effects turns that off.
+- Video editor, buttons under the picture: Play is bigger (an amber circle) and sits in the middle of the playback buttons — mute, go to in, previous clip and frame back on its left, frame forward, next clip, go to out and start on its right — and the row starts with Play centred under the picture; swipe the row for the rest.
 - Hold the middle of a clip on the timeline for its menu: Select multiple, Split at the playhead, Duplicate, Speed / Duration, Reverse, Mute sound, Delete. While selecting, tap clips to tick them; hold any clip for Deselect all, Select all, Duplicate, Mute, Nest into one clip and Delete selected. The ✕ on the timeline's SELECTED badge also ends it.
 - Video editor: while clips are picked (Select multiple or SELECT ALL), every change on the Color page — primaries, wheels, curves, LUTs, looks — is made the same way on all picked clips.
 - Color → Primaries: Clarity and Texture under Dehaze — clarity is broad mid-tone punch (or a softer, dreamier look below 0), texture brings out or smooths fine detail like skin, leaves and fabric.

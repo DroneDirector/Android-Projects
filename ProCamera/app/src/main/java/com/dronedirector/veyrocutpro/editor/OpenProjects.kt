@@ -68,4 +68,15 @@ class WsFile {
     var closeAsk by mutableStateOf<Pair<List<OpenProject>, () -> Unit>?>(null)
     /** Picking several timeline clips, and the clip menu. */
     val pick = ClipPick()
+    /** The button row under the picture: where Play is, to start with it centred. */
+    val bar = BarCentre()
+}
+
+class BarCentre {
+    val scroll = androidx.compose.foundation.ScrollState(0)
+    var rowAt by mutableStateOf(0f)
+    var rowW by mutableStateOf(0f)
+    var playAt by mutableStateOf(-1f)
+    /** Play's middle from the start of the buttons (−1 until laid out). */
+    val playX: Float get() = if (playAt < 0f) -1f else playAt - rowAt
 }

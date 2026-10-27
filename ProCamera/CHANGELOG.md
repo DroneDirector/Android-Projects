@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.686 — 2026-10-27
 - Progress bar: no selection frame around it in the preview, and the Glowing tip style shows only the line and its glow (no background track).
 
 ## 1.0.682 — 2026-10-27

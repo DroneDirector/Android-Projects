@@ -124,6 +124,7 @@ class MainActivity : ComponentActivity() {
         val openSettings = applyLaunchOptions(intent)
         val openGallery = intent?.extras?.getBoolean("gallery", false) == true
         // Test runs: --es theme light / dark.
+        intent?.extras?.getString("fxtest")?.toFloatOrNull()?.let { com.dronedirector.veyrocutpro.editor.FxTest.amount = it }
         if (intent?.extras?.getBoolean("skipsetup") == true) com.dronedirector.veyrocutpro.editor.AppData.background = true
         intent?.extras?.getString("theme")?.let { t -> com.dronedirector.veyrocutpro.ui.AppTheme.set(applicationContext, if (t == "light") 1 else 0) }
         intent?.extras?.getString("accent")?.let { a ->

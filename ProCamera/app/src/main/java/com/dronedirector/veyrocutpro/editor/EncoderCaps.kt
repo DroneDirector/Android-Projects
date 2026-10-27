@@ -39,3 +39,6 @@ object EncoderCaps {
     /** "5K" etc. for a short side; null when it's not one of the big sizes. */
     fun labelFor(short: Int): String? = BIG.firstOrNull { it.first == short }?.second
 }
+
+/** Automatic picture test (screenshots on the test phone): opens the editor with a test clip at this clarity / texture. */
+object FxTest { @Volatile var amount: Float? = null }

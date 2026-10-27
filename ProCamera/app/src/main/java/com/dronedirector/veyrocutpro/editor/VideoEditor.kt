@@ -268,6 +268,18 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
 
     // Videos shared from another app go straight onto the timeline.
     LaunchedEffect(Unit) { if (initialUris.isNotEmpty()) addUris(initialUris) }
+    // Picture test on the test phone: colour bars with clarity and texture set, straight into the editor.
+    LaunchedEffect(Unit) {
+        val amt = FxTest.amount ?: return@LaunchedEffect
+        FxTest.amount = null
+        Generators.make(context, GenSpec(GenKind.BARS, seconds = 3), onProgress = {}) { uri, _ ->
+            if (uri != null) scope.launch {
+                val c = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) } ?: return@launch
+                clips.add(c.copy(detail = c.detail.copy(clarity = amt, texture = amt)))
+                started = true
+            }
+        }
+    }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(30)) { addUris(it) }
     val browse = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { addUris(it) }
     val pickGallery = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) }

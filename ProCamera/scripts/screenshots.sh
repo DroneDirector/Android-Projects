@@ -68,6 +68,13 @@ shot 52-phone-video-editor-dark --es screen video --es theme dark
 # Into the editor itself (Skip — open the editor): the button row under the picture, Play centred with its glow.
 adb shell input tap 540 980; sleep 7
 adb shell input tap 412 1630; sleep 3   # the tour's SKIP
+# Clarity / texture test: the same test clip with them off and fully on (the pictures must differ).
+for amt in 0 1; do
+  adb shell am force-stop "$PKG"
+  adb shell am start -W -n "$ACT" --ez skipsetup true --es screen video --es fxtest $amt >/dev/null
+  sleep 14; adb shell input tap 412 1630; sleep 4
+  adb exec-out screencap -p > "$OUT/55-fxtest-clarity-$amt.png"; echo "captured 55-fxtest-clarity-$amt"
+done
 adb exec-out screencap -p > "$OUT/53-phone-video-editor-open.png"; echo "captured 53-phone-video-editor-open"
 sleep 1; adb exec-out screencap -p > "$OUT/54-phone-video-editor-open-b.png"; echo "captured 54-phone-video-editor-open-b"
 shot 01-phone-photo-filters --es mode PHOTO --es filter VIVID --ez filters true

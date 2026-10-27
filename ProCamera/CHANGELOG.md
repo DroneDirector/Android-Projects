@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.679 — 2026-10-27
 - Progress bar → Scroll wheel style: its moving effects now always show — pixel shimmer behind the front edge, a glowing tip, sparkles, rolling ridges and a travelling coloured rim — and it gets enough height to see them.
 
 ## 1.0.678 — 2026-10-27

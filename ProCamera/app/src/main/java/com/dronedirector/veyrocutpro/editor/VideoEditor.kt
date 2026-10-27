@@ -6500,12 +6500,25 @@ private fun DeliverPage(
     }
     if (!s.audioOnly) {
         Text("Resolution", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-        val res = listOf(0 to "Source", 720 to "720p", 1080 to "1080p", 1440 to "1440p", 2160 to "4K UHD")
+        val res = listOf(0 to "Source", 720 to "720p", 1080 to "1080p", 1440 to "1440p", 2160 to "4K UHD") + EncoderCaps.BIG
         Chips(res.map { it.second }, res.indexOfFirst { it.first == s.shortSide }.coerceAtLeast(0)) { onChange(s.copy(shortSide = res[it].first)) }
+        // 5K–8K: only when this phone's encoder can make that size (otherwise say what it can do).
+        EncoderCaps.labelFor(s.shortSide)?.let { big ->
+            val bigFps = remember(ow, oh, s.hevc) { EncoderCaps.maxFps(EncoderCaps.mimeOf(s.hevc), ow, oh) }
+            val otherFps = remember(ow, oh, s.hevc) { EncoderCaps.maxFps(EncoderCaps.mimeOf(!s.hevc), ow, oh) }
+            val wantFps = if (s.fps > 0) s.fps.toDouble() else 30.0
+            val msg = when {
+                bigFps <= 0.0 && otherFps > 0.0 -> "$big ($ow×$oh) needs ${if (s.hevc) "H.264" else "HEVC"} on this phone — switch the codec below."
+                bigFps <= 0.0 -> "This phone's video encoder can't make $big ($ow×$oh). The export would come out smaller — choose 4K UHD or less."
+                bigFps + 0.5 < wantFps -> "$big ($ow×$oh) works on this phone up to ${bigFps.toInt()} fps — set the frame rate to ${bigFps.toInt()} or less."
+                else -> "$big ($ow×$oh) is supported by this phone's encoder (up to ${bigFps.toInt()} fps). Use a high bitrate (120–200 Mbps) for the detail; exports take longer."
+            }
+            Text(msg, color = if (bigFps <= 0.0 || bigFps + 0.5 < wantFps) Pro.Red else Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
+        }
         Text("Codec", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
         Chips(listOf("H.264", "HEVC (H.265)"), if (s.hevc) 1 else 0) { onChange(s.copy(hevc = it == 1)) }
         Text("Bitrate", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-        val rates = listOf(0, 20, 50, 80, 120, 200)
+        val rates = listOf(0, 20, 50, 80, 120, 200, 300, 400)
         Chips(rates.map { if (it == 0) "Auto" else "$it Mbps" }, rates.indexOf(s.bitrateMbps).coerceAtLeast(0)) { onChange(s.copy(bitrateMbps = rates[it])) }
     }
     Text("Estimated file size", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp, bottom = 4.dp))

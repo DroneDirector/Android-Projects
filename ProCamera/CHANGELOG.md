@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.667 — 2026-10-27
 - Photo editor → Export → FOR SOCIAL MEDIA: a labelled before / after picture, and a panorama carousel (a wide photo cut into 2–5 seamless 1:1 or 4:5 slides for Instagram).
 - Video editor: hold a clip → Boomerang — the clip plays forwards, then backwards straight after.
 

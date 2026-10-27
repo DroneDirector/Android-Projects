@@ -33,6 +33,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -330,4 +332,52 @@ fun TimelineHWheel(zoom: TimelineZoom, modifier: Modifier = Modifier, fancy: Boo
         val rim = Brush.sweepGradient(listOf(Cyan, Violet, WheelTip, Cyan), center = Offset(w * phase, h / 2))
         drawRoundRect(rim, size = size, cornerRadius = r, style = Stroke(width = (1f + 1.2f * e).dp.toPx()), alpha = (0.45f + 0.55f * e) * dim)
     }
+}
+
+/** The Play button's shine (gear → Timeline → Play button effect). Saved on the phone. */
+object PlayFx {
+    var on by mutableStateOf(true)
+    private var loaded = false
+    fun load(c: android.content.Context) { if (!loaded) { loaded = true; on = c.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getBoolean("play_fx", true) } }
+    fun set(c: android.content.Context, v: Boolean) { on = v; c.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putBoolean("play_fx", v).apply() }
+}
+
+/**
+ * The scroll wheels' look around the Play button: a turning gradient rim in the wheel colours, a scan line
+ * sweeping through it and sparkles while the video plays. Off = the button as it is, no animation.
+ */
+@Composable
+fun PlayGlow(playing: Boolean, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(Unit) { PlayFx.load(ctx) }
+    if (!PlayFx.on) { androidx.compose.foundation.layout.Box(modifier) { content() }; return }
+    val t = rememberInfiniteTransition(label = "play")
+    val phase by t.animateFloat(0f, 1f, infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart), label = "pph")
+    val energy = remember { Animatable(0f) }
+    LaunchedEffect(playing) { energy.animateTo(if (playing) 1f else 0f, tween(600, easing = FastOutSlowInEasing)) }
+    androidx.compose.foundation.layout.Box(
+        modifier.drawWithContent {
+            val w = size.width; val h = size.height
+            if (w < 4f || h < 4f) { drawContent(); return@drawWithContent }
+            val e = energy.value
+            val c = Offset(w / 2, h / 2)
+            val r = minOf(w, h) / 2
+            // Soft halo behind the button.
+            drawCircle(Brush.radialGradient(listOf(Cyan.copy(alpha = 0.22f + 0.2f * e), Violet.copy(alpha = 0.10f), Color.Transparent), center = c, radius = r * 1.5f), radius = r * 1.5f, center = c)
+            drawContent()
+            // Scan line through the button.
+            val sy = h * ((phase * 1.4f) % 1f)
+            drawCircle(Brush.verticalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.18f + 0.3f * e), Color.Transparent), startY = sy - 5f, endY = sy + 5f), radius = r, center = c)
+            // Turning rim in the wheel colours.
+            val rim = Brush.sweepGradient(listOf(Cyan, Violet, WheelTip, Cyan), center = c)
+            rotate(phase * 360f, c) { drawCircle(rim, radius = r - 1.dp.toPx(), center = c, style = Stroke((1.4f + 1.2f * e).dp.toPx()), alpha = 0.6f + 0.4f * e) }
+            // Sparkles while playing.
+            if (e > 0.05f) for (k in 0 until 4) {
+                val a = (hash(k, 3, floor(phase * 24f).toInt()) * 6.283f)
+                val rr = r * (0.95f + 0.25f * hash(k, 9, floor(phase * 24f).toInt()))
+                drawCircle(Color.White.copy(alpha = e * 0.85f), radius = 1.dp.toPx() * (0.6f + 0.6f * sin(phase * 40f + k).coerceAtLeast(0f)), center = Offset(c.x + rr * kotlin.math.cos(a), c.y + rr * sin(a)))
+            }
+        },
+        contentAlignment = androidx.compose.ui.Alignment.Center,
+    ) { content() }
 }

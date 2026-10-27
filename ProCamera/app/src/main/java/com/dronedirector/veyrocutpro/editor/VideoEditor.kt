@@ -795,6 +795,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         playbackExtra = {
             Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
+                    Text("Play button effect", color = Color.White, fontSize = 15.sp)
+                    Text("The Play button under the picture glows like the scroll wheels (sparkles while playing). Off = a plain button, no animation.", color = Pro.Dim, fontSize = 12.sp)
+                }
+                androidx.compose.material3.Switch(PlayFx.on, { PlayFx.set(context, it) }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
                     Text("Show playback info", color = Color.White, fontSize = 15.sp)
                     Text("Small read-out on the player for troubleshooting", color = Pro.Dim, fontSize = 12.sp)
                 }
@@ -3880,7 +3887,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     b("goin") { TransportIcon(BarIcons.goIn, "Go to in point") { seekGlobal(es.deliver.rangeStart ?: 0L) } }
                                     b("prev") { TransportIcon(Icons.Filled.SkipPrevious, "Previous clip") { prevClip() } }
                                     b("frameback") { TransportIcon(BarIcons.frameBack, "Step back one frame") { stepFrame(-1) } }
-                                    b("play") { Box(Modifier.onGloballyPositioned { c -> wf.bar.playAt = c.positionInRoot().x + c.size.width / 2f }) { TransportIcon(if (es.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", accent = true, size = 46.dp, iconSize = 30.dp) { togglePlay() } } }
+                                    b("play") { Box(Modifier.onGloballyPositioned { c -> wf.bar.playAt = c.positionInRoot().x + c.size.width / 2f }) { PlayGlow(es.playing) { TransportIcon(if (es.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", accent = true, size = 46.dp, iconSize = 30.dp) { togglePlay() } } } }
                                     b("framefwd") { TransportIcon(BarIcons.frameFwd, "Step forward one frame") { stepFrame(1) } }
                                     b("next") { TransportIcon(Icons.Filled.SkipNext, "Next clip") { nextClip() } }
                                     b("goout") { TransportIcon(BarIcons.goOut, "Go to out point") { seekGlobal(((es.deliver.rangeEnd ?: timelineLength(clips)) - 1).coerceAtLeast(0L)) } }

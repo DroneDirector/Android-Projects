@@ -21,19 +21,21 @@ object FxLayers {
     const val MAP = 1
     const val PROGRESS = 2
     const val FLARE = 3
+    const val TIMER = 4
 
     val BAR_SHAPES = listOf("2.39:1" to 2.39f, "2.35:1" to 2.35f, "2:1" to 2f, "1.85:1" to 1.85f, "2.76:1" to 2.76f)
     val FLARE_STYLES = listOf("Warm sun", "Anamorphic blue", "Soft glow")
     private const val STEP_MS = 40L
 
-    fun label(l: Layer): String = when (l.fx) { BARS -> "Cinema bars"; MAP -> "Flight path"; PROGRESS -> "Progress bar"; else -> "Lens flare" }
+    fun label(l: Layer): String = when (l.fx) { BARS -> "Cinema bars"; MAP -> "Flight path"; PROGRESS -> "Progress bar"; TIMER -> "Countdown"; else -> "Lens flare" }
+    val TIMER_STYLES = listOf("Ring", "Glowing ring", "Scroll wheel colours", "Solid disc")
 
     /** Full-frame overlays sit still in the middle (they're not dragged; change them in the layer's settings). */
-    fun fullFrame(l: Layer) = l.kind == LayerKind.FX && l.fx != MAP && l.fx != PROGRESS
+    fun fullFrame(l: Layer) = l.kind == LayerKind.FX && l.fx != MAP && l.fx != PROGRESS && l.fx != TIMER
 
     /** Which picture to draw at [ms] (a new number = a new picture); 0 for overlays that don't change. */
     fun frameIndex(l: Layer, ms: Long): Int = when (l.fx) {
-        MAP, PROGRESS -> ((ms - l.startMs).coerceAtLeast(0) / STEP_MS).toInt()
+        MAP, PROGRESS, TIMER -> ((ms - l.startMs).coerceAtLeast(0) / STEP_MS).toInt()
         BARS -> if (l.fxB == 1f) {
             val inMs = ms - l.startMs; val outMs = l.endMs - ms
             when { inMs in 0 until 1000 -> 1 + (inMs / STEP_MS).toInt(); outMs in 0 until 1000 -> 1000 + (outMs / STEP_MS).toInt(); else -> 0 }
@@ -54,6 +56,7 @@ object FxLayers {
             BARS -> bars(l, frameW, frameH, ms)
             MAP -> map(l, frameH, ms)
             PROGRESS -> progress(l, frameW, frameH, ms)
+            TIMER -> timer(l, frameH, ms)
             else -> flare(l, frameW, frameH)
         }
     } catch (_: Throwable) { null }
@@ -202,6 +205,65 @@ object FxLayers {
                 c.drawRect(0f, top, x1, bot, fill)
             }
         }
+        return out
+    }
+
+    /**
+     * Countdown: a ring that empties as time runs out, with the time left in the middle. Automatic counts down the
+     * layer's own length; Manual starts from your number of seconds ([Layer.fxX]) and the layer is that long.
+     */
+    private fun timer(l: Layer, h: Int, ms: Long): Bitmap {
+        val side = max(48, (l.size * h).toInt())
+        val out = Bitmap.createBitmap(side, side, Bitmap.Config.ARGB_8888)
+        val c = Canvas(out)
+        val style = (l.fxB ?: 0f).toInt()
+        val total = (l.endMs - l.startMs).coerceAtLeast(1)
+        val el = if (ms < 0) 0L else (ms - l.startMs).coerceIn(0, total)
+        val left = total - el
+        val k = left.toFloat() / total
+        val col = l.color or 0xFF000000.toInt()
+        val cx = side / 2f; val cy = side / 2f
+        val sw = side * 0.085f
+        val rr = side / 2f - sw * (if (style == 1 || style == 2) 1.4f else 0.8f)
+        val oval = RectF(cx - rr, cy - rr, cx + rr, cy + rr)
+        val wc = com.dronedirector.veyrocutpro.ui.CursorStyle.wheel
+        fun argb(cc: androidx.compose.ui.graphics.Color, a: Float = 1f) = android.graphics.Color.argb((a * 255).toInt().coerceIn(0, 255), (cc.red * 255).toInt(), (cc.green * 255).toInt(), (cc.blue * 255).toInt())
+        // Background disc so the numbers read on any picture.
+        c.drawCircle(cx, cy, rr + sw * 0.5f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = if (style == 3) col else 0x8C000000.toInt() })
+        val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.style = Paint.Style.STROKE; strokeWidth = sw; strokeCap = Paint.Cap.ROUND }
+        if (style != 3) {
+            ring.color = 0x40FFFFFF; c.drawArc(oval, 0f, 360f, false, ring)
+            val sweep = 360f * k
+            if (style == 2) {
+                ring.shader = android.graphics.SweepGradient(cx, cy, intArrayOf(argb(wc), argb(com.dronedirector.veyrocutpro.ui.CursorStyle.partner(wc)), argb(androidx.compose.ui.graphics.lerp(wc, androidx.compose.ui.graphics.Color.White, 0.45f)), argb(wc)), null)
+                    .also { g -> g.setLocalMatrix(android.graphics.Matrix().apply { setRotate(-90f + (el / 12f) % 360f, cx, cy) }) }
+            } else ring.color = col
+            if (sweep > 0.5f) c.drawArc(oval, -90f, sweep, false, ring)
+            ring.shader = null
+            if ((style == 1 || style == 2) && k > 0f) {
+                // Glow at the moving end of the ring.
+                val a = Math.toRadians((-90.0 + sweep))
+                val ex = cx + rr * kotlin.math.cos(a).toFloat(); val ey = cy + rr * kotlin.math.sin(a).toFloat()
+                val gc = if (style == 2) argb(androidx.compose.ui.graphics.lerp(wc, androidx.compose.ui.graphics.Color.White, 0.45f)) else col
+                c.drawCircle(ex, ey, sw * 1.6f, Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = RadialGradient(ex, ey, sw * 1.6f, intArrayOf(0xFFFFFFFF.toInt(), gc and 0x99FFFFFF.toInt(), 0), floatArrayOf(0f, 0.35f, 1f), Shader.TileMode.CLAMP) })
+            }
+        } else {
+            // Solid disc: a pie that empties.
+            c.drawArc(RectF(cx - rr, cy - rr, cx + rr, cy + rr), -90f, 360f * k, true, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x55FFFFFF })
+        }
+        // Time left: whole seconds, rounded up (shows 0 only at the very end); m:ss from a minute.
+        val sec = ((left + 999) / 1000).toInt()
+        val txt = if ((l.fxY ?: 0f) == 1f || sec >= 60) "%d:%02d".format(sec / 60, sec % 60) else sec.toString()
+        val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (style == 3) 0xFF000000.toInt() else 0xFFFFFFFF.toInt(); textAlign = Paint.Align.CENTER; isFakeBoldText = true
+            textSize = rr * (if (txt.length <= 2) 0.95f else if (txt.length <= 4) 0.62f else 0.5f)
+        }
+        // A short pulse on each new second.
+        val pulse = 1f + 0.08f * (1f - ((el % 1000) / 250f).coerceIn(0f, 1f)) * (if (ms < 0) 0f else 1f)
+        c.save(); c.scale(pulse, pulse, cx, cy)
+        val fm = tp.fontMetrics
+        c.drawText(txt, cx, cy - (fm.ascent + fm.descent) / 2f, tp)
+        c.restore()
         return out
     }
 

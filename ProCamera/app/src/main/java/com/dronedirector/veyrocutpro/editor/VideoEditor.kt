@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.LinearScale
 import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.Image
@@ -6223,6 +6224,7 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
         SmallAction(Icons.Filled.Movie, "Cinema bars") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.BARS, text = "Cinema bars", fxA = 2.39f, color = 0xFF000000.toInt(), shadow = false, startMs = 0, endMs = total)) }
         SmallAction(Icons.Filled.Map, "Flight path", onFlightPath)
         SmallAction(Icons.Filled.LinearScale, "Progress bar") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.PROGRESS, text = "Progress bar", fxA = 0.008f, y = 0.996f, color = 0xFFFFB300.toInt(), shadow = false, startMs = 0, endMs = total)) }
+        SmallAction(Icons.Filled.Timer, "Countdown") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.TIMER, text = "Countdown", size = 0.18f, x = 0.88f, y = 0.18f, fxB = 1f, color = 0xFFFFB300.toInt(), shadow = false, startMs = playheadMs, endMs = (playheadMs + 10_000L).coerceAtMost(total).let { if (it - playheadMs < 1000) playheadMs + 10_000L else it })) }
         SmallAction(Icons.Filled.WbSunny, "Lens flare") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.FLARE, text = "Lens flare", fxA = 0f, fxX = 0.72f, fxY = 0.28f, opacity = 0.9f, shadow = false, startMs = playheadMs, endMs = end)) }
     }
     Text("Cinema bars, the progress bar and the flare cover the whole video or part of it — trim them on the timeline. Flight path reads the drone's .SRT flight data for the selected clip.", color = Pro.Dim, fontSize = 11.sp)
@@ -6371,6 +6373,21 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
                 EdSlider("Across", (l.fxX ?: 0.72f) * 100f, 0f..100f, 72f, { "%.0f%%".format(it) }) { onUpdate(l.copy(fxX = it / 100f)) }
                 EdSlider("Down", (l.fxY ?: 0.28f) * 100f, 0f..100f, 28f, { "%.0f%%".format(it) }) { onUpdate(l.copy(fxY = it / 100f)) }
                 Text("Put the flare on the sun or a light. Strength = the layer's opacity; Fade in / out under ANIMATION eases it in.", color = Pro.Dim, fontSize = 11.sp)
+            }
+            FxLayers.TIMER -> {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
+                    FxLayers.TIMER_STYLES.forEachIndexed { i, n -> PillChip(n, (l.fxB ?: 0f).toInt() == i) { onUpdate(l.copy(fxB = i.toFloat())) } }
+                }
+                val manual = l.fxX != null
+                Chips(listOf("Automatic", "Manual"), if (manual) 1 else 0) {
+                    onUpdate(if (it == 1) l.copy(fxX = ((l.endMs - l.startMs) / 1000f).coerceIn(1f, 3600f).let { s -> kotlin.math.round(s) }) else l.copy(fxX = null))
+                }
+                if (manual) EdSlider("Count down from", l.fxX ?: 10f, 1f..600f, 10f, { v -> val n = v.toInt(); if (n >= 60) "%d:%02d".format(n / 60, n % 60) else "$n s" }) { v ->
+                    val n = kotlin.math.round(v).coerceAtLeast(1f)
+                    onUpdate(l.copy(fxX = n, endMs = l.startMs + (n * 1000).toLong()))
+                }
+                Chips(listOf("Seconds", "m:ss"), if ((l.fxY ?: 0f) == 1f) 1 else 0) { onUpdate(l.copy(fxY = if (it == 1) 1f else null)) }
+                Text(if (manual) "Counts down from your number of seconds, starting where the layer starts (the layer is made that long)." else "Counts down the layer's own length — trim it on the timeline and the countdown follows.", color = Pro.Dim, fontSize = 11.sp)
             }
             FxLayers.MAP -> Text("The drone's route from its flight data, north up; the dot follows the drone while the video plays. Drag it into place; size and colour as for any layer.", color = Pro.Dim, fontSize = 11.sp)
         }

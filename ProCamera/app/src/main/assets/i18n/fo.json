@@ -3923,5 +3923,16 @@
 "Thin + dot": "Tunn + prikkur",
 "Scroll wheel": "Rullihjól",
 "Scroll wheel uses the scroll wheels' own colour (gear → SCROLL WHEELS).": "Rullihjól brúkar egna litin hjá rullihjólunum (tannhjól → RULLIHJÓL).",
-"Layers → OVERLAYS: Cinema bars (2.39, 2.35, 2, 1.85 or 2.76:1, still or sliding in and out), Flight path (pick the drone's .SRT for the selected clip: its route as a mini-map with a dot that follows the drone), Progress bar (fills over the video; 8 styles incl. Scroll wheel, the look of the timeline's scroll bar; top or bottom, thickness and colour) and Lens flare (warm sun, anamorphic blue or soft glow; place it on the sun with Across / Down). All are drawn into the export; trim them on the timeline.": "Løg → OVERLAYS: Bio-bjálkar (2,39, 2,35, 2, 1,85 ella 2,76:1, kyrrir ella glíðandi inn og út), Flogleið (vel .SRT hjá dronuni til valda klippið: leiðin sum minikort við einum prikki, ið fylgir dronuni), Framgongdarlinja (fyllist yvir videoina; 8 sniðir m.a. Rullihjól, útsjóndin á rullibjálkanum á tíðarlinjuni; erva ella niðri, tjúkd og litur) og Linsuflare (heit sól, anamorfisk blá ella mjúkur ljómi; set hana á sólina við Tvørturum / Niður). Øll verða teknað inn í útflytingina; skerið tey á tíðarlinjuni."
+"Countdown": "Niðurteljing",
+"Glowing ring": "Glóðandi ringur",
+"Scroll wheel colours": "Litirnir á rullihjólinum",
+"Solid disc": "Fyltur diskur",
+"Automatic": "Sjálvvirkið",
+"Manual": "Manuelt",
+"Count down from": "Tel niður frá",
+"Seconds": "Sekund",
+"m:ss": "m:ss",
+"Counts down from your number of seconds, starting where the layer starts (the layer is made that long).": "Telur niður frá tínum tali av sekundum, frá har lagið byrjar (lagið verður gjørt so langt).",
+"Counts down the layer's own length — trim it on the timeline and the countdown follows.": "Telur longdina á laginum niður — sker tað á tíðarlinjuni, og niðurteljingin fylgir við.",
+"Layers → OVERLAYS: Cinema bars (2.39, 2.35, 2, 1.85 or 2.76:1, still or sliding in and out), Flight path (pick the drone's .SRT for the selected clip: its route as a mini-map with a dot that follows the drone), Progress bar (fills over the video; 8 styles incl. Scroll wheel, the look of the timeline's scroll bar; top or bottom, thickness and colour), Countdown (an animated ring that empties with the seconds left in the middle; automatic = the layer's length, or manual from your number of seconds; 4 styles) and Lens flare (warm sun, anamorphic blue or soft glow; place it on the sun with Across / Down). All are drawn into the export; trim them on the timeline.": "Løg → OVERLAYS: Bio-bjálkar (2,39, 2,35, 2, 1,85 ella 2,76:1, kyrrir ella glíðandi inn og út), Flogleið (vel .SRT hjá dronuni til valda klippið: leiðin sum minikort við einum prikki, ið fylgir dronuni), Framgongdarlinja (fyllist yvir videoina; 8 sniðir m.a. Rullihjól, útsjóndin á rullibjálkanum á tíðarlinjuni; erva ella niðri, tjúkd og litur), Niðurteljing (ein livandi ringur, ið tømist, við sekundunum eftir í miðjuni; sjálvvirkið = longdin á laginum, ella manuelt frá tínum tali av sekundum; 4 sniðir) og Linsuflare (heit sól, anamorfisk blá ella mjúkur ljómi; set hana á sólina við Tvørturum / Niður). Øll verða teknað inn í útflytingina; skerið tey á tíðarlinjuni."
 }

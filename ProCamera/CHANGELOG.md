@@ -5,6 +5,9 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 
 ## Unreleased
 
+## 1.0.608 — 2026-10-27
+
+
 ## 1.0.605 — 2026-10-27
 - **Light look** (gear → Preferences → Appearance: Dark, Light or Like the phone): the photo and video editors — panels, menus, dialogs, settings and the File, Help and other menus — switch to a light look, live. The picture, the timeline and the media strip stay dark so colours are judged correctly; Capture and the start screens stay dark.
 - File, Help and Markers menus fit the screen and scroll; opening a group further down scrolls it into view instead of the list disappearing.

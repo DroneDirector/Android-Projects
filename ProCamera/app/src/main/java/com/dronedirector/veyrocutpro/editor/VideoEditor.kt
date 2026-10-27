@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.LinearScale
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.EmojiEmotions
 import androidx.compose.material.icons.filled.Image
@@ -4502,6 +4503,30 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onTelemetryShow = { es.telemetryShow = it },
                                 onTelemetry = { es.srtForMap = false; pickSrt.launch(arrayOf("*/*")) },
                                 onFlightPath = { es.srtForMap = true; pickSrt.launch(arrayOf("*/*")) },
+                                onVisualizer = {
+                                    // The music track if there is one, else the selected clip's own sound.
+                                    val m = es.music
+                                    val c = clips.getOrNull(es.current)
+                                    val total = timelineLength(clips).coerceAtLeast(1)
+                                    val src = m?.uri ?: c?.uri
+                                    if (src == null) es.message = "Add music or a clip with sound first"
+                                    else {
+                                        val base = clipStarts(clips).getOrNull(es.current) ?: 0L
+                                        val delta = if (m != null) m.offsetMs - m.startMs else (c!!.startMs - base)
+                                        val from = if (m != null) m.startMs.coerceIn(0, total) else base
+                                        val to = if (m != null) (m.startMs + m.playLength(total)).coerceIn(from + 1000, maxOf(total, from + 1000)) else base + (c?.lengthMs ?: 1000L)
+                                        val l = Layer(kind = LayerKind.FX, fx = FxLayers.VIS, text = "Visualizer (analysing)", imageUri = src, fxD = delta.toFloat(), size = 0.22f, x = 0.5f, y = 0.84f,
+                                            fxA = 0.9f, fxB = 0f, fxC = 0f, color = 0xFFFFB300.toInt(), shadow = false, startMs = from, endMs = to)
+                                        layers.add(l); es.selectedLayer = l.id
+                                        es.message = "Analysing the " + (if (m != null) "music" else "clip's sound") + "…"
+                                        layerScope.launch {
+                                            val ok = withContext(Dispatchers.IO) { Spectrum.load(context, src) } != null
+                                            val i = layers.indexOfFirst { it.id == l.id }
+                                            if (i >= 0) layers[i] = layers[i].copy(text = "Visualizer")  // redraw with the analysis
+                                            es.message = if (ok) "Visualizer synced to the " + (if (m != null) "music" else "clip's sound") + " — pick a style in its settings" else "Couldn't read that sound"
+                                        }
+                                    }
+                                },
                                 onTrack = { trackLayer(it) }, trackingId = es.trackingId,
                                 onPin = { id, p -> val i = layers.indexOfFirst { it.id == id }; if (i >= 0) { if (layers[i].locked) es.message = "This layer is locked — tap its lock to edit" else layers[i] = layers[i].copy(pin = p) } },
                                 onPlanarTrack = { planarTrack(it) }, pinTrackingId = wx.pinTrackingId,
@@ -6087,6 +6112,7 @@ private fun LayersPage(
     onCaptions: (String?, Boolean, Int) -> Unit = { _, _, _ -> },
     onImportSubs: () -> Unit = {},
     onFlightPath: () -> Unit = {},
+    onVisualizer: () -> Unit = {},
     onTranslate: (String) -> Unit = {}, translateStatus: String? = null,
     onDub: (String, Boolean, Boolean) -> Unit = { _, _, _ -> }, dubStatus: String? = null,
     onTrack: (String) -> Unit = {}, trackingId: String? = null,
@@ -6224,6 +6250,7 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
         SmallAction(Icons.Filled.Movie, "Cinema bars") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.BARS, text = "Cinema bars", fxA = 2.39f, color = 0xFF000000.toInt(), shadow = false, startMs = 0, endMs = total)) }
         SmallAction(Icons.Filled.Map, "Flight path", onFlightPath)
         SmallAction(Icons.Filled.LinearScale, "Progress bar") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.PROGRESS, text = "Progress bar", fxA = 0.008f, y = 0.996f, color = 0xFFFFB300.toInt(), shadow = false, startMs = 0, endMs = total)) }
+        SmallAction(Icons.Filled.GraphicEq, "Visualizer", onVisualizer)
         SmallAction(Icons.Filled.Timer, "Countdown") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.TIMER, text = "Countdown", size = 0.18f, x = 0.88f, y = 0.18f, fxB = 1f, color = 0xFFFFB300.toInt(), shadow = false, startMs = playheadMs, endMs = (playheadMs + 10_000L).coerceAtMost(total).let { if (it - playheadMs < 1000) playheadMs + 10_000L else it })) }
         SmallAction(Icons.Filled.WbSunny, "Lens flare") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.FLARE, text = "Lens flare", fxA = 0f, fxX = 0.72f, fxY = 0.28f, opacity = 0.9f, shadow = false, startMs = playheadMs, endMs = end)) }
     }
@@ -6373,6 +6400,17 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
                 EdSlider("Across", (l.fxX ?: 0.72f) * 100f, 0f..100f, 72f, { "%.0f%%".format(it) }) { onUpdate(l.copy(fxX = it / 100f)) }
                 EdSlider("Down", (l.fxY ?: 0.28f) * 100f, 0f..100f, 28f, { "%.0f%%".format(it) }) { onUpdate(l.copy(fxY = it / 100f)) }
                 Text("Put the flare on the sun or a light. Strength = the layer's opacity; Fade in / out under ANIMATION eases it in.", color = Pro.Dim, fontSize = 11.sp)
+            }
+            FxLayers.VIS -> {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
+                    FxLayers.VIS_STYLES.forEachIndexed { i, n -> PillChip(n, (l.fxB ?: 0f).toInt() == i) { onUpdate(l.copy(fxB = i.toFloat(), y = if (i == 3) 0.5f else if ((l.fxB ?: 0f).toInt() == 3) 0.84f else l.y, size = if (i == 3) 0.2f else if ((l.fxB ?: 0f).toInt() == 3) 0.22f else l.size)) } }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
+                    FxLayers.VIS_COLOURS.forEachIndexed { i, n -> PillChip(n, (l.fxC ?: 0f).toInt() == i) { onUpdate(l.copy(fxC = i.toFloat())) } }
+                }
+                if ((l.fxB ?: 0f).toInt() != 3) EdSlider("Width", (l.fxA ?: 0.9f) * 100f, 20f..100f, 90f, { "%.0f%%".format(it) }) { onUpdate(l.copy(fxA = it / 100f)) }
+                EdSlider("Height", l.size * 100f, 5f..60f, 22f, { "%.0f%%".format(it) }) { onUpdate(l.copy(size = it / 100f)) }
+                Text("Moves with the music's own frequencies and pulses on every beat (kick drum), worked out from the sound itself — so it's in sync in the preview and the export. Uses the music track, or the selected clip's sound when there's no music. Drag it into place.", color = Pro.Dim, fontSize = 11.sp)
             }
             FxLayers.TIMER -> {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {

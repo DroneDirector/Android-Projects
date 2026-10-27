@@ -22,20 +22,23 @@ object FxLayers {
     const val PROGRESS = 2
     const val FLARE = 3
     const val TIMER = 4
+    const val VIS = 5
+    val VIS_STYLES = listOf("Spectrum bars", "Mirror bars", "Glow line", "Circular", "Waveform")
+    val VIS_COLOURS = listOf("Layer colour", "Scroll wheel colours", "Rainbow")
 
     val BAR_SHAPES = listOf("2.39:1" to 2.39f, "2.35:1" to 2.35f, "2:1" to 2f, "1.85:1" to 1.85f, "2.76:1" to 2.76f)
     val FLARE_STYLES = listOf("Warm sun", "Anamorphic blue", "Soft glow")
     private const val STEP_MS = 40L
 
-    fun label(l: Layer): String = when (l.fx) { BARS -> "Cinema bars"; MAP -> "Flight path"; PROGRESS -> "Progress bar"; TIMER -> "Countdown"; else -> "Lens flare" }
+    fun label(l: Layer): String = when (l.fx) { BARS -> "Cinema bars"; MAP -> "Flight path"; PROGRESS -> "Progress bar"; TIMER -> "Countdown"; VIS -> "Visualizer"; else -> "Lens flare" }
     val TIMER_STYLES = listOf("Ring", "Glowing ring", "Scroll wheel colours", "Solid disc")
 
     /** Full-frame overlays sit still in the middle (they're not dragged; change them in the layer's settings). */
-    fun fullFrame(l: Layer) = l.kind == LayerKind.FX && l.fx != MAP && l.fx != PROGRESS && l.fx != TIMER
+    fun fullFrame(l: Layer) = l.kind == LayerKind.FX && l.fx != MAP && l.fx != PROGRESS && l.fx != TIMER && l.fx != VIS
 
     /** Which picture to draw at [ms] (a new number = a new picture); 0 for overlays that don't change. */
     fun frameIndex(l: Layer, ms: Long): Int = when (l.fx) {
-        MAP, PROGRESS, TIMER -> ((ms - l.startMs).coerceAtLeast(0) / STEP_MS).toInt()
+        MAP, PROGRESS, TIMER, VIS -> ((ms - l.startMs).coerceAtLeast(0) / STEP_MS).toInt()
         BARS -> if (l.fxB == 1f) {
             val inMs = ms - l.startMs; val outMs = l.endMs - ms
             when { inMs in 0 until 1000 -> 1 + (inMs / STEP_MS).toInt(); outMs in 0 until 1000 -> 1000 + (outMs / STEP_MS).toInt(); else -> 0 }
@@ -48,15 +51,16 @@ object FxLayers {
         else -> l.startMs + n * STEP_MS
     }
 
-    fun renderFrame(l: Layer, frameW: Int, frameH: Int, n: Int): Bitmap? = render(l, frameW, frameH, msOf(l, n))
+    fun renderFrame(l: Layer, frameW: Int, frameH: Int, n: Int, context: android.content.Context? = null): Bitmap? = render(l, frameW, frameH, msOf(l, n), context)
 
     /** The overlay at timeline time [ms] (−1 = at rest), for a [frameW] × [frameH] picture. */
-    fun render(l: Layer, frameW: Int, frameH: Int, ms: Long): Bitmap? = try {
+    fun render(l: Layer, frameW: Int, frameH: Int, ms: Long, context: android.content.Context? = null): Bitmap? = try {
         when (l.fx) {
             BARS -> bars(l, frameW, frameH, ms)
             MAP -> map(l, frameH, ms)
             PROGRESS -> progress(l, frameW, frameH, ms)
             TIMER -> timer(l, frameH, ms)
+            VIS -> vis(context, l, frameW, frameH, ms)
             else -> flare(l, frameW, frameH)
         }
     } catch (_: Throwable) { null }
@@ -264,6 +268,137 @@ object FxLayers {
         val fm = tp.fontMetrics
         c.drawText(txt, cx, cy - (fm.ascent + fm.descent) / 2f, tp)
         c.restore()
+        return out
+    }
+
+    /**
+     * Music visualizer: the spectrum of the song (or a clip's sound) at this moment, moving with the music and
+     * pulsing on the beats. [Layer.imageUri] = the sound, [Layer.fxD] = song time minus timeline time.
+     */
+    private fun vis(context: android.content.Context?, l: Layer, fw: Int, fh: Int, ms: Long): Bitmap? {
+        val uri = l.imageUri ?: return null
+        val data = Spectrum.cached(uri) ?: context?.let { Spectrum.load(it, uri) }
+        val style = (l.fxB ?: 0f).toInt()
+        val round = style == 3
+        val bw = if (round) (l.size * fh * 2f).toInt().coerceAtLeast(64) else (fw * (l.fxA ?: 0.9f)).toInt().coerceAtLeast(64)
+        val bh = if (round) bw else (l.size * fh).toInt().coerceAtLeast(24)
+        val out = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888)
+        val c = Canvas(out)
+        val songMs = (if (ms < 0) l.startMs + 4000 else ms) + (l.fxD ?: 0f).toLong()
+        val at = data?.let { Spectrum.frame(it, songMs) }
+        val nb = Spectrum.BANDS
+        val v = FloatArray(nb) { b -> if (data != null && at != null) data[at + b] else 0.04f + 0.03f * (b % 3) }
+        val beat = if (data != null && at != null) data[at + nb] else 0f
+        // Peaks hold, then fall.
+        val peak = FloatArray(nb) { b ->
+            var p = v[b]
+            if (data != null && at != null) for (j in 1..18) { val q = at - j * Spectrum.STRIDE; if (q < 0) break; p = max(p, data[q + b] - j * 0.03f) }
+            p
+        }
+        val col = l.color or 0xFF000000.toInt()
+        val wc = com.dronedirector.veyrocutpro.ui.CursorStyle.wheel
+        fun argb(cc: androidx.compose.ui.graphics.Color, a: Float = 1f) = android.graphics.Color.argb((a * 255).toInt().coerceIn(0, 255), (cc.red * 255).toInt(), (cc.green * 255).toInt(), (cc.blue * 255).toInt())
+        val mode = (l.fxC ?: 0f).toInt()
+        val c1: Int; val c2: Int
+        when (mode) {
+            1 -> { c1 = argb(wc); c2 = argb(com.dronedirector.veyrocutpro.ui.CursorStyle.partner(wc)) }
+            else -> { c1 = col; c2 = argb(com.dronedirector.veyrocutpro.ui.CursorStyle.partner(androidx.compose.ui.graphics.Color(col))) }
+        }
+        fun colourAt(f: Float): Int = if (mode == 2) android.graphics.Color.HSVToColor(floatArrayOf((f * 300f + (songMs / 40f)) % 360f, 0.75f, 1f))
+            else android.graphics.Color.rgb(
+                ((c1 shr 16 and 0xFF) + ((c2 shr 16 and 0xFF) - (c1 shr 16 and 0xFF)) * f).toInt(),
+                ((c1 shr 8 and 0xFF) + ((c2 shr 8 and 0xFF) - (c1 shr 8 and 0xFF)) * f).toInt(),
+                ((c1 and 0xFF) + ((c2 and 0xFF) - (c1 and 0xFF)) * f).toInt())
+        val glow = Paint(Paint.ANTI_ALIAS_FLAG).apply { maskFilter = android.graphics.BlurMaskFilter(maxOf(4f, bh * 0.06f) * (1f + beat), android.graphics.BlurMaskFilter.Blur.NORMAL) }
+        val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+        val bars = 48
+        fun level(i: Int, n: Int): Float { val b = (i.toFloat() / n * nb).toInt().coerceIn(0, nb - 1); return v[b] }
+        fun pk(i: Int, n: Int): Float { val b = (i.toFloat() / n * nb).toInt().coerceIn(0, nb - 1); return peak[b] }
+        when (style) {
+            0, 1 -> { // Spectrum bars (from the bottom, with a reflection) / mirror bars (from the middle).
+                val gap = bw / bars.toFloat() * 0.28f
+                val bwid = bw / bars.toFloat() - gap
+                val mid = if (style == 1) bh / 2f else bh * 0.78f
+                val maxH = if (style == 1) bh / 2f * 0.95f else mid * 0.97f
+                val r = bwid / 2f
+                for (i in 0 until bars) {
+                    val x = i * (bwid + gap) + gap / 2
+                    val h = (maxH * (0.03f + 0.97f * level(i, bars)) * (1f + 0.12f * beat)).coerceAtMost(maxH)
+                    val cc = colourAt(i / (bars - 1f))
+                    glow.color = cc; glow.alpha = (90 + 120 * beat).toInt().coerceAtMost(220)
+                    fill.color = cc
+                    val top = mid - h
+                    val bot = if (style == 1) mid + h else mid
+                    c.drawRoundRect(RectF(x, top, x + bwid, bot), r, r, glow)
+                    fill.shader = LinearGradient(0f, top, 0f, bot, intArrayOf(android.graphics.Color.rgb((cc shr 16 and 0xFF) + (255 - (cc shr 16 and 0xFF)) * 2 / 5, (cc shr 8 and 0xFF) + (255 - (cc shr 8 and 0xFF)) * 2 / 5, (cc and 0xFF) + (255 - (cc and 0xFF)) * 2 / 5), cc), null, Shader.TileMode.CLAMP)
+                    c.drawRoundRect(RectF(x, top, x + bwid, bot), r, r, fill)
+                    fill.shader = null
+                    // Peak cap.
+                    val ph = maxH * (0.03f + 0.97f * pk(i, bars)).coerceAtMost(1f)
+                    fill.color = 0xE6FFFFFF.toInt()
+                    c.drawRoundRect(RectF(x, mid - ph - bwid * 0.5f, x + bwid, mid - ph), r * 0.5f, r * 0.5f, fill)
+                    if (style == 1) c.drawRoundRect(RectF(x, mid + ph, x + bwid, mid + ph + bwid * 0.5f), r * 0.5f, r * 0.5f, fill)
+                    if (style == 0) {
+                        // Soft reflection under the line.
+                        fill.shader = LinearGradient(0f, mid, 0f, mid + h * 0.35f, intArrayOf((cc and 0x00FFFFFF) or 0x55000000, cc and 0x00FFFFFF), null, Shader.TileMode.CLAMP)
+                        c.drawRect(x, mid + bh * 0.01f, x + bwid, mid + bh * 0.01f + h * 0.35f, fill)
+                        fill.shader = null
+                    }
+                }
+            }
+            2, 4 -> { // Glow line (smooth spectrum curve) / waveform-like mirrored ribbon.
+                val n = 96
+                val path = Path(); val area = Path()
+                val mid = if (style == 4) bh / 2f else bh * 0.9f
+                val amp = if (style == 4) bh * 0.46f else bh * 0.85f
+                val pts = FloatArray(n) { i -> (0.03f + 0.97f * level(i, n)) * (1f + 0.15f * beat) }
+                for (i in 0 until n) {
+                    val x = i * bw / (n - 1f); val y = mid - amp * pts[i]
+                    if (i == 0) { path.moveTo(x, y); area.moveTo(x, mid); area.lineTo(x, y) }
+                    else { val px = (i - 1) * bw / (n - 1f); val py = mid - amp * pts[i - 1]; val cx = (px + x) / 2; path.cubicTo(cx, py, cx, y, x, y); area.cubicTo(cx, py, cx, y, x, y) }
+                }
+                area.lineTo(bw.toFloat(), mid); area.close()
+                val grad = LinearGradient(0f, 0f, bw.toFloat(), 0f, IntArray(6) { colourAt(it / 5f) }, null, Shader.TileMode.CLAMP)
+                if (style == 4) {
+                    // Mirror the area below the middle.
+                    val m = android.graphics.Matrix().apply { setScale(1f, -1f, 0f, mid) }
+                    val below = Path(area).also { it.transform(m) }
+                    fill.shader = grad; fill.alpha = 110
+                    c.drawPath(area, fill); c.drawPath(below, fill)
+                    fill.alpha = 255
+                } else {
+                    fill.shader = LinearGradient(0f, mid - amp, 0f, mid, intArrayOf((colourAt(0.5f) and 0x00FFFFFF) or 0x77000000, colourAt(0.5f) and 0x00FFFFFF), null, Shader.TileMode.CLAMP)
+                    c.drawPath(area, fill)
+                }
+                fill.shader = null
+                val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.style = Paint.Style.STROKE; strokeWidth = maxOf(2f, bh * 0.025f); strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND; shader = grad }
+                val lg = Paint(line).apply { strokeWidth = line.strokeWidth * (3f + 2f * beat); maskFilter = android.graphics.BlurMaskFilter(maxOf(6f, bh * 0.05f), android.graphics.BlurMaskFilter.Blur.NORMAL); alpha = (140 + 100 * beat).toInt().coerceAtMost(240) }
+                c.drawPath(path, lg); c.drawPath(path, line)
+                if (style == 4) { val m = android.graphics.Matrix().apply { setScale(1f, -1f, 0f, mid) }; val p2 = Path(path).also { it.transform(m) }; c.drawPath(p2, lg); c.drawPath(p2, line) }
+            }
+            3 -> { // Circular: bars around a ring that pulses on the beat.
+                val cx = bw / 2f; val cy = bh / 2f
+                val base = bw * 0.24f * (1f + 0.10f * beat)
+                val len = bw * 0.24f
+                val n = 72
+                val bar = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND; strokeWidth = (2f * Math.PI.toFloat() * base / n * 0.55f).coerceAtLeast(2f) }
+                val bg = Paint(bar).apply { maskFilter = android.graphics.BlurMaskFilter(maxOf(5f, bw * 0.02f) * (1f + beat), android.graphics.BlurMaskFilter.Blur.NORMAL) }
+                for (i in 0 until n) {
+                    // Low notes at the top, mirrored left and right.
+                    val f = if (i < n / 2) i / (n / 2f) else (n - i) / (n / 2f)
+                    val lv = 0.04f + 0.96f * level((f * (n / 2)).toInt(), n / 2)
+                    val a = (i.toFloat() / n) * 2f * Math.PI.toFloat() - Math.PI.toFloat() / 2f
+                    val x0 = cx + base * kotlin.math.cos(a); val y0 = cy + base * kotlin.math.sin(a)
+                    val x1 = cx + (base + len * lv) * kotlin.math.cos(a); val y1 = cy + (base + len * lv) * kotlin.math.sin(a)
+                    val cc = colourAt(f)
+                    bg.color = cc; bg.alpha = (110 + 120 * beat).toInt().coerceAtMost(230); c.drawLine(x0, y0, x1, y1, bg)
+                    bar.color = cc; c.drawLine(x0, y0, x1, y1, bar)
+                }
+                // Inner ring and beat flash.
+                c.drawCircle(cx, cy, base * 0.92f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.style = Paint.Style.STROKE; strokeWidth = maxOf(2f, bw * 0.008f); color = colourAt(0.5f) })
+                c.drawCircle(cx, cy, base * 0.9f, Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = RadialGradient(cx, cy, base * 0.9f, intArrayOf((colourAt(0f) and 0x00FFFFFF) or ((40 + 120 * beat).toInt().coerceAtMost(200) shl 24), 0), null, Shader.TileMode.CLAMP) })
+            }
+        }
         return out
     }
 

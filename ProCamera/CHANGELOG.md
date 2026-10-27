@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor → Layers → OVERLAYS → Countdown: an animated ring that empties with the seconds left in the middle; automatic (the layer's length) or manual (your number of seconds); ring, glowing ring, scroll wheel colours or solid disc.
+- Video editor → Layers → OVERLAYS → Visualizer: spectrum bars, mirror bars, glow line, circular or waveform, driven by the music's own frequencies and pulsing on every beat; in sync in the preview and the export.
 
 ## 1.0.679 — 2026-10-27
 - Progress bar → Scroll wheel style: its moving effects now always show — pixel shimmer behind the front edge, a glowing tip, sparkles, rolling ridges and a travelling coloured rim — and it gets enough height to see them.

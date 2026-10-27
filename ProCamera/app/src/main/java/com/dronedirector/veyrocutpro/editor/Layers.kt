@@ -116,6 +116,9 @@ data class Layer(
     val fxB: Float? = null,
     val fxX: Float? = null,
     val fxY: Float? = null,
+    /** Visualizer: colour mode, and song time minus timeline time (ms). */
+    val fxC: Float? = null,
+    val fxD: Float? = null,
     val track: List<Double>? = null,
 ) {
     /** The word being spoken at [ms] (−1 before the first). */
@@ -241,7 +244,7 @@ object LayerRenderer {
             LayerKind.VIDEO, LayerKind.ADJUST -> null
             LayerKind.SHAPE -> ShapeRender.render(l, px, frameW)
             LayerKind.LOTTIE -> LottieRender.render(context, l, px, frameW, if (atMs < 0) 0 else LottieRender.frameIndex(context, l, atMs))
-            LayerKind.FX -> FxLayers.render(l, frameW, frameH, atMs)
+            LayerKind.FX -> FxLayers.render(l, frameW, frameH, atMs, context)
             LayerKind.LOGO, LayerKind.IMAGE -> {
                 val uri = l.imageUri ?: return null
                 val src = synchronized(logoCache) {

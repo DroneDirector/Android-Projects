@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor → Deliver → Resolution: 5.1K (5120 × 2700, the DJI Mavic 3 / Air 3 shape) next to 5K (5120 × 2880, 16:9).
 
 ## 1.0.638 — 2026-10-27
 - Video editor → Deliver → Resolution: 5K, 6K, 7K and 8K (5120×2880 up to 7680×4320 in 16:9), with 300 and 400 Mbps bitrates. The app checks the phone's video encoder and says whether that size works, at what highest frame rate, and when the other codec is needed (e.g. the Galaxy S24 makes 8K at up to 30 fps; most tablets stop at 4K).

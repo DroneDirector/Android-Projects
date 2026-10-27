@@ -9,8 +9,8 @@ import android.media.MediaFormat
  * what highest frame rate. Used to offer only the export sizes (up to 8K) this phone can really produce.
  */
 object EncoderCaps {
-    /** Export sizes beyond 4K: label → short side (16:9 long side in brackets). */
-    val BIG = listOf(2880 to "5K", 3456 to "6K", 4032 to "7K", 4320 to "8K")
+    /** Export sizes beyond 4K (short side → label). 5.1K = DJI's 5120 × 2700 when the project shape is Original. */
+    val BIG = listOf(2880 to "5K", 2700 to "5.1K", 3456 to "6K", 4032 to "7K", 4320 to "8K")
 
     private val cache = HashMap<String, Double>()
 

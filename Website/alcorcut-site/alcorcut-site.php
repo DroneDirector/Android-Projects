@@ -2,7 +2,7 @@
 /**
  * Plugin Name: AlcorCut Pro Website
  * Description: The AlcorCut Pro website for Elementor: a showcase home page and full feature lists for Capture, the Photo editor and the Video editor, with the app's own look, glowing pointer, scroll-to-top, share row, beta section and Vimeo player.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: elementor
@@ -13,7 +13,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('ACS_VERSION', '1.0.1');
+define('ACS_VERSION', '1.0.2');
 define('ACS_FILE', __FILE__);
 define('ACS_DIR', plugin_dir_path(__FILE__));
 define('ACS_URL', plugin_dir_url(__FILE__));

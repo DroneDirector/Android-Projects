@@ -133,7 +133,7 @@ body.elementor-editor-active .acs-nav { position: relative; }
 .acs-stats__in { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--acs-line); border-radius: 24px; background: linear-gradient(180deg, rgba(255, 255, 255, .035), rgba(255, 255, 255, .01)); overflow: hidden; }
 .acs-stat { padding: 34px 28px; border-left: 1px solid var(--acs-line); }
 .acs-stat:first-child { border-left: 0; }
-.acs-stat b { display: block; font: 700 clamp(36px, 4vw, 54px)/1 var(--acs-head); background: linear-gradient(180deg, #fff, #f4c670); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.acs-stat b { display: block; font: 700 clamp(36px, 4vw, 54px)/1 var(--acs-head); background: linear-gradient(180deg, #fff, #f7d989); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .acs-stat span { display: block; margin-top: 10px; color: var(--acs-dim); font-size: 15px; }
 
 /* ---------------------------------------------------------------- Android only */

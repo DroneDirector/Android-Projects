@@ -48,7 +48,7 @@ class ClipPick {
 
     companion object {
         /** What belongs to each clip itself and is never copied to the others. */
-        val OWN = setOf("id", "uri", "name", "durationMs", "width", "height", "startMs", "endMs", "mime", "hdr", "tenBit",
+        val OWN = setOf("id", "versions", "uri", "name", "durationMs", "width", "height", "startMs", "endMs", "mime", "hdr", "tenBit",
             "chroma", "bitDepth", "decoder", "undecodable", "nested", "offline", "offlineOf", "volKeys")
     }
 }

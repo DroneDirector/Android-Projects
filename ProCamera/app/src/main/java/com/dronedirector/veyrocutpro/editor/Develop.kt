@@ -280,4 +280,6 @@ class DevUi(
     val upright: (Int) -> Unit = {}, val uprightBusy: Boolean = false,
     /** Targeted adjustment in the HSL mixer: 0 hue, 1 saturation, 2 luminance. */
     val tatMode: Int = 1, val setTatMode: (Int) -> Unit = {},
+    /** Smart crop to a shape (width / height), keeping the subject in; busy while it looks. */
+    val smartCrop: (Float) -> Unit = {}, val smartBusy: Boolean = false,
 )

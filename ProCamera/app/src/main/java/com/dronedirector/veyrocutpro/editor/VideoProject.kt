@@ -89,6 +89,8 @@ data class Clip(
     val offlineOf: String? = null,
     /** Privacy blur: faces and tapped spots blurred or pixelated, followed through the clip. */
     val privacy: PrivacyBlur? = null,
+    /** Grade versions A / B / C (Color page): saved looks to switch between and compare. */
+    val versions: List<ClipLook?>? = null,
 ) {
     val is422: Boolean get() = (chroma ?: 1) >= 2
 
@@ -138,6 +140,9 @@ fun clipEffects(c: Clip): List<Effect> = buildList {
     c.activeMasks().takeIf { it.isNotEmpty() }?.let { add(MaskGradeEffect(it)) }
     addAll(filmEffects(c))
 }
+
+/** One saved grade version of a clip: colour, detail and film look. */
+data class ClipLook(val grade: ProGrade = ProGrade(), val detail: Detail = Detail(), val film: FilmLook? = null)
 
 data class DeliverSettings(
     /** Short side in pixels, 0 = same as the first clip. */

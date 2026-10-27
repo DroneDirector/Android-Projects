@@ -5266,6 +5266,26 @@ private fun EditPage(
     }
 }
 
+/** Grade versions A / B / C: tap an empty one to save the look, tap a saved one to switch to it, hold to save over it. */
+@Composable
+private fun GradeVersions(c: Clip, onChange: ((Clip) -> Clip) -> Unit) {
+    val now = ClipLook(c.grade, c.detail, c.film)
+    val vs = c.versions.orEmpty()
+    Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("VERSIONS", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp))
+        for (k in 0 until 3) {
+            val v = vs.getOrNull(k)
+            val name = "ABC"[k].toString()
+            fun save() = onChange { cl -> cl.copy(versions = List(3) { i -> if (i == k) ClipLook(cl.grade, cl.detail, cl.film) else cl.versions?.getOrNull(i) }) }
+            PillChip(if (v == null) "+ $name" else name, v != null && v == now, onLongClick = { save() }) {
+                if (v == null) save() else onChange { it.copy(grade = v.grade, detail = v.detail, film = v.film) }
+            }
+        }
+        if (vs.any { it != null }) Text("CLEAR", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { onChange { it.copy(versions = null) } }.padding(6.dp))
+    }
+    Text("Tap + to save this look as a version, tap a version to switch to it, hold to save over it.", color = Pro.Dim, fontSize = 10.sp)
+}
+
 @Composable
 private fun ColorPage(
     c: Clip, tab: ColorTab, onTab: (ColorTab) -> Unit,
@@ -5288,6 +5308,7 @@ private fun ColorPage(
         Text("COPY GRADE TO ALL CLIPS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(onClick = onCopyToAll).padding(8.dp))
         Text("RESET CLIP", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable { onChange { it.copy(grade = ProGrade(), detail = Detail(), film = null) } }.padding(8.dp))
     }
+    GradeVersions(c, onChange)
     when (tab) {
         ColorTab.INPUT -> {
             SectionTitle("INPUT COLOUR SPACE / GAMMA")

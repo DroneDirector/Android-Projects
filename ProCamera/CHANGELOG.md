@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor → Crop & perspective → SMART CROP: one tap crops to 1:1, 4:5, 9:16, 16:9 or 3:2 and keeps faces (or the main subject) in the picture.
+- Video editor → Color → VERSIONS A / B / C: save up to three looks per clip and switch between them to compare.
 
 ## 1.0.661 — 2026-10-27
 - Video editor: film looks (halation, bloom, grain, gate weave), lens correction and privacy blur now change the preview at once while you adjust them, on a clip that's already open — no reload. Deflicker still shows after letting go of its slider.

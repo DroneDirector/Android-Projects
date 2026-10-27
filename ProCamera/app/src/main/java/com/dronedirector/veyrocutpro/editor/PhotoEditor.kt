@@ -2277,6 +2277,18 @@ private fun PhotoWorkspace(
                                         }
                                     },
                                     uprightBusy = uprightBusy,
+                                    smartCrop = { asp ->
+                                        val b = base
+                                        if (b != null && !uprightBusy) {
+                                            uprightBusy = true
+                                            scope.launch {
+                                                val r = withContext(Dispatchers.Default) { try { SmartCrop.solve(context, b, edit.geometry, asp) } catch (_: Throwable) { null } }
+                                                uprightBusy = false
+                                                if (r != null) { edit = edit.copy(geometry = r.geometry); message = "Smart crop: kept the ${r.found} in" }
+                                            }
+                                        }
+                                    },
+                                    smartBusy = uprightBusy,
                                 ),
                             )
                         }
@@ -2952,6 +2964,14 @@ private fun PhotoPanelContent(
                 "16:9" to 16f / 9f, "9:16" to 9f / 16f, "21:9" to 21f / 9f, "2.39:1" to 2.39f, "5:7" to 5f / 7f,
             )
             Chips(aspects.map { it.first }, aspects.indexOfFirst { it.second == geom.aspect }.coerceAtLeast(0)) { i -> geo { it.copy(aspect = aspects[i].second) } }
+            if (dev != null) {
+                SectionTitle("SMART CROP")
+                if (dev.smartBusy) Text("Finding the subject…", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(vertical = 6.dp))
+                else Row(Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SmartCrop.SHAPES.forEach { (n, a) -> PillChip(n, false) { dev.smartCrop(a) } }
+                }
+                Text("Crops to the shape with faces, or else the main subject, kept in the picture (eyes about a third from the top). Fine-tune by pinching the photo.", color = Pro.Dim, fontSize = 11.sp)
+            }
             SectionTitle("EXPAND (CLOUD AI)")
             var exAsp by remember { mutableStateOf(0) }
             var exPos by remember { mutableStateOf(0) }

@@ -132,6 +132,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Help** (documentation, tutorials, troubleshooting, proof of purchase), **Project settings**, **Preferences** and **System Info**.
 - **File menu**: new, open, open recent, save / save as / save a copy / revert, capture, import (gallery, files, NAS) and exit; **changeable keyboard shortcuts** (keyboard icon).
 - **Network (NAS)**: open photos — RAW included — from a Synology or any other NAS (or a computer sharing folders) on your network; guest first, sign-in only when needed, optional encrypted remembered sign-ins that are never shown and are unlocked with the phone's fingerprint, PIN or pattern.
+- **Smart crop**: one tap crops to 1:1, 4:5, 9:16, 16:9 or 3:2 with faces (eyes about a third from the top), the AI-found subject or the most detailed part kept in.
 - **Pinch, move and double-tap**: zoom in on the photo and drag it; when your fingers lift, the crop becomes what you see (exported as seen). Double-tap = whole photo again. In Masks, Heal and the Retouch brush two fingers zoom the view only.
 - **Camera in the editor**: the filmstrip's +, the empty editor and the start page open the full **Capture** screen (every mode and pro control) over the editor; each photo you take lands straight in the filmstrip, without any automatic watermark.
 - **Catalogs**: every photo you edit is kept in a catalog — a copy of the photo, its edit and settings, ratings and the AI results (no AI re-runs). Several catalogs; choose how many photos each remembers (10 to any number, or unlimited); photo copies on / off; move catalogs to private storage, shared storage or an SD card. Lossless storage only (AI results as lossless PNG, RAW copies packed losslessly).
@@ -274,6 +275,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Keyboard shortcuts** (Bluetooth / USB): J / K / L, Space, frame steps, cut to cut, split, ripple delete, markers, in / out, undo / redo, save.
 - **Timeline scroll wheels**: a vertical wheel (tracks up / down) and a horizontal wheel along the bottom (through the edit), each in its own window, with the AI-upscale effect.
 - **Shot match**: one tap sets a clip's exposure, white balance, contrast and saturation to match another clip as graded.
+- **Grade versions A / B / C**: save up to three looks per clip (colour, detail, film look) and switch between them to compare; saved with the project.
 - **Film emulation**: 35mm / 16mm / Super 8 looks, halation, bloom, grain (amount and size), gate weave.
 - **Lens correction**: barrel / pincushion distortion, colour fringing and vignette fix, with action cam, drone and ultra-wide presets.
 - **Deflicker** for timelapses, hyperlapses and flickering lights (scene cuts left alone).

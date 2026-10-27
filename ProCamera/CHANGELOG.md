@@ -6,6 +6,9 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 ## Unreleased
 - The Play button effect switch is under gear → Layout & look, and also under gear → Playback.
 
+## 1.0.624 — 2026-10-27
+- The Play button effect switch is now under gear → Layout & look.
+
 ## 1.0.622 — 2026-10-27
 - Video editor: the buttons under the picture no longer flicker while you scroll the row.
 

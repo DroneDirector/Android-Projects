@@ -1164,11 +1164,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     val want = liveKey(c)
                     if (want != filmShown[a] && (want != null || filmOn[a])) {
                         filmShown[a] = want
-                        try {
-                            deck.cur.setVideoEffects(liveEffects(c)); filmOn[a] = want != null
-                            if (!deck.cur.playWhenReady && deck.cur.playbackState == Player.STATE_READY) deck.cur.seekTo(deck.cur.currentPosition)
-                        } catch (_: Throwable) { filmOn[a] = false }
-                        delay(80)
+                        // The player only takes new picture effects when it loads the clip, so the clip is
+                        // loaded again at the same spot once the slider has stopped moving for a moment.
+                        es.fxJob?.cancel()
+                        es.fxJob = layerScope.launch {
+                            delay(300)
+                            val cc = clips.getOrNull(es.current)
+                            if (cc != null && cc.id == es.loadedId) prepareOn(deck.cur, cc, deck.cur.currentPosition, deck.cur.playWhenReady)
+                        }
                     }
                 }
                 continue

@@ -3855,5 +3855,6 @@
 "5.4K": "5.4K",
 "5.7K (360)": "5.7K (360)",
 "The glowing mouse pointer (app and website) no longer has the small orbiting dot; its halo, trail and click ripple stay.": "Lýsandi músavísarin (app og heimasíða) hevur ikki longur lítla snarandi prikkin; geislabaugurin, sporið og klikkbylgjan eru verandi.",
-"Halo, trail and click ripple. Off = a plain arrow in the colour below.": "Geislabaugur, spor og klikkbylgja. Sløkt = vanlig pílur í litinum niðanfyri."
+"Halo, trail and click ripple. Off = a plain arrow in the colour below.": "Geislabaugur, spor og klikkbylgja. Sløkt = vanlig pílur í litinum niðanfyri.",
+"Video editor: changing Clarity, Texture, Image detail, film looks or privacy blur now updates the preview right away (the clip reloads at the same spot when you let go of the slider).": "Videoklipping: broytingar í Klárleika, Teksturi, Myndasmálutum, filmútsjóndum ella privatslørið dagføra nú forsýningina beinanvegin (klippið verður lisið aftur á sama stað, tá ið tú sleppur skjúgvaranum)."
 }

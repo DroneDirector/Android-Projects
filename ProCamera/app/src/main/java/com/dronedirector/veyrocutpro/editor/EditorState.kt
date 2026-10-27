@@ -12,6 +12,8 @@ import androidx.compose.runtime.setValue
  */
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 internal class EditorState(initial: VideoProjectData?, context: Context) {
+    /** Reloading the clip on screen so new picture effects (clarity, film looks, privacy blur) show. */
+    var fxJob: kotlinx.coroutines.Job? = null
     var page by mutableStateOf(Page.EDIT)
     var colorTab by mutableStateOf(ColorTab.INPUT)
     var selected by mutableStateOf(0)

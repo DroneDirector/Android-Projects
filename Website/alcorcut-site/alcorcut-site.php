@@ -87,7 +87,7 @@ add_filter('body_class', function ($c) { if (acs_is_site_page()) $c[] = 'acs-pag
 /** The pages are dark already: browsers' own dark modes (Samsung Internet, Chrome) must not recolour them. */
 add_action('wp_head', function () {
     if (!acs_is_site_page()) return;
-    echo '<meta name="color-scheme" content="dark only">' . "\n";
+    echo '<meta name="color-scheme" content="light dark">' . "\n";
     echo '<meta name="supported-color-schemes" content="dark">' . "\n";
     echo '<meta name="darkreader-lock">' . "\n";
     echo '<meta name="theme-color" content="#07080a">' . "\n";

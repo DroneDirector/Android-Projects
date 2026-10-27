@@ -114,8 +114,7 @@ object FxLayers {
                 c.drawRoundRect(RectF(m, top, w - m, bot), r, r, track)
                 if (k > 0f) c.drawRoundRect(RectF(m, top, m + (w - 2 * m) * k, bot).also { if (it.width() < th) it.right = it.left + th }, r, r, fill)
             }
-            2 -> { // Glowing tip: a soft glow travels at the front edge.
-                c.drawRect(0f, top, w.toFloat(), bot, track)
+            2 -> { // Glowing tip: only the line and the soft glow at its front edge.
                 c.drawRect(0f, top, x1, bot, fill)
                 val gr = bh / 2f
                 c.drawCircle(x1, cy, gr, Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = RadialGradient(x1, cy, gr, intArrayOf(0xFFFFFFFF.toInt(), col and 0x99FFFFFF.toInt(), 0), floatArrayOf(0f, 0.35f, 1f), Shader.TileMode.CLAMP) })

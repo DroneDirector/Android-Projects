@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Progress bar: no selection frame around it in the preview, and the Glowing tip style shows only the line and its glow (no background track).
 
 ## 1.0.682 — 2026-10-27
 - Video editor → Layers → OVERLAYS → Countdown: an animated ring that empties with the seconds left in the middle; automatic (the layer's length) or manual (your number of seconds); ring, glowing ring, scroll wheel colours or solid disc.

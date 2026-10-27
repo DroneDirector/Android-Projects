@@ -6075,7 +6075,7 @@ private fun LayerPreview(
                 Modifier
                     .offset { androidx.compose.ui.unit.IntOffset(left, top) }
                     .size(with(density) { bw.toDp() }, with(density) { bh.toDp() })
-                    .then(if (sel && !FxLayers.fullFrame(base)) Modifier.border(1.dp, Pro.Amber) else Modifier)
+                    .then(if (sel && !FxLayers.fullFrame(base) && !(base.kind == LayerKind.FX && base.fx == FxLayers.PROGRESS)) Modifier.border(1.dp, Pro.Amber) else Modifier)
                     // Full-frame overlays (bars, flare) don't take touches, so everything under them stays reachable.
                     .then(if (FxLayers.fullFrame(base)) Modifier else Modifier.pointerInput(l.id) {
                         detectDragGestures(onDragStart = { onSelect(l.id) }) { change, drag ->

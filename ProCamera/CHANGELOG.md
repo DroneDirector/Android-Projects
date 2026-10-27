@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.672 — 2026-10-27
 - File, Help, Panels and Markers menus: they always open right under their button and stay on the screen; when their content is taller than the room below, they scroll (with arrows). Closing a group inside them brings everything back into view, and the menu no longer changes width.
 
 ## 1.0.669 — 2026-10-27

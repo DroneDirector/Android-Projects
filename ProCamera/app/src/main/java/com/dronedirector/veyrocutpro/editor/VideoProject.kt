@@ -243,8 +243,14 @@ fun outputSize(clips: List<Clip>, s: DeliverSettings): Pair<Int, Int> {
     val fw = ((first?.width ?: 1920) * (first?.desqueeze ?: 1f)).toInt().coerceAtLeast(2)
     val fh = (first?.height ?: 1080).coerceAtLeast(2)
     val aspect = if (s.aspect > 0f) s.aspect else fw.toFloat() / fh
-    val short = if (s.shortSide > 0) s.shortSide else minOf(fw, fh)
-    val (w, h) = if (aspect >= 1f) (short * aspect).toInt() to short else short to (short / aspect).toInt()
+    val (w, h) = if (s.shortSide < 0) {
+        // A long side (5.7K = 5760 wide), the frame keeping its shape.
+        val long = -s.shortSide
+        if (aspect >= 1f) long to (long / aspect).toInt() else (long * aspect).toInt() to long
+    } else {
+        val short = if (s.shortSide > 0) s.shortSide else minOf(fw, fh)
+        if (aspect >= 1f) (short * aspect).toInt() to short else short to (short / aspect).toInt()
+    }
     return (w / 2 * 2).coerceAtLeast(2) to (h / 2 * 2).coerceAtLeast(2)
 }
 
@@ -324,6 +330,7 @@ class TimelineExport(
     private fun saveVideo(err0: String?) {
         val stamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
         val name = "EDIT_$stamp.mp4"
+        outputSize(clips, settings).let { (ow, oh) -> Spherical.tagIfNeeded(context, clips, ow, oh, out) }
         val uri = SaveFolder.write(context, true, name, "video/mp4") { os -> out.inputStream().use { it.copyTo(os) } }
             ?: GradeIO.publishVideo(context, out, com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO)
         out.delete()
@@ -669,6 +676,7 @@ class TimelineExport(
                             if (file !== out) file.delete()
                             u
                         } else {
+                            outputSize(clips, settings).let { (ow, oh) -> Spherical.tagIfNeeded(context, clips, ow, oh, out) }
                             val name = "EDIT_$stamp.mp4"
                             SaveFolder.write(context, true, name, "video/mp4") { os -> out.inputStream().use { it.copyTo(os) } }
                                 ?: GradeIO.publishVideo(context, out, com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO)

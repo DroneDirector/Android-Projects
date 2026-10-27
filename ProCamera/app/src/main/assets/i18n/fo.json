@@ -3848,5 +3848,10 @@
 "Video editor: Clarity, Texture and Image detail now run in the video player itself during preview — the same code as the export — so they show on every Android 13+ phone and tablet.": "Videoklipping: Klárleiki, Tekstur og Myndasmálutir koyra nú í sjálvum videospælaranum í forsýningini — sama kotan sum útflutningurin — so tey síggjast á øllum Android 13+ telefonum og teldlum.",
 "Video editor → Deliver → Resolution: 5.1K (5120 × 2700, the DJI Mavic 3 / Air 3 shape) next to 5K (5120 × 2880, 16:9).": "Videoklipping → Lat út → Upploysn: 5.1K (5120 × 2700, DJI Mavic 3 / Air 3-sniðið) við síðuna av 5K (5120 × 2880, 16:9).",
 "Video editor → Deliver → Resolution: 5K, 5.1K, 6K, 7K and 8K (5120×2880 up to 7680×4320 in 16:9; 5.1K = DJI's 5120×2700 with the project shape on Original), with 300 and 400 Mbps bitrates. The app checks the phone's video encoder and says whether that size works, at what highest frame rate, and when the other codec is needed (e.g. the Galaxy S24 makes 8K at up to 30 fps; most tablets stop at 4K).": "Videoklipping → Lat út → Upploysn: 5K, 5.1K, 6K, 7K og 8K (5120×2880 upp til 7680×4320 í 16:9; 5.1K = DJI 5120×2700 við verkætlanarsniðinum á Upprunaligt) við 300 og 400 Mbps bitrate. Appin kannar videokodaran á telefonini og sigur, um støddin riggar, við hvørjari hægstu myndaferð, og nær hitt kodekið er neyðugt (t.d. ger Galaxy S24 8K við upp til 30 fps; flestu teldlar steðga við 4K).",
-"5.1K": "5.1K"
+"5.1K": "5.1K",
+"Video editor → Deliver → Resolution: 2.7K (2688 × 1512), 5.3K (5312 × 2988, GoPro), 5.4K (5472 × 3078, DJI Air 2S) and 5.7K (360) — a 360° video exports at 5760 × 2880 and stays 360° (marked so players, YouTube and Facebook show it as a sphere); any other video exports 5760 wide in its own shape. A 360° video exported at any 2:1 size keeps its 360° mark.": "Videoklipping → Lat út → Upploysn: 2.7K (2688 × 1512), 5.3K (5312 × 2988, GoPro), 5.4K (5472 × 3078, DJI Air 2S) og 5.7K (360) — ein 360°-video verður útflutt í 5760 × 2880 og verður verandi 360° (merkt, so spælarar, YouTube og Facebook vísa hana sum eina kúlu); hvør onnur video verður útflutt 5760 breið í sínum egna sniði. Ein 360°-video útflutt í hvørjari 2:1-stødd sum helst heldur sítt 360°-merki.",
+"2.7K": "2.7K",
+"5.3K": "5.3K",
+"5.4K": "5.4K",
+"5.7K (360)": "5.7K (360)"
 }

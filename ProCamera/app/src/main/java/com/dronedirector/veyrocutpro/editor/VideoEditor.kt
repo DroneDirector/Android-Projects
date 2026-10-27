@@ -2986,6 +2986,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 val ok = ChunkedExport.join(context, files, joined, es.deliver.bitrateMbps * 1_000_000)
                 files.forEach { it.delete() }
                 val uri = if (!ok) null else withContext(Dispatchers.IO) {
+                    outputSize(clips, es.deliver).let { (ow, oh) -> Spherical.tagIfNeeded(context, clips, ow, oh, joined) }
                     val name = "EDIT_" + java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date()) + ".mp4"
                     (SaveFolder.write(context, true, name, "video/mp4") { os -> joined.inputStream().use { it.copyTo(os) } }
                         ?: GradeIO.publishVideo(context, joined, com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO)).also { joined.delete() }
@@ -6512,7 +6513,7 @@ private fun DeliverPage(
     }
     if (!s.audioOnly) {
         Text("Resolution", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-        val res = listOf(0 to "Source", 720 to "720p", 1080 to "1080p", 1440 to "1440p", 2160 to "4K UHD") + EncoderCaps.BIG
+        val res = listOf(0 to "Source", 720 to "720p", 1080 to "1080p", 1440 to "1440p", 1512 to "2.7K", 2160 to "4K UHD") + EncoderCaps.BIG
         Chips(res.map { it.second }, res.indexOfFirst { it.first == s.shortSide }.coerceAtLeast(0)) { onChange(s.copy(shortSide = res[it].first)) }
         // 5K–8K: only when this phone's encoder can make that size (otherwise say what it can do).
         EncoderCaps.labelFor(s.shortSide)?.let { big ->
@@ -6526,6 +6527,18 @@ private fun DeliverPage(
                 else -> "$big ($ow×$oh) is supported by this phone's encoder (up to ${bigFps.toInt()} fps). Use a high bitrate (120–200 Mbps) for the detail; exports take longer."
             }
             Text(msg, color = if (bigFps <= 0.0 || bigFps + 0.5 < wantFps) Pro.Red else Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
+        }
+        // 5.7K: a 360° video stays 360° (5760 × 2880 with the 360° tag); any other video is just 5760 wide.
+        if (s.shortSide == -5760) {
+            val ctx360 = androidx.compose.ui.platform.LocalContext.current
+            val first = clips.firstOrNull()
+            val is360 by androidx.compose.runtime.produceState(false, first?.uri) { value = first != null && withContext(Dispatchers.IO) { Spherical.is360(ctx360, first.uri) } }
+            Text(
+                if (is360 && kotlin.math.abs(ow.toFloat() / oh - 2f) < 0.02f) "360° video: exported at $ow×$oh and marked as 360°, so players, YouTube and Facebook show it as a sphere. Keep crop, zoom and stabilisation off on 360° clips."
+                else if (is360) "360° video, but the project shape isn't 2:1 — set the shape to Original to keep it 360°."
+                else "Not a 360° video: exported at $ow×$oh (5760 wide, its own shape).",
+                color = Pro.Amber, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp),
+            )
         }
         Text("Codec", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
         Chips(listOf("H.264", "HEVC (H.265)"), if (s.hevc) 1 else 0) { onChange(s.copy(hevc = it == 1)) }

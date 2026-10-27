@@ -390,7 +390,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Track switches & trim handles**: per-row mute, eye (hide a layer from the feed and the export) and lock; bracket-style trim handles on both ends of every V1 clip, layer and audio bar — hold and drag to lengthen or shorten within the video, with a live length read-out.
 - **Timeline scroll wheel**: a slim glowing wheel in its own window on the timeline's right edge (as tall as the timeline, growing with the tracks, never covering a track) scrolls the tracks up and down (drag or tap), with an "upscale" effect — pixel blocks resolving and a scan line following the scroll.
 - **Keep HDR** (HLG / HDR10, 10-bit HEVC) or convert to SDR.
-- Resolution up to **8K** (5K, 5.1K, 6K, 7K, 8K when the phone's encoder can make them — checked on the phone, with its top frame rate), frame rate, **H.264 / HEVC**, bitrate up to 400 Mbps, audio on/off.
+- Resolution up to **8K** (2.7K, 5K, 5.1K, 5.3K, 5.4K, 5.7K with **360° video** kept 360°, 6K, 7K, 8K when the phone's encoder can make them — checked on the phone, with its top frame rate), frame rate, **H.264 / HEVC**, bitrate up to 400 Mbps, audio on/off.
 - Project formats: Original, 16:9, 9:16, 1:1, 4:5, 4:3 and more; fill or fit.
 - **Export presets** (YouTube 4K / 1080p, Instagram Reel / 4:5, TikTok, Square, small file).
 - **Export a range** (in / out) and **save a frame as a photo**.

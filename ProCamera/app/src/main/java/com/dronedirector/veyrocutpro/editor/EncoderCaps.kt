@@ -10,7 +10,8 @@ import android.media.MediaFormat
  */
 object EncoderCaps {
     /** Export sizes beyond 4K (short side → label). 5.1K = DJI's 5120 × 2700 when the project shape is Original. */
-    val BIG = listOf(2880 to "5K", 2700 to "5.1K", 3456 to "6K", 4032 to "7K", 4320 to "8K")
+    /** A negative value is the long side instead (5.7K: 5760 wide — 5760 × 2880 for a 360° video, its own shape otherwise). */
+    val BIG = listOf(2880 to "5K", 2700 to "5.1K", 2988 to "5.3K", 3078 to "5.4K", -5760 to "5.7K (360)", 3456 to "6K", 4032 to "7K", 4320 to "8K")
 
     private val cache = HashMap<String, Double>()
 

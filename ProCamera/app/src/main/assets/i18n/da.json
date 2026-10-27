@@ -3797,5 +3797,10 @@
 "Video editor: Clarity, Texture and Image detail now run in the video player itself during preview — the same code as the export — so they show on every Android 13+ phone and tablet.": "Videoredigering: Klarhed, Tekstur og Billeddetaljer kører nu i selve videoafspilleren under forhåndsvisning — samme kode som eksporten — så de vises på alle Android 13+-telefoner og -tablets.",
 "Video editor → Deliver → Resolution: 5.1K (5120 × 2700, the DJI Mavic 3 / Air 3 shape) next to 5K (5120 × 2880, 16:9).": "Videoredigering → Lever → Opløsning: 5.1K (5120 × 2700, DJI Mavic 3 / Air 3-formatet) ved siden af 5K (5120 × 2880, 16:9).",
 "Video editor → Deliver → Resolution: 5K, 5.1K, 6K, 7K and 8K (5120×2880 up to 7680×4320 in 16:9; 5.1K = DJI's 5120×2700 with the project shape on Original), with 300 and 400 Mbps bitrates. The app checks the phone's video encoder and says whether that size works, at what highest frame rate, and when the other codec is needed (e.g. the Galaxy S24 makes 8K at up to 30 fps; most tablets stop at 4K).": "Videoredigering → Lever → Opløsning: 5K, 5.1K, 6K, 7K og 8K (5120×2880 op til 7680×4320 i 16:9; 5.1K = DJI's 5120×2700 med projektformen på Original) med 300 og 400 Mbps bithastighed. Appen tjekker telefonens videokoder og fortæller, om størrelsen virker, ved hvilken højeste billedhastighed, og hvornår det andet codec er nødvendigt (fx laver Galaxy S24 8K ved op til 30 fps; de fleste tablets stopper ved 4K).",
-"5.1K": "5.1K"
+"5.1K": "5.1K",
+"Video editor → Deliver → Resolution: 2.7K (2688 × 1512), 5.3K (5312 × 2988, GoPro), 5.4K (5472 × 3078, DJI Air 2S) and 5.7K (360) — a 360° video exports at 5760 × 2880 and stays 360° (marked so players, YouTube and Facebook show it as a sphere); any other video exports 5760 wide in its own shape. A 360° video exported at any 2:1 size keeps its 360° mark.": "Videoredigering → Lever → Opløsning: 2.7K (2688 × 1512), 5.3K (5312 × 2988, GoPro), 5.4K (5472 × 3078, DJI Air 2S) og 5.7K (360) — en 360°-video eksporteres i 5760 × 2880 og forbliver 360° (markeret, så afspillere, YouTube og Facebook viser den som en kugle); enhver anden video eksporteres 5760 bred i sin egen form. En 360°-video eksporteret i enhver 2:1-størrelse beholder sin 360°-markering.",
+"2.7K": "2.7K",
+"5.3K": "5.3K",
+"5.4K": "5.4K",
+"5.7K (360)": "5.7K (360)"
 }

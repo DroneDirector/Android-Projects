@@ -795,13 +795,6 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         playbackExtra = {
             Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Play button effect", color = Color.White, fontSize = 15.sp)
-                    Text("The Play button under the picture glows like the scroll wheels (sparkles while playing). Off = a plain button, no animation.", color = Pro.Dim, fontSize = 12.sp)
-                }
-                androidx.compose.material3.Switch(PlayFx.on, { PlayFx.set(context, it) }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
-            }
-            Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
                     Text("Show playback info", color = Color.White, fontSize = 15.sp)
                     Text("Small read-out on the player for troubleshooting", color = Pro.Dim, fontSize = 12.sp)
                 }

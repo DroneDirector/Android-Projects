@@ -444,7 +444,7 @@ fun EditorSettingsBody(
     val isVideo = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR
     val k = "ed_" + screen.name + "_"
     fun show(g: String) = only == null || g in only
-                if (show("look")) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "look", "Layout & look", if (isVideo) "Simple layout, app colour, scroll wheel effects, mouse pointer, scroll wheel, fold-out sections" else "Simple layout, app colour, mouse pointer, fold-out sections") {
+                if (show("look")) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "look", "Layout & look", if (isVideo) "Simple layout, Play button effect, app colour, scroll wheel effects, mouse pointer, scroll wheel, fold-out sections" else "Simple layout, app colour, mouse pointer, fold-out sections") {
                         Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text("Simple layout", color = Color.White, fontSize = 15.sp)
@@ -455,6 +455,14 @@ fun EditorSettingsBody(
                                 onCheckedChange = { com.dronedirector.veyrocutpro.camera.SimpleMode.set(ctx, it) },
                                 colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
                             )
+                        }
+                        if (isVideo) Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Play button effect", color = Color.White, fontSize = 15.sp)
+                                Text("On: the Play button under the picture has the scroll wheels' animated look (their colours, turning rim, sparkles while playing). Off: the plain amber button, no animation.", color = Pro.Dim, fontSize = 12.sp)
+                            }
+                            androidx.compose.runtime.LaunchedEffect(Unit) { PlayFx.load(ctx) }
+                            androidx.compose.material3.Switch(PlayFx.on, { PlayFx.set(ctx, it) }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
                         }
                         Text("APP COLOUR", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp, bottom = 4.dp))
                         com.dronedirector.veyrocutpro.ui.AccentPicker()

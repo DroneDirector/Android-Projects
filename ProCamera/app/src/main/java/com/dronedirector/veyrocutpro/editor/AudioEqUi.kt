@@ -72,9 +72,9 @@ fun ParametricEq(bands: List<EqBand>, playing: Boolean, onChange: (List<EqBand>?
     ) {
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width; val h = size.height
-            val grid = Color.White.copy(alpha = 0.1f)
+            val grid = com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.1f)
             for (f in listOf(50f, 100f, 200f, 500f, 1000f, 2000f, 5000f, 10000f)) drawLine(grid, Offset(xf(f) * w, 0f), Offset(xf(f) * w, h))
-            for (db in listOf(-12f, -6f, 0f, 6f, 12f)) drawLine(if (db == 0f) Color.White.copy(alpha = 0.25f) else grid, Offset(0f, (0.5f - db / (2 * DBR)) * h), Offset(w, (0.5f - db / (2 * DBR)) * h))
+            for (db in listOf(-12f, -6f, 0f, 6f, 12f)) drawLine(if (db == 0f) com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.25f) else grid, Offset(0f, (0.5f - db / (2 * DBR)) * h), Offset(w, (0.5f - db / (2 * DBR)) * h))
             spec?.let { s ->
                 val p = Path(); p.moveTo(0f, h)
                 s.forEachIndexed { i, v -> p.lineTo((i + 0.5f) / s.size * w, (1f - ((v + 60f) / 70f).coerceIn(0f, 1f)) * h) }

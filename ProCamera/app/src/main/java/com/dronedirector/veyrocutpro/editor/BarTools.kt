@@ -170,7 +170,7 @@ fun GroupDialog(items: List<TrackItem>, onDismiss: () -> Unit, onGroup: (List<Tr
                     }
                 }
                 if (groups.isNotEmpty()) {
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 8.dp))
+                    HorizontalDivider(color = com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 8.dp))
                     groups.forEachIndexed { i, g ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("Group ${i + 1} · " + items.count { it.group == g } + " items", color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
@@ -215,7 +215,7 @@ fun MarkersMenuButton(
     }
     Box {
         TransportIcon(Icons.Filled.Bookmarks, "Markers") { open = true; sub = null }
-        DropdownMenu(open, onDismissRequest = { open = false }, containerColor = Pro.PanelSolid) {
+        DropdownMenu(open, onDismissRequest = { open = false }, containerColor = Pro.PanelSolid, modifier = Modifier.heightIn(max = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.8f).dp)) {
             @Composable
             fun Item(t: String, enabled: Boolean = true, a: () -> Unit) {
                 Text(t, color = if (enabled) Color.White else Pro.Dim, fontSize = 14.sp,
@@ -229,7 +229,7 @@ fun MarkersMenuButton(
             Item("Edit marker…", near != null) { open = false; editing = near }
             Item("Clear marker at the playhead", near != null) { open = false; near?.let(onClear) }
             Item("Clear all markers", sorted.isNotEmpty()) { open = false; onClearAll() }
-            HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+            HorizontalDivider(color = com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.1f))
             Item("Marker lists ▸") { sub = if (sub == "lists") null else "lists" }
             if (sub == "lists") {
                 Text("Export marker list (.csv)", color = if (sorted.isNotEmpty()) Color.White else Pro.Dim, fontSize = 13.sp,

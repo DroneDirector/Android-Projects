@@ -245,7 +245,7 @@ private fun CastPicker(onDismiss: () -> Unit) {
                     routes.isEmpty() -> Text("Looking for a Chromecast or Google TV on this Wi-Fi…", color = Pro.Dim)
                     else -> routes.forEach { r ->
                         Row(
-                            Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = 0.06f))
+                            Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(10.dp)).background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.06f))
                                 .clickable { MediaRouter.getInstance(ctx).selectRoute(r); onDismiss() }.padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

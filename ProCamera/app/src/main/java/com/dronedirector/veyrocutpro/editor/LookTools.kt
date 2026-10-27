@@ -108,7 +108,7 @@ fun PillChip(text: String, selected: Boolean, accentText: Boolean = false, onLon
         text, color = if (selected) Color.Black else if (accentText) Pro.Amber else Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
         modifier = Modifier
             .clip(RoundedCornerShape(50))
-            .background(if (selected) Pro.Amber else Color.White.copy(alpha = 0.08f))
+            .background(if (selected) Pro.Amber else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f))
             .then(if (accentText) Modifier.border(1.dp, Pro.Amber.copy(alpha = 0.6f), RoundedCornerShape(50)) else Modifier)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 12.dp, vertical = 6.dp),

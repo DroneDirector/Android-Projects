@@ -436,7 +436,7 @@ private fun ClipKeyframes(c: Clip, playheadRel: Long, onChange: ((Clip) -> Clip)
                 val labels = listOf("Smooth", "Linear", "Hold", "Curve")
                 Text(
                     labels[k.ease.coerceIn(0, 3)], style = Pro.Label.copy(color = Color.White, fontSize = 10.sp),
-                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Color.White.copy(alpha = 0.08f)).clickable {
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f)).clickable {
                         onChange { cl -> cl.copy(reframe = cl.reframe.copy(keys = cl.reframe.keys?.map { if (it.t == k.t) it.copy(ease = (it.ease + 1) % 4, bez = it.bez ?: KeyCurve.PRESETS[2].second) else it })) }
                     }.padding(horizontal = 8.dp, vertical = 4.dp),
                 )
@@ -494,7 +494,7 @@ fun KeyCurveEditor(bez: List<Float>, onChange: (List<Float>) -> Unit) {
         androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
             val pad = 18f
             fun p(x: Float, y: Float) = androidx.compose.ui.geometry.Offset(pad + x * (size.width - 2 * pad), pad + (1.5f - y) / 2f * (size.height - 2 * pad))
-            val grid = Color.White.copy(alpha = 0.12f)
+            val grid = com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.12f)
             drawLine(grid, p(0f, 0f), p(1f, 0f)); drawLine(grid, p(0f, 1f), p(1f, 1f)); drawLine(grid, p(0f, 0f), p(0f, 1f)); drawLine(grid, p(1f, 0f), p(1f, 1f))
             val path = androidx.compose.ui.graphics.Path()
             for (i in 0..60) {

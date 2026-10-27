@@ -96,7 +96,7 @@ fun FoldModeSetting(scope: String) {
         listOf(Fold.REMEMBER to "Remember", Fold.CLOSED to "Always closed", Fold.OPEN to "All open").forEach { (v, label) ->
             val sel = m == v
             Text(label, color = if (sel) Color.Black else Color.White, fontSize = 12.sp,
-                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (sel) Pro.Amber else Color.White.copy(alpha = 0.08f))
+                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (sel) Pro.Amber else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f))
                     .clickable { Fold.setMode(ctx, scope, v) }.padding(horizontal = 12.dp, vertical = 7.dp))
         }
     }
@@ -182,7 +182,7 @@ fun SectionHeader(text: String, onReset: (() -> Unit)? = null) {
     val summary = c.summaries[key].orEmpty()
     Row(
         Modifier.layoutId(FoldId(key)).fillMaxWidth().padding(top = 6.dp, bottom = if (open) 4.dp else 0.dp)
-            .clip(RoundedCornerShape(14.dp)).background(Color.White.copy(alpha = 0.06f))
+            .clip(RoundedCornerShape(14.dp)).background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.06f))
             .clickable { Fold.toggle(key) }.padding(start = 14.dp, end = 8.dp, top = 11.dp, bottom = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

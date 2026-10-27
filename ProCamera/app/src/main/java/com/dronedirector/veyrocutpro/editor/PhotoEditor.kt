@@ -3419,7 +3419,7 @@ private fun LightPad(x: Float, y: Float, onChange: (Float, Float) -> Unit) {
     ) {
         androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
             val c = androidx.compose.ui.geometry.Offset(size.width / 2, size.height / 2)
-            drawCircle(Color.White.copy(alpha = 0.25f), size.minDimension * 0.18f, c)
+            drawCircle(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.25f), size.minDimension * 0.18f, c)
             val p = androidx.compose.ui.geometry.Offset((x + 1) / 2 * size.width, (y + 1) / 2 * size.height)
             drawLine(Pro.Amber.copy(alpha = 0.6f), p, c, 2f)
             drawCircle(Pro.Amber, 9.dp.toPx(), p)

@@ -63,7 +63,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Photo editor and video editor: every section in the tool panels is a fold-out (title, a line saying what's inside, arrow). Tap to open or close it; the tabs above work as before.
 - Photo and video editor settings are folded into groups too (Layout & look, Saving & backup, Watermark, AI, App, and in the video editor Project archive & versions and Playback & proxies). Each line says what's inside.
 - Watch remote: install AlcorCutPro-WATCH (from the release) on a Wear OS watch — Galaxy Watch 4 or newer, Pixel Watch. With Capture open on the phone, the watch shows the live picture and records / takes photos, switches photo ↔ video and zooms. Install steps: Guides and Tips → Installing the watch app.
-- Quick bar → STOP MOTION (photo modes): every photo becomes the next frame and the last one shows faintly over the viewfinder (ONION %). FRAMES opens the frame strip: play, HOLD +1, delete, 6–24 fps, MAKE VIDEO.
+- Quick bar → STOP MOTION (photo modes): every photo becomes the next frame and the last one shows faintly over the viewfinder (ONION %). FRAMES opens the frame strip: play, HOLD +1, delete, 6–24 fps, MAKE VIDEO. Its bar sits on the picture: drag it, pinch to resize, double tap to make it small.
 - Settings → SLATE & SHOT LOG: set scene, shot, take and notes; they show on the viewfinder, go into photos, and every clip and photo is logged. Export the log as a .csv for Excel / Sheets; the take number goes up after each recording.
 - Settings → COPYRIGHT: your name and copyright notice are written into every photo you take and every photo you export (Artist / Copyright in the photo's details).
 - SMART → PORTRAIT and AI PORTRAIT: the subject stays sharp and the background is blurred — people, pets, flowers, rocks, branches and other things that stand out. PORTRAIT adds the blur a second after the shot; AI PORTRAIT also shows it live in the viewfinder while you frame (people update fastest; other subjects a few times a second, so the edge can lag a little when you move — "no subject" means nothing is found yet). In both, slide the BACKGROUND BLUR slider above the zoom bar (left f/1.4 = most blur, right f/16 = least) or tap a spot on it; tap AUTO to minimise it and let AlcorCut Pro pick the blur. The saved photo always gets the full-quality blur a second after the shot.
@@ -261,10 +261,12 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Markers (the bookmark icon): go to a marker, edit its note or move it to the playhead, clear one or all, and export or import marker lists (.csv: timecode, seconds, note).
 **Project settings**
 - File → Project settings: General, Project (names, shape, frame rate), Storage, Ingest (put new media in a bin, make proxies for heavy clips, colour label by kind) and Label colours (name the colours, a colour per kind of media).
+**Light look**
+- Gear → Preferences → Appearance: Dark, Light or Like the phone. The panels, menus and dialogs turn light; the picture, the timeline and the media strip stay dark.
 **Help and preferences**
 - The ? icon: the video editor's documentation and tutorials, Troubleshooting and Proof of purchase. Gear → Preferences: appearance, shutter sound, audio hardware, autosave, playback, timeline and editing. Gear → System Info shows the phone's hardware.
 **Reveal in Project**
-- Tools bar → Reveal in Project → Reveal in library picks the selected clip out in the media strip; Reveal on device shows which folder on the phone its file is in.
+- Tools bar → Reveal in Project (the chip just before Deliver) → Reveal in library picks the selected clip out in the media strip; Reveal on device shows which folder on the phone its file is in.
 **Team projects**
 - File → New team project (or Team → Share this project): choose a folder on your NAS or a shared folder, give it a name and your name. The edit's files are copied there once.
 - Team → Open team project: pick the folder and the project. If someone else has it open, you can open it read-only. Saving when someone saved after you opened it asks whether to save over theirs or keep yours on the phone.

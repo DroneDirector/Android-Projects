@@ -123,7 +123,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Photo editor and video editor: every section in the tool panels is a fold-out (title, a line saying what's inside, arrow). Tap to open or close it; the tabs above work as before.",
             "Photo and video editor settings are folded into groups too (Layout & look, Saving & backup, Watermark, AI, App, and in the video editor Project archive & versions and Playback & proxies). Each line says what's inside.",
             "Watch remote: install AlcorCutPro-WATCH (from the release) on a Wear OS watch — Galaxy Watch 4 or newer, Pixel Watch. With Capture open on the phone, the watch shows the live picture and records / takes photos, switches photo ↔ video and zooms. Install steps: Guides and Tips → Installing the watch app.",
-            "Quick bar → STOP MOTION (photo modes): every photo becomes the next frame and the last one shows faintly over the viewfinder (ONION %). FRAMES opens the frame strip: play, HOLD +1, delete, 6–24 fps, MAKE VIDEO.",
+            "Quick bar → STOP MOTION (photo modes): every photo becomes the next frame and the last one shows faintly over the viewfinder (ONION %). FRAMES opens the frame strip: play, HOLD +1, delete, 6–24 fps, MAKE VIDEO. Its bar sits on the picture: drag it, pinch to resize, double tap to make it small.",
             "With a mouse: the wheel zooms, right-click locks / unlocks exposure and focus there, and middle-click takes the shot.",
             "Use the volume keys as a shutter / record button.",
             "Settings → SLATE & SHOT LOG: set scene, shot, take and notes; they show on the viewfinder, go into photos, and every clip and photo is logged. Export the log as a .csv for Excel / Sheets; the take number goes up after each recording.",
@@ -434,7 +434,7 @@ fun GuideDialog(variant: GuideVariant, open: GuideTopic? = null, onDismiss: () -
                         Text(variant.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
                         Text("GET MORE OUT OF ALCORCUT PRO", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp, letterSpacing = 2.sp))
                     }
-                    Box(Modifier.size(44.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.08f)).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(44.dp).clip(CircleShape).background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f)).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
                         Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.White)
                     }
                 }
@@ -444,7 +444,7 @@ fun GuideDialog(variant: GuideVariant, open: GuideTopic? = null, onDismiss: () -
                         Column(
                             Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(14.dp))
                                 .background(Color(0xFF15171C))
-                                .border(1.dp, if (isOpen) Pro.Amber.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.06f), RoundedCornerShape(14.dp)),
+                                .border(1.dp, if (isOpen) Pro.Amber.copy(alpha = 0.6f) else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.06f), RoundedCornerShape(14.dp)),
                         ) {
                             Row(
                                 Modifier.fillMaxWidth().clickable { if (isOpen) expanded.remove(s.topic) else expanded.add(s.topic) }.padding(14.dp),

@@ -80,7 +80,7 @@ fun MulticamDialog(pool: List<Clip>, onDone: (List<Clip>) -> Unit, onDismiss: ()
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Box(
-                                Modifier.size(28.dp).clip(RoundedCornerShape(50)).background(if (i >= 0) Pro.Amber else Color.White.copy(alpha = 0.08f)),
+                                Modifier.size(28.dp).clip(RoundedCornerShape(50)).background(if (i >= 0) Pro.Amber else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f)),
                                 contentAlignment = Alignment.Center,
                             ) { Text(if (i >= 0) "${i + 1}" else "", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
                             Column(Modifier.weight(1f).padding(start = 10.dp)) {
@@ -204,7 +204,7 @@ private fun MulticamSwitcher(angles: List<Clip>, off: LongArray, onDone: (List<C
                         val on = live == i
                         Box(
                             Modifier.weight(1f).fillMaxSize().clip(RoundedCornerShape(10.dp)).background(Color.Black)
-                                .border(if (on) 3.dp else 1.dp, if (on) Pro.Red else Color.White.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+                                .border(if (on) 3.dp else 1.dp, if (on) Pro.Red else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
                                 .clickable {
                                     if (live != i) {
                                         live = i

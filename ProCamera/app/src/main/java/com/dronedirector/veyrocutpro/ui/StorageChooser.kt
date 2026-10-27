@@ -81,7 +81,7 @@ fun StorageChooser(area: StorageArea, onChange: (String) -> Unit = {}) {
     ) {}
     Text(
         "CHOOSE A FOLDER ON A USB DRIVE / SD CARD…", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
-        modifier = Modifier.padding(top = 4.dp).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.08f))
+        modifier = Modifier.padding(top = 4.dp).clip(RoundedCornerShape(8.dp)).background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f))
             .clickable { pick.launch(null) }.padding(10.dp),
     )
     Text(

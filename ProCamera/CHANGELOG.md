@@ -4,6 +4,10 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- **Light look** (gear → Preferences → Appearance: Dark, Light or Like the phone): the photo and video editors — panels, menus, dialogs, settings and the File, Help and other menus — switch to a light look, live. The picture, the timeline and the media strip stay dark so colours are judged correctly; Capture and the start screens stay dark.
+- File, Help and Markers menus fit the screen and scroll; opening a group further down scrolls it into view instead of the list disappearing.
+- Video editor: **Reveal in Project** is now one of the tools bar's chips, just before Deliver.
+- Capture → Stop motion: its bar sits on the picture in every orientation — drag it anywhere, pinch to resize, double tap to make it small.
 
 ## 1.0.599 — 2026-10-26
 - **Help** (question-mark icon next to the gear in both editors and Capture): the documentation and tutorials for the part of the app that's open (only that part), troubleshooting (common problems and fixes, check permissions, free space, reset the layout, share the last problem report, copy system info) and **Proof of purchase**.

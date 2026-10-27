@@ -221,11 +221,11 @@ fun HdrLevelsSection(uri: Uri, timeUs: Long) {
     Box(Modifier.fillMaxWidth().height(150.dp).padding(vertical = 6.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF0A0C10))) {
         wave?.let { androidx.compose.foundation.Image(it.asImageBitmap(), null, modifier = Modifier.fillMaxWidth().height(150.dp), contentScale = androidx.compose.ui.layout.ContentScale.FillBounds, filterQuality = androidx.compose.ui.graphics.FilterQuality.Low) }
         Canvas(Modifier.fillMaxWidth().height(150.dp)) {
-            for ((nits, col) in listOf(100f to Color.White.copy(alpha = 0.35f), 203f to Pro.Amber.copy(alpha = 0.8f), 1000f to Color(0xFFFF5A5A).copy(alpha = 0.8f), 4000f to Color.White.copy(alpha = 0.18f))) {
+            for ((nits, col) in listOf(100f to Color.White.copy(alpha = 0.35f), 203f to Pro.Amber.copy(alpha = 0.8f), 1000f to Color(0xFFFF5A5A).copy(alpha = 0.8f), 4000f to com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.18f))) {
                 val y = (1f - HdrLevels.nitsToPq(nits)) * size.height
                 drawLine(col, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
             }
-            drawRect(Color.White.copy(alpha = 0.12f), style = Stroke(1.dp.toPx()))
+            drawRect(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.12f), style = Stroke(1.dp.toPx()))
         }
         Column(Modifier.padding(start = 6.dp, top = 2.dp)) {
             for (l in listOf("4000", "1000", "203", "100")) Text(l, color = Color.White.copy(alpha = 0.5f), fontSize = 9.sp, modifier = Modifier.padding(top = when (l) { "4000" -> 14.dp; "1000" -> 12.dp; "203" -> 12.dp; else -> 3.dp }))

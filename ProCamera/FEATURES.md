@@ -57,7 +57,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Remote monitor & control** from any browser on the same Wi-Fi or hotspot (PIN-protected address): live picture, shutter / record, zoom, Photo / Video / Pro Video, autofocus, AE lock, recording time and exposure read-out.
 
 ### Stop motion
-- **Stop motion** (photo modes): each photo is the next frame, onion skin over the viewfinder, frame strip (play, hold, delete), 6–24 fps, MAKE VIDEO.
+- **Stop motion** (photo modes): each photo is the next frame, onion skin over the viewfinder, frame strip (play, hold, delete), 6–24 fps, MAKE VIDEO. The bar sits on the viewfinder: drag, pinch to resize, double tap to minimise.
 
 ### Teleprompter
 - **Teleprompter** over the camera (selfie or back camera): your own text, scrolling at your speed or starting with the recording; bold, italic, underline, narrow, alignment, size, text and background colours with opacity, mirror for teleprompter glass; drag to move, drag the corner to resize, shrink to a small bar, close with ✕; opens by itself with the selfie camera.
@@ -128,6 +128,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Keep settings after uninstall** (optional): settings, presets and LUTs saved to Documents/AlcorCutPro/Settings; restore from the first screen after reinstalling.
 
 ## Photo editor
+- **Light look** (Preferences → Appearance: dark, light or like the phone); the photo itself stays on a dark background.
 - **Help** (documentation, tutorials, troubleshooting, proof of purchase), **Project settings**, **Preferences** and **System Info**.
 - **File menu**: new, open, open recent, save / save as / save a copy / revert, capture, import (gallery, files, NAS) and exit; **changeable keyboard shortcuts** (keyboard icon).
 - **Network (NAS)**: open photos — RAW included — from a Synology or any other NAS (or a computer sharing folders) on your network; guest first, sign-in only when needed, optional encrypted remembered sign-ins that are never shown and are unlocked with the phone's fingerprint, PIN or pattern.
@@ -396,6 +397,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Send to desktop editor**: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) and **OpenTimelineIO .otio** (cuts, dissolves, speed, markers) for desktop editing software.
 
 ### Projects & workflow
+- **Light look** for the editor's panels, menus and dialogs (Preferences → Appearance); picture, timeline and media strip stay dark.
 - **Project settings**: general switches, project and timeline names, shape and frame rate, storage, **ingest** (bin, proxies, labels for new media) and **label colours** with your own names.
 - **Help**: documentation and tutorials for the open part of the app, troubleshooting and **proof of purchase** from Google Play.
 - **Preferences** (gear): appearance, shutter sound, **audio hardware** choice with an unplug notice, autosave, playback, timeline and editing; **System Info** with the phone's hardware and drivers.

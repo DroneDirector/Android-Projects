@@ -74,7 +74,7 @@ fun EdSlider(
         Slider(
             value = value, onValueChange = onChange, valueRange = range,
             modifier = Modifier.height(28.dp),
-            colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = Color.White.copy(alpha = 0.14f)),
+            colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.14f)),
         )
     }
 }
@@ -132,7 +132,7 @@ fun Chips(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
                 o, color = if (sel) Color.Black else Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(if (sel) Pro.Amber else Color.White.copy(alpha = 0.08f))
+                    .background(if (sel) Pro.Amber else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f))
                     .clickable { onSelect(i) }
                     .padding(horizontal = 12.dp, vertical = 6.dp),
             )
@@ -179,7 +179,7 @@ fun Scope(hist: Array<FloatArray>?, modifier: Modifier = Modifier) {
             drawPath(path, colors[ch], style = Stroke(1.2f))
         }
         // Clipping guides
-        drawLine(Color.White.copy(alpha = 0.15f), Offset(size.width / 2, 0f), Offset(size.width / 2, size.height))
+        drawLine(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.15f), Offset(size.width / 2, 0f), Offset(size.width / 2, size.height))
     }
 }
 
@@ -291,7 +291,7 @@ fun CurveEditor(
             },
     ) {
         androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-            val grid = Color.White.copy(alpha = 0.12f)
+            val grid = com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.12f)
             for (k in 1..3) {
                 drawLine(grid, androidx.compose.ui.geometry.Offset(size.width * k / 4, 0f), androidx.compose.ui.geometry.Offset(size.width * k / 4, size.height))
                 drawLine(grid, androidx.compose.ui.geometry.Offset(0f, size.height * k / 4), androidx.compose.ui.geometry.Offset(size.width, size.height * k / 4))

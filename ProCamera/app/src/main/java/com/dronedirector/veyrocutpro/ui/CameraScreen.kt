@@ -163,7 +163,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
         Box(Modifier.fillMaxSize().zIndex(20f)) { TeleprompterOverlay(s.recording, s.isFront) }
         // Stop motion: each new photo is the next frame.
         LaunchedEffect(s.lastMedia) { val u = s.lastMedia; if (StopMotion.active && u != null && !s.isVideo) StopMotion.add(u) }
-        if (StopMotion.active && !s.isVideo) StopMotionBar(Modifier.align(Alignment.TopCenter).padding(top = 52.dp).zIndex(15f))
+        if (StopMotion.editing) StopMotionEditor { StopMotion.editing = false }
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
@@ -425,6 +425,8 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                                 FocusMagnifier(previewView, s.focusPoint, Modifier.align(Alignment.Center))
                             }
                         } else railDragging = false
+                        // Stop motion: on the picture, drag it anywhere, pinch to resize, double tap to make it small.
+                        if (StopMotion.active && !s.isVideo) DraggableOverlay("stopmotion", Alignment.TopCenter, s.layoutVersion) { StopMotionBar() }
                         if (s.mode.isNormalVideo && s.audio && panelOn("cap.audio")) {
                             DraggableOverlay("audio", if (s.isPro) Alignment.BottomEnd else Alignment.TopStart, s.layoutVersion) {
                                 AudioGraph(

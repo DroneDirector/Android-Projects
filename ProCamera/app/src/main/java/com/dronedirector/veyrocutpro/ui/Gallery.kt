@@ -273,7 +273,7 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
                     val sel = rateFilter == i
                     Text(
                         label, color = if (sel) Color.Black else Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.clip(RoundedCornerShape(50)).background(if (sel) Pro.Amber else Color.White.copy(alpha = 0.06f))
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(if (sel) Pro.Amber else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.06f))
                             .clickable { rateFilter = i }.padding(horizontal = 10.dp, vertical = 5.dp),
                     )
                 }
@@ -291,7 +291,7 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
                     Text("${picked.size} selected", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     @Composable fun act(label: String, color: Color = Color.White, onClick: () -> Unit) = Text(
                         label, color = color, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.08f)).clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 5.dp),
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f)).clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 5.dp),
                     )
                     act("Select all") { picked.clear(); picked.addAll(shown.map { it.uri.toString() }) }
                     if (sel.isNotEmpty()) {
@@ -502,7 +502,7 @@ private fun TabRow(tab: GalleryTab, all: List<MediaItem>, favorites: Set<String>
             Box(
                 Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(if (sel) Pro.Amber else Color.White.copy(alpha = 0.08f))
+                    .background(if (sel) Pro.Amber else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f))
                     .border(1.dp, if (sel) Pro.Amber else Pro.Line, RoundedCornerShape(50))
                     .clickable { onTab(t) }
                     .padding(horizontal = 14.dp, vertical = 7.dp),
@@ -577,7 +577,7 @@ private fun GridCell(item: MediaItem, favorite: Boolean, mark: com.dronedirector
         Modifier
             .aspectRatio(1f)
             .clip(RoundedCornerShape(6.dp))
-            .background(Color.White.copy(alpha = 0.06f))
+            .background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.06f))
             .then(if (selected == true) Modifier.border(3.dp, Pro.Amber, RoundedCornerShape(6.dp)) else Modifier)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {

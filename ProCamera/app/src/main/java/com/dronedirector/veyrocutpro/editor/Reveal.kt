@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.AlertDialog
@@ -124,11 +125,11 @@ fun RevealMenu(clip: Clip?, onRevealLibrary: () -> Unit) {
     var showFile by remember { mutableStateOf(false) }
     Box {
         Row(
-            Modifier.padding(start = 6.dp).clip(RoundedCornerShape(50)).background(Ed.Raised).clickable { open = true }.padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+            Modifier.clip(RoundedCornerShape(50)).background(Pro.Fg.copy(alpha = 0.08f)).clickable { open = true }.padding(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Reveal in Project", color = Color.White, fontSize = 12.sp, maxLines = 1)
-            Icon(Icons.Filled.ArrowDropDown, null, tint = Pro.Amber)
+            Text("Reveal in Project", color = Color.White, fontSize = 12.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, maxLines = 1)
+            Icon(Icons.Filled.ArrowDropDown, null, tint = Pro.Amber, modifier = Modifier.size(20.dp))
         }
         DropdownMenu(open, onDismissRequest = { open = false }, containerColor = Pro.PanelSolid) {
             DropdownMenuItem(text = { Text("Reveal in library", color = if (clip != null) Color.White else Pro.Dim) }, enabled = clip != null, onClick = { open = false; onRevealLibrary() })

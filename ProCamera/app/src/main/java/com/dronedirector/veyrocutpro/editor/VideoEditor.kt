@@ -3822,7 +3822,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         value = if (totalMs > 0) globalMs.toFloat() / totalMs else 0f,
                         onValueChange = { seekGlobal((it * totalMs).toLong()) },
                         modifier = Modifier.height(26.dp),
-                        colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = Color.White.copy(alpha = 0.15f)),
+                        colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.15f)),
                     )
                     // The whole button row scrolls sideways (with the hint arrows) whenever it is wider
                     // than the screen. Which buttons it shows is chosen with its + button.
@@ -4068,9 +4068,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     val pages = (if (stripTab) listOf(Page.STRIP) else emptyList()) + (if (com.dronedirector.veyrocutpro.camera.SimpleMode.on)
                         listOf(Page.MEDIA, Page.PROXY, Page.EDIT, Page.TEXT, Page.TRANSITIONS, Page.COLOR, Page.LAYERS, Page.AUDIO, Page.DELIVER)
                     else Page.entries.filter { it != Page.STRIP })
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.weight(1f)) { Chips(pages.map { it.label }, pages.indexOf(es.page)) { es.page = pages[it] } }
-                        RevealMenu(clips.getOrNull(es.selected)) {
+                    // The tools bar: the pages, with "Reveal in Project" just before Deliver (it scrolls with them).
+                    Row(
+                        Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                      for (pg in pages) {
+                        if (pg == Page.DELIVER) RevealMenu(clips.getOrNull(es.selected)) {
                             val c = clips.getOrNull(es.selected) ?: return@RevealMenu
                             // The clip is put in the media strip if it isn't there yet, then picked out there.
                             if (library.none { it.uri == c.uri }) library.add(c.copy(id = java.util.UUID.randomUUID().toString(), startMs = 0, endMs = c.durationMs, speed = 1f, ramp = null, rampName = null, volKeys = null, transition = Transition()))
@@ -4079,6 +4083,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             es.revealUri = c.uri.toString(); es.revealTick++
                             es.message = "\"${c.name}\" is picked out in the media strip"
                         }
+                        val sel = pg == es.page
+                        Text(
+                            pg.label, color = if (sel) Color.Black else Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(if (sel) Pro.Amber else Pro.Fg.copy(alpha = 0.08f))
+                                .clickable { es.page = pg }.padding(horizontal = 12.dp, vertical = 6.dp),
+                        )
+                      }
                     }
                     if (clips.isNotEmpty() && (es.page == Page.EDIT || es.page == Page.COLOR || es.page == Page.AUDIO)) CopyPasteBar(
                         video = true,
@@ -4522,7 +4533,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     value = if (totalMs > 0) globalMs.toFloat() / totalMs else 0f,
                                     onValueChange = { seekGlobal((it * totalMs).toLong()); poke() },
                                     modifier = Modifier.height(28.dp),
-                                    colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = Color.White.copy(alpha = 0.25f)),
+                                    colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.25f)),
                                 )
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text("${tc(globalMs)} / ${tc(totalMs)}", style = Pro.Value.copy(fontSize = 12.sp), modifier = Modifier.weight(1f))
@@ -4618,7 +4629,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             Box(
                                 Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(end = 26.dp).height(26.dp)
                                     .background(Ed.Panel)
-                                    .border(1.dp, Color.White.copy(alpha = 0.08f)),
+                                    .border(1.dp, com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f)),
                             ) {
                                 TimelineHWheel(zoom, Modifier.align(Alignment.Center).fillMaxWidth().padding(start = 6.dp, end = 6.dp), fancy = es.wheelFx) { tlHEnergy = it }
                             }
@@ -4629,7 +4640,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             Box(
                                 Modifier.align(Alignment.CenterEnd).width(26.dp).fillMaxHeight()
                                     .background(Ed.Panel)
-                                    .border(1.dp, Color.White.copy(alpha = 0.08f)),
+                                    .border(1.dp, com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f)),
                             ) {
                                 TimelineWheel(tlScroll, Modifier.align(Alignment.Center).fillMaxHeight().padding(top = 6.dp, bottom = 6.dp), fancy = es.wheelFx) { tlEnergy = it }
                             }
@@ -4806,7 +4817,7 @@ private fun ProxyPage(
                 )
             }
             if (pp != null) androidx.compose.material3.LinearProgressIndicator(
-                progress = { pp / 100f }, color = Pro.Amber, trackColor = Color.White.copy(alpha = 0.12f),
+                progress = { pp / 100f }, color = Pro.Amber, trackColor = com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.12f),
                 modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
             )
             Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -5150,7 +5161,7 @@ private fun EditPage(
             if (e - s >= 200) onChange { it.copy(startMs = s, endMs = e) }
         },
         valueRange = 0f..c.durationMs.toFloat(),
-        colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = Color.White.copy(alpha = 0.15f)),
+        colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.15f)),
     )
     Text("Split cuts the clip under the playhead (${tc(posMs)} into the clip).", color = Pro.Dim, fontSize = 11.sp)
     SectionTitle("PROJECT FORMAT (ASPECT RATIO)")
@@ -5177,7 +5188,7 @@ private fun EditPage(
                 val y = size.height / 2f - (v.toFloat() * size.height / 2f * 0.9f)
                 if (i == 0) path.moveTo(0f, y) else path.lineTo(p * size.width, y)
             }
-            drawLine(Color.White.copy(alpha = 0.2f), androidx.compose.ui.geometry.Offset(0f, size.height / 2f), androidx.compose.ui.geometry.Offset(size.width, size.height / 2f), 1f)
+            drawLine(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.2f), androidx.compose.ui.geometry.Offset(0f, size.height / 2f), androidx.compose.ui.geometry.Offset(size.width, size.height / 2f), 1f)
             drawPath(path, Pro.Amber, style = androidx.compose.ui.graphics.drawscope.Stroke(3f))
         }
         Text("Above the line = faster, below = slow motion. Combined with the speed above; the clip's length on the timeline follows the curve.", color = Pro.Dim, fontSize = 11.sp)
@@ -5671,11 +5682,11 @@ private fun MixerSection(mx: MixerHooks, music: MusicTrack?, onMusic: (MusicTrac
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(name, color = Color.White, fontSize = 13.sp, maxLines = 1, modifier = Modifier.weight(1f))
                 val solo = mx.solo == id
-                Text("S", style = Pro.Label.copy(color = if (solo) Color.Black else Color.White), modifier = Modifier.padding(start = 6.dp).clip(RoundedCornerShape(6.dp)).background(if (solo) Color(0xFFFFCC00) else Color.White.copy(alpha = 0.1f)).clickable { mx.onSolo(if (solo) null else id) }.padding(horizontal = 10.dp, vertical = 5.dp))
-                Text("M", style = Pro.Label.copy(color = if (muted) Color.Black else Color.White), modifier = Modifier.padding(start = 6.dp).clip(RoundedCornerShape(6.dp)).background(if (muted) Color(0xFFFF3B30) else Color.White.copy(alpha = 0.1f)).clickable { onMute(!muted) }.padding(horizontal = 10.dp, vertical = 5.dp))
+                Text("S", style = Pro.Label.copy(color = if (solo) Color.Black else Color.White), modifier = Modifier.padding(start = 6.dp).clip(RoundedCornerShape(6.dp)).background(if (solo) Color(0xFFFFCC00) else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.1f)).clickable { mx.onSolo(if (solo) null else id) }.padding(horizontal = 10.dp, vertical = 5.dp))
+                Text("M", style = Pro.Label.copy(color = if (muted) Color.Black else Color.White), modifier = Modifier.padding(start = 6.dp).clip(RoundedCornerShape(6.dp)).background(if (muted) Color(0xFFFF3B30) else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.1f)).clickable { onMute(!muted) }.padding(horizontal = 10.dp, vertical = 5.dp))
             }
             // Live meter of this track.
-            androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color.White.copy(alpha = 0.08f))) {
+            androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(6.dp).clip(RoundedCornerShape(3.dp)).background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f))) {
                 @Suppress("UNUSED_EXPRESSION") tick
                 val k = ((dbfs(peak) + 60f) / 60f).coerceIn(0f, 1f)
                 drawRect(androidx.compose.ui.graphics.Brush.horizontalGradient(0f to Color(0xFF34C759), 0.75f to Color(0xFFFFCC00), 0.95f to Color(0xFFFF3B30)), size = androidx.compose.ui.geometry.Size(size.width * k, size.height))
@@ -5735,7 +5746,7 @@ private fun TrackGroups(mx: MixerHooks, music: MusicTrack?, onMusic: (MusicTrack
                 Text(names[k], color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
                 androidx.compose.material3.Text("${members.size} track" + if (members.size == 1) "" else "s", color = Pro.Dim, fontSize = 11.sp)
                 Text("M", style = Pro.Label.copy(color = if (allMuted) Color.Black else Color.White),
-                    modifier = Modifier.padding(start = 8.dp).clip(RoundedCornerShape(6.dp)).background(if (allMuted) Color(0xFFFF9F0A) else Color.White.copy(alpha = 0.1f))
+                    modifier = Modifier.padding(start = 8.dp).clip(RoundedCornerShape(6.dp)).background(if (allMuted) Color(0xFFFF9F0A) else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.1f))
                         .clickable(enabled = members.isNotEmpty()) {
                             val m = !allMuted
                             members.forEach { t ->
@@ -5780,7 +5791,7 @@ private fun LevelMeter(playing: Boolean) {
     listOf("L" to l, "R" to r).forEach { (name, v) ->
         Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(name, style = Pro.Label, modifier = Modifier.width(16.dp))
-            androidx.compose.foundation.Canvas(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(3.dp)).background(Color.White.copy(alpha = 0.08f))) {
+            androidx.compose.foundation.Canvas(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(3.dp)).background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f))) {
                 val k = ((v + 60f) / 60f).coerceIn(0f, 1f)
                 drawRect(
                     androidx.compose.ui.graphics.Brush.horizontalGradient(
@@ -6355,7 +6366,7 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
             value = l.startMs.coerceIn(0, totalMs).toFloat()..l.endMs.coerceIn(0, totalMs).toFloat(),
             onValueChange = { r -> onUpdate(l.copy(startMs = r.start.toLong(), endMs = r.endInclusive.toLong())) },
             valueRange = 0f..totalMs.toFloat(),
-            colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = Color.White.copy(alpha = 0.15f)),
+            colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.15f)),
         )
         Text("${tc(l.startMs)} → ${tc(l.endMs)}", style = Pro.Label)
         Text("START AT PLAYHEAD", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable {
@@ -6907,7 +6918,7 @@ private fun SoundLibraries(onAdd: (LibSection, LibTrack) -> Unit) {
         ) {
             val on = playing == t.id
             Box(
-                Modifier.size(36.dp).clip(CircleShape).background(if (on) Pro.Amber else Color.White.copy(alpha = 0.08f))
+                Modifier.size(36.dp).clip(CircleShape).background(if (on) Pro.Amber else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f))
                     .clickable { SoundLibrary.togglePreview(context, sec, t) { playing = it } },
                 contentAlignment = Alignment.Center,
             ) {

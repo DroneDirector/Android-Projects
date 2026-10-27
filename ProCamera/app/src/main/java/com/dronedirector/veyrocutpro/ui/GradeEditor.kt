@@ -283,7 +283,7 @@ fun GradeEditor(item: MediaItem, onClose: () -> Unit, onSaved: (Uri) -> Unit) {
                         fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false,
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
-                            .background(if (sel) Pro.Amber else Color.White.copy(alpha = 0.08f))
+                            .background(if (sel) Pro.Amber else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f))
                             .clickable { tab = t }
                             .padding(horizontal = 14.dp, vertical = 7.dp),
                     )
@@ -395,7 +395,7 @@ private fun GradeSlider(
             onValueChange = onChange,
             valueRange = range,
             modifier = Modifier.height(30.dp),
-            colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = Color.White.copy(alpha = 0.15f)),
+            colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.15f)),
         )
     }
 }

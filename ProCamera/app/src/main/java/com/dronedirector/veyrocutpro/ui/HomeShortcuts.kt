@@ -107,7 +107,7 @@ fun AppSettingsDialog(onClose: () -> Unit) {
                     Text(
                         "ADD “${t.label}” TO HOME SCREEN",
                         style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp),
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = 0.06f))
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.06f))
                             .clickable { note = if (HomeShortcuts.pin(ctx, t)) "Confirm on the home screen to place the icon" else "Your home screen doesn't let apps add icons — long-press the app icon instead" }
                             .padding(12.dp),
                     )

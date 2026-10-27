@@ -117,7 +117,7 @@ fun TimelineWheel(state: ScrollState, modifier: Modifier = Modifier, fancy: Bool
             val t0 = (if (canScroll) state.value.toFloat() / state.maxValue else 0f).let { if (it.isFinite()) it.coerceIn(0f, 1f) else 0f }
             val top0 = (h - vis0) * t0
             drawRoundRect(WheelTip.copy(alpha = if (canScroll) 0.9f else 0.35f), topLeft = Offset(w * 0.2f, top0 + 1f), size = Size(w * 0.6f, vis0 - 2f), cornerRadius = CornerRadius(w * 0.3f, w * 0.3f))
-            drawRoundRect(Color.White.copy(alpha = 0.18f), size = size, cornerRadius = r, style = Stroke(width = 1.dp.toPx()))
+            drawRoundRect(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.18f), size = size, cornerRadius = r, style = Stroke(width = 1.dp.toPx()))
             return@Canvas
         }
         val e = energy.value
@@ -279,7 +279,7 @@ fun TimelineHWheel(zoom: TimelineZoom, modifier: Modifier = Modifier, fancy: Boo
             val t0 = (if (canScroll) value / maxMs else 0f).let { if (it.isFinite()) it.coerceIn(0f, 1f) else 0f }
             val left0 = (w - vis0) * t0
             drawRoundRect(WheelTip.copy(alpha = if (canScroll) 0.9f else 0.35f), topLeft = Offset(left0 + 1f, h * 0.2f), size = Size(vis0 - 2f, h * 0.6f), cornerRadius = CornerRadius(h * 0.3f, h * 0.3f))
-            drawRoundRect(Color.White.copy(alpha = 0.18f), size = size, cornerRadius = r, style = Stroke(width = 1.dp.toPx()))
+            drawRoundRect(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.18f), size = size, cornerRadius = r, style = Stroke(width = 1.dp.toPx()))
             return@Canvas
         }
         val e = energy.value

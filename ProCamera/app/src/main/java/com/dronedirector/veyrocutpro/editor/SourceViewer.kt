@@ -85,7 +85,7 @@ fun SourceViewerDialog(
             ) {
                 androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
                     val y = size.height / 2
-                    drawRect(Color.White.copy(alpha = 0.18f), Offset(0f, y - 4f), Size(size.width, 8f))
+                    drawRect(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.18f), Offset(0f, y - 4f), Size(size.width, 8f))
                     val a = size.width * inMs / dur; val b = size.width * outMs / dur
                     drawRect(Pro.Amber.copy(alpha = 0.55f), Offset(a, y - 6f), Size((b - a).coerceAtLeast(2f), 12f))
                     val x = size.width * pos / dur

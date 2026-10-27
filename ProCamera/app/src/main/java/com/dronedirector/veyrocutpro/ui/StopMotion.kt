@@ -142,7 +142,6 @@ fun StopMotionBar(modifier: Modifier = Modifier) {
         if (StopMotion.frames.isNotEmpty()) Text("UNDO", style = Pro.Label.copy(color = Color.White, fontSize = 11.sp), modifier = Modifier.clickable { StopMotion.frames.removeAt(StopMotion.frames.lastIndex) })
         Text("FRAMES", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clickable { StopMotion.editing = true })
     }
-    if (StopMotion.editing) StopMotionEditor { StopMotion.editing = false }
 }
 
 /** The frame-by-frame timeline: play, delete, hold (duplicate) frames, frame rate, make the video. */

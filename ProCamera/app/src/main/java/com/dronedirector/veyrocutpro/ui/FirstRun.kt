@@ -132,7 +132,7 @@ private fun FirstRunScreen(askData: Boolean, onDownloadNow: () -> Unit, onWaitWi
             if (!AppData.finished) {
                 Text(
                     "USE THE APP NOW", style = Pro.Label.copy(color = Color.White, fontSize = 12.sp),
-                    modifier = Modifier.padding(top = 34.dp).clip(RoundedCornerShape(50)).border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(50))
+                    modifier = Modifier.padding(top = 34.dp).clip(RoundedCornerShape(50)).border(1.dp, com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.25f), RoundedCornerShape(50))
                         .clickable(onClick = onUseNow).padding(horizontal = 18.dp, vertical = 10.dp),
                 )
                 Text("The download carries on in the background. Tools whose model hasn't arrived yet tell you so.", color = Pro.Dim, fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp))
@@ -146,7 +146,7 @@ private fun FirstRunScreen(askData: Boolean, onDownloadNow: () -> Unit, onWaitWi
 private fun Pill(text: String, accent: Boolean, onClick: () -> Unit) {
     Text(
         text, style = Pro.Label.copy(color = if (accent) Color.Black else Color.White, fontSize = 12.sp),
-        modifier = Modifier.clip(RoundedCornerShape(50)).background(if (accent) Pro.Amber else Color.White.copy(alpha = 0.08f))
+        modifier = Modifier.clip(RoundedCornerShape(50)).background(if (accent) Pro.Amber else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f))
             .clickable(onClick = onClick).padding(horizontal = 18.dp, vertical = 11.dp),
     )
 }
@@ -164,7 +164,7 @@ fun GlowBar(frac: Float, active: Boolean, modifier: Modifier = Modifier) {
         // Ridges, like the wheels.
         val sp = 6.dp.toPx()
         var x = -(phase * sp)
-        while (x < w) { drawLine(Color.White.copy(alpha = 0.07f), Offset(x, h * 0.3f), Offset(x, h * 0.7f), 1.dp.toPx()); x += sp }
+        while (x < w) { drawLine(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.07f), Offset(x, h * 0.3f), Offset(x, h * 0.7f), 1.dp.toPx()); x += sp }
         val fw = (w * frac).coerceIn(0f, w)
         if (fw > h * 0.5f) {
             // Glow under the fill.
@@ -196,7 +196,7 @@ fun GlowBar(frac: Float, active: Boolean, modifier: Modifier = Modifier) {
         }
         // Moving rim.
         drawRoundRect(
-            Brush.horizontalGradient(listOf(Color.White.copy(alpha = 0.10f), Pro.Amber.copy(alpha = 0.55f), Color.White.copy(alpha = 0.10f)), startX = phase * w * 2 - w, endX = phase * w * 2),
+            Brush.horizontalGradient(listOf(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.10f), Pro.Amber.copy(alpha = 0.55f), com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.10f)), startX = phase * w * 2 - w, endX = phase * w * 2),
             size = size, cornerRadius = r, style = Stroke(1.5f.dp.toPx()),
         )
     }

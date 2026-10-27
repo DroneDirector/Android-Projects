@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -146,13 +147,16 @@ class FileMenuState {
 private val SHAPES = listOf("Same as clips" to 0f, "16:9" to 16f / 9f, "9:16" to 9f / 16f, "1:1" to 1f, "4:5" to 0.8f, "21:9" to 21f / 9f, "4:3" to 4f / 3f)
 private val RATES = listOf(0, 24, 25, 30, 50, 60)
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun FileMenuButton(fa: FileActions, st: FileMenuState) {
     val context = LocalContext.current
     var group by remember { mutableStateOf<String?>("project") }
     Box {
         TopIcon(Icons.Filled.InsertDriveFile, "File") { st.menu = true }
-        DropdownMenu(st.menu, onDismissRequest = { st.menu = false }, containerColor = Pro.PanelSolid, modifier = Modifier.widthIn(min = 260.dp)) {
+        // Never taller than the screen: it scrolls, and an opened group is scrolled into view (nothing jumps away).
+        val maxH = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.8f).dp
+        DropdownMenu(st.menu, onDismissRequest = { st.menu = false }, containerColor = Pro.PanelSolid, modifier = Modifier.widthIn(min = 260.dp).heightIn(max = maxH)) {
             fun go(a: () -> Unit) { st.menu = false; a() }
             if (fa.isTeam()) Text(
                 "Team project · " + fa.teamLabel() + if (fa.teamReadOnly()) " · read-only" else "",
@@ -168,7 +172,11 @@ fun FileMenuButton(fa: FileActions, st: FileMenuState) {
                     Text(title.uppercase(), style = Pro.Label.copy(color = if (open) Pro.Amber else Color.White, fontSize = 12.sp), modifier = Modifier.weight(1f))
                     Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, tint = Pro.Dim, modifier = Modifier.size(18.dp))
                 }
-                if (open) Column(Modifier.padding(start = 10.dp)) { content() }
+                if (open) {
+                    val bring = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+                    Column(Modifier.padding(start = 10.dp).bringIntoViewRequester(bring)) { content() }
+                    LaunchedEffect(Unit) { kotlinx.coroutines.delay(60); try { bring.bringIntoView() } catch (_: Throwable) {} }
+                }
             }
             @Composable
             fun Item(label: String, enabled: Boolean = true, onClick: () -> Unit) {
@@ -203,7 +211,7 @@ fun FileMenuButton(fa: FileActions, st: FileMenuState) {
                     Text((if (on) "● " else "    ") + name.ifBlank { "Untitled" }, color = if (on) Pro.Amber else Color.White, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.fillMaxWidth().clickable(enabled = !on) { go { fa.switchTo(key) } }.padding(horizontal = 14.dp, vertical = 8.dp))
                 }
-                HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                HorizontalDivider(color = com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.1f))
                 Item("Close project") { fa.close() }
                 Item("Close other projects", enabled = open.size > 1) { fa.closeOthers() }
                 Item("Close all projects") { fa.closeAll() }
@@ -245,7 +253,7 @@ fun FileMenuButton(fa: FileActions, st: FileMenuState) {
                 Item("Make offline…") { st.makeOffline = true }
                 Item("Link media…", enabled = fa.selectedOffline()) { fa.linkMedia() }
             }
-            HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+            HorizontalDivider(color = com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.1f))
             Text("EXIT", style = Pro.Label.copy(color = Pro.Red, fontSize = 12.sp),
                 modifier = Modifier.fillMaxWidth().clickable { go { st.exit = true } }.padding(horizontal = 14.dp, vertical = 11.dp))
         }

@@ -320,13 +320,13 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                         com.dronedirector.veyrocutpro.camera.SideKeys.NAMES.forEachIndexed { i, n ->
                             val on = side == i
                             Text(n, color = if (on) Color.Black else Color.White, fontSize = 12.sp,
-                                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Pro.Amber else Color.White.copy(alpha = 0.08f))
+                                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Pro.Amber else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f))
                                     .clickable { side = i; com.dronedirector.veyrocutpro.camera.SideKeys.set(sctx, i) }.padding(horizontal = 12.dp, vertical = 6.dp))
                         }
                     }
                 }
                 Row(
-                    Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = 0.06f))
+                    Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(RoundedCornerShape(10.dp)).background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.06f))
                         .clickable { com.dronedirector.veyrocutpro.camera.CaptureKeys.show = true }.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -350,7 +350,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                     androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()).padding(vertical = 6.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
                         com.dronedirector.veyrocutpro.camera.ShutterSounds.NAMES.forEachIndexed { i, n ->
                             Text(n, color = if (style == i) Color.Black else Color.White, fontSize = 12.sp,
-                                modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(50)).background(if (style == i) Pro.Amber else Color.White.copy(alpha = 0.08f))
+                                modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(50)).background(if (style == i) Pro.Amber else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f))
                                     .clickable {
                                         style = i; com.dronedirector.veyrocutpro.camera.ShutterSounds.setStyle(sctx, i)
                                         if (i > 0) com.dronedirector.veyrocutpro.camera.ShutterSounds.play(i) else android.media.MediaActionSound().play(android.media.MediaActionSound.SHUTTER_CLICK)
@@ -617,7 +617,7 @@ private fun <T> ChoiceRow(title: String, options: List<T>, selected: T, label: (
                     maxLines = 1, softWrap = false,
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(if (sel) Pro.Amber else Color.White.copy(alpha = 0.1f))
+                        .background(if (sel) Pro.Amber else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.1f))
                         .clickable { onSelect(o) }
                         .padding(horizontal = 10.dp, vertical = 6.dp),
                 )
@@ -721,7 +721,7 @@ private fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit) {
                     style = Pro.Value.copy(fontSize = 16.sp),
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color.White.copy(alpha = 0.1f))
+                        .background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.1f))
                         .clickable(onClick = action)
                         .padding(horizontal = 12.dp, vertical = 4.dp),
                 )
@@ -735,7 +735,7 @@ private fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit) {
 internal fun SettingsGroup(key: String, title: String, summary: String, content: @Composable () -> Unit) {
     var open by androidx.compose.runtime.saveable.rememberSaveable(key) { mutableStateOf(false) }
     Row(
-        Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.06f))
+        Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(12.dp)).background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.06f))
             .clickable { open = !open }.padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

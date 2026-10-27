@@ -343,18 +343,19 @@ object PlayFx {
 }
 
 /**
- * The scroll wheels' look around the Play button: a turning gradient rim in the wheel colours, a scan line
- * sweeping through it and sparkles while the video plays. Off = the button as it is, no animation.
+ * The scroll wheels' look on the Play button: the wheel's glass gradient (its colours from gear → SCROLL
+ * WHEELS) as the button itself, a scan line sweeping through it, a turning gradient rim, and — while the
+ * video plays — the wheel's "upscale" pixels and sparkles. Off = the plain amber button, no animation.
  */
 @Composable
 fun PlayGlow(playing: Boolean, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(Unit) { PlayFx.load(ctx) }
-    if (!PlayFx.on) { androidx.compose.foundation.layout.Box(modifier) { content() }; return }
+    if (!PlayFx.on) { androidx.compose.foundation.layout.Box(modifier, contentAlignment = androidx.compose.ui.Alignment.Center) { content() }; return }
     val t = rememberInfiniteTransition(label = "play")
     val phase by t.animateFloat(0f, 1f, infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart), label = "pph")
     val energy = remember { Animatable(0f) }
-    LaunchedEffect(playing) { energy.animateTo(if (playing) 1f else 0f, tween(600, easing = FastOutSlowInEasing)) }
+    LaunchedEffect(playing) { energy.animateTo(if (playing) 1f else 0.25f, tween(700, easing = FastOutSlowInEasing)) }
     androidx.compose.foundation.layout.Box(
         modifier.drawWithContent {
             val w = size.width; val h = size.height
@@ -362,20 +363,41 @@ fun PlayGlow(playing: Boolean, modifier: Modifier = Modifier, content: @Composab
             val e = energy.value
             val c = Offset(w / 2, h / 2)
             val r = minOf(w, h) / 2
-            // Soft halo behind the button.
-            drawCircle(Brush.radialGradient(listOf(Cyan.copy(alpha = 0.22f + 0.2f * e), Violet.copy(alpha = 0.10f), Color.Transparent), center = c, radius = r * 1.5f), radius = r * 1.5f, center = c)
+            // Glow around the button.
+            drawCircle(Brush.radialGradient(listOf(Cyan.copy(alpha = 0.35f + 0.25f * e), Violet.copy(alpha = 0.15f), Color.Transparent), center = c, radius = r * 1.45f), radius = r * 1.45f, center = c)
+            // The button: the wheel's thumb gradient on dark glass.
+            drawCircle(Color(0xFF0D1016), radius = r, center = c)
+            drawCircle(Brush.verticalGradient(listOf(Cyan.copy(alpha = 0.9f), Violet.copy(alpha = 0.9f), WheelTip.copy(alpha = 0.95f)), startY = c.y - r, endY = c.y + r), radius = r * 0.9f, center = c)
+            // "Upscale" pixels: blocks that flicker from coarse to fine, stronger while playing.
+            val cell = (2.dp.toPx() + 5.dp.toPx() * e)
+            val step = floor(phase * 12f).toInt()
+            var cy = c.y - r; var j = 0
+            while (cy < c.y + r) {
+                var cx = c.x - r; var i = 0
+                while (cx < c.x + r) {
+                    val mid = Offset(cx + cell / 2, cy + cell / 2)
+                    if ((mid - c).getDistance() < r * 0.88f) {
+                        val v = hash(i, j, step)
+                        val a = e * (0.10f + 0.35f * v)
+                        if (a > 0.03f) drawRect(if (v > 0.5f) Cyan.copy(alpha = a) else Violet.copy(alpha = a), Offset(cx, cy), Size(cell - 1f, cell - 1f))
+                    }
+                    cx += cell; i++
+                }
+                cy += cell; j++
+            }
             drawContent()
-            // Scan line through the button.
-            val sy = h * ((phase * 1.4f) % 1f)
-            drawCircle(Brush.verticalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.18f + 0.3f * e), Color.Transparent), startY = sy - 5f, endY = sy + 5f), radius = r, center = c)
-            // Turning rim in the wheel colours.
+            // Scan line sweeping through the button.
+            val sy = c.y - r + 2 * r * ((phase * 1.4f) % 1f)
+            val half = kotlin.math.sqrt((r * r - (sy - c.y) * (sy - c.y)).coerceAtLeast(0f))
+            drawRect(Brush.verticalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.35f + 0.5f * e), Color.Transparent), startY = sy - 6f, endY = sy + 6f), Offset(c.x - half, sy - 6f), Size(half * 2, 12f))
+            // Turning gradient rim.
             val rim = Brush.sweepGradient(listOf(Cyan, Violet, WheelTip, Cyan), center = c)
-            rotate(phase * 360f, c) { drawCircle(rim, radius = r - 1.dp.toPx(), center = c, style = Stroke((1.4f + 1.2f * e).dp.toPx()), alpha = 0.6f + 0.4f * e) }
-            // Sparkles while playing.
-            if (e > 0.05f) for (k in 0 until 4) {
-                val a = (hash(k, 3, floor(phase * 24f).toInt()) * 6.283f)
-                val rr = r * (0.95f + 0.25f * hash(k, 9, floor(phase * 24f).toInt()))
-                drawCircle(Color.White.copy(alpha = e * 0.85f), radius = 1.dp.toPx() * (0.6f + 0.6f * sin(phase * 40f + k).coerceAtLeast(0f)), center = Offset(c.x + rr * kotlin.math.cos(a), c.y + rr * sin(a)))
+            rotate(phase * 360f, c) { drawCircle(rim, radius = r - 1.dp.toPx(), center = c, style = Stroke((1.6f + 1.6f * e).dp.toPx()), alpha = 0.75f + 0.25f * e) }
+            // Sparkles.
+            for (k in 0 until 5) {
+                val a = hash(k, 3, floor(phase * 24f).toInt()) * 6.283f
+                val rr = r * (0.2f + 0.75f * hash(k, 9, floor(phase * 24f).toInt()))
+                drawCircle(Color.White.copy(alpha = (0.25f + 0.65f * e)), radius = 1.dp.toPx() * (0.6f + 0.8f * sin(phase * 40f + k).coerceAtLeast(0f)), center = Offset(c.x + rr * kotlin.math.cos(a), c.y + rr * sin(a)))
             }
         },
         contentAlignment = androidx.compose.ui.Alignment.Center,

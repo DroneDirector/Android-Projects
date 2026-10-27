@@ -65,6 +65,10 @@ rotate 0
 shot 50-phone-video-editor-light --es screen video --es theme light
 shot 51-phone-photo-editor-light --es screen photo --es theme light
 shot 52-phone-video-editor-dark --es screen video --es theme dark
+# Into the editor itself (Skip — open the editor): the button row under the picture, Play centred with its glow.
+adb shell input tap 540 980; sleep 7
+adb exec-out screencap -p > "$OUT/53-phone-video-editor-open.png"; echo "captured 53-phone-video-editor-open"
+sleep 1; adb exec-out screencap -p > "$OUT/54-phone-video-editor-open-b.png"; echo "captured 54-phone-video-editor-open-b"
 shot 01-phone-photo-filters --es mode PHOTO --es filter VIVID --ez filters true
 shot 02-phone-pro-photo-iso --es mode PRO_PHOTO --es param ISO
 shot 03-phone-pro-photo-peaking --es mode PRO_PHOTO --es param FOCUS --ez peaking true --ez zebras true

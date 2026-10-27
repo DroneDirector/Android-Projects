@@ -77,6 +77,23 @@ class BarCentre {
     var rowAt by mutableStateOf(0f)
     var rowW by mutableStateOf(0f)
     var playAt by mutableStateOf(-1f)
+    /** Where the bar starts on screen. */
+    var barAt by mutableStateOf(0f)
     /** Play's middle from the start of the buttons (−1 until laid out). */
     val playX: Float get() = if (playAt < 0f) -1f else playAt - rowAt
+    /** The row was scrolled by hand (then it stays where it was put). */
+    var touched = false
+    var auto = false
+
+    /** Scrolls so Play sits in the middle of a bar [barPx] wide. */
+    suspend fun centre(barPx: Float) {
+        if (touched || playX < 0f || barPx <= 0f) return
+        // Wait until the spacers around the buttons are laid out.
+        repeat(3) { androidx.compose.runtime.withFrameNanos { } }
+        // How far Play is from the middle of the bar on screen now.
+        val off = playAt - (barAt + barPx / 2f)
+        val target = (scroll.value + off).toInt().coerceIn(0, scroll.maxValue.coerceAtLeast(0))
+        auto = true
+        try { scroll.scrollTo(target) } finally { auto = false }
+    }
 }

@@ -54,7 +54,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import kotlin.math.PI
-import kotlin.math.cos
 import kotlin.math.sin
 
 /**
@@ -109,8 +108,7 @@ private var appContextForIcon: Context? = null
 
 /**
  * Draws a glowing mouse pointer over the whole app (the Android arrow is hidden while it's on).
- * Effects: a soft halo, a comet trail while moving, a ripple on every click and a slowly orbiting
- * spark, in the same style as the scroll wheels and the download bar. Touch is not affected.
+ * Effects: a soft halo, a comet trail while moving and a ripple on every click, in the same style as the scroll wheels and the download bar. Touch is not affected.
  */
 @Composable
 fun MousePointerHost(content: @Composable () -> Unit) {
@@ -191,11 +189,6 @@ fun MousePointerHost(content: @Composable () -> Unit) {
                     // Halo, breathing slowly.
                     val br = 16 * u + sin(ph * 2 * PI.toFloat()) * 3 * u
                     drawCircle(Brush.radialGradient(listOf(col.copy(alpha = if (pressed) 0.42f else 0.26f), col.copy(alpha = 0.08f), Color.Transparent), p, br), br, p)
-                    // Orbiting spark.
-                    val a = ph * 2 * PI.toFloat()
-                    val sp = p + Offset(cos(a) * 13 * u, sin(a) * 13 * u)
-                    drawCircle(Color.White.copy(alpha = 0.85f), 1.6f * u, sp)
-                    drawCircle(second.copy(alpha = 0.5f), 3.2f * u, sp)
                     // Click ripple.
                     val dt = now - clickAt
                     if (dt in 0..450) {
@@ -253,7 +246,7 @@ fun PointerAndWheelSettings(showWheel: Boolean = true) {
         Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Pointer effects", color = Color.White, fontSize = 15.sp)
-                Text("Halo, trail, click ripple and orbiting spark. Off = a plain arrow in the colour below.", color = Pro.Dim, fontSize = 12.sp)
+                Text("Halo, trail and click ripple. Off = a plain arrow in the colour below.", color = Pro.Dim, fontSize = 12.sp)
             }
             androidx.compose.material3.Switch(CursorStyle.pointerFx, { CursorStyle.setPointerFx(ctx, it) },
                 colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))

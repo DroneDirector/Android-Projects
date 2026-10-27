@@ -3853,5 +3853,7 @@
 "2.7K": "2.7K",
 "5.3K": "5.3K",
 "5.4K": "5.4K",
-"5.7K (360)": "5.7K (360)"
+"5.7K (360)": "5.7K (360)",
+"The glowing mouse pointer (app and website) no longer has the small orbiting dot; its halo, trail and click ripple stay.": "Lýsandi músavísarin (app og heimasíða) hevur ikki longur lítla snarandi prikkin; geislabaugurin, sporið og klikkbylgjan eru verandi.",
+"Halo, trail and click ripple. Off = a plain arrow in the colour below.": "Geislabaugur, spor og klikkbylgja. Sløkt = vanlig pílur í litinum niðanfyri."
 }

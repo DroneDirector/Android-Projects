@@ -143,7 +143,7 @@
 
   /**
    * Port of the app's MousePointerHost (ui/MousePointer.kt): an arrow with a gradient fill, a soft
-   * breathing halo, a comet trail (260 ms), a click ripple (450 ms) and a spark orbiting at 13 px
+   * breathing halo, a comet trail (260 ms), and a click ripple (450 ms)
    * every 2.4 s. Colour #74def8 and its partner (hue + 70°), as in the app.
    */
   function pointer() {
@@ -192,10 +192,6 @@
           // breathing halo (brighter while pressed, and a little over links and buttons)
           var br = (16 + Math.sin(ph * 2 * Math.PI) * 3) * U, a = pressed ? 0.42 : hoverLink ? 0.34 : 0.26;
           ctx.fillStyle = radial(p.x, p.y, br, [[0, rgba(col, a)], [0.5, rgba(col, 0.08)], [1, rgba(col, 0)]]); circle(p.x, p.y, br); ctx.fill();
-          // orbiting spark
-          var an = ph * 2 * Math.PI, sx = p.x + Math.cos(an) * 13 * U, sy = p.y + Math.sin(an) * 13 * U;
-          ctx.fillStyle = rgba(sec, 0.5); circle(sx, sy, 3.2 * U); ctx.fill();
-          ctx.fillStyle = "rgba(255,255,255,.85)"; circle(sx, sy, 1.6 * U); ctx.fill();
           // click ripple
           var dt = now - clickAt;
           if (dt >= 0 && dt <= 450) {

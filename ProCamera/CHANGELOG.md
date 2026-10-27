@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- The glowing mouse pointer (app and website) no longer has the small orbiting dot; its halo, trail and click ripple stay.
 - Video editor → Deliver → Resolution: 2.7K (2688 × 1512), 5.3K (5312 × 2988, GoPro), 5.4K (5472 × 3078, DJI Air 2S) and 5.7K (360) — a 360° video exports at 5760 × 2880 and stays 360° (marked so players, YouTube and Facebook show it as a sphere); any other video exports 5760 wide in its own shape. A 360° video exported at any 2:1 size keeps its 360° mark.
 - Video editor → Deliver → Resolution: 5.1K (5120 × 2700, the DJI Mavic 3 / Air 3 shape) next to 5K (5120 × 2880, 16:9).
 

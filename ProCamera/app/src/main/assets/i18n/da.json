@@ -3802,5 +3802,7 @@
 "2.7K": "2.7K",
 "5.3K": "5.3K",
 "5.4K": "5.4K",
-"5.7K (360)": "5.7K (360)"
+"5.7K (360)": "5.7K (360)",
+"The glowing mouse pointer (app and website) no longer has the small orbiting dot; its halo, trail and click ripple stay.": "Den lysende musemarkør (app og hjemmeside) har ikke længere den lille kredsende prik; dens glorie, spor og klikbølge bliver.",
+"Halo, trail and click ripple. Off = a plain arrow in the colour below.": "Glorie, spor og klikbølge. Fra = en almindelig pil i farven nedenfor."
 }

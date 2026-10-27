@@ -37,7 +37,7 @@ rotate() { # 0 = portrait, 1 = landscape
 shot() { # name, extra am-start args...
   local name="$1"; shift
   adb shell am force-stop "$PKG"
-  adb shell am start -W -n "$ACT" "$@" >/dev/null
+  adb shell am start -W -n "$ACT" --ez skipsetup true "$@" >/dev/null
   sleep 9
   adb exec-out screencap -p > "$OUT/$name.png"
   if ! adb shell pidof "$PKG" >/dev/null; then

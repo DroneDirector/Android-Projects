@@ -124,6 +124,7 @@ class MainActivity : ComponentActivity() {
         val openSettings = applyLaunchOptions(intent)
         val openGallery = intent?.extras?.getBoolean("gallery", false) == true
         // Test runs: --es theme light / dark.
+        if (intent?.extras?.getBoolean("skipsetup") == true) com.dronedirector.veyrocutpro.editor.AppData.background = true
         intent?.extras?.getString("theme")?.let { t -> com.dronedirector.veyrocutpro.ui.AppTheme.set(applicationContext, if (t == "light") 1 else 0) }
         intent?.extras?.getString("accent")?.let { a ->
             com.dronedirector.veyrocutpro.ui.Accent.entries.firstOrNull { it.name == a }
@@ -195,7 +196,7 @@ class MainActivity : ComponentActivity() {
                 // Capture opened from an editor (its camera button): the full Capture screen over the editor.
                 com.dronedirector.veyrocutpro.ui.CaptureForEditorHost(controller) { content -> PermissionGate(content) }
                 // First launch: AI models and soundtracks are downloaded once (not inside the APK).
-                com.dronedirector.veyrocutpro.ui.FirstRunGate()
+                com.dronedirector.veyrocutpro.ui.ForceDark { com.dronedirector.veyrocutpro.ui.FirstRunGate() }
                 // Capture's keyboard shortcuts (Ctrl + / or Settings → Keyboard shortcuts).
                 if (com.dronedirector.veyrocutpro.camera.CaptureKeys.show) com.dronedirector.veyrocutpro.editor.ShortcutsDialog(com.dronedirector.veyrocutpro.editor.CaptureShortcuts) { com.dronedirector.veyrocutpro.camera.CaptureKeys.show = false }
                 }

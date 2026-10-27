@@ -85,8 +85,8 @@ object FxLayers {
     }
 
     private fun progress(l: Layer, w: Int, h: Int, ms: Long): Bitmap {
-        val th = ((l.fxA ?: 0.008f) * h).coerceAtLeast(2f)
         val style = (l.fxB ?: 0f).toInt()
+        val th = ((l.fxA ?: 0.008f) * h).coerceAtLeast(if (style == 7) h * 0.016f else 2f)
         // Room above and below the bar for glows, dots and handles (the bar stays centred on the layer's place).
         val tall = when (style) { 2 -> 4f; 5 -> 2.2f; 6 -> 3.2f; 7 -> 1.6f; else -> 1f }
         val bh = (th * tall).toInt().coerceAtLeast(2)
@@ -142,47 +142,58 @@ object FxLayers {
                 c.drawCircle(x1.coerceIn(r, w - r), cy, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt() })
                 c.drawCircle(x1.coerceIn(r, w - r), cy, r * 0.6f, fill)
             }
-            7 -> { // Scroll wheel: the look of the timeline's scroll bar — dark track, rolling ridges, glowing gradient, pixel sparkle and rim.
+            7 -> { // Scroll wheel: the timeline scroll bar's look, with its moving effects always on.
                 val wc = com.dronedirector.veyrocutpro.ui.CursorStyle.wheel
-                fun argb(cc: androidx.compose.ui.graphics.Color, a: Float = 1f) = android.graphics.Color.argb((a * 255).toInt(), (cc.red * 255).toInt(), (cc.green * 255).toInt(), (cc.blue * 255).toInt())
-                val cyan = argb(wc); val violet = argb(com.dronedirector.veyrocutpro.ui.CursorStyle.partner(wc))
-                val tip = argb(androidx.compose.ui.graphics.lerp(wc, androidx.compose.ui.graphics.Color.White, 0.45f))
+                fun argb(cc: androidx.compose.ui.graphics.Color, a: Float = 1f) = android.graphics.Color.argb((a * 255).toInt().coerceIn(0, 255), (cc.red * 255).toInt(), (cc.green * 255).toInt(), (cc.blue * 255).toInt())
+                val cyanC = wc; val violetC = com.dronedirector.veyrocutpro.ui.CursorStyle.partner(wc)
+                val tipC = androidx.compose.ui.graphics.lerp(wc, androidx.compose.ui.graphics.Color.White, 0.45f)
                 val r = bh / 2f
                 val full = RectF(0.5f, 0.5f, w - 0.5f, bh - 0.5f)
+                // Dark track with rolling ridges.
                 c.drawRoundRect(full, r, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xCC0D1016.toInt() })
-                val sp = (bh * 0.45f).coerceAtLeast(3f)
-                var x = -((step * 2f) % sp)
-                val ridge = Paint().apply { strokeWidth = (bh * 0.06f).coerceAtLeast(1f) }
+                val sp = (bh * 0.4f).coerceAtLeast(3f)
+                var x = -((step * bh * 0.08f) % sp)
+                val ridge = Paint().apply { strokeWidth = (bh * 0.07f).coerceAtLeast(1f) }
                 while (x < w) {
                     val edge = 1f - kotlin.math.abs(x / w - 0.5f) * 2f
-                    ridge.color = android.graphics.Color.argb(((0.06f + 0.10f * edge) * 255).toInt(), 255, 255, 255)
-                    c.drawLine(x, bh * 0.3f, x, bh * 0.7f, ridge); x += sp
+                    ridge.color = argb(androidx.compose.ui.graphics.Color.White, 0.08f + 0.14f * edge)
+                    c.drawLine(x, bh * 0.28f, x, bh * 0.72f, ridge); x += sp
                 }
                 if (x1 > 1f) {
-                    // Pixel blocks shimmering near the front edge.
-                    val cell = (bh / 3f).coerceAtLeast(2f)
-                    var px = maxOf(0f, x1 - bh * 6f); var i = (px / cell).toInt()
+                    // "Upscaling" pixel blocks: coarse near the front edge, finer further back, flickering.
+                    val zone = minOf(x1, bh * 10f)
                     val pp = Paint()
+                    var px = x1 - zone
                     while (px < x1) {
+                        val near = 1f - ((x1 - px) / zone).coerceIn(0f, 1f)
+                        val cell = (bh * (0.18f + 0.3f * near)).coerceAtLeast(2f)
                         var py = 0f; var j = 0
+                        val i = (px / 2f).toInt()
                         while (py < bh) {
                             val v = hash(i, j, step / 2)
-                            val near = 1f - ((x1 - px) / (bh * 6f)).coerceIn(0f, 1f)
-                            val a = near * near * (0.15f + 0.45f * v)
-                            if (a > 0.03f) { pp.color = if (v > 0.5f) (cyan and 0x00FFFFFF) or ((a * 255).toInt() shl 24) else (violet and 0x00FFFFFF) or ((a * 255).toInt() shl 24); c.drawRect(px, py, px + cell - 1f, py + cell - 1f, pp) }
+                            val a = near * (0.25f + 0.6f * v)
+                            if (a > 0.04f) { pp.color = argb(if (v > 0.5f) cyanC else violetC, a); c.drawRect(px, py, px + cell - 1f, py + cell - 1f, pp) }
                             py += cell; j++
                         }
-                        px += cell; i++
+                        px += cell
                     }
-                    c.drawRoundRect(RectF(1f, bh * 0.18f, x1.coerceAtLeast(bh.toFloat()), bh * 0.82f), bh * 0.32f, bh * 0.32f,
-                        Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = LinearGradient(0f, 0f, x1.coerceAtLeast(2f), 0f, intArrayOf(cyan and 0xD9FFFFFF.toInt(), violet and 0xD9FFFFFF.toInt(), tip and 0xE6FFFFFF.toInt()), null, Shader.TileMode.CLAMP) })
-                    val spk = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xE6FFFFFF.toInt() }
-                    for (q in 0 until 4) c.drawCircle(x1 - bh * 4f * hash(q, 7, step), bh * hash(q, 11, step), (bh * 0.07f).coerceAtLeast(1f) * (0.6f + hash(q, 3, step)), spk)
+                    // The glowing gradient fill (thumb).
+                    val fr = RectF(1f, bh * 0.16f, x1.coerceAtLeast(bh.toFloat()), bh * 0.84f)
+                    c.drawRoundRect(fr, bh * 0.34f, bh * 0.34f,
+                        Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = LinearGradient(0f, 0f, x1.coerceAtLeast(2f), 0f, intArrayOf(argb(cyanC, 0.9f), argb(violetC, 0.9f), argb(tipC, 0.95f)), null, Shader.TileMode.CLAMP) })
+                    // Light on the front edge.
+                    c.drawCircle(x1, bh / 2f, bh * 0.9f, Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = RadialGradient(x1, bh / 2f, bh * 0.9f, intArrayOf(argb(tipC, 0.9f), argb(tipC, 0f)), null, Shader.TileMode.CLAMP) })
+                    // Sparkles.
+                    val spk = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xF2FFFFFF.toInt() }
+                    for (q in 0 until 7) {
+                        val tw = hash(q, 3, step)
+                        if (tw > 0.25f) c.drawCircle(x1 - zone * hash(q, 7, step / 3), bh * (0.15f + 0.7f * hash(q, 11, step / 3)), (bh * 0.09f).coerceAtLeast(1.2f) * tw, spk)
+                    }
                 }
+                // Coloured rim with a sweep that travels along.
                 val rim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    this.style = Paint.Style.STROKE; strokeWidth = (bh * 0.09f).coerceAtLeast(1f)
-                    shader = android.graphics.SweepGradient(w * ((step % 60) / 60f), bh / 2f, intArrayOf(cyan, violet, tip, cyan), null)
-                    alpha = 170
+                    this.style = Paint.Style.STROKE; strokeWidth = (bh * 0.11f).coerceAtLeast(1.5f)
+                    shader = android.graphics.SweepGradient(w * ((step % 60) / 60f), bh / 2f, intArrayOf(argb(cyanC), argb(violetC), argb(tipC), argb(cyanC)), null)
                 }
                 c.drawRoundRect(full, r, r, rim)
             }

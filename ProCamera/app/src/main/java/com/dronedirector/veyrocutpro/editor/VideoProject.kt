@@ -453,8 +453,8 @@ class TimelineExport(
             LayerRenderer.render(context, l, outW, outH)?.let {
                 LayerOverlay(
                     it, l, partial = { n -> LayerRenderer.render(context, l, outW, outH, n) }, highlighted = { n -> LayerRenderer.render(context, l, outW, outH, hi = n) },
-                    frameIndex = if (l.kind == LayerKind.LOTTIE) { ms -> LottieRender.frameIndex(context, l, ms) } else null,
-                    frameAt = if (l.kind == LayerKind.LOTTIE) { n -> LottieRender.render(context, l, maxOf(8f, l.size * outH), outW, n) } else null,
+                    frameIndex = if (l.kind == LayerKind.LOTTIE) { ms -> LottieRender.frameIndex(context, l, ms) } else if (l.kind == LayerKind.FX) { ms -> FxLayers.frameIndex(l, ms) } else null,
+                    frameAt = if (l.kind == LayerKind.LOTTIE) { n -> LottieRender.render(context, l, maxOf(8f, l.size * outH), outW, n) } else if (l.kind == LayerKind.FX) { n -> FxLayers.renderFrame(l, outW, outH, n) } else null,
                 ) as androidx.media3.effect.TextureOverlay
             }
         } + listOfNotNull(if (settings.review && !audioOnly) TimecodeOverlay(outW, outH, settings.reviewTcStart, if (settings.fps > 0) settings.fps else 30) as androidx.media3.effect.TextureOverlay else null))

@@ -291,6 +291,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Optical-flow slow motion** on the phone (own motion engine): ½ / ¼ / ⅛ speed or the clip's own ramp with new in-between frames.
 - **Motion blur** from the motion (90° / 180° / 360° shutter).
 - **Corner pin & planar tracking**: put any layer in perspective on a screen, sign or wall and keep it stuck there as the camera moves (own tracker: Lucas–Kanade + RANSAC homography).
+- **Overlays**: **cinema bars** (2.39 / 2.35 / 2 / 1.85 / 2.76:1, still or sliding in and out), **flight path mini-map** from DJI .SRT flight data (route, north up, a dot following the drone), **progress bar** drawn into the video (top or bottom, thickness, colour) and **lens flare** (warm sun, anamorphic blue, soft glow).
 - **Shape layers** (rectangle, rounded, ellipse, line, arrow, triangle, star, heart; filled or outline) and **Lottie animation layers** (.json / .zip; lottie-android, Apache 2.0).
 - **Shape (pen) masks** on clips: a smooth curve with a soft edge and its own grade, planar-tracked to follow what it covers.
 - **Object removal (AI)**: tap anything and it's removed from the whole clip — filled from the real background in nearby frames (own optical flow), with LaMa (Apache 2.0) painting only what's never seen.

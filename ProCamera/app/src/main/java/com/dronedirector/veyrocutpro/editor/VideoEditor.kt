@@ -599,6 +599,19 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             if (samples.isEmpty()) { es.message = "No flight data found in that file — pick the .SRT saved next to the drone video"; return@launch }
             val c = clips.getOrNull(es.current) ?: run { es.message = "Select the drone clip on the timeline first"; return@launch }
             val base = clipStarts(clips).getOrNull(es.current) ?: 0L
+            if (es.srtForMap) {
+                // Flight path mini-map: the GPS track inside this clip, on the timeline's clock.
+                val pts = samples.filter { it.lat != null && it.lon != null && it.tMs in c.startMs..c.endMs }
+                if (pts.size < 2) { es.message = "No GPS positions in that flight data for this clip"; return@launch }
+                val step = (pts.size / 400).coerceAtLeast(1)
+                val tr = ArrayList<Double>()
+                for ((i, s) in pts.withIndex()) if (i % step == 0 || i == pts.lastIndex) { tr += (base + c.tlOffsetOf(s.tMs)).toDouble(); tr += s.lat!!; tr += s.lon!! }
+                val l = Layer(kind = LayerKind.FX, fx = FxLayers.MAP, text = "Flight path", size = 0.26f, x = 0.84f, y = 0.74f, color = 0xFFFFB300.toInt(),
+                    shadow = false, startMs = base, endMs = base + c.lengthMs, track = tr)
+                layers.add(l); es.selectedLayer = l.id
+                es.message = "Flight path added over clip ${es.current + 1} — drag it where you want it"
+                return@launch
+            }
             val segs = Telemetry.segments(samples, es.telemetryShow, c.startMs, c.endMs)
             if (segs.isEmpty()) { es.message = "The flight data has none of the chosen values"; return@launch }
             layers.removeAll { it.name == "Telemetry" && it.startMs >= base && it.startMs < base + c.lengthMs }
@@ -4483,7 +4496,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onDub = { l, m, mu -> dubCaptions(l, m, mu) }, dubStatus = wx.dubStatus,
                                 telemetryShow = es.telemetryShow,
                                 onTelemetryShow = { es.telemetryShow = it },
-                                onTelemetry = { pickSrt.launch(arrayOf("*/*")) },
+                                onTelemetry = { es.srtForMap = false; pickSrt.launch(arrayOf("*/*")) },
+                                onFlightPath = { es.srtForMap = true; pickSrt.launch(arrayOf("*/*")) },
                                 onTrack = { trackLayer(it) }, trackingId = es.trackingId,
                                 onPin = { id, p -> val i = layers.indexOfFirst { it.id == id }; if (i >= 0) { if (layers[i].locked) es.message = "This layer is locked — tap its lock to edit" else layers[i] = layers[i].copy(pin = p) } },
                                 onPlanarTrack = { planarTrack(it) }, pinTrackingId = wx.pinTrackingId,
@@ -6014,9 +6028,9 @@ private fun LayerPreview(
             val chars = LayerAnims.charCount(base, fx.chars)
             val hiWord = if (base.words != null) base.wordAt(timeMs) else -1
             // Lottie animations: a new picture for each animation frame.
-            val lf = if (base.kind == LayerKind.LOTTIE) LottieRender.frameIndex(context, base, timeMs) else 0
-            val bmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, startMs = 0, endMs = 0, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null), wPx, hPx, chars, hiWord, lf) {
-                value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, chars, hiWord, atMs = if (base.kind == LayerKind.LOTTIE) timeMs else -1L) }
+            val lf = if (base.kind == LayerKind.LOTTIE) LottieRender.frameIndex(context, base, timeMs) else if (base.kind == LayerKind.FX) FxLayers.frameIndex(base, timeMs) else 0
+            val bmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null), wPx, hPx, chars, hiWord, lf) {
+                value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, chars, hiWord, atMs = if (base.kind == LayerKind.LOTTIE || base.kind == LayerKind.FX) timeMs else -1L) }
             }
             // Keep the last picture while a new one (next word / letter) is drawn, so it never blinks.
             val lastBmp = remember(base.id) { arrayOfNulls<Bitmap>(1) }
@@ -6032,14 +6046,14 @@ private fun LayerPreview(
                 Modifier
                     .offset { androidx.compose.ui.unit.IntOffset(left, top) }
                     .size(with(density) { bw.toDp() }, with(density) { bh.toDp() })
-                    .then(if (sel) Modifier.border(1.dp, Pro.Amber) else Modifier)
-                    .pointerInput(l.id) {
+                    .then(if (sel && !FxLayers.fullFrame(base)) Modifier.border(1.dp, Pro.Amber) else Modifier)
+                    // Full-frame overlays (bars, flare) don't take touches, so everything under them stays reachable.
+                    .then(if (FxLayers.fullFrame(base)) Modifier else Modifier.pointerInput(l.id) {
                         detectDragGestures(onDragStart = { onSelect(l.id) }) { change, drag ->
                             change.consume()
-                            onMove(l.id, drag.x / wPx, drag.y / hPx)
+                            onMove(l.id, if (base.kind == LayerKind.FX && base.fx == FxLayers.PROGRESS) 0f else drag.x / wPx, drag.y / hPx)
                         }
-                    }
-                    .clickable { onSelect(l.id) },
+                    }.clickable { onSelect(l.id) }),
             ) {
                 val img = remember(b0) { b0.asImageBitmap() }
                 val mode = (l.blend ?: LayerBlend.NORMAL).compose
@@ -6068,6 +6082,7 @@ private fun LayersPage(
     onSeek: (Long) -> Unit = {},
     onCaptions: (String?, Boolean, Int) -> Unit = { _, _, _ -> },
     onImportSubs: () -> Unit = {},
+    onFlightPath: () -> Unit = {},
     onTranslate: (String) -> Unit = {}, translateStatus: String? = null,
     onDub: (String, Boolean, Boolean) -> Unit = { _, _, _ -> }, dubStatus: String? = null,
     onTrack: (String) -> Unit = {}, trackingId: String? = null,
@@ -6199,6 +6214,15 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
             onAdd(Layer(kind = LayerKind.ADJUST, text = "Adjustment", startMs = playheadMs, endMs = end, adjGrade = ProGrade(exposure = 0f), opacity = 1f))
         }
     }
+    SectionTitle("OVERLAYS")
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
+        val total = totalMs.coerceAtLeast(1)
+        SmallAction(Icons.Filled.Movie, "Cinema bars") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.BARS, text = "Cinema bars", fxA = 2.39f, color = 0xFF000000.toInt(), shadow = false, startMs = 0, endMs = total)) }
+        SmallAction(Icons.Filled.Map, "Flight path", onFlightPath)
+        SmallAction(Icons.Filled.LinearScale, "Progress bar") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.PROGRESS, text = "Progress bar", fxA = 0.008f, y = 0.996f, color = 0xFFFFB300.toInt(), shadow = false, startMs = 0, endMs = total)) }
+        SmallAction(Icons.Filled.WbSunny, "Lens flare") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.FLARE, text = "Lens flare", fxA = 0f, fxX = 0.72f, fxY = 0.28f, opacity = 0.9f, shadow = false, startMs = playheadMs, endMs = end)) }
+    }
+    Text("Cinema bars, the progress bar and the flare cover the whole video or part of it — trim them on the timeline. Flight path reads the drone's .SRT flight data for the selected clip.", color = Pro.Dim, fontSize = 11.sp)
     if (stickers) {
         Column(Modifier.padding(vertical = 6.dp)) {
             STICKERS.chunked(8).forEach { row ->
@@ -6313,6 +6337,38 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
         EdSlider("Width", l.shapeAspect ?: defAspect, 0.2f..10f, defAspect, { "%.1f×".format(it) }) { onUpdate(l.copy(shapeAspect = it)) }
         Chips(listOf("No shadow", "Shadow"), if (l.shadow) 1 else 0) { onUpdate(l.copy(shadow = it == 1)) }
         Text("Shapes animate, keyframe, blend and corner-pin like any layer — e.g. a box behind a title, an arrow pointing at something, a highlight circle.", color = Pro.Dim, fontSize = 11.sp)
+    }
+    if (l.kind == LayerKind.FX) {
+        when (l.fx) {
+            FxLayers.BARS -> {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
+                    FxLayers.BAR_SHAPES.forEach { (n, a) -> PillChip(n, (l.fxA ?: 2.39f) == a) { onUpdate(l.copy(fxA = a)) } }
+                }
+                Chips(listOf("Still", "Slide in and out"), if (l.fxB == 1f) 1 else 0) { onUpdate(l.copy(fxB = if (it == 1) 1f else null)) }
+                Text("Black bars top and bottom for a widescreen film look. Slide in and out: they close in over the first second and open over the last.", color = Pro.Dim, fontSize = 11.sp)
+            }
+            FxLayers.PROGRESS -> {
+                Chips(listOf("Top", "Bottom"), if (l.y < 0.5f) 0 else 1) { val th = l.fxA ?: 0.008f; onUpdate(l.copy(y = if (it == 0) th / 2f else 1f - th / 2f)) }
+                EdSlider("Thickness", (l.fxA ?: 0.008f) * 100f, 0.3f..3f, 0.8f, { "%.1f%%".format(it) }) { v -> val th = v / 100f; onUpdate(l.copy(fxA = th, y = if (l.y < 0.5f) th / 2f else 1f - th / 2f)) }
+                Text("Fills from left to right over the layer's length (the whole video when added). Drawn into the exported video.", color = Pro.Dim, fontSize = 11.sp)
+            }
+            FxLayers.FLARE -> {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
+                    FxLayers.FLARE_STYLES.forEachIndexed { i, n -> PillChip(n, (l.fxA ?: 0f).toInt() == i) { onUpdate(l.copy(fxA = i.toFloat())) } }
+                }
+                EdSlider("Across", (l.fxX ?: 0.72f) * 100f, 0f..100f, 72f, { "%.0f%%".format(it) }) { onUpdate(l.copy(fxX = it / 100f)) }
+                EdSlider("Down", (l.fxY ?: 0.28f) * 100f, 0f..100f, 28f, { "%.0f%%".format(it) }) { onUpdate(l.copy(fxY = it / 100f)) }
+                Text("Put the flare on the sun or a light. Strength = the layer's opacity; Fade in / out under ANIMATION eases it in.", color = Pro.Dim, fontSize = 11.sp)
+            }
+            FxLayers.MAP -> Text("The drone's route from its flight data, north up; the dot follows the drone while the video plays. Drag it into place; size and colour as for any layer.", color = Pro.Dim, fontSize = 11.sp)
+        }
+        if (l.fx != FxLayers.FLARE) Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            TEXT_COLORS.forEach { c ->
+                Box(Modifier.size(28.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(c))
+                    .border(if (c == l.color) 3.dp else 1.dp, if (c == l.color) Pro.Amber else Pro.Line, androidx.compose.foundation.shape.CircleShape)
+                    .clickable { onUpdate(l.copy(color = c)) })
+            }
+        }
     }
     if (l.kind == LayerKind.LOTTIE) {
         Text("A Lottie animation (After Effects, exported as .json or .zip). It loops over the layer's length (one loop: ${tc(LottieRender.durationMs(LocalContext.current, l))}). Free animations: lottiefiles.com — check each one's licence.", color = Pro.Dim, fontSize = 11.sp)

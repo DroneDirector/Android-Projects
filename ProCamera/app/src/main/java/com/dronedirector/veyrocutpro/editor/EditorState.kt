@@ -14,6 +14,8 @@ import androidx.compose.runtime.setValue
 internal class EditorState(initial: VideoProjectData?, context: Context) {
     /** Reloading the clip on screen so new picture effects (clarity, film looks, privacy blur) show. */
     var fxJob: kotlinx.coroutines.Job? = null
+    /** The next flight-data (.SRT) file picked becomes a flight path mini-map instead of read-out text. */
+    var srtForMap = false
     var page by mutableStateOf(Page.EDIT)
     var colorTab by mutableStateOf(ColorTab.INPUT)
     var selected by mutableStateOf(0)

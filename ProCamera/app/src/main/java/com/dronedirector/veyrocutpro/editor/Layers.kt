@@ -20,7 +20,7 @@ import java.util.UUID
 import kotlin.math.max
 import kotlin.math.min
 
-enum class LayerKind(val label: String) { TEXT("Text"), STICKER("Sticker"), WATERMARK("Watermark"), LOGO("Logo"), IMAGE("Image"), VIDEO("Video"), ADJUST("Adjustment"), SHAPE("Shape"), LOTTIE("Animation") }
+enum class LayerKind(val label: String) { TEXT("Text"), STICKER("Sticker"), WATERMARK("Watermark"), LOGO("Logo"), IMAGE("Image"), VIDEO("Video"), ADJUST("Adjustment"), SHAPE("Shape"), LOTTIE("Animation"), FX("Overlay") }
 
 enum class LayerFont(val label: String, val typeface: Typeface) {
     SANS("Sans", Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)),
@@ -110,6 +110,13 @@ data class Layer(
     val shape: Int? = null,
     val shapeAspect: Float? = null,
     val stroke: Float? = null,
+    /** Overlay layers ([FxLayers]): which one, two settings, a position and the flight track (timeline ms, lat, lon …). */
+    val fx: Int? = null,
+    val fxA: Float? = null,
+    val fxB: Float? = null,
+    val fxX: Float? = null,
+    val fxY: Float? = null,
+    val track: List<Double>? = null,
 ) {
     /** The word being spoken at [ms] (−1 before the first). */
     fun wordAt(ms: Long): Int = words?.let { w -> w.indexOfLast { it <= ms } } ?: -1
@@ -120,7 +127,7 @@ data class Layer(
     val isBelow: Boolean get() = kind == LayerKind.VIDEO && below == true
     /** The name shown for this layer: your own name, else its text / kind. */
     val displayName: String get() = name?.takeIf { it.isNotBlank() }
-        ?: when (kind) { LayerKind.TEXT, LayerKind.WATERMARK, LayerKind.STICKER -> text.replace('\n', ' '); LayerKind.LOGO, LayerKind.IMAGE -> "Image"; else -> kind.label }
+        ?: when (kind) { LayerKind.TEXT, LayerKind.WATERMARK, LayerKind.STICKER -> text.replace('\n', ' '); LayerKind.LOGO, LayerKind.IMAGE -> "Image"; LayerKind.FX -> FxLayers.label(this); else -> kind.label }
     val isMedia get() = kind == LayerKind.VIDEO || kind == LayerKind.IMAGE || kind == LayerKind.LOGO || kind == LayerKind.SHAPE || kind == LayerKind.LOTTIE
     fun activeAt(ms: Long) = visible && (wholeVideo || ms in startMs..endMs)
     /** Loudness of a video layer's own sound (full by default). */
@@ -234,6 +241,7 @@ object LayerRenderer {
             LayerKind.VIDEO, LayerKind.ADJUST -> null
             LayerKind.SHAPE -> ShapeRender.render(l, px, frameW)
             LayerKind.LOTTIE -> LottieRender.render(context, l, px, frameW, if (atMs < 0) 0 else LottieRender.frameIndex(context, l, atMs))
+            LayerKind.FX -> FxLayers.render(l, frameW, frameH, atMs)
             LayerKind.LOGO, LayerKind.IMAGE -> {
                 val uri = l.imageUri ?: return null
                 val src = synchronized(logoCache) {

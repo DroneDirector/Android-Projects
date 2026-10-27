@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.678 — 2026-10-27
 - Video editor → Layers → OVERLAYS: Cinema bars (still or sliding in and out), Flight path mini-map from the drone's .SRT flight data, Progress bar drawn into the video, and Lens flare (warm sun, anamorphic blue, soft glow).
 - Progress bar styles: Plain, Rounded, Glowing tip, Gradient, Segments, Dots, Thin + dot and Scroll wheel (the look of the timeline's scroll bar).
 

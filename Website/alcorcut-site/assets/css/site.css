@@ -486,3 +486,10 @@ body.acs-page ::selection { background: var(--acs-amber); color: #000; }
 .acs-wheel--page { filter: drop-shadow(0 0 8px rgba(116, 222, 248, .35)); }
 .acs-wheel--h { filter: drop-shadow(0 0 8px rgba(116, 222, 248, .3)); }
 }
+
+/* Windows high contrast / forced colours: gradient text would vanish (its colour is transparent), so it
+   becomes solid, readable text in the system's colours there. */
+@media (forced-colors: active) {
+  .acs em, .acs-glow, .acs-stat b { background: none; color: Highlight; -webkit-text-fill-color: Highlight; }
+  .acs-btn--primary { forced-color-adjust: auto; border: 1px solid ButtonText; }
+}

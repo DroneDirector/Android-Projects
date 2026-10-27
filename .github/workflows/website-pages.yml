@@ -117,6 +117,13 @@ jobs:
                       if st:
                           await st.scroll_into_view_if_needed(); await q.wait_for_timeout(1500); await q.screenshot(path=f'out/w-{nm}-stats.png')
                       await c.close()
+                  # Browsers' own dark modes (Chromium force-dark: Chrome, Edge, Opera, Brave, Samsung Internet's engine) must not recolour the site.
+                  fb=await p.chromium.launch(args=['--enable-features=WebContentsForceDark','--force-dark-mode','--blink-settings=forceDarkModeEnabled=true'])
+                  for nm,w,h,sc in [('phone',412,915,2.625),('tablet-landscape',1280,800,2)]:
+                      c=await fb.new_context(viewport={'width':w,'height':h},device_scale_factor=sc,color_scheme='dark',is_mobile=nm=='phone',has_touch=True); q=await c.new_page()
+                      await q.goto('https://dronedirector.github.io/Android-Projects/',wait_until='networkidle'); await q.wait_for_timeout(2500)
+                      await q.screenshot(path=f'out/forcedark-{nm}-hero.png'); await c.close()
+                  await fb.close()
                   open('out/live-browser.txt','w').write('\n'.join(e)); await b.close()
           asyncio.run(m())
           PY

@@ -73,6 +73,7 @@
    "<strong>Shape layers</strong> (rectangle, rounded, ellipse, line, arrow, triangle, star, heart; filled or outline) and <strong>Lottie animation layers</strong> (.json / .zip; lottie-android, Apache 2.0).",
    "<strong>Shape (pen) masks</strong> on clips: a smooth curve with a soft edge and its own grade, planar-tracked to follow what it covers.",
    "<strong>Object removal (AI)</strong>: tap anything and it's removed from the whole clip — filled from the real background in nearby frames (own optical flow), with LaMa (Apache 2.0) painting only what's never seen.",
+   "<strong>Privacy blur</strong>: faces found automatically and any spot you tap (number plates, screens, signs), followed through the clip, blurred or pixelated.",
    "<strong>AI depth</strong> (Depth Anything V2 Small, Apache 2.0): lens blur with real depth of field, fog / haze by distance, or a darker, calmer background.",
    "<strong>AI voiceover from text</strong>: 12 natural English voices (Kokoro 82M, Apache 2.0; misaki dictionaries), made on the phone and added as an audio track.",
    "<strong>Studio voice (AI)</strong>: DeepFilterNet3 (MIT / Apache 2.0) voice clean-up; <strong>de-click</strong> and <strong>de-reverb</strong> (own code).",
@@ -120,6 +121,7 @@
    "<strong>AI noise reduction</strong> per clip (built-in NAFNet), applied on export with a stoppable progress badge.",
    "<strong>Colour masks</strong> (up to 3 per clip): gradient, radial, colour range and brightness range, each with its own grade; handles on the player; live preview and export.",
    "<strong>HDR levels in nits</strong> (HLG / HDR10): nits waveform from the real 10-bit frame, 100 / 203 / 1000-nit guides, peak / average / above-203 / above-1000.",
+   "<strong>Hue curves</strong> (also in the photo editor): hue vs hue, hue vs saturation, hue vs brightness and brightness vs saturation.",
    "<strong>Export a look as a .cube LUT</strong> (33-point) (also in the photo editor), also added to My LUTs."
   ]
  },
@@ -159,6 +161,7 @@
    "<strong>Voiceover</strong> recording onto its own audio track.",
    "<strong>Volume keyframes</strong> per clip.",
    "Per clip: volume, pan, channels (stereo / mono / left / right / swap), fades.",
+   "<strong>Pitch &amp; voice</strong>: pitch up or down without changing speed (±12 semitones); Robot, Radio, Phone and Megaphone voices.",
    "<strong>Voice noise reduction</strong> per clip (Light / Strong / <strong>Voice isolation (AI)</strong> — RNNoise, BSD-3, on the phone; on export).",
    "<strong>3-band EQ</strong>, low cut, voice enhance, <strong>compressor, noise gate, limiter</strong>; presets (Voice, Interview, Wind cut, Warm, Bright, Bass boost, Radio, Loud &amp; punchy); live <strong>level meter</strong>.",
    "<strong>Parametric EQ</strong>: up to 8 bands (bell, shelves, low / high cut) dragged over a live spectrum; <strong>de-esser</strong>.",

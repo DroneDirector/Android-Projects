@@ -272,9 +272,13 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
     LaunchedEffect(Unit) {
         val amt = FxTest.amount ?: return@LaunchedEffect
         FxTest.amount = null
-        Generators.make(context, GenSpec(GenKind.BARS, seconds = 3), onProgress = {}) { uri, _ ->
+        android.util.Log.i("FxTest", "making the test clip ($amt)")
+        Generators.make(context, GenSpec(GenKind.BARS, seconds = 3), onProgress = {}) { uri, err ->
+            android.util.Log.i("FxTest", "clip made: $uri $err")
             if (uri != null) scope.launch {
-                val c = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) } ?: return@launch
+                val c = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }
+                android.util.Log.i("FxTest", "clip loaded: ${c?.width}x${c?.height}")
+                if (c == null) return@launch
                 clips.add(c.copy(detail = c.detail.copy(clarity = amt, texture = amt)))
                 started = true
             }

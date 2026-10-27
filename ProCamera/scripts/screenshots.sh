@@ -72,8 +72,9 @@ adb shell input tap 412 1630; sleep 3   # the tour's SKIP
 for amt in 0 1; do
   adb shell am force-stop "$PKG"
   adb shell am start -W -n "$ACT" --ez skipsetup true --es screen video --es fxtest $amt >/dev/null
-  sleep 14; adb shell input tap 412 1630; sleep 4
+  sleep 40; adb shell input tap 412 1630; sleep 5
   adb exec-out screencap -p > "$OUT/55-fxtest-clarity-$amt.png"; echo "captured 55-fxtest-clarity-$amt"
+  adb logcat -d | grep -E "FxTest|GradePreview|DetailEffect|VideoFrameProcessor|ExoPlayer" | tail -40 > "$OUT/55-fxtest-log-$amt.txt"
 done
 adb exec-out screencap -p > "$OUT/53-phone-video-editor-open.png"; echo "captured 53-phone-video-editor-open"
 sleep 1; adb exec-out screencap -p > "$OUT/54-phone-video-editor-open-b.png"; echo "captured 54-phone-video-editor-open-b"

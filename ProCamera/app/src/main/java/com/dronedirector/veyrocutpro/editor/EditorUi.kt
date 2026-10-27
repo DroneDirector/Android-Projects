@@ -400,7 +400,7 @@ fun PreferencesSection(screen: com.dronedirector.veyrocutpro.ui.AppScreen, playb
         com.dronedirector.veyrocutpro.ui.AudioHardwareSettings()
     }
     if (isEditor) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "autosave", "Autosave", "Automatic project copies and how many to keep") { AutoSaveSettings(isVideo) }
-    if (playbackExtra != null) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "playback", "Playback", "Playback info read-out, proxy media") { playbackExtra() }
+    if (playbackExtra != null) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "playback", "Playback", "Play button effect, playback info read-out, proxy media") { playbackExtra() }
     if (timelineExtra != null) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "timeline", "Timeline", "Scroll wheel effects, trimming, marker effects") { timelineExtra() }
     if (isEditor) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "editing", "Editing", "Screen on while editing" + if (isVideo) ", photo clip and title lengths" else "") {
         var keep by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(EditorPrefs.keepScreenOn(ctx)) }

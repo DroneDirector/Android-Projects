@@ -61,6 +61,8 @@ class ClipActs(
     val duplicate: (List<Int>) -> Unit,
     val speed: (Int) -> Unit,
     val reverse: (Int) -> Unit,
+    /** Boomerang: a backwards copy straight after the clip. */
+    val boomerang: (Int) -> Unit = {},
     val mute: (List<Int>) -> Unit,
     val detach: (List<Int>) -> Unit,
     val nest: (from: Int, count: Int) -> Unit,
@@ -89,6 +91,7 @@ fun ClipMenu(clips: List<Clip>, pick: ClipPick, act: ClipActs) {
                 item("Duplicate") { act.duplicate(listOf(i)) }
                 item("Speed / Duration…") { act.speed(i) }
                 item("Reverse") { act.reverse(i) }
+                item("Boomerang (forwards, then back)") { act.boomerang(i) }
                 item(if (c.muted) "Turn sound on" else "Mute sound") { act.mute(listOf(i)) }
                 if (!c.muted) item("Detach audio") { act.detach(listOf(i)) }
                 HorizontalDivider(color = Pro.Fg.copy(alpha = 0.1f))

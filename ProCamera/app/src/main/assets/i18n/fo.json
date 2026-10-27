@@ -3764,7 +3764,6 @@
 "The light look is used in the photo and video editors. The picture, the timeline and the media strip stay dark so colours are judged right, and Capture stays dark because it sits on the camera picture.": "Ljósa útsjóndin verður brúkt í mynda- og sjónbandsritlinum. Myndin, tíðarlinjan og miðlaræman verða myrkar, so litirnir verða mettir rætt, og Upptøka verður myrk, tí hon liggur oman á kameramyndini.",
 "Quick bar → STOP MOTION (photo modes): every photo becomes the next frame and the last one shows faintly over the viewfinder (ONION %). FRAMES opens the frame strip: play, HOLD +1, delete, 6–24 fps, MAKE VIDEO. Its bar sits on the picture: drag it, pinch to resize, double tap to make it small.": "Skjótlinjan → STOP MOTION (myndastøður): hvør mynd verður næsta mynd, og tann seinasta sæst veikt yvir sjónglugganum (ONION %). FRAMES letur myndastrikuna upp: spæl, HOLD +1, strika, 6–24 fps, MAKE VIDEO. Bjálkin liggur á myndini: drag hann, knípið fyri at broyta stødd, tvítrýst fyri at gera hann lítlan.",
 "Hold a photo in the filmstrip → Select multiple: tap photos to tick them, hold any photo for the selection's menu (stars, flags, apply the open photo's edit, export, rename, remove), and Deselect all goes back to one photo. Holding a photo also offers Apply the open photo's edit and Export this photo.": "Halt eina mynd í filmsstrimlinum → Vel fleiri: trýst á myndir fyri at merkja tær, halt hvørja sum helst mynd fyri valsins valmynd (stjørnur, fløgg, nýt opnu myndarinnar tillaging, útflyt, umdoyp, tak burtur), og Strika alt valt fer aftur til eina mynd. At halda eina mynd gevur eisini Nýt opnu myndarinnar tillaging og Útflyt hesa myndina.",
-"Hold the middle of a clip on the timeline for its menu: Select multiple, Split at the playhead, Duplicate, Speed / Duration, Reverse, Mute sound, Delete. While selecting, tap clips to tick them; hold any clip for Deselect all, Select all, Duplicate, Mute, Nest into one clip and Delete selected. The ✕ on the timeline's SELECTED badge also ends it.": "Halt mitt á einum klippi á tíðarlinjuni fyri valmynd tess: Vel fleiri, Kluft við spælihøvdið, Avrita, Ferð / longd, Aftureftir, Sløkk ljóð, Strika. Meðan tú velur, trýst á klipp fyri at merkja tey; halt hvørt sum helst klipp fyri Strika alt valt, Vel øll, Avrita, Sløkk ljóð, Set inn í eitt klipp og Strika valt. ✕ á tíðarlinjunnar VALT-merki endar eisini.",
 "Select multiple": "Vel fleiri",
 "Split at the playhead": "Kluft við spælihøvdið",
 "Speed / Duration…": "Ferð / longd…",
@@ -3863,5 +3862,18 @@
 "SMART CROP": "SNILDUR SKURÐUR",
 "Crops to the shape with faces, or else the main subject, kept in the picture (eyes about a third from the top). Fine-tune by pinching the photo.": "Sker til skapið við andlitum, ella annars høvuðsevninum, í myndini (eyguni umleið ein triðing frá erva). Fínstilla við at klemma myndina.",
 "VERSIONS": "ÚTGÁVUR",
-"Tap + to save this look as a version, tap a version to switch to it, hold to save over it.": "Trýst á + fyri at goyma hesa útsjónd sum eina útgávu, trýst á eina útgávu fyri at skifta til hana, halt fyri at goyma oman á."
+"Tap + to save this look as a version, tap a version to switch to it, hold to save over it.": "Trýst á + fyri at goyma hesa útsjónd sum eina útgávu, trýst á eina útgávu fyri at skifta til hana, halt fyri at goyma oman á.",
+"Hold the middle of a clip on the timeline for its menu: Select multiple, Split at the playhead, Duplicate, Speed / Duration, Reverse, Boomerang (the clip forwards, then a backwards copy straight after it), Mute sound, Delete. While selecting, tap clips to tick them; hold any clip for Deselect all, Select all, Duplicate, Mute, Nest into one clip and Delete selected. The ✕ on the timeline's SELECTED badge also ends it.": "Halt mitt á einum klippi á tíðarlinjuni fyri valmynd tess: Vel fleiri, Kluft við spælihøvdið, Avrita, Ferð / longd, Aftureftir, Boomerang (klippið fram og so eitt avrit afturábak beint aftaná), Sløkk ljóð, Strika. Meðan tú velur, trýst á klipp fyri at merkja tey; halt hvørt sum helst klipp fyri Strika alt valt, Vel øll, Avrita, Sløkk ljóð, Set inn í eitt klipp og Strika valt. ✕ á tíðarlinjunnar VALT-merki endar eisini.",
+"Export → FOR SOCIAL MEDIA: SAVE BEFORE / AFTER PICTURE puts the original and your edit in one labelled picture; PANORAMA CAROUSEL cuts a wide photo into 2–5 slides (1:1 or 4:5) that join up seamlessly when swiped through on Instagram.": "Útflyt → TIL SOSIALAR MIÐLAR: GOYM ÁÐRENN / AFTANÁ-MYND setur upprunamyndina og tína rætting í eina merkta mynd; PANORAMA-KARUSELL skerir eina breiða mynd í 2–5 slides (1:1 ella 4:5), sum hanga saman uttan skil, tá ið svipað verður á Instagram.",
+"FOR SOCIAL MEDIA": "TIL SOSIALAR MIÐLAR",
+"SAVE BEFORE / AFTER PICTURE": "GOYM ÁÐRENN / AFTANÁ-MYND",
+"The original and your edit in one picture (side by side, or one above the other for wide photos), labelled.": "Upprunamyndin og tín rætting í eini mynd (lið um lið, ella hvør omanfyri aðra fyri breiðar myndir), merkt.",
+"PANORAMA CAROUSEL": "PANORAMA-KARUSELL",
+"2 slides": "2 slides",
+"3 slides": "3 slides",
+"4 slides": "4 slides",
+"5 slides": "5 slides",
+"SAVE CAROUSEL SLIDES": "GOYM KARUSELL-SLIDES",
+"Cuts a wide photo into slides that join up seamlessly when swiped through on Instagram. Both are saved as JPEG without the location.": "Skerir eina breiða mynd í slides, sum hanga saman uttan skil, tá ið svipað verður á Instagram. Báðar verða goymdar sum JPEG uttan stað.",
+"Boomerang (forwards, then back)": "Boomerang (fram, so aftur)"
 }

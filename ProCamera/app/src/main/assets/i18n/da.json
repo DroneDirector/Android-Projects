@@ -3712,7 +3712,6 @@
 "The light look is used in the photo and video editors. The picture, the timeline and the media strip stay dark so colours are judged right, and Capture stays dark because it sits on the camera picture.": "Det lyse udseende bruges i foto- og videoeditoren. Billedet, tidslinjen og mediestrimlen forbliver mørke, så farverne bedømmes rigtigt, og Optag forbliver mørk, fordi den ligger oven på kamerabilledet.",
 "Quick bar → STOP MOTION (photo modes): every photo becomes the next frame and the last one shows faintly over the viewfinder (ONION %). FRAMES opens the frame strip: play, HOLD +1, delete, 6–24 fps, MAKE VIDEO. Its bar sits on the picture: drag it, pinch to resize, double tap to make it small.": "Hurtiglinjen → STOP MOTION (fototilstande): hvert billede bliver næste billede, og det sidste vises svagt over søgeren (ONION %). FRAMES åbner billedstriben: afspil, HOLD +1, slet, 6–24 fps, MAKE VIDEO. Dens bjælke ligger på billedet: træk den, knib for at ændre størrelse, dobbelttryk for at gøre den lille.",
 "Hold a photo in the filmstrip → Select multiple: tap photos to tick them, hold any photo for the selection's menu (stars, flags, apply the open photo's edit, export, rename, remove), and Deselect all goes back to one photo. Holding a photo also offers Apply the open photo's edit and Export this photo.": "Hold et foto i filmstrimlen → Vælg flere: tryk på fotos for at markere dem, hold et vilkårligt foto for markeringens menu (stjerner, flag, brug det åbne fotos redigering, eksportér, omdøb, fjern), og Fravælg alle går tilbage til ét foto. At holde et foto giver også Brug det åbne fotos redigering og Eksportér dette foto.",
-"Hold the middle of a clip on the timeline for its menu: Select multiple, Split at the playhead, Duplicate, Speed / Duration, Reverse, Mute sound, Delete. While selecting, tap clips to tick them; hold any clip for Deselect all, Select all, Duplicate, Mute, Nest into one clip and Delete selected. The ✕ on the timeline's SELECTED badge also ends it.": "Hold midt på et klip på tidslinjen for dets menu: Vælg flere, Del ved afspilningshovedet, Duplikér, Hastighed / varighed, Baglæns, Slå lyd fra, Slet. Mens du vælger, tryk på klip for at markere dem; hold et vilkårligt klip for Fravælg alle, Vælg alle, Duplikér, Slå lyd fra, Indlejr i ét klip og Slet valgte. ✕ på tidslinjens VALGT-mærke afslutter også.",
 "Select multiple": "Vælg flere",
 "Split at the playhead": "Del ved afspilningshovedet",
 "Speed / Duration…": "Hastighed / varighed…",
@@ -3812,5 +3811,18 @@
 "SMART CROP": "SMART BESKÆRING",
 "Crops to the shape with faces, or else the main subject, kept in the picture (eyes about a third from the top). Fine-tune by pinching the photo.": "Beskærer til formen med ansigter, eller ellers hovedmotivet, i billedet (øjnene cirka en tredjedel fra toppen). Finjustér ved at knibe i billedet.",
 "VERSIONS": "VERSIONER",
-"Tap + to save this look as a version, tap a version to switch to it, hold to save over it.": "Tryk + for at gemme dette look som en version, tryk på en version for at skifte til den, hold for at gemme ovenpå."
+"Tap + to save this look as a version, tap a version to switch to it, hold to save over it.": "Tryk + for at gemme dette look som en version, tryk på en version for at skifte til den, hold for at gemme ovenpå.",
+"Hold the middle of a clip on the timeline for its menu: Select multiple, Split at the playhead, Duplicate, Speed / Duration, Reverse, Boomerang (the clip forwards, then a backwards copy straight after it), Mute sound, Delete. While selecting, tap clips to tick them; hold any clip for Deselect all, Select all, Duplicate, Mute, Nest into one clip and Delete selected. The ✕ on the timeline's SELECTED badge also ends it.": "Hold midt på et klip på tidslinjen for dets menu: Vælg flere, Del ved afspilningshovedet, Duplikér, Hastighed / varighed, Baglæns, Boomerang (klippet frem og så en baglæns kopi lige efter), Slå lyd fra, Slet. Mens du vælger, tryk på klip for at markere dem; hold et vilkårligt klip for Fravælg alle, Vælg alle, Duplikér, Slå lyd fra, Indlejr i ét klip og Slet valgte. ✕ på tidslinjens VALGT-mærke afslutter også.",
+"Export → FOR SOCIAL MEDIA: SAVE BEFORE / AFTER PICTURE puts the original and your edit in one labelled picture; PANORAMA CAROUSEL cuts a wide photo into 2–5 slides (1:1 or 4:5) that join up seamlessly when swiped through on Instagram.": "Eksport → TIL SOCIALE MEDIER: GEM FØR / EFTER-BILLEDE sætter originalen og din redigering i ét billede med etiketter; PANORAMA-KARRUSEL skærer et bredt billede i 2–5 slides (1:1 eller 4:5), der hænger sømløst sammen, når man swiper på Instagram.",
+"FOR SOCIAL MEDIA": "TIL SOCIALE MEDIER",
+"SAVE BEFORE / AFTER PICTURE": "GEM FØR / EFTER-BILLEDE",
+"The original and your edit in one picture (side by side, or one above the other for wide photos), labelled.": "Originalen og din redigering i ét billede (side om side, eller over hinanden for brede billeder), med etiketter.",
+"PANORAMA CAROUSEL": "PANORAMA-KARRUSEL",
+"2 slides": "2 slides",
+"3 slides": "3 slides",
+"4 slides": "4 slides",
+"5 slides": "5 slides",
+"SAVE CAROUSEL SLIDES": "GEM KARRUSEL-SLIDES",
+"Cuts a wide photo into slides that join up seamlessly when swiped through on Instagram. Both are saved as JPEG without the location.": "Skærer et bredt billede i slides, der hænger sømløst sammen, når man swiper på Instagram. Begge gemmes som JPEG uden placering.",
+"Boomerang (forwards, then back)": "Boomerang (frem, så tilbage)"
 }

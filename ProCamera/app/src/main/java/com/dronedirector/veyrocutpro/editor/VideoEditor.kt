@@ -2203,7 +2203,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     /** Reverse: replaces the clip with a backwards copy (picture only). */
-    fun reverseClip(i: Int) {
+    fun reverseClip(i: Int, boomerang: Boolean = false) {
         if (es.videoLocked) { es.message = "The video track is locked"; return }
         val c = clips.getOrNull(i) ?: return
         deck.cur.pause()
@@ -2214,9 +2214,16 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
             val idx = clips.indexOfFirst { it.id == c.id }
             if (rc == null || idx < 0) { es.message = "Couldn't reverse this clip"; return@launch }
-            clips[idx] = rc.copy(transition = c.transition)
-            load(idx.coerceAtMost(clips.lastIndex), 0, false)
-            es.message = if (c.endMs - c.startMs > 60_000) "Reversed (first 60 s) — reversed clips are silent" else "Reversed — reversed clips are silent"
+            if (boomerang) {
+                // Forwards, then the same moment backwards (with the same look), right after it.
+                clips.add(idx + 1, rc.copy(id = java.util.UUID.randomUUID().toString(), grade = c.grade, detail = c.detail, film = c.film, muted = true))
+                load(idx, 0, false)
+                es.message = "Boomerang made: the clip plays forwards, then backwards"
+            } else {
+                clips[idx] = rc.copy(transition = c.transition)
+                load(idx.coerceAtMost(clips.lastIndex), 0, false)
+                es.message = if (c.endMs - c.startMs > 60_000) "Reversed (first 60 s) — reversed clips are silent" else "Reversed — reversed clips are silent"
+            }
         }
     }
 
@@ -4023,6 +4030,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             },
                             speed = { i -> es.selected = i; wf.barDlg = "speed" },
                             reverse = { i -> reverseClip(i) },
+                            boomerang = { i -> reverseClip(i, boomerang = true) },
                             mute = { list -> val on = list.all { clips[it].muted }; list.forEach { k -> update(k) { it.copy(muted = !on) } }; es.message = if (on) "Sound on" else "Sound muted" },
                             nest = { from, n -> nestClips(from, n) },
                             detach = { list -> list.forEach { detachAudio(it) } },

@@ -2294,6 +2294,46 @@ private fun PhotoWorkspace(
                         }
                         if (panel == PhotoPanel.EFFECTS) { backgroundSection(); skySection() }
                         if (panel == PhotoPanel.EXPORT) {
+                            SectionTitle("FOR SOCIAL MEDIA")
+                            var slides by remember { mutableStateOf(3) }
+                            var slideShape by remember { mutableStateOf(1) }
+                            fun social(beforeAfter: Boolean) {
+                                val after = preview; val b = base
+                                if (busy || after == null || b == null) return
+                                busy = true
+                                val e = edit
+                                scope.launch {
+                                    val n = withContext(Dispatchers.Default) {
+                                        try {
+                                            val pics = if (beforeAfter) {
+                                                // Before: the photo as it came, cropped and turned the same way.
+                                                val bf = ImageOps.geometry(b, e.geometry)
+                                                listOf(SocialExport.beforeAfter(bf, after)).also { if (bf !== b) bf.recycle() }
+                                            } else SocialExport.carousel(after, slides, if (slideShape == 0) 1f else 0.8f)
+                                            SocialExport.save(context, pics, uri.takeIf { it != Uri.EMPTY })
+                                        } catch (_: Throwable) { 0 }
+                                    }
+                                    busy = false
+                                    message = when {
+                                        n == 0 -> "Couldn't save"
+                                        beforeAfter -> "Before / after picture saved"
+                                        else -> "$n carousel slides saved — post them in order"
+                                    }
+                                }
+                            }
+                            Text(
+                                "SAVE BEFORE / AFTER PICTURE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                                modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable(enabled = !busy) { social(true) }.padding(10.dp),
+                            )
+                            Text("The original and your edit in one picture (side by side, or one above the other for wide photos), labelled.", color = Pro.Dim, fontSize = 11.sp)
+                            Text("PANORAMA CAROUSEL", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), modifier = Modifier.padding(top = 8.dp))
+                            Chips(listOf("2 slides", "3 slides", "4 slides", "5 slides"), slides - 2) { slides = it + 2 }
+                            Chips(listOf("1:1", "4:5"), slideShape) { slideShape = it }
+                            Text(
+                                "SAVE CAROUSEL SLIDES", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                                modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable(enabled = !busy) { social(false) }.padding(10.dp),
+                            )
+                            Text("Cuts a wide photo into slides that join up seamlessly when swiped through on Instagram. Both are saved as JPEG without the location.", color = Pro.Dim, fontSize = 11.sp)
                             SectionTitle("BATCH")
                             Chips(listOf("Look only", "Look + crop + masks + watermark"), if (batchWithCrop) 1 else 0) { batchWithCrop = it == 1 }
                             Text(

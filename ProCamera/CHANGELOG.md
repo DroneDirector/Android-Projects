@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.658 — 2026-10-27
 - Video editor: Clarity, Texture and Image detail now change the preview live while you drag the sliders (checked on the test phone), on every Android 13+ phone and tablet.
 
 ## 1.0.650 — 2026-10-27

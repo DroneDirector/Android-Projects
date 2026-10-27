@@ -240,7 +240,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **4:2:2 / 4:4:4 footage**: detected from the stream, decoded with whichever decoder on the phone can read it (hardware, then Android's software decoder), plays directly (with the right decoder) or from a proxy, export from the original.
 - **Media pool** with codec, HDR / 10-bit badges; delete from the pool with confirmation.
 - **Multi-track timeline** starting at the left edge: filmstrips, layer rows and audio rows; drag the playhead or tap the ruler; two-finger pinch zoom and scroll; follows the playhead while playing.
-- **Play centred under the picture**: a bigger Play in the middle of the playback buttons, with the scroll wheels' glow (can be turned off); the button row starts centred on it.
+- **Play centred under the picture**: a bigger Play in the middle of the playback buttons, with the scroll wheels' glow in its own colour (can be turned off); the button row starts centred on it.
 - **Clip menu and Select multiple** (hold a clip on the timeline): split, duplicate, speed, reverse, mute, delete; pick several clips to duplicate, mute, nest or delete them together. While clips are picked, every change (colour, detail, effects, speed, audio…) goes to all of them; **SELECT ALL / DESELECT ALL** and **♪ DETACH AUDIO** (sound to its own track) on the timeline bar.
 - **Clarity and Texture for video** (Color → Primaries, under Dehaze): broad mid-tone punch and fine-detail texture, on the GPU in preview and export.
 - Under the player: **mute, zoom out, show whole timeline, zoom in, split, undo, redo**, previous / play / next, full screen.

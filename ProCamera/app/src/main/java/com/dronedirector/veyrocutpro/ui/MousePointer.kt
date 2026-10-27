@@ -71,6 +71,8 @@ object CursorStyle {
     /** Off = the normal Android pointer. */
     var custom by mutableStateOf(true); private set
     var wheel by mutableStateOf(Color(0xFF4FE3FF)); private set
+    /** The video editor's Play button effect, apart from the scroll wheels. */
+    var play by mutableStateOf(Color(0xFF4FE3FF)); private set
     private var loaded = false
 
     fun load(c: Context) {
@@ -81,12 +83,14 @@ object CursorStyle {
         pointerFx = p.getBoolean("mouse_fx", true)
         custom = p.getBoolean("mouse_custom", true)
         wheel = Color(p.getInt("wheel_color", wheel.toArgb()))
+        play = Color(p.getInt("play_color", play.toArgb()))
     }
     private fun put(c: Context, f: android.content.SharedPreferences.Editor.() -> Unit) = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply(f).apply()
     fun setPointer(c: Context, v: Color) { pointer = v; put(c) { putInt("mouse_color", v.toArgb()) } }
     fun setPointerFx(c: Context, v: Boolean) { pointerFx = v; put(c) { putBoolean("mouse_fx", v) } }
     fun setCustom(c: Context, v: Boolean) { custom = v; put(c) { putBoolean("mouse_custom", v) } }
     fun setWheel(c: Context, v: Color) { wheel = v; put(c) { putInt("wheel_color", v.toArgb()) } }
+    fun setPlay(c: Context, v: Color) { play = v; put(c) { putInt("play_color", v.toArgb()) } }
 
     /** A second tone for gradients: the colour turned a little round the colour wheel. */
     fun partner(c: Color): Color {
@@ -265,7 +269,7 @@ fun PointerAndWheelSettings(showWheel: Boolean = true) {
 }
 
 @Composable
-private fun Swatches(current: Color, onPick: (Color) -> Unit) {
+fun Swatches(current: Color, onPick: (Color) -> Unit) {
     Column(Modifier.padding(vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         CursorStyle.swatches.chunked(5).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

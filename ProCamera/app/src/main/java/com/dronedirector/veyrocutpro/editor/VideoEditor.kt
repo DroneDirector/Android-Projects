@@ -793,13 +793,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
         },
         playbackExtra = {
-            Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Play button effect", color = Color.White, fontSize = 15.sp)
-                    Text("On: the Play button under the picture has the scroll wheels' animated look (their colours, turning rim, sparkles while playing). Off: the plain amber button, no animation.", color = Pro.Dim, fontSize = 12.sp)
-                }
-                androidx.compose.material3.Switch(PlayFx.on, { PlayFx.set(context, it) }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
-            }
+            PlayFxSettings()
             Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Show playback info", color = Color.White, fontSize = 15.sp)

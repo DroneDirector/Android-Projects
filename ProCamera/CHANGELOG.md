@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: the Play button effect has its own colour, apart from the scroll wheels — gear → Layout & look (or Playback) → Play button colour.
 
 ## 1.0.626 — 2026-10-27
 - The Play button effect switch is under gear → Layout & look, and also under gear → Playback.

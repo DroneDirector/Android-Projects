@@ -456,14 +456,7 @@ fun EditorSettingsBody(
                                 colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
                             )
                         }
-                        if (isVideo) Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text("Play button effect", color = Color.White, fontSize = 15.sp)
-                                Text("On: the Play button under the picture has the scroll wheels' animated look (their colours, turning rim, sparkles while playing). Off: the plain amber button, no animation.", color = Pro.Dim, fontSize = 12.sp)
-                            }
-                            androidx.compose.runtime.LaunchedEffect(Unit) { PlayFx.load(ctx) }
-                            androidx.compose.material3.Switch(PlayFx.on, { PlayFx.set(ctx, it) }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
-                        }
+                        if (isVideo) PlayFxSettings()
                         Text("APP COLOUR", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp, bottom = 4.dp))
                         com.dronedirector.veyrocutpro.ui.AccentPicker()
                         if (colourExtra != null) colourExtra()

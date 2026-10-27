@@ -16,6 +16,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.heightIn
@@ -39,6 +40,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.padding
 import com.dronedirector.veyrocutpro.ui.Pro
 import kotlin.math.abs
 import kotlin.math.floor
@@ -48,6 +51,10 @@ import kotlin.math.sin
 private val Cyan: Color get() = com.dronedirector.veyrocutpro.ui.CursorStyle.wheel
 private val Violet: Color get() = com.dronedirector.veyrocutpro.ui.CursorStyle.partner(com.dronedirector.veyrocutpro.ui.CursorStyle.wheel)
 private val WheelTip: Color get() = androidx.compose.ui.graphics.lerp(com.dronedirector.veyrocutpro.ui.CursorStyle.wheel, Color.White, 0.45f)
+// The Play button's effect has its own colour (gear → Layout & look / Playback → Play button colour).
+private val PlayA: Color get() = com.dronedirector.veyrocutpro.ui.CursorStyle.play
+private val PlayB: Color get() = com.dronedirector.veyrocutpro.ui.CursorStyle.partner(com.dronedirector.veyrocutpro.ui.CursorStyle.play)
+private val PlayTip: Color get() = androidx.compose.ui.graphics.lerp(com.dronedirector.veyrocutpro.ui.CursorStyle.play, Color.White, 0.45f)
 
 /** Pseudo-random 0..1 for a cell (stable per cell and step). */
 private fun hash(a: Int, b: Int, c: Int): Float {
@@ -337,13 +344,13 @@ object PlayFx {
 
 /**
  * The scroll wheels' look on the Play button: the wheel's glass gradient (its colours from gear → SCROLL
- * WHEELS) as the button itself, a turning gradient rim, and — while the
+ * WHEELS look, in the Play button's own colour) as the button itself, a turning gradient rim, and — while the
  * video plays — the wheel's "upscale" pixels and sparkles. Off = the plain amber button, no animation.
  */
 @Composable
 fun PlayGlow(playing: Boolean, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
-    LaunchedEffect(Unit) { PlayFx.load(ctx) }
+    LaunchedEffect(Unit) { PlayFx.load(ctx); com.dronedirector.veyrocutpro.ui.CursorStyle.load(ctx) }
     if (!PlayFx.on) { androidx.compose.foundation.layout.Box(modifier, contentAlignment = androidx.compose.ui.Alignment.Center) { content() }; return }
     val t = rememberInfiniteTransition(label = "play")
     val phase by t.animateFloat(0f, 1f, infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart), label = "pph")
@@ -357,10 +364,10 @@ fun PlayGlow(playing: Boolean, modifier: Modifier = Modifier, content: @Composab
             val c = Offset(w / 2, h / 2)
             val r = minOf(w, h) / 2
             // Glow around the button.
-            drawCircle(Brush.radialGradient(listOf(Cyan.copy(alpha = 0.35f + 0.25f * e), Violet.copy(alpha = 0.15f), Color.Transparent), center = c, radius = r * 1.45f), radius = r * 1.45f, center = c)
+            drawCircle(Brush.radialGradient(listOf(PlayA.copy(alpha = 0.35f + 0.25f * e), PlayB.copy(alpha = 0.15f), Color.Transparent), center = c, radius = r * 1.45f), radius = r * 1.45f, center = c)
             // The button: the wheel's thumb gradient on dark glass.
             drawCircle(Color(0xFF0D1016), radius = r, center = c)
-            drawCircle(Brush.verticalGradient(listOf(Cyan.copy(alpha = 0.9f), Violet.copy(alpha = 0.9f), WheelTip.copy(alpha = 0.95f)), startY = c.y - r, endY = c.y + r), radius = r * 0.9f, center = c)
+            drawCircle(Brush.verticalGradient(listOf(PlayA.copy(alpha = 0.9f), PlayB.copy(alpha = 0.9f), PlayTip.copy(alpha = 0.95f)), startY = c.y - r, endY = c.y + r), radius = r * 0.9f, center = c)
             // "Upscale" pixels: blocks that flicker from coarse to fine, stronger while playing.
             val cell = (2.dp.toPx() + 5.dp.toPx() * e)
             val step = floor(phase * 12f).toInt()
@@ -372,7 +379,7 @@ fun PlayGlow(playing: Boolean, modifier: Modifier = Modifier, content: @Composab
                     if ((mid - c).getDistance() < r * 0.88f) {
                         val v = hash(i, j, step)
                         val a = e * (0.10f + 0.35f * v)
-                        if (a > 0.03f) drawRect(if (v > 0.5f) Cyan.copy(alpha = a) else Violet.copy(alpha = a), Offset(cx, cy), Size(cell - 1f, cell - 1f))
+                        if (a > 0.03f) drawRect(if (v > 0.5f) PlayA.copy(alpha = a) else PlayB.copy(alpha = a), Offset(cx, cy), Size(cell - 1f, cell - 1f))
                     }
                     cx += cell; i++
                 }
@@ -380,7 +387,7 @@ fun PlayGlow(playing: Boolean, modifier: Modifier = Modifier, content: @Composab
             }
             drawContent()
             // Turning gradient rim.
-            val rim = Brush.sweepGradient(listOf(Cyan, Violet, WheelTip, Cyan), center = c)
+            val rim = Brush.sweepGradient(listOf(PlayA, PlayB, PlayTip, PlayA), center = c)
             rotate(phase * 360f, c) { drawCircle(rim, radius = r - 1.dp.toPx(), center = c, style = Stroke((1.6f + 1.6f * e).dp.toPx()), alpha = 0.75f + 0.25f * e) }
             // Sparkles.
             for (k in 0 until 5) {
@@ -391,4 +398,22 @@ fun PlayGlow(playing: Boolean, modifier: Modifier = Modifier, content: @Composab
         },
         contentAlignment = androidx.compose.ui.Alignment.Center,
     ) { content() }
+}
+
+/** The Play button effect switch and its own colour (in gear → Layout & look and gear → Playback). */
+@Composable
+fun PlayFxSettings() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(Unit) { PlayFx.load(ctx); com.dronedirector.veyrocutpro.ui.CursorStyle.load(ctx) }
+    androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
+            com.dronedirector.veyrocutpro.ui.Text("Play button effect", color = Color.White, fontSize = 15.sp)
+            com.dronedirector.veyrocutpro.ui.Text("On: the Play button under the picture has the scroll wheels' animated look (turning rim, sparkles while playing) in its own colour. Off: the plain amber button, no animation.", color = Pro.Dim, fontSize = 12.sp)
+        }
+        androidx.compose.material3.Switch(PlayFx.on, { PlayFx.set(ctx, it) }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
+    }
+    if (PlayFx.on) {
+        com.dronedirector.veyrocutpro.ui.Text("Play button colour (apart from the scroll wheels)", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+        com.dronedirector.veyrocutpro.ui.Swatches(com.dronedirector.veyrocutpro.ui.CursorStyle.play) { com.dronedirector.veyrocutpro.ui.CursorStyle.setPlay(ctx, it) }
+    }
 }

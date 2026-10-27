@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: the buttons under the picture no longer flicker while you scroll the row.
 
 ## 1.0.620 — 2026-10-27
 - The sweeping scan line is gone from the scroll wheels and the Play button; their other effects stay.

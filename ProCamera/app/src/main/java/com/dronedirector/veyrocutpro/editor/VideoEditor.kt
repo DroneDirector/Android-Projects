@@ -3834,20 +3834,20 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     // The whole button row scrolls sideways (with the hint arrows) whenever it is wider
                     // than the screen. Which buttons it shows is chosen with its + button. Play sits in the
                     // middle of the playback buttons and starts centred under the picture.
-                    BoxWithConstraints(Modifier.fillMaxWidth().onGloballyPositioned { c -> wf.bar.barAt = c.positionInRoot().x }) {
+                    BoxWithConstraints(Modifier.fillMaxWidth().onGloballyPositioned { c -> wf.bar.onBar(c) }) {
                         val barPx = constraints.maxWidth.toFloat()
                         val bc = wf.bar
                         val lead = (barPx / 2f - bc.playX).coerceAtLeast(0f)
                         val trail = (barPx / 2f - (bc.rowW - bc.playX)).coerceAtLeast(0f)
                         val dens = androidx.compose.ui.platform.LocalDensity.current
                         // Until you scroll the row yourself, it keeps Play in the middle (also after the layout settles or turns).
-                        LaunchedEffect(barPx, bc.playX, bc.rowW) { bc.centre(barPx) }
+                        LaunchedEffect(barPx, bc.playX, bc.rowW) { bc.centre() }
                         LaunchedEffect(Unit) { androidx.compose.runtime.snapshotFlow { bc.scroll.isScrollInProgress }.collect { if (it && !bc.auto) bc.touched = true } }
                         Row(Modifier.hintedScroll(horizontal = true, scroll = bc.scroll), verticalAlignment = Alignment.CenterVertically) {
                             @Composable fun b(id: String, content: @Composable () -> Unit) { if (TransportBar.shown(id)) content() }
                             androidx.compose.foundation.layout.Spacer(Modifier.width(with(dens) { lead.toDp() }))
                             Row(
-                                Modifier.onGloballyPositioned { c -> bc.rowAt = c.positionInRoot().x; bc.rowW = c.size.width.toFloat() },
+                                Modifier.onGloballyPositioned { c -> bc.onRow(c) },
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -3885,7 +3885,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     b("goin") { TransportIcon(BarIcons.goIn, "Go to in point") { seekGlobal(es.deliver.rangeStart ?: 0L) } }
                                     b("prev") { TransportIcon(Icons.Filled.SkipPrevious, "Previous clip") { prevClip() } }
                                     b("frameback") { TransportIcon(BarIcons.frameBack, "Step back one frame") { stepFrame(-1) } }
-                                    b("play") { Box(Modifier.onGloballyPositioned { c -> wf.bar.playAt = c.positionInRoot().x + c.size.width / 2f }) { PlayGlow(es.playing) { TransportIcon(if (es.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Color.White, accent = !PlayFx.on, size = 46.dp, iconSize = 30.dp) { togglePlay() } } } }
+                                    b("play") { Box(Modifier.onGloballyPositioned { c -> wf.bar.onPlay(c) }) { PlayGlow(es.playing) { TransportIcon(if (es.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Color.White, accent = !PlayFx.on, size = 46.dp, iconSize = 30.dp) { togglePlay() } } } }
                                     b("framefwd") { TransportIcon(BarIcons.frameFwd, "Step forward one frame") { stepFrame(1) } }
                                     b("next") { TransportIcon(Icons.Filled.SkipNext, "Next clip") { nextClip() } }
                                     b("goout") { TransportIcon(BarIcons.goOut, "Go to out point") { seekGlobal(((es.deliver.rangeEnd ?: timelineLength(clips)) - 1).coerceAtLeast(0L)) } }

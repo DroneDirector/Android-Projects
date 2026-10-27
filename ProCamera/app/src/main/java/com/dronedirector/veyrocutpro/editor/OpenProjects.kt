@@ -74,24 +74,43 @@ class WsFile {
 
 class BarCentre {
     val scroll = androidx.compose.foundation.ScrollState(0)
-    var rowAt by mutableStateOf(0f)
+    // Layout positions (not state: scrolling moves them every frame and must not re-lay the row).
+    private var bar: androidx.compose.ui.layout.LayoutCoordinates? = null
+    private var row: androidx.compose.ui.layout.LayoutCoordinates? = null
+    private var play: androidx.compose.ui.layout.LayoutCoordinates? = null
+    /** Play's middle from the start of the buttons, and the buttons' width (−1 until laid out). They don't change with scrolling. */
+    var playX by mutableStateOf(-1f)
+        private set
     var rowW by mutableStateOf(0f)
-    var playAt by mutableStateOf(-1f)
-    /** Where the bar starts on screen. */
-    var barAt by mutableStateOf(0f)
-    /** Play's middle from the start of the buttons (−1 until laid out). */
-    val playX: Float get() = if (playAt < 0f) -1f else playAt - rowAt
+        private set
     /** The row was scrolled by hand (then it stays where it was put). */
     var touched = false
     var auto = false
 
-    /** Scrolls so Play sits in the middle of a bar [barPx] wide. */
-    suspend fun centre(barPx: Float) {
-        if (touched || playX < 0f || barPx <= 0f) return
+    fun onBar(c: androidx.compose.ui.layout.LayoutCoordinates) { bar = c }
+    fun onRow(c: androidx.compose.ui.layout.LayoutCoordinates) {
+        row = c
+        val w = c.size.width.toFloat()
+        if (kotlin.math.abs(w - rowW) > 1f) rowW = w
+        measure()
+    }
+    fun onPlay(c: androidx.compose.ui.layout.LayoutCoordinates) { play = c; measure() }
+    private fun measure() {
+        val r = row ?: return; val p = play ?: return
+        if (!r.isAttached || !p.isAttached) return
+        val x = r.localPositionOf(p, androidx.compose.ui.geometry.Offset.Zero).x + p.size.width / 2f
+        if (kotlin.math.abs(x - playX) > 1f) playX = x
+    }
+
+    /** Scrolls so Play sits in the middle of the bar. */
+    suspend fun centre() {
+        if (touched || playX < 0f) return
         // Wait until the spacers around the buttons are laid out.
         repeat(3) { androidx.compose.runtime.withFrameNanos { } }
+        val b = bar ?: return; val p = play ?: return
+        if (!b.isAttached || !p.isAttached) return
         // How far Play is from the middle of the bar on screen now.
-        val off = playAt - (barAt + barPx / 2f)
+        val off = b.localPositionOf(p, androidx.compose.ui.geometry.Offset.Zero).x + p.size.width / 2f - b.size.width / 2f
         val target = (scroll.value + off).toInt().coerceIn(0, scroll.maxValue.coerceAtLeast(0))
         auto = true
         try { scroll.scrollTo(target) } finally { auto = false }

@@ -46,6 +46,52 @@
       el.parentElement.addEventListener("mouseleave", function () { el.style.setProperty("--ry", "0deg"); el.style.setProperty("--rx", "0deg"); });
     });
 
+    /* ---------------- hero carousel: the three screens swap places (tap a side one, swipe, arrows, keys) */
+    $$(".acs-hero__stage").forEach(function (stage) {
+      var POS = ["acs-hero__p--a", "acs-hero__p--b", "acs-hero__p--c"];
+      var order = POS.map(function (c) { return stage.querySelector("." + c); });
+      if (order.some(function (e) { return !e; })) return;
+      var all = order.slice();
+      var dots = document.createElement("div"); dots.className = "acs-hero__dots";
+      all.forEach(function (el, i) {
+        var d = document.createElement("button"); d.type = "button"; d.setAttribute("aria-label", "Show screen " + (i + 1));
+        d.addEventListener("click", function () { while (order[1] !== el) step(1); });
+        dots.appendChild(d);
+      });
+      function apply() {
+        order.forEach(function (el, i) { POS.forEach(function (c) { el.classList.remove(c); }); el.classList.add(POS[i]); });
+        Array.prototype.forEach.call(dots.children, function (d, i) { d.classList.toggle("is-on", order[1] === all[i]); });
+      }
+      // dir 1 = the right screen comes to the middle; -1 = the left one.
+      function step(dir) { order = dir > 0 ? [order[1], order[2], order[0]] : [order[2], order[0], order[1]]; apply(); }
+      function arrow(cls, dir, path, label) {
+        var b = document.createElement("button"); b.type = "button"; b.className = "acs-hero__nav " + cls; b.setAttribute("aria-label", label);
+        b.innerHTML = '<svg viewBox="0 0 24 24"><path d="' + path + '"/></svg>';
+        b.addEventListener("click", function (e) { e.stopPropagation(); step(dir); });
+        return b;
+      }
+      stage.appendChild(arrow("acs-hero__nav--prev", -1, "M15 5l-7 7 7 7", "Previous screen"));
+      stage.appendChild(arrow("acs-hero__nav--next", 1, "M9 5l7 7-7 7", "Next screen"));
+      stage.appendChild(dots);
+      all.forEach(function (el) {
+        el.addEventListener("click", function () { if (el === order[0]) step(-1); else if (el === order[2]) step(1); });
+      });
+      var sx = 0, sy = 0;
+      stage.addEventListener("touchstart", function (e) { var t = e.touches[0]; sx = t.clientX; sy = t.clientY; }, { passive: true });
+      stage.addEventListener("touchend", function (e) {
+        var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.3) step(dx < 0 ? 1 : -1);
+      }, { passive: true });
+      document.addEventListener("keydown", function (e) {
+        var r = stage.getBoundingClientRect();
+        if (r.bottom < 0 || r.top > window.innerHeight) return;
+        if (e.target && /input|textarea/i.test(e.target.tagName)) return;
+        if (e.key === "ArrowRight") step(1); else if (e.key === "ArrowLeft") step(-1);
+      });
+      stage.removeAttribute("aria-hidden");
+      apply();
+    });
+
     /* ---------------- glow that follows the mouse on cards */
     $$("[data-glow]").forEach(function (el) {
       el.addEventListener("mousemove", function (e) {

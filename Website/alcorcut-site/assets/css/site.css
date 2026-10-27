@@ -119,10 +119,21 @@ body.elementor-editor-active .acs-nav { position: relative; }
 .acs-chips li:first-child { color: #8fe08a; border-color: rgba(143, 224, 138, .45); }
 .acs-hero__stage { position: relative; width: 100%; height: clamp(300px, 48vw, 680px); perspective: 2000px; --rx: 0deg; --ry: 0deg; margin-top: 10px; }
 .acs-hero__stage > .acs-device, .acs-hero__ring { position: absolute; left: 50%; top: 50%; }
-.acs-hero__p { transition: transform 1.2s var(--acs-ease); }
-.acs-hero__p--b { --w: min(880px, 72vw); z-index: 3; transform: translate(-50%, -50%) rotateX(calc(var(--rx) + 8deg)) rotateY(var(--ry)) translateZ(40px); animation: acs-float 7s ease-in-out infinite; }
-.acs-hero__p--a { --w: min(620px, 50vw); z-index: 2; transform: translate(-108%, -60%) rotateX(calc(var(--rx) + 6deg)) rotateY(calc(var(--ry) + 28deg)) scale(.92); opacity: .75; filter: saturate(.85) brightness(.8); animation: acs-float 8s ease-in-out -2s infinite; }
-.acs-hero__p--c { --w: min(620px, 50vw); z-index: 1; transform: translate(8%, -60%) rotateX(calc(var(--rx) + 6deg)) rotateY(calc(var(--ry) - 28deg)) scale(.92); opacity: .75; filter: saturate(.85) brightness(.8); animation: acs-float 9s ease-in-out -4s infinite; }
+/* Carousel: all three are the same size; the sides are scaled down and turned. Switching moves them smoothly,
+   while each keeps its gentle up-and-down float (the float uses "translate", separate from "transform"). */
+.acs-hero__p { --w: min(880px, 72vw); transition: transform 1s var(--acs-ease), opacity 1s var(--acs-ease), filter 1s var(--acs-ease); cursor: pointer; }
+.acs-hero__p--b { z-index: 3; cursor: default; transform: translate(-50%, -50%) rotateX(calc(var(--rx) + 8deg)) rotateY(var(--ry)) translateZ(40px); animation: acs-float 7s ease-in-out infinite; }
+.acs-hero__p--a { z-index: 2; transform: translate(-100%, -56%) rotateX(calc(var(--rx) + 6deg)) rotateY(calc(var(--ry) + 28deg)) scale(.66); opacity: .75; filter: saturate(.85) brightness(.8); animation: acs-float 8s ease-in-out -2s infinite; }
+.acs-hero__p--c { z-index: 1; transform: translate(0%, -56%) rotateX(calc(var(--rx) + 6deg)) rotateY(calc(var(--ry) - 28deg)) scale(.66); opacity: .75; filter: saturate(.85) brightness(.8); animation: acs-float 9s ease-in-out -4s infinite; }
+.acs-hero__p--a:hover, .acs-hero__p--c:hover { opacity: .95; filter: saturate(1) brightness(.95); }
+.acs-hero__nav { position: absolute; top: 50%; z-index: 5; width: 44px; height: 44px; margin-top: -22px; border-radius: 50%; border: 1px solid var(--acs-line2); background: rgba(12, 13, 16, .7); color: var(--acs-text); display: grid; place-items: center; cursor: pointer; backdrop-filter: blur(8px); transition: border-color .3s, color .3s, box-shadow .3s; }
+.acs-hero__nav:hover { border-color: var(--acs-amber); color: var(--acs-amber); box-shadow: 0 0 22px rgba(242, 181, 68, .3); }
+.acs-hero__nav--prev { left: max(12px, calc(50% - 600px)); }
+.acs-hero__nav--next { right: max(12px, calc(50% - 600px)); }
+.acs-hero__nav svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.acs-hero__dots { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); z-index: 5; display: flex; gap: 8px; }
+.acs-hero__dots button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 50%; background: var(--acs-line2); cursor: pointer; transition: background .3s, width .3s; }
+.acs-hero__dots button.is-on { width: 22px; border-radius: 4px; background: var(--acs-amber); }
 .acs-hero__ring { width: 90%; aspect-ratio: 1; transform: translate(-50%, -50%) rotateX(78deg); border-radius: 50%; border: 1px solid rgba(242, 181, 68, .35); box-shadow: 0 0 60px rgba(242, 181, 68, .25), inset 0 0 80px rgba(242, 181, 68, .12); z-index: 0; animation: acs-spin 30s linear infinite; }
 @keyframes acs-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -14px; } }
 @keyframes acs-spin { to { transform: translate(-50%, -50%) rotateX(78deg) rotateZ(360deg); } }
@@ -321,8 +332,11 @@ html.acs-ptr, html.acs-ptr * { cursor: none !important; }
   .acs-nav__menu { display: block; margin-left: auto; }
   .acs-nav__badge { display: none; }
   .acs-hero { padding-top: 110px; }
-  .acs-hero__p--b { --w: 88vw; }
-  .acs-hero__p--a, .acs-hero__p--c { display: none; }
+  .acs-hero__p { --w: 86vw; }
+  /* Phones: the side screens peek in at the edges — swipe or tap them. */
+  .acs-hero__p--a { transform: translate(-118%, -52%) rotateY(28deg) scale(.6); opacity: .55; }
+  .acs-hero__p--c { transform: translate(18%, -52%) rotateY(-28deg) scale(.6); opacity: .55; }
+  .acs-hero__nav { display: none; }
   .acs-hero__stage { height: 62vw; }
   .acs-trio__in, .acs-cards__grid { grid-template-columns: 1fr; }
   .acs-head--row { flex-direction: column; align-items: start; }

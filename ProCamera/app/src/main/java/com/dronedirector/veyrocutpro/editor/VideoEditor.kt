@@ -972,6 +972,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             texViews[pi]?.let { if (es.effectsOk) GradePreview.apply(it, adjOf(c), 0f, ClipPreviewFx.extra(context, it, pvc(c), c.startMs + startMs)) else GradePreview.clear(it) }
             // Film / lens / deflicker need the frame itself: they run in the player (only when used).
             val ff = if (es.effectsOk) liveEffects(c) else emptyList()
+            android.util.Log.i("FxTest", "prepare: ${ff.size} player effects")
             if (ff.isNotEmpty() || filmOn[pi]) {
                 try { p.setVideoEffects(ff); filmOn[pi] = ff.isNotEmpty(); filmShown[pi] = liveKey(c) } catch (_: Throwable) { filmOn[pi] = false }
             }
@@ -1158,6 +1159,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     LaunchedEffect(Unit) {
         for (c in gradeReq) {
             if (gpuGrade) {
+                android.util.Log.i("FxTest", "grade update: ok=${es.effectsOk} loaded=${c.id == es.loadedId} want=${liveKey(c) != null} shown=${filmShown[deck.active] != null} on=${filmOn[deck.active]}")
                 if (es.effectsOk && c.id == es.loadedId) {
                     texViews[deck.active]?.let { GradePreview.apply(it, adjOf(c), 0f, ClipPreviewFx.extra(context, it, pvc(c), c.startMs + deck.cur.currentPosition)) }
                     val a = deck.active
@@ -1170,6 +1172,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         es.fxJob = layerScope.launch {
                             delay(300)
                             val cc = clips.getOrNull(es.current)
+                            android.util.Log.i("FxTest", "reloading the clip with new effects: ${cc?.id == es.loadedId}")
                             if (cc != null && cc.id == es.loadedId) prepareOn(deck.cur, cc, deck.cur.currentPosition, deck.cur.playWhenReady)
                         }
                     }

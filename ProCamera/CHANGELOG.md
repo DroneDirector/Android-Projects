@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: Clarity, Texture and Image detail now show in the preview while you drag them (Android 13 and newer), not only in the export.
 
 ## 1.0.630 — 2026-10-27
 - Color → Curves → HUE CURVES (photo and video editors): Hue vs Hue, Hue vs Sat, Hue vs Bright and Bright vs Sat — drag a colour's point up or down (e.g. orange leaves → red, only the greens less saturated, a darker blue sky, less colour in the shadows); double-tap a point to reset it.

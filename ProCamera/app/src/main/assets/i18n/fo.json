@@ -3842,5 +3842,6 @@
 "📍 Geotag from GPX": "📍 Geomerk úr GPX",
 "Geotag from GPX": "Geomerk úr GPX",
 "GEOTAG": "GEOMERK",
-"Photos' time zone (UTC ±h)": "Tíðarøki hjá myndunum (UTC ±t)"
+"Photos' time zone (UTC ±h)": "Tíðarøki hjá myndunum (UTC ±t)",
+"Video editor: Clarity, Texture and Image detail now show in the preview while you drag them (Android 13 and newer), not only in the export.": "Videoklipping: Klárleiki, Tekstur og Myndasmálutir síggjast nú í forsýningini, meðan tú dregur í teimum (Android 13 og nýggjari), ikki bert í útflutninginum."
 }

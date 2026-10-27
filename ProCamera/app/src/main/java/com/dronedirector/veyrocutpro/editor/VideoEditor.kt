@@ -279,8 +279,13 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
                 val c = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) }
                 android.util.Log.i("FxTest", "clip loaded: ${c?.width}x${c?.height}")
                 if (c == null) return@launch
-                clips.add(c.copy(detail = c.detail.copy(clarity = amt, texture = amt)))
+                clips.add(c)
                 started = true
+                // Like moving the sliders: the clip is already showing, then clarity and texture change.
+                delay(8000)
+                val i = clips.indexOfFirst { it.id == c.id }
+                if (i >= 0) clips[i] = clips[i].copy(detail = clips[i].detail.copy(clarity = amt, texture = amt))
+                android.util.Log.i("FxTest", "clarity / texture set to $amt on the open clip")
             }
         }
     }

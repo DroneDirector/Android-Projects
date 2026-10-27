@@ -46,6 +46,45 @@
       el.parentElement.addEventListener("mouseleave", function () { el.style.setProperty("--ry", "0deg"); el.style.setProperty("--rx", "0deg"); });
     });
 
+    /* ---------------- full-size screenshot: grows smoothly out of the device, shrinks back when closed */
+    function openShot(src) {
+      if (document.querySelector(".acs-lb")) return;
+      var r0 = src.getBoundingClientRect();
+      var lb = document.createElement("div"); lb.className = "acs-lb";
+      lb.innerHTML = '<button type="button" class="acs-lb__x" aria-label="Close">&times;</button>';
+      var img = new Image(); img.className = "acs-lb__img"; img.alt = src.alt || ""; img.src = src.currentSrc || src.src;
+      img.decoding = "async";
+      lb.appendChild(img); document.body.appendChild(lb);
+      document.documentElement.classList.add("acs-lb-open");
+      function place(r, radius) {
+        img.style.left = r.left + "px"; img.style.top = r.top + "px";
+        img.style.width = r.width + "px"; img.style.height = r.height + "px"; img.style.borderRadius = radius;
+      }
+      function target() {
+        var nw = img.naturalWidth || r0.width, nh = img.naturalHeight || r0.height;
+        var k = Math.min(window.innerWidth * 0.94 / nw, window.innerHeight * 0.88 / nh, 1.6);
+        var w = nw * k, h = nh * k;
+        return { left: (window.innerWidth - w) / 2, top: (window.innerHeight - h) / 2, width: w, height: h };
+      }
+      place(r0, "12px");
+      var go = function () {
+        requestAnimationFrame(function () { requestAnimationFrame(function () { lb.classList.add("is-open"); place(target(), "14px"); }); });
+      };
+      if (img.complete) go(); else { img.onload = go; img.onerror = go; }
+      var closing = false;
+      function close() {
+        if (closing) return; closing = true;
+        lb.classList.remove("is-open"); lb.classList.add("is-closing");
+        place(src.getBoundingClientRect(), "12px");
+        setTimeout(function () { lb.remove(); document.documentElement.classList.remove("acs-lb-open"); }, 560);
+        document.removeEventListener("keydown", key); window.removeEventListener("resize", fit);
+      }
+      function key(e) { if (e.key === "Escape") close(); }
+      function fit() { if (!closing) place(target(), "14px"); }
+      lb.addEventListener("click", close);
+      document.addEventListener("keydown", key); window.addEventListener("resize", fit);
+    }
+
     /* ---------------- hero carousel: the three screens swap places (tap a side one, swipe, arrows, keys) */
     $$(".acs-hero__stage").forEach(function (stage) {
       var POS = ["acs-hero__p--a", "acs-hero__p--b", "acs-hero__p--c"];
@@ -74,7 +113,10 @@
       stage.appendChild(arrow("acs-hero__nav--next", 1, "M9 5l7 7-7 7", "Next screen"));
       stage.appendChild(dots);
       all.forEach(function (el) {
-        el.addEventListener("click", function () { if (el === order[0]) step(-1); else if (el === order[2]) step(1); });
+        el.addEventListener("click", function () {
+          if (el === order[0]) step(-1); else if (el === order[2]) step(1);
+          else { var im = el.querySelector("img"); if (im) openShot(im); }
+        });
       });
       var sx = 0, sy = 0;
       stage.addEventListener("touchstart", function (e) { var t = e.touches[0]; sx = t.clientX; sy = t.clientY; }, { passive: true });

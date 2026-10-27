@@ -6403,13 +6403,14 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
             }
             FxLayers.VIS -> {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
-                    FxLayers.VIS_STYLES.forEachIndexed { i, n -> PillChip(n, (l.fxB ?: 0f).toInt() == i) { onUpdate(l.copy(fxB = i.toFloat(), y = if (i == 3) 0.5f else if ((l.fxB ?: 0f).toInt() == 3) 0.84f else l.y, size = if (i == 3) 0.2f else if ((l.fxB ?: 0f).toInt() == 3) 0.22f else l.size)) } }
+                    FxLayers.VIS_STYLES.forEachIndexed { i, n -> PillChip(n, (l.fxB ?: 0f).toInt() == i) { val wasRound = FxLayers.visRound((l.fxB ?: 0f).toInt()); val round = FxLayers.visRound(i)
+                        onUpdate(l.copy(fxB = i.toFloat(), y = if (round && !wasRound) 0.5f else if (!round && wasRound) 0.84f else l.y, size = if (round && !wasRound) 0.25f else if (!round && wasRound) 0.22f else l.size)) } }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
                     FxLayers.VIS_COLOURS.forEachIndexed { i, n -> PillChip(n, (l.fxC ?: 0f).toInt() == i) { onUpdate(l.copy(fxC = i.toFloat())) } }
                 }
-                if ((l.fxB ?: 0f).toInt() != 3) EdSlider("Width", (l.fxA ?: 0.9f) * 100f, 20f..100f, 90f, { "%.0f%%".format(it) }) { onUpdate(l.copy(fxA = it / 100f)) }
-                EdSlider("Height", l.size * 100f, 5f..60f, 22f, { "%.0f%%".format(it) }) { onUpdate(l.copy(size = it / 100f)) }
+                if (!FxLayers.visRound((l.fxB ?: 0f).toInt())) EdSlider("Width", (l.fxA ?: 0.9f) * 100f, 20f..100f, 90f, { "%.0f%%".format(it) }) { onUpdate(l.copy(fxA = it / 100f)) }
+                EdSlider(if (FxLayers.visRound((l.fxB ?: 0f).toInt())) "Size" else "Height", l.size * 100f, 5f..100f, 22f, { "%.0f%%".format(it) }) { onUpdate(l.copy(size = it / 100f)) }
                 Text("Moves with the music's own frequencies and pulses on every beat (kick drum), worked out from the sound itself — so it's in sync in the preview and the export. Uses the music track, or the selected clip's sound when there's no music. Drag it into place.", color = Pro.Dim, fontSize = 11.sp)
             }
             FxLayers.TIMER -> {
@@ -6479,7 +6480,7 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
     }
     // With keyframes, the controls show (and edit) the layer as it is at the playhead.
     val la = l.animAt(playheadMs)
-    EdSlider("Size", la.size, 0.02f..(if (l.isMedia) 1f else 0.4f), 0.07f, ::pct) { onUpdate(la.copy(size = it)) }
+    EdSlider("Size", la.size, 0.02f..(if (l.isMedia || l.kind == LayerKind.FX) 1f else 0.4f), 0.07f, ::pct) { onUpdate(la.copy(size = it)) }
     EdSlider("Opacity", la.opacity, 0.05f..1f, 1f, ::pct) { onUpdate(la.copy(opacity = it)) }
     if (l.kind != LayerKind.ADJUST) {
     SectionTitle("POSITION")

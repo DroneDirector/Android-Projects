@@ -23,7 +23,9 @@ object FxLayers {
     const val FLARE = 3
     const val TIMER = 4
     const val VIS = 5
-    val VIS_STYLES = listOf("Spectrum bars", "Mirror bars", "Glow line", "Circular", "Waveform")
+    val VIS_STYLES = listOf("Spectrum bars", "Mirror bars", "Glow line", "Circular", "Waveform", "LED equalizer", "Radial wave", "Sound rings", "Particles", "Bass orb")
+    /** Visualizer styles drawn in a square around a centre. */
+    fun visRound(style: Int) = style == 3 || style in 6..9
     val VIS_COLOURS = listOf("Layer colour", "Scroll wheel colours", "Rainbow")
 
     val BAR_SHAPES = listOf("2.39:1" to 2.39f, "2.35:1" to 2.35f, "2:1" to 2f, "1.85:1" to 1.85f, "2.76:1" to 2.76f)
@@ -31,7 +33,7 @@ object FxLayers {
     private const val STEP_MS = 40L
 
     fun label(l: Layer): String = when (l.fx) { BARS -> "Cinema bars"; MAP -> "Flight path"; PROGRESS -> "Progress bar"; TIMER -> "Countdown"; VIS -> "Visualizer"; else -> "Lens flare" }
-    val TIMER_STYLES = listOf("Ring", "Glowing ring", "Scroll wheel colours", "Solid disc")
+    val TIMER_STYLES = listOf("Ring", "Glowing ring", "Scroll wheel colours", "Solid disc", "Big numbers")
 
     /** Full-frame overlays sit still in the middle (they're not dragged; change them in the layer's settings). */
     fun fullFrame(l: Layer) = l.kind == LayerKind.FX && l.fx != MAP && l.fx != PROGRESS && l.fx != TIMER && l.fx != VIS
@@ -231,10 +233,14 @@ object FxLayers {
         val oval = RectF(cx - rr, cy - rr, cx + rr, cy + rr)
         val wc = com.dronedirector.veyrocutpro.ui.CursorStyle.wheel
         fun argb(cc: androidx.compose.ui.graphics.Color, a: Float = 1f) = android.graphics.Color.argb((a * 255).toInt().coerceIn(0, 255), (cc.red * 255).toInt(), (cc.green * 255).toInt(), (cc.blue * 255).toInt())
-        // Background disc so the numbers read on any picture.
-        c.drawCircle(cx, cy, rr + sw * 0.5f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = if (style == 3) col else 0x8C000000.toInt() })
+        // Background disc so the numbers read on any picture (none for big numbers).
+        if (style != 4) c.drawCircle(cx, cy, rr + sw * 0.5f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = if (style == 3) col else 0x8C000000.toInt() })
         val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.style = Paint.Style.STROKE; strokeWidth = sw; strokeCap = Paint.Cap.ROUND }
-        if (style != 3) {
+        if (style == 4) {
+            // Big numbers: a thin arc behind large glowing digits.
+            ring.strokeWidth = sw * 0.35f; ring.color = 0x30FFFFFF; c.drawArc(oval, 0f, 360f, false, ring)
+            ring.color = col; if (k > 0f) c.drawArc(oval, -90f, 360f * k, false, ring)
+        } else if (style != 3) {
             ring.color = 0x40FFFFFF; c.drawArc(oval, 0f, 360f, false, ring)
             val sweep = 360f * k
             if (style == 2) {
@@ -259,7 +265,8 @@ object FxLayers {
         val txt = if ((l.fxY ?: 0f) == 1f || sec >= 60) "%d:%02d".format(sec / 60, sec % 60) else sec.toString()
         val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = if (style == 3) 0xFF000000.toInt() else 0xFFFFFFFF.toInt(); textAlign = Paint.Align.CENTER; isFakeBoldText = true
-            textSize = rr * (if (txt.length <= 2) 0.95f else if (txt.length <= 4) 0.62f else 0.5f)
+            textSize = rr * (if (txt.length <= 2) 0.95f else if (txt.length <= 4) 0.62f else 0.5f) * (if (style == 4) 1.45f else 1f)
+            if (style == 4) setShadowLayer(rr * 0.12f, 0f, 0f, col)
         }
         // A short pulse on each new second.
         val pulse = 1f + 0.08f * (1f - ((el % 1000) / 250f).coerceIn(0f, 1f)) * (if (ms < 0) 0f else 1f)
@@ -278,8 +285,8 @@ object FxLayers {
         val uri = l.imageUri ?: return null
         val data = Spectrum.cached(uri) ?: context?.let { Spectrum.load(it, uri) }
         val style = (l.fxB ?: 0f).toInt()
-        val round = style == 3
-        val bw = if (round) (l.size * fh * 2f).toInt().coerceAtLeast(64) else (fw * (l.fxA ?: 0.9f)).toInt().coerceAtLeast(64)
+        val round = visRound(style)
+        val bw = if (round) (l.size * fh * 2f).coerceAtMost(max(fw, fh).toFloat()).toInt().coerceAtLeast(64) else (fw * (l.fxA ?: 0.9f)).toInt().coerceAtLeast(64)
         val bh = if (round) bw else (l.size * fh).toInt().coerceAtLeast(24)
         val out = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888)
         val c = Canvas(out)
@@ -396,6 +403,98 @@ object FxLayers {
                 // Inner ring and beat flash.
                 c.drawCircle(cx, cy, base * 0.92f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.style = Paint.Style.STROKE; strokeWidth = maxOf(2f, bw * 0.008f); color = colourAt(0.5f) })
                 c.drawCircle(cx, cy, base * 0.9f, Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = RadialGradient(cx, cy, base * 0.9f, intArrayOf((colourAt(0f) and 0x00FFFFFF) or ((40 + 120 * beat).toInt().coerceAtMost(200) shl 24), 0), null, Shader.TileMode.CLAMP) })
+            }
+            5 -> { // LED equalizer: lit segments like a hi-fi display, with a held peak segment.
+                val cols = 28; val segs = 18
+                val gx = bw / cols.toFloat(); val gy = bh / segs.toFloat()
+                val seg = Paint(Paint.ANTI_ALIAS_FLAG)
+                for (i in 0 until cols) {
+                    val lit = (level(i, cols) * (1f + 0.1f * beat) * segs).toInt().coerceIn(1, segs)
+                    val pkSeg = (pk(i, cols) * segs).toInt().coerceIn(1, segs)
+                    for (j in 0 until segs) {
+                        val y1 = bh - j * gy; val y0 = y1 - gy * 0.72f
+                        val x0 = i * gx + gx * 0.12f; val x1 = (i + 1) * gx - gx * 0.12f
+                        val f = j / (segs - 1f)
+                        val cc = if (mode == 0 && l.color == 0xFFFFB300.toInt()) when { f < 0.6f -> 0xFF34C759.toInt(); f < 0.85f -> 0xFFFFD60A.toInt(); else -> 0xFFFF3B30.toInt() } else colourAt(f)
+                        when {
+                            j < lit -> { glow.color = cc; glow.alpha = (70 + 110 * beat).toInt().coerceAtMost(200); c.drawRect(x0, y0, x1, y1, glow); seg.color = cc; c.drawRect(x0, y0, x1, y1, seg) }
+                            j == pkSeg - 1 -> { seg.color = 0xEEFFFFFF.toInt(); c.drawRect(x0, y0, x1, y1, seg) }
+                            else -> { seg.color = (cc and 0x00FFFFFF) or 0x1E000000; c.drawRect(x0, y0, x1, y1, seg) }
+                        }
+                    }
+                }
+            }
+            6 -> { // Radial wave: a glowing closed wave round a circle, turning slowly.
+                val cx = bw / 2f; val cy = bh / 2f
+                val base = bw * 0.26f * (1f + 0.08f * beat)
+                val amp = bw * 0.2f
+                val n = 120
+                val rot = (songMs / 9000f) * 2f * Math.PI.toFloat()
+                val path = Path()
+                fun rad(i: Int): Float { val f = if (i < n / 2) i / (n / 2f) else (n - i) / (n / 2f); return base + amp * (0.05f + 0.95f * level((f * 47).toInt(), 48)) }
+                for (i in 0..n) {
+                    val a = rot + i.toFloat() / n * 2f * Math.PI.toFloat()
+                    val r = rad(i % n)
+                    val x = cx + r * kotlin.math.cos(a); val y = cy + r * kotlin.math.sin(a)
+                    if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                }
+                path.close()
+                val sweep = android.graphics.SweepGradient(cx, cy, IntArray(7) { colourAt(if (it <= 3) it / 3f else (6 - it) / 3f) }, null)
+                c.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = sweep; alpha = (50 + 70 * beat).toInt() })
+                val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.style = Paint.Style.STROKE; strokeWidth = maxOf(2f, bw * 0.01f); strokeJoin = Paint.Join.ROUND; shader = sweep }
+                c.drawPath(path, Paint(line).apply { strokeWidth = line.strokeWidth * (4f + 3f * beat); maskFilter = android.graphics.BlurMaskFilter(maxOf(6f, bw * 0.025f), android.graphics.BlurMaskFilter.Blur.NORMAL) })
+                c.drawPath(path, line)
+                c.drawCircle(cx, cy, base * 0.85f, Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = RadialGradient(cx, cy, base * 0.85f, intArrayOf((colourAt(0f) and 0x00FFFFFF) or ((30 + 140 * beat).toInt().coerceAtMost(200) shl 24), 0), null, Shader.TileMode.CLAMP) })
+            }
+            7 -> { // Sound rings: bass, mids and highs as glowing rings that swell and brighten.
+                val cx = bw / 2f; val cy = bh / 2f
+                fun range(a: Int, b: Int): Float { var sum = 0f; for (k in a until b) sum += v[k]; return sum / (b - a) }
+                val parts = listOf(range(0, 10), range(10, 30), range(30, nb))
+                for ((i, e) in parts.withIndex()) {
+                    val r = bw * (0.14f + 0.12f * i) * (1f + 0.25f * e + (if (i == 0) 0.12f * beat else 0f))
+                    val sw = bw * (0.012f + 0.035f * e)
+                    val cc = colourAt(i / 2f)
+                    val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.style = Paint.Style.STROKE; strokeWidth = sw; color = cc }
+                    c.drawCircle(cx, cy, r, Paint(ring).apply { strokeWidth = sw * 3f; alpha = (60 + 150 * e).toInt().coerceAtMost(220); maskFilter = android.graphics.BlurMaskFilter(maxOf(5f, sw * 2f), android.graphics.BlurMaskFilter.Blur.NORMAL) })
+                    c.drawCircle(cx, cy, r, ring)
+                }
+                // A ripple that runs out on each beat.
+                if (beat > 0.05f) c.drawCircle(cx, cy, bw * (0.48f - 0.22f * beat), Paint(Paint.ANTI_ALIAS_FLAG).apply { this.style = Paint.Style.STROKE; strokeWidth = maxOf(2f, bw * 0.006f); color = colourAt(0f); alpha = (200 * beat).toInt() })
+            }
+            8 -> { // Particles: sparks stream out from a ring, faster and brighter with the music, bursting on beats.
+                val cx = bw / 2f; val cy = bh / 2f
+                var energy = 0f; for (k in 0 until nb) energy += v[k]; energy /= nb
+                val base = bw * 0.16f * (1f + 0.15f * beat)
+                val pp = Paint(Paint.ANTI_ALIAS_FLAG)
+                for (p in 0 until 140) {
+                    val ph = ((songMs / (1400f - 600f * energy)) + hash(p, 1, 0)) % 1f
+                    val a = hash(p, 2, 0) * 2f * Math.PI.toFloat() + (songMs / 12000f)
+                    val band = (hash(p, 3, 0) * nb).toInt().coerceIn(0, nb - 1)
+                    val r = base + ph * bw * 0.34f * (0.5f + v[band] + 0.6f * beat)
+                    val x = cx + r * kotlin.math.cos(a); val y = cy + r * kotlin.math.sin(a)
+                    val sz = bw * 0.006f * (0.6f + 1.4f * v[band]) * (1f - ph * 0.5f)
+                    pp.color = colourAt(band / (nb - 1f)); pp.alpha = ((1f - ph) * (120 + 135 * v[band])).toInt().coerceIn(0, 255)
+                    c.drawCircle(x, y, sz.coerceAtLeast(1.2f), pp)
+                }
+                c.drawCircle(cx, cy, base * 1.6f, Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = RadialGradient(cx, cy, base * 1.6f, intArrayOf((colourAt(0.3f) and 0x00FFFFFF) or ((60 + 150 * beat).toInt().coerceAtMost(230) shl 24), 0), null, Shader.TileMode.CLAMP) })
+                c.drawCircle(cx, cy, base, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.style = Paint.Style.STROKE; strokeWidth = maxOf(2f, bw * 0.008f); color = colourAt(0.5f) })
+            }
+            9 -> { // Bass orb: a glowing sphere that breathes with the bass and throws a ring on every beat.
+                val cx = bw / 2f; val cy = bh / 2f
+                var bass = 0f; for (k in 0 until 10) bass += v[k]; bass /= 10f
+                var high = 0f; for (k in 40 until nb) high += v[k]; high /= (nb - 40)
+                val r = bw * (0.17f + 0.09f * bass + 0.05f * beat)
+                c.drawCircle(cx, cy, r * 2.2f, Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = RadialGradient(cx, cy, r * 2.2f, intArrayOf((colourAt(0f) and 0x00FFFFFF) or ((50 + 150 * bass).toInt().coerceAtMost(220) shl 24), 0), null, Shader.TileMode.CLAMP) })
+                c.drawCircle(cx, cy, r, Paint(Paint.ANTI_ALIAS_FLAG).apply { shader = RadialGradient(cx - r * 0.3f, cy - r * 0.35f, r * 1.3f, intArrayOf(0xFFFFFFFF.toInt(), colourAt(0.3f), colourAt(1f) and 0x00FFFFFF or 0xFF000000.toInt()), floatArrayOf(0f, 0.35f, 1f), Shader.TileMode.CLAMP) })
+                // Shimmer of the highs on the surface.
+                val sp = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xCCFFFFFF.toInt() }
+                for (q in 0 until 24) {
+                    val a = hash(q, 5, (songMs / 120).toInt()) * 2f * Math.PI.toFloat()
+                    val d = r * (0.95f + 0.1f * hash(q, 6, (songMs / 120).toInt()))
+                    sp.alpha = (high * 255 * hash(q, 9, (songMs / 80).toInt())).toInt().coerceIn(0, 255)
+                    c.drawCircle(cx + d * kotlin.math.cos(a), cy + d * kotlin.math.sin(a), maxOf(1.2f, bw * 0.004f), sp)
+                }
+                if (beat > 0.05f) c.drawCircle(cx, cy, r * (1f + 1.2f * (1f - beat)), Paint(Paint.ANTI_ALIAS_FLAG).apply { this.style = Paint.Style.STROKE; strokeWidth = maxOf(2f, bw * 0.01f * beat); color = colourAt(0.6f); alpha = (230 * beat).toInt() })
             }
         }
         return out

@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Visualizer: 5 new styles — LED equalizer, Radial wave, Sound rings, Particles and Bass orb — and it can now be up to full-frame size.
+- Countdown: a Big numbers style, and it can now be up to full-frame size.
 
 ## 1.0.686 — 2026-10-27
 - Progress bar: no selection frame around it in the preview, and the Glowing tip style shows only the line and its glow (no background track).

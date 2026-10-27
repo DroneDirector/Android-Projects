@@ -3963,6 +3963,28 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val timeline = @Composable { com.dronedirector.veyrocutpro.ui.ForceDark {
                 TimelineView(
                     onDeleteClip = { i -> if (es.videoLocked) es.message = "The video track is locked" else es.deleteAsk = i },
+                    pick = wf.pick,
+                    clipMenu = {
+                        ClipMenu(clips, wf.pick, ClipActs(
+                            splitHere = { i -> if (es.current == i) splitAtPlayhead() else es.message = "Move the playhead into this clip to split it" },
+                            duplicate = { list ->
+                                if (es.videoLocked) es.message = "The video track is locked"
+                                else if (list.isNotEmpty()) {
+                                    clips.addAll(list.max() + 1, list.map { clips[it].copy(id = java.util.UUID.randomUUID().toString()) })
+                                    es.message = if (list.size == 1) "Clip duplicated" else "${list.size} clips duplicated"
+                                }
+                            },
+                            speed = { i -> es.selected = i; wf.barDlg = "speed" },
+                            reverse = { i -> reverseClip(i) },
+                            mute = { list -> val on = list.all { clips[it].muted }; list.forEach { k -> update(k) { it.copy(muted = !on) } }; es.message = if (on) "Sound on" else "Sound muted" },
+                            nest = { from, n -> nestClips(from, n) },
+                            delete = { i -> if (es.videoLocked) es.message = "The video track is locked" else es.deleteAsk = i },
+                            deleteMany = { list ->
+                                if (es.videoLocked) es.message = "The video track is locked"
+                                else { list.sortedDescending().forEach { deleteClip(it, false) }; es.message = "${list.size} clips deleted — undo brings them back" }
+                            },
+                        ))
+                    },
                     clips = clips, layers = layers, music = es.music, strips = strips,
                     globalMs = globalMs, selectedClip = es.selected,
                     selectedLayerId = if (es.page == Page.LAYERS) es.selectedLayer else null,

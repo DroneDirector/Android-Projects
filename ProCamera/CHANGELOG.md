@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- **Select multiple** in the photo filmstrip: hold a photo in the filmstrip → Select multiple: tap photos to tick them, hold any photo for the selection's menu (stars, flags, apply the open photo's edit, export, rename, remove), and Deselect all goes back to one photo. Holding a photo also offers Apply the open photo's edit and Export this photo.
+- **Select multiple** on the video timeline: hold the middle of a clip on the timeline for its menu: Select multiple, Split at the playhead, Duplicate, Speed / Duration, Reverse, Mute sound, Delete. While selecting, tap clips to tick them; hold any clip for Deselect all, Select all, Duplicate, Mute, Nest into one clip and Delete selected. The ✕ on the timeline's SELECTED badge also ends it.
 
 ## 1.0.608 — 2026-10-27
 

@@ -66,4 +66,6 @@ class WsFile {
     var showKeys by mutableStateOf(false)
     var barDlg by mutableStateOf<String?>(null)
     var closeAsk by mutableStateOf<Pair<List<OpenProject>, () -> Unit>?>(null)
+    /** Picking several timeline clips, and the clip menu. */
+    val pick = ClipPick()
 }

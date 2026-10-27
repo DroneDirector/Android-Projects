@@ -161,6 +161,9 @@ fun TimelineView(
     onClipTrimDone: (index: Int, before: Clip, edge: Int) -> Unit = { _, _, _ -> },
     /** The bin on the selected clip: delete that clip. */
     onDeleteClip: ((Int) -> Unit)? = null,
+    /** Hold a clip for its menu; picking several clips at once. */
+    pick: ClipPick? = null,
+    clipMenu: (@Composable () -> Unit)? = null,
 ) {
     val density = LocalDensity.current
     val totalMs = timelineLength(clips).coerceAtLeast(1)
@@ -253,6 +256,7 @@ fun TimelineView(
     val curSelectClip by rememberUpdatedState(onSelectClip)
     val curSelectedClip by rememberUpdatedState(selectedClip)
     val curDeleteClip by rememberUpdatedState(onDeleteClip)
+    val curPick by rememberUpdatedState(pick)
     val curSelectLayer by rememberUpdatedState(onSelectLayer)
     val curSelectTransition by rememberUpdatedState(onSelectTransition)
 
@@ -261,6 +265,10 @@ fun TimelineView(
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(tc(headMs), style = Pro.Value.copy(color = accent, fontSize = 13.sp))
             Text(" / ${tc(totalMs)}", style = Pro.Value.copy(color = Pro.Dim, fontSize = 11.sp), modifier = Modifier.weight(1f))
+            if (pick != null && pick.on) Text(
+                "${pick.ids.size} SELECTED  ✕", style = Pro.Label.copy(color = Color.Black, fontSize = 10.sp),
+                modifier = Modifier.padding(end = 4.dp).clip(RoundedCornerShape(50)).background(accent).clickable { pick.clear() }.padding(horizontal = 8.dp, vertical = 4.dp),
+            )
             if (onAddVideoLayer != null) Text(
                 "+ VIDEO", style = Pro.Label.copy(color = Color(0xFF7FA8FF), fontSize = 10.sp),
                 modifier = Modifier.padding(end = 4.dp).clip(RoundedCornerShape(50)).background(Color(0xFF3D7BFF).copy(alpha = 0.18f)).clickable(onClick = onAddVideoLayer).padding(horizontal = 8.dp, vertical = 4.dp),
@@ -412,6 +420,34 @@ fun TimelineView(
                                 return@awaitEachGesture
                             }
                         }
+                        // Hold the middle of a clip: its menu (select multiple, split, duplicate…).
+                        var tapped = false
+                        val pk = curPick
+                        if (pk != null && hitId == null && hitClip < 0 && down.position.y in curClipTop..(curClipTop + clipRow)) {
+                            val ms0 = msAt(down.position.x)
+                            val ci = clipAt(curClips, ms0).first
+                            if (ms0 in 0 until curTotal && ci in curClips.indices) {
+                                var released = false
+                                val heldBody = withTimeoutOrNull(420L) {
+                                    while (true) {
+                                        val ev = awaitPointerEvent()
+                                        val c = ev.changes.first()
+                                        if (!c.pressed) { released = true; return@withTimeoutOrNull false }
+                                        if (ev.changes.size > 1 || (c.position - down.position).getDistance() > viewConfiguration.touchSlop) return@withTimeoutOrNull false
+                                    }
+                                    @Suppress("UNREACHABLE_CODE") false
+                                } == null
+                                if (heldBody) {
+                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                    pk.menuX = down.position.x
+                                    pk.menuY = curClipTop + clipRow * 0.5f
+                                    pk.menuFor = ci
+                                    do { val ev = awaitPointerEvent(); ev.changes.forEach { it.consume() } } while (ev.changes.any { it.pressed })
+                                    return@awaitEachGesture
+                                }
+                                tapped = released
+                            }
+                        }
                         val hitLocked = hitId != null && (if (hitAudio) curAudio.firstOrNull { it.id == hitId }?.locked == true else curLayers.firstOrNull { it.id == hitId }?.locked == true)
                         if (hitLocked) {
                             // Locked: a hold just says so; a short tap still selects it.
@@ -533,7 +569,7 @@ fun TimelineView(
                                 return@awaitEachGesture
                             }
                         }
-                        do {
+                        if (!tapped) do {
                             val ev = awaitPointerEvent()
                             val pinch = ev.calculateZoom()
                             val pan = ev.calculatePan()
@@ -582,7 +618,11 @@ fun TimelineView(
                                     ms in (st[i + 1] - tol)..(st[i + 1] + ov + tol) && y > curClipTop + clipRow * 0.55f
                                 }
                                 if (cut != null) curSelectTransition(cut)
-                                else curSelectClip(clipAt(curClips, ms).first)
+                                else {
+                                    val k = clipAt(curClips, ms).first
+                                    val pt = curPick
+                                    if (pt != null && pt.on) curClips.getOrNull(k)?.let { pt.toggle(it.id) } else curSelectClip(k)
+                                }
                             } else {
                                 for (l in curLayers) {
                                     val top = curLayerTops[l.id] ?: continue
@@ -596,6 +636,7 @@ fun TimelineView(
         ) {
             val w = constraints.maxWidth.toFloat()
             LaunchedEffect(w) { viewportW = w }
+            clipMenu?.invoke()
             Canvas(Modifier.matchParentSize().clipToBounds()) {
                 val scroll = zoom.scrollMs
                 val pxPerMs = pxPerSec / 1000f
@@ -661,7 +702,9 @@ fun TimelineView(
                                 wx += 3f
                             }
                         }
-                        val sel = i == selectedClip
+                        val picked = pick != null && pick.on && c.id in pick.ids
+                        val sel = i == selectedClip || picked
+                        if (picked) drawRect(accent.copy(alpha = 0.22f), Offset(x0, top), Size(rectW, clipRow))
                         // Offline media: red hatching and the word OFFLINE.
                         if (c.offline == true && rectW > 4f) {
                             drawRect(Color(0x55FF3B30), Offset(x0, top), Size(rectW, clipRow))

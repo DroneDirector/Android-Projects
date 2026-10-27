@@ -169,6 +169,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 **Mouse**
 - Wheel over the photo = next / previous filmstrip photo, right-click = before / after split, double-click = hide or show the tools. Right-click a filmstrip thumbnail for stars, flags and labels.
 **Filmstrip (many photos)**
+- Hold a photo in the filmstrip → Select multiple: tap photos to tick them, hold any photo for the selection's menu (stars, flags, apply the open photo's edit, export, rename, remove), and Deselect all goes back to one photo. Holding a photo also offers Apply the open photo's edit and Export this photo.
 - The + on the filmstrip offers Gallery, Browse files and Camera. Camera opens the full Capture screen with all its pro controls; each photo you take goes straight into the filmstrip. "← Back to photo editor" (or Back) returns.
 - The filmstrip is the open **catalog**: each photo keeps a copy, its edit and settings, ratings and AI results (saved as you work). ⚙ → Catalog: new / open / rename / delete catalogs, how many photos to remember (10 or more, or Unlimited), photo copies on / off, and where the catalog is stored (phone, shared storage, SD card). Storage is lossless only.
 - Hold the divider above the filmstrip, then drag it up or down to change the thumbnail size. Double-tap the divider to reset it.
@@ -282,6 +283,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Pinch to zoom in on the picture and drag it into place — the export is framed exactly like that (what's outside is cut off). Double-tap = whole picture again.
 **Timeline**
 - In / out points show as IN / OUT flags on the ruler, the rest is dimmed. Markers and keyframes shine like the scroll wheels; gear → Marker effects turns that off.
+- Hold the middle of a clip on the timeline for its menu: Select multiple, Split at the playhead, Duplicate, Speed / Duration, Reverse, Mute sound, Delete. While selecting, tap clips to tick them; hold any clip for Deselect all, Select all, Duplicate, Mute, Nest into one clip and Delete selected. The ✕ on the timeline's SELECTED badge also ends it.
 - Hold a clip's edge and drag: the edge follows your finger. Shortening a clip leaves a black gap and everything else stays where it was. Gear → Trimming closes the gap: the gap closes and everything after it — on every track — moves left by the same amount (locked tracks stay).
 - Track headers: the eye hides a track (main video, layers, texts, watermarks), the speaker mutes it (main video, audio, video layers' own sound), the lock protects it from edits.
 **Render & export**

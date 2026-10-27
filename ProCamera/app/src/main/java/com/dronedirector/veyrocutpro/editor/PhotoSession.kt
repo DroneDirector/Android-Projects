@@ -492,8 +492,31 @@ fun Filmstrip(
                     }
                     if (selecting) Text(if (sel) "☑" else "☐", color = Color.White, fontSize = 12.sp, modifier = Modifier.align(Alignment.TopStart).padding(2.dp))
                     DropdownMenu(expanded = menuFor == u, onDismissRequest = { menuFor = null }, containerColor = Pro.PanelSolid) {
-                        Column(Modifier.padding(horizontal = 10.dp, vertical = 4.dp)) {
+                        if (selecting) Column(Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            // Picking several: hold any photo for these.
+                            Text("${picked.size} selected", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Chip("Deselect all") { menuFor = null; picked.clear(); selecting = false }
+                                Chip("Select all") { picked.clear(); picked.addAll(shown.map { it.key }) }
+                            }
+                            Chip(if (sel) "Leave this photo out" else "Add this photo") { if (sel) picked.remove(u) else picked.add(u) }
+                            if (picked.isNotEmpty()) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    (0..5).forEach { r -> Chip(if (r == 0) "☆" else "★$r") { picked.toList().forEach { q -> upd(q) { it.copy(rating = r) } } } }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Chip("⚑ Pick") { picked.toList().forEach { q -> upd(q) { it.copy(flag = 1) } } }
+                                    Chip("✕ Reject") { picked.toList().forEach { q -> upd(q) { it.copy(flag = -1) } } }
+                                    Chip("Clear flag") { picked.toList().forEach { q -> upd(q) { it.copy(flag = 0) } } }
+                                }
+                                Chip("Apply the open photo's edit") { menuFor = null; onSync(indices(picked)) }
+                                Chip("Export selected") { menuFor = null; onExport(indices(picked)) }
+                                Chip("Rename selected") { menuFor = null; askRename = true }
+                                Chip("Remove selected from strip") { menuFor = null; val list = indices(picked); picked.clear(); PhotoSession.remove(context, list) }
+                            }
+                        } else Column(Modifier.padding(horizontal = 10.dp, vertical = 4.dp)) {
                             Text(p.name, style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), maxLines = 1)
+                            Chip("Select multiple") { menuFor = null; picked.clear(); picked.add(u); selecting = true }
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(vertical = 4.dp)) {
                                 (0..5).forEach { r -> Chip(if (r == 0) "☆" else "★$r", p.rating == r) { upd(u) { it.copy(rating = r) } } }
                             }
@@ -507,6 +530,8 @@ fun Filmstrip(
                             }
                             Chip("Make virtual copy") { menuFor = null; PhotoSession.addCopy(context, Uri.parse(p.uri)) }
                             Chip("Use as reference") { menuFor = null; RefView.uri = p.key; RefView.shown = true }
+                            if (!cur) Chip("Apply the open photo's edit") { menuFor = null; val k = idx(u); if (k >= 0) onSync(listOf(k)) }
+                            Chip("Export this photo") { menuFor = null; val k = idx(u); if (k >= 0) onExport(listOf(k)) }
                             Chip("Remove from strip") {
                                 // Close the menu first, then remove on the next frame (the menu must not outlive its photo).
                                 menuFor = null

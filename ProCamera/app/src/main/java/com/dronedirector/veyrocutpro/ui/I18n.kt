@@ -128,7 +128,7 @@ fun LanguagePicker() {
                 androidx.compose.material3.Text(
                     label, color = if (sel) androidx.compose.ui.graphics.Color.Black else androidx.compose.ui.graphics.Color.White, fontSize = 13.sp,
                     modifier = androidx.compose.ui.Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(50))
-                        .background(if (sel) Pro.Amber else androidx.compose.ui.graphics.com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f))
+                        .background(if (sel) Pro.Amber else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f))
                         .clickable { I18n.set(ctx, code) }.padding(horizontal = 12.dp, vertical = 7.dp),
                 )
             }

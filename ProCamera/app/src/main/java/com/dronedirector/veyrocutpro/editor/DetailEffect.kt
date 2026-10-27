@@ -57,6 +57,7 @@ private class DetailProgram(private val d: Detail, useHdr: Boolean) :
             program.setFloatUniform("uDetail", d.localDetail)
             program.setFloatUniform("uClarity", d.clarity)
             program.setFloatUniform("uTexture", d.texture)
+            program.setFloatUniform("uLong", maxOf(1f / texelW, 1f / texelH))
             program.setIntUniform("uFx", d.fx.ordinal)
             program.setFloatUniform("uFxAmt", d.fxAmount)
             program.bindAttributesAndUniforms()
@@ -94,6 +95,7 @@ private class DetailProgram(private val d: Detail, useHdr: Boolean) :
             uniform float uDetail;
             uniform float uClarity;
             uniform float uTexture;
+            uniform float uLong;
             uniform int uFx;
             uniform float uFxAmt;
             varying vec2 vTexSamplingCoord;
@@ -106,6 +108,17 @@ private class DetailProgram(private val d: Detail, useHdr: Boolean) :
                     }
                 }
                 return s / 9.0;
+            }
+
+            // Soft blur of radius r pixels: two rings of 8 samples and the centre.
+            vec3 ring(vec2 uv, float r) {
+                vec3 s = texture2D(uTexSampler, uv).rgb;
+                for (int k = 0; k < 8; k++) {
+                    float a = float(k) * 0.7854;
+                    vec2 o = vec2(cos(a), sin(a)) * uTexel * r;
+                    s += texture2D(uTexSampler, uv + o).rgb + texture2D(uTexSampler, uv + o * 0.5).rgb;
+                }
+                return s / 17.0;
             }
 
             float rand(vec2 co) { return fract(sin(dot(co, vec2(12.9898, 78.233)) + uTime * 7.0) * 43758.5453); }
@@ -146,19 +159,16 @@ private class DetailProgram(private val d: Detail, useHdr: Boolean) :
                     float mid = 1.0 - abs(l - 0.5) * 2.0;
                     rgb += (rgb - wide) * uDetail * 1.2 * mid;
                 }
-                // Texture: fine detail (skin, foliage, fabric) up or smoothed, larger shapes untouched.
+                // Texture and clarity, sized to the frame like the photo editor (long side: 0.37 % and 1.7 %).
                 if (uTexture != 0.0) {
-                    vec3 fine = blur9(uv, 1.6);
-                    if (uTexture > 0.0) rgb += (rgb - fine) * uTexture * 1.6;
-                    else rgb = mix(rgb, fine, -uTexture * 0.85);
+                    vec3 fine = ring(uv, max(1.5, uLong * 0.0037));
+                    rgb += (rgb - fine) * uTexture * 1.2;
                 }
-                // Clarity: wide local contrast in the mid-tones (punchier, or softer and dreamier).
                 if (uClarity != 0.0) {
-                    vec3 broad = (blur9(uv, 10.0) + blur9(uv, 18.0)) * 0.5;
+                    vec3 broad = ring(uv, uLong * 0.0167);
                     float l = dot(rgb, vec3(0.299, 0.587, 0.114));
-                    float mid = clamp(1.0 - abs(l - 0.5) * 1.6, 0.0, 1.0);
-                    if (uClarity > 0.0) rgb += (rgb - broad) * uClarity * 1.1 * mid;
-                    else rgb = mix(rgb, broad, -uClarity * 0.6 * mid);
+                    float mid = clamp(1.0 - abs(l - 0.5) * 2.0, 0.0, 1.0);
+                    rgb += (rgb - broad) * uClarity * 1.1 * mid;
                 }
                 if (uFx == 1) { float l = dot(rgb, vec3(0.299, 0.587, 0.114)); rgb = mix(rgb, vec3(l), uFxAmt); }
                 if (uFx == 2) { rgb = mix(rgb, blur9(uv, 2.0 + 8.0 * uFxAmt), 0.85); }

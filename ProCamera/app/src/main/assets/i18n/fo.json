@@ -3843,5 +3843,6 @@
 "Geotag from GPX": "Geomerk úr GPX",
 "GEOTAG": "GEOMERK",
 "Photos' time zone (UTC ±h)": "Tíðarøki hjá myndunum (UTC ±t)",
-"Video editor: Clarity, Texture and Image detail now show in the preview while you drag them (Android 13 and newer), not only in the export.": "Videoklipping: Klárleiki, Tekstur og Myndasmálutir síggjast nú í forsýningini, meðan tú dregur í teimum (Android 13 og nýggjari), ikki bert í útflutninginum."
+"Video editor: Clarity, Texture and Image detail now show in the preview while you drag them (Android 13 and newer), not only in the export.": "Videoklipping: Klárleiki, Tekstur og Myndasmálutir síggjast nú í forsýningini, meðan tú dregur í teimum (Android 13 og nýggjari), ikki bert í útflutninginum.",
+"Video editor: Clarity and Texture are sized to the picture like in the photo editor (they were far too weak on 4K and log footage such as D-Log), in the preview and the export.": "Videoklipping: Klárleiki og Tekstur verða tillagað stødd myndarinnar sum í myndaklippingini (tey vóru alt ov veik á 4K og log-upptøkum sum D-Log), í forsýningini og útflutninginum."
 }

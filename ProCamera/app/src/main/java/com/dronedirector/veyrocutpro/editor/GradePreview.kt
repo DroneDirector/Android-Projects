@@ -196,11 +196,15 @@ object GradePreview {
             half4 c = content.eval(clamp(p, float2(0.5), uSize - 0.5));
             return c.a > 0.0 ? float3(c.rgb) / float(c.a) : float3(0.0);
         }
-        // Soft blur of radius r (pixels): 8 samples round the point plus the centre.
+        // Soft blur of radius r (pixels): two rings of 8 samples and the centre.
         float3 blurAt(float2 p, float r) {
-            float d = r * 0.7071;
-            return (px(p) + px(p + float2(r, 0.0)) + px(p - float2(r, 0.0)) + px(p + float2(0.0, r)) + px(p - float2(0.0, r))
-                + px(p + float2(d, d)) + px(p - float2(d, d)) + px(p + float2(d, -d)) + px(p - float2(-d, d))) / 9.0;
+            float3 s = px(p);
+            for (int k = 0; k < 8; k++) {
+                float a = float(k) * 0.7854;
+                float2 o = float2(cos(a), sin(a)) * r;
+                s += px(p + o) + px(p + o * 0.5);
+            }
+            return s / 17.0;
         }
         float3 applyLut(float3 c) {
             float n = uN;
@@ -236,24 +240,22 @@ object GradePreview {
                 if (uDenoise > 0.0) rgb = mix(rgb, blur, uDenoise * 0.7);
                 if (uSharpen > 0.0) rgb = rgb + (rgb - blur) * uSharpen * 1.5;
             }
-            // Image detail, texture and clarity (as in the export): local contrast at three sizes.
-            float unit = max(uSize.x, uSize.y) / 1920.0;
+            // Image detail, texture and clarity (as in the export), sized to the frame like the photo editor.
+            float longPx = max(uSize.x, uSize.y);
             if (uTexture != 0.0) {
-                float3 fine = blurAt(sc, 1.6 * max(unit, 0.6));
-                if (uTexture > 0.0) rgb += (rgb - fine) * uTexture * 1.6;
-                else rgb = mix(rgb, fine, -uTexture * 0.85);
+                float3 fine = blurAt(sc, max(1.5, longPx * 0.0037));
+                rgb += (rgb - fine) * uTexture * 1.2;
             }
             if (uDetail != 0.0 || uClarity != 0.0) {
                 float l = dot(rgb, float3(0.299, 0.587, 0.114));
                 if (uDetail != 0.0) {
-                    float3 wide = blurAt(sc, 6.0 * max(unit, 0.6));
+                    float3 wide = blurAt(sc, max(2.0, longPx * 0.0031));
                     rgb += (rgb - wide) * uDetail * 1.2 * (1.0 - abs(l - 0.5) * 2.0);
                 }
                 if (uClarity != 0.0) {
-                    float3 broad = (blurAt(sc, 10.0 * max(unit, 0.6)) + blurAt(sc, 18.0 * max(unit, 0.6))) * 0.5;
-                    float mid = clamp(1.0 - abs(l - 0.5) * 1.6, 0.0, 1.0);
-                    if (uClarity > 0.0) rgb += (rgb - broad) * uClarity * 1.1 * mid;
-                    else rgb = mix(rgb, broad, -uClarity * 0.6 * mid);
+                    float3 broad = blurAt(sc, longPx * 0.0167);
+                    float mid = clamp(1.0 - abs(l - 0.5) * 2.0, 0.0, 1.0);
+                    rgb += (rgb - broad) * uClarity * 1.1 * mid;
                 }
             }
             if (uHasLut > 0.5) rgb = applyLut(rgb);

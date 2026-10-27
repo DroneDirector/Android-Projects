@@ -3805,5 +3805,6 @@
 "5.7K (360)": "5.7K (360)",
 "The glowing mouse pointer (app and website) no longer has the small orbiting dot; its halo, trail and click ripple stay.": "Den lysende musemarkør (app og hjemmeside) har ikke længere den lille kredsende prik; dens glorie, spor og klikbølge bliver.",
 "Halo, trail and click ripple. Off = a plain arrow in the colour below.": "Glorie, spor og klikbølge. Fra = en almindelig pil i farven nedenfor.",
-"Video editor: changing Clarity, Texture, Image detail, film looks or privacy blur now updates the preview right away (the clip reloads at the same spot when you let go of the slider).": "Videoredigering: ændringer af Klarhed, Tekstur, Billeddetaljer, filmlooks eller privatslør opdaterer nu forhåndsvisningen med det samme (klippet genindlæses samme sted, når du slipper skyderen)."
+"Video editor: changing Clarity, Texture, Image detail, film looks or privacy blur now updates the preview right away (the clip reloads at the same spot when you let go of the slider).": "Videoredigering: ændringer af Klarhed, Tekstur, Billeddetaljer, filmlooks eller privatslør opdaterer nu forhåndsvisningen med det samme (klippet genindlæses samme sted, når du slipper skyderen).",
+"Video editor: Clarity, Texture and Image detail now change the preview live while you drag the sliders (checked on the test phone), on every Android 13+ phone and tablet.": "Videoredigering: Klarhed, Tekstur og Billeddetaljer ændrer nu forhåndsvisningen direkte, mens du trækker i skyderne (kontrolleret på testtelefonen), på alle Android 13+-telefoner og -tablets."
 }

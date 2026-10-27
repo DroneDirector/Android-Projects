@@ -59,7 +59,7 @@ private fun hash(a: Int, b: Int, c: Int): Float {
 /**
  * Slim vertical scroll wheel for the timeline (lower-right corner). Drag it like a wheel to move
  * the tracks up and down, or tap to jump. While it moves it "upscales": coarse pixel blocks resolve
- * into fine detail, a glowing scan line follows the scroll and the wheel's ridges roll.
+ * into fine detail and the wheel's ridges roll.
  */
 @Composable
 fun TimelineWheel(state: ScrollState, modifier: Modifier = Modifier, fancy: Boolean = true, onActive: (Float) -> Unit = {}) {
@@ -162,10 +162,6 @@ fun TimelineWheel(state: ScrollState, modifier: Modifier = Modifier, fancy: Bool
             Brush.verticalGradient(listOf(Cyan.copy(alpha = 0.85f * dim), Violet.copy(alpha = 0.85f * dim), WheelTip.copy(alpha = 0.9f * dim)), startY = top, endY = top + vis),
             topLeft = Offset(w * 0.18f, top + 1f), size = Size(w * 0.64f, vis - 2f), cornerRadius = CornerRadius(w * 0.32f, w * 0.32f),
         )
-        // Scan line: a bright band sweeping through the thumb, stronger while moving.
-        val scanY = top + vis * ((phase * 1.4f) % 1f)
-        val sa = (0.25f + 0.75f * e) * dim
-        drawRect(Brush.verticalGradient(listOf(Color.Transparent, Color.White.copy(alpha = sa), Color.Transparent), startY = scanY - 6f, endY = scanY + 6f), Offset(0f, scanY - 6f), Size(w, 12f))
         // Sparkles while moving.
         if (e > 0.05f) for (k in 0 until 4) {
             val sx = w * hash(k, 7, floor(phase * 30f).toInt())
@@ -218,7 +214,7 @@ fun TimelineUpscaleOverlay(energy: Float, scroll: Int, modifier: Modifier = Modi
 /**
  * The horizontal twin of [TimelineWheel], along the bottom of the timeline: drag it like a wheel to
  * move through the edit left and right, or tap to jump. Same glass, ridges, pixel "upscale",
- * scan line and glowing rim, turned on its side.
+ * and glowing rim, turned on its side.
  */
 @Composable
 fun TimelineHWheel(zoom: TimelineZoom, modifier: Modifier = Modifier, fancy: Boolean = true, onActive: (Float) -> Unit = {}) {
@@ -321,9 +317,6 @@ fun TimelineHWheel(zoom: TimelineZoom, modifier: Modifier = Modifier, fancy: Boo
             Brush.horizontalGradient(listOf(Cyan.copy(alpha = 0.85f * dim), Violet.copy(alpha = 0.85f * dim), WheelTip.copy(alpha = 0.9f * dim)), startX = left, endX = left + vis),
             topLeft = Offset(left + 1f, h * 0.18f), size = Size(vis - 2f, h * 0.64f), cornerRadius = CornerRadius(h * 0.32f, h * 0.32f),
         )
-        val scanX = left + vis * ((phase * 1.4f) % 1f)
-        val sa = (0.25f + 0.75f * e) * dim
-        drawRect(Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = sa), Color.Transparent), startX = scanX - 6f, endX = scanX + 6f), Offset(scanX - 6f, 0f), Size(12f, h))
         if (e > 0.05f) for (k in 0 until 4) {
             val sx = left + vis * hash(k, 7, floor(phase * 30f).toInt())
             val sy = h * hash(k, 11, floor(phase * 30f).toInt())
@@ -344,7 +337,7 @@ object PlayFx {
 
 /**
  * The scroll wheels' look on the Play button: the wheel's glass gradient (its colours from gear → SCROLL
- * WHEELS) as the button itself, a scan line sweeping through it, a turning gradient rim, and — while the
+ * WHEELS) as the button itself, a turning gradient rim, and — while the
  * video plays — the wheel's "upscale" pixels and sparkles. Off = the plain amber button, no animation.
  */
 @Composable
@@ -386,10 +379,6 @@ fun PlayGlow(playing: Boolean, modifier: Modifier = Modifier, content: @Composab
                 cy += cell; j++
             }
             drawContent()
-            // Scan line sweeping through the button.
-            val sy = c.y - r + 2 * r * ((phase * 1.4f) % 1f)
-            val half = kotlin.math.sqrt((r * r - (sy - c.y) * (sy - c.y)).coerceAtLeast(0f))
-            drawRect(Brush.verticalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.35f + 0.5f * e), Color.Transparent), startY = sy - 6f, endY = sy + 6f), Offset(c.x - half, sy - 6f), Size(half * 2, 12f))
             // Turning gradient rim.
             val rim = Brush.sweepGradient(listOf(Cyan, Violet, WheelTip, Cyan), center = c)
             rotate(phase * 360f, c) { drawCircle(rim, radius = r - 1.dp.toPx(), center = c, style = Stroke((1.6f + 1.6f * e).dp.toPx()), alpha = 0.75f + 0.25f * e) }

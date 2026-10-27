@@ -4,9 +4,10 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- The sweeping scan line is gone from the scroll wheels and the Play button; their other effects stay.
 
 ## 1.0.615 — 2026-10-27
-- Video editor: with Play button effect on, the Play button looks like the scroll wheels — their glass gradient in the wheel colours, a sweeping scan line, a turning rim, and flickering "upscale" pixels and sparkles while playing. Gear → Playback → Play button effect off = the plain amber button. The row under the picture starts with Play in the middle until you scroll it.
+- Video editor: with Play button effect on, the Play button looks like the scroll wheels — their glass gradient in the wheel colours, a turning rim, and flickering "upscale" pixels and sparkles while playing. Gear → Playback → Play button effect off = the plain amber button. The row under the picture starts with Play in the middle until you scroll it.
 - Capture: the Cast button on the picture (tablets) can be dragged anywhere, pinched to resize and double-tapped to make it small, like the other read-outs.
 - Video editor, buttons under the picture: Play is bigger (an amber circle) and sits in the middle of the playback buttons — mute, go to in, previous clip and frame back on its left, frame forward, next clip, go to out and start on its right — and the row starts with Play centred under the picture; swipe the row for the rest.
 - Video editor: while clips are picked (Select multiple or SELECT ALL), every change you make — colour, primaries, wheels, curves, LUTs, detail, effects, speed, audio, transitions, crop and more — is made the same way on all picked clips (only the settings you touch; each clip keeps its own media, trims and the rest of its edit).

@@ -57,6 +57,7 @@
    "<strong>Keyboard shortcuts</strong> (Bluetooth / USB): J / K / L, Space, frame steps, cut to cut, split, ripple delete, markers, in / out, undo / redo, save.",
    "<strong>Timeline scroll wheels</strong>: a vertical wheel (tracks up / down) and a horizontal wheel along the bottom (through the edit), each in its own window, with the AI-upscale effect.",
    "<strong>Shot match</strong>: one tap sets a clip's exposure, white balance, contrast and saturation to match another clip as graded.",
+   "<strong>Boomerang</strong>: hold a clip → the clip plays forwards, then a backwards copy straight after it.",
    "<strong>Grade versions A / B / C</strong>: save up to three looks per clip (colour, detail, film look) and switch between them to compare; saved with the project.",
    "<strong>Film emulation</strong>: 35mm / 16mm / Super 8 looks, halation, bloom, grain (amount and size), gate weave.",
    "<strong>Lens correction</strong>: barrel / pincushion distortion, colour fringing and vignette fix, with action cam, drone and ultra-wide presets.",

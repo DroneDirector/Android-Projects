@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.638 — 2026-10-27
 - Video editor → Deliver → Resolution: 5K, 6K, 7K and 8K (5120×2880 up to 7680×4320 in 16:9), with 300 and 400 Mbps bitrates. The app checks the phone's video encoder and says whether that size works, at what highest frame rate, and when the other codec is needed (e.g. the Galaxy S24 makes 8K at up to 30 fps; most tablets stop at 4K).
 - Video editor: Clarity, Texture and Image detail now run in the video player itself during preview — the same code as the export — so they show on every Android 13+ phone and tablet.
 - Video editor: Clarity and Texture are sized to the picture like in the photo editor (they were far too weak on 4K and log footage such as D-Log), in the preview and the export.

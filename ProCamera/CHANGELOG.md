@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.791 — 2026-10-28
 - **Photos in the video editor stay photos**: add them from the gallery, files, the NAS, the camera, Pro import or the photo library (Library window → Photos) — onto the timeline or into the media strip. They show still (or with a slow zoom you choose), marked PHOTO / 📷, and Edit → PHOTO sets how long each shows.
 - **Name people** (photo and video library): faces are recognised on the phone and grouped by person; name them, tap one to see all their photos or videos, and search by name.
 - **Recommended presets**: Presets (photo) and Color → Looks (video) suggest looks that suit what's in the picture, with a reason under each.

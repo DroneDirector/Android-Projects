@@ -136,6 +136,21 @@ enum class TransitionType(val id: Float, val label: String, val group: Transitio
     GLASS_PANE(119f, "Glass pane", TransitionGroup.CINEMATIC, TransitionKind.MASK),
     DEPTH_PUSH(120f, "Depth push", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),
     SHOCKWAVE(121f, "Shockwave", TransitionGroup.CINEMATIC, TransitionKind.MASK),
+    TILT_DOWN(122f, "Tilt down", TransitionGroup.TRAVEL, TransitionKind.UNIFORM),
+    HORIZON(123f, "Horizon wipe", TransitionGroup.TRAVEL, TransitionKind.MASK),
+    GOLDEN_HOUR(124f, "Golden hour", TransitionGroup.TRAVEL, TransitionKind.UNIFORM),
+    NIGHTFALL(125f, "Nightfall", TransitionGroup.TRAVEL, TransitionKind.UNIFORM),
+    LENS_DIRT(126f, "Lens dirt flare", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),
+    BRUSH(127f, "Brush strokes", TransitionGroup.CREATIVE, TransitionKind.MASK),
+    TORN_PAPER(128f, "Torn paper", TransitionGroup.CREATIVE, TransitionKind.MASK),
+    COMIC_BURST(129f, "Comic burst", TransitionGroup.CREATIVE, TransitionKind.MASK),
+    HALFTONE(130f, "Halftone", TransitionGroup.CREATIVE, TransitionKind.UNIFORM),
+    THERMAL(131f, "Thermal", TransitionGroup.FANCY, TransitionKind.UNIFORM),
+    NIGHT_VISION(132f, "Night vision", TransitionGroup.FANCY, TransitionKind.UNIFORM),
+    HOLOGRAM(133f, "Hologram", TransitionGroup.FANCY, TransitionKind.UNIFORM),
+    PAGE_TURN(134f, "Page turn", TransitionGroup.CREATIVE, TransitionKind.MASK),
+    BLUR_WIPE(135f, "Blur wipe", TransitionGroup.WIPES, TransitionKind.MASK),
+    ZOOM_PUNCH(136f, "Zoom punch", TransitionGroup.MOTION, TransitionKind.UNIFORM),
 }
 
 /**
@@ -223,6 +238,43 @@ enum class AudioTransitionType(val label: String, val detail: String) {
     CATHEDRAL("Cathedral", "A huge, long reverb on both sides."),
     RISE_DROP("Rise & drop", "The old sound rises in pitch, then the new one drops in from muffled."),
     SURFACE("Surface", "The new sound comes up from under water."),
+    PHASER_SWEEP("Phaser sweep", "A swooshing phaser over both sides."),
+    PING_PONG("Ping-pong echo", "The old sound bounces away in echoes from left to right."),
+    MEGAPHONE("Megaphone", "The old sound squeezes into a megaphone as it fades."),
+    NARROW_OUT("Narrow out", "The old sound shrinks from wide stereo to a single point."),
+    WIDE_IN("Wide in", "The new sound arrives extra wide, then settles."),
+    HARMONY_RISE("Harmony rise", "A voice a fifth above swells out of the old sound."),
+    OCTAVE_DROP("Octave drop", "A deep octave below grows under the old sound."),
+    REVERSE_OUT("Reverse out", "The old sound plays backwards into the cut."),
+    CRUSH_IN("Crush in", "The new sound starts crunchy and lo-fi, then cleans up."),
+    BASS_IN("Bass drop in", "The new sound starts thin, then its bass drops in."),
+    THIN_X("Thin crossfade", "Both sides lose their bass in the middle."),
+    FLUTTER_IN("Flutter in", "The new sound flutters, then steadies."),
+    GATE_IN("Gate in", "The new sound pulses in a trance gate, then plays freely."),
+    CHOP_IN("Chop in", "The new sound is chopped, then runs smooth."),
+    WOBBLE_IN("Wobble in", "A wobbling filter settles on the new sound."),
+    GRIT_IN("Grit in", "The new sound starts gritty and cleans up."),
+    METAL_IN("Metal in", "The new sound starts metallic and turns natural."),
+    SHIMMER_IN("Shimmer in", "The new sound comes out of a bright, heavenly reverb."),
+    HALL_TAIL("Hall tail", "The old sound fades into a long concert-hall tail."),
+    SLAP_IN("Slap in", "The new sound arrives with a quick slap-back echo."),
+    PUMP_X("Pump crossfade", "Both sides pump like side-chained dance music."),
+    PHONE_CALL("Phone call", "Both sides sound like a phone line around the cut."),
+    RECORD_IN("Old record in", "The new sound starts as a crackly record and clears."),
+    FLY_IN("Fly in", "The new sound flies in, low and dull, then clear."),
+    FILTER_OPEN("Filter open", "A resonant filter opens up on the new sound."),
+    FREEZE_ECHO("Freeze & echo", "The old sound freezes; the new one arrives in echoes."),
+    TAPE_ECHO("Tape stop echo", "The old sound stops like tape; the new one echoes in."),
+    STUTTER_X("Stutter swap", "Both sides stutter across the cut."),
+    BUILD_BOOM("Build & boom", "A riser builds up and the new sound lands with a deep boom."),
+    MUFFLE_ECHO("Muffle to echo", "The old sound goes muffled; the new one echoes in."),
+    VOICE_IN("Voice in", "The new sound starts without its centre (usually the voice), then it comes in."),
+    AIRY_OUT("Airy out", "The old sound turns thin and airy as it leaves."),
+    LOFI_OUT("Lo-fi out", "The old sound turns warm and wobbly as it leaves."),
+    LUSH_IN("Lush in", "The new sound arrives wide and lush, then focuses."),
+    REVERSE_SWELL_X("Reverse & swell", "The old sound plays backwards; the new one swells out of reverb."),
+    MEGAPHONE_IN("Megaphone in", "The new sound starts through a megaphone and opens up."),
+    REWIND_RESTART("Rewind & restart", "The old sound rewinds, the new one spins up."),
 }
 
 enum class FadeCurve { LINEAR, POWER, EXP, SMOOTH }
@@ -338,6 +390,43 @@ object AudioXfade {
             AudioTransitionType.CATHEDRAL -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.HALL) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.HALL)
             AudioTransitionType.RISE_DROP -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.PITCH_UP) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.LOWPASS)
             AudioTransitionType.SURFACE -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.UNDERWATER)
+            AudioTransitionType.PHASER_SWEEP -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.PHASER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.PHASER)
+            AudioTransitionType.PING_PONG -> FadeOut(w, w, FadeCurve.EXP, AudioXfx.PINGPONG) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.MEGAPHONE -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.MEGAPHONE) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.NARROW_OUT -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.NARROW) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.WIDE_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.WIDEN)
+            AudioTransitionType.HARMONY_RISE -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.HARMONY) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.OCTAVE_DROP -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.OCTAVER) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.REVERSE_OUT -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.REVERSE) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.CRUSH_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.BITCRUSH)
+            AudioTransitionType.BASS_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.HIGHPASS)
+            AudioTransitionType.THIN_X -> FadeOut(w, w, FadeCurve.SMOOTH, AudioXfx.HIGHPASS) to FadeIn(0, w, FadeCurve.SMOOTH, AudioXfx.HIGHPASS)
+            AudioTransitionType.FLUTTER_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.TREMOLO)
+            AudioTransitionType.GATE_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.GATE)
+            AudioTransitionType.CHOP_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.CHOP)
+            AudioTransitionType.WOBBLE_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.WOBBLE)
+            AudioTransitionType.GRIT_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.DRIVE)
+            AudioTransitionType.METAL_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.RING)
+            AudioTransitionType.SHIMMER_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.EXP, AudioXfx.SHIMMER)
+            AudioTransitionType.HALL_TAIL -> FadeOut(w, w, FadeCurve.EXP, AudioXfx.HALL) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.SLAP_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.SLAP)
+            AudioTransitionType.PUMP_X -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.PUMP) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.PUMP)
+            AudioTransitionType.PHONE_CALL -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.TELEPHONE) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.TELEPHONE)
+            AudioTransitionType.RECORD_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.VINYL)
+            AudioTransitionType.FLY_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.DOPPLER)
+            AudioTransitionType.FILTER_OPEN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.BANDSWEEP)
+            AudioTransitionType.FREEZE_ECHO -> FadeOut(w, w, FadeCurve.LINEAR, AudioXfx.FREEZE) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.ECHO)
+            AudioTransitionType.TAPE_ECHO -> FadeOut(w, w, FadeCurve.LINEAR, AudioXfx.TAPE_STOP) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.ECHO)
+            AudioTransitionType.STUTTER_X -> FadeOut(w, w, FadeCurve.LINEAR, AudioXfx.STUTTER) to FadeIn(0, w, FadeCurve.LINEAR, AudioXfx.STUTTER)
+            AudioTransitionType.BUILD_BOOM -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.RISER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.SUBDROP)
+            AudioTransitionType.MUFFLE_ECHO -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.LOWPASS) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.ECHO)
+            AudioTransitionType.VOICE_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.KARAOKE)
+            AudioTransitionType.AIRY_OUT -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.AIRY) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.LOFI_OUT -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.LOFI) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.LUSH_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.CHORUS)
+            AudioTransitionType.REVERSE_SWELL_X -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.REVERSE) to FadeIn(0, w, FadeCurve.EXP, AudioXfx.REVERB)
+            AudioTransitionType.MEGAPHONE_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.MEGAPHONE)
+            AudioTransitionType.REWIND_RESTART -> FadeOut(w, w, FadeCurve.LINEAR, AudioXfx.SPIN_BACK) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.TAPE_START)
         }
     }
 
@@ -412,6 +501,10 @@ object TransitionMath {
         109 -> ss(0.49f, 0.51f, p)
         110, 120 -> ss(0.45f, 0.55f, p)
         113 -> ss(0.3f, 0.7f, p)
+        122, 125, 126, 130 -> ss(0.45f, 0.55f, p)
+        124 -> ss(0.3f, 0.7f, p)
+        131, 132, 133 -> ss(0.48f, 0.52f, p)
+        136 -> ss(0.48f, 0.52f, p)
         else -> 1f
     }
 
@@ -609,6 +702,15 @@ object TransitionMath {
             if (isT(106.0) || isT(111.0) || isT(114.0) || isT(116.0)) return sstep(0.4, 0.6, p);
             if (isT(108.0) || isT(113.0) || isT(117.0)) return sstep(0.3, 0.7, p);
             if (isT(109.0)) return sstep(0.49, 0.51, p);
+            if (isT(122.0) || isT(125.0) || isT(126.0) || isT(130.0)) return sstep(0.45, 0.55, p);
+            if (isT(124.0)) return sstep(0.3, 0.7, p);
+            if (isT(131.0) || isT(132.0) || isT(133.0) || isT(136.0)) return sstep(0.48, 0.52, p);
+            if (isT(123.0)) return cover(1.0 - uv.y, mix(-0.1, 1.1, p), 0.08);
+            if (isT(127.0)) { float row = floor(uv.y * 6.0); float x = mod(row, 2.0) < 0.5 ? uv.x : 1.0 - uv.x; float rag = (fbm(vec2(uv.x * 30.0, uv.y * 80.0)) - 0.5) * 0.06; float dly = row / 6.0 * 0.5; return cover(x + rag, (p - dly) * 2.2 - 0.1, 0.01); }
+            if (isT(128.0)) { float tear = uv.x + (fbm(vec2(uv.y * 14.0, 3.0)) - 0.5) * 0.12 + (rnd(vec2(floor(uv.y * 90.0), 1.0)) - 0.5) * 0.01; return cover(tear, mix(-0.1, 1.15, p), 0.004); }
+            if (isT(129.0)) { vec2 q = (uv - 0.5) * vec2(aspect, 1.0); float a = atan(q.y, q.x); float rs = p * 1.5 * (0.7 + 0.3 * step(0.5, fract(a / 6.2831853 * 14.0))); return 1.0 - step(rs, length(q)); }
+            if (isT(134.0)) { float d = (uv.x + (1.0 - uv.y) * 0.35) / 1.35; return cover(1.0 - d, mix(-0.05, 1.05, p), 0.004); }
+            if (isT(135.0)) return cover(uv.x, mix(-0.15, 1.15, p), 0.1);
             if (isT(110.0) || isT(120.0)) return sstep(0.45, 0.55, p);
             if (isT(107.0)) return cover(uv.x + (uv.y - 0.5) * 0.25, mix(-0.25, 1.25, p), 0.03);
             if (isT(112.0)) return smoothstep(-0.12, 0.12, mix(-0.3, 1.4, p) - ((1.0 - uv.y) + fbm(uv * vec2(aspect, 1.0) * 3.0 + vec2(p, 0.0)) * 0.45));
@@ -1154,6 +1256,75 @@ object TransitionMath {
                 vec2 dir = c / max(length(c), 0.001);
                 float push = band * 0.06 * k;
                 col = vec3(mtex(uv0 - dir * push * 1.3).r, mtex(uv0 - dir * push).g, mtex(uv0 - dir * push * 0.7).b) + vec3(band * 0.35 * k);
+            } else if (isT(122.0)) {
+                // Tilt down: the camera tilts down with motion blur and lands on the next shot.
+                float off = inc ? (1.0 - easeF(p)) * -0.6 : easeF(p) * 0.6;
+                vec3 acc = vec3(0.0);
+                for (int i = 0; i < 12; i++) { float f = float(i) / 11.0 - 0.5; acc += mtex(vec2(uv0.x, uv0.y + off + f * 0.15 * k)).rgb; }
+                col = acc / 12.0;
+            } else if (isT(123.0)) {
+                // Horizon wipe: a warm sunrise line rises up the frame.
+                col = tex(uv0).rgb;
+                float d = (1.0 - uv0.y) - mix(-0.1, 1.1, p);
+                col += vec3(1.0, 0.6, 0.25) * exp(-d * d * 120.0) * 0.9 * k;
+            } else if (isT(124.0)) {
+                // Golden hour: a warm golden glow washes over and carries the change.
+                col = tex(uv0).rgb;
+                col = mix(col, col * vec3(1.25, 1.0, 0.7) + vec3(0.12, 0.06, 0.0), k);
+                col += max(col - 0.55, 0.0) * k * 1.6 + vec3(1.0, 0.75, 0.4) * k * k * 0.3;
+            } else if (isT(125.0)) {
+                // Nightfall: the scene goes blue and dark with twinkling stars, then the next shot.
+                col = tex(uv0).rgb;
+                col = mix(col, vec3(lum(col)) * vec3(0.35, 0.45, 0.8) * 0.5, k);
+                float st = step(0.997, rnd(floor(uv0 * uSize / 2.0))) * (0.5 + 0.5 * sin(p * 40.0 + rnd(floor(uv0 * uSize / 2.0)) * 20.0));
+                col += vec3(st) * k * step(0.45, uv0.y);
+            } else if (isT(126.0)) {
+                // Lens dirt flare: blown-out light shows the smudges on the lens.
+                col = tex(uv0).rgb;
+                float dirt = fbm(uv0 * vec2(aspect, 1.0) * 5.0) * smoothstep(0.3, 0.9, fbm(uv0 * 9.0 + 2.0));
+                float glow = exp(-length((uv0 - vec2(mix(0.2, 0.8, p), 0.7)) * vec2(aspect, 1.0)) * 2.5);
+                col += vec3(1.0, 0.92, 0.8) * (glow * 0.9 + dirt * glow * 1.6) * k + vec3(k * k * 0.35);
+            } else if (isT(127.0) || isT(128.0) || isT(134.0) || isT(135.0)) {
+                col = tex(uv0).rgb;
+                if (isT(128.0)) { float tear = uv0.x + (fbm(vec2(uv0.y * 14.0, 3.0)) - 0.5) * 0.12 - mix(-0.1, 1.15, p); col = mix(col, vec3(0.96, 0.95, 0.9), (1.0 - smoothstep(0.0, 0.012, abs(tear))) * step(0.02, k)); }
+                if (isT(134.0)) { float d = 1.0 - (uv0.x + (1.0 - uv0.y) * 0.35) / 1.35 - mix(-0.05, 1.05, p); col *= 1.0 - 0.5 * exp(-d * d * 400.0) * k; col += vec3(0.3) * exp(-(d + 0.02) * (d + 0.02) * 2000.0) * k; }
+                if (isT(135.0)) { float d = abs(uv0.x - mix(-0.15, 1.15, p)); float bl = (1.0 - smoothstep(0.0, 0.2, d)) * 0.015; vec3 acc = vec3(0.0); for (int i = 0; i < 8; i++) { float a = float(i) * 0.785398; acc += mtex(uv0 + vec2(cos(a), sin(a)) * bl).rgb; } col = acc / 8.0; }
+            } else if (isT(129.0)) {
+                // Comic burst: a jagged starburst with halftone dots bursts open.
+                col = tex(uv0).rgb;
+                vec2 g = fract(uv0 * vec2(aspect, 1.0) * 60.0) - 0.5;
+                col = mix(col, col * 0.5 + vec3(1.0, 0.85, 0.2) * 0.5, step(length(g), 0.25 + 0.2 * k) * k * 0.8);
+            } else if (isT(130.0)) {
+                // Halftone: the picture turns into printed dots and back.
+                float cells = mix(260.0, 45.0, k);
+                vec2 g = uv0 * vec2(aspect, 1.0) * cells;
+                vec2 cl = (floor(g) + 0.5) / cells / vec2(aspect, 1.0);
+                float l = lum(mtex(cl).rgb);
+                float dotv = 1.0 - smoothstep(l * 0.55 - 0.05, l * 0.55 + 0.05, length(fract(g) - 0.5));
+                col = mix(tex(uv0).rgb, mtex(cl).rgb * dotv + vec3(0.06), smoothstep(0.0, 0.5, k));
+            } else if (isT(131.0)) {
+                // Thermal: a heat-camera look through the middle of the change.
+                vec3 s0 = tex(uv0).rgb; float l = lum(s0);
+                vec3 th = clamp(vec3(l * 3.0 - 1.4, sin(l * 3.14159), 1.2 - l * 2.4), 0.0, 1.0) + vec3(0.2, 0.0, 0.1) * l;
+                col = mix(s0, th, smoothstep(0.0, 0.6, k));
+            } else if (isT(132.0)) {
+                // Night vision: green, grainy and scan-lined.
+                vec3 s0 = tex(uv0).rgb; float l = lum(s0) * 1.6;
+                vec3 nv = vec3(0.1, 1.0, 0.25) * l + (rnd(uv0 * uSize + p * 60.0) - 0.5) * 0.25;
+                nv *= 0.85 + 0.15 * step(0.5, fract(uv0.y * uSize.y / 3.0));
+                nv *= 1.0 - smoothstep(0.35, 0.75, length(c * vec2(aspect, 1.0)));
+                col = mix(s0, nv, smoothstep(0.0, 0.6, k));
+            } else if (isT(133.0)) {
+                // Hologram: cyan scan lines, flicker and sideways slips.
+                float slip = (rnd(vec2(floor(uv0.y * 30.0), floor(p * 20.0))) - 0.5) * 0.04 * k;
+                vec3 s0 = mtex(uv0 + vec2(slip, 0.0)).rgb; float l = lum(s0);
+                vec3 hg = vec3(0.3, 0.9, 1.0) * (l * 1.3 + 0.1) * (0.7 + 0.3 * step(0.5, fract(uv0.y * uSize.y / 4.0 - p * 30.0)));
+                col = mix(s0, hg, smoothstep(0.0, 0.6, k)) * (0.85 + 0.15 * rnd(vec2(floor(p * 30.0), 4.0)));
+            } else if (isT(136.0)) {
+                // Zoom punch: a hard punch-in with a little shake.
+                float z = inc ? mix(1.6, 1.0, easeF(p)) : mix(1.0, 1.8, easeF(p));
+                vec2 sh = vec2(rnd(vec2(floor(p * 40.0), 1.0)) - 0.5, rnd(vec2(floor(p * 40.0), 2.0)) - 0.5) * 0.03 * k;
+                col = mtex(c / z + 0.5 + sh).rgb;
             } else {
                 col = tex(uv0).rgb;
             }
@@ -1273,6 +1444,13 @@ object TransitionMath {
     fun agsl(t: TransitionType): String = AGSL.replace("uniform float uType;", "const float uType = ${t.id};")
 
     /** A compiled preview shader for [t], or null if this phone can't build it (the preview then fades). */
+    private val thumbShaders = HashMap<Pair<TransitionType, Boolean>, android.graphics.RuntimeShader?>()
+
+    /** The shader for one side of a transition thumbnail, built once and kept (built off the main thread). */
+    fun thumbShader(t: TransitionType, incoming: Boolean): android.graphics.RuntimeShader? =
+        synchronized(thumbShaders) { thumbShaders[t to incoming] } ?: shaderFor(t).also { sh -> synchronized(thumbShaders) { thumbShaders[t to incoming] = sh } }
+    fun cachedThumbShader(t: TransitionType, incoming: Boolean): android.graphics.RuntimeShader? = synchronized(thumbShaders) { thumbShaders[t to incoming] }
+
     fun shaderFor(t: TransitionType): android.graphics.RuntimeShader? =
         if (android.os.Build.VERSION.SDK_INT < 33) null else try { android.graphics.RuntimeShader(agsl(t)) } catch (e: Throwable) {
             android.util.Log.w("TransitionPreview", "Shader for ${t.name} unavailable: ${e.message}"); null

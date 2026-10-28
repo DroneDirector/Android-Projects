@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import kotlinx.coroutines.launch
@@ -81,9 +82,11 @@ fun TransitionsPanel(
         if (t.durationMs > maxMs) Text("Limited to %.1f s by the clip lengths.".format(maxMs / 1000f), color = Pro.Dim, fontSize = 11.sp)
     }
     val anim = rememberInfiniteTransition(label = "tr")
-    val p by anim.animateFloat(0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing), RepeatMode.Restart), label = "p")
-    val pp = ((p - 0.15f) / 0.7f).coerceIn(0f, 1f)
-    val ta = thumbs[a.id]; val tb = thumbs[b.id]
+    val p = anim.animateFloat(0f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing), RepeatMode.Restart), label = "p")
+    // Read only while drawing (not on every frame's recomposition), so 100+ moving previews stay light.
+    val pp = remember { androidx.compose.runtime.derivedStateOf { ((p.value - 0.15f) / 0.7f).coerceIn(0f, 1f) } }
+    // Small copies of the two clips' pictures: the previews only need tile-sized pictures.
+    val ta = thumbs[a.id]?.let { remember(it) { smallThumb(it) } }; val tb = thumbs[b.id]?.let { remember(it) { smallThumb(it) } }
     TransitionGroup.entries.forEach { g ->
         SectionTitle(g.label.uppercase())
         TransitionType.entries.filter { it.group == g }.chunked(3).forEach { row ->
@@ -98,15 +101,18 @@ fun TransitionsPanel(
 }
 
 @Composable
-private fun TransitionTile(type: TransitionType, selected: Boolean, a: Bitmap?, b: Bitmap?, p: Float, modifier: Modifier, onClick: () -> Unit) {
+private fun TransitionTile(type: TransitionType, selected: Boolean, a: Bitmap?, b: Bitmap?, p: androidx.compose.runtime.State<Float>, modifier: Modifier, onClick: () -> Unit) {
     Column(modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
+        androidx.compose.foundation.layout.BoxWithConstraints(
             Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(8.dp))
                 .border(if (selected) 2.dp else 1.dp, if (selected) Pro.Amber else Pro.Line, RoundedCornerShape(8.dp))
         ) {
-            val showP = if (type == TransitionType.NONE) (if (p < 0.5f) 0f else 1f) else p
-            TileSide(a, Color(0xFF2B4C7E), false, type, showP)
-            TileSide(b, Color(0xFF7E4A2B), true, type, showP)
+            // Drawn at half size and scaled up: a quarter of the work, still clear at tile size.
+            val hw = maxWidth / 2; val hh = maxHeight / 2
+            Box(Modifier.requiredSize(hw, hh).graphicsLayer { scaleX = 2f; scaleY = 2f }) {
+                TileSide(a, Color(0xFF2B4C7E), false, type, p)
+                TileSide(b, Color(0xFF7E4A2B), true, type, p)
+            }
         }
         Text(
             type.label, color = if (selected) Pro.Amber else Color.White, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -116,25 +122,38 @@ private fun TransitionTile(type: TransitionType, selected: Boolean, a: Bitmap?, 
 }
 
 @Composable
-private fun TileSide(bmp: Bitmap?, fallback: Color, incoming: Boolean, type: TransitionType, p: Float) {
-    val shader = remember(type) { TransitionMath.shaderFor(type) }
+private fun TileSide(bmp: Bitmap?, fallback: Color, incoming: Boolean, type: TransitionType, pState: androidx.compose.runtime.State<Float>) {
+    // Built once per transition and kept, off the main thread, so opening the page doesn't stall.
+    val shader by androidx.compose.runtime.produceState(TransitionMath.cachedThumbShader(type, incoming), type, incoming) {
+        if (value == null && android.os.Build.VERSION.SDK_INT >= 33) value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { TransitionMath.thumbShader(type, incoming) }
+    }
     val mod = Modifier.fillMaxSize().graphicsLayer {
+        val p0 = pState.value
+        val p = if (type == TransitionType.NONE) (if (p0 < 0.5f) 0f else 1f) else p0
+        val sh = shader
         val (tx, ty) = TransitionMath.move(type, p, incoming)
         translationX = tx * size.width; translationY = ty * size.height
         if (type == TransitionType.NONE) { alpha = if (incoming) p else 1f; return@graphicsLayer }
-        if (shader != null && android.os.Build.VERSION.SDK_INT >= 33 && size.width > 0f) {
-            shader.setFloatUniform("uSize", size.width, size.height)
-            shader.setFloatUniform("uP", p)
-            shader.setFloatUniform("uSide", if (incoming) 1f else 0f)
-            shader.setFloatUniform("uMode", if (incoming && type.kind != TransitionKind.MOVE) 1f else 0f)
-            renderEffect = android.graphics.RenderEffect.createRuntimeShaderEffect(shader, "content").asComposeRenderEffect()
+        if (sh != null && android.os.Build.VERSION.SDK_INT >= 33 && size.width > 0f) {
+            sh.setFloatUniform("uSize", size.width, size.height)
+            sh.setFloatUniform("uP", p)
+            sh.setFloatUniform("uSide", if (incoming) 1f else 0f)
+            sh.setFloatUniform("uMode", if (incoming && type.kind != TransitionKind.MOVE) 1f else 0f)
+            renderEffect = android.graphics.RenderEffect.createRuntimeShaderEffect(sh, "content").asComposeRenderEffect()
             clip = true
         } else if (incoming && type.kind != TransitionKind.MOVE) alpha = p
     }
     if (bmp != null) Image(bmp.asImageBitmap(), null, mod, contentScale = ContentScale.Crop)
     else Box(mod.background(Brush.linearGradient(listOf(fallback, fallback.copy(alpha = 0.5f)))), contentAlignment = Alignment.Center) {
-        Text(if (incoming) "B" else "A", color = Color.White, fontSize = 16.sp)
+        Text(if (incoming) "B" else "A", color = Color.White, fontSize = 8.sp)
     }
+}
+
+/** A clip picture scaled down to transition-tile size (at most 320 px wide). */
+private fun smallThumb(b: Bitmap): Bitmap {
+    if (b.width <= 320) return b
+    val h = (b.height * 320f / b.width).toInt().coerceAtLeast(1)
+    return try { Bitmap.createScaledBitmap(b, 320, h, true) } catch (_: Throwable) { b }
 }
 
 /** Crop / zoom / reposition and stabilisation controls for a clip. */

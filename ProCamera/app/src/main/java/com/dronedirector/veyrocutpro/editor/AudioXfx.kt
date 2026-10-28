@@ -13,6 +13,7 @@ enum class AudioXfx {
     PITCH_DOWN, PITCH_UP, TREMOLO, CHOP, FLANGER, WOBBLE, RISER, DRIVE, UNDERWATER, GLITCH,
     SPIN_BACK, VINYL_BRAKE, PUMP, RING, AUTOPAN, SLAP, LOFI, KARAOKE, AIRY, GATE,
     DOPPLER, BANDSWEEP, VINYL, SHIMMER, FREEZE, SUBDROP, CHORUS, HALL,
+    PHASER, PINGPONG, MEGAPHONE, NARROW, WIDEN, HARMONY, OCTAVER, REVERSE,
 }
 
 /** Zero-delay state-variable filter (low, band and high outputs), stable at any cutoff. Own code. */
@@ -71,11 +72,18 @@ class XfxDsp(private val ch: Int, private val rate: Int) {
     private var chW = 0
     private var subPhase = 0.0
     private var pitch: PitchShiftX? = null
+    // A second pitch voice (harmony, octave), the phaser stages, the ping-pong lines and the reverse read head.
+    private var pitch2: PitchShiftX? = null
+    private val phX = Array(ch) { DoubleArray(4) }; private val phY = Array(ch) { DoubleArray(4) }
+    private val ppLen = (rate * 0.26).toInt()
+    private val pp = Array(2) { DoubleArray(ppLen) }
+    private var ppW = 0
+    private var revStart = -1L
     private var t = 0L
     private var lastType = AudioXfx.NONE
 
     fun reset() {
-        readPos = -1.0; freezeAt = -1; subPhase = 0.0; tapeBlend = 0.0; stutterStart = -1; stutterI = 0; coefAt = -1
+        readPos = -1.0; freezeAt = -1; revStart = -1L; subPhase = 0.0; tapeBlend = 0.0; stutterStart = -1; stutterI = 0; coefAt = -1
         for (c in 0 until ch) { echo[c].fill(0.0); fl[c].fill(0.0); combs[c].forEach { it.fill(0.0) }; aps[c].forEach { it.fill(0.0) }; combLp[c].fill(0.0) }
     }
 
@@ -252,6 +260,52 @@ class XfxDsp(private val ch: Int, private val rate: Int) {
                 chW = (chW + 1) % chLen
             }
             AudioXfx.HALL -> reverb(frame, a, 0.93)
+            AudioXfx.PHASER -> {
+                // Four moving all-pass stages: the classic swooshing phaser.
+                val lfo = 0.5 + 0.5 * sin(2 * PI * 0.4 * sec)
+                val fc = 300.0 * (12.0).pow(lfo)
+                val tn = tan(PI * fc / rate); val co = (tn - 1) / (tn + 1)
+                for (c in 0 until ch) {
+                    var x = frame[c]
+                    for (s in 0 until 4) { val y = co * x + phX[c][s] - co * phY[c][s]; phX[c][s] = x; phY[c][s] = y; x = y }
+                    frame[c] = frame[c] * (1 - 0.5 * a) + x * 0.7 * a
+                }
+            }
+            AudioXfx.PINGPONG -> {
+                // Echoes that bounce from left to right.
+                val l = if (ch >= 2) frame[0] else frame[0]; val r = if (ch >= 2) frame[1] else frame[0]
+                val dl = pp[0][ppW]; val dr = pp[1][ppW]
+                pp[0][ppW] = (l + r) * 0.5 + dr * 0.55
+                pp[1][ppW] = dl * 0.55
+                ppW = (ppW + 1) % ppLen
+                if (ch >= 2) { frame[0] = frame[0] * (1 - 0.3 * a) + dl * 0.8 * a; frame[1] = frame[1] * (1 - 0.3 * a) + dr * 0.8 * a }
+                else frame[0] = frame[0] * (1 - 0.3 * a) + (dl + dr) * 0.5 * a
+            }
+            AudioXfx.MEGAPHONE -> {
+                if (upd) { f1.set(550.0, rate, 0.9); f2.set(2800.0, rate, 1.2) }
+                for (c in 0 until ch) { f1.run(frame[c], c); f2.run(f1.high, c); val y = tanh(f2.low * 4.0) * 0.7; frame[c] = frame[c] * (1 - a) + y * a }
+            }
+            AudioXfx.NARROW, AudioXfx.WIDEN -> {
+                if (ch >= 2) {
+                    val mid = (frame[0] + frame[1]) * 0.5; var side = (frame[0] - frame[1]) * 0.5
+                    side *= if (type == AudioXfx.NARROW) 1.0 - a else 1.0 + 1.6 * a
+                    val m = if (type == AudioXfx.WIDEN) mid * (1.0 - 0.25 * a) else mid
+                    frame[0] = m + side; frame[1] = m - side
+                }
+            }
+            AudioXfx.HARMONY, AudioXfx.OCTAVER -> {
+                // A second voice a fifth above, or an octave below, blended in.
+                val v = frame.copyOf()
+                val ps = pitch2 ?: PitchShiftX(ch, rate).also { pitch2 = it }
+                ps.process(v, if (type == AudioXfx.HARMONY) 1.4983 else 0.5)
+                for (c in 0 until ch) frame[c] = frame[c] * (1 - 0.2 * a) + v[c] * (if (type == AudioXfx.HARMONY) 0.55 else 0.75) * a
+            }
+            AudioXfx.REVERSE -> {
+                // The recent past played backwards.
+                if (revStart < 0) revStart = absPos
+                val back = (revStart - (absPos - revStart)).toDouble()
+                for (c in 0 until ch) frame[c] = frame[c] * (1 - a) + histAt(c, back) * a
+            }
             AudioXfx.GATE -> {
                 // Trance gate: sixteenth notes at 120 bpm, each with a short tail.
                 val ph = (sec * 8.0) % 1.0

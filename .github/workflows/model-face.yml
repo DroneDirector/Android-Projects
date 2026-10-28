@@ -20,7 +20,7 @@ jobs:
             ls -la face_sface_2021dec.onnx
             echo "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79  face_sface_2021dec.onnx" | sha256sum -c -
             head -3 SFace-LICENSE.txt
-            pip install -q onnxruntime==1.19.2 numpy
+            pip install -q onnxruntime numpy
             printf '%s\n' "import onnxruntime as ort, numpy as np" \
               "s = ort.InferenceSession('face_sface_2021dec.onnx')" \
               "i = s.get_inputs()[0]; o = s.get_outputs()[0]" \

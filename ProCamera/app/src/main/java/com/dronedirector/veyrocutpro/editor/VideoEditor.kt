@@ -2997,7 +2997,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
             wx.sepStatus = null
             if (res is Throwable) { es.message = res.message?.takeIf { it.isNotBlank() && it != "no music" } ?: "Couldn't separate the sound"; return@launch }
-            @Suppress("UNCHECKED_CAST") val (voice, music) = res as Pair<java.io.File, java.io.File>
+            val pair = res as Pair<*, *>
+            val voice = pair.first as java.io.File; val music = pair.second as java.io.File
             fun track(f: java.io.File, name: String) = MusicTrack(
                 uri = Uri.fromFile(f), name = name, durationMs = c.durationMs, offsetMs = c.startMs, volume = c.volume.coerceAtMost(1.5f),
                 fadeInMs = 0L, fadeOutMs = 0L, duck = 0f, startMs = st, lengthMs = c.endMs - c.startMs,

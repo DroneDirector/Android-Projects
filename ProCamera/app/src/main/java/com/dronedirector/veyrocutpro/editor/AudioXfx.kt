@@ -11,6 +11,7 @@ import kotlin.math.tanh
 enum class AudioXfx {
     NONE, LOWPASS, HIGHPASS, ECHO, REVERB, TAPE_STOP, TAPE_START, STUTTER, BITCRUSH, TELEPHONE, RADIO,
     PITCH_DOWN, PITCH_UP, TREMOLO, CHOP, FLANGER, WOBBLE, RISER, DRIVE, UNDERWATER, GLITCH,
+    SPIN_BACK, VINYL_BRAKE, PUMP, RING, AUTOPAN, SLAP, LOFI, KARAOKE, AIRY, GATE,
 }
 
 /** Zero-delay state-variable filter (low, band and high outputs), stable at any cutoff. Own code. */
@@ -119,27 +120,73 @@ class XfxDsp(private val ch: Int, private val rate: Int) {
                 }
                 ew = (ew + 1) % echoLen
             }
-            AudioXfx.REVERB -> {
-                for (c in 0 until ch) {
-                    val x = frame[c] * 0.25
-                    var sum = 0.0
-                    for (k in 0 until 4) {
-                        val buf = combs[c][k]; val p = combPos[c][k]
-                        val y = buf[p]
-                        combLp[c][k] = y * 0.6 + combLp[c][k] * 0.4
-                        buf[p] = x + combLp[c][k] * 0.84
-                        combPos[c][k] = (p + 1) % buf.size
-                        sum += y
-                    }
-                    for (k in 0 until 2) {
-                        val buf = aps[c][k]; val p = apPos[c][k]
-                        val b = buf[p]
-                        buf[p] = sum + b * 0.5
-                        sum = b - sum * 0.5
-                        apPos[c][k] = (p + 1) % buf.size
-                    }
-                    frame[c] = frame[c] * (1 - 0.5 * a) + sum * 0.9 * a
+            AudioXfx.REVERB -> reverb(frame, a)
+            AudioXfx.SPIN_BACK -> {
+                // DJ rewind: the recent sound plays backwards, fast.
+                if (readPos < 0) readPos = absPos.toDouble()
+                if (a > 0.15) readPos -= 1.0 + 2.5 * a else readPos = absPos.toDouble()
+                if (absPos - readPos > histLen - 4) readPos = (absPos - histLen + 4).toDouble()
+                for (c in 0 until ch) frame[c] = if (a > 0.15) histAt(c, readPos) * (1.0 - 0.3 * a) else frame[c]
+            }
+            AudioXfx.VINYL_BRAKE -> {
+                // Record brake: slows to a stop and darkens at the same time.
+                if (readPos < 0) readPos = absPos.toDouble()
+                readPos += (1.0 - a).pow(2.0)
+                if (absPos - readPos > histLen - 4) readPos = (absPos - histLen + 4).toDouble()
+                if (upd) f1.set(16000.0 * (300.0 / 16000.0).pow(a), rate)
+                for (c in 0 until ch) { f1.run(histAt(c, readPos), c); frame[c] = f1.low }
+            }
+            AudioXfx.PUMP -> {
+                // Side-chain pump: ducks on every beat (120 bpm), deeper as it goes.
+                val ph = (sec * 2.0) % 1.0
+                val g = 1.0 - a * 0.9 * (1.0 - ph).pow(3.0)
+                for (c in 0 until ch) frame[c] *= g
+            }
+            AudioXfx.RING -> {
+                val m = sin(2 * PI * (80.0 + 600.0 * a) * sec)
+                for (c in 0 until ch) frame[c] = frame[c] * (1 - a) + frame[c] * m * a
+            }
+            AudioXfx.AUTOPAN -> {
+                if (ch >= 2) {
+                    val pan = sin(2 * PI * (1.0 + 5.0 * a) * sec) * a
+                    val l = frame[0]; val r = frame[1]
+                    frame[0] = l * (1.0 - pan.coerceAtLeast(0.0)); frame[1] = r * (1.0 + pan.coerceAtMost(0.0))
                 }
+            }
+            AudioXfx.SLAP -> {
+                // Short slap-back echo (about 90 ms).
+                val d = (rate * 0.09).toInt().coerceAtMost(echoLen - 1)
+                for (c in 0 until ch) {
+                    val rp = ((ew - d) % echoLen + echoLen) % echoLen
+                    val y = echo[c][rp]
+                    echo[c][ew] = frame[c] + y * 0.45
+                    frame[c] = frame[c] + y * 0.8 * a
+                }
+                ew = (ew + 1) % echoLen
+            }
+            AudioXfx.LOFI -> {
+                if (upd) f1.set(16000.0 * (2800.0 / 16000.0).pow(a), rate)
+                val ps = pitch ?: PitchShiftX(ch, rate).also { pitch = it }
+                ps.process(frame, 1.0 + 0.012 * a * sin(2 * PI * 0.8 * sec))
+                for (c in 0 until ch) { f1.run(frame[c], c); frame[c] = f1.low }
+                crush(frame, a * 0.35)
+            }
+            AudioXfx.KARAOKE -> {
+                // Takes the middle (usually the voice) out, leaving the sides.
+                if (ch >= 2) { val side = (frame[0] - frame[1]) * 0.5; val mid = (frame[0] + frame[1]) * 0.5 * (1 - a); frame[0] = mid + side; frame[1] = mid - side }
+            }
+            AudioXfx.AIRY -> {
+                // Thin and airy with a bright room.
+                if (upd) f2.set(120.0 * (1500.0 / 120.0).pow(a), rate)
+                for (c in 0 until ch) { f2.run(frame[c], c); frame[c] = frame[c] * (1 - a) + f2.high * a }
+                reverb(frame, a * 0.8)
+            }
+            AudioXfx.GATE -> {
+                // Trance gate: sixteenth notes at 120 bpm, each with a short tail.
+                val ph = (sec * 8.0) % 1.0
+                val env = if (ph < 0.5) 1.0 else kotlin.math.exp(-(ph - 0.5) * 20.0)
+                val g = 1.0 - a * (1.0 - env)
+                for (c in 0 until ch) frame[c] *= g
             }
             AudioXfx.TAPE_STOP, AudioXfx.TAPE_START -> {
                 // Varispeed: read the recent past slower and slower (stop), or from slow up to normal (start).
@@ -207,6 +254,29 @@ class XfxDsp(private val ch: Int, private val rate: Int) {
         }
         w = (w + 1) % histLen
         t++
+    }
+
+    private fun reverb(frame: DoubleArray, a: Double) {
+        for (c in 0 until ch) {
+            val x = frame[c] * 0.25
+            var sum = 0.0
+            for (k in 0 until 4) {
+                val buf = combs[c][k]; val p = combPos[c][k]
+                val y = buf[p]
+                combLp[c][k] = y * 0.6 + combLp[c][k] * 0.4
+                buf[p] = x + combLp[c][k] * 0.84
+                combPos[c][k] = (p + 1) % buf.size
+                sum += y
+            }
+            for (k in 0 until 2) {
+                val buf = aps[c][k]; val p = apPos[c][k]
+                val b = buf[p]
+                buf[p] = sum + b * 0.5
+                sum = b - sum * 0.5
+                apPos[c][k] = (p + 1) % buf.size
+            }
+            frame[c] = frame[c] * (1 - 0.5 * a) + sum * 0.9 * a
+        }
     }
 
     private fun crush(frame: DoubleArray, a: Double) {

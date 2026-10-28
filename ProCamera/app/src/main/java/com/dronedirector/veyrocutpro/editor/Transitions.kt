@@ -109,6 +109,16 @@ enum class TransitionType(val id: Float, val label: String, val group: Transitio
     SLIDE_BLUR(94f, "Slide blur", TransitionGroup.CREATIVE, TransitionKind.MOVE),
     JELLY(95f, "Jelly", TransitionGroup.CREATIVE, TransitionKind.UNIFORM),
     PIXEL_RAIN(96f, "Pixel rain", TransitionGroup.CREATIVE, TransitionKind.MASK),
+    INK_DROP(97f, "Ink drop", TransitionGroup.CREATIVE, TransitionKind.MASK),
+    ZOOM_SPIN(98f, "Zoom spin", TransitionGroup.CREATIVE, TransitionKind.UNIFORM),
+    MIRROR_FOLD(99f, "Mirror fold", TransitionGroup.CREATIVE, TransitionKind.UNIFORM),
+    LIGHT_STREAKS(100f, "Light streaks", TransitionGroup.CREATIVE, TransitionKind.UNIFORM),
+    SPIRAL_WIPE(101f, "Spiral wipe", TransitionGroup.CREATIVE, TransitionKind.MASK),
+    BARS_RISE(102f, "Bars rise", TransitionGroup.CREATIVE, TransitionKind.MASK),
+    SLICES(103f, "Shutter slices", TransitionGroup.CREATIVE, TransitionKind.MASK),
+    VIGNETTE_CLOSE(104f, "Vignette close", TransitionGroup.CREATIVE, TransitionKind.UNIFORM),
+    CHROMA_ZOOM(105f, "Chroma zoom", TransitionGroup.CREATIVE, TransitionKind.UNIFORM),
+    OVEREXPOSE(106f, "Overexpose", TransitionGroup.CREATIVE, TransitionKind.UNIFORM),
 }
 
 /**
@@ -171,6 +181,16 @@ enum class AudioTransitionType(val label: String, val detail: String) {
     WOBBLE("Wobble", "A wobbling filter on the old sound, faster towards the cut."),
     RISER("Riser", "A rising noise sweep builds up into the cut."),
     DRIVE("Distortion fade", "The old sound saturates and breaks up as it fades."),
+    SPIN_BACK("DJ rewind", "The old sound spins backwards like a DJ rewinding the record."),
+    VINYL_BRAKE("Record brake", "The old sound brakes to a stop and goes dark, like a turntable switched off."),
+    PUMP("Pump", "The old sound pumps on the beat, harder towards the cut, like dance music."),
+    RING("Metal ring", "The old sound turns metallic and robotic as it fades."),
+    AUTOPAN("Auto-pan", "Both sides swing left and right in the stereo picture (stereo sound)."),
+    SLAP("Slap echo", "A short slap-back echo on the old sound, like a canyon wall."),
+    LOFI("Lo-fi", "The old sound turns into a warm, wobbly lo-fi tape; the new one comes in lo-fi and clears."),
+    KARAOKE("Voice out", "The voice in the middle disappears from the old sound first (stereo sound)."),
+    AIRY("Airy", "Thin and bright with a light room, on both sides."),
+    GATE("Trance gate", "The old sound is gated into a fast pulsing rhythm before the cut."),
 }
 
 enum class FadeCurve { LINEAR, POWER, EXP, SMOOTH }
@@ -261,6 +281,16 @@ object AudioXfade {
             AudioTransitionType.WOBBLE -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.WOBBLE) to FadeIn(0, w, FadeCurve.POWER)
             AudioTransitionType.RISER -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.RISER) to FadeIn(0, q, FadeCurve.POWER)
             AudioTransitionType.DRIVE -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.DRIVE) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.SPIN_BACK -> FadeOut(w, w, FadeCurve.LINEAR, AudioXfx.SPIN_BACK) to FadeIn(h, h, FadeCurve.POWER)
+            AudioTransitionType.VINYL_BRAKE -> FadeOut(w, w, FadeCurve.LINEAR, AudioXfx.VINYL_BRAKE) to FadeIn(w * 3 / 5, (w * 2 / 5).coerceAtLeast(1), FadeCurve.POWER)
+            AudioTransitionType.PUMP -> FadeOut(w, w, FadeCurve.LINEAR, AudioXfx.PUMP) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.RING -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.RING) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.AUTOPAN -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.AUTOPAN) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.AUTOPAN)
+            AudioTransitionType.SLAP -> FadeOut(w, w, FadeCurve.EXP, AudioXfx.SLAP) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.LOFI -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.LOFI) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.LOFI)
+            AudioTransitionType.KARAOKE -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.KARAOKE) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.AIRY -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.AIRY) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.AIRY)
+            AudioTransitionType.GATE -> FadeOut(w, w, FadeCurve.LINEAR, AudioXfx.GATE) to FadeIn(0, w, FadeCurve.POWER)
         }
     }
 
@@ -327,7 +357,10 @@ object TransitionMath {
         82, 91 -> ss(0.4f, 0.6f, p)
         87 -> ss(0.49f, 0.51f, p)
         89 -> ss(0.48f, 0.52f, p)
-        95 -> ss(0.45f, 0.55f, p)
+        95, 98, 105 -> ss(0.45f, 0.55f, p)
+        99, 104 -> ss(0.49f, 0.51f, p)
+        100 -> ss(0.35f, 0.65f, p)
+        106 -> ss(0.4f, 0.6f, p)
         else -> 1f
     }
 
@@ -519,7 +552,14 @@ object TransitionMath {
             if (isT(90.0)) { vec2 g = vec2(12.0 * aspect, 12.0); vec2 cl = floor(uv * g); vec2 lc = fract(uv * g) - 0.5; float dly = rnd(cl + 3.0) * 0.45 + uv.x * 0.25; float rad = clamp((p * 1.4 - dly) * 2.2, 0.0, 0.75); return 1.0 - smoothstep(rad - 0.04, rad, length(lc)); }
             if (isT(92.0)) { float e = easeF(p); return 1.0 - smoothstep(e * 0.5 - 0.005, e * 0.5 + 0.005, abs(uv.y - 0.5)); }
             if (isT(93.0)) { vec2 q = (uv - 0.5) * vec2(aspect, 1.0); float f = fract((atan(q.y, q.x) / 6.2831853 + 0.5) * 6.0); return cover(f, mix(-0.02, 1.02, p), 0.01); }
-            if (isT(95.0)) return sstep(0.45, 0.55, p);
+            if (isT(95.0) || isT(98.0) || isT(105.0)) return sstep(0.45, 0.55, p);
+            if (isT(99.0) || isT(104.0)) return sstep(0.49, 0.51, p);
+            if (isT(100.0)) return sstep(0.35, 0.65, p);
+            if (isT(106.0)) return sstep(0.4, 0.6, p);
+            if (isT(97.0)) { vec2 q = (uv - 0.5) * vec2(aspect, 1.0); float d = length(q) + (fbm(q * 5.0 + 3.0) - 0.5) * 0.18; float R = p * (length(vec2(aspect, 1.0)) * 0.5 + 0.15); return 1.0 - smoothstep(R - 0.01, R + 0.01, d); }
+            if (isT(101.0)) { vec2 q = (uv - 0.5) * vec2(aspect, 1.0); float a = atan(q.y, q.x) / 6.2831853 + 0.5; float r = length(q) / (length(vec2(aspect, 1.0)) * 0.5); return cover(fract(a + r * 2.0) * 0.33 + r * 0.67, mix(-0.02, 1.02, p), 0.02); }
+            if (isT(102.0)) { float b = floor(uv.x * 12.0); float dly = rnd(vec2(b, 2.0)) * 0.35; float hgt = clamp((p - dly) / 0.6, 0.0, 1.0); return step(uv.y, easeF(hgt) * 1.001); }
+            if (isT(103.0)) { float sl = floor(uv.x * 9.0); float f = fract(uv.x * 9.0); float dly = sl / 9.0 * 0.5; float e = clamp((p - dly) / 0.5, 0.0, 1.0); return step(abs(f - 0.5) * 2.0, e); }
             if (isT(96.0)) { float col = floor(uv.x * uSize.x / 6.0); float sp = 0.7 + 0.8 * rnd(vec2(col, 5.0)); float yy = floor((1.0 - uv.y) * uSize.y / 6.0) * 6.0 / uSize.y; return step(yy, p * 1.6 * sp - rnd(vec2(col, 9.0)) * 0.35); }
             return 1.0;
         }
@@ -892,6 +932,51 @@ object TransitionMath {
                 vec2 q = c * vec2(1.0 + 0.16 * k * wv, 1.0 - 0.16 * k * wv);
                 q.x += sin(uv0.y * 10.0 + p * 15.0) * 0.025 * k;
                 col = mtex(q + 0.5).rgb;
+            } else if (isT(97.0)) {
+                // Ink drop: the next shot spreads like ink in water, with a dark soaking edge.
+                col = tex(uv0).rgb;
+                vec2 q = c * vec2(aspect, 1.0);
+                float d = length(q) + (fbm(q * 5.0 + 3.0) - 0.5) * 0.18 - p * (length(vec2(aspect, 1.0)) * 0.5 + 0.15);
+                col *= 1.0 - 0.6 * (1.0 - smoothstep(0.0, 0.05, abs(d))) * k;
+            } else if (isT(98.0)) {
+                // Zoom spin: a quick zoom and half turn with blur.
+                float ang = inc ? -(1.0 - easeF(p)) * 1.5707963 : easeF(p) * 1.5707963;
+                float z = inc ? mix(2.2, 1.0, easeF(p)) : mix(1.0, 0.45, easeF(p));
+                vec2 q = c * vec2(aspect, 1.0);
+                vec3 acc = vec3(0.0);
+                for (int i = 0; i < 10; i++) { float f = float(i) / 9.0 - 0.5; acc += mtex(rot2(q, ang + f * 0.3 * k) / vec2(aspect, 1.0) / (z * (1.0 + f * 0.1 * k)) + 0.5).rgb; }
+                col = acc / 10.0;
+            } else if (isT(99.0)) {
+                // Mirror fold: the shot folds into the middle line like a closing book, the next one unfolds.
+                float f = inc ? 1.0 - easeF(p) : easeF(p);
+                float hw = max(1.0 - f, 0.002);
+                float inside = step(abs(c.x), hw * 0.5);
+                col = mtex(vec2(c.x / hw + 0.5, uv0.y)).rgb * inside * (1.0 - 0.5 * f);
+            } else if (isT(100.0)) {
+                // Light streaks: bright parts smear into long horizontal streaks of light.
+                col = tex(uv0).rgb;
+                vec3 acc = vec3(0.0);
+                for (int i = 0; i < 16; i++) { float f = (float(i) / 15.0 - 0.5) * 0.3 * k; acc += max(mtex(uv0 + vec2(f, 0.0)).rgb - 0.55, 0.0); }
+                col += acc / 16.0 * 4.0 * k + vec3(k * k * 0.12);
+            } else if (isT(101.0) || isT(102.0) || isT(103.0)) {
+                col = tex(uv0).rgb;
+            } else if (isT(104.0)) {
+                // Vignette close: the corners darken in until it's black, then open on the next shot.
+                col = tex(uv0).rgb;
+                float r = length(c * vec2(aspect, 1.0)) / (length(vec2(aspect, 1.0)) * 0.5);
+                float R = 1.15 * (1.0 - pow(k, 0.8));
+                col *= 1.0 - smoothstep(R - 0.35, R, r);
+            } else if (isT(105.0)) {
+                // Chroma zoom: a zoom punch with the colours pulling apart.
+                float z = inc ? mix(1.35, 1.0, easeF(p)) : mix(1.0, 1.35, easeF(p));
+                vec2 b = c / z;
+                col = vec3(mtex(b * (1.0 + 0.06 * k) + 0.5).r, mtex(b + 0.5).g, mtex(b * (1.0 - 0.06 * k) + 0.5).b);
+            } else if (isT(106.0)) {
+                // Overexpose: the shot blows out to white like an overexposed frame, then settles on the next.
+                col = tex(uv0).rgb;
+                float e = pow(k, 1.5);
+                col = 1.0 - (1.0 - col) * (1.0 - e);
+                col = mix(col, vec3(1.0), e * e * 0.6);
             } else {
                 col = tex(uv0).rgb;
             }

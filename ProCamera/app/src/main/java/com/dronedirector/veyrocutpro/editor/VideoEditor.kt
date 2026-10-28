@@ -294,9 +294,9 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
         if (amt >= 3f) {
             // Visualizer test: analyse a made-up song with a kick on every beat and check the pictures move.
             withContext(Dispatchers.Default) { VisTest.run(context) }
-            VisTest.slideshow(context)
             VisTest.transitions()
             withContext(Dispatchers.Default) { VisTest.text(context) }
+            VisTest.slideshow(context)
             return@LaunchedEffect
         }
         android.util.Log.i("FxTest", "making the test clip ($amt)")

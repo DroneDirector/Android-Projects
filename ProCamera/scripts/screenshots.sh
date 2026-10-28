@@ -74,7 +74,9 @@ for amt in 0 1 2 3; do
   adb shell am start -W -n "$ACT" --ez skipsetup true --es screen video --es fxtest $amt >/dev/null
   sleep 40; adb shell input tap 412 1630; sleep 5
   adb exec-out screencap -p > "$OUT/55-fxtest-clarity-$amt.png"; echo "captured 55-fxtest-clarity-$amt"
-  adb logcat -d | grep -E "FxTest|VisTest|AndroidRuntime|GradePreview|DetailEffect|VideoFrameProcessor|ExoPlayer" | tail -40 > "$OUT/55-fxtest-log-$amt.txt"
+  # The self-test (3) runs longer: wait for its last step, then keep more of the log.
+  if [ "$amt" = "3" ]; then sleep 75; fi
+  adb logcat -d | grep -E "FxTest|VisTest|AndroidRuntime|GradePreview|DetailEffect|VideoFrameProcessor|ExoPlayer" | tail -150 > "$OUT/55-fxtest-log-$amt.txt"
 done
 adb exec-out screencap -p > "$OUT/53-phone-video-editor-open.png"; echo "captured 53-phone-video-editor-open"
 sleep 1; adb exec-out screencap -p > "$OUT/54-phone-video-editor-open-b.png"; echo "captured 54-phone-video-editor-open-b"

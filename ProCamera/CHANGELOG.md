@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Visualizer: now follows music on the audio tracks too (it only looked at the main music track before, and fell back to the clip's own sound), reads every kind of decoded audio, and its settings have FOLLOWS THIS SOUND to pick the music, any audio track or the clip's sound.
 
 ## 1.0.689 — 2026-10-28
 - Visualizer: 20 new styles — Dot matrix, Neon bars, Skyline, Bubbles, Oscilloscope, Mountains, 8-bit blocks, Flames, Ribbons, Aurora, Sunburst, Hexagon, Spiral, Kaleidoscope, Star burst, Vinyl, Heartbeat, Twin rings, Flower, Gauge.

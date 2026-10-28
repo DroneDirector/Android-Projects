@@ -30,7 +30,7 @@ object Spectrum {
     fun cached(uri: Uri): FloatArray? = synchronized(mem) { mem[uri.toString()] }
 
     /** Analyses (or loads the saved result). Slow the first time: call off the main thread. */
-    fun load(context: Context, uri: Uri): FloatArray? {
+    @Synchronized fun load(context: Context, uri: Uri): FloatArray? {
         cached(uri)?.let { return it }
         val file = File(MediaCatalog.sub(context, "spectrum"), uri.toString().hashCode().toUInt().toString(16) + ".spc1")
             .also { MediaCatalog.claim(context, uri, it) }
@@ -93,6 +93,8 @@ object Spectrum {
             codec.configure(fmt, null, null, 0); codec.start()
             var rate = fmt.getInteger(MediaFormat.KEY_SAMPLE_RATE)
             var channels = fmt.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+            // Some decoders give 32-bit float samples instead of 16-bit.
+            var floatPcm = false
             val ring = FloatArray(N); var w = 0; var total = 0L
             val win = FloatArray(N) { (0.5 - 0.5 * cos(2.0 * PI * it / (N - 1))).toFloat() }
             val re = FloatArray(N); val im = FloatArray(N)
@@ -133,19 +135,27 @@ object Spectrum {
                     o == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
                         val f = codec.outputFormat
                         rate = f.getInteger(MediaFormat.KEY_SAMPLE_RATE); channels = f.getInteger(MediaFormat.KEY_CHANNEL_COUNT); edge = edges()
+                        floatPcm = f.containsKey(MediaFormat.KEY_PCM_ENCODING) && f.getInteger(MediaFormat.KEY_PCM_ENCODING) == android.media.AudioFormat.ENCODING_PCM_FLOAT
                     }
                     o >= 0 -> {
                         val buf = codec.getOutputBuffer(o)
                         if (buf != null && info.size > 0) {
-                            val sb = buf.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
-                            sb.position(info.offset / 2); sb.limit((info.offset + info.size) / 2)
-                            while (sb.hasRemaining()) {
-                                mix += sb.get() / 32768f
+                            fun take(x: Float) {
+                                mix += x
                                 if (++ch >= channels) {
                                     ring[w] = mix / channels; w = (w + 1) % N; mix = 0f; ch = 0; total++
                                     // A frame every HOP_MS, centred on its time.
                                     if (total >= nextAt * rate / 1000 + N / 2) { emit(); nextAt += HOP_MS }
                                 }
+                            }
+                            if (floatPcm) {
+                                val fb = buf.order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer()
+                                fb.position(info.offset / 4); fb.limit((info.offset + info.size) / 4)
+                                while (fb.hasRemaining()) take(fb.get())
+                            } else {
+                                val sb = buf.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+                                sb.position(info.offset / 2); sb.limit((info.offset + info.size) / 2)
+                                while (sb.hasRemaining()) take(sb.get() / 32768f)
                             }
                         }
                         codec.releaseOutputBuffer(o, false)

@@ -4503,9 +4503,17 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onTelemetryShow = { es.telemetryShow = it },
                                 onTelemetry = { es.srtForMap = false; pickSrt.launch(arrayOf("*/*")) },
                                 onFlightPath = { es.srtForMap = true; pickSrt.launch(arrayOf("*/*")) },
+                                visSources = run {
+                                    // Every sound in the project the visualizer can follow.
+                                    val out = ArrayList<VisSource>()
+                                    es.music?.let { out += VisSource("Music · " + it.name, it.uri, it.offsetMs - it.startMs) }
+                                    extraAudio.forEach { out += VisSource(it.name, it.uri, it.offsetMs - it.startMs) }
+                                    clips.getOrNull(es.current)?.let { c -> out += VisSource("Clip ${es.current + 1} sound", c.uri, c.startMs - (clipStarts(clips).getOrNull(es.current) ?: 0L)) }
+                                    out
+                                },
                                 onVisualizer = {
-                                    // The music track if there is one, else the selected clip's own sound.
-                                    val m = es.music
+                                    // The music track if there is one, else the first audio track, else the selected clip's own sound.
+                                    val m = es.music ?: extraAudio.firstOrNull()
                                     val c = clips.getOrNull(es.current)
                                     val total = timelineLength(clips).coerceAtLeast(1)
                                     val src = m?.uri ?: c?.uri
@@ -6113,6 +6121,7 @@ private fun LayersPage(
     onImportSubs: () -> Unit = {},
     onFlightPath: () -> Unit = {},
     onVisualizer: () -> Unit = {},
+    visSources: List<VisSource> = emptyList(),
     onTranslate: (String) -> Unit = {}, translateStatus: String? = null,
     onDub: (String, Boolean, Boolean) -> Unit = { _, _, _ -> }, dubStatus: String? = null,
     onTrack: (String) -> Unit = {}, trackingId: String? = null,
@@ -6410,6 +6419,11 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
                     FxLayers.VIS_COLOURS.forEachIndexed { i, n -> PillChip(n, (l.fxC ?: 0f).toInt() == i) { onUpdate(l.copy(fxC = i.toFloat())) } }
                 }
+                SectionTitle("FOLLOWS THIS SOUND")
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
+                    visSources.forEach { src -> PillChip(src.name.take(28), l.imageUri == src.uri && (l.fxD ?: 0f).toLong() == src.delta) { onUpdate(l.copy(imageUri = src.uri, fxD = src.delta.toFloat())) } }
+                }
+                if (visSources.none { it.uri == l.imageUri }) Text("The sound it followed is no longer in the project — pick one above.", color = Pro.Red, fontSize = 11.sp)
                 if (!FxLayers.visRound((l.fxB ?: 0f).toInt())) EdSlider("Width", (l.fxA ?: 0.9f) * 100f, 20f..100f, 90f, { "%.0f%%".format(it) }) { onUpdate(l.copy(fxA = it / 100f)) }
                 EdSlider(if (FxLayers.visRound((l.fxB ?: 0f).toInt())) "Size" else "Height", l.size * 100f, 5f..100f, 22f, { "%.0f%%".format(it) }) { onUpdate(l.copy(size = it / 100f)) }
                 Text("Moves with the music's own frequencies and pulses on every beat (kick drum), worked out from the sound itself — so it's in sync in the preview and the export. Uses the music track, or the selected clip's sound when there's no music. Drag it into place.", color = Pro.Dim, fontSize = 11.sp)

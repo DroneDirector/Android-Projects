@@ -16,6 +16,9 @@ import kotlin.math.min
  * Overlay layers drawn by the app (Layers → ADD LAYER): cinema bars, a flight path mini-map from the
  * drone's flight data, a progress bar and a lens flare. Drawn the same in the preview and the export. Own code.
  */
+/** A sound the visualizer can follow: its name, file, and song time minus timeline time. */
+data class VisSource(val name: String, val uri: android.net.Uri, val delta: Long)
+
 object FxLayers {
     const val BARS = 0
     const val MAP = 1

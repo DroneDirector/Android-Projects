@@ -6,6 +6,12 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 ## Unreleased
 - Smoother preview: the playhead now glides every screen frame while playing instead of stepping, and the music and other audio tracks stay in step by playing a touch faster or slower for a moment instead of jumping — no more little gaps in the soundtrack every second or two.
 - The app log also notes the app's memory use and Android's low-memory warnings, to track down closes for low memory.
+- **Video library** (video editor → Media → Library & import, or the start page): every video on the device with stars, flags and colour labels (red, yellow, green, blue, purple), filters, albums, smart collections and a calendar view by year, month and day.
+- **Pro import** in both editors: copy photos and videos from an SD card, a USB drive or a camera on its USB cable; new files only, rename patterns, a folder per day, a backup copy to a second place, a metadata preset and (photos) a develop preset.
+- **Metadata presets**: your name, copyright, contact, caption and keywords saved as presets, given to photos in the library and written into exports — and into videos (Deliver → Metadata).
+- Photo library: **calendar view**, **smart collections** with more rules (keyword, date, file type, location, colour label), metadata presets, **client proofing gallery** (a web gallery the client marks favourites, stars and notes in; their list comes back as picks) and **time-lapse video** from a photo sequence (deflicker, exposure ramp, a look that blends into another).
+- Photo editor: **adaptive presets** (AI finds the subject, sky or people in each photo and adjusts only those), **remove people** in AI Remove, **HDR panorama** in Merge, and **upload after export** (every export is also copied to Google Drive, OneDrive, a NAS or any folder) — also in the video editor's Deliver page.
+- The video editor starts with a wider tools panel and a taller timeline on tablets and phones in landscape.
 
 ## 1.0.759 — 2026-10-28
 - App log on the device: app starts, exports, problems and crashes (with the app's recent system log lines). VIEW LOG in the crash / problem report, or ? → Troubleshooting → App log — share it or save a copy.

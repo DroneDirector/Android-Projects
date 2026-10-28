@@ -132,6 +132,13 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 **Library**
 - Library → Duplicates: near-identical photos grouped, the sharpest first (✓ KEEP); reject or select the extra copies in one tap. Nothing is deleted.
 - Library → select photos → 📍 Geotag from GPX: each photo gets the position a GPS track (GPX from a GPS logger, phone app or drone log) had when it was taken; set the photos' time zone if the camera doesn't store one. Shown on the Map and written into exports — the original files aren't changed.
+- Library → 📅 Calendar: tap a year, then a month, then a day (each shows how many photos); the grid then shows only that time — 📅 … ✕ shows everything again.
+- Library → select photos → a colour (red, yellow, green, blue, purple) gives them a colour label; the colour dots at the top filter by label.
+- Library → + Smart collection: photos that match rules (stars, flag, colour label, date such as Last 30 days, RAW / JPEG, with a location, a keyword, text) — new photos join by themselves.
+- Library → select photos → Metadata preset: make presets with your name, copyright, contact, caption and keywords and give one to the photos; it's written into them when you export.
+- Library → IMPORT: copy from a memory card or USB drive (pick its top folder or DCIM) or a camera on its USB cable (set it to PTP / MTP). Files imported before are marked and left out with New only; choose a rename pattern, a folder per day, a backup copy to a second folder, a metadata preset and a develop preset (the photo opens with that look). The originals are never changed.
+- Library → select photos → Client proofing: a .zip with a web gallery (title, your e-mail, watermark, size) to send your client. They open index.html, tap the heart on the ones they want, give stars and notes and press Send my picks. Paste what they send under Library → Client picks… — those photos become picks with the client's stars.
+- Library → select 10 or more photos → ⏱ Time-lapse video: frame rate, HD or 4K, shape, a look (from My presets) and optionally a second look it blends into by the end, an exposure ramp (day to night), and Deflicker, which evens out small brightness jumps between frames. Saved in Movies/AlcorCut Pro.
 - Start page → Library shows every photo on your phone (allow photo access the first time). Search finds file names, keywords, albums and what's in the photo (the AI labels your photos in the background — the counter at the top shows how far it is).
 - Filters: ★ (tap to raise the minimum), Picks, Rejected, colour labels; albums and smart albums underneath (hold one to delete it). "+ Smart album" saves the current filters and search.
 - Tap a photo for a big view with stars, flag, label, keywords, albums and camera INFO; EDIT opens it, VIRTUAL COPY gives it a second, separate edit.
@@ -269,6 +276,10 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 ---
 
 ## Video editor guide
+**Video library and import**
+- Media → Library & import (or the start page) → Video library: every video on the device, with search, stars, flags, colour labels, albums, smart collections and a Calendar view (year → month → day). Select videos to add them to the media strip, rate, label or give a metadata preset.
+- Import from card / camera / USB copies footage in (new files only, renamed, a folder per day, an optional backup copy); what's imported goes into the media strip.
+- Deliver → Metadata: pick a preset (or make one) and your name, copyright, caption and keywords are written into the exported video. Deliver → Upload after export copies each finished video to a folder you choose (Google Drive, OneDrive, your NAS's app, a USB drive).
 **File menu**
 - The file icon (next to the layout and gear icons) opens the File menu; tap a group to fold it out. New project keeps the open one open — File → Open projects switches between them; Close other projects keeps only the one you're in.
 - Save as gives the project a new name; Save a copy saves a copy and keeps you in the original; Revert throws away everything since the last save.

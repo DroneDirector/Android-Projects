@@ -75,8 +75,8 @@ for amt in 0 1 2 3; do
   sleep 40; adb shell input tap 412 1630; sleep 5
   adb exec-out screencap -p > "$OUT/55-fxtest-clarity-$amt.png"; echo "captured 55-fxtest-clarity-$amt"
   # The self-test (3) runs longer: wait for its last step, then keep more of the log.
-  if [ "$amt" = "3" ]; then sleep 150; fi
-  adb logcat -d | grep -E "FxTest|VisTest|AndroidRuntime|GradePreview|DetailEffect|VideoFrameProcessor|ExoPlayer" | tail -150 > "$OUT/55-fxtest-log-$amt.txt"
+  if [ "$amt" = "3" ]; then sleep 330; fi
+  adb logcat -d | grep -E "FxTest|VisTest|AndroidRuntime|GradePreview|DetailEffect|VideoFrameProcessor|ExoPlayer" | tail -250 > "$OUT/55-fxtest-log-$amt.txt"
 done
 adb exec-out screencap -p > "$OUT/53-phone-video-editor-open.png"; echo "captured 53-phone-video-editor-open"
 sleep 1; adb exec-out screencap -p > "$OUT/54-phone-video-editor-open-b.png"; echo "captured 54-phone-video-editor-open-b"

@@ -50,7 +50,7 @@
  {
   "title": "Retouch & repair",
   "items": [
-   "<strong>Retouch</strong>: <strong>Liquify</strong> (push, pinch, bloat, twirl, restore), <strong>frequency separation</strong> (tone smoothing + texture, whole photo or AI face / body skin) and <strong>AI Relight</strong> (light direction, shadows, warmth from the depth map).",
+   "<strong>Retouch</strong>: <strong>Liquify</strong> (push, pinch, bloat, twirl, restore, plus face-aware sliders for eyes, face width, chin, nose and smile), <strong>frequency separation</strong> (tone smoothing + texture, whole photo or AI face / body skin) and <strong>AI Relight</strong> (light direction, shadows, warmth from the depth map).",
    "<strong>Crop guides</strong>: thirds, golden ratio, golden spiral, golden triangles, diagonals, grid (turnable).",
    "<strong>Crop &amp; format</strong>: common aspect ratios, rotate, flip, straighten, zoom.",
    "<strong>Perspective</strong> correction (vertical / horizontal keystone).",

@@ -5985,129 +5985,138 @@ private fun LayerPreview(
         val density = androidx.compose.ui.platform.LocalDensity.current
         val wPx = with(density) { maxWidth.toPx() }.toInt().coerceAtLeast(2)
         val hPx = with(density) { maxHeight.toPx() }.toInt().coerceAtLeast(2)
-        layers.forEach { base -> androidx.compose.runtime.key(base.id) {
-            // Hidden layers (eye off on the timeline) are never drawn in the video feed.
-            if (!base.visible) return@key
-            if (!(base.activeAt(timeMs) || showAll || base.id == selectedId)) return@key
-            // Keyframed layers: where they are at this moment.
-            val l = base.animAt(timeMs)
-            val pinQ = base.pinAt(timeMs)
-            if (pinQ != null) {
-                // Corner pin: drawn in perspective onto its four corners; drag the corners to place it.
-                if (l.kind == LayerKind.VIDEO) Box(Modifier.fillMaxSize()) { VideoLayerView(l, timeMs, playing && l.activeAt(timeMs), pinQ) }
-                else {
-                    val pchars = LayerAnims.charCount(base, 1f)
-                    val plf = if (base.kind == LayerKind.LOTTIE) LottieRender.frameIndex(context, base, timeMs) else 0
-                    val pbmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, startMs = 0, endMs = 0, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null, pin = null), wPx, hPx, plf) {
-                        value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, pchars, atMs = if (base.kind == LayerKind.LOTTIE) timeMs else -1L) }
-                    }
-                    pbmp?.let { b0 ->
-                        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                            drawIntoCanvas { cv ->
-                                val nc = cv.nativeCanvas
-                                nc.save()
-                                nc.concat(pinMatrix(pinQ, b0.width.toFloat(), b0.height.toFloat(), size.width, size.height))
-                                nc.drawBitmap(b0, 0f, 0f, android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG or android.graphics.Paint.ANTI_ALIAS_FLAG).apply { alpha = (l.opacity.coerceIn(0f, 1f) * 255).toInt() })
-                                nc.restore()
-                            }
-                        }
-                    }
-                }
-                if (base.id == selectedId && showAll && !base.locked) {
-                    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                        val pts = (0 until 4).map { Offset(pinQ[2 * it] * size.width, pinQ[2 * it + 1] * size.height) }
-                        for (k in 0 until 4) drawLine(Pro.Amber, pts[k], pts[(k + 1) % 4], strokeWidth = 2f)
-                    }
-                    for (k in 0 until 4) {
-                        val hs = with(density) { 30.dp.toPx() }
-                        Box(
-                            Modifier
-                                .offset { androidx.compose.ui.unit.IntOffset((pinQ[2 * k] * wPx - hs / 2).toInt(), (pinQ[2 * k + 1] * hPx - hs / 2).toInt()) }
-                                .size(30.dp).clip(androidx.compose.foundation.shape.CircleShape)
-                                .background(Color.Black.copy(alpha = 0.35f)).border(2.dp, Pro.Amber, androidx.compose.foundation.shape.CircleShape)
-                                .pointerInput(base.id, k) {
-                                    detectDragGestures { change, drag -> change.consume(); onPinCorner(base.id, k, drag.x / wPx, drag.y / hPx) }
-                                },
-                        )
-                    }
-                }
-                return@key
+        layers.forEach { base -> androidx.compose.runtime.key(base.id) { LayerPreviewItem(base, timeMs, liveMs, selectedId, showAll, playing, wPx, hPx, density, onMove, onSelect, onPinCorner) } }
+    }
+}
+
+/** One layer drawn over the picture (its own composable, so each layer keeps its own remembered state). */
+@Composable
+private fun LayerPreviewItem(
+    base: Layer, timeMs: Long, liveMs: Long, selectedId: String?, showAll: Boolean, playing: Boolean,
+    wPx: Int, hPx: Int, density: androidx.compose.ui.unit.Density,
+    onMove: (String, Float, Float) -> Unit, onSelect: (String) -> Unit, onPinCorner: (String, Int, Float, Float) -> Unit,
+) {
+    val context = LocalContext.current
+    // Hidden layers (eye off on the timeline) are never drawn in the video feed.
+    if (!base.visible) return
+    if (!(base.activeAt(timeMs) || showAll || base.id == selectedId)) return
+    // Keyframed layers: where they are at this moment.
+    val l = base.animAt(timeMs)
+    val pinQ = base.pinAt(timeMs)
+    if (pinQ != null) {
+        // Corner pin: drawn in perspective onto its four corners; drag the corners to place it.
+        if (l.kind == LayerKind.VIDEO) Box(Modifier.fillMaxSize()) { VideoLayerView(l, timeMs, playing && l.activeAt(timeMs), pinQ) }
+        else {
+            val pchars = LayerAnims.charCount(base, 1f)
+            val plf = if (base.kind == LayerKind.LOTTIE) LottieRender.frameIndex(context, base, timeMs) else 0
+            val pbmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, startMs = 0, endMs = 0, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null, pin = null), wPx, hPx, plf) {
+                value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, pchars, atMs = if (base.kind == LayerKind.LOTTIE) timeMs else -1L) }
             }
-            if (l.kind == LayerKind.VIDEO) {
-                val h = (l.size * hPx).toInt().coerceAtLeast(8)
-                val w = (h * l.frameAspect).toInt().coerceAtLeast(8)
-                val sel = l.id == selectedId
-                // Picture-in-picture frame: rounded corners, border and drop shadow (as in the export).
-                val shape = RoundedCornerShape(with(density) { ((l.corner ?: 0f) * minOf(w, h)).toDp() })
-                val bpx = with(density) { ((l.border ?: 0f) * hPx).toDp() }
+            pbmp?.let { b0 ->
+                androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                    drawIntoCanvas { cv ->
+                        val nc = cv.nativeCanvas
+                        nc.save()
+                        nc.concat(pinMatrix(pinQ, b0.width.toFloat(), b0.height.toFloat(), size.width, size.height))
+                        nc.drawBitmap(b0, 0f, 0f, android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG or android.graphics.Paint.ANTI_ALIAS_FLAG).apply { alpha = (l.opacity.coerceIn(0f, 1f) * 255).toInt() })
+                        nc.restore()
+                    }
+                }
+            }
+        }
+        if (base.id == selectedId && showAll && !base.locked) {
+            androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                val pts = (0 until 4).map { Offset(pinQ[2 * it] * size.width, pinQ[2 * it + 1] * size.height) }
+                for (k in 0 until 4) drawLine(Pro.Amber, pts[k], pts[(k + 1) % 4], strokeWidth = 2f)
+            }
+            for (k in 0 until 4) {
+                val hs = with(density) { 30.dp.toPx() }
                 Box(
                     Modifier
-                        .offset { androidx.compose.ui.unit.IntOffset((l.x * wPx - w / 2f).toInt(), (l.y * hPx - h / 2f).toInt()) }
-                        .size(with(density) { w.toDp() }, with(density) { h.toDp() })
-                        .then(if (l.dropShadow == true) Modifier.shadow(10.dp, shape) else Modifier)
-                        .clip(shape)
-                        .then(if ((l.border ?: 0f) > 0f) Modifier.border(bpx, Color(l.borderColor ?: 0xFFFFFFFF.toInt()), shape) else Modifier)
-                        .then(if (sel) Modifier.border(1.dp, Pro.Amber, shape) else Modifier)
-                        .pointerInput(l.id) {
-                            detectDragGestures(onDragStart = { onSelect(l.id) }) { change, drag ->
-                                change.consume()
-                                onMove(l.id, drag.x / wPx, drag.y / hPx)
-                            }
+                        .offset { androidx.compose.ui.unit.IntOffset((pinQ[2 * k] * wPx - hs / 2).toInt(), (pinQ[2 * k + 1] * hPx - hs / 2).toInt()) }
+                        .size(30.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(Color.Black.copy(alpha = 0.35f)).border(2.dp, Pro.Amber, androidx.compose.foundation.shape.CircleShape)
+                        .pointerInput(base.id, k) {
+                            detectDragGestures { change, drag -> change.consume(); onPinCorner(base.id, k, drag.x / wPx, drag.y / hPx) }
                         },
-                ) {
-                    if (l.cellAspect != null) {
-                        // Cropped to fill its cell (split screen): the video keeps its shape and overflows.
-                        val ww: Int; val hh: Int
-                        if (l.mediaAspect > l.frameAspect) { hh = h; ww = (h * l.mediaAspect).toInt() } else { ww = w; hh = (w / l.mediaAspect).toInt() }
-                        Box(Modifier.fillMaxSize().clipToBounds(), contentAlignment = Alignment.Center) {
-                            Box(Modifier.requiredSize(with(density) { ww.toDp() }, with(density) { hh.toDp() })) { VideoLayerView(l, timeMs, playing && l.activeAt(timeMs)) }
-                        }
-                    } else VideoLayerView(l, timeMs, playing && l.activeAt(timeMs))
-                }
-                return@key
+                )
             }
-            // In / out animation (not while you're editing this layer with the video paused).
-            val fx = if ((base.id == selectedId && !playing) || !base.activeAt(timeMs)) AnimFx() else LayerAnims.at(base, timeMs)
-            val chars = LayerAnims.charCount(base, fx.chars)
-            val hiWord = if (base.words != null) base.wordAt(timeMs) else -1
-            // Lottie animations: a new picture for each animation frame.
-            val fxMs = if (base.kind == LayerKind.FX) liveMs else timeMs
-            val lf = if (base.kind == LayerKind.LOTTIE) LottieRender.frameIndex(context, base, timeMs) else if (base.kind == LayerKind.FX) FxLayers.frameIndex(base, fxMs) else 0
-            val bmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null), wPx, hPx, chars, hiWord, lf) {
-                value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, chars, hiWord, atMs = if (base.kind == LayerKind.LOTTIE) timeMs else if (base.kind == LayerKind.FX) fxMs else -1L) }
-            }
-            // Keep the last picture while a new one (next word / letter) is drawn, so it never blinks.
-            val lastBmp = remember(base.id) { arrayOfNulls<Bitmap>(1) }
-            val b0 = bmp ?: lastBmp[0] ?: return@key
-            lastBmp[0] = b0
-            // Keyframed size: scale the picture rendered at the layer's own size.
-            val k = (if (base.size > 0f) l.size / base.size else 1f) * fx.scale
-            val bw = (b0.width * k).toInt().coerceAtLeast(1); val bh = (b0.height * k).toInt().coerceAtLeast(1)
-            val left = ((l.x + fx.dx) * wPx - bw / 2f).toInt()
-            val top = ((l.y + fx.dy) * hPx - bh / 2f).toInt()
-            val sel = l.id == selectedId
-            Box(
-                Modifier
-                    .offset { androidx.compose.ui.unit.IntOffset(left, top) }
-                    .size(with(density) { bw.toDp() }, with(density) { bh.toDp() })
-                    .then(if (sel && !FxLayers.fullFrame(base) && !(base.kind == LayerKind.FX && base.fx == FxLayers.PROGRESS)) Modifier.border(1.dp, Pro.Amber) else Modifier)
-                    // Full-frame overlays (bars, flare) don't take touches, so everything under them stays reachable.
-                    .then(if (FxLayers.fullFrame(base)) Modifier else Modifier.pointerInput(l.id) {
-                        detectDragGestures(onDragStart = { onSelect(l.id) }) { change, drag ->
-                            change.consume()
-                            onMove(l.id, if (base.kind == LayerKind.FX && base.fx == FxLayers.PROGRESS) 0f else drag.x / wPx, drag.y / hPx)
-                        }
-                    }.clickable { onSelect(l.id) }),
-            ) {
-                val img = remember(b0) { b0.asImageBitmap() }
-                val mode = (l.blend ?: LayerBlend.NORMAL).compose
-                androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                    clipRect(right = size.width * fx.reveal.coerceIn(0f, 1f)) {
-                        drawImage(img, dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()), alpha = (l.opacity * fx.alpha).coerceIn(0f, 1f), blendMode = mode)
+        }
+        return
+    }
+    if (l.kind == LayerKind.VIDEO) {
+        val h = (l.size * hPx).toInt().coerceAtLeast(8)
+        val w = (h * l.frameAspect).toInt().coerceAtLeast(8)
+        val sel = l.id == selectedId
+        // Picture-in-picture frame: rounded corners, border and drop shadow (as in the export).
+        val shape = RoundedCornerShape(with(density) { ((l.corner ?: 0f) * minOf(w, h)).toDp() })
+        val bpx = with(density) { ((l.border ?: 0f) * hPx).toDp() }
+        Box(
+            Modifier
+                .offset { androidx.compose.ui.unit.IntOffset((l.x * wPx - w / 2f).toInt(), (l.y * hPx - h / 2f).toInt()) }
+                .size(with(density) { w.toDp() }, with(density) { h.toDp() })
+                .then(if (l.dropShadow == true) Modifier.shadow(10.dp, shape) else Modifier)
+                .clip(shape)
+                .then(if ((l.border ?: 0f) > 0f) Modifier.border(bpx, Color(l.borderColor ?: 0xFFFFFFFF.toInt()), shape) else Modifier)
+                .then(if (sel) Modifier.border(1.dp, Pro.Amber, shape) else Modifier)
+                .pointerInput(l.id) {
+                    detectDragGestures(onDragStart = { onSelect(l.id) }) { change, drag ->
+                        change.consume()
+                        onMove(l.id, drag.x / wPx, drag.y / hPx)
                     }
+                },
+        ) {
+            if (l.cellAspect != null) {
+                // Cropped to fill its cell (split screen): the video keeps its shape and overflows.
+                val ww: Int; val hh: Int
+                if (l.mediaAspect > l.frameAspect) { hh = h; ww = (h * l.mediaAspect).toInt() } else { ww = w; hh = (w / l.mediaAspect).toInt() }
+                Box(Modifier.fillMaxSize().clipToBounds(), contentAlignment = Alignment.Center) {
+                    Box(Modifier.requiredSize(with(density) { ww.toDp() }, with(density) { hh.toDp() })) { VideoLayerView(l, timeMs, playing && l.activeAt(timeMs)) }
                 }
+            } else VideoLayerView(l, timeMs, playing && l.activeAt(timeMs))
+        }
+        return
+    }
+    // In / out animation (not while you're editing this layer with the video paused).
+    val fx = if ((base.id == selectedId && !playing) || !base.activeAt(timeMs)) AnimFx() else LayerAnims.at(base, timeMs)
+    val chars = LayerAnims.charCount(base, fx.chars)
+    val hiWord = if (base.words != null) base.wordAt(timeMs) else -1
+    // Lottie animations: a new picture for each animation frame.
+    val fxMs = if (base.kind == LayerKind.FX) liveMs else timeMs
+    val lf = if (base.kind == LayerKind.LOTTIE) LottieRender.frameIndex(context, base, timeMs) else if (base.kind == LayerKind.FX) FxLayers.frameIndex(base, fxMs) else 0
+    val bmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null), wPx, hPx, chars, hiWord, lf) {
+        value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, chars, hiWord, atMs = if (base.kind == LayerKind.LOTTIE) timeMs else if (base.kind == LayerKind.FX) fxMs else -1L) }
+    }
+    // Keep the last picture while a new one (next word / letter) is drawn, so it never blinks.
+    val lastBmp = remember(base.id) { arrayOfNulls<Bitmap>(1) }
+    val b0 = bmp ?: lastBmp[0] ?: return
+    lastBmp[0] = b0
+    // Keyframed size: scale the picture rendered at the layer's own size.
+    val k = (if (base.size > 0f) l.size / base.size else 1f) * fx.scale
+    val bw = (b0.width * k).toInt().coerceAtLeast(1); val bh = (b0.height * k).toInt().coerceAtLeast(1)
+    val left = ((l.x + fx.dx) * wPx - bw / 2f).toInt()
+    val top = ((l.y + fx.dy) * hPx - bh / 2f).toInt()
+    val sel = l.id == selectedId
+    Box(
+        Modifier
+            .offset { androidx.compose.ui.unit.IntOffset(left, top) }
+            .size(with(density) { bw.toDp() }, with(density) { bh.toDp() })
+            .then(if (sel && !FxLayers.fullFrame(base) && !(base.kind == LayerKind.FX && base.fx == FxLayers.PROGRESS)) Modifier.border(1.dp, Pro.Amber) else Modifier)
+            // Full-frame overlays (bars, flare) don't take touches, so everything under them stays reachable.
+            .then(if (FxLayers.fullFrame(base)) Modifier else Modifier.pointerInput(l.id) {
+                detectDragGestures(onDragStart = { onSelect(l.id) }) { change, drag ->
+                    change.consume()
+                    onMove(l.id, if (base.kind == LayerKind.FX && base.fx == FxLayers.PROGRESS) 0f else drag.x / wPx, drag.y / hPx)
+                }
+            }.clickable { onSelect(l.id) }),
+    ) {
+        val img = remember(b0) { b0.asImageBitmap() }
+        val mode = (l.blend ?: LayerBlend.NORMAL).compose
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            clipRect(right = size.width * fx.reveal.coerceIn(0f, 1f)) {
+                drawImage(img, dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()), alpha = (l.opacity * fx.alpha).coerceIn(0f, 1f), blendMode = mode)
             }
-        } }
+        }
     }
 }
 

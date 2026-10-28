@@ -6402,10 +6402,11 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
                 Text("Put the flare on the sun or a light. Strength = the layer's opacity; Fade in / out under ANIMATION eases it in.", color = Pro.Dim, fontSize = 11.sp)
             }
             FxLayers.VIS -> {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
-                    FxLayers.VIS_STYLES.forEachIndexed { i, n -> PillChip(n, (l.fxB ?: 0f).toInt() == i) { val wasRound = FxLayers.visRound((l.fxB ?: 0f).toInt()); val round = FxLayers.visRound(i)
+                // Ten styles per row, each row scrolls sideways.
+                FxLayers.VIS_STYLES.withIndex().chunked(10).forEach { rowItems -> Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 3.dp).hintedScroll(horizontal = true)) {
+                    rowItems.forEach { (i, n) -> PillChip(n, (l.fxB ?: 0f).toInt() == i) { val wasRound = FxLayers.visRound((l.fxB ?: 0f).toInt()); val round = FxLayers.visRound(i)
                         onUpdate(l.copy(fxB = i.toFloat(), y = if (round && !wasRound) 0.5f else if (!round && wasRound) 0.84f else l.y, size = if (round && !wasRound) 0.25f else if (!round && wasRound) 0.22f else l.size)) } }
-                }
+                } }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
                     FxLayers.VIS_COLOURS.forEachIndexed { i, n -> PillChip(n, (l.fxC ?: 0f).toInt() == i) { onUpdate(l.copy(fxC = i.toFloat())) } }
                 }
@@ -6414,9 +6415,9 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
                 Text("Moves with the music's own frequencies and pulses on every beat (kick drum), worked out from the sound itself — so it's in sync in the preview and the export. Uses the music track, or the selected clip's sound when there's no music. Drag it into place.", color = Pro.Dim, fontSize = 11.sp)
             }
             FxLayers.TIMER -> {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
-                    FxLayers.TIMER_STYLES.forEachIndexed { i, n -> PillChip(n, (l.fxB ?: 0f).toInt() == i) { onUpdate(l.copy(fxB = i.toFloat())) } }
-                }
+                FxLayers.TIMER_STYLES.withIndex().chunked(9).forEach { rowItems -> Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 3.dp).hintedScroll(horizontal = true)) {
+                    rowItems.forEach { (i, n) -> PillChip(n, (l.fxB ?: 0f).toInt() == i) { onUpdate(l.copy(fxB = i.toFloat())) } }
+                } }
                 val manual = l.fxX != null
                 Chips(listOf("Automatic", "Manual"), if (manual) 1 else 0) {
                     onUpdate(if (it == 1) l.copy(fxX = ((l.endMs - l.startMs) / 1000f).coerceIn(1f, 3600f).let { s -> kotlin.math.round(s) }) else l.copy(fxX = null))

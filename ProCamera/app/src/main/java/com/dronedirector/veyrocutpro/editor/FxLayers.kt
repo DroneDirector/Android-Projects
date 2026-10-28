@@ -23,9 +23,9 @@ object FxLayers {
     const val FLARE = 3
     const val TIMER = 4
     const val VIS = 5
-    val VIS_STYLES = listOf("Spectrum bars", "Mirror bars", "Glow line", "Circular", "Waveform", "LED equalizer", "Radial wave", "Sound rings", "Particles", "Bass orb")
+    val VIS_STYLES = listOf("Spectrum bars", "Mirror bars", "Glow line", "Circular", "Waveform", "LED equalizer", "Radial wave", "Sound rings", "Particles", "Bass orb") + FxStyles.MORE_VIS
     /** Visualizer styles drawn in a square around a centre. */
-    fun visRound(style: Int) = style == 3 || style in 6..9
+    fun visRound(style: Int) = style == 3 || style in 6..9 || style in FxStyles.ROUND_VIS
     val VIS_COLOURS = listOf("Layer colour", "Scroll wheel colours", "Rainbow")
 
     val BAR_SHAPES = listOf("2.39:1" to 2.39f, "2.35:1" to 2.35f, "2:1" to 2f, "1.85:1" to 1.85f, "2.76:1" to 2.76f)
@@ -33,7 +33,7 @@ object FxLayers {
     private const val STEP_MS = 40L
 
     fun label(l: Layer): String = when (l.fx) { BARS -> "Cinema bars"; MAP -> "Flight path"; PROGRESS -> "Progress bar"; TIMER -> "Countdown"; VIS -> "Visualizer"; else -> "Lens flare" }
-    val TIMER_STYLES = listOf("Ring", "Glowing ring", "Scroll wheel colours", "Solid disc", "Big numbers")
+    val TIMER_STYLES = listOf("Ring", "Glowing ring", "Scroll wheel colours", "Solid disc", "Big numbers") + FxStyles.MORE_TIMERS
 
     /** Full-frame overlays sit still in the middle (they're not dragged; change them in the layer's settings). */
     fun fullFrame(l: Layer) = l.kind == LayerKind.FX && l.fx != MAP && l.fx != PROGRESS && l.fx != TIMER && l.fx != VIS
@@ -227,6 +227,12 @@ object FxLayers {
         val left = total - el
         val k = left.toFloat() / total
         val col = l.color or 0xFF000000.toInt()
+        if (style >= 5) {
+            val sec = ((left + 999) / 1000).toInt()
+            val txt = if ((l.fxY ?: 0f) == 1f || sec >= 60) "%d:%02d".format(sec / 60, sec % 60) else sec.toString()
+            FxStyles.timer(style, c, side, k, left, el, txt, col, ms < 0)
+            return out
+        }
         val cx = side / 2f; val cy = side / 2f
         val sw = side * 0.085f
         val rr = side / 2f - sw * (if (style == 1 || style == 2) 1.4f else 0.8f)
@@ -320,6 +326,7 @@ object FxLayers {
         val bars = 48
         fun level(i: Int, n: Int): Float { val b = (i.toFloat() / n * nb).toInt().coerceIn(0, nb - 1); return v[b] }
         fun pk(i: Int, n: Int): Float { val b = (i.toFloat() / n * nb).toInt().coerceIn(0, nb - 1); return peak[b] }
+        if (style >= 10) { FxStyles.vis(style, c, bw, bh, v, peak, beat, songMs, ::colourAt, data, at); return out }
         when (style) {
             0, 1 -> { // Spectrum bars (from the bottom, with a reflection) / mirror bars (from the middle).
                 val gap = bw / bars.toFloat() * 0.28f

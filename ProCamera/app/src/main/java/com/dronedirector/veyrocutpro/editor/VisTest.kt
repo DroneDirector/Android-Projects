@@ -98,4 +98,24 @@ object VisTest {
                 clips.joinToString { "${it.durationMs} ms ${it.width}x${it.height} zoom ${it.reframe.end.zoom} tr ${it.transition.type}" })
         } catch (t: Throwable) { android.util.Log.e("VisTest", "slideshow failed", t) }
     }
+
+    /** Text styles: every font, effect, lower third and text type drawn once; slow or failing ones are logged. */
+    fun text(context: Context) {
+        try {
+            var bad = 0; var slow = ""
+            fun check(name: String, l: Layer) {
+                val t0 = System.currentTimeMillis()
+                val b = try { LayerRenderer.render(context, l, 1920, 1080) } catch (t: Throwable) { android.util.Log.e("VisTest", "text $name failed", t); null }
+                val ms = System.currentTimeMillis() - t0
+                if (b == null || b.width < 4) bad++
+                if (ms > 120) slow += "$name ${ms}ms; "
+            }
+            var noFace = 0
+            for (f in TextFonts.ALL) { if (TextFonts.typeface(f.id) == null) noFace++; check("font ${f.id}", Layer(kind = LayerKind.TEXT, text = "Æøå Ðý Hello", face = f.id, size = 0.1f)) }
+            for (i in 1 until TextFx.NAMES.size) check("fx ${TextFx.NAMES[i]}", Layer(kind = LayerKind.TEXT, text = "EFFECT", textFx = i, face = "anton", size = 0.12f))
+            for (i in LowerThirds.NAMES.indices) check("lower third ${LowerThirds.NAMES[i]}", lowerThirdLayer(i, 0L, 1000L))
+            for (t in TextTypes.ALL) check("type ${t.name}", t.layer(0L, 1000L))
+            android.util.Log.i("VisTest", "text: ${TextFonts.ALL.size} fonts ($noFace not loaded), ${TextFx.NAMES.size - 1} effects, ${LowerThirds.NAMES.size} lower thirds, ${TextTypes.ALL.size} types; failed $bad; slow: ${slow.ifEmpty { "none" }}")
+        } catch (t: Throwable) { android.util.Log.e("VisTest", "text test failed", t) }
+    }
 }

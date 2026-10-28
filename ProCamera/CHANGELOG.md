@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.759 — 2026-10-28
 - App log on the device: app starts, exports, problems and crashes (with the app's recent system log lines). VIEW LOG in the crash / problem report, or ? → Troubleshooting → App log — share it or save a copy.
 - Fix: 87 of the transitions (cinematic, creative and newer ones) still couldn't build their preview effect ("program too large") — only the chosen transition's code is built now.
 

@@ -6196,7 +6196,10 @@ private fun LayerPreviewItem(
     val context = LocalContext.current
     // Hidden layers (eye off on the timeline) are never drawn in the video feed.
     if (!base.visible) return
-    if (!(base.activeAt(timeMs) || showAll || base.id == selectedId)) return
+    // While playing, a layer shows only in its own time. Paused, the selected layer (and on the Layers page every
+    // layer) is also shown outside its time so it can be placed — faded, so it's clear it isn't on at this moment.
+    val ghost = !base.activeAt(timeMs)
+    if (ghost && (playing || !(showAll || base.id == selectedId))) return
     // Keyframed layers: where they are at this moment.
     val l = base.animAt(timeMs)
     val pinQ = base.pinAt(timeMs)
@@ -6327,7 +6330,7 @@ private fun LayerPreviewItem(
         val mode = (l.blend ?: LayerBlend.NORMAL).compose
         androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
             clipRect(right = size.width * fx.reveal.coerceIn(0f, 1f)) {
-                drawImage(img, dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()), alpha = (l.opacity * fx.alpha).coerceIn(0f, 1f), blendMode = mode)
+                drawImage(img, dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()), alpha = (l.opacity * fx.alpha * (if (ghost) 0.3f else 1f)).coerceIn(0f, 1f), blendMode = mode)
             }
         }
     }

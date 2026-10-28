@@ -408,8 +408,9 @@ class LayerOverlay(
         val k = (if (l.size > 0f) a.size / l.size else 1f) * fx.scale
         val x = a.x + fx.dx; val y = a.y + fx.dy
         return StaticOverlaySettings.Builder()
-            .setBackgroundFrameAnchor((x * 2f - 1f).coerceIn(-1.5f, 1.5f), (1f - y * 2f).coerceIn(-1.5f, 1.5f))
-            .setOverlayFrameAnchor(0f, 0f)
+            // Up to half a frame past the edge: the part beyond −1…1 goes to the layer's own anchor (each must stay in −1…1).
+            .setBackgroundFrameAnchor((x * 2f - 1f).coerceIn(-1f, 1f), (1f - y * 2f).coerceIn(-1f, 1f))
+            .setOverlayFrameAnchor((x * 2f - 1f).coerceIn(-1f, 1f) - (x * 2f - 1f).coerceIn(-1.5f, 1.5f), (1f - y * 2f).coerceIn(-1f, 1f) - (1f - y * 2f).coerceIn(-1.5f, 1.5f))
             .setScale(k, k)
             .setAlphaScale((a.opacity * fx.alpha).coerceIn(0f, 1f))
             .build()

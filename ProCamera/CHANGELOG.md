@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Fix: every video transition looked like a plain fade in the preview and on the Transitions page — the effects shader had grown too deeply nested for Android and wasn't being built. Shutter, kaleidoscope and all the others show their own effect again.
+- Fix: export failed ("Video frame processing error") on edits with push, whip, slide-blur or film-gate transitions, and with layers dragged partly off the frame.
 
 ## 1.0.740 — 2026-10-28
 - About 80 new fonts for text in the photo and video editor, in five groups (Simple, Serif, Typewriter & mono, Script & handwritten, Display & fun) — with free twins of Arial, Times New Roman, Courier New and Calibri — each shown in its own lettering.

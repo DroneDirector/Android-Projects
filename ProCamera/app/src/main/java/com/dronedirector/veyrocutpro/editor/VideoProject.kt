@@ -737,9 +737,11 @@ class TimelineExport(
             if (t.kind == TransitionKind.UNIFORM && track == 0) alpha = 1f - TransitionMath.uniformReveal(t, p)
             if (t.kind == TransitionKind.MOVE) TransitionMath.move(t, p, false).let { tx = it.first; ty = it.second }
         }
+        // A shift of up to a whole frame (2 in frame units) is split between the two anchors: each may only go from −1 to 1.
+        val sx = (tx * 2f).coerceIn(-2f, 2f); val sy = (-ty * 2f).coerceIn(-2f, 2f)
         return b.setAlphaScale(alpha.coerceIn(0f, 1f))
-            .setBackgroundFrameAnchor(tx * 2f, -ty * 2f)
-            .setOverlayFrameAnchor(0f, 0f)
+            .setBackgroundFrameAnchor(sx / 2f, sy / 2f)
+            .setOverlayFrameAnchor(-sx / 2f, -sy / 2f)
             .build()
     }
 

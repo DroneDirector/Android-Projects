@@ -734,7 +734,8 @@ object TransitionMath {
             vec2 c = uv0 - 0.5;
             vec2 uv = uv0;
             vec3 col = vec3(0.0);
-            if (isT(50.0)) {
+            bool any = false;
+            if (isT(50.0)) { any = true;
                 // Film burn: a hot edge eats the picture from a burn point; charring ahead of it.
                 col = tex(uv0).rgb;
                 float v = burnField(uv0, aspect) - burnEdge(p);
@@ -742,7 +743,8 @@ object TransitionMath {
                 float fire = 1.0 - smoothstep(0.0, 0.07, abs(v));
                 col += mix(vec3(1.0, 0.32, 0.04), vec3(1.0, 0.93, 0.72), 1.0 - smoothstep(0.0, 0.025, abs(v))) * fire * 1.7;
                 col += vec3(0.28, 0.09, 0.0) * k * (0.7 + 0.3 * rnd(vec2(floor(p * 24.0), 1.0)));
-            } else if (isT(51.0)) {
+            }
+            if (isT(51.0)) { any = true;
                 // Anamorphic flare: a long blue streak with halo and lens ghosts sweeps across.
                 col = mtex(uv0).rgb;
                 float cx = mix(-0.3, 1.3, easeF(p)); float cy = 0.56;
@@ -758,7 +760,8 @@ object TransitionMath {
                 }
                 col += max(col - 0.7, 0.0) * k * 1.5;
                 col += (vec3(0.3, 0.55, 1.0) * streak * 2.4 + vec3(1.0, 0.9, 0.8) * halo * 1.4 + vec3(0.55, 0.75, 1.0) * gh) * k * 1.3 + vec3(k * k * 0.15);
-            } else if (isT(52.0)) {
+            }
+            if (isT(52.0)) { any = true;
                 // Lens warp: the outgoing shot bulges like a fisheye, the next one snaps in from a pinch.
                 vec2 q = c * vec2(aspect, 1.0);
                 float d2 = dot(q, q);
@@ -771,7 +774,8 @@ object TransitionMath {
                 vec2 u3 = base * (1.0 - 0.025 * k) / z + 0.5;
                 col = vec3(mtex(u2).r, mtex(u1).g, mtex(u3).b);
                 col *= 1.0 - k * 0.9 * d2;
-            } else if (isT(53.0)) {
+            }
+            if (isT(53.0)) { any = true;
                 // Datamosh: blocks smear along their own motion, colours posterize and swap.
                 vec2 g = vec2(20.0, 12.0);
                 vec2 bk = floor(uv0 * g);
@@ -783,7 +787,8 @@ object TransitionMath {
                 col *= 1.0 - 0.18 * k * clamp(step(fr.x, 0.06) + step(fr.y, 0.06), 0.0, 1.0);
                 float sw = step(0.9, rnd(bk + floor(p * 10.0)));
                 col = mix(col, col.brg * vec3(1.1, 0.9, 1.2), sw * k * 0.45);
-            } else if (isT(54.0)) {
+            }
+            if (isT(54.0)) { any = true;
                 // VHS rewind: the picture rolls, tracking bands tear across, colours bleed.
                 float dir = inc ? -1.0 : 1.0;
                 float roll = dir * k * k * 0.9;
@@ -798,7 +803,8 @@ object TransitionMath {
                 float wr = fract(uv0.y + roll);
                 col *= mix(1.0, smoothstep(0.0, 0.025, min(wr, 1.0 - wr)), step(0.05, k));
                 col *= mix(vec3(1.0), vec3(1.06, 0.94, 1.1), k);
-            } else if (isT(55.0)) {
+            }
+            if (isT(55.0)) { any = true;
                 // Letterbox close: cinema bars close to black and open on the next shot, with a slow push.
                 float z = inc ? mix(1.12, 1.0, easeF(p)) : mix(1.0, 1.12, easeF(p));
                 col = mtex(c / z + 0.5).rgb;
@@ -806,7 +812,8 @@ object TransitionMath {
                 float bar = max(1.0 - smoothstep(h - 0.003, h + 0.003, uv0.y), smoothstep(1.0 - h - 0.003, 1.0 - h + 0.003, uv0.y));
                 float edge = (1.0 - smoothstep(0.0, 0.004, abs(uv0.y - h))) + (1.0 - smoothstep(0.0, 0.004, abs(uv0.y - (1.0 - h))));
                 col = col * (1.0 - bar) + vec3(0.95, 0.72, 0.35) * edge * 0.55 * k;
-            } else if (isT(56.0)) {
+            }
+            if (isT(56.0)) { any = true;
                 // Aperture: six iris blades close to black and open on the next shot.
                 col = mtex(uv0).rgb;
                 vec2 q = c * vec2(aspect, 1.0);
@@ -820,7 +827,8 @@ object TransitionMath {
                 vec3 metal = vec3(0.07, 0.07, 0.08) + vec3(0.13) * smoothstep(0.92, 1.0, bl) + vec3(0.04) * (1.0 - rr);
                 col = mix(metal, col, inside);
                 col += vec3(0.6, 0.5, 0.35) * (1.0 - smoothstep(0.0, 0.01, abs(hx - R))) * 0.5 * step(0.02, k);
-            } else if (isT(57.0)) {
+            }
+            if (isT(57.0)) { any = true;
                 // Smoke: drifting haze rolls through and clears on the next shot.
                 vec3 acc = vec3(0.0);
                 for (int i = 0; i < 4; i++) {
@@ -831,7 +839,8 @@ object TransitionMath {
                 float haze = k * (0.55 + 0.45 * fbm(uv0 * vec2(aspect, 1.0) * 4.0 - vec2(p * 1.2, p * 0.4)));
                 float edge = 1.0 - smoothstep(0.0, 0.25, abs(mix(-0.35, 1.35, p) - smokeField(uv0, aspect, p)));
                 col = mix(col, vec3(0.86, 0.88, 0.92), clamp(haze * 1.1 + edge * 0.35 * k, 0.0, 0.92));
-            } else if (isT(58.0)) {
+            }
+            if (isT(58.0)) { any = true;
                 // Shatter: the shot cracks, then falls away in spinning shards.
                 if (inc) col = tex(uv0).rgb * mix(0.55, 1.0, p);
                 else {
@@ -842,7 +851,8 @@ object TransitionMath {
                         col = mix(col, vec3(0.9, 0.95, 1.0), crack * 0.8);
                     }
                 }
-            } else if (isT(59.0)) {
+            }
+            if (isT(59.0)) { any = true;
                 // Kaleidoscope: the frame folds into a turning six-way mirror and unfolds as the next shot.
                 vec2 q = c * vec2(aspect, 1.0);
                 float rr = length(q);
@@ -853,17 +863,20 @@ object TransitionMath {
                 col = mix(mtex(uv0).rgb, mtex(kq / vec2(aspect, 1.0) + 0.5).rgb, smoothstep(0.05, 0.45, k));
                 col = mix(vec3(lum(col)), col, 1.0 + 0.4 * k);
                 col += vec3(1.0, 0.9, 0.75) * exp(-rr * rr * 20.0) * k * 0.5;
-            } else if (isT(60.0)) {
+            }
+            if (isT(60.0)) { any = true;
                 // Cube turn: the shot turns away as a side of a 3D cube, the next side turns in.
                 vec3 hf = boxFace(uv0, aspect, p, inc ? 1.0 : 0.0);
                 float ang = easeF(p) * 1.5707963;
                 if (hf.z > 0.5) col = tex(hf.xy).rgb * (inc ? sin(ang) * 0.55 + 0.45 : cos(ang) * 0.55 + 0.45);
-            } else if (isT(61.0)) {
+            }
+            if (isT(61.0)) { any = true;
                 // Card flip: the frame flips over like a card, with the next shot on its back.
                 vec3 hf = flipFace(uv0, aspect, p);
                 bool mine = inc ? p >= 0.5 : p < 0.5;
                 if (hf.z > 0.5 && mine) col = tex(hf.xy).rgb * (abs(cos(easeF(p) * 3.14159265)) * 0.5 + 0.5);
-            } else if (isT(62.0)) {
+            }
+            if (isT(62.0)) { any = true;
                 // Sun rays: light breaks through the bright parts of the frame in god rays.
                 col = mtex(uv0).rgb;
                 vec2 L = vec2(mix(0.85, 0.6, p), 0.85);
@@ -878,7 +891,8 @@ object TransitionMath {
                 float n = vnoise(vec2(atan(dl.y, dl.x) * 14.0, p * 3.0));
                 vec3 warm = vec3(1.0, 0.78, 0.45);
                 col += warm * (acc * 0.2 + 0.45 * pow(n, 3.0) * exp(-length(dl * vec2(aspect, 1.0)) * 2.0)) * k * 1.3 + warm * k * k * 0.18;
-            } else if (isT(63.0)) {
+            }
+            if (isT(63.0)) { any = true;
                 // Pixel sort: bright pixels drip down the frame in sorted streaks.
                 col = mtex(uv0).rgb;
                 float bl = lum(col);
@@ -890,7 +904,8 @@ object TransitionMath {
                     float l = lum(v);
                     if (l > bl && l > thr) { col = v; bl = l; }
                 }
-            } else if (isT(64.0)) {
+            }
+            if (isT(64.0)) { any = true;
                 // Neon edges: the shot turns into glowing neon outlines, then the next shot lights up.
                 col = mtex(uv0).rgb;
                 vec2 px = 1.5 / uSize;
@@ -903,7 +918,8 @@ object TransitionMath {
                 float hue = fract(uv0.x * 0.6 + uv0.y * 0.3 + p * 0.8);
                 vec3 neon = 0.5 + 0.5 * cos(6.2831853 * (hue + vec3(0.0, 0.33, 0.67)));
                 col = mix(col, col * 0.15 + neon * e * 2.2, smoothstep(0.0, 0.6, k));
-            } else if (isT(65.0)) {
+            }
+            if (isT(65.0)) { any = true;
                 // Ember drift: the shot burns away into glowing embers that float upward.
                 float th = emberField(uv0, aspect);
                 float e = mix(-0.1, 1.1, p);
@@ -917,7 +933,8 @@ object TransitionMath {
                 col += vec3(1.0, 0.45, 0.1) * ember * flick * 1.8;
                 float sp = step(0.994, rnd(floor((uv0 - vec2(0.0, p * 0.35)) * uSize / 4.0)));
                 col += vec3(1.0, 0.55, 0.15) * sp * (1.0 - smoothstep(0.0, 0.3, -ahead)) * step(ahead, 0.0) * 2.0;
-            } else if (isT(66.0)) {
+            }
+            if (isT(66.0)) { any = true;
                 // Cloud pass: flying forward into a cloud bank, out of it into the next shot.
                 float z = inc ? mix(1.25, 1.0, easeF(p)) : mix(1.0, 1.35, easeF(p));
                 col = mtex(c / z + 0.5).rgb;
@@ -927,7 +944,8 @@ object TransitionMath {
                 float dens = clamp(k * 1.7 - 0.3 + (n1 * 0.7 + n2 * 0.3 - 0.5) * 1.3, 0.0, 1.0);
                 vec3 cloud = mix(vec3(0.74, 0.79, 0.86), vec3(1.0, 0.99, 0.97), smoothstep(0.3, 0.8, n2 + uv0.y * 0.3));
                 col = mix(col, cloud, smoothstep(0.0, 1.0, dens));
-            } else if (isT(67.0)) {
+            }
+            if (isT(67.0)) { any = true;
                 // Rack focus: the shot melts into soft bokeh, the next one pulls into focus.
                 float r = 0.022 * pow(k, 1.4);
                 vec2 b = c / (1.0 + 0.025 * k) + 0.5;
@@ -941,7 +959,8 @@ object TransitionMath {
                     acc += s * w; ws += w;
                 }
                 col = acc / ws;
-            } else if (isT(68.0)) {
+            }
+            if (isT(68.0)) { any = true;
                 // Warp zoom: a fast zoom with motion blur that punches through into the next shot.
                 float s = inc ? mix(0.35, 1.0, easeF(p)) : mix(1.0, 3.0, easeF(p));
                 vec2 b = c / s;
@@ -952,7 +971,8 @@ object TransitionMath {
                     acc += vec3(mtex(o * (1.0 + 0.02 * k) + 0.5).r, mtex(o + 0.5).g, mtex(o * (1.0 - 0.02 * k) + 0.5).b);
                 }
                 col = acc / 16.0 + vec3(pow(k, 4.0) * 0.7);
-            } else if (isT(69.0)) {
+            }
+            if (isT(69.0)) { any = true;
                 // Drone roll: the horizon rolls over with motion blur into the next shot.
                 float ang = inc ? -(1.0 - easeF(p)) * 3.14159265 : easeF(p) * 3.14159265;
                 vec2 q = c * vec2(aspect, 1.0);
@@ -963,12 +983,14 @@ object TransitionMath {
                     acc += mtex(r / vec2(aspect, 1.0) / (1.0 + k * 0.7) + 0.5).rgb;
                 }
                 col = acc / 12.0;
-            } else if (isT(70.0)) {
+            }
+            if (isT(70.0)) { any = true;
                 // Luma fade: the brightest parts change first, the shadows last, with a soft glow on the edge.
                 col = tex(uv0).rgb;
                 float th = mix(1.15, -0.15, p);
                 col += vec3(1.0, 0.95, 0.85) * (1.0 - smoothstep(0.0, 0.12, abs(lum(col) - th))) * 0.35 * k;
-            } else if (isT(71.0)) {
+            }
+            if (isT(71.0)) { any = true;
                 // Dolly zoom: the middle holds still while the background stretches away.
                 vec2 q = c * vec2(aspect, 1.0);
                 float d2 = dot(q, q);
@@ -981,12 +1003,14 @@ object TransitionMath {
                 }
                 col = acc / 6.0;
                 col *= 1.0 - 0.35 * k * d2;
-            } else if (isT(72.0)) {
+            }
+            if (isT(72.0)) { any = true;
                 // Shine sweep: a streak of light sweeps across and leaves the next shot behind it.
                 col = tex(uv0).rgb;
                 float d = shineX(uv0, aspect) - mix(-0.15, 1.15, p);
                 col += vec3(1.0, 0.96, 0.88) * exp(-d * d * 500.0) * 1.6 + vec3(0.7, 0.8, 1.0) * exp(-d * d * 30.0) * 0.25;
-            } else if (isT(73.0)) {
+            }
+            if (isT(73.0)) { any = true;
                 // Film gate roll: the frame slips up like film off its sprockets, with the frame line and flicker.
                 vec3 acc = vec3(0.0);
                 for (int i = 0; i < 8; i++) acc += tex(uv0 + vec2(0.0, (float(i) / 7.0 - 0.5) * 0.06 * k)).rgb;
@@ -995,7 +1019,8 @@ object TransitionMath {
                 float line = inc ? smoothstep(0.955, 0.965, uv0.y) : 1.0 - smoothstep(0.035, 0.045, uv0.y);
                 col = mix(col, vec3(0.02), line);
                 col += (rnd(uv0 * uSize + p * 50.0) - 0.5) * 0.08 * k;
-            } else if (isT(74.0)) {
+            }
+            if (isT(74.0)) { any = true;
                 // Bokeh lights: the shot softens behind floating out-of-focus lights.
                 vec3 acc = vec3(0.0);
                 for (int i = 0; i < 8; i++) { float a = float(i) * 0.785398; acc += mtex(uv0 + vec2(cos(a), sin(a)) * 0.012 * k * vec2(1.0 / aspect, 1.0)).rgb; }
@@ -1015,7 +1040,8 @@ object TransitionMath {
                         col += tint * (disc * 0.28 + rim * 0.3) * k * step(0.35, rnd(cl + 6.1));
                     }
                 }
-            } else if (isT(75.0)) {
+            }
+            if (isT(75.0)) { any = true;
                 // Prism split: the colours split apart and turn like light through a prism.
                 vec3 o = vec3(0.0);
                 for (int ch = 0; ch < 3; ch++) {
@@ -1025,35 +1051,41 @@ object TransitionMath {
                     if (ch == 0) o.r = s.r; else if (ch == 1) o.g = s.g; else o.b = s.b;
                 }
                 col = o + max(o - 0.65, 0.0) * k * 1.2;
-            } else if (isT(76.0)) {
+            }
+            if (isT(76.0)) { any = true;
                 // Heat haze: the shot shimmers like air over hot ground, warms and blooms.
                 float n = fbm(uv0 * vec2(aspect, 1.0) * 6.0 + vec2(0.0, -p * 3.0));
                 vec2 w = vec2(sin(uv0.y * 45.0 + p * 25.0 + n * 6.0) * 0.006, cos(uv0.x * 30.0 + p * 18.0) * 0.003) * k * (0.5 + n);
                 col = mtex(uv0 + w).rgb;
                 col = mix(col, col * vec3(1.1, 0.98, 0.84), k * 0.6);
                 col += max(col - 0.6, 0.0) * k * 1.4;
-            } else if (isT(77.0)) {
+            }
+            if (isT(77.0)) { any = true;
                 // Paint splash: blobs of the next shot splash open, with a wet rim.
                 col = tex(uv0).rgb;
                 float d = splashField(uv0, aspect) - p * 1.25;
                 col += vec3(0.25) * (1.0 - smoothstep(0.0, 0.03, abs(d))) * k;
-            } else if (isT(78.0) || isT(79.0) || isT(80.0) || isT(81.0) || isT(83.0) || isT(84.0) || isT(85.0) || isT(90.0) || isT(93.0) || isT(96.0)) {
+            }
+            if (isT(78.0) || isT(79.0) || isT(80.0) || isT(81.0) || isT(83.0) || isT(84.0) || isT(85.0) || isT(90.0) || isT(93.0) || isT(96.0)) { any = true;
                 // Shape reveals: the picture as it is (the shape is in the reveal), a soft light on the edge.
                 col = tex(uv0).rgb;
-            } else if (isT(82.0)) {
+            }
+            if (isT(82.0)) { any = true;
                 // Spin blur: the picture smears round the middle without turning.
                 vec2 q = c * vec2(aspect, 1.0);
                 vec3 acc = vec3(0.0);
                 for (int i = 0; i < 14; i++) { float f = float(i) / 13.0 - 0.5; acc += mtex(rot2(q, f * 0.6 * k) / vec2(aspect, 1.0) + 0.5).rgb; }
                 col = acc / 14.0;
-            } else if (isT(86.0)) {
+            }
+            if (isT(86.0)) { any = true;
                 // Water drop: a ring wave runs out from the middle, bending the picture as it passes.
                 float r = length(c * vec2(aspect, 1.0));
                 float R = p * (length(vec2(aspect, 1.0)) * 0.5 + 0.05);
                 vec2 dir = c / max(length(c), 0.001);
                 uv = uv0 + dir * sin((r - R) * 70.0) * 0.012 * k * exp(-abs(r - R) * 18.0);
                 col = mtex(uv).rgb + vec3(0.18) * exp(-abs(r - R) * 60.0) * k;
-            } else if (isT(87.0)) {
+            }
+            if (isT(87.0)) { any = true;
                 // TV switch: the picture collapses to a line, then a dot, like an old TV turning off — and back on.
                 float f = inc ? 1.0 - p : p;
                 float a = clamp(f * 2.0, 0.0, 1.0);
@@ -1061,46 +1093,54 @@ object TransitionMath {
                 float sx = mix(1.0, 0.004, smoothstep(0.65, 1.0, a));
                 float inside = step(abs(c.x), sx * 0.5) * step(abs(c.y), sy * 0.5);
                 col = (mtex(c / vec2(sx, sy) + 0.5).rgb + vec3(smoothstep(0.3, 1.0, a) * 0.9)) * inside;
-            } else if (isT(88.0)) {
+            }
+            if (isT(88.0)) { any = true;
                 // Glow dissolve: the bright parts bloom and carry the change.
                 vec3 acc = vec3(0.0);
                 for (int i = 0; i < 8; i++) { float a = float(i) * 0.785398; acc += mtex(uv0 + vec2(cos(a), sin(a)) * 0.01 * k * vec2(1.0 / aspect, 1.0)).rgb; }
                 col = mix(tex(uv0).rgb, acc / 8.0, k);
                 col += max(col - 0.45, 0.0) * k * 2.2 + vec3(k * k * 0.25);
-            } else if (isT(89.0)) {
+            }
+            if (isT(89.0)) { any = true;
                 // Dip to colour: through a warm amber.
                 col = tex(uv0).rgb;
                 float dip = inc ? clamp((1.0 - p) * 2.0, 0.0, 1.0) : clamp(p * 2.0, 0.0, 1.0);
                 col = mix(col, vec3(1.0, 0.62, 0.18), dip);
-            } else if (isT(91.0)) {
+            }
+            if (isT(91.0)) { any = true;
                 // Stretch warp: the picture stretches sideways into streaks and snaps back as the next one.
                 float s = 1.0 + k * 3.0;
                 vec3 acc = vec3(0.0);
                 for (int i = 0; i < 10; i++) { float f = float(i) / 9.0 - 0.5; acc += mtex(vec2((uv0.x - 0.5) / s + 0.5 + f * 0.08 * k, uv0.y)).rgb; }
                 col = acc / 10.0;
-            } else if (isT(92.0)) {
+            }
+            if (isT(92.0)) { any = true;
                 // Split open: the shot parts top and bottom, the next shot behind it.
                 float e = easeF(p);
                 if (inc) col = mtex(c / mix(1.08, 1.0, e) + 0.5).rgb;
                 else col = mtex(vec2(uv0.x, uv0.y > 0.5 ? uv0.y - e * 0.5 : uv0.y + e * 0.5)).rgb;
-            } else if (isT(94.0)) {
+            }
+            if (isT(94.0)) { any = true;
                 // Slide blur: a fast slide with motion blur.
                 vec3 acc = vec3(0.0);
                 for (int i = 0; i < 12; i++) { float f = float(i) / 11.0 - 0.5; acc += tex(uv0 + vec2(f * 0.12 * k, 0.0)).rgb; }
                 col = acc / 12.0;
-            } else if (isT(95.0)) {
+            }
+            if (isT(95.0)) { any = true;
                 // Jelly: the picture wobbles like jelly through the change.
                 float wv = sin(p * 22.0);
                 vec2 q = c * vec2(1.0 + 0.16 * k * wv, 1.0 - 0.16 * k * wv);
                 q.x += sin(uv0.y * 10.0 + p * 15.0) * 0.025 * k;
                 col = mtex(q + 0.5).rgb;
-            } else if (isT(97.0)) {
+            }
+            if (isT(97.0)) { any = true;
                 // Ink drop: the next shot spreads like ink in water, with a dark soaking edge.
                 col = tex(uv0).rgb;
                 vec2 q = c * vec2(aspect, 1.0);
                 float d = length(q) + (fbm(q * 5.0 + 3.0) - 0.5) * 0.18 - p * (length(vec2(aspect, 1.0)) * 0.5 + 0.15);
                 col *= 1.0 - 0.6 * (1.0 - smoothstep(0.0, 0.05, abs(d))) * k;
-            } else if (isT(98.0)) {
+            }
+            if (isT(98.0)) { any = true;
                 // Zoom spin: a quick zoom and half turn with blur.
                 float ang = inc ? -(1.0 - easeF(p)) * 1.5707963 : easeF(p) * 1.5707963;
                 float z = inc ? mix(2.2, 1.0, easeF(p)) : mix(1.0, 0.45, easeF(p));
@@ -1108,38 +1148,45 @@ object TransitionMath {
                 vec3 acc = vec3(0.0);
                 for (int i = 0; i < 10; i++) { float f = float(i) / 9.0 - 0.5; acc += mtex(rot2(q, ang + f * 0.3 * k) / vec2(aspect, 1.0) / (z * (1.0 + f * 0.1 * k)) + 0.5).rgb; }
                 col = acc / 10.0;
-            } else if (isT(99.0)) {
+            }
+            if (isT(99.0)) { any = true;
                 // Mirror fold: the shot folds into the middle line like a closing book, the next one unfolds.
                 float f = inc ? 1.0 - easeF(p) : easeF(p);
                 float hw = max(1.0 - f, 0.002);
                 float inside = step(abs(c.x), hw * 0.5);
                 col = mtex(vec2(c.x / hw + 0.5, uv0.y)).rgb * inside * (1.0 - 0.5 * f);
-            } else if (isT(100.0)) {
+            }
+            if (isT(100.0)) { any = true;
                 // Light streaks: bright parts smear into long horizontal streaks of light.
                 col = tex(uv0).rgb;
                 vec3 acc = vec3(0.0);
                 for (int i = 0; i < 16; i++) { float f = (float(i) / 15.0 - 0.5) * 0.3 * k; acc += max(mtex(uv0 + vec2(f, 0.0)).rgb - 0.55, 0.0); }
                 col += acc / 16.0 * 4.0 * k + vec3(k * k * 0.12);
-            } else if (isT(101.0) || isT(102.0) || isT(103.0)) {
+            }
+            if (isT(101.0) || isT(102.0) || isT(103.0)) { any = true;
                 col = tex(uv0).rgb;
-            } else if (isT(104.0)) {
+            }
+            if (isT(104.0)) { any = true;
                 // Vignette close: the corners darken in until it's black, then open on the next shot.
                 col = tex(uv0).rgb;
                 float r = length(c * vec2(aspect, 1.0)) / (length(vec2(aspect, 1.0)) * 0.5);
                 float R = 1.15 * (1.0 - pow(k, 0.8));
                 col *= 1.0 - smoothstep(R - 0.35, R, r);
-            } else if (isT(105.0)) {
+            }
+            if (isT(105.0)) { any = true;
                 // Chroma zoom: a zoom punch with the colours pulling apart.
                 float z = inc ? mix(1.35, 1.0, easeF(p)) : mix(1.0, 1.35, easeF(p));
                 vec2 b = c / z;
                 col = vec3(mtex(b * (1.0 + 0.06 * k) + 0.5).r, mtex(b + 0.5).g, mtex(b * (1.0 - 0.06 * k) + 0.5).b);
-            } else if (isT(106.0)) {
+            }
+            if (isT(106.0)) { any = true;
                 // Overexpose: the shot blows out to white like an overexposed frame, then settles on the next.
                 col = tex(uv0).rgb;
                 float e = pow(k, 1.5);
                 col = 1.0 - (1.0 - col) * (1.0 - e);
                 col = mix(col, vec3(1.0), e * e * 0.6);
-            } else if (isT(107.0)) {
+            }
+            if (isT(107.0)) { any = true;
                 // Sun flare wipe: a blinding flare with a long streak crosses the frame; the next shot is behind it.
                 col = tex(uv0).rgb;
                 float e = mix(-0.25, 1.25, p);
@@ -1147,7 +1194,8 @@ object TransitionMath {
                 float dy = uv0.y - 0.55;
                 col += vec3(1.0, 0.85, 0.6) * exp(-d * d * 9.0) * 1.4 + vec3(1.0, 0.95, 0.85) * exp(-(d * d + dy * dy) * 40.0) * 1.5;
                 col += vec3(0.5, 0.7, 1.0) * exp(-dy * dy * 900.0) * exp(-abs(d) * 1.2) * 1.2;
-            } else if (isT(108.0)) {
+            }
+            if (isT(108.0)) { any = true;
                 // Dust in light: a soft beam with floating dust lights the change.
                 col = tex(uv0).rgb;
                 float bq = (uv0.x - uv0.y * 0.5 - 0.25 - p * 0.3) * 4.0; float beam = exp(-bq * bq);
@@ -1155,7 +1203,8 @@ object TransitionMath {
                 vec2 g = floor(uv0 * uSize / 3.0 + vec2(0.0, p * 40.0));
                 dust = step(0.993, rnd(g)) * beam;
                 col += vec3(1.0, 0.9, 0.7) * (beam * 0.55 * k + dust * 1.5 * k) + vec3(k * k * 0.2);
-            } else if (isT(109.0)) {
+            }
+            if (isT(109.0)) { any = true;
                 // Projector: flicker, a bright gate and dark edges, as on an old projector between reels.
                 float fl = 0.75 + 0.25 * rnd(vec2(floor(p * 30.0), 3.0));
                 vec2 q = c * vec2(aspect, 1.0);
@@ -1163,7 +1212,8 @@ object TransitionMath {
                 col = mix(col, vec3(lum(col)) * vec3(1.05, 0.98, 0.85), k * 0.6) * mix(1.0, fl, k);
                 col *= 1.0 - k * 0.8 * smoothstep(0.3, 0.75, length(q));
                 col += vec3(1.0, 0.95, 0.85) * k * k * 0.6;
-            } else if (isT(110.0)) {
+            }
+            if (isT(110.0)) { any = true;
                 // Lightning: a bolt strikes, the frame flashes white, and the next shot appears.
                 col = tex(uv0).rgb;
                 float y = uv0.y;
@@ -1171,7 +1221,8 @@ object TransitionMath {
                 float b1 = (uv0.x - bx) * aspect * 120.0; float b2 = (uv0.x - bx) * aspect * 18.0; float bolt = exp(-b1 * b1) + exp(-b2 * b2) * 0.35;
                 float flash = step(0.35, p) * step(p, 0.65) * (0.6 + 0.4 * step(0.5, fract(p * 20.0)));
                 col = mix(col, vec3(0.8, 0.85, 1.0), flash * 0.8 * k) + vec3(0.85, 0.9, 1.0) * bolt * k * 1.5;
-            } else if (isT(111.0)) {
+            }
+            if (isT(111.0)) { any = true;
                 // Black hole: the picture spirals into a dark centre and spirals back out as the next shot.
                 vec2 q = c * vec2(aspect, 1.0);
                 float d = length(q);
@@ -1180,12 +1231,14 @@ object TransitionMath {
                 col = mtex(r / vec2(aspect, 1.0) + 0.5).rgb;
                 col *= smoothstep(0.0, 0.25 * k + 0.001, d);
                 float hr = (d - 0.12 * k) * 25.0; col += vec3(1.0, 0.6, 0.3) * exp(-hr * hr) * k;
-            } else if (isT(112.0)) {
+            }
+            if (isT(112.0)) { any = true;
                 // Fog roll: ground fog rolls up and leaves the next shot behind it.
                 col = tex(uv0).rgb;
                 float fv = mix(-0.3, 1.4, p) - ((1.0 - uv0.y) + fbm(uv0 * vec2(aspect, 1.0) * 3.0 + vec2(p, 0.0)) * 0.45);
                 col = mix(col, vec3(0.86, 0.88, 0.92), (1.0 - smoothstep(0.0, 0.35, abs(fv))) * 0.85);
-            } else if (isT(113.0)) {
+            }
+            if (isT(113.0)) { any = true;
                 // Rain on glass: drops run down a pane in front of the camera, bending the picture.
                 vec2 g = vec2(18.0 * aspect, 9.0);
                 vec2 cell = floor(uv0 * g + vec2(0.0, p * 3.0));
@@ -1197,7 +1250,8 @@ object TransitionMath {
                 vec3 acc = vec3(0.0);
                 for (int i = 0; i < 6; i++) { float a = float(i) * 1.047; acc += mtex(uv0 + vec2(cos(a), sin(a)) * 0.008 * k).rgb; }
                 col = mix(col, acc / 6.0, k * 0.7 * (1.0 - drop)) + vec3(drop * 0.15);
-            } else if (isT(114.0)) {
+            }
+            if (isT(114.0)) { any = true;
                 // Blizzard: a burst of snow whites out the frame and clears on the next shot.
                 col = tex(uv0).rgb;
                 float sn = 0.0;
@@ -1207,14 +1261,16 @@ object TransitionMath {
                     sn += step(1.0 - 0.02 * (1.0 + fl) * k * 3.0, rnd(g + fl * 11.0));
                 }
                 col = mix(col, vec3(0.95), clamp(sn, 0.0, 1.0) * 0.9 + k * k * 0.6);
-            } else if (isT(115.0)) {
+            }
+            if (isT(115.0)) { any = true;
                 // Fire wipe: a wall of fire rises and burns the shot away.
                 col = tex(uv0).rgb;
                 float edge = uv0.y - (mix(-0.2, 1.25, p) + (fbm(vec2(uv0.x * aspect * 4.0, p * 3.0)) - 0.5) * 0.18);
                 float fire = 1.0 - smoothstep(0.0, 0.12, abs(edge));
                 float flick = 0.7 + 0.3 * fbm(vec2(uv0.x * 20.0, uv0.y * 8.0 - p * 12.0));
                 col += mix(vec3(1.0, 0.25, 0.02), vec3(1.0, 0.85, 0.4), fire) * fire * flick * 1.6;
-            } else if (isT(116.0)) {
+            }
+            if (isT(116.0)) { any = true;
                 // Light tunnel: rings of light rush past as you fly through a tunnel into the next shot.
                 vec2 q = c * vec2(aspect, 1.0);
                 float d = length(q);
@@ -1222,19 +1278,22 @@ object TransitionMath {
                 col = mtex(c / z + 0.5).rgb;
                 float rings = pow(0.5 + 0.5 * sin(1.0 / max(d, 0.02) * 2.0 - p * 40.0), 6.0);
                 col = mix(col, col * 0.3, k * 0.6) + vec3(0.6, 0.8, 1.0) * rings * k * smoothstep(0.05, 0.5, d) * 1.3;
-            } else if (isT(117.0)) {
+            }
+            if (isT(117.0)) { any = true;
                 // Prism leak: rainbow light leaks across the frame.
                 col = tex(uv0).rgb;
                 float x = uv0.x * 0.8 + uv0.y * 0.4 - mix(-0.4, 1.4, p);
                 vec3 rb = 0.5 + 0.5 * cos(6.2831853 * (x * 1.5 + vec3(0.0, 0.33, 0.67)));
                 col += rb * exp(-x * x * 6.0) * k * 1.3 + vec3(k * k * 0.15);
-            } else if (isT(118.0)) {
+            }
+            if (isT(118.0)) { any = true;
                 // Silent film iris: an old-film iris with sepia, grain and flicker.
                 col = tex(uv0).rgb;
                 col = mix(col, vec3(lum(col)) * vec3(1.1, 0.95, 0.75), 0.85 * k);
                 col *= 0.85 + 0.15 * rnd(vec2(floor(p * 18.0), 2.0)) * k;
                 col += (rnd(uv0 * uSize + floor(p * 24.0)) - 0.5) * 0.15 * k;
-            } else if (isT(119.0)) {
+            }
+            if (isT(119.0)) { any = true;
                 // Glass pane: a sheet of glass slides across; its edge bends and catches the light.
                 col = tex(uv0).rgb;
                 float e = mix(-0.08, 1.08, easeF(p));
@@ -1242,13 +1301,15 @@ object TransitionMath {
                 float edge = exp(-d * d * 3000.0);
                 if (!inc) col = mtex(uv0 + vec2(edge * 0.03, 0.0)).rgb;
                 col += vec3(0.9, 0.95, 1.0) * edge * 0.8 + vec3(0.6, 0.8, 1.0) * exp(-d * d * 200.0) * 0.12 * k;
-            } else if (isT(120.0)) {
+            }
+            if (isT(120.0)) { any = true;
                 // Depth push: the shot rushes towards you and blurs, the next one comes in from behind.
                 float z = inc ? mix(0.75, 1.0, easeF(p)) : mix(1.0, 1.6, easeF(p));
                 vec3 acc = vec3(0.0);
                 for (int i = 0; i < 10; i++) { float f = float(i) / 9.0; acc += mtex(c / (z * (1.0 + f * 0.12 * k)) + 0.5).rgb; }
                 col = acc / 10.0 * (1.0 - 0.35 * k);
-            } else if (isT(121.0)) {
+            }
+            if (isT(121.0)) { any = true;
                 // Shockwave: a ring of force bursts out with a colour fringe, carrying the next shot.
                 float r = length(c * vec2(aspect, 1.0));
                 float R = easeF(p) * (length(vec2(aspect, 1.0)) * 0.5 + 0.1);
@@ -1256,45 +1317,53 @@ object TransitionMath {
                 vec2 dir = c / max(length(c), 0.001);
                 float push = band * 0.06 * k;
                 col = vec3(mtex(uv0 - dir * push * 1.3).r, mtex(uv0 - dir * push).g, mtex(uv0 - dir * push * 0.7).b) + vec3(band * 0.35 * k);
-            } else if (isT(122.0)) {
+            }
+            if (isT(122.0)) { any = true;
                 // Tilt down: the camera tilts down with motion blur and lands on the next shot.
                 float off = inc ? (1.0 - easeF(p)) * -0.6 : easeF(p) * 0.6;
                 vec3 acc = vec3(0.0);
                 for (int i = 0; i < 12; i++) { float f = float(i) / 11.0 - 0.5; acc += mtex(vec2(uv0.x, uv0.y + off + f * 0.15 * k)).rgb; }
                 col = acc / 12.0;
-            } else if (isT(123.0)) {
+            }
+            if (isT(123.0)) { any = true;
                 // Horizon wipe: a warm sunrise line rises up the frame.
                 col = tex(uv0).rgb;
                 float d = (1.0 - uv0.y) - mix(-0.1, 1.1, p);
                 col += vec3(1.0, 0.6, 0.25) * exp(-d * d * 120.0) * 0.9 * k;
-            } else if (isT(124.0)) {
+            }
+            if (isT(124.0)) { any = true;
                 // Golden hour: a warm golden glow washes over and carries the change.
                 col = tex(uv0).rgb;
                 col = mix(col, col * vec3(1.25, 1.0, 0.7) + vec3(0.12, 0.06, 0.0), k);
                 col += max(col - 0.55, 0.0) * k * 1.6 + vec3(1.0, 0.75, 0.4) * k * k * 0.3;
-            } else if (isT(125.0)) {
+            }
+            if (isT(125.0)) { any = true;
                 // Nightfall: the scene goes blue and dark with twinkling stars, then the next shot.
                 col = tex(uv0).rgb;
                 col = mix(col, vec3(lum(col)) * vec3(0.35, 0.45, 0.8) * 0.5, k);
                 float st = step(0.997, rnd(floor(uv0 * uSize / 2.0))) * (0.5 + 0.5 * sin(p * 40.0 + rnd(floor(uv0 * uSize / 2.0)) * 20.0));
                 col += vec3(st) * k * step(0.45, uv0.y);
-            } else if (isT(126.0)) {
+            }
+            if (isT(126.0)) { any = true;
                 // Lens dirt flare: blown-out light shows the smudges on the lens.
                 col = tex(uv0).rgb;
                 float dirt = fbm(uv0 * vec2(aspect, 1.0) * 5.0) * smoothstep(0.3, 0.9, fbm(uv0 * 9.0 + 2.0));
                 float glow = exp(-length((uv0 - vec2(mix(0.2, 0.8, p), 0.7)) * vec2(aspect, 1.0)) * 2.5);
                 col += vec3(1.0, 0.92, 0.8) * (glow * 0.9 + dirt * glow * 1.6) * k + vec3(k * k * 0.35);
-            } else if (isT(127.0) || isT(128.0) || isT(134.0) || isT(135.0)) {
+            }
+            if (isT(127.0) || isT(128.0) || isT(134.0) || isT(135.0)) { any = true;
                 col = tex(uv0).rgb;
                 if (isT(128.0)) { float tear = uv0.x + (fbm(vec2(uv0.y * 14.0, 3.0)) - 0.5) * 0.12 - mix(-0.1, 1.15, p); col = mix(col, vec3(0.96, 0.95, 0.9), (1.0 - smoothstep(0.0, 0.012, abs(tear))) * step(0.02, k)); }
                 if (isT(134.0)) { float d = 1.0 - (uv0.x + (1.0 - uv0.y) * 0.35) / 1.35 - mix(-0.05, 1.05, p); col *= 1.0 - 0.5 * exp(-d * d * 400.0) * k; col += vec3(0.3) * exp(-(d + 0.02) * (d + 0.02) * 2000.0) * k; }
                 if (isT(135.0)) { float d = abs(uv0.x - mix(-0.15, 1.15, p)); float bl = (1.0 - smoothstep(0.0, 0.2, d)) * 0.015; vec3 acc = vec3(0.0); for (int i = 0; i < 8; i++) { float a = float(i) * 0.785398; acc += mtex(uv0 + vec2(cos(a), sin(a)) * bl).rgb; } col = acc / 8.0; }
-            } else if (isT(129.0)) {
+            }
+            if (isT(129.0)) { any = true;
                 // Comic burst: a jagged starburst with halftone dots bursts open.
                 col = tex(uv0).rgb;
                 vec2 g = fract(uv0 * vec2(aspect, 1.0) * 60.0) - 0.5;
                 col = mix(col, col * 0.5 + vec3(1.0, 0.85, 0.2) * 0.5, step(length(g), 0.25 + 0.2 * k) * k * 0.8);
-            } else if (isT(130.0)) {
+            }
+            if (isT(130.0)) { any = true;
                 // Halftone: the picture turns into printed dots and back.
                 float cells = mix(260.0, 45.0, k);
                 vec2 g = uv0 * vec2(aspect, 1.0) * cells;
@@ -1302,32 +1371,35 @@ object TransitionMath {
                 float l = lum(mtex(cl).rgb);
                 float dotv = 1.0 - smoothstep(l * 0.55 - 0.05, l * 0.55 + 0.05, length(fract(g) - 0.5));
                 col = mix(tex(uv0).rgb, mtex(cl).rgb * dotv + vec3(0.06), smoothstep(0.0, 0.5, k));
-            } else if (isT(131.0)) {
+            }
+            if (isT(131.0)) { any = true;
                 // Thermal: a heat-camera look through the middle of the change.
                 vec3 s0 = tex(uv0).rgb; float l = lum(s0);
                 vec3 th = clamp(vec3(l * 3.0 - 1.4, sin(l * 3.14159), 1.2 - l * 2.4), 0.0, 1.0) + vec3(0.2, 0.0, 0.1) * l;
                 col = mix(s0, th, smoothstep(0.0, 0.6, k));
-            } else if (isT(132.0)) {
+            }
+            if (isT(132.0)) { any = true;
                 // Night vision: green, grainy and scan-lined.
                 vec3 s0 = tex(uv0).rgb; float l = lum(s0) * 1.6;
                 vec3 nv = vec3(0.1, 1.0, 0.25) * l + (rnd(uv0 * uSize + p * 60.0) - 0.5) * 0.25;
                 nv *= 0.85 + 0.15 * step(0.5, fract(uv0.y * uSize.y / 3.0));
                 nv *= 1.0 - smoothstep(0.35, 0.75, length(c * vec2(aspect, 1.0)));
                 col = mix(s0, nv, smoothstep(0.0, 0.6, k));
-            } else if (isT(133.0)) {
+            }
+            if (isT(133.0)) { any = true;
                 // Hologram: cyan scan lines, flicker and sideways slips.
                 float slip = (rnd(vec2(floor(uv0.y * 30.0), floor(p * 20.0))) - 0.5) * 0.04 * k;
                 vec3 s0 = mtex(uv0 + vec2(slip, 0.0)).rgb; float l = lum(s0);
                 vec3 hg = vec3(0.3, 0.9, 1.0) * (l * 1.3 + 0.1) * (0.7 + 0.3 * step(0.5, fract(uv0.y * uSize.y / 4.0 - p * 30.0)));
                 col = mix(s0, hg, smoothstep(0.0, 0.6, k)) * (0.85 + 0.15 * rnd(vec2(floor(p * 30.0), 4.0)));
-            } else if (isT(136.0)) {
+            }
+            if (isT(136.0)) { any = true;
                 // Zoom punch: a hard punch-in with a little shake.
                 float z = inc ? mix(1.6, 1.0, easeF(p)) : mix(1.0, 1.8, easeF(p));
                 vec2 sh = vec2(rnd(vec2(floor(p * 40.0), 1.0)) - 0.5, rnd(vec2(floor(p * 40.0), 2.0)) - 0.5) * 0.03 * k;
                 col = mtex(c / z + 0.5 + sh).rgb;
-            } else {
-                col = tex(uv0).rgb;
             }
+            if (!any) col = tex(uv0).rgb;
             float rv = revealC(uv0);
             float al = uMode > 1.5 ? 1.0 - rv : (uMode > 0.5 ? rv : 1.0);
             return vec4(clamp(col, 0.0, 1.0), al);

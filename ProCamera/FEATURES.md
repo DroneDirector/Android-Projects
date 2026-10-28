@@ -203,7 +203,8 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **AI Remove**: tap or paint over bigger objects to remove them.
 - **Merge photos**: HDR (exposure fusion), panorama stitching, focus stacking, star trails (10–100 tripod shots).
 - **Watermark**: text or logo, font, colour, size, position, opacity; optional **Remember watermark**.
-- **Text & stickers**: any number of text and emoji layers with font, colour, shadow / box, size, position and opacity.
+- **Text & stickers**: any number of text and emoji layers with font (incl. Heavy), colour, shadow / box, outline, size, position and opacity.
+- **Thumbnail designer**: one tap to a 16:9 video thumbnail — big outlined title and the AI-found subject popped out of a darker background with a glow.
 - **History & snapshots**: jump to any step, save named versions and switch between them.
 - Live RGB **histogram** as a pull-out drawer on the right edge (same as the video editor) with waveform, RGB parade and vectorscope, **hold for before**, **undo / redo**.
 - **Before / after split view** with a draggable divider.

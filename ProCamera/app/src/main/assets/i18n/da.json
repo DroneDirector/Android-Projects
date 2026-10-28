@@ -4254,5 +4254,17 @@
 "Smile": "Smil",
 "Finds the faces, then shape them with sliders — eyes, face width, chin, nose and smile. Subtle is best.": "Finder ansigterne, og form dem så med skydere — øjne, ansigtsbredde, hage, næse og smil. Diskret er bedst.",
 "Every face in the photo gets the same change. Right = bigger / wider / longer / more smile, left = less.": "Alle ansigter i fotoet får samme ændring. Højre = større / bredere / længere / mere smil, venstre = mindre.",
-"Retouch → Liquify → FACE (AI): FIND FACES, then shape every face with the Eyes, Face width, Chin, Nose and Smile sliders (right = more, left = less). Subtle settings look most natural.": "Retouchering → Formning → ANSIGT (AI): FIND ANSIGTER, og form så hvert ansigt med skyderne Øjne, Ansigtsbredde, Hage, Næse og Smil (højre = mere, venstre = mindre). Diskrete indstillinger ser mest naturlige ud."
+"Retouch → Liquify → FACE (AI): FIND FACES, then shape every face with the Eyes, Face width, Chin, Nose and Smile sliders (right = more, left = less). Subtle settings look most natural.": "Retouchering → Formning → ANSIGT (AI): FIND ANSIGTER, og form så hvert ansigt med skyderne Øjne, Ansigtsbredde, Hage, Næse og Smil (højre = mere, venstre = mindre). Diskrete indstillinger ser mest naturlige ud.",
+"THUMBNAIL": "MINIATURE",
+"MAKE A THUMBNAIL": "LAV EN MINIATURE",
+"YOUR TITLE": "DIN TITEL",
+"Thumbnail set up — tap the title below to change it": "Miniature klar — tryk på titlen nedenfor for at ændre den",
+"Pop out": "Fremhæv",
+"Black outline": "Sort kontur",
+"White outline": "Hvid kontur",
+"Red outline": "Rød kontur",
+"Heavy": "Kraftig",
+"One tap to a video thumbnail: the photo cropped to 16:9, a big outlined title and the subject popped out with a glow (AI). Then change the title, colours and position.": "Ét tryk til en videominiature: fotoet beskåret til 16:9, en stor titel med kontur og motivet fremhævet med glød (AI). Skift derefter titel, farver og placering.",
+"The background goes darker and softer and the subject gets a glow in the colour below — the look of a video thumbnail.": "Baggrunden bliver mørkere og blødere, og motivet får en glød i farven nedenfor — et videominiature-look.",
+"Text → THUMBNAIL → MAKE A THUMBNAIL: the photo is cropped to 16:9, a big yellow title with a black outline is added and the subject pops out of a darker background with a glow (Background → Pop out). Tap the title to change it; Outline sets the edge round any text, in the photo and the video editor.": "Tekst → MINIATURE → LAV EN MINIATURE: fotoet beskæres til 16:9, en stor gul titel med sort kontur tilføjes, og motivet træder frem fra en mørkere baggrund med glød (Baggrund → Fremhæv). Tryk på titlen for at ændre den; Kontur giver kant om al tekst, i foto- og videoeditoren."
 }

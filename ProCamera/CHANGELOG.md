@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor → Text → Thumbnail: one tap to a 16:9 video thumbnail with a big outlined title and the subject popped out with a glow (new Background → Pop out).
+- Text layers (photo and video editor): Outline in black, white or red, and a new Heavy font.
 - Photo editor → Retouch → Liquify → Face (AI): sliders for eyes, face width, chin, nose and smile on every face found.
 - Photo editor → Effects → Background (AI) → Double exposure: a second picture shown inside the subject's silhouette.
 - Photo editor → Merge photos → Star trails: 10–100 tripod shots of the night sky become one picture with the stars' arcs.

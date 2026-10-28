@@ -77,7 +77,7 @@ data class PhotoBackground(
     /** Double exposure: the second picture shown inside the subject, and how strongly. */
     val imagePath: String? = null, val amount: Float = 0.85f,
 ) {
-    /** 0 off, 1 blur (portrait), 2 remove (transparent), 3 colour, 4 double exposure. */
+    /** 0 off, 1 blur (portrait), 2 remove (transparent), 3 colour, 4 double exposure, 5 pop out (darker background, glow round the subject). */
     val active get() = mode != 0 && maskFile != null
 }
 
@@ -645,6 +645,33 @@ object PhotoLocal {
     /** Portrait blur, transparent or coloured background outside the subject ([wt] = subject 0..1). */
     fun background(px: IntArray, w: Int, h: Int, wt: FloatArray, bg: PhotoBackground, second: Bitmap? = null) {
         when (bg.mode) {
+            5 -> {
+                // Pop out (thumbnails): the background darker and softer, a glow of [bg.color] round the subject.
+                val sw = max(1, w / 4); val sh = max(1, h / 4)
+                val full = Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
+                val small = Bitmap.createScaledBitmap(full, sw, sh, true); full.recycle()
+                val sp = IntArray(sw * sh); small.getPixels(sp, 0, sw, 0, 0, sw, sh); small.recycle()
+                val soft = boxBlur(sp, sw, sh, (max(sw, sh) * 0.006f).toInt().coerceAtLeast(1))
+                // The subject's shape, blurred wide: the glow.
+                val mw = IntArray(sw * sh)
+                for (y in 0 until sh) for (x in 0 until sw) {
+                    val v = (wt[(y * h / sh).coerceAtMost(h - 1) * w + (x * w / sw).coerceAtMost(w - 1)] * 255).toInt().coerceIn(0, 255)
+                    mw[y * sw + x] = (0xFF shl 24) or (v shl 16) or (v shl 8) or v
+                }
+                val glow = boxBlur(mw, sw, sh, (max(sw, sh) * 0.025f * (0.5f + bg.blur)).toInt().coerceAtLeast(2))
+                fun up(a: IntArray): IntArray {
+                    val b = Bitmap.createScaledBitmap(Bitmap.createBitmap(a, sw, sh, Bitmap.Config.ARGB_8888), w, h, true)
+                    return IntArray(w * h).also { b.getPixels(it, 0, w, 0, 0, w, h); b.recycle() }
+                }
+                val bp = up(soft); val gp = up(glow)
+                val dim = 0.5f
+                for (i in px.indices) {
+                    val c = bp[i]
+                    val d = (0xFF shl 24) or ((((c shr 16) and 0xFF) * dim).toInt() shl 16) or ((((c shr 8) and 0xFF) * dim).toInt() shl 8) or ((c and 0xFF) * dim).toInt()
+                    val g = ((gp[i] and 0xFF) / 255f * (1f - wt[i]) * 2.2f).coerceIn(0f, 1f)
+                    px[i] = mixPx(mixPx(d, bg.color, g * 0.95f), px[i], wt[i])
+                }
+            }
             4 -> {
                 // Double exposure: the second picture screened into the subject, the background a plain colour.
                 val sp = second?.let { s ->

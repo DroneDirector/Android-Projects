@@ -28,6 +28,7 @@ enum class LayerFont(val label: String, val typeface: Typeface) {
     MONO("Mono", Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)),
     LIGHT("Light", Typeface.create("sans-serif-light", Typeface.NORMAL)),
     CONDENSED("Condensed", Typeface.create("sans-serif-condensed", Typeface.BOLD)),
+    HEAVY("Heavy", Typeface.create("sans-serif-black", Typeface.NORMAL)),
 }
 
 val STICKERS = listOf("🔥", "⭐", "❤️", "😂", "😍", "👍", "🎉", "✨", "📍", "➡️", "🎬", "📸", "🌅", "🏔️", "🌊", "🚁", "💯", "⚡", "🙌", "😎", "🎵", "☀️", "🌙", "💥")
@@ -272,7 +273,9 @@ object LayerRenderer {
         val lines = l.text.ifEmpty { " " }.split('\n')
         val fm = paint.fontMetrics
         val lineH = fm.descent - fm.ascent
-        val pad = if (l.box) px * 0.35f else px * 0.15f
+        // Outline (text layers): a stroke round the letters, [Layer.stroke] = width as a share of the text height.
+        val ow = if (l.kind == LayerKind.TEXT) (l.stroke ?: 0f) * px else 0f
+        val pad = (if (l.box) px * 0.35f else px * 0.15f) + ow
         val textW = lines.maxOf { paint.measureText(it) }
         val w = (textW + pad * 2).toInt().coerceIn(4, frameW * 2)
         val h = (lineH * lines.size + pad * 2).toInt().coerceAtLeast(4)
@@ -286,7 +289,12 @@ object LayerRenderer {
             val lw = paint.measureText(line)
             val part = if (left >= line.length) line else line.substring(0, left.coerceAtLeast(0))
             left -= line.length
-            if (part.isNotEmpty()) c.drawText(part, (w - lw) / 2f, pad - fm.ascent + i * lineH, paint)
+            if (part.isNotEmpty()) {
+                if (ow > 0f) c.drawText(part, (w - lw) / 2f, pad - fm.ascent + i * lineH, Paint(paint).apply {
+                    style = Paint.Style.STROKE; strokeWidth = ow * 2f; strokeJoin = Paint.Join.ROUND; color = l.borderColor ?: 0xFF000000.toInt()
+                })
+                c.drawText(part, (w - lw) / 2f, pad - fm.ascent + i * lineH, if (ow > 0f) Paint(paint).apply { clearShadowLayer() } else paint)
+            }
         }
         // Word-by-word captions: the word being spoken in the highlight colour (or on a box).
         if (hi >= 0 && l.words != null) {

@@ -4304,5 +4304,17 @@
 "Smile": "Smíl",
 "Finds the faces, then shape them with sliders — eyes, face width, chin, nose and smile. Subtle is best.": "Finnur andlitini, og skapa tey so við skjúrum — eygu, andlitsbreidd, kjálka, nøs og smíl. Lítið er best.",
 "Every face in the photo gets the same change. Right = bigger / wider / longer / more smile, left = less.": "Øll andlit í myndini fáa somu broyting. Høgra = størri / breiðari / longri / meira smíl, vinstra = minni.",
-"Retouch → Liquify → FACE (AI): FIND FACES, then shape every face with the Eyes, Face width, Chin, Nose and Smile sliders (right = more, left = less). Subtle settings look most natural.": "Retusering → Forming → ANDLIT (AI): FINN ANDLIT, og skapa so hvørt andlit við skjúrunum Eygu, Andlitsbreidd, Kjálki, Nøs og Smíl (høgra = meira, vinstra = minni). Lítlar stillingar síggja mest náttúrligar út."
+"Retouch → Liquify → FACE (AI): FIND FACES, then shape every face with the Eyes, Face width, Chin, Nose and Smile sliders (right = more, left = less). Subtle settings look most natural.": "Retusering → Forming → ANDLIT (AI): FINN ANDLIT, og skapa so hvørt andlit við skjúrunum Eygu, Andlitsbreidd, Kjálki, Nøs og Smíl (høgra = meira, vinstra = minni). Lítlar stillingar síggja mest náttúrligar út.",
+"THUMBNAIL": "SMÁMYND",
+"MAKE A THUMBNAIL": "GER EINA SMÁMYND",
+"YOUR TITLE": "TÍTT HEITI",
+"Thumbnail set up — tap the title below to change it": "Smámynd klár — trýst á heitið niðanfyri fyri at broyta tað",
+"Pop out": "Lyft fram",
+"Black outline": "Svørt útlinja",
+"White outline": "Hvít útlinja",
+"Red outline": "Reyð útlinja",
+"Heavy": "Tung",
+"One tap to a video thumbnail: the photo cropped to 16:9, a big outlined title and the subject popped out with a glow (AI). Then change the title, colours and position.": "Eitt trýst til eina videosmámynd: myndin skorin til 16:9, eitt stórt heiti við útlinju og myndevnið lyft fram við glóð (AI). Broyt so heiti, litir og støðu.",
+"The background goes darker and softer and the subject gets a glow in the colour below — the look of a video thumbnail.": "Bakgrundin verður myrkari og bleytari, og myndevnið fær eina glóð í litinum niðanfyri — útsjóndin hjá eini videosmámynd.",
+"Text → THUMBNAIL → MAKE A THUMBNAIL: the photo is cropped to 16:9, a big yellow title with a black outline is added and the subject pops out of a darker background with a glow (Background → Pop out). Tap the title to change it; Outline sets the edge round any text, in the photo and the video editor.": "Tekstur → SMÁMYND → GER EINA SMÁMYND: myndin verður skorin til 16:9, eitt stórt gult heiti við svartari útlinju verður lagt afturat, og myndevnið stígur fram úr eini myrkari bakgrund við glóð (Bakgrund → Lyft fram). Trýst á heitið fyri at broyta tað; Útlinja gevur kant um allan tekst, í mynda- og videoritlinum."
 }

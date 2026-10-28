@@ -6488,6 +6488,12 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
         }
         Chips(listOf("Shadow", "Box"), -1) { if (it == 0) onUpdate(l.copy(shadow = !l.shadow)) else onUpdate(l.copy(box = !l.box)) }
         Text("Shadow: ${if (l.shadow) "on" else "off"} · Box: ${if (l.box) "on" else "off"}", style = Pro.Label)
+        if (l.kind == LayerKind.TEXT) {
+            EdSlider("Outline", l.stroke ?: 0f, 0f..0.25f, 0f, ::pct) { onUpdate(l.copy(stroke = it.takeIf { v -> v > 0.005f })) }
+            if ((l.stroke ?: 0f) > 0f) Chips(listOf("Black outline", "White outline", "Red outline"), when (l.borderColor) { 0xFFFFFFFF.toInt() -> 1; 0xFFFF3B30.toInt() -> 2; else -> 0 }) { i ->
+                onUpdate(l.copy(borderColor = listOf(0xFF000000.toInt(), 0xFFFFFFFF.toInt(), 0xFFFF3B30.toInt())[i]))
+            }
+        }
     }
     if (l.kind == LayerKind.SHAPE) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {

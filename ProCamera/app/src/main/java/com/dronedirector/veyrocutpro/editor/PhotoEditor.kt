@@ -1496,7 +1496,7 @@ private fun PhotoWorkspace(
                 modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { findMask(MaskType.SUBJECT) { p -> edit = edit.copy(bg = edit.bg.copy(maskFile = p, mode = 1)) } }.padding(10.dp),
             )
         } else {
-            Chips(listOf("Off", "Blur (portrait)", "Remove", "Colour", "Double exposure"), bg.mode) { m ->
+            Chips(listOf("Off", "Blur (portrait)", "Remove", "Colour", "Double exposure", "Pop out"), bg.mode) { m ->
                 if (m == 4 && bg.imagePath == null) pickSecond.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 else edit = edit.copy(bg = bg.copy(mode = m))
             }
@@ -1507,7 +1507,11 @@ private fun PhotoWorkspace(
             }
             if (bg.mode == 1) EdSlider("Blur", bg.blur, 0.05f..1f, 0.5f, ::pct) { v -> edit = edit.copy(bg = bg.copy(blur = v)) }
             if (bg.mode == 2) Text("Exported as PNG (or WebP) with a transparent background.", color = Pro.Dim, fontSize = 11.sp)
-            if (bg.mode == 3 || bg.mode == 4) Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            if (bg.mode == 5) {
+                EdSlider("Glow", bg.blur, 0.05f..1f, 0.5f, ::pct) { v -> edit = edit.copy(bg = bg.copy(blur = v)) }
+                Text("The background goes darker and softer and the subject gets a glow in the colour below — the look of a video thumbnail.", color = Pro.Dim, fontSize = 11.sp)
+            }
+            if (bg.mode == 3 || bg.mode == 4 || bg.mode == 5) Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                 listOf(0xFFFFFFFF, 0xFF000000, 0xFF1E1E1E, 0xFFF2E8DA, 0xFF2D6CDF, 0xFF34C759, 0xFFFF7EB6, 0xFFFFB300).map { it.toInt() }.forEach { c ->
                     Box(Modifier.size(28.dp).clip(CircleShape).background(Color(c)).border(if (c == bg.color) 3.dp else 1.dp, if (c == bg.color) Pro.Amber else Pro.Line, CircleShape)
                         .clickable { edit = edit.copy(bg = bg.copy(color = c)) })
@@ -2188,6 +2192,16 @@ private fun PhotoWorkspace(
                             PhotoPanel.TEXT -> {
                                 // Text and sticker layers on the photo.
                                 var selText by remember { mutableStateOf<String?>(null) }
+                                SectionTitle("THUMBNAIL")
+                                Text("One tap to a video thumbnail: the photo cropped to 16:9, a big outlined title and the subject popped out with a glow (AI). Then change the title, colours and position.", color = Pro.Dim, fontSize = 11.sp)
+                                Text("MAKE A THUMBNAIL", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable {
+                                    val l = Layer(kind = LayerKind.TEXT, text = "YOUR TITLE", size = 0.17f, x = 0.32f, y = 0.8f, font = LayerFont.HEAVY, color = 0xFFFFD60A.toInt(),
+                                        stroke = 0.12f, borderColor = 0xFF000000.toInt(), shadow = true, wholeVideo = true)
+                                    edit = edit.copy(geometry = edit.geometry.copy(aspect = 16f / 9f), texts = edit.texts + l); selText = l.id
+                                    if (edit.bg.maskFile == null) findMask(MaskType.SUBJECT) { p -> edit = edit.copy(bg = edit.bg.copy(maskFile = p, mode = 5, color = 0xFFFFD60A.toInt())) }
+                                    else edit = edit.copy(bg = edit.bg.copy(mode = 5, color = 0xFFFFD60A.toInt()))
+                                    message = "Thumbnail set up — tap the title below to change it"
+                                }.padding(10.dp))
                                 SectionTitle("TEXT & STICKERS") { edit = edit.copy(texts = emptyList()) }
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text("+ TEXT", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable {
@@ -2220,6 +2234,10 @@ private fun PhotoWorkspace(
                                             cols.forEach { cl -> Box(Modifier.size(26.dp).clip(CircleShape).background(Color(cl)).border(2.dp, if (t.color == cl) Pro.Amber else Pro.Line, CircleShape).clickable { upd(t.copy(color = cl)) }) }
                                         }
                                         Chips(listOf("Plain", "Shadow", "Box"), if (t.box) 2 else if (t.shadow) 1 else 0) { i -> upd(t.copy(shadow = i == 1, box = i == 2)) }
+                                        EdSlider("Outline", t.stroke ?: 0f, 0f..0.25f, 0f, ::pct) { upd(t.copy(stroke = it.takeIf { v -> v > 0.005f })) }
+                                        if ((t.stroke ?: 0f) > 0f) Chips(listOf("Black outline", "White outline", "Red outline"), when (t.borderColor) { 0xFFFFFFFF.toInt() -> 1; 0xFFFF3B30.toInt() -> 2; else -> 0 }) { i ->
+                                            upd(t.copy(borderColor = listOf(0xFF000000.toInt(), 0xFFFFFFFF.toInt(), 0xFFFF3B30.toInt())[i]))
+                                        }
                                     }
                                     EdSlider("Size", t.size, 0.02f..0.4f, 0.07f, ::pct) { upd(t.copy(size = it)) }
                                     EdSlider("Across", t.x, 0f..1f, 0.5f, ::pct) { upd(t.copy(x = it)) }

@@ -348,6 +348,9 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
     }
     var nasStart by remember { mutableStateOf(false) }
     if (nasStart) NasBrowserDialog(NasKinds.VIDEO_START, onDismiss = { nasStart = false }) { addNas(it) }
+    // The video library and pro import, from the start page: what's picked starts the timeline.
+    var startLib by remember { mutableStateOf(0) }
+    if (startLib != 0) LibraryOverlay(startLib == 2, onClose = { startLib = 0 }, onAdd = { startLib = 0; addUris(it) })
 
     if (!started) {
         BackHandler { onExit() }
@@ -363,6 +366,10 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
                 onRecent = { addUris(listOf(it)) },
                 onSkip = { started = true },
                 banner = {
+                    Row(Modifier.fillMaxWidth().padding(bottom = 10.dp).hintedScroll(horizontal = true), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PillChip("🎞 Video library", false, accentText = true) { startLib = 1 }
+                        PillChip("⇩ Import from card / camera / USB", false, accentText = true) { startLib = 2 }
+                    }
                     var recoverAt by remember { mutableStateOf(ProjectStore.autosaveTime(context)) }
                     if (recoverAt > 0L) Column(
                         Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(12.dp))
@@ -522,6 +529,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     val libPick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(100)) { importToLibrary(it) }
+    // The video library (calendar, smart collections, labels) and pro import: picked files go into the media strip.
+    var libOpen by remember { mutableStateOf(0) }
+    if (libOpen != 0) LibraryOverlay(libOpen == 2, onClose = { libOpen = 0 }, onAdd = { libOpen = 0; importToLibrary(it) })
     // Capture (all its pro controls) opened over the editor: what's taken goes into the media list, not onto the timeline.
     fun openCamera(video: Boolean) = com.dronedirector.veyrocutpro.ui.CaptureForEditor.open("video editor", video) { u, isVideo ->
         if (isVideo) importToLibrary(listOf(u))
@@ -4446,6 +4456,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 Text("Hold the divider and drag to make the thumbnails bigger or smaller. Drag a clip onto the timeline with a mouse, or pick it and use Append / Insert.", color = Pro.Dim, fontSize = 11.sp)
                             }
                             Page.MEDIA -> com.dronedirector.veyrocutpro.ui.FoldColumn {
+                            SectionTitle("LIBRARY & IMPORT")
+                            Text("Browse every video on the device by day, month and year, with stars, flags, colour labels and smart collections — or copy footage in from a memory card, USB drive or camera.", color = Pro.Dim, fontSize = 11.sp)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+                                PillChip("🎞 Video library", false, accentText = true) { libOpen = 1 }
+                                PillChip("⇩ Import from card / camera / USB", false, accentText = true) { libOpen = 2 }
+                            }
                             SectionTitle("EDIT TEMPLATES")
                             Text("One tap to a finished-looking edit of your clips: cut on the music's beat (add music first), transitions, a title and more. Everything stays editable; undo brings your edit back.", color = Pro.Dim, fontSize = 11.sp)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
@@ -4956,6 +4972,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 // Resizable panels: hold a divider, then drag. Double-tap a divider to reset it.
                 // Hidden panels give their space to the rest; shown again, everything returns to its saved size.
                 val tlPane = rememberPane(if (wide) "ve_timeline_land" else "ve_timeline_port", es.paneVersion)
+                // Starting height of the tracks: about a third of the screen in landscape on phones and tablets.
+                val tlLand = wide && mon == com.dronedirector.veyrocutpro.ui.MonitorClass.NONE
+                val tlDefault = if (tlLand) boxH * 0.31f else 150f
                 val tlScroll = rememberScrollState()
                 var tlEnergy by remember { mutableStateOf(0f) }
                 var tlHEnergy by remember { mutableStateOf(0f) }
@@ -4981,7 +5000,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         onEnd = { stripPane.save(); tlPane.save() }, onReset = { stripPane.reset() })
                     // Tracks scroll up and down with the wheel on the right, left and right with the wheel along the bottom.
                     Box(Modifier.fillMaxWidth()) {
-                        val sized = if (tlPane.dp < 0f) Modifier.fillMaxWidth().heightIn(max = (boxH * 0.42f).dp) else Modifier.fillMaxWidth().height(tlPane.dp.dp)
+                        val sized = if (tlPane.dp < 0f) (if (tlLand) Modifier.fillMaxWidth().height(tlDefault.dp) else Modifier.fillMaxWidth().heightIn(max = (boxH * 0.42f).dp)) else Modifier.fillMaxWidth().height(tlPane.dp.dp)
                         // The tracks stop short of the right and bottom edges: each wheel has its own window there.
                         Box(
                             sized.padding(end = 26.dp, bottom = 26.dp)
@@ -5058,12 +5077,14 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         }
                     }
                     ResizeHandle(true,
-                        onDrag = { d -> tlPane.dp = ((if (tlPane.dp < 0f) 150f else tlPane.dp) - d).coerceIn(70f, boxH * 0.6f) },
+                        onDrag = { d -> tlPane.dp = ((if (tlPane.dp < 0f) tlDefault else tlPane.dp) - d).coerceIn(70f, boxH * 0.6f) },
                         onEnd = { tlPane.save() }, onReset = { tlPane.reset() })
                     timelineBox()
                 } else if (wide) {
                     val insp = rememberPane(if (mon != com.dronedirector.veyrocutpro.ui.MonitorClass.NONE) "ve_mon_tools_w" else "ve_inspector_w", es.paneVersion)
                     val maxW = boxW
+                    // Starting width of the tools panel: about 44 % of the screen on phones and tablets (390 dp on monitors).
+                    val inspDefault = if (mon == com.dronedirector.veyrocutpro.ui.MonitorClass.NONE) (boxW * 0.435f).coerceIn(240f, maxW - 260f) else 390f
                     Row(Modifier.fillMaxWidth().weight(1f)) {
                         Column(Modifier.weight(1f).fillMaxHeight()) {
                             viewer(Modifier.fillMaxWidth().weight(1f))
@@ -5071,13 +5092,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         }
                         if (showInspector) {
                             ResizeHandle(false,
-                                onDrag = { d -> insp.dp = ((if (insp.dp < 0f) 390f else insp.dp) - d).coerceIn(240f, maxW - 260f) },
+                                onDrag = { d -> insp.dp = ((if (insp.dp < 0f) inspDefault else insp.dp) - d).coerceIn(240f, maxW - 260f) },
                                 onEnd = { insp.save() }, onReset = { insp.reset() })
-                            inspector(Modifier.width((if (insp.dp < 0f) 390f else insp.dp).dp).fillMaxHeight())
+                            inspector(Modifier.width((if (insp.dp < 0f) inspDefault else insp.dp).dp).fillMaxHeight())
                         }
                     }
                     ResizeHandle(true,
-                        onDrag = { d -> tlPane.dp = ((if (tlPane.dp < 0f) 150f else tlPane.dp) - d).coerceIn(70f, boxH * 0.6f) },
+                        onDrag = { d -> tlPane.dp = ((if (tlPane.dp < 0f) tlDefault else tlPane.dp) - d).coerceIn(70f, boxH * 0.6f) },
                         onEnd = { tlPane.save() }, onReset = { tlPane.reset() })
                     timelineBox()
                 } else {
@@ -5095,7 +5116,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     timelineBox()
                     if (showInspector) {
                         ResizeHandle(true,
-                            onDrag = { d -> tlPane.dp = ((if (tlPane.dp < 0f) 150f else tlPane.dp) + d).coerceIn(70f, maxH * 0.5f) },
+                            onDrag = { d -> tlPane.dp = ((if (tlPane.dp < 0f) tlDefault else tlPane.dp) + d).coerceIn(70f, maxH * 0.5f) },
                             onEnd = { tlPane.save() }, onReset = { tlPane.reset() })
                         inspector(Modifier.fillMaxWidth().weight(1f))
                     }
@@ -7135,6 +7156,16 @@ private fun DeliverPage(
                 color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(start = 10.dp))
         }
     }
+    SectionTitle("METADATA")
+    MetaPresets.load(ictx)
+    Text("Your name, copyright, contact, caption and keywords written into the video file.", color = Pro.Dim, fontSize = 11.sp)
+    Row(Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        PillChip("None", s.meta == null) { onChange(s.copy(meta = null)) }
+        MetaPresets.list.forEach { p -> PillChip(p.name, s.meta == p.asEdit()) { onChange(s.copy(meta = p.asEdit())) } }
+        var make by remember { mutableStateOf(false) }
+        PillChip("+ New preset", false, accentText = true) { make = true }
+        if (make) MetaPresetDialog(0, onApply = { p -> make = false; onChange(s.copy(meta = p.asEdit())) }, onDismiss = { make = false })
+    }
     SectionTitle("PRESETS")
     Chips(EXPORT_PRESETS.map { it.label }, EXPORT_PRESETS.indexOfFirst { p ->
         s.shortSide == p.shortSide && s.fps == p.fps && s.hevc == p.hevc && s.bitrateMbps == p.mbps && s.aspect == p.aspect
@@ -8024,4 +8055,21 @@ private fun RenderCacheSection(items: List<Triple<String, Boolean, Int?>>, runni
         Text("DELETE CACHE", style = Pro.Label.copy(color = Pro.Dim, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Ed.Raised).clickable(onClick = onClear).padding(10.dp))
     }
     Text("Changing one of those effects makes the clip play live again until you render it again.", color = Pro.Dim, fontSize = 11.sp)
+}
+
+/** The video library or the import screen over the editor; [onAdd] gets what's picked or imported. */
+@Composable
+internal fun LibraryOverlay(import: Boolean, onClose: () -> Unit, onAdd: (List<Uri>) -> Unit) {
+    var showImport by remember { mutableStateOf(import) }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onClose, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        com.dronedirector.veyrocutpro.ui.ForceDark {
+            Box(Modifier.fillMaxSize().background(Ed.Bg)) {
+                if (showImport) ProImportScreen(video = true, onClose = { if (import) onClose() else showImport = false }) { res ->
+                    val v = res.filter { it.second }.map { it.first }
+                    if (v.isNotEmpty()) onAdd(v)
+                }
+                else VideoLibraryScreen(onBack = onClose, onAdd = onAdd, onImport = { showImport = true })
+            }
+        }
+    }
 }

@@ -571,7 +571,13 @@ private fun PhotoWorkspace(
     val liveSyncLock = remember { kotlinx.coroutines.sync.Mutex() }
     var edit by remember {
         // Photos taken with the editor's camera start without the remembered watermark (add one by hand if wanted).
-        mutableStateOf(editOf(context, initial, PhotoSession.items.none { it.camera == true && it.uri == uri.toString() }))
+        mutableStateOf(editOf(context, initial, PhotoSession.items.none { it.camera == true && it.uri == uri.toString() }).let { e ->
+            // A develop preset given on import: the photo starts with it the first time it's opened.
+            if (initial != null) e else try {
+                LibraryStore.load(context); UserPresets.init(context)
+                LibraryStore.get(uri.toString()).develop?.let { id -> UserPresets.list.firstOrNull { it.id == id } }?.let { p -> e.copy(grade = p.grade, detail = p.detail) } ?: e
+            } catch (_: Throwable) { e }
+        })
     }
     // A filmstrip photo's hidden edit is not a named project: SAVE makes a separate one.
     var projectId by remember { mutableStateOf(initial?.id?.takeIf { initial.session != true && initial.autosave != true }) }
@@ -2811,7 +2817,8 @@ internal fun runPhotoExport(context: Context, req: PhotoExportReq): PhotoExportR
         val saved = savePhotoAs(context, out, fmt, (req.quality * 100).toInt(), if (req.keepExif) uri else null, req.stripGps)
         out.recycle()
         // Your own title, caption, author, copyright and keywords.
-        if (saved != null) e.meta?.let { MetaEdit.write(context, saved, it) }
+        // (The photo's own METADATA first; else what a metadata preset gave it in the library.)
+        if (saved != null) (e.meta?.takeIf { !it.isEmpty } ?: try { LibraryStore.load(context); LibraryStore.get(uri.toString()).meta } catch (_: Throwable) { null })?.let { MetaEdit.write(context, saved, it) }
         // Camera Raw (.xmp) sidecar for the original, with the closest matching settings.
         if (saved != null && PhotoMeta.sidecar && uri != Uri.EMPTY) {
             if (PhotoMeta.writeSidecar(context, uri, PhotoMeta.sidecarXmp(e.grade, e.detail, e.geometry, meta != null)) == null) res.sidecarFailed = true

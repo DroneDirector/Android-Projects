@@ -158,6 +158,8 @@ data class DeliverSettings(
     val fill: Boolean = true,
     /** Save only the sound (AAC in an .m4a file, to Music/AlcorCutPro). */
     val audioOnly: Boolean = false,
+    /** Your details (from a metadata preset) written into the exported video; null = none. */
+    val meta: PhotoMetaEdit? = null,
     /** Export only this part of the timeline (ms); null = the whole edit. */
     val rangeStart: Long? = null,
     val rangeEnd: Long? = null,
@@ -336,6 +338,8 @@ class TimelineExport(
         val stamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
         val name = "EDIT_$stamp.mp4"
         outputSize(clips, settings).let { (ow, oh) -> Spherical.tagIfNeeded(context, clips, ow, oh, out) }
+        // Your details (Deliver → METADATA) written into the file.
+        settings.meta?.let { if (!Mp4Meta.write(out, it)) com.dronedirector.veyrocutpro.ui.AppLog.w("Export: couldn't write the metadata into the video") }
         val uri = SaveFolder.write(context, true, name, "video/mp4") { os -> out.inputStream().use { it.copyTo(os) } }
             ?: GradeIO.publishVideo(context, out, com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO)
         out.delete()
@@ -682,6 +686,8 @@ class TimelineExport(
                             u
                         } else {
                             outputSize(clips, settings).let { (ow, oh) -> Spherical.tagIfNeeded(context, clips, ow, oh, out) }
+                            // Your details (Deliver → METADATA) written into the file.
+                            settings.meta?.let { if (!Mp4Meta.write(out, it)) com.dronedirector.veyrocutpro.ui.AppLog.w("Export: couldn't write the metadata into the video") }
                             val name = "EDIT_$stamp.mp4"
                             SaveFolder.write(context, true, name, "video/mp4") { os -> out.inputStream().use { it.copyTo(os) } }
                                 ?: GradeIO.publishVideo(context, out, com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO)

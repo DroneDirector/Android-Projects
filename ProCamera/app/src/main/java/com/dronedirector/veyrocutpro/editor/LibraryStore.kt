@@ -32,6 +32,10 @@ data class LibMeta(
     val sharp: Float? = null,
     /** True when [place] came from a GPS track here (then exports get it too). */
     val geotagged: Boolean? = null,
+    /** Your details from a metadata preset (written into exports when the photo's own edit has none). */
+    val meta: PhotoMetaEdit? = null,
+    /** A develop preset ([UserPreset] id) given on import: used when the photo is first opened. */
+    val develop: String? = null,
 )
 
 /** A saved search: shows every photo that matches. */
@@ -41,6 +45,11 @@ data class SmartAlbum(
     val flag: Int = 0,           // 0 any, 1 picks only, 2 not rejected
     val label: Int? = null,
     val text: String = "",
+    /** Keyword it must have; date rule ([SMART_DATES]); file type (photos: 1 RAW, 2 JPEG, 3 HEIC / other; videos: 1 4K and up, 2 HD and smaller, 3 drone, 4 vertical); has a location. */
+    val keyword: String? = null,
+    val dateMode: Int? = null,
+    val fileType: Int? = null,
+    val hasPlace: Boolean? = null,
 )
 
 /** A photo in the library grid. */
@@ -67,7 +76,8 @@ object LibraryStore {
         try {
             val f = file(c); if (!f.exists()) return
             val s: Saved = ProjectStore.gson.fromJson(f.readText(), Saved::class.java) ?: return
-            s.meta?.forEach { (k, v) -> meta[k] = LibMeta(v.rating, v.flag, v.label, v.keywords ?: emptyList(), v.albums ?: emptyList(), v.ai, v.faces, v.place) }
+
+            s.meta?.forEach { (k, v) -> meta[k] = v.copy(keywords = v.keywords ?: emptyList(), albums = v.albums ?: emptyList()) }
             s.albums?.let { albums.addAll(it) }
             s.smart?.let { smart.addAll(it) }
         } catch (_: Throwable) {}
@@ -113,8 +123,19 @@ object LibraryStore {
         if (s.flag == 1 && m.flag != 1) return false
         if (s.flag == 2 && m.flag == -1) return false
         if (s.label != null && m.label != s.label) return false
+        s.keyword?.takeIf { it.isNotBlank() }?.let { k -> if (m.keywords.none { it.equals(k.trim(), ignoreCase = true) }) return false }
+        smartDateRange(s.dateMode)?.let { r -> if (p.date !in r) return false }
+        when (s.fileType) {
+            1 -> if (!isRaw(p)) return false
+            2 -> if (!p.mime.contains("jpeg")) return false
+            3 -> if (isRaw(p) || p.mime.contains("jpeg")) return false
+        }
+        when (s.hasPlace) { true -> if (m.place.isNullOrEmpty()) return false; false -> if (!m.place.isNullOrEmpty()) return false; null -> {} }
         return matches(p, s.text)
     }
+
+    val PHOTO_TYPES = listOf("Any", "RAW", "JPEG", "HEIC & other")
+    fun isRaw(p: LibPhoto) = p.mime.contains("dng") || p.mime.contains("raw") || p.name.substringAfterLast('.').lowercase() in setOf("dng", "cr2", "cr3", "nef", "arw", "raf", "orf", "rw2")
 
     /**
      * Labels photos that have no AI labels yet (what's in them: beach, dog, food, sky…) so they

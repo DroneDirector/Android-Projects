@@ -291,7 +291,7 @@ object LowerThirds {
             6 -> { fill.style = Paint.Style.FILL; fill.shader = LinearGradient(0f, 0f, wf, 0f, intArrayOf(accent, (accent and 0x00FFFFFF) or 0x99000000.toInt(), 0x00000000), floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP); c.drawRect(0f, 0f, wf, hf, fill); fill.shader = null }
             7 -> {
                 shadowed(np); shadowed(tp)
-                val s = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = px * 0.07f; color = accent; strokeCap = Paint.Cap.SQUARE }
+                val s = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.style = Paint.Style.STROKE; strokeWidth = px * 0.07f; color = accent; strokeCap = Paint.Cap.SQUARE }
                 val k = px * 0.45f; val i = s.strokeWidth
                 c.drawLine(i, i, i + k, i, s); c.drawLine(i, i, i, i + k, s)
                 c.drawLine(wf - i, hf - i, wf - i - k, hf - i, s); c.drawLine(wf - i, hf - i, wf - i, hf - i - k, s)
@@ -299,7 +299,7 @@ object LowerThirds {
             8 -> { box(0f, 0f, wf, nTop + nH + gap * 0.5f, accent); np.color = 0xFF111111.toInt(); if (title.isNotEmpty()) box(0f, nTop + nH + gap * 0.5f, wf, hf, 0xF2111111.toInt()) }
             9 -> {
                 box(0f, 0f, wf, hf, 0x40FFFFFF, px * 0.3f)
-                c.drawRoundRect(RectF(1f, 1f, wf - 1f, hf - 1f), px * 0.3f, px * 0.3f, Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = max(1f, px * 0.03f); color = 0x80FFFFFF.toInt() })
+                c.drawRoundRect(RectF(1f, 1f, wf - 1f, hf - 1f), px * 0.3f, px * 0.3f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.style = Paint.Style.STROKE; strokeWidth = max(1f, px * 0.03f); color = 0x80FFFFFF.toInt() })
                 shadowed(np); shadowed(tp)
             }
             10 -> {
@@ -322,7 +322,7 @@ object LowerThirds {
                 return bmp
             }
             12 -> {
-                c.drawRect(px * 0.04f, px * 0.04f, wf - px * 0.04f, hf - px * 0.04f, Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = px * 0.07f; color = accent })
+                c.drawRect(px * 0.04f, px * 0.04f, wf - px * 0.04f, hf - px * 0.04f, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.style = Paint.Style.STROKE; strokeWidth = px * 0.07f; color = accent })
                 shadowed(np); shadowed(tp)
             }
             13 -> {

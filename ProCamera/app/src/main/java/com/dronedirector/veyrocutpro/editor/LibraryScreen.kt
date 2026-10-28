@@ -83,7 +83,7 @@ private val LIB_LABELS = listOf(0xFFFF3B30, 0xFFFFD60A, 0xFF34C759, 0xFF0A84FF, 
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy: (Uri) -> Unit) {
+fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy: (Uri) -> Unit, pickLabel: String? = null) {
     val context = LocalContext.current
     BackHandler(onBack = onBack)
     LaunchedEffect(Unit) { LibraryStore.load(context) }
@@ -218,7 +218,7 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
             Text("${picked.size} selected", style = Pro.Label.copy(color = Color.White, fontSize = 11.sp))
             PillChip("Select all", false) { picked.clear(); picked.addAll(shown.map { it.uri.toString() }) }
             if (picked.isNotEmpty()) {
-                PillChip("✎ Edit", false, accentText = true) { onEdit(sel.map { it.uri }) }
+                PillChip(pickLabel ?: "✎ Edit", false, accentText = true) { onEdit(sel.map { it.uri }) }
                 if (picked.size == 2) PillChip("Compare", false) { compare = sel }
                 if (picked.size in 2..12) PillChip("Survey", false) { survey = sel }
                 (1..5).forEach { r -> PillChip("★$r", false) { LibraryStore.update(context, picked) { it.copy(rating = r) } } }

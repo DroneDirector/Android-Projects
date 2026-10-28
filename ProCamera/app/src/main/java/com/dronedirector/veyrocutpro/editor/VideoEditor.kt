@@ -263,12 +263,8 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
         if (uris.isEmpty()) return
         loading = true
         scope.launch {
-            val loaded = withContext(Dispatchers.IO) {
-                uris.mapNotNull { u ->
-                    try { context.contentResolver.takePersistableUriPermission(u, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
-                    ClipLoader.load(context, u)?.let { MediaCatalog.added(context, it) }
-                }
-            }
+            // Videos as they are; photos stay photos (still clips), in the order picked.
+            val loaded = Stills.loadAll(context, uris, EditorPrefs.photoClipSeconds(context)).map { withContext(Dispatchers.IO) { MediaCatalog.added(context, it) } }
             clips.addAll(loaded)
             loading = false
             loaded.firstOrNull { it.undecodable == true }?.let {
@@ -343,13 +339,12 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
     }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(30)) { addUris(it) }
     val browse = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { addUris(it) }
-    val pickGallery = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) }
-    val pickFiles = { browse.launch(arrayOf("video/*")) }
+    val pickGallery = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) }
+    val pickFiles = { browse.launch(arrayOf("video/*", "image/*")) }
     // Files from a NAS: videos go straight in, photos become 5 s clips first.
     fun addNas(uris: List<Uri>) {
-        val (photos, videos) = uris.partition { (it.lastPathSegment ?: "").substringAfterLast('.', "").lowercase() in Nas.PHOTO }
-        addUris(videos)
-        for (u in photos) Generators.photoClip(context, u, EditorPrefs.photoClipSeconds(context)) { clip, _ -> if (clip != null) addUris(listOf(clip)) }
+        // Videos and photos (photos stay stills) in the order picked.
+        addUris(uris)
     }
     var nasStart by remember { mutableStateOf(false) }
     if (nasStart) NasBrowserDialog(NasKinds.VIDEO_START, onDismiss = { nasStart = false }) { addNas(it) }
@@ -362,7 +357,7 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
         Box(Modifier.fillMaxSize()) {
             MediaChooser(
                 title = "Video editor",
-                subtitle = "Add one or more clips to start a timeline. Log footage (D-Log, D-Log M, S-Log3, V-Log, LogC3, HLG) is converted in the Color page.",
+                subtitle = "Add videos or photos to start a timeline (photos stay still photos). Log footage (D-Log, D-Log M, S-Log3, V-Log, LogC3, HLG) is converted in the Color page.",
                 videos = true,
                 onBack = onExit,
                 onGallery = pickGallery,
@@ -522,8 +517,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         libScope.launch {
             var added = 0
             for (u in uris) {
-                if (library.any { it.uri == u }) { es.libLoading--; continue }
-                val c = withContext(Dispatchers.IO) {
+                if (library.any { it.uri == u || it.still == u.toString() }) { es.libLoading--; continue }
+                val c = if (Stills.isPhoto(context, u)) Stills.make(context, u, EditorPrefs.photoClipSeconds(context))?.let { withContext(Dispatchers.IO) { MediaCatalog.added(context, it) } }
+                else withContext(Dispatchers.IO) {
                     try { context.contentResolver.takePersistableUriPermission(u, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
                     ClipLoader.load(context, u)?.let { MediaCatalog.added(context, it) }
                 }
@@ -534,16 +530,35 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
     val libPick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(100)) { importToLibrary(it) }
+    // Photos on the timeline: how long a still shows (its still clip is made again at the new length).
+    var stillBusy by remember { mutableStateOf(false) }
+    fun setStillLength(i: Int, seconds: Int) {
+        val c = clips.getOrNull(i) ?: return
+        val photo = c.still ?: return
+        if (stillBusy) return
+        stillBusy = true
+        libScope.launch {
+            val n = Stills.make(context, Uri.parse(photo), seconds)
+            stillBusy = false
+            if (n == null) { es.message = "Couldn't read the photo again"; return@launch }
+            val k = clips.indexOfFirst { it.id == c.id }
+            if (k < 0) return@launch
+            clips[k] = clips[k].copy(uri = n.uri, durationMs = n.durationMs, startMs = 0L, endMs = n.durationMs, speed = 1f, ramp = null, rampName = null)
+            // (The preview reloads by itself: the clip under the playhead changed.)
+            es.message = "The photo now shows for $seconds s"
+        }
+    }
+    fun setStillZoom(i: Int, on: Boolean) {
+        val c = clips.getOrNull(i) ?: return
+        clips[i] = c.copy(reframe = if (on) Reframe(start = Frame(1f), end = Frame(1.12f, x = 0.03f, y = -0.02f), animate = true) else Reframe())
+    }
     // The video library (calendar, smart collections, labels) and pro import: picked files go into the media strip.
     var libOpen by remember { mutableStateOf(0) }
     if (libOpen != 0) LibraryOverlay(libOpen == 2, onClose = { libOpen = 0 }, onAdd = { libOpen = 0; importToLibrary(it) })
     // Capture (all its pro controls) opened over the editor: what's taken goes into the media list, not onto the timeline.
-    fun openCamera(video: Boolean) = com.dronedirector.veyrocutpro.ui.CaptureForEditor.open("video editor", video) { u, isVideo ->
-        if (isVideo) importToLibrary(listOf(u))
-        else {
-            es.message = "Making a clip from the photo…"
-            Generators.photoClip(context, u, EditorPrefs.photoClipSeconds(context)) { clip, err -> if (clip != null) importToLibrary(listOf(clip)) else es.message = err ?: "Couldn't use that photo" }
-        }
+    fun openCamera(video: Boolean) = com.dronedirector.veyrocutpro.ui.CaptureForEditor.open("video editor", video) { u, _ ->
+        // A photo stays a photo (a still clip).
+        importToLibrary(listOf(u))
     }
     var cameraAsk by remember { mutableStateOf(false) }
     if (cameraAsk) AddFromDialog("Camera → media list", listOf(
@@ -3678,8 +3693,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 }
             }
             capture = { cameraAsk = true }
-            importGallery = { try { libPick.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) } catch (_: Throwable) {} }
-            importFiles = { try { importFilesLauncher.launch(arrayOf("video/*")) } catch (_: Throwable) {} }
+            importGallery = { try { libPick.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) } catch (_: Throwable) {} }
+            importFiles = { try { importFilesLauncher.launch(arrayOf("video/*", "image/*")) } catch (_: Throwable) {} }
             importFolder = { try { libFolder.launch(null) } catch (_: Throwable) {} }
             importAudio = { try { pickAudio.launch(arrayOf("audio/*")) } catch (_: Throwable) {} }
             importNas = { nasPool = true }
@@ -4484,7 +4499,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                         library.removeAll { c -> c in list && c !in used }
                         if (used.isNotEmpty()) es.message = "${used.size} clip(s) are on the timeline — delete them in the Media page to remove them"
                     },
-                    onImport = { libPick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) },
+                    onImport = { libPick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
                     onCamera = { cameraAsk = true },
                     onImportFolder = { try { libFolder.launch(null) } catch (_: Throwable) {} },
                     onDragOver = { at -> es.tlBounds.contains(at) },
@@ -4736,6 +4751,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 },
                             )
                             Page.EDIT -> if (sc != null) com.dronedirector.veyrocutpro.ui.FoldColumn {
+                                if (sc.still != null) StillSection(sc, stillBusy, onSeconds = { s -> setStillLength(es.selected, s) }, onZoom = { z -> setStillZoom(es.selected, z) })
                                 EditPage(
                                 sc, es.selected, clips.size, es.posMs, es.deliver, { es.deliver = it },
                                 onChange = { f -> if (es.videoLocked) es.message = "The video track is locked" else wf.pick.applyTo(clips, es.selected, f) },
@@ -5428,7 +5444,7 @@ private fun MediaPage(
     }
     SectionTitle("MEDIA POOL")
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        BigButton(Icons.Filled.PhotoLibrary, "Gallery", Modifier.weight(1f), onAddGallery)
+        BigButton(Icons.Filled.PhotoLibrary, "Gallery (videos, photos)", Modifier.weight(1f), onAddGallery)
         BigButton(Icons.Filled.FolderOpen, "Files (MKV…)", Modifier.weight(1f), onAddFiles)
     }
     BigButton(Icons.Filled.Videocam, "Camera → media list (video or photo)", Modifier.fillMaxWidth().padding(top = 8.dp), onCamera)
@@ -8157,14 +8173,26 @@ private fun RenderCacheSection(items: List<Triple<String, Boolean, Int?>>, runni
 @Composable
 internal fun LibraryOverlay(import: Boolean, onClose: () -> Unit, onAdd: (List<Uri>) -> Unit) {
     var showImport by remember { mutableStateOf(import) }
+    // Videos, or photos (they go in as stills).
+    var photos by remember { mutableStateOf(false) }
     androidx.compose.ui.window.Dialog(onDismissRequest = onClose, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         com.dronedirector.veyrocutpro.ui.ForceDark {
             Box(Modifier.fillMaxSize().background(Ed.Bg)) {
                 if (showImport) ProImportScreen(video = true, onClose = { if (import) onClose() else showImport = false }) { res ->
-                    val v = res.filter { it.second }.map { it.first }
+                    // Videos and photos (photos go in as stills).
+                    val v = res.map { it.first }
                     if (v.isNotEmpty()) onAdd(v)
                 }
-                else VideoLibraryScreen(onBack = onClose, onAdd = onAdd, onImport = { showImport = true })
+                else Column(Modifier.fillMaxSize()) {
+                    Row(Modifier.padding(start = 12.dp, top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        PillChip("Videos", !photos) { photos = false }
+                        PillChip("Photos", photos) { photos = true }
+                    }
+                    Box(Modifier.weight(1f)) {
+                        if (photos) LibraryScreen(onBack = onClose, onEdit = onAdd, onVirtualCopy = {}, pickLabel = "+ Add to project")
+                        else VideoLibraryScreen(onBack = onClose, onAdd = onAdd, onImport = { showImport = true })
+                    }
+                }
             }
         }
     }

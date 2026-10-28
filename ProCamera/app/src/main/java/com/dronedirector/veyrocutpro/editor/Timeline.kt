@@ -774,7 +774,7 @@ fun TimelineView(
                         if (rectW > 50f) {
                             drawRect(Color.Black.copy(alpha = 0.55f), Offset(max(x0, 0f) + 2f, top + clipRow - 16.dp.toPx()), Size(min(rectW - 4f, 220.dp.toPx()), 14.dp.toPx()))
                             textPaint.textSize = 9.sp.toPx()
-                            val label = "${i + 1} ${c.name}" + (if (c.ramp != null) "  ⤳${c.rampName ?: "ramp"}" else if (c.speed != 1f) "  ${c.speed}x" else "") + (if (!c.grade.isIdentity || !c.detail.isZero) "  ●" else "")
+                            val label = "${i + 1} " + (if (c.still != null) "📷 " else "") + c.name + (if (c.ramp != null) "  ⤳${c.rampName ?: "ramp"}" else if (c.speed != 1f) "  ${c.speed}x" else "") + (if (!c.grade.isIdentity || !c.detail.isZero) "  ●" else "")
                             drawContext.canvas.nativeCanvas.drawText(label.take(40), max(x0, 0f) + 5f, top + clipRow - 5.dp.toPx(), textPaint)
                         }
                     }
@@ -865,7 +865,7 @@ fun TimelineView(
                         if (!l.locked) trimHandles(x0, x1, rowTop, layerRow, l.id == editingId || l.id == selectedLayerId, accent)
                         if (l.id == editingId) lengthTag(x0, x1, rowTop, e - s, textPaint, accent)
                         textPaint.textSize = 9.sp.toPx()
-                        val name0 = l.name?.takeIf { it.isNotBlank() } ?: when (l.kind) { LayerKind.TEXT, LayerKind.WATERMARK, LayerKind.STICKER -> l.text.replace('\n', ' '); else -> l.kind.label + " " + l.text }
+                        val name0 = l.name?.takeIf { it.isNotBlank() } ?: when (l.kind) { LayerKind.TEXT, LayerKind.WATERMARK, LayerKind.STICKER -> l.text.replace('\n', ' '); else -> if (l.text.isBlank() || l.text.trim().equals(l.kind.label, ignoreCase = true)) l.kind.label else l.kind.label + " " + l.text }
                         val name = if (l.kind == LayerKind.VIDEO) (if (l.isBelow) "↓ " else "↑ ") + name0 else name0
                         drawContext.canvas.nativeCanvas.drawText(name.take(30), max(x0, 0f) + 5f, rowTop + layerRow * 0.68f, textPaint)
                         rowTop += layerRow + gap

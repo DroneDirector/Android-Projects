@@ -91,6 +91,8 @@ data class Clip(
     val privacy: PrivacyBlur? = null,
     /** Grade versions A / B / C (Color page): saved looks to switch between and compare. */
     val versions: List<ClipLook?>? = null,
+    /** A still photo on the timeline: the original photo (the clip plays it as a still). */
+    val still: String? = null,
 ) {
     val is422: Boolean get() = (chroma ?: 1) >= 2
 

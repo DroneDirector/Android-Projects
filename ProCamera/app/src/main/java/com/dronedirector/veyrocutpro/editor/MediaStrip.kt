@@ -386,7 +386,7 @@ private fun StripThumb(
             if (rating == -1) Text("✕", color = Pro.Red, fontSize = 8.sp)
         }
         if (skim == null) Text(
-            (if (uses > 0) "USED ×$uses · " else "") + tc(c.durationMs), color = if (uses > 0) Pro.Amber else Color.White, fontSize = 7.sp,
+            (if (uses > 0) "USED ×$uses · " else "") + (if (c.still != null) "PHOTO" else tc(c.durationMs)), color = if (uses > 0) Pro.Amber else Color.White, fontSize = 7.sp,
             modifier = Modifier.align(Alignment.TopEnd).padding(top = 4.dp, end = 3.dp).background(Color.Black.copy(alpha = 0.6f)).padding(horizontal = 2.dp),
         )
         // Colour label: a stripe along the bottom.

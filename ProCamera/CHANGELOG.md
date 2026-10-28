@@ -4,21 +4,16 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
-<<<<<<< Updated upstream
-
-## 1.0.755 — 2026-10-28
-=======
 - App log on the device: app starts, exports, problems and crashes (with the app's recent system log lines). VIEW LOG in the crash / problem report, or ? → Troubleshooting → App log — share it or save a copy.
 - Fix: 87 of the transitions (cinematic, creative and newer ones) still couldn't build their preview effect ("program too large") — only the chosen transition's code is built now.
->>>>>>> Stashed changes
+
+## 1.0.755 — 2026-10-28
 - Fix: export could still fail with "Video frame processing error" on some transitions (a transition that doesn't use every setting). Every setting is now kept; if one still can't be applied it is skipped and the export says so in a short note.
 
 ## 1.0.748 — 2026-10-28
 - Fix: every video transition looked like a plain fade in the preview and on the Transitions page — the effects shader had grown too deeply nested for Android and wasn't being built. Shutter, kaleidoscope and all the others show their own effect again.
 - Fix: export failed ("Video frame processing error") on edits with push, whip, slide-blur or film-gate transitions, and with layers dragged partly off the frame.
 - Fix: lower thirds and other layers stayed on screen during playback outside their own time when they were selected. While playing, layers now show only in their own time; paused, a layer outside its time is shown faded so you can still place it.
-- Fix: every video transition looked like a plain fade in the preview and on the Transitions page — the effects shader had grown too deeply nested for Android and wasn't being built. Shutter, kaleidoscope and all the others show their own effect again.
-- Fix: export failed ("Video frame processing error") on edits with push, whip, slide-blur or film-gate transitions, and with layers dragged partly off the frame.
 
 ## 1.0.746 — 2026-10-28
 - Fix: every video transition looked like a plain fade in the preview and on the Transitions page — the effects shader had grown too deeply nested for Android and wasn't being built. Shutter, kaleidoscope and all the others show their own effect again.
@@ -78,7 +73,6 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 - Fixed: the video editor could crash while layers were shown on the picture (e.g. with a visualizer whose analysis finished, or layers appearing and disappearing during playback).
 - Visualizer: much livelier — each frequency band is measured against its own range in the song and jumps when it gets louder, so bars, rings and lines clearly move with the music (songs are analysed again once).
 - Moving overlays (visualizer, countdown, progress bar, flight path) now update 25 times a second in the preview instead of 10.
-- Visualizer: much livelier — each frequency band is measured against its own range in the song and jumps when it gets louder, so bars, rings and lines clearly move with the music (songs are analysed again once).
 - Moving overlays (visualizer, countdown, progress bar, flight path) now update 25 times a second in the preview instead of 10, so they follow the music smoothly.
 
 ## 1.0.693 — 2026-10-28

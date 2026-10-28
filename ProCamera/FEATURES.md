@@ -203,7 +203,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **AI Remove**: tap or paint over bigger objects to remove them.
 - **Merge photos**: HDR (exposure fusion), panorama stitching, focus stacking, star trails (10–100 tripod shots).
 - **Watermark**: text or logo, font, colour, size, position, opacity; optional **Remember watermark**.
-- **Text & stickers**: any number of text and emoji layers with font (incl. Heavy), colour, shadow / box, outline, size, position and opacity.
+- **Text & stickers**: any number of text and emoji layers with about 80 fonts (incl. free twins of Arial, Times New Roman, Courier New and Calibri), 19 text effects (neon, chrome, gold, fire, 3D, glitch…), colour, shadow / box, outline, size, position and opacity; name labels (16 lower-third designs) and 20 ready-made kinds of text.
 - **Thumbnail designer**: one tap to a 16:9 video thumbnail — big outlined title and the AI-found subject popped out of a darker background with a glow.
 - **History & snapshots**: jump to any step, save named versions and switch between them.
 - Live RGB **histogram** as a pull-out drawer on the right edge (same as the video editor) with waveform, RGB parade and vectorscope, **hold for before**, **undo / redo**.
@@ -432,6 +432,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Reveal in Project**: show the selected clip in the media strip, or where its file is on the phone (open the folder, copy the path).
 - **Tap to open, hold for more**: tap any item on the timeline (clip, transition, layer, visualizer, progress bar, countdown, music or audio track) to jump to its settings; hold a clip or a media-strip file for **Colour & details**, **Reveal in project** and **Reveal on device**. Layers and audio bars move and trim like clips.
 - **Wide + vertical export**: the same edit as 16:9 and 9:16 in one go.
+- **Text page**: title templates, 16 lower-third designs, 19 effect texts and 20 ready-made kinds of text; every text can use about 80 fonts in five groups.
 - **Edit templates**: Travel recap, Drone reel, Action, Calm & warm, Intro / opener and Old film — beat-cut edit with transitions, title and overlays in one tap.
 - **GPX routes**: a GPS track from a hike, drive or ride drawn as an animated map over a clip.
 - **Retro looks**: VHS tape, old TV, camcorder with date stamp, old film and security camera overlays.

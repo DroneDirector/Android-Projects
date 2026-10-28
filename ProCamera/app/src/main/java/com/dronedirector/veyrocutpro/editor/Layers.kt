@@ -121,6 +121,11 @@ data class Layer(
     val fxC: Float? = null,
     val fxD: Float? = null,
     val track: List<Double>? = null,
+    /** Text: the font from [TextFonts] (null = [font]), the effect from [TextFx], a second colour (gradients, accents) and a lower-third design ([LowerThirds]). */
+    val face: String? = null,
+    val textFx: Int? = null,
+    val textColor2: Int? = null,
+    val lowerThird: Int? = null,
 ) {
     /** The word being spoken at [ms] (−1 before the first). */
     fun wordAt(ms: Long): Int = words?.let { w -> w.indexOfLast { it <= ms } } ?: -1
@@ -263,11 +268,15 @@ object LayerRenderer {
     }
 
     /** [chars]: how many characters to draw (typewriter); the size and layout always follow the full text. */
+    /** The text layer's picture (for previews of styles in the editors). */
+    fun textPreview(l: Layer, px: Float, frameW: Int): Bitmap = renderText(l, px, frameW)
+
     private fun renderText(l: Layer, px: Float, frameW: Int, chars: Int = Int.MAX_VALUE, hi: Int = -1): Bitmap {
+        if (l.kind == LayerKind.TEXT && l.lowerThird != null) return LowerThirds.render(l, px, frameW)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textSize = px
             color = l.color
-            typeface = if (l.kind == LayerKind.STICKER) Typeface.DEFAULT else l.font.typeface
+            typeface = if (l.kind == LayerKind.STICKER) Typeface.DEFAULT else (TextFonts.typeface(l.face) ?: l.font.typeface)
             if (l.shadow && l.kind != LayerKind.STICKER) setShadowLayer(px * 0.08f, 0f, px * 0.04f, 0xAA000000.toInt())
         }
         val lines = l.text.ifEmpty { " " }.split('\n')
@@ -275,7 +284,8 @@ object LayerRenderer {
         val lineH = fm.descent - fm.ascent
         // Outline (text layers): a stroke round the letters, [Layer.stroke] = width as a share of the text height.
         val ow = if (l.kind == LayerKind.TEXT) (l.stroke ?: 0f) * px else 0f
-        val pad = (if (l.box) px * 0.35f else px * 0.15f) + ow
+        val tfx = if (l.kind == LayerKind.TEXT) (l.textFx ?: 0) else 0
+        val pad = (if (l.box) px * 0.35f else px * 0.15f) + ow + TextFx.pad(tfx) * px
         val textW = lines.maxOf { paint.measureText(it) }
         val w = (textW + pad * 2).toInt().coerceIn(4, frameW * 2)
         val h = (lineH * lines.size + pad * 2).toInt().coerceAtLeast(4)
@@ -293,7 +303,9 @@ object LayerRenderer {
                 if (ow > 0f) c.drawText(part, (w - lw) / 2f, pad - fm.ascent + i * lineH, Paint(paint).apply {
                     style = Paint.Style.STROKE; strokeWidth = ow * 2f; strokeJoin = Paint.Join.ROUND; color = l.borderColor ?: 0xFF000000.toInt()
                 })
-                c.drawText(part, (w - lw) / 2f, pad - fm.ascent + i * lineH, if (ow > 0f) Paint(paint).apply { clearShadowLayer() } else paint)
+                if (tfx > 0) TextFx.draw(c, part, (w - lw) / 2f, pad - fm.ascent + i * lineH, Paint(paint).apply { clearShadowLayer() }, tfx, l.color,
+                    l.textColor2 ?: 0xFFFFB300.toInt(), px, pad, h - pad)
+                else c.drawText(part, (w - lw) / 2f, pad - fm.ascent + i * lineH, if (ow > 0f) Paint(paint).apply { clearShadowLayer() } else paint)
             }
         }
         // Word-by-word captions: the word being spoken in the highlight colour (or on a box).

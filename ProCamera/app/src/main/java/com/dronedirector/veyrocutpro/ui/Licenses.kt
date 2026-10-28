@@ -34,6 +34,7 @@ private val NOTICES = listOf(
     Notice("LiteRT (TensorFlow Lite runtime)", "Google LLC", "Apache License 2.0", "https://ai.google.dev/edge/litert"),
     Notice("Kotlin standard library, kotlinx.coroutines", "JetBrains s.r.o. and contributors", "Apache License 2.0", "https://kotlinlang.org"),
     Notice("Gson", "Google LLC", "Apache License 2.0", "https://github.com/google/gson"),
+    Notice("Text fonts: Arimo, Tinos, Cousine, Carlito, Roboto, Open Sans, Lato, Montserrat, Poppins, Inter, Nunito, Raleway, Playfair Display, Lora, Pacifico, Lobster, Bebas Neue, Anton, Orbitron and 50 more (Google Fonts)", "Their designers (see the font licences)", "SIL Open Font License 1.1 / Apache License 2.0", "https://fonts.google.com"),
     Notice("RootEncoder (live streaming)", "pedroSG94", "Apache License 2.0", "https://github.com/pedroSG94/RootEncoder"),
     Notice("ESRGAN model (AI upscale)", "TensorFlow authors (esrgan-tf2)", "Apache License 2.0", "https://www.tensorflow.org/lite/examples/super_resolution/overview"),
     Notice("DeepLab v3 model (AI subject selection)", "The TensorFlow Authors", "Apache License 2.0", "https://github.com/tensorflow/models/tree/master/research/deeplab"),
@@ -95,7 +96,7 @@ fun LicensesDialog(onDismiss: () -> Unit) {
                             Text(n.url, color = Pro.Amber, fontSize = 11.sp)
                         }
                     }
-                    for ((label, file) in listOf("Apache License 2.0" to "apache-2.0.txt", "MIT License (NAFNet)" to "nafnet-mit.txt", "BSD 3-Clause (RNNoise)" to "rnnoise-bsd.txt", "MIT License (whisper.cpp)" to "whispercpp-mit.txt", "GNU LGPL 2.1 (LibRaw)" to "libraw-lgpl-2.1.txt", "LibRaw copyright notice" to "libraw-copyright.txt")) {
+                    for ((label, file) in listOf("Apache License 2.0" to "apache-2.0.txt", "MIT License (NAFNet)" to "nafnet-mit.txt", "BSD 3-Clause (RNNoise)" to "rnnoise-bsd.txt", "MIT License (whisper.cpp)" to "whispercpp-mit.txt", "GNU LGPL 2.1 (LibRaw)" to "libraw-lgpl-2.1.txt", "LibRaw copyright notice" to "libraw-copyright.txt", "Font licences" to "../fonts/FONT_LICENSES.txt")) {
                         Text(
                             "READ THE $label".uppercase(), style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
                             modifier = Modifier.padding(top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(fgHere().copy(alpha = 0.06f))

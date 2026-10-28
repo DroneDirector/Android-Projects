@@ -2202,6 +2202,23 @@ private fun PhotoWorkspace(
                                     else edit = edit.copy(bg = edit.bg.copy(mode = 5, color = 0xFFFFD60A.toInt()))
                                     message = "Thumbnail set up — tap the title below to change it"
                                 }.padding(10.dp))
+                                SectionTitle("TEXT EFFECTS")
+                                Text("Special effect text — neon, chrome, gold, fire, 3D, glitch and more. Tap one to add it; a selected text can switch its effect below.", color = Pro.Dim, fontSize = 11.sp)
+                                Row(Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    TextFx.NAMES.withIndex().drop(1).forEach { (i, n) ->
+                                        PillChip(n, false) {
+                                            val l = Layer(kind = LayerKind.TEXT, text = n.uppercase(), size = 0.1f, x = 0.5f, y = 0.5f, face = if (i in listOf(1, 10)) "monoton" else "anton", textFx = i,
+                                                color = when (i) { 1 -> 0xFFFF2D95.toInt(); 14 -> 0xFFFFD60A.toInt(); else -> 0xFFFFFFFF.toInt() }, shadow = false, wholeVideo = true, name = n)
+                                            edit = edit.copy(texts = edit.texts + l); selText = l.id
+                                        }
+                                    }
+                                }
+                                SectionTitle("MORE TEXT")
+                                Text("Ready-made kinds of text — headlines, quotes, speech bubbles, hashtags, sale tags and more.", color = Pro.Dim, fontSize = 11.sp)
+                                TextTypeGallery { t -> val l = t.layer(0L, 1L).copy(wholeVideo = true); edit = edit.copy(texts = edit.texts + l); selText = l.id }
+                                SectionTitle("NAME LABELS")
+                                Text("Lower-third name and title cards — tap one to add it, then type the name and title.", color = Pro.Dim, fontSize = 11.sp)
+                                LowerThirdGallery { i -> val l = lowerThirdLayer(i, 0L, 1L, wholeVideo = true); edit = edit.copy(texts = edit.texts + l); selText = l.id }
                                 SectionTitle("TEXT & STICKERS") { edit = edit.copy(texts = emptyList()) }
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text("+ TEXT", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable {
@@ -2228,7 +2245,16 @@ private fun PhotoWorkspace(
                                     fun upd(n: Layer) { edit = edit.copy(texts = edit.texts.map { if (it.id == t.id) n else it }) }
                                     if (t.kind == LayerKind.TEXT) {
                                         androidx.compose.material3.OutlinedTextField(value = t.text, onValueChange = { upd(t.copy(text = it)) }, label = { Text("Text") }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
-                                        Chips(LayerFont.entries.map { it.label }, t.font.ordinal) { upd(t.copy(font = LayerFont.entries[it])) }
+                                        if (t.lowerThird != null) {
+                                            Text("Name label: the first line is the name, the next line the title.", color = Pro.Dim, fontSize = 11.sp)
+                                            LowerThirdGallery(t.lowerThird) { i -> upd(t.copy(lowerThird = i)) }
+                                            SecondColour(t, "Accent colour") { c -> upd(t.copy(textColor2 = c)) }
+                                        }
+                                        FontPicker(t.face, t.font) { id, f -> upd(if (id != null) t.copy(face = id) else t.copy(face = null, font = f ?: t.font)) }
+                                        if (t.lowerThird == null) {
+                                            TextFxPicker(t) { fx -> upd(t.copy(textFx = fx)) }
+                                            if ((t.textFx ?: 0) in listOf(2, 9, 17)) SecondColour(t, if (t.textFx == 2) "Gradient to" else if (t.textFx == 9) "Outer outline" else "Highlighter colour") { c -> upd(t.copy(textColor2 = c)) }
+                                        }
                                         val cols = listOf(0xFFFFFFFF.toInt(), 0xFF000000.toInt(), 0xFFFFB300.toInt(), 0xFFFF3B30.toInt(), 0xFF34C759.toInt(), 0xFF0A84FF.toInt())
                                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp)) {
                                             cols.forEach { cl -> Box(Modifier.size(26.dp).clip(CircleShape).background(Color(cl)).border(2.dp, if (t.color == cl) Pro.Amber else Pro.Line, CircleShape).clickable { upd(t.copy(color = cl)) }) }

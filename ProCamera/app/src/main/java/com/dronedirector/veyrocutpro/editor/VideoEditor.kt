@@ -4517,7 +4517,13 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     onClear = { wx.cacheCancel?.invoke(); wx.cacheCancel = null; cacheProgress.clear(); cacheReady.clear(); val n = RenderCache.clearAll(context); es.message = "Render cache deleted (${n / 1_000_000} MB)" },
                                 )
                             }
-                            Page.TEXT -> TextEditPage(
+                            Page.TEXT -> com.dronedirector.veyrocutpro.ui.FoldColumn {
+                              TextToolbox(globalMs, timelineLength(clips)) { l ->
+                                layers.add(l); es.selectedLayer = l.id
+                                goToSection(Page.LAYERS, "SELECTED TEXT")
+                                es.message = "Added — type your words in the text box; font, effect and colours are here too"
+                              }
+                              TextEditPage(
                                 words = wx.tWords.toList(), clips = clips.toList(), currentClipId = clips.getOrNull(es.current)?.id, playSrcMs = clips.getOrNull(es.current)?.let { it.startMs + es.posMs } ?: 0L,
                                 model = wx.tModel, onModel = { wx.tModel = it }, hasModel = Transcriber.hasModel(context, wx.tModel), downloading = wx.tDl,
                                 onDownload = { downloadModel() }, onCancelDownload = { wx.tDlCancel = true },
@@ -4537,6 +4543,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onRestore = { for (i in wx.tWords.indices) if (wx.tWords[i].deleted) wx.tWords[i] = wx.tWords[i].copy(deleted = false) },
                                 onApply = { applyTextCuts() },
                             )
+                            }
                             Page.TRANSITIONS -> TransitionsPanel(
                                 clips, es.selected, thumbs,
                                 onChange = { t -> wf.pick.applyTo(clips, es.selected) { it.copy(transition = t) } },
@@ -6330,6 +6337,52 @@ val CLIP_LABELS = listOf(0xFFFF3B30, 0xFFFF9500, 0xFFFFD60A, 0xFF34C759, 0xFF00C
 private val TEXT_COLORS = listOf(0xFFFFFFFF, 0xFF000000, 0xFFFFB300, 0xFFFF3B30, 0xFF34C759, 0xFF0A84FF, 0xFFFF7EB6, 0xFFB79CFF).map { it.toInt() }
 
 @kotlin.OptIn(ExperimentalMaterial3Api::class)
+/** Text page: everything that makes new text — title templates, lower thirds, effect text and more kinds of text. */
+@Composable
+private fun TextToolbox(playheadMs: Long, totalMs: Long, onAdd: (Layer) -> Unit) {
+    SectionTitle("TITLE TEMPLATES")
+    Text("Animated titles at the playhead — tap to add, then change the words like any text layer.", color = Pro.Dim, fontSize = 11.sp)
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+        val t0 = playheadMs
+        val t1 = (playheadMs + 4000).coerceAtMost(totalMs.coerceAtLeast(playheadMs + 1000))
+        fun tl(text: String, size: Float, x: Float, y: Float, font: LayerFont, aIn: LayerAnim, aOut: LayerAnim, ms: Long = 450, box: Boolean = false, color: Int = 0xFFFFFFFF.toInt(), name: String) =
+            Layer(kind = LayerKind.TEXT, text = text, size = size, x = x, y = y, font = font, animIn = aIn, animOut = aOut, animMs = ms, box = box, color = color, shadow = true, startMs = t0, endMs = t1, name = name)
+        PillChip("Lower third", false) {
+            onAdd(tl("Your Name", 0.05f, 0.26f, 0.8f, LayerFont.SANS, LayerAnim.SLIDE_RIGHT, LayerAnim.SLIDE_LEFT, box = true, name = "Lower third · name"))
+            onAdd(tl("Title / role", 0.032f, 0.26f, 0.87f, LayerFont.LIGHT, LayerAnim.SLIDE_RIGHT, LayerAnim.SLIDE_LEFT, ms = 650, color = 0xFFFFB300.toInt(), name = "Lower third · role"))
+        }
+        PillChip("Big title", false) { onAdd(tl("BIG TITLE", 0.13f, 0.5f, 0.5f, LayerFont.CONDENSED, LayerAnim.POP, LayerAnim.ZOOM, name = "Big title")) }
+        PillChip("Cinematic", false) { onAdd(tl("THE JOURNEY", 0.07f, 0.5f, 0.5f, LayerFont.SERIF, LayerAnim.FADE, LayerAnim.FADE, ms = 1000, name = "Cinematic title")) }
+        PillChip("Location", false) { onAdd(tl("📍 Place, Country", 0.042f, 0.5f, 0.86f, LayerFont.MONO, LayerAnim.TYPEWRITER, LayerAnim.FADE, ms = 1200, name = "Location")) }
+        PillChip("Chapter", false) {
+            onAdd(tl("CHAPTER ONE", 0.035f, 0.5f, 0.42f, LayerFont.LIGHT, LayerAnim.REVEAL, LayerAnim.FADE, ms = 700, color = 0xFFFFB300.toInt(), name = "Chapter · number"))
+            onAdd(tl("The Beginning", 0.08f, 0.5f, 0.52f, LayerFont.SERIF, LayerAnim.SLIDE_UP, LayerAnim.FADE, ms = 800, name = "Chapter · title"))
+        }
+        PillChip("Subscribe", false) { onAdd(tl("SUBSCRIBE 🔔", 0.05f, 0.5f, 0.82f, LayerFont.SANS, LayerAnim.BOUNCE, LayerAnim.ZOOM, ms = 600, box = true, color = 0xFFFF3B30.toInt(), name = "Subscribe")) }
+        PillChip("End card", false) {
+            onAdd(tl("Thanks for watching", 0.07f, 0.5f, 0.45f, LayerFont.SERIF, LayerAnim.FADE, LayerAnim.FADE, ms = 900, name = "End card"))
+            onAdd(tl("@yourchannel", 0.035f, 0.5f, 0.56f, LayerFont.LIGHT, LayerAnim.SLIDE_UP, LayerAnim.FADE, ms = 1000, color = 0xFFFFB300.toInt(), name = "End card · handle"))
+        }
+    }
+    SectionTitle("LOWER THIRDS")
+    Text("Name and title cards for people and places — tap one to add it at the playhead (5 s), then type the name and title in the text layer.", color = Pro.Dim, fontSize = 11.sp)
+    LowerThirdGallery { i -> onAdd(lowerThirdLayer(i, playheadMs, (playheadMs + 5000).coerceAtMost(totalMs.coerceAtLeast(playheadMs + 1000)))) }
+    SectionTitle("TEXT EFFECTS")
+    Text("Special effect text — neon, chrome, gold, fire, 3D, glitch and more. Tap one to add it at the playhead; a selected text layer can switch its effect under SELECTED TEXT.", color = Pro.Dim, fontSize = 11.sp)
+    Row(Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        TextFx.NAMES.withIndex().drop(1).forEach { (i, n) ->
+            PillChip(n, false) {
+                onAdd(Layer(kind = LayerKind.TEXT, text = n.uppercase(), size = 0.1f, x = 0.5f, y = 0.5f, face = if (i in listOf(1, 10)) "monoton" else "anton", textFx = i,
+                    color = when (i) { 1 -> 0xFFFF2D95.toInt(); 14 -> 0xFFFFD60A.toInt(); else -> 0xFFFFFFFF.toInt() }, shadow = false,
+                    animIn = LayerAnim.POP, animOut = LayerAnim.FADE, animMs = 500L, startMs = playheadMs, endMs = (playheadMs + 4000).coerceAtMost(totalMs.coerceAtLeast(playheadMs + 1000)), name = n))
+            }
+        }
+    }
+    SectionTitle("MORE TEXT")
+    Text("Ready-made kinds of text — headlines, subtitles, quotes, speech bubbles, hashtags, sale tags and more, each with its own font and style.", color = Pro.Dim, fontSize = 11.sp)
+    TextTypeGallery { t -> onAdd(t.layer(playheadMs, (playheadMs + 4000).coerceAtMost(totalMs.coerceAtLeast(playheadMs + 1000)))) }
+}
+
 @Composable
 private fun LayersPage(
     layers: List<Layer>, selectedId: String?, totalMs: Long, playheadMs: Long,
@@ -6411,30 +6464,7 @@ private fun LayersPage(
     )
     Text("DJI drones save a .SRT file next to each video (turn on Video Subtitles / Video Caption in the DJI Fly app). Select the drone clip, then load its .SRT: altitude, speed, GPS and camera settings appear as a live read-out, matched to the clip's trim and speed.", color = Pro.Dim, fontSize = 11.sp)
     val end = (playheadMs + 3000).coerceAtMost(totalMs.coerceAtLeast(1))
-    SectionTitle("TITLE TEMPLATES")
-    Text("Animated titles at the playhead — tap to add, then change the words like any text layer.", color = Pro.Dim, fontSize = 11.sp)
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
-        val t0 = playheadMs
-        val t1 = (playheadMs + 4000).coerceAtMost(totalMs.coerceAtLeast(playheadMs + 1000))
-        fun tl(text: String, size: Float, x: Float, y: Float, font: LayerFont, aIn: LayerAnim, aOut: LayerAnim, ms: Long = 450, box: Boolean = false, color: Int = 0xFFFFFFFF.toInt(), name: String) =
-            Layer(kind = LayerKind.TEXT, text = text, size = size, x = x, y = y, font = font, animIn = aIn, animOut = aOut, animMs = ms, box = box, color = color, shadow = true, startMs = t0, endMs = t1, name = name)
-        PillChip("Lower third", false) {
-            onAdd(tl("Your Name", 0.05f, 0.26f, 0.8f, LayerFont.SANS, LayerAnim.SLIDE_RIGHT, LayerAnim.SLIDE_LEFT, box = true, name = "Lower third · name"))
-            onAdd(tl("Title / role", 0.032f, 0.26f, 0.87f, LayerFont.LIGHT, LayerAnim.SLIDE_RIGHT, LayerAnim.SLIDE_LEFT, ms = 650, color = 0xFFFFB300.toInt(), name = "Lower third · role"))
-        }
-        PillChip("Big title", false) { onAdd(tl("BIG TITLE", 0.13f, 0.5f, 0.5f, LayerFont.CONDENSED, LayerAnim.POP, LayerAnim.ZOOM, name = "Big title")) }
-        PillChip("Cinematic", false) { onAdd(tl("THE JOURNEY", 0.07f, 0.5f, 0.5f, LayerFont.SERIF, LayerAnim.FADE, LayerAnim.FADE, ms = 1000, name = "Cinematic title")) }
-        PillChip("Location", false) { onAdd(tl("📍 Place, Country", 0.042f, 0.5f, 0.86f, LayerFont.MONO, LayerAnim.TYPEWRITER, LayerAnim.FADE, ms = 1200, name = "Location")) }
-        PillChip("Chapter", false) {
-            onAdd(tl("CHAPTER ONE", 0.035f, 0.5f, 0.42f, LayerFont.LIGHT, LayerAnim.REVEAL, LayerAnim.FADE, ms = 700, color = 0xFFFFB300.toInt(), name = "Chapter · number"))
-            onAdd(tl("The Beginning", 0.08f, 0.5f, 0.52f, LayerFont.SERIF, LayerAnim.SLIDE_UP, LayerAnim.FADE, ms = 800, name = "Chapter · title"))
-        }
-        PillChip("Subscribe", false) { onAdd(tl("SUBSCRIBE 🔔", 0.05f, 0.5f, 0.82f, LayerFont.SANS, LayerAnim.BOUNCE, LayerAnim.ZOOM, ms = 600, box = true, color = 0xFFFF3B30.toInt(), name = "Subscribe")) }
-        PillChip("End card", false) {
-            onAdd(tl("Thanks for watching", 0.07f, 0.5f, 0.45f, LayerFont.SERIF, LayerAnim.FADE, LayerAnim.FADE, ms = 900, name = "End card"))
-            onAdd(tl("@yourchannel", 0.035f, 0.5f, 0.56f, LayerFont.LIGHT, LayerAnim.SLIDE_UP, LayerAnim.FADE, ms = 1000, color = 0xFFFFB300.toInt(), name = "End card · handle"))
-        }
-    }
+    Text("Titles, lower thirds, text effects and more kinds of text are on the Text page; the selected text's font and effect are below.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
     SectionTitle("SPLIT SCREEN")
     Text("Arranges your video layers (above the main video) into a layout — each fills its cell, cropped to fit. Add the video layers first with + VIDEO.", color = Pro.Dim, fontSize = 11.sp)
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
@@ -6578,7 +6608,17 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
                 focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line, focusedLabelColor = Pro.Amber, cursorColor = Pro.Amber,
             ),
         )
-        Chips(LayerFont.entries.map { it.label }, l.font.ordinal) { onUpdate(l.copy(font = LayerFont.entries[it])) }
+        if (l.kind == LayerKind.TEXT && l.lowerThird != null) {
+            Text("Lower third: the first line is the name, the next line the title.", color = Pro.Dim, fontSize = 11.sp)
+            Text("Design", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            LowerThirdGallery(l.lowerThird) { i -> onUpdate(l.copy(lowerThird = i)) }
+            SecondColour(l, "Accent colour") { c -> onUpdate(l.copy(textColor2 = c)) }
+        }
+        FontPicker(l.face, l.font) { id, f -> onUpdate(if (id != null) l.copy(face = id) else l.copy(face = null, font = f ?: l.font)) }
+        if (l.kind == LayerKind.TEXT && l.lowerThird == null) {
+            TextFxPicker(l) { fx -> onUpdate(l.copy(textFx = fx)) }
+            if ((l.textFx ?: 0) in listOf(2, 9, 17)) SecondColour(l, if (l.textFx == 2) "Gradient to" else if (l.textFx == 9) "Outer outline" else "Highlighter colour") { c -> onUpdate(l.copy(textColor2 = c)) }
+        }
         Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             TEXT_COLORS.forEach { c ->
                 Box(Modifier.size(28.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(c))

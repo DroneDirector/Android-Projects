@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.740 — 2026-10-28
 - About 80 new fonts for text in the photo and video editor, in five groups (Simple, Serif, Typewriter & mono, Script & handwritten, Display & fun) — with free twins of Arial, Times New Roman, Courier New and Calibri — each shown in its own lettering.
 - Text effects: neon glow, gradient, rainbow, chrome, gold, 3D block, long shadow, hollow, double outline, retro 80s, glitch, fire, ice, comic pop, embossed, soft shadow, highlighter, sticker and pastel.
 - 16 lower-third designs and 20 ready-made kinds of text (headlines, subtitles, quotes, speech bubbles, hashtags, breaking news, sale tags and more). In the video editor they are on the Text page; the selected text's font and effect are in Layers.

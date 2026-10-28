@@ -115,6 +115,9 @@ dependencies {
     // "Content credentials library" workflow and taken from the models branch by the APK build.
     implementation(files("libs/c2pa-release.aar"))
     implementation("net.java.dev.jna:jna:5.17.0@aar")
+    // Certificates for content credentials: the same Bouncy Castle the app already carries (no second copy).
+    implementation("org.bouncycastle:bcprov-jdk15to18:1.84")
+    implementation("org.bouncycastle:bcpkix-jdk15to18:1.84")
     implementation("com.squareup.okhttp3:okhttp:5.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     implementation("androidx.biometric:biometric:1.1.0")

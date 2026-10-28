@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Fix: export could still fail with "Video frame processing error" on some transitions (a transition that doesn't use every setting).
 
 ## 1.0.748 — 2026-10-28
 - Fix: every video transition looked like a plain fade in the preview and on the Transitions page — the effects shader had grown too deeply nested for Android and wasn't being built. Shutter, kaleidoscope and all the others show their own effect again.

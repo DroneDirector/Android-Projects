@@ -1620,11 +1620,10 @@ private class TransitionProgram(private val w: TransitionWindows, useHdr: Boolea
         try {
             program.use()
             program.setSamplerTexIdUniform("uTexSampler", inputTexId, 0)
-            program.setFloatsUniform("uSize", floatArrayOf(width, height))
-            program.setFloatUniform("uType", type)
-            program.setFloatUniform("uP", p)
-            program.setFloatUniform("uSide", side)
-            program.setFloatUniform("uMode", mode)
+            // The compiler drops uniforms a transition doesn't use; setting one of those would fail, so each is optional.
+            fun set(n: String, v: Float) { try { program.setFloatUniform(n, v) } catch (_: RuntimeException) {} }
+            try { program.setFloatsUniform("uSize", floatArrayOf(width, height)) } catch (_: RuntimeException) {}
+            set("uType", type); set("uP", p); set("uSide", side); set("uMode", mode)
             program.bindAttributesAndUniforms()
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
         } catch (e: GlUtil.GlException) {

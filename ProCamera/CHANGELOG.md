@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.767 — 2026-10-28
 - Smoother preview: the playhead now glides every screen frame while playing instead of stepping, and the music and other audio tracks stay in step by playing a touch faster or slower for a moment instead of jumping — no more little gaps in the soundtrack every second or two.
 - The app log also notes the app's memory use and Android's low-memory warnings, to track down closes for low memory.
 - **Video library** (video editor → Media → Library & import, or the start page): every video on the device with stars, flags and colour labels (red, yellow, green, blue, purple), filters, albums, smart collections and a calendar view by year, month and day.

@@ -1622,7 +1622,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     fun globalNow(): Long = (clipStarts(clips).getOrNull(es.current) ?: 0L) + (clips.getOrNull(es.current)?.let { it.tlOffsetOf(it.startMs + deck.cur.currentPosition) } ?: deck.cur.currentPosition)
     LaunchedEffect(FxTest.playback) {
         if (!FxTest.playback) return@LaunchedEffect
-        FxTest.playback = false
+        // (The flag is cleared at the end: clearing it here would restart this effect and stop the test.)
         android.util.Log.i("FxTest", "playback test: starting with ${clips.size} clip(s)")
         // Playback test: an edit like a real one (3 clips, a song, lower third, adjustment layer, shape,
         // watermark) plays for 24 s; memory, the playhead and the music's sync are logged every 2 s.
@@ -1645,6 +1645,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 com.dronedirector.veyrocutpro.ui.AppLog.memory(context))
         }
         deck.cur.pause()
+        FxTest.playback = false
     }
     fun seekGlobal(ms: Long) {
         if (clips.isEmpty()) return

@@ -4,6 +4,17 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- **Photos in the video editor stay photos**: add them from the gallery, files, the NAS, the camera, Pro import or the photo library (Library window → Photos) — onto the timeline or into the media strip. They show still (or with a slow zoom you choose), marked PHOTO / 📷, and Edit → PHOTO sets how long each shows.
+- **Name people** (photo and video library): faces are recognised on the phone and grouped by person; name them, tap one to see all their photos or videos, and search by name.
+- **Recommended presets**: Presets (photo) and Color → Looks (video) suggest looks that suit what's in the picture, with a reason under each.
+- **Remove reflections** (Heal → AI REMOVE): for photos through glass — the soft reflected picture fades, the scene stays sharp.
+- **Find wires** (Heal → AI REMOVE): power lines and cables are found and selected; REMOVE takes them out.
+- **Keyword tree and suggestions** (photo and video library): nested keywords (Places › Faroe Islands › Tórshavn), a Keywords view with counts, and suggestions from what the AI sees.
+- **Tethered shooting** (filmstrip + → Tethered camera): each new shot from a camera on USB comes straight into the filmstrip, opened with your preset.
+- **Watched folders** (photo and video library): new photos and videos landing in chosen folders are copied in by themselves, with metadata and develop presets; new videos also go into the video editor's media strip.
+- **Photo book** (Library → select → Photo book): cover, page sizes, 1–4 photos a page or mixed, borders, white or black pages, page numbers — a print-ready PDF.
+- **Content credentials** (Export / Deliver): exported photos and videos can carry a signed C2PA record of who made them and that they were edited in AlcorCut Pro (Android 9+).
+- Layers on the timeline no longer show their name twice ("Shape Shape").
 
 ## 1.0.783 — 2026-10-28
 - Video editor: Loop playback button under the picture (next to the frame-step button): the in–out range, or the whole timeline, plays over and over. Tap again to stop looping.

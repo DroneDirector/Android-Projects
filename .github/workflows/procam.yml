@@ -53,6 +53,9 @@ jobs:
           for abi in arm64-v8a armeabi-v7a x86_64; do for l in libraw libveyroraw; do git show FETCH_HEAD:libraw/$abi/$l.so > app/src/main/jniLibs/$abi/$l.so || rm -f app/src/main/jniLibs/$abi/$l.so; done; done
           git show FETCH_HEAD:libraw/LICENSE.LGPL > app/src/main/assets/licenses/libraw-lgpl-2.1.txt 2>/dev/null || true
           git show FETCH_HEAD:libraw/COPYRIGHT > app/src/main/assets/licenses/libraw-copyright.txt 2>/dev/null || true
+          # Content credentials: the c2pa-android library (Apache 2.0 / MIT), built by the "Content credentials library" workflow.
+          mkdir -p app/libs && git show FETCH_HEAD:c2pa/c2pa-release.aar > app/libs/c2pa-release.aar
+          git show FETCH_HEAD:c2pa/LICENSE-MIT > app/src/main/assets/licenses/c2pa-mit.txt 2>/dev/null || true
           # Licence texts shown in the app (Settings → Open-source licences).
           mkdir -p app/src/main/assets/licenses
           curl -fsSL --retry 3 -o app/src/main/assets/licenses/apache-2.0.txt https://www.apache.org/licenses/LICENSE-2.0.txt \

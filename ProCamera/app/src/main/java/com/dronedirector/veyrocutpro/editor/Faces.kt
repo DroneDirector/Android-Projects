@@ -162,7 +162,8 @@ object Faces {
         val e = env ?: return null; val s = session ?: return null
         return try {
             OnnxTensor.createTensor(e, FloatBuffer.wrap(chw), longArrayOf(1, 3, 112, 112)).use { t ->
-                s.run(mapOf(s.inputNames.first() to t)).use { r ->
+                // This model also lists some of its weights as inputs: the picture goes to "data".
+                s.run(mapOf((if ("data" in s.inputNames) "data" else s.inputNames.first()) to t)).use { r ->
                     val fb = (r[0] as OnnxTensor).floatBuffer; val v = FloatArray(fb.remaining()); fb.get(v)
                     var q = 0f; for (x in v) q += x * x; q = sqrt(q).coerceAtLeast(1e-6f)
                     for (i in v.indices) v[i] /= q
@@ -300,6 +301,16 @@ object Faces {
         }
         save(c); version++
     }
+
+    /** Self-test (emulator): download the model if needed and make one face print. */
+    fun selfTest(c: Context): String = try {
+        val err = ModelStore.ensure(c, AiModel.FACES, {}, { false })
+        if (err != null) "model: $err" else {
+            val b = Bitmap.createBitmap(112, 112, Bitmap.Config.ARGB_8888).apply { eraseColor(0xFFB08070.toInt()) }
+            val e = embed(c, b); b.recycle()
+            if (e == null) "FAILED: ${failed ?: "no print"}" else "ok, print of ${e.size} numbers"
+        }
+    } catch (t: Throwable) { "FAILED: ${t.message}" }
 
     /** Does the name of someone in [key] match [text]? (for searching) */
     fun nameMatches(key: String, text: String): Boolean {

@@ -324,7 +324,7 @@ fun BuiltInPresetSection(
                     }.padding(3.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Box(Modifier.size(70.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFF1A1E26))) {
+                Box(Modifier.size(70.dp).clip(RoundedCornerShape(6.dp)).background(com.dronedirector.veyrocutpro.ui.AppTheme.pick(Color(0xFF1A1E26), Color(0xFFE2E4E8)))) {
                     thumb?.let { t -> val img = remember(t) { t.asImageBitmap() }; Image(img, null, Modifier.size(70.dp), contentScale = ContentScale.Crop) }
                 }
                 Text(pr.name, color = if (on) Pro.Amber else Color.White, fontSize = 10.sp, maxLines = 1)

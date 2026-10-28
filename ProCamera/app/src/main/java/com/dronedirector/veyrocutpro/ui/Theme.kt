@@ -43,9 +43,9 @@ object AccentStore {
 }
 
 /**
- * Dark or light look (gear → Preferences → Appearance). Light is used in the photo and video
- * editors; Capture and the start screens stay dark (they sit on the camera picture / their own
- * dark artwork). Picture, timeline and media-strip areas stay dark inside the editors too.
+ * Dark or light look (gear → Preferences → Appearance). Light is used everywhere except Capture (which sits on
+ * the live camera picture); the picture itself, the timeline and the media strip stay dark inside the editors,
+ * as in pro editing apps, so pictures are judged on a neutral dark surround.
  */
 object AppTheme {
     /** 0 dark, 1 light, 2 like the phone. */
@@ -60,6 +60,22 @@ object AppTheme {
 
     /** Text and icon colour on the light look for a colour meant for the dark look (white-ish → near-black, same transparency). */
     fun onLight(c: Color): Color = if (c.red > 0.93f && c.green > 0.93f && c.blue > 0.93f) Color(0xFF15181C).copy(alpha = c.alpha) else c
+
+    /**
+     * Text colour on the light look: every light or coloured text (white, the accent yellow, green, blue…) becomes
+     * near-black so it reads on the light panels; warnings in red stay red (a darker red). Same transparency.
+     */
+    fun onLightText(c: Color): Color {
+        val l = 0.2126f * c.red + 0.7152f * c.green + 0.0722f * c.blue
+        return when {
+            c.red > 0.8f && c.green < 0.45f && c.blue < 0.45f -> Color(0xFFC62828).copy(alpha = c.alpha)
+            l > 0.3f -> Color(0xFF15181C).copy(alpha = c.alpha)
+            else -> c
+        }
+    }
+
+    /** A background colour: [dark] on the dark look, [light] on the light look. */
+    fun pick(dark: Color, light: Color): Color = if (this.light) light else dark
 }
 
 /** Areas that stay dark in the light look (picture, timeline, media strip): their white text and icons stay white. */
@@ -71,6 +87,10 @@ fun ForceDark(content: @Composable () -> Unit) = androidx.compose.runtime.Compos
 /** The colour to draw a text / icon colour with here. */
 @Composable
 fun themed(c: Color): Color = if (AppTheme.light && !LocalForceDark.current && c != Color.Unspecified) AppTheme.onLight(c) else c
+
+/** The colour to draw text with here (light look: dark text; areas that stay dark keep their colours). */
+@Composable
+fun themedText(c: Color): Color = if (AppTheme.light && !LocalForceDark.current && c != Color.Unspecified) AppTheme.onLightText(c) else c
 
 object Pro {
     /** The highlight colour used across the app (yellow by default). Changing it recolours the UI live. */

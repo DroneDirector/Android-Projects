@@ -128,7 +128,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Keep settings after uninstall** (optional): settings, presets and LUTs saved to Documents/AlcorCutPro/Settings; restore from the first screen after reinstalling.
 
 ## Photo editor
-- **Light look** (Preferences → Appearance: dark, light or like the phone); the photo itself stays on a dark background.
+- **Light look** (Preferences → Appearance: dark, light or like the phone) across the start screens, editors, guide and library, with dark text everywhere; the photo itself stays on a dark background.
 - **Help** (documentation, tutorials, troubleshooting, proof of purchase), **Project settings**, **Preferences** and **System Info**.
 - **File menu**: new, open, open recent, save / save as / save a copy / revert, capture, import (gallery, files, NAS) and exit; **changeable keyboard shortcuts** (keyboard icon).
 - **Network (NAS)**: open photos — RAW included — from a Synology or any other NAS (or a computer sharing folders) on your network; guest first, sign-in only when needed, optional encrypted remembered sign-ins that are never shown and are unlocked with the phone's fingerprint, PIN or pattern.
@@ -419,7 +419,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Send to desktop editor**: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) and **OpenTimelineIO .otio** (cuts, dissolves, speed, markers) for desktop editing software.
 
 ### Projects & workflow
-- **Light look** for the editor's panels, menus and dialogs (Preferences → Appearance); picture, timeline and media strip stay dark.
+- **Light look** for the start screens and the editor's panels, menus and dialogs, with dark text everywhere (Preferences → Appearance); picture, timeline and media strip stay dark.
 - **Project settings**: general switches, project and timeline names, shape and frame rate, storage, **ingest** (bin, proxies, labels for new media) and **label colours** with your own names.
 - **Help**: documentation and tutorials for the open part of the app, troubleshooting and **proof of purchase** from Google Play.
 - **Preferences** (gear): appearance, shutter sound, **audio hardware** choice with an unplug notice, autosave, playback, timeline and editing; **System Info** with the phone's hardware and drivers.

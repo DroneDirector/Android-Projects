@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
+import com.dronedirector.veyrocutpro.ui.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -87,7 +87,7 @@ fun AppSettingsDialog(onClose: () -> Unit) {
     var note by remember { mutableStateOf<String?>(null) }
     Dialog(onDismissRequest = onClose) {
         Column(
-            Modifier.widthIn(max = 460.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xFF15171C)).padding(18.dp),
+            Modifier.widthIn(max = 460.dp).clip(RoundedCornerShape(18.dp)).background(AppTheme.pick(Color(0xFF15171C), Color(0xFFF4F5F7))).padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text("SETTINGS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 13.sp, letterSpacing = 2.sp))

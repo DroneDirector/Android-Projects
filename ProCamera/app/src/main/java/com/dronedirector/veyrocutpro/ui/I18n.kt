@@ -160,7 +160,7 @@ fun Text(
     // Inside a fold-out section, control titles (white, 13–16 sp) make up the section's "what's inside" line.
     if (color == Color.White && fontSize.isSp && fontSize.value in 12.5f..16.5f) LocalFold.current?.collect(I18n.tr(text))
     // Light look: white text becomes near-black (except in areas that stay dark).
-    val c = themed(if (color != Color.Unspecified) color else style.color)
+    val c = themedText(if (color != Color.Unspecified) color else style.color)
     androidx.compose.material3.Text(
         text = I18n.tr(text), modifier = modifier, color = c, fontSize = fontSize, fontStyle = fontStyle, fontWeight = fontWeight,
         fontFamily = fontFamily, letterSpacing = letterSpacing, textDecoration = textDecoration, textAlign = textAlign,
@@ -188,7 +188,7 @@ fun Text(
     style: TextStyle = androidx.compose.material3.LocalTextStyle.current,
 ) {
     androidx.compose.material3.Text(
-        text = text, modifier = modifier, color = themed(if (color != Color.Unspecified) color else style.color), fontSize = fontSize, fontStyle = fontStyle, fontWeight = fontWeight,
+        text = text, modifier = modifier, color = themedText(if (color != Color.Unspecified) color else style.color), fontSize = fontSize, fontStyle = fontStyle, fontWeight = fontWeight,
         fontFamily = fontFamily, letterSpacing = letterSpacing, textDecoration = textDecoration, textAlign = textAlign,
         lineHeight = lineHeight, overflow = overflow, softWrap = softWrap, maxLines = maxLines, minLines = minLines, style = style,
     )

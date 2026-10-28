@@ -133,7 +133,7 @@ private fun HubLayout(title: String, subtitle: String, onBack: (() -> Unit)?, ti
         Modifier
             .fillMaxSize()
             .graphicsLayer { alpha = 1f - leave; scaleX = 1f - leave * 0.08f; scaleY = 1f - leave * 0.08f }
-            .background(Brush.radialGradient(listOf(Color(0xFF1B1710), Color(0xFF0B0B0D), Color(0xFF050506)), radius = 1600f))
+            .background(Brush.radialGradient(if (AppTheme.light) listOf(Color(0xFFFFFFFF), Color(0xFFEFF1F4), Color(0xFFE2E5E9)) else listOf(Color(0xFF1B1710), Color(0xFF0B0B0D), Color(0xFF050506)), radius = 1600f))
     ) {
         // Slowly turning aperture rings behind everything.
         Canvas(Modifier.fillMaxSize()) {
@@ -218,7 +218,7 @@ private fun HubTile(t: Tile, modifier: Modifier) {
     Row(
         modifier
             .clip(RoundedCornerShape(20.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF1C1E23), Color(0xFF111215))))
+            .background(Brush.linearGradient(if (AppTheme.light) listOf(Color(0xFFFFFFFF), Color(0xFFF0F2F5)) else listOf(Color(0xFF1C1E23), Color(0xFF111215))))
             .border(1.dp, Brush.linearGradient(listOf(accent.copy(alpha = 0.8f), accent.copy(alpha = 0.1f))), RoundedCornerShape(20.dp))
             .clickable(onClick = t.onClick)
             .padding(horizontal = 20.dp, vertical = 22.dp),
@@ -255,7 +255,7 @@ private fun ExitButton(angle: Float, pulse: Float, modifier: Modifier, onExit: (
                 // breathing glow
                 drawCircle(Brush.radialGradient(listOf(accent.copy(alpha = 0.35f * pulse + flash * 0.4f), Color.Transparent), c, r), r, c)
                 // dark core
-                drawCircle(Brush.radialGradient(listOf(Color(0xFF22252B), Color(0xFF0D0E11)), c, r * 0.8f), r * 0.78f, c)
+                drawCircle(Brush.radialGradient(if (AppTheme.light) listOf(Color(0xFFFFFFFF), Color(0xFFE4E7EB)) else listOf(Color(0xFF22252B), Color(0xFF0D0E11)), c, r * 0.8f), r * 0.78f, c)
                 // turning gradient ring
                 rotate(angle * 6f, c) {
                     drawCircle(

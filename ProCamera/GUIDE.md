@@ -271,7 +271,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 **Project settings**
 - File → Project settings: General, Project (names, shape, frame rate), Storage, Ingest (put new media in a bin, make proxies for heavy clips, colour label by kind) and Label colours (name the colours, a colour per kind of media).
 **Light look**
-- Gear → Preferences → Appearance: Dark, Light or Like the phone. The panels, menus and dialogs turn light; the picture, the timeline and the media strip stay dark.
+- Gear → Preferences → Appearance: Dark, Light or Like the phone. The start screens, the editors' panels, menus and dialogs, the guide and the library turn light, with dark text throughout; the picture, the timeline and the media strip stay dark (as in pro editing apps), and Capture stays dark on the live camera picture.
 **Help and preferences**
 - The ? icon: the video editor's documentation and tutorials, Troubleshooting and Proof of purchase. Gear → Preferences: appearance, shutter sound, audio hardware, autosave, playback, timeline and editing. Gear → System Info shows the phone's hardware.
 **Reveal in Project**

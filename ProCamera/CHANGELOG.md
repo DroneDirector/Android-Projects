@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Light look (Preferences → Appearance) now covers the start screen, the editor choice screen, the guide and the library too, and all text on it is dark — yellow headings and other coloured text turn near-black (red warnings stay a darker red). The dark look is unchanged; Capture stays dark on the camera picture, and the picture, timeline and media strip stay dark in the editors.
 
 ## 1.0.705 — 2026-10-28
 - Video editor → Transitions: 15 more — Tilt down, Horizon wipe, Golden hour, Nightfall, Lens dirt flare, Brush strokes, Torn paper, Comic burst, Halftone, Thermal, Night vision, Hologram, Page turn, Blur wipe, Zoom punch.

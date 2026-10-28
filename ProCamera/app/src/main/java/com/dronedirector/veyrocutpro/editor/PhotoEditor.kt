@@ -3450,7 +3450,7 @@ private fun LookTiles(meta: RawDng.Meta?, lin: RawDng.Linear?, dev: RawDng.Dev, 
                     .clickable { onPick(i) }.padding(3.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Box(Modifier.size(120.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF1A1E26))) {
+                Box(Modifier.size(120.dp).clip(RoundedCornerShape(10.dp)).background(com.dronedirector.veyrocutpro.ui.AppTheme.pick(Color(0xFF1A1E26), Color(0xFFE2E4E8)))) {
                     thumb?.let { t -> val img = remember(t) { t.asImageBitmap() }; Image(img, null, Modifier.size(120.dp), contentScale = ContentScale.Crop) }
                 }
                 Text(look.label, color = if (on) Pro.Amber else Color.White, fontSize = 14.sp, maxLines = 2, lineHeight = 17.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)

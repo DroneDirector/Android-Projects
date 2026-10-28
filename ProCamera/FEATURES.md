@@ -148,7 +148,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
   - **DNG camera profiles (.dcp)**: import and use instead of the RAW file's own colour (matrices, forward matrices, hue / sat maps, look table, tone curve).
   - **Merges**: HDR, panorama, focus stack, **noise stack**, **remove passers-by** (median of 3–8 shots), **super resolution** (sub-pixel aligned hand-held shots → 2× size) and **star stack** (aligned on the stars, shift + rotation).
   - **Generative expand (Cloud AI)**: wider canvas with the surroundings painted in (Bria Expand via fal.ai; trained on licensed data).
-  - **Retouch**: **Liquify** (push, pinch, bloat, twirl, restore), **frequency separation** (tone smoothing + texture, whole photo or AI face / body skin) and **AI Relight** (light direction, shadows, warmth from the depth map).
+  - **Retouch**: **Liquify** (push, pinch, bloat, twirl, restore, plus face-aware sliders for eyes, face width, chin, nose and smile), **frequency separation** (tone smoothing + texture, whole photo or AI face / body skin) and **AI Relight** (light direction, shadows, warmth from the depth map).
   - **Crop guides**: thirds, golden ratio, golden spiral, golden triangles, diagonals, grid (turnable).
   - **Masks**: Object (AI) by tapping, Depth range (AI), and add / subtract / intersect combinations (colour, brightness, depth, subject, sky).
   - **Lens Blur** from AI depth: tap-to-focus, focus range, blur amount, bokeh shapes (circle, hexagon, octagon, ring, cat's eye) and bokeh boost.

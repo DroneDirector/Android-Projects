@@ -4292,5 +4292,17 @@
 "Blend": "Blanda",
 "CHOOSE ANOTHER PICTURE": "VEL AÐRA MYND",
 "The second picture (a forest, a city, the sea…) shows inside the subject; the background takes the colour below. Works best with a portrait or a clear silhouette.": "Hin myndin (ein skógur, ein býur, havið…) sæst inni í myndevninum; bakgrundin fær litin niðanfyri. Riggar best við einum portretti ella eini týðiligari skuggamynd.",
-"Effects → BACKGROUND (AI) → Double exposure: pick a second picture (a forest, a city, the sea); it shows inside the subject's silhouette and the background takes a plain colour. Blend sets how strong the second picture is.": "Effektir → BAKGRUND (AI) → Tvífaldur ljóstíð: vel aðra mynd (ein skóg, ein bý, havið); hon sæst inni í skuggamyndini av myndevninum, og bakgrundin fær ein einsháttaðan lit. Blanda ger av, hvussu sterk hin myndin er."
+"Effects → BACKGROUND (AI) → Double exposure: pick a second picture (a forest, a city, the sea); it shows inside the subject's silhouette and the background takes a plain colour. Blend sets how strong the second picture is.": "Effektir → BAKGRUND (AI) → Tvífaldur ljóstíð: vel aðra mynd (ein skóg, ein bý, havið); hon sæst inni í skuggamyndini av myndevninum, og bakgrundin fær ein einsháttaðan lit. Blanda ger av, hvussu sterk hin myndin er.",
+"FACE (AI)": "ANDLIT (AI)",
+"No faces found in this photo.": "Eingi andlit funnin í hesi myndini.",
+"Finding faces…": "Finnur andlit…",
+"No faces found": "Eingi andlit funnin",
+"Eyes": "Eygu",
+"Face width": "Andlitsbreidd",
+"Chin": "Kjálki",
+"Nose": "Nøs",
+"Smile": "Smíl",
+"Finds the faces, then shape them with sliders — eyes, face width, chin, nose and smile. Subtle is best.": "Finnur andlitini, og skapa tey so við skjúrum — eygu, andlitsbreidd, kjálka, nøs og smíl. Lítið er best.",
+"Every face in the photo gets the same change. Right = bigger / wider / longer / more smile, left = less.": "Øll andlit í myndini fáa somu broyting. Høgra = størri / breiðari / longri / meira smíl, vinstra = minni.",
+"Retouch → Liquify → FACE (AI): FIND FACES, then shape every face with the Eyes, Face width, Chin, Nose and Smile sliders (right = more, left = less). Subtle settings look most natural.": "Retusering → Forming → ANDLIT (AI): FINN ANDLIT, og skapa so hvørt andlit við skjúrunum Eygu, Andlitsbreidd, Kjálki, Nøs og Smíl (høgra = meira, vinstra = minni). Lítlar stillingar síggja mest náttúrligar út."
 }

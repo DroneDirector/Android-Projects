@@ -222,7 +222,7 @@ object FxStyles {
                 }
                 val sw = max(2f, fh * 0.018f)
                 glowPass(c, w, h) { gc ->
-                    val gp = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = sw * (4f + 2f * beat); strokeJoin = Paint.Join.ROUND }
+                    val gp = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.style = Paint.Style.STROKE; strokeWidth = sw * (4f + 2f * beat); strokeJoin = Paint.Join.ROUND }
                     for ((path, cc) in paths) { gp.color = cc; gp.alpha = 190; gc.drawPath(path, gp) }
                 }
                 p.style = Paint.Style.STROKE; p.strokeWidth = sw; p.strokeJoin = Paint.Join.ROUND
@@ -344,7 +344,7 @@ object FxStyles {
                 }
                 p.style = Paint.Style.STROKE; p.strokeWidth = max(2f, fh * 0.025f); p.strokeJoin = Paint.Join.ROUND; p.color = col(0.2f)
                 val gw = p.strokeWidth * 4f; val gcCol = col(0.2f)
-                glowPass(c, w, h) { gc -> gc.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = gw; strokeJoin = Paint.Join.ROUND; color = gcCol; alpha = 210 }) }
+                glowPass(c, w, h) { gc -> gc.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.style = Paint.Style.STROKE; strokeWidth = gw; strokeJoin = Paint.Join.ROUND; color = gcCol; alpha = 210 }) }
                 c.drawPath(path, p)
                 p.style = Paint.Style.FILL; p.color = Color.WHITE
                 c.drawCircle(fw - p.strokeWidth * 2, cy, max(3f, fh * 0.03f) * (1f + beat), p)

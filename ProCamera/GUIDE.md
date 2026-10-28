@@ -221,6 +221,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Merge photos → Star trails: pick 10–100 night-sky shots taken in a row from a tripod (an interval timer, e.g. one every 30 s); the brightest of every shot is kept, so each star draws its arc across the sky.
 - Crop → EXPAND (CLOUD AI): pick a shape (16:9, 3:2, 4:3, 1:1, 4:5, 9:16 or wider all round) and where the photo sits; the empty parts are painted in (Bria Expand via your fal.ai account). Optional: describe what to add.
 - Retouch → Liquify: drag on the photo with Push, Pinch, Bloat, Twirl or Restore; Brush size and Strength set the brush. UNDO LAST takes back one stroke.
+- Retouch → Liquify → FACE (AI): FIND FACES, then shape every face with the Eyes, Face width, Chin, Nose and Smile sliders (right = more, left = less). Subtle settings look most natural.
 - Retouch → Skin (frequency separation): Smooth tone evens out blotchy skin, Texture keeps the pores (100% = as photographed). Pick Whole photo, Face skin or All skin (AI finds the skin).
 - Retouch → Relight (AI): WORK OUT THE DEPTH once, then place the light in the square; Light brightens what faces it, Shadows darkens the rest, Warmth colours the light.
 - Library → select photos → Print layout: a PDF at exact print sizes (A4, A3, Letter, 10×15, 13×18 paper; 1–6 per page or fixed 10×15 / 13×18 / 9×13 / wallet prints), borders, fill or whole photo, crop marks.

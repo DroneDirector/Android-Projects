@@ -31,7 +31,7 @@ object Slideshow {
         val trMs = if (r.transition == TransitionType.NONE) 0L else minOf(1000L, r.seconds * 250L)
         for ((i, u) in r.photos.withIndex()) {
             progress(i, r.photos.size)
-            val video = suspendCancellableCoroutine { cont ->
+            val video = suspendCancellableCoroutine<Uri?> { cont ->
                 Generators.photoClip(context, u, r.seconds + (if (trMs > 0) 1 else 0)) { clip, _ -> if (cont.isActive) cont.resume(clip) }
             } ?: continue
             val c = withContext(Dispatchers.IO) { ClipLoader.load(context, video) } ?: continue

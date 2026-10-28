@@ -379,7 +379,7 @@ object ImageOps {
         var b = src
         val srcW = src.width; val srcH = src.height
         if (!spots.isNullOrEmpty()) b = PhotoLocal.heal(b, spots)
-        if (retouch != null && retouch.liquify.isNotEmpty()) { val l = RetouchFx.liquify(b, retouch.liquify); if (b !== src && l !== b) b.recycle(); b = l }
+        if (retouch != null) { val st = retouch.allStrokes(); if (st.isNotEmpty()) { val l = RetouchFx.liquify(b, st); if (b !== src && l !== b) b.recycle(); b = l } }
         if (lens != null && !lens.isIdentity) { val l = PhotoLocal.lens(b, lens); if (b !== src && l !== b) b.recycle(); b = l }
         val g = geometry(b, geometry)
         if (b !== src && g !== b) b.recycle()

@@ -2134,6 +2134,29 @@ private fun PhotoWorkspace(
                                             Text("CLEAR ALL", style = Pro.Label.copy(color = Pro.Red, fontSize = 10.sp), modifier = Modifier.clickable { rts { it.copy(liquify = emptyList()) } }.padding(8.dp))
                                         }
                                         Text("Drag on the photo. Push moves pixels along your drag, Pinch shrinks and Bloat enlarges under the brush, Twirl turns, Restore brings back the original. The whole photo is shown while you liquify.", color = Pro.Dim, fontSize = 11.sp)
+                                        SectionTitle("FACE (AI)") { rts { it.copy(face = it.face?.copy(eyes = 0f, width = 0f, chin = 0f, nose = 0f, smile = 0f)) } }
+                                        val fs = rt.face
+                                        if (fs == null || fs.faces.isEmpty()) {
+                                            Text(if (fs != null) "No faces found in this photo." else "Finds the faces, then shape them with sliders — eyes, face width, chin, nose and smile. Subtle is best.", color = Pro.Dim, fontSize = 11.sp)
+                                            Text("FIND FACES", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                                                modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable {
+                                                    val b = base ?: return@clickable
+                                                    message = "Finding faces…"
+                                                    scope.launch {
+                                                        val found = withContext(Dispatchers.Default) { try { FaceShape.find(context, b) } catch (_: Throwable) { emptyList() } }
+                                                        rts { it.copy(face = FaceShape(found, b.width.toFloat() / b.height)) }
+                                                        message = if (found.isEmpty()) "No faces found" else "${found.size} face(s) found — use the sliders"
+                                                    }
+                                                }.padding(10.dp))
+                                        } else {
+                                            Text("${fs.faces.size} face(s)", style = Pro.Label)
+                                            EdSlider("Eyes", fs.eyes, -1f..1f, 0f, ::pct) { v -> rts { it.copy(face = fs.copy(eyes = v)) } }
+                                            EdSlider("Face width", fs.width, -1f..1f, 0f, ::pct) { v -> rts { it.copy(face = fs.copy(width = v)) } }
+                                            EdSlider("Chin", fs.chin, -1f..1f, 0f, ::pct) { v -> rts { it.copy(face = fs.copy(chin = v)) } }
+                                            EdSlider("Nose", fs.nose, -1f..1f, 0f, ::pct) { v -> rts { it.copy(face = fs.copy(nose = v)) } }
+                                            EdSlider("Smile", fs.smile, -1f..1f, 0f, ::pct) { v -> rts { it.copy(face = fs.copy(smile = v)) } }
+                                            Text("Every face in the photo gets the same change. Right = bigger / wider / longer / more smile, left = less.", color = Pro.Dim, fontSize = 11.sp)
+                                        }
                                     }
                                     1 -> {
                                         SectionTitle("FREQUENCY SEPARATION") { rts { it.copy(fsSmooth = 0f, fsTexture = 1f, fsArea = 0, fsMaskFile = null) } }

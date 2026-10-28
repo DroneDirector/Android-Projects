@@ -61,11 +61,15 @@ data class Retouch(
     val glowSize: Float = 0.35f,
     val glowStrength: Float = 0.6f,
     val glowRays: Float = 0.5f,
+    /** Face-aware liquify: the faces found and the sliders. */
+    val face: FaceShape? = null,
 ) {
+    /** The liquify brush strokes plus the face sliders' strokes. */
+    fun allStrokes(): List<LiqStroke> = if (face?.active == true) face.strokes() + liquify else liquify
     val creativeOn get() = splashHue != null || tiltCenter != null || glowX != null
     val fsOn get() = fsSmooth > 0f || fsTexture != 1f
     val relightOn get() = depthFile != null && (light > 0f || shadow > 0f)
-    val isIdentity get() = liquify.isEmpty() && !fsOn && !relightOn && !creativeOn
+    val isIdentity get() = liquify.isEmpty() && face?.active != true && !fsOn && !relightOn && !creativeOn
     fun files() = listOfNotNull(if (fsOn && fsArea != 0) fsMaskFile else null, if (relightOn) depthFile else null)
 }
 

@@ -4242,5 +4242,17 @@
 "Blend": "Bland",
 "CHOOSE ANOTHER PICTURE": "VÆLG ET ANDET BILLEDE",
 "The second picture (a forest, a city, the sea…) shows inside the subject; the background takes the colour below. Works best with a portrait or a clear silhouette.": "Det andet billede (en skov, en by, havet…) vises inde i motivet; baggrunden får farven nedenfor. Virker bedst med et portræt eller en tydelig silhuet.",
-"Effects → BACKGROUND (AI) → Double exposure: pick a second picture (a forest, a city, the sea); it shows inside the subject's silhouette and the background takes a plain colour. Blend sets how strong the second picture is.": "Effekter → BAGGRUND (AI) → Dobbelteksponering: vælg et andet billede (en skov, en by, havet); det vises inde i motivets silhuet, og baggrunden får en ensfarvet farve. Bland bestemmer hvor kraftigt det andet billede er."
+"Effects → BACKGROUND (AI) → Double exposure: pick a second picture (a forest, a city, the sea); it shows inside the subject's silhouette and the background takes a plain colour. Blend sets how strong the second picture is.": "Effekter → BAGGRUND (AI) → Dobbelteksponering: vælg et andet billede (en skov, en by, havet); det vises inde i motivets silhuet, og baggrunden får en ensfarvet farve. Bland bestemmer hvor kraftigt det andet billede er.",
+"FACE (AI)": "ANSIGT (AI)",
+"No faces found in this photo.": "Ingen ansigter fundet i dette foto.",
+"Finding faces…": "Finder ansigter…",
+"No faces found": "Ingen ansigter fundet",
+"Eyes": "Øjne",
+"Face width": "Ansigtsbredde",
+"Chin": "Hage",
+"Nose": "Næse",
+"Smile": "Smil",
+"Finds the faces, then shape them with sliders — eyes, face width, chin, nose and smile. Subtle is best.": "Finder ansigterne, og form dem så med skydere — øjne, ansigtsbredde, hage, næse og smil. Diskret er bedst.",
+"Every face in the photo gets the same change. Right = bigger / wider / longer / more smile, left = less.": "Alle ansigter i fotoet får samme ændring. Højre = større / bredere / længere / mere smil, venstre = mindre.",
+"Retouch → Liquify → FACE (AI): FIND FACES, then shape every face with the Eyes, Face width, Chin, Nose and Smile sliders (right = more, left = less). Subtle settings look most natural.": "Retouchering → Formning → ANSIGT (AI): FIND ANSIGTER, og form så hvert ansigt med skyderne Øjne, Ansigtsbredde, Hage, Næse og Smil (højre = mere, venstre = mindre). Diskrete indstillinger ser mest naturlige ud."
 }

@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.718 — 2026-10-28
 - Video editor → timeline: tap anything to open its settings — a layer (text, visualizer, progress bar, countdown, map…) opens Layers with its own settings unfolded and scrolled into view, and the music or another audio track opens Audio at that track. Layers and audio bars move and trim by holding and dragging, the same as clips.
 - Video editor → hold a clip on the timeline: new Colour & details (straight to the clip's exposure, contrast, highlights and shadows), Reveal in project and Reveal on device. Hold a file in the media strip: Colour & details, Reveal in project (jumps to where it is used on the timeline) and Reveal on device.
 - Video editor → Deliver → WIDE + VERTICAL: export the same edit as 16:9 and 9:16 in one go.

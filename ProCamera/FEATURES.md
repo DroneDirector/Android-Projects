@@ -231,6 +231,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Quick tour** the first time the editor opens (skip, don't show again, replay from gear → App).
 
 ## Video editor
+- **Loop playback**: a button under the picture repeats the in–out range or the whole timeline.
 - **Video library**: every video on the device with stars, flags, colour labels (red, yellow, green, blue, purple), filters, albums, smart collections (resolution, drone, vertical…) and a calendar view by year, month and day; **pro import** from SD card, USB drive or camera; the same colour labels on the media strip (stripe under each clip, colour filter); **metadata presets** written into exported MP4s; **upload after export** to any folder.
 ### Media & timeline
 - **Speed / Duration**, **time interpolation** (frame sampling, optical flow, motion blur), **link / unlink tracks**, **group / ungroup** and a **markers menu** (go to, edit, clear, export / import lists) under the picture.

@@ -93,6 +93,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.VolumeOff
@@ -1104,7 +1105,18 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     fun advance() {
         val next = es.current + 1
         val n = clips.getOrNull(next)
-        if (n == null) { deck.cur.playWhenReady = false; return }
+        if (n == null) {
+            // Loop: back to the in point (or the start) and on playing.
+            if (es.loop && clips.isNotEmpty()) {
+                val from = es.deliver.rangeStart?.takeIf { es.deliver.rangeEnd != null } ?: 0L
+                val (i, local) = clipAt(clips, from)
+                val c0 = clips[i]
+                es.seekCount++
+                load(i, c0.srcAtOffset(local) - c0.startMs, true)
+                return
+            }
+            deck.cur.playWhenReady = false; return
+        }
         if (es.preloadedId == n.id && deck.spare.playbackState != Player.STATE_IDLE) {
             val old = deck.cur
             deck.active = 1 - deck.active
@@ -1302,6 +1314,18 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         while (true) {
             es.posMs = deck.cur.currentPosition
             PreviewClock.posMs = es.posMs; PreviewClock.at = android.os.SystemClock.uptimeMillis(); PreviewClock.playing = deck.cur.isPlaying
+            // Loop with an in–out range: past the out point, back to the in point.
+            val rs = es.deliver.rangeStart; val re = es.deliver.rangeEnd
+            if (es.loop && rs != null && re != null && re > rs && deck.cur.isPlaying) {
+                val ci = es.current; val cc = clips.getOrNull(ci)
+                val gNow = (clipStarts(clips).getOrNull(ci) ?: 0L) + (cc?.tlOffsetOf(cc.startMs + es.posMs) ?: es.posMs)
+                if (gNow >= re || gNow < rs - 500) {
+                    val (i, local) = clipAt(clips, rs)
+                    val c0 = clips[i]; val at = c0.srcAtOffset(local) - c0.startMs
+                    es.seekCount++
+                    if (i == es.current && es.loadedId == c0.id) deck.cur.seekTo(at) else load(i, at, true)
+                }
+            }
             val c0 = clips.getOrNull(es.current)
             if (es.showInfo) {
                 fun st(p: ExoPlayer) = when (p.playbackState) { Player.STATE_IDLE -> "IDLE"; Player.STATE_BUFFERING -> "LOAD"; Player.STATE_READY -> "READY"; else -> "END" } +
@@ -1523,6 +1547,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         if (musicPlayer.playbackParameters.speed != 1f) musicPlayer.playbackParameters = PlaybackParameters(1f)
         var lastSkip = 0L
         var started = false; var aligned = false
+        var seen = es.seekCount
         try {
             while (true) {
                 val ducked = clips.getOrNull(es.current)?.let { it.audio.duckMusic && !it.muted && it.volume > 0f } == true
@@ -1532,7 +1557,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 val len = m.playLength(timelineLength(clips))
                 val want = m.offsetMs + (g - m.startMs)
                 if (g < m.startMs || g >= m.startMs + len) { musicPlayer.pause(); setPictureSpeed(1f); started = false }
-                else if (!started || musicPlayer.playbackState == Player.STATE_ENDED || musicPlayer.playbackState == Player.STATE_IDLE || !musicPlayer.playWhenReady) {
+                else if (seen != es.seekCount) {
+                    // A jump made on purpose (seek, loop): the music goes there too, and is lined up again once it plays.
+                    seen = es.seekCount
+                    musicPlayer.seekTo(want); if (!musicPlayer.playWhenReady) musicPlayer.play()
+                    setPictureSpeed(1f); started = true; aligned = false
+                } else if (!started || musicPlayer.playbackState == Player.STATE_ENDED || musicPlayer.playbackState == Player.STATE_IDLE || !musicPlayer.playWhenReady) {
                     // The music comes in: start it where the picture is.
                     if (musicPlayer.playbackState == Player.STATE_IDLE) musicPlayer.prepare()
                     musicPlayer.seekTo(want); musicPlayer.play(); setPictureSpeed(1f)
@@ -1701,6 +1731,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
     fun seekGlobal(ms: Long) {
         if (clips.isEmpty()) return
+        es.seekCount++
         val (i, local) = clipAt(clips, ms)
         val c = clips[i]
         val off = c.srcAtOffset(local) - c.startMs
@@ -4215,6 +4246,12 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                     b("frameback") { TransportIcon(BarIcons.frameBack, "Step back one frame") { stepFrame(-1) } }
                                     b("play") { Box(Modifier.onGloballyPositioned { c -> wf.bar.onPlay(c) }) { PlayGlow(es.playing) { TransportIcon(if (es.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, "Play", tint = Color.White, accent = !PlayFx.on, size = 46.dp, iconSize = 30.dp) { togglePlay() } } } }
                                     b("framefwd") { TransportIcon(BarIcons.frameFwd, "Step forward one frame") { stepFrame(1) } }
+                                    b("loop") {
+                                        TransportIcon(Icons.Filled.Repeat, "Loop playback", tint = if (es.loop) Pro.Amber else Color.White) {
+                                            es.loop = !es.loop
+                                            es.message = if (!es.loop) "Loop off" else if (es.deliver.rangeStart != null && es.deliver.rangeEnd != null) "Loop on — the in–out range plays over and over" else "Loop on — the timeline plays over and over"
+                                        }
+                                    }
                                     b("next") { TransportIcon(Icons.Filled.SkipNext, "Next clip") { nextClip() } }
                                     b("goout") { TransportIcon(BarIcons.goOut, "Go to out point") { seekGlobal(((es.deliver.rangeEnd ?: timelineLength(clips)) - 1).coerceAtLeast(0L)) } }
                                     b("start") { TransportIcon(BarIcons.toStart, "Playhead to start") { seekGlobal(0L) } }

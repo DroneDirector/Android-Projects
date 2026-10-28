@@ -43,6 +43,10 @@ internal class EditorState(initial: VideoProjectData?, context: Context) {
     var cloudExport by mutableStateOf(false)
     var cloudJob by mutableStateOf<kotlinx.coroutines.Job?>(null)
     var previewMuted by mutableStateOf(false)
+    /** Loop playback: the in–out range (or the whole timeline) plays over and over. */
+    var loop by mutableStateOf(false)
+    /** Goes up with every jump of the playhead made on purpose (seek, loop): the music follows such jumps at once. */
+    var seekCount = 0
     var videoMuted by mutableStateOf(initial?.videoMuted ?: false)
     var videoLocked by mutableStateOf(initial?.videoLocked ?: false)
     var videoHidden by mutableStateOf(initial?.videoHidden ?: false)

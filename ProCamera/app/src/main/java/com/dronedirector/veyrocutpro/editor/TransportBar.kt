@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Hd
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SkipNext
@@ -78,7 +79,7 @@ object TransportBar {
         Item("speed", "Speed / Duration"), Item("interp", "Time interpolation"), Item("link", "Link / unlink tracks"), Item("group", "Group / ungroup"),
         Item("mute", "Mute preview"), Item("tlout", "Zoom timeline out"), Item("tlfit", "Show whole timeline"), Item("tlin", "Zoom timeline in"),
         Item("cast", "Cast to a TV"), Item("safe", "Safe margins"), Item("res", "Playback resolution"), Item("magnify", "Magnification"),
-        Item("goin", "Go to in point"), Item("frameback", "Step back one frame"), Item("play", "Play / pause"), Item("framefwd", "Step forward one frame"),
+        Item("goin", "Go to in point"), Item("frameback", "Step back one frame"), Item("play", "Play / pause"), Item("framefwd", "Step forward one frame"), Item("loop", "Loop playback"),
         Item("goout", "Go to out point"), Item("prev", "Previous clip"), Item("next", "Next clip"), Item("start", "Playhead to start"),
         Item("full", "Full screen"), Item("frame", "Export frame"), Item("settings", "Settings"),
     )
@@ -163,6 +164,7 @@ fun transportIcon(id: String): ImageVector = when (id) {
     "frameback" -> BarIcons.frameBack
     "play" -> Icons.Filled.PlayArrow
     "framefwd" -> BarIcons.frameFwd
+    "loop" -> Icons.Filled.Repeat
     "goout" -> BarIcons.goOut
     "prev" -> Icons.Filled.SkipPrevious
     "next" -> Icons.Filled.SkipNext

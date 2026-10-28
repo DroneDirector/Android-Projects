@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor: Loop playback button under the picture (next to the frame-step button): the in–out range, or the whole timeline, plays over and over. Tap again to stop looping.
 - Smoother sound in the preview: the music now sets the timing and is never jumped or sped up while it plays. The picture follows it instead — a touch faster or slower for a moment, or, if the device can't keep up, it skips ahead to the music. No more little glitches in the soundtrack.
 
 ## 1.0.777 — 2026-10-28

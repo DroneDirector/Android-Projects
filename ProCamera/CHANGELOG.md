@@ -4,8 +4,13 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.698 — 2026-10-28
 - Fixed: the video editor could crash while layers were shown on the picture (e.g. with a visualizer whose analysis finished, or layers appearing and disappearing during playback).
+- Visualizer: much livelier — each frequency band is measured against its own range in the song and jumps when it gets louder, so bars, rings and lines clearly move with the music (songs are analysed again once).
 - Moving overlays (visualizer, countdown, progress bar, flight path) now update 25 times a second in the preview instead of 10.
+- Visualizer: much livelier — each frequency band is measured against its own range in the song and jumps when it gets louder, so bars, rings and lines clearly move with the music (songs are analysed again once).
+- Moving overlays (visualizer, countdown, progress bar, flight path) now update 25 times a second in the preview instead of 10, so they follow the music smoothly.
 
 ## 1.0.693 — 2026-10-28
 - Visualizer: much livelier — each frequency band is measured against its own range in the song and jumps when it gets louder, so bars, rings and lines clearly move with the music (songs are analysed again once).

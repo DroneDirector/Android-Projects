@@ -73,6 +73,12 @@ object VisTest {
                 val a = FxLayers.render(l, 1280, 720, 3000, context)
                 android.util.Log.i(tag, "timer $style: render ${System.currentTimeMillis() - t1} ms, ${if (a == null) "NO PICTURE" else "ok"}")
             }
+            for (style in RetroFx.STYLES.indices) {
+                val l = Layer(kind = LayerKind.FX, fx = FxLayers.RETRO, fxA = style.toFloat(), fxX = 10_500f, fxY = 600f, startMs = 0, endMs = 10_000)
+                val t1 = System.currentTimeMillis()
+                val a = FxLayers.render(l, 1920, 1080, 3000, context)
+                android.util.Log.i(tag, "retro $style: render ${System.currentTimeMillis() - t1} ms, ${if (a == null) "NO PICTURE" else "ok"}")
+            }
         } catch (t: Throwable) { android.util.Log.e(tag, "failed", t) }
     }
 }

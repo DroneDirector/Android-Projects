@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.LinearScale
 import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.PhotoCamera
@@ -6363,6 +6364,12 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
         SmallAction(Icons.Filled.LinearScale, "Progress bar") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.PROGRESS, text = "Progress bar", fxA = 0.008f, y = 0.996f, color = 0xFFFFB300.toInt(), shadow = false, startMs = 0, endMs = total)) }
         SmallAction(Icons.Filled.GraphicEq, "Visualizer", onVisualizer)
         SmallAction(Icons.Filled.Timer, "Countdown") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.TIMER, text = "Countdown", size = 0.18f, x = 0.88f, y = 0.18f, fxB = 1f, color = 0xFFFFB300.toInt(), shadow = false, startMs = playheadMs, endMs = (playheadMs + 10_000L).coerceAtMost(total).let { if (it - playheadMs < 1000) playheadMs + 10_000L else it })) }
+        SmallAction(Icons.Filled.Tv, "Retro look") {
+            val now = System.currentTimeMillis()
+            val cal = java.util.Calendar.getInstance()
+            onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.RETRO, text = "Retro look", fxA = 0f, fxX = ((now + cal.timeZone.getOffset(now)) / 86_400_000L).toFloat(),
+                fxY = (cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)).toFloat(), opacity = 1f, shadow = false, startMs = 0, endMs = total))
+        }
         SmallAction(Icons.Filled.WbSunny, "Lens flare") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.FLARE, text = "Lens flare", fxA = 0f, fxX = 0.72f, fxY = 0.28f, opacity = 0.9f, shadow = false, startMs = playheadMs, endMs = end)) }
     }
     Text("Cinema bars, the progress bar and the flare cover the whole video or part of it — trim them on the timeline. Flight path / route reads the drone's .SRT flight data, or a .GPX track from a GPS app (hikes, drives, rides), for the selected clip.", color = Pro.Dim, fontSize = 11.sp)
@@ -6545,9 +6552,32 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
                 Chips(listOf("Seconds", "m:ss"), if ((l.fxY ?: 0f) == 1f) 1 else 0) { onUpdate(l.copy(fxY = if (it == 1) 1f else null)) }
                 Text(if (manual) "Counts down from your number of seconds, starting where the layer starts (the layer is made that long)." else "Counts down the layer's own length — trim it on the timeline and the countdown follows.", color = Pro.Dim, fontSize = 11.sp)
             }
+            FxLayers.RETRO -> {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
+                    RetroFx.STYLES.forEachIndexed { i, n -> PillChip(n, (l.fxA ?: 0f).toInt() == i) { onUpdate(l.copy(fxA = i.toFloat())) } }
+                }
+                EdSlider("Strength", l.opacity * 100f, 10f..100f, 100f, { "%.0f%%".format(it) }) { onUpdate(l.copy(opacity = it / 100f)) }
+                val st = (l.fxA ?: 0f).toInt()
+                if (st != 1 && st != 3) {
+                    // The date / time shown on the picture (it runs on with the video).
+                    val day = (l.fxX ?: 0f).toLong(); val mins = (l.fxY ?: 720f).toInt()
+                    val f = java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.getDefault()).apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
+                    Text("Date on the picture: " + f.format(java.util.Date(day * 86_400_000L)) + "  " + "%02d:%02d".format(mins / 60, mins % 60), color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                    EdSlider("Year", (1970 + day / 365.25).toFloat(), 1980f..2035f, 1998f, { "%.0f".format(it) }) { y ->
+                        val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply { timeInMillis = day * 86_400_000L; set(java.util.Calendar.YEAR, kotlin.math.round(y).toInt()) }
+                        onUpdate(l.copy(fxX = (cal.timeInMillis / 86_400_000L).toFloat()))
+                    }
+                    EdSlider("Day of the year", java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply { timeInMillis = day * 86_400_000L }.get(java.util.Calendar.DAY_OF_YEAR).toFloat(), 1f..365f, 180f, { "%.0f".format(it) }) { d ->
+                        val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply { timeInMillis = day * 86_400_000L; set(java.util.Calendar.DAY_OF_YEAR, kotlin.math.round(d).toInt()) }
+                        onUpdate(l.copy(fxX = (cal.timeInMillis / 86_400_000L).toFloat()))
+                    }
+                    EdSlider("Time of day", mins.toFloat(), 0f..1439f, 720f, { "%02d:%02d".format(it.toInt() / 60, it.toInt() % 60) }) { onUpdate(l.copy(fxY = kotlin.math.round(it))) }
+                }
+                Text("VHS tape, an old TV, a camcorder with its date stamp, old film with dust and scratches, or a security camera — drawn over the picture in the preview and the export. Combine it with a look on the Color page (e.g. faded or black and white) for the full effect.", color = Pro.Dim, fontSize = 11.sp)
+            }
             FxLayers.MAP -> Text("The drone's route from its flight data, north up; the dot follows the drone while the video plays. Drag it into place; size and colour as for any layer.", color = Pro.Dim, fontSize = 11.sp)
         }
-        if (l.fx != FxLayers.FLARE) Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        if (l.fx != FxLayers.FLARE && l.fx != FxLayers.RETRO) Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             TEXT_COLORS.forEach { c ->
                 Box(Modifier.size(28.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(c))
                     .border(if (c == l.color) 3.dp else 1.dp, if (c == l.color) Pro.Amber else Pro.Line, androidx.compose.foundation.shape.CircleShape)

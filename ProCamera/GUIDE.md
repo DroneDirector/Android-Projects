@@ -452,6 +452,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Panels icon (next to the settings gear): hide or show the tools panel, transport bar, histogram and audio waveforms — the player and timeline grow into the space and shrink back when a panel returns. Presets: Full, Cut, Color, Audio. Triple-tap the icon to reset the whole layout (panels and divider sizes).
 - Deliver → WIDE + VERTICAL → EXPORT 16:9 AND 9:16: the same edit saved twice, one for YouTube and one for Reels, Shorts and TikTok (the picture fills the frame, centred).
 - Layers → Flight path / route: pick a drone .SRT file, or a .GPX track from a GPS app (a hike, drive or ride) — the route is drawn as a map over the selected clip, start to finish.
+- Layers → Retro look: VHS tape, Old TV, Camcorder (with a date stamp you set), Old film (dust and scratches) or Security camera over the whole video; Strength sets how strong it is. Pair it with a faded or black-and-white look on the Color page.
 - SAVE / LOAD projects; "Save & leave" when exiting.
 
 **General**

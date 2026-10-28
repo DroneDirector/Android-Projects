@@ -4264,5 +4264,16 @@
 "Effects → COLOUR SPLASH keeps one colour and turns the rest black and white; TILT-SHIFT MINIATURE blurs the top and bottom so a scene looks like a model (best from high up); SUN GLOW & RAYS adds a warm sun with soft rays where you place it.": "Effektir → LITSKVETTUR heldur einum liti og ger restina svart-hvíta; TILT-SHIFT SMÁMYND óskýrir ovast og niðast, so ein sjónleikur sær út sum eitt modell (best úr hædd); SÓLARGLØÐ OG GEISLAR leggur eina heita sól við bleytum geislum afturat, har tú setur hana.",
 "Masks → Dodge / Burn: paint to lighten (dodge) or darken (burn) parts of the photo; each one is its own mask you can change or delete.": "Maskur → Ljósga / Myrkna: mála fyri at gera partar av myndini ljósari (ljósga) ella myrkari (myrkna); hvør er sín egna maska, sum tú kanst broyta ella strika.",
 "Export → METADATA: title, caption, author, copyright and keywords written into the exported photo (JPEG, PNG, WebP), kept with the edit.": "Útflyt → METADÁTUR: heiti, myndatekstur, høvundur, upphavsrættur og lyklaorð skrivað inn í útfluttu myndina (JPEG, PNG, WebP), goymt við tillagingini.",
-"Settings → Appearance: Dark, Light or Like the phone — the same choice as in the editors. On Light the menus and panels are light; the controls on the camera picture stay dark.": "Stillingar → Útsjónd: Myrkt, Ljóst ella Sum telefonin — sama val sum í ritlunum. Á Ljóst eru valmyndir og panel ljós; knøttarnir á kameramyndini verða verandi myrkir."
+"Settings → Appearance: Dark, Light or Like the phone — the same choice as in the editors. On Light the menus and panels are light; the controls on the camera picture stay dark.": "Stillingar → Útsjónd: Myrkt, Ljóst ella Sum telefonin — sama val sum í ritlunum. Á Ljóst eru valmyndir og panel ljós; knøttarnir á kameramyndini verða verandi myrkir.",
+"Retro look": "Retro-útsjónd",
+"VHS tape": "VHS-band",
+"Old TV": "Gamalt sjónvarp",
+"Camcorder": "Videokamera",
+"Old film": "Gamal filmur",
+"Security camera": "Eftirlitskamera",
+"Year": "Ár",
+"Day of the year": "Dagur í árinum",
+"Time of day": "Tíð á degnum",
+"VHS tape, an old TV, a camcorder with its date stamp, old film with dust and scratches, or a security camera — drawn over the picture in the preview and the export. Combine it with a look on the Color page (e.g. faded or black and white) for the full effect.": "VHS-band, eitt gamalt sjónvarp, eitt videokamera við dagfestingarstempli, gamal filmur við dusti og rispum ella eitt eftirlitskamera — teknað yvir myndina í undanvísingini og útflytingini. Sameina tað við eina útsjónd á Lit-síðuni (t.d. bleikt ella svart-hvítt) fyri fulla ávirkan.",
+"Layers → Retro look: VHS tape, Old TV, Camcorder (with a date stamp you set), Old film (dust and scratches) or Security camera over the whole video; Strength sets how strong it is. Pair it with a faded or black-and-white look on the Color page.": "Løg → Retro-útsjónd: VHS-band, Gamalt sjónvarp, Videokamera (við einum dagfestingarstempli, tú sjálv/ur velur), Gamal filmur (dust og rispur) ella Eftirlitskamera yvir alla videoina; Styrki ger av, hvussu sterkt tað er. Sameina við eina bleika ella svart-hvíta útsjónd á Lit-síðuni."
 }

@@ -4214,5 +4214,16 @@
 "Effects → COLOUR SPLASH keeps one colour and turns the rest black and white; TILT-SHIFT MINIATURE blurs the top and bottom so a scene looks like a model (best from high up); SUN GLOW & RAYS adds a warm sun with soft rays where you place it.": "Effekter → FARVESTÆNK beholder én farve og gør resten sort-hvidt; TILT-SHIFT MINIATURE slører top og bund, så en scene ligner en model (bedst oppefra); SOLGLØD OG STRÅLER tilføjer en varm sol med bløde stråler, hvor du placerer den.",
 "Masks → Dodge / Burn: paint to lighten (dodge) or darken (burn) parts of the photo; each one is its own mask you can change or delete.": "Masker → Lysn / Mørkn: mal for at gøre dele af fotoet lysere (lysn) eller mørkere (mørkn); hver er sin egen maske, som du kan ændre eller slette.",
 "Export → METADATA: title, caption, author, copyright and keywords written into the exported photo (JPEG, PNG, WebP), kept with the edit.": "Eksport → METADATA: titel, billedtekst, forfatter, ophavsret og nøgleord skrevet ind i det eksporterede foto (JPEG, PNG, WebP), gemt med redigeringen.",
-"Settings → Appearance: Dark, Light or Like the phone — the same choice as in the editors. On Light the menus and panels are light; the controls on the camera picture stay dark.": "Indstillinger → Udseende: Mørk, Lys eller Som telefonen — samme valg som i editorerne. På Lys er menuer og paneler lyse; knapperne på kamerabilledet forbliver mørke."
+"Settings → Appearance: Dark, Light or Like the phone — the same choice as in the editors. On Light the menus and panels are light; the controls on the camera picture stay dark.": "Indstillinger → Udseende: Mørk, Lys eller Som telefonen — samme valg som i editorerne. På Lys er menuer og paneler lyse; knapperne på kamerabilledet forbliver mørke.",
+"Retro look": "Retro-look",
+"VHS tape": "VHS-bånd",
+"Old TV": "Gammelt tv",
+"Camcorder": "Videokamera",
+"Old film": "Gammel film",
+"Security camera": "Overvågningskamera",
+"Year": "År",
+"Day of the year": "Dag i året",
+"Time of day": "Tidspunkt",
+"VHS tape, an old TV, a camcorder with its date stamp, old film with dust and scratches, or a security camera — drawn over the picture in the preview and the export. Combine it with a look on the Color page (e.g. faded or black and white) for the full effect.": "VHS-bånd, et gammelt tv, et videokamera med datostempel, gammel film med støv og ridser eller et overvågningskamera — tegnet over billedet i forhåndsvisningen og eksporten. Kombinér det med et look på Farve-siden (fx falmet eller sort-hvid) for den fulde effekt.",
+"Layers → Retro look: VHS tape, Old TV, Camcorder (with a date stamp you set), Old film (dust and scratches) or Security camera over the whole video; Strength sets how strong it is. Pair it with a faded or black-and-white look on the Color page.": "Lag → Retro-look: VHS-bånd, Gammelt tv, Videokamera (med et datostempel du selv vælger), Gammel film (støv og ridser) eller Overvågningskamera over hele videoen; Styrke bestemmer hvor kraftigt det er. Kombinér med et falmet eller sort-hvidt look på Farve-siden."
 }

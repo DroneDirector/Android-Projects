@@ -26,6 +26,7 @@ object FxLayers {
     const val FLARE = 3
     const val TIMER = 4
     const val VIS = 5
+    const val RETRO = 6
     val VIS_STYLES = listOf("Spectrum bars", "Mirror bars", "Glow line", "Circular", "Waveform", "LED equalizer", "Radial wave", "Sound rings", "Particles", "Bass orb") + FxStyles.MORE_VIS
     /** Visualizer styles drawn in a square around a centre. */
     fun visRound(style: Int) = style == 3 || style in 6..9 || style in FxStyles.ROUND_VIS
@@ -35,7 +36,7 @@ object FxLayers {
     val FLARE_STYLES = listOf("Warm sun", "Anamorphic blue", "Soft glow")
     private const val STEP_MS = 40L
 
-    fun label(l: Layer): String = when (l.fx) { BARS -> "Cinema bars"; MAP -> "Flight path"; PROGRESS -> "Progress bar"; TIMER -> "Countdown"; VIS -> "Visualizer"; else -> "Lens flare" }
+    fun label(l: Layer): String = when (l.fx) { BARS -> "Cinema bars"; MAP -> "Flight path"; PROGRESS -> "Progress bar"; TIMER -> "Countdown"; VIS -> "Visualizer"; RETRO -> RetroFx.STYLES.getOrElse((l.fxA ?: 0f).toInt()) { "Retro look" }; else -> "Lens flare" }
     val TIMER_STYLES = listOf("Ring", "Glowing ring", "Scroll wheel colours", "Solid disc", "Big numbers") + FxStyles.MORE_TIMERS
 
     /** Full-frame overlays sit still in the middle (they're not dragged; change them in the layer's settings). */
@@ -43,7 +44,7 @@ object FxLayers {
 
     /** Which picture to draw at [ms] (a new number = a new picture); 0 for overlays that don't change. */
     fun frameIndex(l: Layer, ms: Long): Int = when (l.fx) {
-        MAP, PROGRESS, TIMER, VIS -> ((ms - l.startMs).coerceAtLeast(0) / STEP_MS).toInt()
+        MAP, PROGRESS, TIMER, VIS, RETRO -> ((ms - l.startMs).coerceAtLeast(0) / STEP_MS).toInt()
         BARS -> if (l.fxB == 1f) {
             val inMs = ms - l.startMs; val outMs = l.endMs - ms
             when { inMs in 0 until 1000 -> 1 + (inMs / STEP_MS).toInt(); outMs in 0 until 1000 -> 1000 + (outMs / STEP_MS).toInt(); else -> 0 }
@@ -66,6 +67,7 @@ object FxLayers {
             PROGRESS -> progress(l, frameW, frameH, ms)
             TIMER -> timer(l, frameH, ms)
             VIS -> vis(context, l, frameW, frameH, ms)
+            RETRO -> RetroFx.render(l, frameW, frameH, ms)
             else -> flare(l, frameW, frameH)
         }
     } catch (_: Throwable) { null }

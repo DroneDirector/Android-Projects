@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor → Layers → Retro look: VHS tape, Old TV, Camcorder with a date stamp, Old film and Security camera, drawn over the picture in the preview and the export.
+- Visualizer Dot matrix draws much faster, so its preview runs smoothly.
 
 ## 1.0.718 — 2026-10-28
 - Video editor → timeline: tap anything to open its settings — a layer (text, visualizer, progress bar, countdown, map…) opens Layers with its own settings unfolded and scrolled into view, and the music or another audio track opens Audio at that track. Layers and audio bars move and trim by holding and dragging, the same as clips.

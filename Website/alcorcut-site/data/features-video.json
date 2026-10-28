@@ -93,7 +93,8 @@
    "<strong>Nested (compound) clips</strong>: join several clips into one and open them up again.",
    "<strong>Drone telemetry</strong>: DJI .SRT flight data (altitude, speed, GPS, camera settings) as a live read-out matched to trim and speed.",
    "<strong>Auto-save &amp; crash recovery</strong> every 20 seconds; auto-saved edits keep access to their media, and RECOVER checks the edit first and leaves out files that can no longer be read.",
-   "<strong>Crash reports</strong>: after an unexpected close, the next start shows a short report (no photos or videos) to share or copy."
+   "<strong>Crash reports</strong>: after an unexpected close, the next start shows a short report (no photos or videos) to share or copy.",
+   "<strong>App log</strong>: a log kept on the device (starts, exports, problems, crashes with the app's recent system log); VIEW LOG from a crash report or ? → Troubleshooting → App log, to share or save."
   ]
  },
  {

@@ -2972,6 +2972,43 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
     }
 
+    /** Voice / music separation (Demucs, cloud): the clip's sound as a voice track and a music track. */
+    fun separateVoice(i: Int) {
+        val c = clips.getOrNull(i) ?: return
+        if (c.ramp != null || c.speed != 1f) { es.message = "Set the clip to 1x without a ramp to separate its sound"; return }
+        com.dronedirector.veyrocutpro.camera.CloudAi.load(context)
+        if (!com.dronedirector.veyrocutpro.camera.CloudAi.hasKey) { es.message = "Voice / music separation uses your fal.ai account — add the key in settings → Cloud AI"; return }
+        val st = clipStarts(clips).getOrNull(i) ?: 0L
+        wx.sepStatus = "Separating… (tap the cloud bar to stop)"
+        layerScope.launch {
+            val res = withContext(Dispatchers.IO) {
+                try {
+                    val dir = java.io.File(context.filesDir, "stems/" + java.util.UUID.randomUUID().toString()).apply { mkdirs() }
+                    val sound = StemMix.extractAudio(context, c.uri, dir)
+                    val input = sound ?: java.io.File(dir, "clip.mp4").also { f -> context.contentResolver.openInputStream(c.uri)?.use { ins -> f.outputStream().use { ins.copyTo(it) } } }
+                    val stems = com.dronedirector.veyrocutpro.camera.CloudAi.separate(context, input, if (sound != null) "audio/mp4" else "video/mp4", dir)
+                    input.delete()
+                    val music = java.io.File(dir, "music.wav")
+                    val parts = listOfNotNull(stems["drums"], stems["bass"], stems["other"])
+                    if (parts.isEmpty() || !StemMix.sum(parts, music)) throw IllegalStateException("no music")
+                    parts.forEach { it.delete() }
+                    stems.getValue("vocals") to music
+                } catch (t: Throwable) { t }
+            }
+            wx.sepStatus = null
+            if (res is Throwable) { es.message = res.message?.takeIf { it.isNotBlank() && it != "no music" } ?: "Couldn't separate the sound"; return@launch }
+            @Suppress("UNCHECKED_CAST") val (voice, music) = res as Pair<java.io.File, java.io.File>
+            fun track(f: java.io.File, name: String) = MusicTrack(
+                uri = Uri.fromFile(f), name = name, durationMs = c.durationMs, offsetMs = c.startMs, volume = c.volume.coerceAtMost(1.5f),
+                fadeInMs = 0L, fadeOutMs = 0L, duck = 0f, startMs = st, lengthMs = c.endMs - c.startMs,
+            )
+            extraAudio.add(track(voice, "Voice · ${c.name}"))
+            extraAudio.add(track(music, "Music · ${c.name}"))
+            val k = clips.indexOfFirst { it.id == c.id }
+            if (k >= 0) clips[k] = clips[k].copy(muted = true)
+            es.message = "Voice and music are now two audio tracks under the clip — set each one's volume in Audio → More audio tracks"
+        }
+    }
     fun detachAudio(i: Int) {
         if (es.videoLocked) { es.message = "The video track is locked"; return }
         val c = clips.getOrNull(i) ?: return
@@ -4712,6 +4749,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onVoice = { if (wx.voiceRec == null) startVoice() else stopVoice() },
                                 onBeats = { t -> addBeatMarkers(t) },
                                 onSync = { t -> syncAudioTo(t) },
+                                onSeparate = { separateVoice(es.selected) }, separateStatus = wx.sepStatus,
                             )
                                 MusicTools(hasMusic = es.music != null, onFit = { fitMusicToVideo() }, onAutoEdit = { autoEditToBeat(it) })
                             }
@@ -5722,6 +5760,7 @@ private fun AudioPage(
     extra: List<MusicTrack> = emptyList(), onExtra: (String, MusicTrack?) -> Unit = { _, _ -> },
     posInClip: Long = 0L, recording: Boolean = false, recordMs: Long = 0L, onVoice: () -> Unit = {}, onBeats: (MusicTrack) -> Unit = {},
     onSync: (MusicTrack) -> Unit = {},
+    onSeparate: () -> Unit = {}, separateStatus: String? = null,
     onTts: (String, Voiceover.Voice, Float) -> Unit = { _, _, _ -> }, ttsProgress: Int? = null, ttsStatus: String? = null, onStopTts: () -> Unit = {},
     mixer: MixerHooks? = null,
 ) {
@@ -5833,6 +5872,10 @@ private fun AudioPage(
         Chips(listOf("Clicks off", "Remove clicks & crackle"), if (c.audio.declick) 1 else 0) { i -> onChange { it.copy(audio = it.audio.copy(declick = i == 1)) } }
         EdSlider("Remove room echo", c.audio.dereverb, 0f..1f, 0f, ::pct) { v -> onChange { it.copy(audio = it.audio.copy(dereverb = v)) } }
         Text("Cleans hiss, hum and background noise from this clip's sound. Heard in the export (the preview plays the original).", color = Pro.Dim, fontSize = 11.sp)
+        Text("VOICE / MUSIC SEPARATION (AI)", style = Pro.Label, modifier = Modifier.padding(top = 6.dp))
+        Text(separateStatus ?: "SEPARATE VOICE AND MUSIC", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+            modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable(enabled = separateStatus == null) { onSeparate() }.padding(10.dp))
+        Text("Splits this clip's sound into a voice track and a music track (everything else), added in line with the clip so each has its own volume — the clip itself is muted. Uses Demucs via your fal.ai account (about \$0.04 per minute of the file's sound).", color = Pro.Dim, fontSize = 11.sp)
         SectionTitle("VOLUME KEYFRAMES") { onChange { it.copy(volKeys = null) } }
         Text("Rides the clip's volume over time — e.g. dip it under a voiceover. Add keyframes at different playhead positions and set each level.", color = Pro.Dim, fontSize = 11.sp)
         Text(
@@ -7794,6 +7837,7 @@ class WorkspaceExtra {
     var hlBeat by androidx.compose.runtime.mutableStateOf(false)
     var ttsProgress by androidx.compose.runtime.mutableStateOf<Int?>(null)
     var ttsStatus by androidx.compose.runtime.mutableStateOf<String?>(null)
+    var sepStatus by androidx.compose.runtime.mutableStateOf<String?>(null)
     var ttsJob by androidx.compose.runtime.mutableStateOf<kotlinx.coroutines.Job?>(null)
     var voiceRec by androidx.compose.runtime.mutableStateOf<android.media.MediaRecorder?>(null)
     var voiceFile by androidx.compose.runtime.mutableStateOf<java.io.File?>(null)

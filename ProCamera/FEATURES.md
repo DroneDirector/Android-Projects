@@ -231,7 +231,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Quick tour** the first time the editor opens (skip, don't show again, replay from gear → App).
 
 ## Video editor
-- **Video library**: every video on the device with stars, flags, colour labels (red, yellow, green, blue, purple), filters, albums, smart collections (resolution, drone, vertical…) and a calendar view by year, month and day; **pro import** from SD card, USB drive or camera; **metadata presets** written into exported MP4s; **upload after export** to any folder.
+- **Video library**: every video on the device with stars, flags, colour labels (red, yellow, green, blue, purple), filters, albums, smart collections (resolution, drone, vertical…) and a calendar view by year, month and day; **pro import** from SD card, USB drive or camera; the same colour labels on the media strip (stripe under each clip, colour filter); **metadata presets** written into exported MP4s; **upload after export** to any folder.
 ### Media & timeline
 - **Speed / Duration**, **time interpolation** (frame sampling, optical flow, motion blur), **link / unlink tracks**, **group / ungroup** and a **markers menu** (go to, edit, clear, export / import lists) under the picture.
 - **Network (NAS)**: add videos, photos and audio straight from a Synology or any other NAS (or a computer sharing folders over SMB) on your network — found automatically or by address; browse every shared folder; files are copied into the app with progress. Guest access first, sign-in only when the NAS asks; remembered sign-ins are optional, encrypted on the phone, never shown, unlocked with the phone's own fingerprint / PIN / pattern (can be turned off), removable in the gear menu.

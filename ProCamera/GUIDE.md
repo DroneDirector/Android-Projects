@@ -277,6 +277,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 
 ## Video editor guide
 **Video library and import**
+- Media strip: tap a clip (or SELECT several) and tap a colour to give it a colour label (red, yellow, green, blue, purple) — also in the clip's long-press menu. It shows as a stripe under the thumbnail; the colour dots next to the filters show only that colour. Labels are shared with the video library.
 - Media → Library & import (or the start page) → Video library: every video on the device, with search, stars, flags, colour labels, albums, smart collections and a Calendar view (year → month → day). Select videos to add them to the media strip, rate, label or give a metadata preset.
 - Import from card / camera / USB copies footage in (new files only, renamed, a folder per day, an optional backup copy); what's imported goes into the media strip.
 - Deliver → Metadata: pick a preset (or make one) and your name, copyright, caption and keywords are written into the exported video. Deliver → Upload after export copies each finished video to a folder you choose (Google Drive, OneDrive, your NAS's app, a USB drive).

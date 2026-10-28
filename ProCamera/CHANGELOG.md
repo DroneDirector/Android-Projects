@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Media strip: colour labels (red, yellow, green, blue, purple) on clips — set them for the picked clips or from a clip's long-press menu, shown as a stripe under the thumbnail, and the colour dots filter the strip. The same labels show in the video library.
 
 ## 1.0.767 — 2026-10-28
 - Smoother preview: the playhead now glides every screen frame while playing instead of stepping, and the music and other audio tracks stay in step by playing a touch faster or slower for a moment instead of jumping — no more little gaps in the soundtrack every second or two.

@@ -171,6 +171,12 @@ fun MediaStrip(
     var deviceFor by remember { mutableStateOf<Clip?>(null) }
     deviceFor?.let { RevealFileDialog(it) { deviceFor = null } }
     var filter by remember { mutableStateOf(0) }       // 0 all, 1 unused, 2 used, 3 ★3+, 4 no rejects
+    // Colour labels (red, yellow, green, blue, purple): kept with the file in the video library, so both show the same.
+    val ctx = LocalContext.current
+    remember { try { VideoLibrary.load(ctx) } catch (_: Throwable) {} }
+    fun labelOf(c: Clip): Int? { return VideoLibrary.meta[c.uri.toString()]?.label }
+    fun setLabel(list: List<Clip>, l: Int?) { VideoLibrary.update(ctx, list.map { it.uri.toString() }) { it.copy(label = l) } }
+    var labelF by remember { mutableStateOf<Int?>(null) }
     var bin by remember { mutableStateOf<String?>(null) }
     var selecting by remember { mutableStateOf(false) }
     val picked = remember { mutableStateListOf<String>() }
@@ -178,7 +184,7 @@ fun MediaStrip(
     var menuFor by remember { mutableStateOf<String?>(null) }
     val shown = library.filter { c ->
         val k = c.uri.toString(); val r = ratings[k] ?: 0; val u = uses(c)
-        (bin == null || bins[k] == bin) && when (filter) { 1 -> u == 0; 2 -> u > 0; 3 -> r >= 3; 4 -> r != -1; else -> true }
+        (bin == null || bins[k] == bin) && (labelF == null || labelOf(c) == labelF) && when (filter) { 1 -> u == 0; 2 -> u > 0; 3 -> r >= 3; 4 -> r != -1; else -> true }
     }
     val focused = library.firstOrNull { it.uri.toString() == focus }
     val rowState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -199,6 +205,11 @@ fun MediaStrip(
                 Text("·", color = Pro.Dim, modifier = Modifier.padding(horizontal = 4.dp))
             }
             listOf("All", "Unused", "Used", "★3+", "No rejects").forEachIndexed { i, n -> StripChip(n, filter == i) { filter = i } }
+            Text("·", color = Pro.Dim, modifier = Modifier.padding(horizontal = 4.dp))
+            COLOUR_LABELS.forEach { col ->
+                Box(Modifier.padding(horizontal = 2.dp).size(16.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(col))
+                    .border(2.dp, if (labelF == col) Color.White else Color.Transparent, androidx.compose.foundation.shape.CircleShape).clickable { labelF = if (labelF == col) null else col })
+            }
             if (binNames.isNotEmpty()) {
                 Text("·", color = Pro.Dim, modifier = Modifier.padding(horizontal = 4.dp))
                 StripChip("Any bin", bin == null) { bin = null }
@@ -220,13 +231,14 @@ fun MediaStrip(
             (1..5).forEach { r -> StripChip("★$r", targets.all { (ratings[it.uri.toString()] ?: 0) == r }) { onRate(targets, r) } }
             StripChip("☆") { onRate(targets, 0) }
             StripChip("✕ Reject", targets.all { ratings[it.uri.toString()] == -1 }) { onRate(targets, -1) }
+            LabelPicker(targets.map { labelOf(it) }.distinct().singleOrNull()) { l -> setLabel(targets, l) }
             StripChip("Remove") { onRemove(targets); picked.clear(); focus = null }
             if (selecting) StripChip("All") { picked.clear(); picked.addAll(shown.map { it.uri.toString() }) }
         }
         val cell = @Composable { c: Clip ->
                 val k = c.uri.toString()
                 StripThumb(
-                    c, uses(c), ratings[k] ?: 0,
+                    c, uses(c), ratings[k] ?: 0, label = labelOf(c),
                     selected = if (selecting) k in picked else focus == k,
                     selecting = selecting,
                     onTap = { if (selecting) { if (k in picked) picked.remove(k) else picked.add(k) } else focus = if (focus == k) null else k },
@@ -248,6 +260,7 @@ fun MediaStrip(
                         StripChip("Reveal on device") { menuFor = null; deviceFor = c }
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { (0..5).forEach { r -> StripChip(if (r == 0) "☆" else "★$r", (ratings[k] ?: 0) == r) { onRate(listOf(c), r) } } }
                         StripChip("✕ Reject", ratings[k] == -1) { onRate(listOf(c), if (ratings[k] == -1) 0 else -1) }
+                        LabelPicker(labelOf(c)) { l -> setLabel(listOf(c), l) }
                         StripChip("Remove from media") { menuFor = null; onRemove(listOf(c)) }
                     }
                 }
@@ -281,7 +294,7 @@ fun MediaStrip(
 
 @Composable
 private fun StripThumb(
-    c: Clip, uses: Int, rating: Int, selected: Boolean, selecting: Boolean,
+    c: Clip, uses: Int, rating: Int, label: Int? = null, selected: Boolean, selecting: Boolean,
     onTap: () -> Unit, onDoubleTap: () -> Unit, onMenu: () -> Unit,
     onDragOver: (Offset) -> Boolean, onDrop: (Offset) -> Unit,
     th: androidx.compose.ui.unit.Dp = 70.dp,
@@ -376,6 +389,8 @@ private fun StripThumb(
             (if (uses > 0) "USED ×$uses · " else "") + tc(c.durationMs), color = if (uses > 0) Pro.Amber else Color.White, fontSize = 7.sp,
             modifier = Modifier.align(Alignment.TopEnd).padding(top = 4.dp, end = 3.dp).background(Color.Black.copy(alpha = 0.6f)).padding(horizontal = 2.dp),
         )
+        // Colour label: a stripe along the bottom.
+        if (label != null) Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(4.dp).background(Color(label)))
         if (selecting) Text(if (selected) "☑" else "☐", color = Color.White, fontSize = 12.sp, modifier = Modifier.align(Alignment.TopStart).padding(2.dp))
     }
 }

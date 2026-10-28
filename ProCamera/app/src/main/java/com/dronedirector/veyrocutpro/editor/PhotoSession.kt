@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -318,6 +320,7 @@ fun Filmstrip(
     // Everything here works by the photo's file (uri), never by its position: positions change when photos are removed.
     val picked = PhotoSession.picked
     var filter by remember { mutableStateOf(0) }   // 0 all, 1 ★3+, 2 picks, 3 edited, 4 not rejected
+    var labelF by remember { mutableStateOf<Int?>(null) }   // colour label filter (null = any)
     var menuFor by remember { mutableStateOf<String?>(null) }
     var askCull by remember { mutableStateOf(false) }
     var cullResult by remember { mutableStateOf<String?>(null) }
@@ -342,21 +345,27 @@ fun Filmstrip(
     fun upd(uri: String, f: (SessionPhoto) -> SessionPhoto) { val k = idx(uri); if (k >= 0) PhotoSession.update(context, k, f) }
     fun indices(uris: Collection<String>) = uris.map { idx(it) }.filter { it >= 0 }
     val shown = items.toList().filter { p ->
-        when (filter) { 1 -> p.rating >= 3; 2 -> p.flag == 1; 3 -> p.edited; 4 -> p.flag != -1; else -> true }
+        (labelF == null || p.label == labelF) && when (filter) { 1 -> p.rating >= 3; 2 -> p.flag == 1; 3 -> p.edited; 4 -> p.flag != -1; else -> true }
     }
     val curUri = items.getOrNull(PhotoSession.current)?.key
     // Drop selections of photos that are gone.
     LaunchedEffect(items.size) { picked.retainAll(items.map { it.key }.toSet()); if (menuFor != null && idx(menuFor!!) < 0) menuFor = null }
     val state = rememberLazyListState()
-    LaunchedEffect(curUri, filter) { val k = shown.indexOfFirst { it.key == curUri }; if (k >= 0) state.animateScrollToItem((k - 2).coerceAtLeast(0)) }
+    LaunchedEffect(curUri, filter, labelF) { val k = shown.indexOfFirst { it.key == curUri }; if (k >= 0) state.animateScrollToItem((k - 2).coerceAtLeast(0)) }
     com.dronedirector.veyrocutpro.ui.ForceDark { Column(modifier.fillMaxWidth().background(Color(0xFF0B0D12))) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(if (PhotoSession.current >= 0) "${PhotoSession.current + 1} / ${items.size}" else "${items.size}", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), modifier = Modifier.padding(end = 8.dp))
-            listOf("All", "★3+", "Picks", "Edited", "No rejects").forEachIndexed { i, n ->
-                Text(n, style = Pro.Label.copy(color = if (filter == i) Pro.Amber else Pro.Dim, fontSize = 10.sp),
-                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).combinedClickable(onClick = { filter = i }).padding(horizontal = 6.dp, vertical = 3.dp))
+            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+                listOf("All", "★3+", "Picks", "Edited", "No rejects").forEachIndexed { i, n ->
+                    Text(n, style = Pro.Label.copy(color = if (filter == i) Pro.Amber else Pro.Dim, fontSize = 10.sp),
+                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).combinedClickable(onClick = { filter = i }).padding(horizontal = 6.dp, vertical = 3.dp))
+                }
+                // Colour label filter: tap a colour to show only those photos, tap it again for all.
+                LABELS.forEach { c ->
+                    Box(Modifier.padding(horizontal = 3.dp).size(14.dp).clip(CircleShape).background(Color(c))
+                        .border(2.dp, if (labelF == c) Color.White else Color.Transparent, CircleShape).combinedClickable(onClick = { labelF = if (labelF == c) null else c }))
+                }
             }
-            Box(Modifier.weight(1f))
             if (onZoom != null) {
                 Text("−", style = Pro.Label.copy(color = Color.White, fontSize = 13.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).combinedClickable(onClick = { onZoom(-12f) }).padding(horizontal = 8.dp, vertical = 2.dp))
                 Text("+", style = Pro.Label.copy(color = Color.White, fontSize = 13.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).combinedClickable(onClick = { onZoom(12f) }).padding(horizontal = 8.dp, vertical = 2.dp))
@@ -485,8 +494,9 @@ fun Filmstrip(
                         Box(Modifier.weight(1f))
                         if (p.flag == 1) Text("⚑", color = Color.White, fontSize = 8.sp)
                         if (p.flag == -1) Text("✕", color = Pro.Red, fontSize = 8.sp)
-                        p.label?.let { Box(Modifier.padding(start = 2.dp).size(6.dp).clip(CircleShape).background(Color(it))) }
                     }
+                    // Colour label: a stripe along the top, easy to see at any size.
+                    p.label?.let { Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().height(4.dp).background(Color(it))) }
                     if (p.edited) Text("✎", color = Pro.Amber, fontSize = 9.sp, modifier = Modifier.align(Alignment.TopEnd).padding(2.dp))
                     p.cull?.takeIf { it != "OK" && !selecting }?.let { note ->
                         val bad = p.flag == -1 && (note.startsWith("Blurry") || note.startsWith("Eyes"))
@@ -511,6 +521,10 @@ fun Filmstrip(
                                     Chip("⚑ Pick") { picked.toList().forEach { q -> upd(q) { it.copy(flag = 1) } } }
                                     Chip("✕ Reject") { picked.toList().forEach { q -> upd(q) { it.copy(flag = -1) } } }
                                     Chip("Clear flag") { picked.toList().forEach { q -> upd(q) { it.copy(flag = 0) } } }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Box(Modifier.size(20.dp).clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.4f), CircleShape).combinedClickable(onClick = { picked.toList().forEach { q -> upd(q) { it.copy(label = null) } } }))
+                                    LABELS.forEach { c -> Box(Modifier.size(20.dp).clip(CircleShape).background(Color(c)).combinedClickable(onClick = { picked.toList().forEach { q -> upd(q) { it.copy(label = c) } } })) }
                                 }
                                 Chip("Apply the open photo's edit") { menuFor = null; onSync(indices(picked)) }
                                 Chip("Export selected") { menuFor = null; onExport(indices(picked)) }

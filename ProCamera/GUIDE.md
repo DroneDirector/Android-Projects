@@ -130,6 +130,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - SAVE: type a name and tap Save as new, or tap one of your saved projects and choose Overwrite (it asks first). The project that's open now is marked.
 - Gear → AUTOSAVE: pick how often a copy of your project is saved, and how many copies (1–5) to keep. LOAD → AUTOSAVES opens one; SAVE then asks for a name, so the autosave stays as it was.
 **Library**
+- Filmstrip: hold a photo and tap a colour for a colour label (red, yellow, green, blue, purple) — with SELECT, hold any photo to label all the selected ones. It shows as a stripe along the top; the colour dots next to the filters show only that colour. Labels show in the Library too.
 - Library → Duplicates: near-identical photos grouped, the sharpest first (✓ KEEP); reject or select the extra copies in one tap. Nothing is deleted.
 - Library → select photos → 📍 Geotag from GPX: each photo gets the position a GPS track (GPX from a GPS logger, phone app or drone log) had when it was taken; set the photos' time zone if the camera doesn't store one. Shown on the Map and written into exports — the original files aren't changed.
 - Library → 📅 Calendar: tap a year, then a month, then a day (each shows how many photos); the grid then shows only that time — 📅 … ✕ shows everything again.

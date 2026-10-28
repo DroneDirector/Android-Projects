@@ -5985,10 +5985,10 @@ private fun LayerPreview(
         val density = androidx.compose.ui.platform.LocalDensity.current
         val wPx = with(density) { maxWidth.toPx() }.toInt().coerceAtLeast(2)
         val hPx = with(density) { maxHeight.toPx() }.toInt().coerceAtLeast(2)
-        layers.forEach { base ->
+        layers.forEach { base -> androidx.compose.runtime.key(base.id) {
             // Hidden layers (eye off on the timeline) are never drawn in the video feed.
-            if (!base.visible) return@forEach
-            if (!(base.activeAt(timeMs) || showAll || base.id == selectedId)) return@forEach
+            if (!base.visible) return@key
+            if (!(base.activeAt(timeMs) || showAll || base.id == selectedId)) return@key
             // Keyframed layers: where they are at this moment.
             val l = base.animAt(timeMs)
             val pinQ = base.pinAt(timeMs)
@@ -6031,7 +6031,7 @@ private fun LayerPreview(
                         )
                     }
                 }
-                return@forEach
+                return@key
             }
             if (l.kind == LayerKind.VIDEO) {
                 val h = (l.size * hPx).toInt().coerceAtLeast(8)
@@ -6064,7 +6064,7 @@ private fun LayerPreview(
                         }
                     } else VideoLayerView(l, timeMs, playing && l.activeAt(timeMs))
                 }
-                return@forEach
+                return@key
             }
             // In / out animation (not while you're editing this layer with the video paused).
             val fx = if ((base.id == selectedId && !playing) || !base.activeAt(timeMs)) AnimFx() else LayerAnims.at(base, timeMs)
@@ -6078,7 +6078,7 @@ private fun LayerPreview(
             }
             // Keep the last picture while a new one (next word / letter) is drawn, so it never blinks.
             val lastBmp = remember(base.id) { arrayOfNulls<Bitmap>(1) }
-            val b0 = bmp ?: lastBmp[0] ?: return@forEach
+            val b0 = bmp ?: lastBmp[0] ?: return@key
             lastBmp[0] = b0
             // Keyframed size: scale the picture rendered at the layer's own size.
             val k = (if (base.size > 0f) l.size / base.size else 1f) * fx.scale
@@ -6107,7 +6107,7 @@ private fun LayerPreview(
                     }
                 }
             }
-        }
+        } }
     }
 }
 

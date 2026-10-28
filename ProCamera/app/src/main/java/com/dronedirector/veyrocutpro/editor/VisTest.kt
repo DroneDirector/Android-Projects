@@ -118,4 +118,16 @@ object VisTest {
             android.util.Log.i("VisTest", "text: ${TextFonts.ALL.size} fonts ($noFace not loaded), ${TextFx.NAMES.size - 1} effects, ${LowerThirds.NAMES.size} lower thirds, ${TextTypes.ALL.size} types; failed $bad; slow: ${slow.ifEmpty { "none" }}")
         } catch (t: Throwable) { android.util.Log.e("VisTest", "text test failed", t) }
     }
+
+    /** Transitions: every preview shader built once; failures logged with the compiler's message. */
+    fun transitions() {
+        if (android.os.Build.VERSION.SDK_INT < 33) { android.util.Log.i("VisTest", "transitions: API < 33, preview shaders not used"); return }
+        var bad = 0
+        for (t in TransitionType.entries) {
+            if (t == TransitionType.NONE) continue
+            try { android.graphics.RuntimeShader(TransitionMath.agsl(t)) }
+            catch (e: Throwable) { bad++; if (bad <= 3) android.util.Log.e("VisTest", "transition ${t.name} shader failed: ${e.message?.take(1500)}") }
+        }
+        android.util.Log.i("VisTest", "transitions: ${TransitionType.entries.size - 1} preview shaders, $bad failed")
+    }
 }

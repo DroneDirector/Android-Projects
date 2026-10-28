@@ -295,6 +295,7 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
             // Visualizer test: analyse a made-up song with a kick on every beat and check the pictures move.
             withContext(Dispatchers.Default) { VisTest.run(context) }
             VisTest.slideshow(context)
+            VisTest.transitions()
             withContext(Dispatchers.Default) { VisTest.text(context) }
             return@LaunchedEffect
         }

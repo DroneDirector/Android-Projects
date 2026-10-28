@@ -119,6 +119,23 @@ enum class TransitionType(val id: Float, val label: String, val group: Transitio
     VIGNETTE_CLOSE(104f, "Vignette close", TransitionGroup.CREATIVE, TransitionKind.UNIFORM),
     CHROMA_ZOOM(105f, "Chroma zoom", TransitionGroup.CREATIVE, TransitionKind.UNIFORM),
     OVEREXPOSE(106f, "Overexpose", TransitionGroup.CREATIVE, TransitionKind.UNIFORM),
+
+    // More cinematic looks (original shaders).
+    SUN_FLARE_WIPE(107f, "Sun flare wipe", TransitionGroup.CINEMATIC, TransitionKind.MASK),
+    DUST_BEAM(108f, "Dust in light", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),
+    PROJECTOR(109f, "Projector", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),
+    LIGHTNING(110f, "Lightning", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),
+    BLACK_HOLE(111f, "Black hole", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),
+    FOG_ROLL(112f, "Fog roll", TransitionGroup.CINEMATIC, TransitionKind.MASK),
+    RAIN_GLASS(113f, "Rain on glass", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),
+    BLIZZARD(114f, "Blizzard", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),
+    FIRE_WIPE(115f, "Fire wipe", TransitionGroup.CINEMATIC, TransitionKind.MASK),
+    TUNNEL(116f, "Light tunnel", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),
+    PRISM_LEAK(117f, "Prism leak", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),
+    SILENT_IRIS(118f, "Silent film iris", TransitionGroup.CINEMATIC, TransitionKind.MASK),
+    GLASS_PANE(119f, "Glass pane", TransitionGroup.CINEMATIC, TransitionKind.MASK),
+    DEPTH_PUSH(120f, "Depth push", TransitionGroup.CINEMATIC, TransitionKind.UNIFORM),
+    SHOCKWAVE(121f, "Shockwave", TransitionGroup.CINEMATIC, TransitionKind.MASK),
 }
 
 /**
@@ -191,6 +208,21 @@ enum class AudioTransitionType(val label: String, val detail: String) {
     KARAOKE("Voice out", "The voice in the middle disappears from the old sound first (stereo sound)."),
     AIRY("Airy", "Thin and bright with a light room, on both sides."),
     GATE("Trance gate", "The old sound is gated into a fast pulsing rhythm before the cut."),
+    DOPPLER("Doppler fly-by", "The old sound drops in pitch and dulls, as if it flies past."),
+    FILTER_SWEEP("Filter sweep", "A resonant filter sweeps up through the old sound."),
+    VINYL("Vinyl crackle", "The old sound turns into an old record with crackle as it fades."),
+    RADIO_IN("Radio in", "The new sound starts as an old radio and comes up to full sound."),
+    PHONE_IN("Phone in", "The new sound starts on a phone line and opens up."),
+    STUTTER_IN("Stutter in", "The new sound arrives in stuttering repeats."),
+    PITCH_SLIDE_IN("Pitch slide in", "The new sound slides up into pitch from below."),
+    SHIMMER("Shimmer", "The old sound blooms into a bright, heavenly reverb."),
+    FREEZE("Freeze", "The last moment of the old sound is held and rings out like a drone."),
+    SUB_DROP("Sub drop", "A deep falling boom lands right on the cut."),
+    DOWNLIFTER("Downlifter", "A falling noise sweep carries the new sound in."),
+    CHORUS("Chorus wash", "Both sides turn wide and lush around the cut."),
+    CATHEDRAL("Cathedral", "A huge, long reverb on both sides."),
+    RISE_DROP("Rise & drop", "The old sound rises in pitch, then the new one drops in from muffled."),
+    SURFACE("Surface", "The new sound comes up from under water."),
 }
 
 enum class FadeCurve { LINEAR, POWER, EXP, SMOOTH }
@@ -291,6 +323,21 @@ object AudioXfade {
             AudioTransitionType.KARAOKE -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.KARAOKE) to FadeIn(0, w, FadeCurve.POWER)
             AudioTransitionType.AIRY -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.AIRY) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.AIRY)
             AudioTransitionType.GATE -> FadeOut(w, w, FadeCurve.LINEAR, AudioXfx.GATE) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.DOPPLER -> FadeOut(w, w, FadeCurve.EXP, AudioXfx.DOPPLER) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.FILTER_SWEEP -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.BANDSWEEP) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.VINYL -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.VINYL) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.RADIO_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.RADIO)
+            AudioTransitionType.PHONE_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.TELEPHONE)
+            AudioTransitionType.STUTTER_IN -> FadeOut(w, h, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.LINEAR, AudioXfx.STUTTER)
+            AudioTransitionType.PITCH_SLIDE_IN -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.PITCH_DOWN)
+            AudioTransitionType.SHIMMER -> FadeOut(w, w, FadeCurve.EXP, AudioXfx.SHIMMER) to FadeIn(0, w, FadeCurve.POWER)
+            AudioTransitionType.FREEZE -> FadeOut(w, w, FadeCurve.LINEAR, AudioXfx.FREEZE) to FadeIn(h, h, FadeCurve.POWER)
+            AudioTransitionType.SUB_DROP -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.SUBDROP) to FadeIn(0, q, FadeCurve.POWER)
+            AudioTransitionType.DOWNLIFTER -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.RISER)
+            AudioTransitionType.CHORUS -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.CHORUS) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.CHORUS)
+            AudioTransitionType.CATHEDRAL -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.HALL) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.HALL)
+            AudioTransitionType.RISE_DROP -> FadeOut(w, w, FadeCurve.POWER, AudioXfx.PITCH_UP) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.LOWPASS)
+            AudioTransitionType.SURFACE -> FadeOut(w, w, FadeCurve.POWER) to FadeIn(0, w, FadeCurve.POWER, AudioXfx.UNDERWATER)
         }
     }
 
@@ -360,7 +407,11 @@ object TransitionMath {
         95, 98, 105 -> ss(0.45f, 0.55f, p)
         99, 104 -> ss(0.49f, 0.51f, p)
         100 -> ss(0.35f, 0.65f, p)
-        106 -> ss(0.4f, 0.6f, p)
+        106, 111, 114, 116 -> ss(0.4f, 0.6f, p)
+        108, 117 -> ss(0.3f, 0.7f, p)
+        109 -> ss(0.49f, 0.51f, p)
+        110, 120 -> ss(0.45f, 0.55f, p)
+        113 -> ss(0.3f, 0.7f, p)
         else -> 1f
     }
 
@@ -555,7 +606,16 @@ object TransitionMath {
             if (isT(95.0) || isT(98.0) || isT(105.0)) return sstep(0.45, 0.55, p);
             if (isT(99.0) || isT(104.0)) return sstep(0.49, 0.51, p);
             if (isT(100.0)) return sstep(0.35, 0.65, p);
-            if (isT(106.0)) return sstep(0.4, 0.6, p);
+            if (isT(106.0) || isT(111.0) || isT(114.0) || isT(116.0)) return sstep(0.4, 0.6, p);
+            if (isT(108.0) || isT(113.0) || isT(117.0)) return sstep(0.3, 0.7, p);
+            if (isT(109.0)) return sstep(0.49, 0.51, p);
+            if (isT(110.0) || isT(120.0)) return sstep(0.45, 0.55, p);
+            if (isT(107.0)) return cover(uv.x + (uv.y - 0.5) * 0.25, mix(-0.25, 1.25, p), 0.03);
+            if (isT(112.0)) return smoothstep(-0.12, 0.12, mix(-0.3, 1.4, p) - ((1.0 - uv.y) + fbm(uv * vec2(aspect, 1.0) * 3.0 + vec2(p, 0.0)) * 0.45));
+            if (isT(115.0)) return 1.0 - smoothstep(-0.01, 0.01, uv.y - (mix(-0.2, 1.25, p) + (fbm(vec2(uv.x * aspect * 4.0, p * 3.0)) - 0.5) * 0.18));
+            if (isT(118.0)) { float r = length((uv - 0.5) * vec2(aspect, 1.0)); float R = p * (length(vec2(aspect, 1.0)) * 0.5 + 0.02); return 1.0 - smoothstep(R - 0.006, R + 0.006, r); }
+            if (isT(119.0)) return cover(uv.x, mix(-0.08, 1.08, easeF(p)), 0.002);
+            if (isT(121.0)) { float r = length((uv - 0.5) * vec2(aspect, 1.0)); float R = easeF(p) * (length(vec2(aspect, 1.0)) * 0.5 + 0.1); return 1.0 - smoothstep(R - 0.01, R + 0.01, r); }
             if (isT(97.0)) { vec2 q = (uv - 0.5) * vec2(aspect, 1.0); float d = length(q) + (fbm(q * 5.0 + 3.0) - 0.5) * 0.18; float R = p * (length(vec2(aspect, 1.0)) * 0.5 + 0.15); return 1.0 - smoothstep(R - 0.01, R + 0.01, d); }
             if (isT(101.0)) { vec2 q = (uv - 0.5) * vec2(aspect, 1.0); float a = atan(q.y, q.x) / 6.2831853 + 0.5; float r = length(q) / (length(vec2(aspect, 1.0)) * 0.5); return cover(fract(a + r * 2.0) * 0.33 + r * 0.67, mix(-0.02, 1.02, p), 0.02); }
             if (isT(102.0)) { float b = floor(uv.x * 12.0); float dly = rnd(vec2(b, 2.0)) * 0.35; float hgt = clamp((p - dly) / 0.6, 0.0, 1.0); return step(uv.y, easeF(hgt) * 1.001); }
@@ -977,6 +1037,123 @@ object TransitionMath {
                 float e = pow(k, 1.5);
                 col = 1.0 - (1.0 - col) * (1.0 - e);
                 col = mix(col, vec3(1.0), e * e * 0.6);
+            } else if (isT(107.0)) {
+                // Sun flare wipe: a blinding flare with a long streak crosses the frame; the next shot is behind it.
+                col = tex(uv0).rgb;
+                float e = mix(-0.25, 1.25, p);
+                float d = (uv0.x + (uv0.y - 0.5) * 0.25 - e) * aspect;
+                float dy = uv0.y - 0.55;
+                col += vec3(1.0, 0.85, 0.6) * exp(-d * d * 9.0) * 1.4 + vec3(1.0, 0.95, 0.85) * exp(-(d * d + dy * dy) * 40.0) * 1.5;
+                col += vec3(0.5, 0.7, 1.0) * exp(-dy * dy * 900.0) * exp(-abs(d) * 1.2) * 1.2;
+            } else if (isT(108.0)) {
+                // Dust in light: a soft beam with floating dust lights the change.
+                col = tex(uv0).rgb;
+                float bq = (uv0.x - uv0.y * 0.5 - 0.25 - p * 0.3) * 4.0; float beam = exp(-bq * bq);
+                float dust = 0.0;
+                vec2 g = floor(uv0 * uSize / 3.0 + vec2(0.0, p * 40.0));
+                dust = step(0.993, rnd(g)) * beam;
+                col += vec3(1.0, 0.9, 0.7) * (beam * 0.55 * k + dust * 1.5 * k) + vec3(k * k * 0.2);
+            } else if (isT(109.0)) {
+                // Projector: flicker, a bright gate and dark edges, as on an old projector between reels.
+                float fl = 0.75 + 0.25 * rnd(vec2(floor(p * 30.0), 3.0));
+                vec2 q = c * vec2(aspect, 1.0);
+                col = mtex(uv0 + vec2(0.0, (rnd(vec2(floor(p * 24.0), 1.0)) - 0.5) * 0.02 * k)).rgb;
+                col = mix(col, vec3(lum(col)) * vec3(1.05, 0.98, 0.85), k * 0.6) * mix(1.0, fl, k);
+                col *= 1.0 - k * 0.8 * smoothstep(0.3, 0.75, length(q));
+                col += vec3(1.0, 0.95, 0.85) * k * k * 0.6;
+            } else if (isT(110.0)) {
+                // Lightning: a bolt strikes, the frame flashes white, and the next shot appears.
+                col = tex(uv0).rgb;
+                float y = uv0.y;
+                float bx = 0.55 + (fbm(vec2(y * 6.0, floor(p * 6.0))) - 0.5) * 0.35 + (rnd(vec2(floor(y * 40.0), floor(p * 6.0))) - 0.5) * 0.03;
+                float b1 = (uv0.x - bx) * aspect * 120.0; float b2 = (uv0.x - bx) * aspect * 18.0; float bolt = exp(-b1 * b1) + exp(-b2 * b2) * 0.35;
+                float flash = step(0.35, p) * step(p, 0.65) * (0.6 + 0.4 * step(0.5, fract(p * 20.0)));
+                col = mix(col, vec3(0.8, 0.85, 1.0), flash * 0.8 * k) + vec3(0.85, 0.9, 1.0) * bolt * k * 1.5;
+            } else if (isT(111.0)) {
+                // Black hole: the picture spirals into a dark centre and spirals back out as the next shot.
+                vec2 q = c * vec2(aspect, 1.0);
+                float d = length(q);
+                float a = k * 6.0 * exp(-d * 2.5);
+                vec2 r = rot2(q, a) * (1.0 + k * 1.5 * exp(-d * 3.0));
+                col = mtex(r / vec2(aspect, 1.0) + 0.5).rgb;
+                col *= smoothstep(0.0, 0.25 * k + 0.001, d);
+                float hr = (d - 0.12 * k) * 25.0; col += vec3(1.0, 0.6, 0.3) * exp(-hr * hr) * k;
+            } else if (isT(112.0)) {
+                // Fog roll: ground fog rolls up and leaves the next shot behind it.
+                col = tex(uv0).rgb;
+                float fv = mix(-0.3, 1.4, p) - ((1.0 - uv0.y) + fbm(uv0 * vec2(aspect, 1.0) * 3.0 + vec2(p, 0.0)) * 0.45);
+                col = mix(col, vec3(0.86, 0.88, 0.92), (1.0 - smoothstep(0.0, 0.35, abs(fv))) * 0.85);
+            } else if (isT(113.0)) {
+                // Rain on glass: drops run down a pane in front of the camera, bending the picture.
+                vec2 g = vec2(18.0 * aspect, 9.0);
+                vec2 cell = floor(uv0 * g + vec2(0.0, p * 3.0));
+                vec2 lc = fract(uv0 * g + vec2(0.0, p * 3.0)) - 0.5;
+                vec2 off = vec2(rnd(cell), rnd(cell + 7.0)) - 0.5;
+                float dd = length((lc - off * 0.6) * vec2(1.0, 0.7));
+                float drop = (1.0 - smoothstep(0.1, 0.22, dd)) * step(0.45, rnd(cell + 3.0)) * k;
+                col = mtex(uv0 + (lc - off * 0.6) * drop * 0.06).rgb;
+                vec3 acc = vec3(0.0);
+                for (int i = 0; i < 6; i++) { float a = float(i) * 1.047; acc += mtex(uv0 + vec2(cos(a), sin(a)) * 0.008 * k).rgb; }
+                col = mix(col, acc / 6.0, k * 0.7 * (1.0 - drop)) + vec3(drop * 0.15);
+            } else if (isT(114.0)) {
+                // Blizzard: a burst of snow whites out the frame and clears on the next shot.
+                col = tex(uv0).rgb;
+                float sn = 0.0;
+                for (int l = 0; l < 3; l++) {
+                    float fl = float(l);
+                    vec2 g = floor((uv0 + vec2(p * (0.6 + fl * 0.4), -p * (0.3 + fl * 0.2))) * uSize / (3.0 + fl * 2.0));
+                    sn += step(1.0 - 0.02 * (1.0 + fl) * k * 3.0, rnd(g + fl * 11.0));
+                }
+                col = mix(col, vec3(0.95), clamp(sn, 0.0, 1.0) * 0.9 + k * k * 0.6);
+            } else if (isT(115.0)) {
+                // Fire wipe: a wall of fire rises and burns the shot away.
+                col = tex(uv0).rgb;
+                float edge = uv0.y - (mix(-0.2, 1.25, p) + (fbm(vec2(uv0.x * aspect * 4.0, p * 3.0)) - 0.5) * 0.18);
+                float fire = 1.0 - smoothstep(0.0, 0.12, abs(edge));
+                float flick = 0.7 + 0.3 * fbm(vec2(uv0.x * 20.0, uv0.y * 8.0 - p * 12.0));
+                col += mix(vec3(1.0, 0.25, 0.02), vec3(1.0, 0.85, 0.4), fire) * fire * flick * 1.6;
+            } else if (isT(116.0)) {
+                // Light tunnel: rings of light rush past as you fly through a tunnel into the next shot.
+                vec2 q = c * vec2(aspect, 1.0);
+                float d = length(q);
+                float z = inc ? mix(0.5, 1.0, easeF(p)) : mix(1.0, 3.0, easeF(p));
+                col = mtex(c / z + 0.5).rgb;
+                float rings = pow(0.5 + 0.5 * sin(1.0 / max(d, 0.02) * 2.0 - p * 40.0), 6.0);
+                col = mix(col, col * 0.3, k * 0.6) + vec3(0.6, 0.8, 1.0) * rings * k * smoothstep(0.05, 0.5, d) * 1.3;
+            } else if (isT(117.0)) {
+                // Prism leak: rainbow light leaks across the frame.
+                col = tex(uv0).rgb;
+                float x = uv0.x * 0.8 + uv0.y * 0.4 - mix(-0.4, 1.4, p);
+                vec3 rb = 0.5 + 0.5 * cos(6.2831853 * (x * 1.5 + vec3(0.0, 0.33, 0.67)));
+                col += rb * exp(-x * x * 6.0) * k * 1.3 + vec3(k * k * 0.15);
+            } else if (isT(118.0)) {
+                // Silent film iris: an old-film iris with sepia, grain and flicker.
+                col = tex(uv0).rgb;
+                col = mix(col, vec3(lum(col)) * vec3(1.1, 0.95, 0.75), 0.85 * k);
+                col *= 0.85 + 0.15 * rnd(vec2(floor(p * 18.0), 2.0)) * k;
+                col += (rnd(uv0 * uSize + floor(p * 24.0)) - 0.5) * 0.15 * k;
+            } else if (isT(119.0)) {
+                // Glass pane: a sheet of glass slides across; its edge bends and catches the light.
+                col = tex(uv0).rgb;
+                float e = mix(-0.08, 1.08, easeF(p));
+                float d = uv0.x - e;
+                float edge = exp(-d * d * 3000.0);
+                if (!inc) col = mtex(uv0 + vec2(edge * 0.03, 0.0)).rgb;
+                col += vec3(0.9, 0.95, 1.0) * edge * 0.8 + vec3(0.6, 0.8, 1.0) * exp(-d * d * 200.0) * 0.12 * k;
+            } else if (isT(120.0)) {
+                // Depth push: the shot rushes towards you and blurs, the next one comes in from behind.
+                float z = inc ? mix(0.75, 1.0, easeF(p)) : mix(1.0, 1.6, easeF(p));
+                vec3 acc = vec3(0.0);
+                for (int i = 0; i < 10; i++) { float f = float(i) / 9.0; acc += mtex(c / (z * (1.0 + f * 0.12 * k)) + 0.5).rgb; }
+                col = acc / 10.0 * (1.0 - 0.35 * k);
+            } else if (isT(121.0)) {
+                // Shockwave: a ring of force bursts out with a colour fringe, carrying the next shot.
+                float r = length(c * vec2(aspect, 1.0));
+                float R = easeF(p) * (length(vec2(aspect, 1.0)) * 0.5 + 0.1);
+                float bd = (r - R) * 22.0; float band = exp(-bd * bd);
+                vec2 dir = c / max(length(c), 0.001);
+                float push = band * 0.06 * k;
+                col = vec3(mtex(uv0 - dir * push * 1.3).r, mtex(uv0 - dir * push).g, mtex(uv0 - dir * push * 0.7).b) + vec3(band * 0.35 * k);
             } else {
                 col = tex(uv0).rgb;
             }

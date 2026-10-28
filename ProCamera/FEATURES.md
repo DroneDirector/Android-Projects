@@ -317,20 +317,22 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 ### Transitions
 Two sub-menus on the Transitions page: **Video transitions** and **Audio transitions**.
 
-**Video transitions (91)**
+**Video transitions (106)**
 - **Basic**: cross dissolve, dip to black, dip to white, flash, blur dissolve.
 - **Wipes & shapes**: wipe left / right / up / down, diagonal, iris, clock, blinds, barn door, mosaic.
 - **Motion**: push left / right / up / down, whip pan left / right, zoom in, zoom out, spin.
 - **Stylized**: light leak, ink bleed, sparkle dissolve, glitch, pixelate, chromatic, ripple, light speed, swirl.
 - **Cinematic** (13, original shaders written for AlcorCut Pro): film burn, anamorphic flare, lens warp, letterbox close, aperture (iris blades), smoke, shatter, kaleidoscope, cube turn (3D), card flip (3D), sun rays, neon edges, ember drift.
 - **More cinematic**: rack focus (melts into bokeh, pulls into focus), luma fade (brightest parts change first), shine sweep, bokeh lights, prism split.
+- **More cinematic**: sun flare wipe, dust in light, projector, lightning, black hole, fog roll, rain on glass, blizzard, fire wipe, light tunnel, prism leak, silent film iris, glass pane, depth push, shockwave.
 - **Drone & travel** (original shaders): cloud pass (fly through a cloud bank), warp zoom (zoom punch with motion blur), drone roll (horizon roll with motion blur), dolly zoom (vertigo effect), film gate roll, heat haze.
 - **Creative**: paint splash, honeycomb, heart iris, star iris, diamond, spin blur, wave wipe, stripes, checkerboard, water drop, tv switch, glow dissolve, dip to colour, polka dots, stretch warp, split open, pinwheel, slide blur, jelly, pixel rain, ink drop, zoom spin, mirror fold, light streaks, spiral wipe, bars rise, shutter slices, vignette close, chroma zoom, overexpose.
 - **More glitches** (Stylized): Glitch 2 · Datamosh, Glitch 3 · VHS rewind, Glitch 4 · Pixel sort.
 - Animated previews with your own clips, adjustable duration, apply to all cuts.
 
-**Audio transitions (48)**
+**Audio transitions (63)**
 - Match video (default), hard cut, constant gain, constant power, exponential fade, dip to silence, quick out / slow in, slow out / quick in, S-curve, dramatic pause, late swap, early swap, swell, and 35 with sound effects at the cut (underwater, muffle out, open up, muffled crossfade, thin out, echo out, echo in, reverb wash, reverb swell, tape stop, tape start, tape stop & start, stutter out, glitch, bitcrush, telephone, old radio, pitch dive, pitch rise, tremolo fade, chopper, flanger sweep, wobble, riser, distortion fade, dj rewind, record brake, pump, metal ring, auto-pan, slap echo, lo-fi, voice out, airy, trance gate) — each with a small volume-curve picture.
+- Also: doppler fly-by, filter sweep, vinyl crackle, radio in, phone in, stutter in, pitch slide in, shimmer, freeze, sub drop, downlifter, chorus wash, cathedral, rise & drop, surface.
 - Work over the video transition, or on a plain cut as a fade out / in around the cut (adjustable 0.1–3 s); in the preview and the export; apply to all cuts.
 
 **Sound effects on cuts (24)**

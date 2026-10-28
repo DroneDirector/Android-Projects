@@ -12,6 +12,7 @@ enum class AudioXfx {
     NONE, LOWPASS, HIGHPASS, ECHO, REVERB, TAPE_STOP, TAPE_START, STUTTER, BITCRUSH, TELEPHONE, RADIO,
     PITCH_DOWN, PITCH_UP, TREMOLO, CHOP, FLANGER, WOBBLE, RISER, DRIVE, UNDERWATER, GLITCH,
     SPIN_BACK, VINYL_BRAKE, PUMP, RING, AUTOPAN, SLAP, LOFI, KARAOKE, AIRY, GATE,
+    DOPPLER, BANDSWEEP, VINYL, SHIMMER, FREEZE, SUBDROP, CHORUS, HALL,
 }
 
 /** Zero-delay state-variable filter (low, band and high outputs), stable at any cutoff. Own code. */
@@ -63,12 +64,18 @@ class XfxDsp(private val ch: Int, private val rate: Int) {
     private var crushHold = DoubleArray(ch); private var crushN = 0
     private var stutterStart = -1; private var stutterI = 0
     private var noise = 12345
+    // Freeze (a held moment), chorus lines and the sub-drop tone.
+    private var freezeAt = -1; private var freezePos = 0
+    private val chLen = (rate * 0.04).toInt()
+    private val chBuf = Array(ch) { DoubleArray(chLen) }
+    private var chW = 0
+    private var subPhase = 0.0
     private var pitch: PitchShiftX? = null
     private var t = 0L
     private var lastType = AudioXfx.NONE
 
     fun reset() {
-        readPos = -1.0; tapeBlend = 0.0; stutterStart = -1; stutterI = 0; coefAt = -1
+        readPos = -1.0; freezeAt = -1; subPhase = 0.0; tapeBlend = 0.0; stutterStart = -1; stutterI = 0; coefAt = -1
         for (c in 0 until ch) { echo[c].fill(0.0); fl[c].fill(0.0); combs[c].forEach { it.fill(0.0) }; aps[c].forEach { it.fill(0.0) }; combLp[c].fill(0.0) }
     }
 
@@ -181,6 +188,70 @@ class XfxDsp(private val ch: Int, private val rate: Int) {
                 for (c in 0 until ch) { f2.run(frame[c], c); frame[c] = frame[c] * (1 - a) + f2.high * a }
                 reverb(frame, a * 0.8)
             }
+            AudioXfx.DOPPLER -> {
+                // Flies past: the pitch drops and the sound dulls.
+                if (upd) f1.set(18000.0 * (900.0 / 18000.0).pow(a), rate)
+                for (c in 0 until ch) { f1.run(frame[c], c); frame[c] = f1.low }
+                val ps = pitch ?: PitchShiftX(ch, rate).also { pitch = it }
+                ps.process(frame, 2.0.pow(-0.6 * a))
+            }
+            AudioXfx.BANDSWEEP -> {
+                // A resonant band sweeping up through the sound.
+                if (upd) f1.set(150.0 * (60.0).pow(a), rate, 4.0)
+                for (c in 0 until ch) { f1.run(frame[c], c); frame[c] = frame[c] * (1 - a) + f1.band * 2.2 * a }
+            }
+            AudioXfx.VINYL -> {
+                // An old record: duller, with crackle and hiss.
+                if (upd) f1.set(18000.0 * (3000.0 / 18000.0).pow(a), rate)
+                val pop = if (rnd() > 0.9993) rnd() * 0.5 else 0.0
+                val hiss = rnd() * 0.012
+                for (c in 0 until ch) { f1.run(frame[c], c); frame[c] = frame[c] * (1 - a) + (f1.low + pop + hiss) * a }
+            }
+            AudioXfx.SHIMMER -> {
+                // A bright, octave-up reverb blooming out of the sound.
+                val dry = frame.copyOf()
+                val ps = pitch ?: PitchShiftX(ch, rate).also { pitch = it }
+                ps.process(frame, 2.0)
+                reverb(frame, 1.0, 0.9)
+                for (c in 0 until ch) frame[c] = dry[c] * (1 - 0.6 * a) + frame[c] * 0.8 * a
+            }
+            AudioXfx.FREEZE -> {
+                // Holds one moment and lets it ring as a drone.
+                val len = (rate * 0.12).toInt()
+                if (freezeAt < 0) { freezeAt = w; freezePos = 0 }
+                val p1 = freezePos; val p2 = (freezePos + len / 2) % len
+                val g1 = sin(PI * p1 / len); val g2 = sin(PI * p2 / len)
+                for (c in 0 until ch) {
+                    val s1 = hist[c][((freezeAt - len + p1) % histLen + histLen) % histLen]
+                    val s2 = hist[c][((freezeAt - len + p2) % histLen + histLen) % histLen]
+                    frame[c] = frame[c] * (1 - a) + (s1 * g1 + s2 * g2) * 0.8 * a
+                }
+                freezePos = (freezePos + 1) % len
+            }
+            AudioXfx.SUBDROP -> {
+                // A deep falling boom that lands on the cut.
+                val hz = 110.0 * (0.35).pow(a)
+                subPhase += 2 * PI * hz / rate; if (subPhase > 2 * PI) subPhase -= 2 * PI
+                val s = sin(subPhase) * a * a * a * 0.55
+                for (c in 0 until ch) frame[c] += s
+            }
+            AudioXfx.CHORUS -> {
+                // Two slowly moving copies make it wide and lush.
+                for (c in 0 until ch) chBuf[c][chW] = frame[c]
+                for (c in 0 until ch) {
+                    var wet = 0.0
+                    for (v in 0 until 2) {
+                        val d = (0.015 + 0.007 * sin(2 * PI * (0.25 + 0.2 * v) * sec + v * 2.0 + c)) * rate
+                        val rp = chW - d
+                        val i = floor(rp).toInt(); val fr = rp - i
+                        val x0 = chBuf[c][((i % chLen) + chLen) % chLen]; val x1 = chBuf[c][(((i + 1) % chLen) + chLen) % chLen]
+                        wet += x0 + (x1 - x0) * fr
+                    }
+                    frame[c] = frame[c] * (1 - 0.4 * a) + wet * 0.5 * a
+                }
+                chW = (chW + 1) % chLen
+            }
+            AudioXfx.HALL -> reverb(frame, a, 0.93)
             AudioXfx.GATE -> {
                 // Trance gate: sixteenth notes at 120 bpm, each with a short tail.
                 val ph = (sec * 8.0) % 1.0
@@ -256,7 +327,7 @@ class XfxDsp(private val ch: Int, private val rate: Int) {
         t++
     }
 
-    private fun reverb(frame: DoubleArray, a: Double) {
+    private fun reverb(frame: DoubleArray, a: Double, fb: Double = 0.84) {
         for (c in 0 until ch) {
             val x = frame[c] * 0.25
             var sum = 0.0
@@ -264,7 +335,7 @@ class XfxDsp(private val ch: Int, private val rate: Int) {
                 val buf = combs[c][k]; val p = combPos[c][k]
                 val y = buf[p]
                 combLp[c][k] = y * 0.6 + combLp[c][k] * 0.4
-                buf[p] = x + combLp[c][k] * 0.84
+                buf[p] = x + combLp[c][k] * fb
                 combPos[c][k] = (p + 1) % buf.size
                 sum += y
             }

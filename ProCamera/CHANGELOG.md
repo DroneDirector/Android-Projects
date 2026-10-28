@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor → Transitions → Cinematic: 15 more — Sun flare wipe, Dust in light, Projector, Lightning, Black hole, Fog roll, Rain on glass, Blizzard, Fire wipe, Light tunnel, Prism leak, Silent film iris, Glass pane, Depth push, Shockwave.
+- Video editor → Transitions → Audio: 15 more — Doppler fly-by, Filter sweep, Vinyl crackle, Radio in, Phone in, Stutter in, Pitch slide in, Shimmer, Freeze, Sub drop, Downlifter, Chorus wash, Cathedral, Rise & drop, Surface.
 
 ## 1.0.701 — 2026-10-28
 - Video editor → Transitions → Creative: 10 more — Ink drop, Zoom spin, Mirror fold, Light streaks, Spiral wipe, Bars rise, Shutter slices, Vignette close, Chroma zoom, Overexpose.

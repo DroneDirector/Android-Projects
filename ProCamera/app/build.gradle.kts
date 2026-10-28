@@ -111,6 +111,9 @@ dependencies {
     implementation("com.google.ai.edge.litert:litert:2.1.0")
     // Magic Mask: ONNX Runtime (MIT) runs MobileSAM (Apache 2.0) on the phone.
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.19.2")
+    // Content credentials (C2PA) — Apache 2.0 / MIT.
+    implementation("com.github.contentauth:c2pa-android:0.0.17")
+    implementation("net.java.dev.jna:jna:5.17.0@aar")
     implementation("androidx.security:security-crypto:1.0.0")
     // Network storage (NAS / SMB shares): smbj (Apache 2.0) and smbj-rpc for the share list (BSD 3-Clause).
     // Proof of purchase (Help): Google Play Billing Library.

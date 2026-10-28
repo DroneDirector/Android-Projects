@@ -183,16 +183,31 @@ fun VideoLibraryScreen(onBack: () -> Unit, onAdd: (List<Uri>) -> Unit, onImport:
     var calendar by remember { mutableStateOf(false) }
     var kwTree by remember { mutableStateOf(false) }
     var kwF by remember { mutableStateOf<String?>(null) }
+    // People in the videos (AI, on the phone): a frame every few seconds is looked at.
+    var peopleOn by remember { mutableStateOf(false) }
+    var personF by remember { mutableStateOf<Int?>(null) }
+    var findPeople by remember { mutableStateOf(0) }
+    var stopFind by remember { mutableStateOf(false) }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { stopFind = true } }
     var selecting by remember { mutableStateOf(false) }
     val picked = remember { mutableStateListOf<String>() }
     var dialog by remember { mutableStateOf<String?>(null) }
     var detail by remember { mutableStateOf<LibVideo?>(null) }
+    LaunchedEffect(findPeople) {
+        if (findPeople == 0) return@LaunchedEffect
+        val err = withContext(Dispatchers.IO) { ModelStore.ensure(context, AiModel.FACES, { p -> Faces.status = "Downloading the face model… $p%" }, { stopFind }) }
+        Faces.status = err
+        if (err != null) return@LaunchedEffect
+        withContext(Dispatchers.Default) { Faces.indexVideos(context, all.map { Triple(it.uri.toString(), it.uri, it.durationMs) }) { stopFind } }
+    }
+    val personKeys = remember(Faces.version, personF) { personF?.let { Faces.keysOf(it) } }
     val shown = all.filter { v ->
         val m = VideoLibrary.get(v.uri.toString())
         val s = smart
         (s == null || VideoLibrary.matchesSmart(v, s)) && (album == null || album in m.albums) && m.rating >= minRating &&
             when (flagF) { 1 -> m.flag == 1; 2 -> m.flag != -1; 3 -> m.flag == -1; else -> true } &&
-            (labelF == null || m.label == labelF) && (dateF == null || v.date in dateF!!) && (kwF == null || Keywords.has(m.keywords, kwF!!)) && VideoLibrary.matches(v, text)
+            (labelF == null || m.label == labelF) && (dateF == null || v.date in dateF!!) && (kwF == null || Keywords.has(m.keywords, kwF!!)) && (personKeys == null || v.uri.toString() in personKeys) &&
+            (VideoLibrary.matches(v, text) || Faces.nameMatches(v.uri.toString(), text))
     }
     Column(Modifier.fillMaxSize().background(Ed.Bg).windowInsetsPadding(WindowInsets.displayCutout).padding(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -227,9 +242,11 @@ fun VideoLibraryScreen(onBack: () -> Unit, onAdd: (List<Uri>) -> Unit, onImport:
             PillChip("Grid", !calendar && !kwTree) { calendar = false; kwTree = false }
             PillChip("Calendar", calendar) { calendar = true; kwTree = false }
             PillChip("Keywords", kwTree) { kwTree = true; calendar = false }
+            PillChip("People", peopleOn) { peopleOn = !peopleOn }
             if (dateF != null) PillChip("📅 $dateLabel ✕", true) { dateF = null }
             kwF?.let { k -> PillChip("🏷 ${Keywords.show(k)} ✕", true) { kwF = null } }
         }
+        if (peopleOn) PeopleRow(all.map { it.uri.toString() }.toSet(), personF, { personF = it }, { k -> Uri.parse(k) }, video = true) { findPeople++ }
         val sel = shown.filter { it.uri.toString() in picked }
         if (selecting) Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("${picked.size} selected", style = Pro.Label.copy(color = Color.White, fontSize = 11.sp))

@@ -2943,7 +2943,8 @@ internal fun runPhotoExport(context: Context, req: PhotoExportReq): PhotoExportR
         if (saved != null && PhotoMeta.sidecar && uri != Uri.EMPTY) {
             if (PhotoMeta.writeSidecar(context, uri, PhotoMeta.sidecarXmp(e.grade, e.detail, e.geometry, meta != null)) == null) res.sidecarFailed = true
         }
-        // Upload after export: a copy to the folder chosen in Export.
+        // Content credentials (signed record of creator and edit), then upload after export.
+        if (saved != null && ContentCredentials.on(context, false)) ContentCredentials.sign(context, saved, false)
         ExportUpload.after(context, saved, false)
         return saved
     }
@@ -3503,6 +3504,7 @@ private fun PhotoPanelContent(
                     )
                 }
             }
+            ContentCredentialsSection(video = false)
             ExportUploadSection(video = false)
         }
     }

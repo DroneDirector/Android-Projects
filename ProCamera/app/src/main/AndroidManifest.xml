@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- HEIC export is only used on Android 9+ (checked in code). -->
-    <uses-sdk tools:overrideLibrary="androidx.heifwriter" />
+    <uses-sdk tools:overrideLibrary="androidx.heifwriter, org.contentauth.c2pa" />
 
     <uses-feature android:name="android.hardware.camera.any" android:required="true" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />

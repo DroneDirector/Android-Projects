@@ -126,6 +126,17 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
     if (watchOpen) WatchFoldersDialog(onDismiss = { watchOpen = false }) { reload++ }
     // Keyword tree: the keyword picked there (everything with it, or inside it).
     var kwF by remember { mutableStateOf<String?>(null) }
+    // People: the person picked in the People view; "Find people" looks at the photos (AI, on the phone).
+    var personF by remember { mutableStateOf<Int?>(null) }
+    var findPeople by remember { mutableStateOf(0) }
+    LaunchedEffect(findPeople) {
+        if (findPeople == 0) return@LaunchedEffect
+        val err = withContext(Dispatchers.IO) { ModelStore.ensure(context, AiModel.FACES, { p -> Faces.status = "Downloading the face model… $p%" }, { stopIndex }) }
+        Faces.status = err
+        if (err != null) return@LaunchedEffect
+        withContext(Dispatchers.Default) { Faces.indexPhotos(context, all.map { it.uri.toString() to it.uri }) { stopIndex } }
+    }
+    val personKeys = remember(Faces.version, personF) { personF?.let { Faces.keysOf(it) } }
     var peopleF by remember { mutableStateOf(-1) }   // -1 all, 0 no people, 1 one person, 2 two, 3 groups
     var mapPick by remember { mutableStateOf<Set<String>?>(null) }
     val expanded = remember { mutableStateListOf<String>() }
@@ -154,7 +165,8 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
             (mapPick == null || p.uri.toString() in mapPick!!) &&
             (dateF == null || p.date in dateF!!) &&
             (kwF == null || Keywords.has(m.keywords, kwF!!)) &&
-            LibraryStore.matches(p, text)
+            (personKeys == null || p.uri.toString() in personKeys) &&
+            (LibraryStore.matches(p, text) || Faces.nameMatches(p.uri.toString(), text))
     }
     // Duplicates: each group of near-identical photos, the sharpest (kept) first.
     val dupGroups = if (view == 4) LibraryStore.dupes(shown) else emptyList()
@@ -215,10 +227,14 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
             if (dateF != null) PillChip("📅 $dateLabel ✕", true) { dateF = null }
             kwF?.let { k -> PillChip("🏷 ${Keywords.show(k)} ✕", true) { kwF = null } }
             if (view == 2) listOf("Everyone", "No people", "1 person", "2 people", "Groups").forEachIndexed { i, n -> PillChip(n, peopleF == i - 1) { peopleF = i - 1 } }
+            personF?.let { id -> if (view != 2) PillChip("👤 ${Faces.peopleList(1).firstOrNull { it.id == id }?.name?.ifBlank { null } ?: "Person"} ✕", true) { personF = null } }
             if (mapPick != null) PillChip("📍 ${mapPick!!.size} here ✕", true) { mapPick = null }
             LibraryStore.scanning?.let { (d, t) -> Text(if (view == 3) "Reading locations $d / $t" else if (view == 4) "Comparing photos $d / $t" else "Finding people $d / $t", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp)) }
         }
-        if (view == 2) Text("Groups photos by how many people are in them (faces found on the phone). It doesn't recognise who they are.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(bottom = 4.dp))
+        if (view == 2) {
+            PeopleRow(all.map { it.uri.toString() }.toSet(), personF, { personF = it }, { k -> Uri.parse(k) }, video = false) { findPeople++ }
+            Text("Find people (AI) recognises the same person across your photos (on the phone; the face model, ${AiModel.FACES.sizeMb} MB, is downloaded once). Tap a face to see their photos, hold it to give them a name — then search by name. The chips above group photos by how many people are in them.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(bottom = 4.dp))
+        }
         if (view == 4) {
             Text("Near-identical photos side by side; the sharpest of each group (✓ KEEP) comes first. Nothing is deleted — reject the extra copies, then hide or delete them in your gallery.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(bottom = 4.dp))
             if (dupGroups.isNotEmpty()) Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 6.dp)) {

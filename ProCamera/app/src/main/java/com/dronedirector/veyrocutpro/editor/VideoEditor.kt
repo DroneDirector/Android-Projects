@@ -299,6 +299,7 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
             VisTest.transitions()
             withContext(Dispatchers.Default) { VisTest.text(context) }
             VisTest.slideshow(context)
+            android.util.Log.i("VisTest", "content credentials: " + withContext(Dispatchers.IO) { ContentCredentials.selfTest(context) })
             // Playback test clips (the playback itself runs in the editor below once it shows them).
             val made = ArrayList<Clip>()
             repeat(3) {
@@ -5967,6 +5968,12 @@ private fun ColorPage(
             LookStrip(g.look) { f -> grade { it.copy(look = f) } }
             if (g.look != Filter.NONE) EdSlider("Strength", g.lookAmount, 0f..1f, 1f, ::pct) { v -> grade { it.copy(lookAmount = v) } }
             UserPresetSection({ g to c.detail }) { p -> onChange { it.copy(grade = p.grade, detail = p.detail.copy(aiDenoise = it.detail.aiDenoise)) } }
+            // Recommended looks for this clip (the AI looks at a frame from its middle), then all the built-in presets.
+            val ctx = LocalContext.current
+            val frame by androidx.compose.runtime.produceState<android.graphics.Bitmap?>(null, c.uri, c.startMs, c.endMs) {
+                value = withContext(Dispatchers.IO) { try { GradeIO.videoFrame(ctx, c.uri, (c.startMs + (c.endMs - c.startMs) / 2) * 1000, 448) } catch (_: Throwable) { null } }
+            }
+            BuiltInPresetSection(frame, g, c.detail) { ng, nd -> onChange { it.copy(grade = ng, detail = nd.copy(aiDenoise = it.detail.aiDenoise)) } }
         }
     }
 }
@@ -7279,6 +7286,7 @@ private fun DeliverPage(
                 color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(start = 10.dp))
         }
     }
+    ContentCredentialsSection(video = true)
     ExportUploadSection(video = true)
     SectionTitle("METADATA")
     MetaPresets.load(ictx)

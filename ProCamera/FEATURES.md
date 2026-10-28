@@ -432,6 +432,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Reveal in Project**: show the selected clip in the media strip, or where its file is on the phone (open the folder, copy the path).
 - **Tap to open, hold for more**: tap any item on the timeline (clip, transition, layer, visualizer, progress bar, countdown, music or audio track) to jump to its settings; hold a clip or a media-strip file for **Colour & details**, **Reveal in project** and **Reveal on device**. Layers and audio bars move and trim like clips.
 - **Wide + vertical export**: the same edit as 16:9 and 9:16 in one go.
+- **Edit templates**: Travel recap, Drone reel, Action, Calm & warm, Intro / opener and Old film — beat-cut edit with transitions, title and overlays in one tap.
 - **GPX routes**: a GPS track from a hike, drive or ride drawn as an animated map over a clip.
 - **Retro looks**: VHS tape, old TV, camcorder with date stamp, old film and security camera overlays.
 - **File menu**: projects (new, open, open recent, settings), several projects open at once with quick switching and close / close others / close all, save / save as / save a copy / revert, capture, import, new sequence / sequence from clip / bin / offline file / captions / transcript / title, team projects, collect files, make offline, link media, exit.

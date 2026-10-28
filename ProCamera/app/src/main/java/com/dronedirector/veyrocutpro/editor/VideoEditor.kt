@@ -2842,6 +2842,31 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             es.message = "Auto-edit: ${out.size} cuts on the beat — undo brings your clips back"
         }
     }
+    /** Media → EDIT TEMPLATES: cut on the beat (with music), transitions on the cuts, title, ending and overlays. */
+    fun applyTemplate(t: EditTemplate) {
+        if (es.videoLocked) { es.message = "The video track is locked"; return }
+        if (clips.isEmpty()) { es.message = "Add some clips first"; return }
+        layerScope.launch {
+            val m = es.music
+            var cut: List<Clip>? = null
+            if (m != null) {
+                val peaks = waves[m.uri.toString()] ?: withContext(Dispatchers.IO) { Waveforms.load(context, m.uri) }
+                if (peaks != null) {
+                    val beats = ProTools.beatsOnTimeline(m, peaks)
+                    val musicLen = if (m.lengthMs > 0) m.lengthMs else m.durationMs - m.offsetMs
+                    cut = withContext(Dispatchers.Default) { ProTools.autoEdit(clips.distinctBy { it.id }.toList(), beats, t.everyBeats, m.startMs + musicLen) }.takeIf { it.isNotEmpty() }
+                }
+            }
+            val out = EditTemplates.withTransitions(cut ?: clips.toList(), t)
+            clips.clear(); clips.addAll(out)
+            // Earlier template layers are replaced, your own layers stay.
+            layers.removeAll { it.name == "Title" || it.name == "Ending" || (it.kind == LayerKind.FX && (it.fx == FxLayers.BARS || it.fx == FxLayers.RETRO) && it.startMs == 0L) }
+            layers.addAll(EditTemplates.layers(t, timelineLength(clips)))
+            es.selected = 0; es.current = 0
+            load(0, 0, false)
+            es.message = "\"${t.name}\" applied" + (if (cut != null) " — ${out.size} cuts on the beat" else " — add music first to cut on the beat") + ". Edit the title in Layers; undo brings your edit back"
+        }
+    }
     fun fitMusicToVideo() {
         val m = es.music ?: run { es.message = "Add a music track first"; return }
         if (m.locked) { es.message = "The music track is locked"; return }
@@ -4299,6 +4324,16 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 Text("Hold the divider and drag to make the thumbnails bigger or smaller. Drag a clip onto the timeline with a mouse, or pick it and use Append / Insert.", color = Pro.Dim, fontSize = 11.sp)
                             }
                             Page.MEDIA -> com.dronedirector.veyrocutpro.ui.FoldColumn {
+                            SectionTitle("EDIT TEMPLATES")
+                            Text("One tap to a finished-looking edit of your clips: cut on the music's beat (add music first), transitions, a title and more. Everything stays editable; undo brings your edit back.", color = Pro.Dim, fontSize = 11.sp)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp)) {
+                                EditTemplates.ALL.forEach { t ->
+                                    Column(Modifier.width(160.dp).clip(RoundedCornerShape(10.dp)).background(Ed.Raised).clickable { applyTemplate(t) }.padding(10.dp)) {
+                                        Text(t.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                        Text(t.hint, color = Pro.Dim, fontSize = 10.sp, maxLines = 4)
+                                    }
+                                }
+                            }
                             TimelinesSection(
                                 es.timelineName, otherTimelines.map { it.name },
                                 onRename = { n -> val v = n.trim().take(40); if (v.isNotEmpty() && otherTimelines.none { it.name == v }) es.timelineName = v },

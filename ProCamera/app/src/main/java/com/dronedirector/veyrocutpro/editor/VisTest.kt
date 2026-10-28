@@ -12,6 +12,9 @@ import kotlin.math.sin
 
 /** Automatic test (emulator): the visualizer's music analysis and its pictures. Results go to the log ("VisTest"). */
 object VisTest {
+    /** The made-up test song ([seconds] long) as a file. */
+    fun song(context: Context, seconds: Int): Uri { val f = File(context.cacheDir, "testsong_$seconds.wav"); if (!f.exists()) wav(f, seconds); return Uri.fromFile(f) }
+
     private fun wav(f: File, seconds: Int, rate: Int = 44100) {
         val n = seconds * rate
         val pcm = ByteBuffer.allocate(n * 2).order(ByteOrder.LITTLE_ENDIAN)

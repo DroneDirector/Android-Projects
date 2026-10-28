@@ -186,6 +186,20 @@ fun TimelineView(
     var viewportW by remember { mutableFloatStateOf(1f) }
     var fittedOnce by remember { mutableStateOf(false) }
     val headMs = if (dragging) dragMs else globalMs
+    // Smooth playhead: the editor reports the position about ten times a second; in between, while playing,
+    // the playhead runs on by itself every screen frame (only the playhead is redrawn, not the timeline).
+    val anchor = remember { longArrayOf(0L, 0L) }
+    if (anchor[0] != globalMs) { anchor[0] = globalMs; anchor[1] = android.os.SystemClock.uptimeMillis() }
+    var smoothHead by remember { androidx.compose.runtime.mutableLongStateOf(globalMs) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            androidx.compose.runtime.withFrameMillis { }
+            val now = android.os.SystemClock.uptimeMillis()
+            val run = if (PreviewClock.playing) anchor[0] + (now - anchor[1]).coerceIn(0L, 200L) else anchor[0]
+            // Never step back a little while playing (a late report); a real jump (seek) is followed at once.
+            smoothHead = if (PreviewClock.playing && run < smoothHead && smoothHead - run < 300) smoothHead else run
+        }
+    }
     // Track header column on the left (mute / show and lock per row); the edit starts right after it.
     val headerW = with(density) { 50.dp.toPx() }
     val leftPad = headerW   // clips start right at the track headers
@@ -946,8 +960,11 @@ fun TimelineView(
                     }
                 }
 
-                // Playhead
-                val headX = xOf(headMs)
+            }
+            // Playhead on its own layer: redrawn every frame while playing without redrawing the timeline.
+            Canvas(Modifier.matchParentSize().clipToBounds()) {
+                val ms = if (dragging) dragMs else smoothHead
+                val headX = leftPad + (ms - zoom.scrollMs) * (pxPerSec / 1000f)
                 drawLine(accent, Offset(headX, 0f), Offset(headX, size.height), 3f)
                 drawCircle(accent, 6.dp.toPx(), Offset(headX, 6.dp.toPx()))
             }

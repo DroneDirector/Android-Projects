@@ -60,6 +60,16 @@ object AppLog {
     }
 
     fun i(what: String) = write("INFO", what)
+
+    /** How much memory the app uses now, and how much the device has left. */
+    fun memory(context: Context): String = try {
+        val rt = Runtime.getRuntime()
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        val mi = android.app.ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+        val dm = android.os.Debug.MemoryInfo().also { android.os.Debug.getMemoryInfo(it) }
+        "app ${dm.totalPss / 1024} MB (Java ${(rt.totalMemory() - rt.freeMemory()) / 1048576} MB of ${rt.maxMemory() / 1048576}, native ${android.os.Debug.getNativeHeapAllocatedSize() / 1048576} MB, " +
+            "graphics ${(dm.getMemoryStat("summary.graphics")?.toIntOrNull() ?: 0) / 1024} MB) · device free ${mi.availMem / 1048576} of ${mi.totalMem / 1048576} MB" + (if (mi.lowMemory) " (LOW)" else "")
+    } catch (_: Throwable) { "memory unknown" }
     fun w(what: String) = write("WARN", what)
 
     /** A problem or crash: the message, the error's stack and the app's last system log lines. */

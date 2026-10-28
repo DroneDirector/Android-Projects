@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Smoother preview: the playhead now glides every screen frame while playing instead of stepping, and the music and other audio tracks stay in step by playing a touch faster or slower for a moment instead of jumping — no more little gaps in the soundtrack every second or two.
+- The app log also notes the app's memory use and Android's low-memory warnings, to track down closes for low memory.
 
 ## 1.0.759 — 2026-10-28
 - App log on the device: app starts, exports, problems and crashes (with the app's recent system log lines). VIEW LOG in the crash / problem report, or ? → Troubleshooting → App log — share it or save a copy.

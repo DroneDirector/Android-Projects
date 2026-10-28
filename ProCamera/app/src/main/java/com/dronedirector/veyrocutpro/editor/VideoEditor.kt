@@ -181,7 +181,11 @@ internal enum class ColorTab(val label: String) { INPUT("Input"), LUTS("LUTs"), 
 @Composable
 fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) {
     val context = LocalContext.current
-    LaunchedEffect(Unit) { com.dronedirector.veyrocutpro.ui.AppLog.i("Video editor opened") }
+    LaunchedEffect(Unit) {
+        com.dronedirector.veyrocutpro.ui.AppLog.i("Video editor opened · " + com.dronedirector.veyrocutpro.ui.AppLog.memory(context))
+        // Every few minutes: how much memory the editor uses (to find what fills it if Android closes the app).
+        while (true) { delay(180_000); com.dronedirector.veyrocutpro.ui.AppLog.i("Video editor · " + com.dronedirector.veyrocutpro.ui.AppLog.memory(context)) }
+    }
     KeepScreenOnWhileEditing()
     val scope = rememberCoroutineScope()
     val clips = remember { mutableStateListOf<Clip>() }
@@ -298,6 +302,7 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
             VisTest.transitions()
             withContext(Dispatchers.Default) { VisTest.text(context) }
             VisTest.slideshow(context)
+            FxTest.playback = true
             return@LaunchedEffect
         }
         android.util.Log.i("FxTest", "making the test clip ($amt)")
@@ -1452,6 +1457,23 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             }
         }
     }
+    /**
+     * Keeps an audio player in step with the picture without gaps: a small difference is closed by playing a
+     * touch faster or slower (pitch kept) for a moment; only a big one (a jump, a stall) is fixed by seeking.
+     */
+    fun followSmoothly(p: ExoPlayer, want: Long, name: String) {
+        val drift = p.currentPosition - want
+        val speed = when {
+            // Not started yet: start at the right place. Playing (or loading) far off: jump there.
+            !p.playWhenReady || kotlin.math.abs(drift) > 1200 -> {
+                if (p.playWhenReady) { com.dronedirector.veyrocutpro.ui.AppLog.w("Preview: $name re-synced (was ${drift} ms off)"); android.util.Log.w("FxTest", "$name re-synced, drift $drift ms") }
+                p.seekTo(want); 1f
+            }
+            kotlin.math.abs(drift) < 40 -> 1f
+            else -> (1f - drift / 4000f).coerceIn(0.94f, 1.06f)
+        }
+        if (kotlin.math.abs(p.playbackParameters.speed - speed) > 0.001f) p.playbackParameters = PlaybackParameters(speed)
+    }
     // Music follows the timeline while previewing.
     LaunchedEffect(es.playing, es.music, es.previewMuted) {
         val m = es.music
@@ -1467,10 +1489,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val len = m.playLength(timelineLength(clips))
             val want = m.offsetMs + (g - m.startMs)
             if (g < m.startMs || g >= m.startMs + len) { musicPlayer.pause() } else {
-                if (kotlin.math.abs(musicPlayer.currentPosition - want) > 350) musicPlayer.seekTo(want)
+                followSmoothly(musicPlayer, want, "Music")
                 if (!musicPlayer.isPlaying) musicPlayer.play()
             }
-            delay(500)
+            delay(250)
         }
     }
     // Mixer → preview: track and master levels, track pan, solo.
@@ -1501,10 +1523,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 val len = t.playLength(total)
                 if (g < t.startMs || g >= t.startMs + len) { if (p.isPlaying) p.pause(); continue }
                 val want = t.offsetMs + (g - t.startMs)
-                if (kotlin.math.abs(p.currentPosition - want) > 350) p.seekTo(want)
+                followSmoothly(p, want, t.name)
                 if (!p.isPlaying) p.play()
             }
-            delay(400)
+            delay(250)
         }
     }
     LaunchedEffect(es.current) { if (es.page != Page.MEDIA) es.selected = es.current.coerceIn(0, (clips.size - 1).coerceAtLeast(0)) }
@@ -1572,6 +1594,41 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         if (!com.dronedirector.veyrocutpro.ui.Panels.isOn(context, "ve.mediastrip")) com.dronedirector.veyrocutpro.ui.Panels.set(context, "ve.mediastrip", true)
         es.revealUri = c.uri.toString(); es.revealTick++
         es.message = "\"${c.name}\" is picked out in the media strip"
+    }
+    fun globalNow(): Long = (clipStarts(clips).getOrNull(es.current) ?: 0L) + (clips.getOrNull(es.current)?.let { it.tlOffsetOf(it.startMs + deck.cur.currentPosition) } ?: deck.cur.currentPosition)
+    LaunchedEffect(FxTest.playback) {
+        if (!FxTest.playback) return@LaunchedEffect
+        FxTest.playback = false
+        // Playback test: an edit like a real one (3 clips, a song, lower third, adjustment layer, shape,
+        // watermark) plays for 24 s; memory, the playhead and the music's sync are logged every 2 s.
+        val made = ArrayList<Clip>()
+        repeat(3) {
+            val u = kotlinx.coroutines.suspendCancellableCoroutine<Uri?> { cont ->
+                Generators.make(context, GenSpec(GenKind.GRADIENT, seconds = 10), onProgress = {}) { u, _ -> if (cont.isActive) cont.resumeWith(Result.success(u)) }
+            }
+            u?.let { withContext(Dispatchers.IO) { ClipLoader.load(context, it) } }?.let { made += it }
+        }
+        if (made.isEmpty()) { android.util.Log.e("FxTest", "playback test: no clips"); return@LaunchedEffect }
+        clips.addAll(made); started = true
+        es.music = MusicTrack(uri = VisTest.song(context, 40), name = "Test song", durationMs = 40_000L)
+        val total = timelineLength(clips)
+        layers.add(lowerThirdLayer(6, 2000L, 9000L))
+        layers.add(Layer(kind = LayerKind.ADJUST, text = "Adjustment", adjGrade = ProGrade(exposure = 0.2f), startMs = 0, endMs = total))
+        layers.add(Layer(kind = LayerKind.SHAPE, text = "Shape", shape = ShapeKind.ROUNDED.ordinal, size = 0.2f, color = 0xFFFFB300.toInt(), shadow = false, startMs = 0, endMs = total))
+        layers.add(Layer(kind = LayerKind.WATERMARK, text = "© AlcorCut Pro", size = 0.04f, x = 0.84f, y = 0.92f, opacity = 0.65f, wholeVideo = true))
+        delay(3000)
+        load(0, 0, true)
+        val t0 = android.os.SystemClock.uptimeMillis(); val g0 = globalNow()
+        repeat(12) {
+            delay(2000)
+            val dt = android.os.SystemClock.uptimeMillis() - t0
+            val g = globalNow()
+            val m = es.music
+            val drift = if (m != null) musicPlayer.currentPosition - (m.offsetMs + (g - m.startMs)) else 0L
+            android.util.Log.i("VisTest", "playback ${dt / 1000}s: timeline ${(g - g0) / 1000f}s, playing ${deck.cur.isPlaying}, music drift $drift ms, speed ${musicPlayer.playbackParameters.speed} · " +
+                com.dronedirector.veyrocutpro.ui.AppLog.memory(context))
+        }
+        deck.cur.pause()
     }
     fun seekGlobal(ms: Long) {
         if (clips.isEmpty()) return

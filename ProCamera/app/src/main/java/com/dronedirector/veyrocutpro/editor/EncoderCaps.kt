@@ -42,4 +42,9 @@ object EncoderCaps {
 }
 
 /** Automatic picture test (screenshots on the test phone): opens the editor with a test clip at this clarity / texture. */
-object FxTest { @Volatile var amount: Float? = null }
+object FxTest {
+    @Volatile var amount: Float? = null
+    private val playbackState = androidx.compose.runtime.mutableStateOf(false)
+    /** Self-test: play a made-up edit and log memory and sync (set by the test run). */
+    var playback: Boolean get() = playbackState.value; set(v) { playbackState.value = v }
+}

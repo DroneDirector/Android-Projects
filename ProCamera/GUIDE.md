@@ -289,6 +289,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - New → Offline file: a black stand-in marked OFFLINE for a shot you don't have yet. Dependencies → Make offline unlinks a clip's media; Link media brings the file back (or another one) and keeps the trims.
 - Dependencies → Collect files copies every file of the project into one folder you choose.
 **Buttons under the picture**
+- Loop playback (the circling-arrows button under the picture, two places right of Play): the timeline plays over and over — or only the part between the in and out points when you've set them. It turns amber while on; tap again to stop.
 - Speed / Duration: type a speed in % or a length in seconds (they follow each other), or turn on Play backwards. Time interpolation: Optical flow makes smooth slow motion for slowed-down clips; Motion blur adds a shutter blur.
 - Link / unlink tracks: linked layers and audio move with the main video when you cut or delete clips; unlink music that must stay exactly where it is. Group / ungroup: pick layers and audio clips that should move together.
 - Markers (the bookmark icon): go to a marker, edit its note or move it to the playhead, clear one or all, and export or import marker lists (.csv: timecode, seconds, note).

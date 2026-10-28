@@ -1522,6 +1522,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         if (!es.playing) { musicPlayer.pause(); setPictureSpeed(1f); return@LaunchedEffect }
         if (musicPlayer.playbackParameters.speed != 1f) musicPlayer.playbackParameters = PlaybackParameters(1f)
         var lastSkip = 0L
+        var started = false; var aligned = false
         try {
             while (true) {
                 val ducked = clips.getOrNull(es.current)?.let { it.audio.duckMusic && !it.muted && it.volume > 0f } == true
@@ -1530,10 +1531,17 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 val g = before + (clips.getOrNull(es.current)?.let { it.tlOffsetOf(it.startMs + deck.cur.currentPosition) } ?: deck.cur.currentPosition)
                 val len = m.playLength(timelineLength(clips))
                 val want = m.offsetMs + (g - m.startMs)
-                if (g < m.startMs || g >= m.startMs + len) { musicPlayer.pause(); setPictureSpeed(1f) }
-                else if (!musicPlayer.playWhenReady) {
+                if (g < m.startMs || g >= m.startMs + len) { musicPlayer.pause(); setPictureSpeed(1f); started = false }
+                else if (!started || musicPlayer.playbackState == Player.STATE_ENDED || musicPlayer.playbackState == Player.STATE_IDLE || !musicPlayer.playWhenReady) {
                     // The music comes in: start it where the picture is.
+                    if (musicPlayer.playbackState == Player.STATE_IDLE) musicPlayer.prepare()
                     musicPlayer.seekTo(want); musicPlayer.play(); setPictureSpeed(1f)
+                    started = true; aligned = false
+                } else if (!aligned && musicPlayer.playbackState == Player.STATE_READY && musicPlayer.isPlaying) {
+                    // Once, the moment it really plays: line it up with the picture (it may have taken a moment to load).
+                    aligned = true
+                    val musicG = m.startMs + (musicPlayer.currentPosition - m.offsetMs)
+                    if (kotlin.math.abs(g - musicG) > 150) musicPlayer.seekTo(want)
                 } else if (musicPlayer.playbackState == Player.STATE_READY && musicPlayer.isPlaying && deck.cur.isPlaying) {
                     // Where the music is on the timeline, and how far the picture is from it (+ = picture ahead).
                     val musicG = m.startMs + (musicPlayer.currentPosition - m.offsetMs)

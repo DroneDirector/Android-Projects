@@ -1,0 +1,29 @@
+name: Face recognition model (SFace)
+# Started by hand: fetches OpenCV Zoo's SFace face-recognition model (Apache 2.0), checks it, runs it once
+# and adds it to the app's AI model downloads (release ai-models-v1).
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Download and check
+        run: |
+          curl -fsSL -o face_sface_2021dec.onnx "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx"
+          echo "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79  face_sface_2021dec.onnx" | sha256sum -c -
+          curl -fsSL -o SFace-LICENSE.txt "https://raw.githubusercontent.com/opencv/opencv_zoo/main/models/face_recognition_sface/LICENSE"
+          head -3 SFace-LICENSE.txt
+          pip install -q onnxruntime==1.19.2 numpy
+          python3 - <<'PY'
+          import onnxruntime as ort, numpy as np
+          s = ort.InferenceSession("face_sface_2021dec.onnx")
+          i = s.get_inputs()[0]; o = s.get_outputs()[0]
+          print("input", i.name, i.shape, i.type, "output", o.name, o.shape)
+          y = s.run(None, {i.name: np.random.rand(1, 3, 112, 112).astype(np.float32) * 255})[0]
+          print("embedding", y.shape)
+          PY
+      - name: Add to the AI model downloads
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: gh release upload ai-models-v1 face_sface_2021dec.onnx SFace-LICENSE.txt --clobber -R "$GITHUB_REPOSITORY"

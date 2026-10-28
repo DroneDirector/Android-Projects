@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.773 — 2026-10-28
 - Photo editor filmstrip: colour labels show as a stripe along the top of each photo, the colour dots next to the filters show only that colour, and several selected photos can be labelled at once (hold one).
 
 ## 1.0.771 — 2026-10-28

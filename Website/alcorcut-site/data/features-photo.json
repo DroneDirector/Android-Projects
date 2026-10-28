@@ -68,6 +68,7 @@
  {
   "title": "Library & workflow",
   "items": [
+   "<strong>Capture appearance</strong>: the same Dark / Light / Like the phone choice in Capture's settings; the controls on the camera picture stay dark.",
    "<strong>Help</strong> (documentation, tutorials, troubleshooting, proof of purchase), <strong>Project settings</strong>, <strong>Preferences</strong> and <strong>System Info</strong>.",
    "<strong>File menu</strong>: new, open, open recent, save / save as / save a copy / revert, capture, import (gallery, files, NAS) and exit; <strong>changeable keyboard shortcuts</strong> (keyboard icon).",
    "<strong>For social media</strong>: a labelled <strong>before / after picture</strong> of the original and your edit, and a <strong>panorama carousel</strong> — a wide photo cut into 2–5 seamless 1:1 or 4:5 slides for Instagram.",
@@ -97,6 +98,9 @@
    "<strong>File-type tags</strong> on the photo and video editors' start-page thumbnails (DNG RAW, JPEG, PNG, HEIC / MP4, MOV, MKV…); not shown inside the editors.",
    "<strong>Masks</strong>: linear gradient, radial and brush, each with its own light and colour settings.",
    "<strong>Red-eye and pet-eye fix</strong>: tap the pupils, or find red eyes in faces automatically.",
+   "<strong>Creative effects</strong>: Colour splash (keep one colour, the rest black and white), Tilt-shift miniature and Sun glow &amp; rays.",
+   "<strong>Dodge &amp; burn</strong> brushes: paint to lighten or darken, each its own mask.",
+   "<strong>Metadata on export</strong>: title, caption, author, copyright and keywords written into the photo.",
    "<strong>Watermark</strong>: text or logo, font, colour, size, position, opacity; optional <strong>Remember watermark</strong>.",
    "<strong>Text &amp; stickers</strong>: any number of text and emoji layers with font, colour, shadow / box, size, position and opacity.",
    "<strong>History &amp; snapshots</strong>: jump to any step, save named versions and switch between them.",

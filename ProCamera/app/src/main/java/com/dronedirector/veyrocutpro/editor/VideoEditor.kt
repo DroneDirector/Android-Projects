@@ -1094,6 +1094,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         es.current = index
         es.loadedId = c.id
         prepareOn(deck.cur, c, startMs, play)
+        // The position belongs to the new clip from this moment on (not the old clip's, until the next update).
+        es.posMs = startMs.coerceAtLeast(0); PreviewClock.posMs = es.posMs; PreviewClock.at = android.os.SystemClock.uptimeMillis()
         videoAspect = aspects[deck.active]
         preloadAfter(index)
     }
@@ -1113,6 +1115,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             deck.cur.volume = if (n.muted || es.previewMuted || es.videoMuted) 0f else n.volume.coerceAtMost(1f)
             deck.cur.play()
             old.pause()
+            // Same instant as the switch: the playhead goes on from the new clip's own position, without a jump.
+            es.posMs = deck.cur.currentPosition; PreviewClock.posMs = es.posMs; PreviewClock.at = android.os.SystemClock.uptimeMillis()
             // Get the following clip ready in the player we just left.
             preloadAfter(next)
         } else {

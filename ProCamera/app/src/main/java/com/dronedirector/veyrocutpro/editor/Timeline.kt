@@ -192,12 +192,20 @@ fun TimelineView(
     if (anchor[0] != globalMs) { anchor[0] = globalMs; anchor[1] = android.os.SystemClock.uptimeMillis() }
     var smoothHead by remember { androidx.compose.runtime.mutableLongStateOf(globalMs) }
     LaunchedEffect(Unit) {
+        var lastFrame = android.os.SystemClock.uptimeMillis()
         while (true) {
             androidx.compose.runtime.withFrameMillis { }
             val now = android.os.SystemClock.uptimeMillis()
+            val dt = (now - lastFrame).coerceIn(0L, 100L); lastFrame = now
             val run = if (PreviewClock.playing) anchor[0] + (now - anchor[1]).coerceIn(0L, 200L) else anchor[0]
-            // Never step back a little while playing (a late report); a real jump (seek) is followed at once.
-            smoothHead = if (PreviewClock.playing && run < smoothHead && smoothHead - run < 300) smoothHead else run
+            smoothHead = if (!PreviewClock.playing) run else {
+                // While playing the playhead moves on at real speed and closes small differences gently
+                // (a clip change, a transition, a late report), never stepping back. Only a real jump
+                // (a seek, more than 1.5 s away) is followed at once.
+                val predicted = smoothHead + dt
+                val err = run - predicted
+                if (kotlin.math.abs(err) > 1500) run else maxOf(smoothHead, predicted + err / 12)
+            }
         }
     }
     // Track header column on the left (mute / show and lock per row); the edit starts right after it.

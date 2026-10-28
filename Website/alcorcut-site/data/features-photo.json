@@ -41,7 +41,7 @@
    "<strong>AI culling</strong> in the filmstrip: rejects blurry shots and closed eyes, groups similar shots (bursts) and picks the best of each, with notes on the thumbnails.",
    "<strong>AI masks</strong>: subject and sky selected automatically.",
    "<strong>Colour-range and brightness-range masks</strong>: tap the photo to pick a colour or brightness (e.g. only the blues, only the highlights), with range and softness.",
-   "<strong>Background (AI)</strong>: portrait blur, transparent background or colour fill behind the subject.",
+   "<strong>Background (AI)</strong>: portrait blur, transparent background, colour fill behind the subject, or a <strong>double exposure</strong> with a second picture inside the subject.",
    "<strong>Sky replacement (AI)</strong>: 5 built-in skies or your own picture, with strength and light matching.",
    "<strong>AI Remove</strong>: tap or paint over bigger objects to remove them.",
    "<strong>AI noise reduction done in the edit</strong>: the full-size photo is cleaned once in the background while you edit and the export reuses it — no second AI pass. Results are remembered, so reopening a project never runs the AI again."
@@ -62,7 +62,7 @@
   "title": "Merges",
   "items": [
    "<strong>Merges</strong>: HDR, panorama, focus stack, <strong>noise stack</strong>, <strong>remove passers-by</strong> (median of 3–8 shots), <strong>super resolution</strong> (sub-pixel aligned hand-held shots → 2× size) and <strong>star stack</strong> (aligned on the stars, shift + rotation).",
-   "<strong>Merge photos</strong>: HDR (exposure fusion), panorama stitching, focus stacking."
+   "<strong>Merge photos</strong>: HDR (exposure fusion), panorama stitching, focus stacking, star trails (10–100 tripod shots)."
   ]
  },
  {

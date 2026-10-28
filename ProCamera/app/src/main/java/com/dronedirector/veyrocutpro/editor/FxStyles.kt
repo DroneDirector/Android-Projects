@@ -62,12 +62,17 @@ object FxStyles {
                 val dx = fw / cols; val dy = fh / rows; val r = min(dx, dy) * 0.34f
                 for (i in 0 until cols) {
                     val lit = lv(i, cols) * rows * (1f + 0.1f * beat)
+                    val n = kotlin.math.ceil(lit).toInt().coerceIn(0, rows)
+                    // One soft glow behind the lit dots of the column (a blur per dot is far too slow).
+                    if (n > 0) {
+                        val x = (i + 0.5f) * dx
+                        g.color = col((n - 1) / (rows - 1f) * 0.5f); g.alpha = 120
+                        c.drawRoundRect(x - r * 1.5f, fh - n * dy, x + r * 1.5f, fh, r * 1.5f, r * 1.5f, g)
+                    }
                     for (j in 0 until rows) {
                         val x = (i + 0.5f) * dx; val y = fh - (j + 0.5f) * dy
-                        val on = j < lit
                         val cc = col(j / (rows - 1f))
-                        if (on) { g.color = cc; g.alpha = 140; c.drawCircle(x, y, r * 1.6f, g) }
-                        p.color = if (on) cc else withAlpha(cc, 0.12f)
+                        p.color = if (j < n) cc else withAlpha(cc, 0.12f)
                         c.drawCircle(x, y, r, p)
                     }
                 }

@@ -52,7 +52,7 @@ object VisTest {
                 if (data[i * Spectrum.STRIDE + Spectrum.BANDS] > 0.5f && data[(i - 1) * Spectrum.STRIDE + Spectrum.BANDS] <= 0.5f) beats++
             }
             android.util.Log.i(tag, "band movement per frame %.3f, beats found $beats (expected about ${nF * Spectrum.HOP_MS / 500})".format(move / (nF - 1)))
-            for (style in listOf(0, 3, 10, 20)) {
+            for (style in 0 until FxLayers.VIS_STYLES.size) {
                 val l = Layer(kind = LayerKind.FX, fx = FxLayers.VIS, imageUri = uri, fxD = 0f, fxB = style.toFloat(), size = 0.25f, startMs = 0, endMs = 12_000)
                 val t1 = System.currentTimeMillis()
                 val a = FxLayers.render(l, 1280, 720, 2000, context)
@@ -65,6 +65,13 @@ object VisTest {
                     for (i in pa.indices) if (pa[i] != pb[i]) diff++
                 }
                 android.util.Log.i(tag, "style $style: render ${ms} ms, ${if (a == null) "NO PICTURE" else "${a.width}x${a.height}"}, pixels changed between 2.00 s and 2.24 s: $diff")
+            }
+            // Countdown styles: render time each (the preview redraws them every frame).
+            for (style in 0 until FxLayers.TIMER_STYLES.size) {
+                val l = Layer(kind = LayerKind.FX, fx = FxLayers.TIMER, fxB = style.toFloat(), size = 0.18f, startMs = 0, endMs = 10_000)
+                val t1 = System.currentTimeMillis()
+                val a = FxLayers.render(l, 1280, 720, 3000, context)
+                android.util.Log.i(tag, "timer $style: render ${System.currentTimeMillis() - t1} ms, ${if (a == null) "NO PICTURE" else "ok"}")
             }
         } catch (t: Throwable) { android.util.Log.e(tag, "failed", t) }
     }

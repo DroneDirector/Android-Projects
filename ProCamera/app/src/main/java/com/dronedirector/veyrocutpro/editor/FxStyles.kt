@@ -1,5 +1,6 @@
 package com.dronedirector.veyrocutpro.editor
 
+import android.graphics.Bitmap
 import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Color
@@ -41,6 +42,18 @@ object FxStyles {
     }
 
     private fun glowPaint(r: Float) = Paint(Paint.ANTI_ALIAS_FLAG).apply { maskFilter = BlurMaskFilter(max(3f, r), BlurMaskFilter.Blur.NORMAL) }
+    /**
+     * A soft glow drawn cheaply: [block] draws at a sixth of the size and the result is stretched back up with
+     * smoothing, which blurs it (a blur filter on big shapes is far too slow for a live preview).
+     */
+    private fun glowPass(c: Canvas, w: Int, h: Int, k: Int = 6, block: (Canvas) -> Unit) {
+        val sw = max(1, w / k); val sh = max(1, h / k)
+        val b = Bitmap.createBitmap(sw, sh, Bitmap.Config.ARGB_8888)
+        val cc = Canvas(b); cc.scale(sw / w.toFloat(), sh / h.toFloat())
+        block(cc)
+        c.drawBitmap(b, null, android.graphics.RectF(0f, 0f, w.toFloat(), h.toFloat()), Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
+        b.recycle()
+    }
     private fun withAlpha(c: Int, a: Float) = (c and 0x00FFFFFF) or ((a.coerceIn(0f, 1f) * 255).toInt() shl 24)
 
     /**
@@ -191,10 +204,11 @@ object FxStyles {
                     c.drawPath(path, p)
                 }
                 p.shader = null
-                g.color = 0xFFFF6A00.toInt(); g.alpha = (60 + 120 * beat).toInt()
-                c.drawRect(0f, fh * 0.75f, fw, fh, g)
+                val ga = (60 + 120 * beat).toInt()
+                glowPass(c, w, h) { gc -> gc.drawRect(0f, fh * 0.8f, fw, fh, Paint().apply { color = 0xFFFF6A00.toInt(); alpha = ga }) }
             }
             18 -> { // Ribbons: three flowing glowing lines for bass, mids and highs.
+                val paths = ArrayList<Pair<Path, Int>>()
                 for (r in 0 until 3) {
                     val path = Path()
                     val n = 90
@@ -204,23 +218,28 @@ object FxStyles {
                         val y = cy + sin(f * TAU * (1.2f + r * 0.5f) + t / (900f + r * 300f) + r) * fh * 0.35f * (0.2f + v[band])
                         if (i == 0) path.moveTo(f * fw, y) else path.lineTo(f * fw, y)
                     }
-                    val cc = col(r / 2f)
-                    p.style = Paint.Style.STROKE; p.strokeWidth = max(2f, fh * 0.018f); p.color = cc; p.strokeJoin = Paint.Join.ROUND
-                    g.style = Paint.Style.STROKE; g.strokeWidth = p.strokeWidth * (4f + 2f * beat); g.color = cc; g.alpha = 170
-                    c.drawPath(path, g); c.drawPath(path, p)
+                    paths += path to col(r / 2f)
                 }
+                val sw = max(2f, fh * 0.018f)
+                glowPass(c, w, h) { gc ->
+                    val gp = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = sw * (4f + 2f * beat); strokeJoin = Paint.Join.ROUND }
+                    for ((path, cc) in paths) { gp.color = cc; gp.alpha = 190; gc.drawPath(path, gp) }
+                }
+                p.style = Paint.Style.STROKE; p.strokeWidth = sw; p.strokeJoin = Paint.Join.ROUND
+                for ((path, cc) in paths) { p.color = cc; c.drawPath(path, p) }
             }
             19 -> { // Aurora: soft curtains of light that sway with the music.
                 val n = 24
-                for (i in 0 until n) {
-                    val x = (i + 0.5f) * fw / n + sin(t / 1300f + i * 0.7f) * fw / n
-                    val hh = fh * (0.25f + 0.75f * lv(i, n))
-                    val cc = col(i / (n - 1f))
-                    p.shader = LinearGradient(0f, fh - hh, 0f, fh, intArrayOf(withAlpha(cc, 0f), withAlpha(cc, 0.55f + 0.3f * beat), withAlpha(cc, 0f)), floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP)
-                    p.maskFilter = BlurMaskFilter(max(4f, fw / n * 0.6f), BlurMaskFilter.Blur.NORMAL)
-                    c.drawRect(x - fw / n * 0.7f, fh - hh, x + fw / n * 0.7f, fh, p)
+                glowPass(c, w, h, 4) { gc ->
+                    val ap = Paint(Paint.ANTI_ALIAS_FLAG)
+                    for (i in 0 until n) {
+                        val x = (i + 0.5f) * fw / n + sin(t / 1300f + i * 0.7f) * fw / n
+                        val hh = fh * (0.25f + 0.75f * lv(i, n))
+                        val cc = col(i / (n - 1f))
+                        ap.shader = LinearGradient(0f, fh - hh, 0f, fh, intArrayOf(withAlpha(cc, 0f), withAlpha(cc, 0.55f + 0.3f * beat), withAlpha(cc, 0f)), floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP)
+                        gc.drawRect(x - fw / n * 0.6f, fh - hh, x + fw / n * 0.6f, fh, ap)
+                    }
                 }
-                p.shader = null; p.maskFilter = null
             }
             20 -> { // Sunburst: rays shooting out from the middle.
                 val n = 90; val base = side * 0.1f * (1f + 0.3f * beat)
@@ -324,8 +343,9 @@ object FxStyles {
                     if (i == 0) path.moveTo(f * fw, y) else path.lineTo(f * fw, y)
                 }
                 p.style = Paint.Style.STROKE; p.strokeWidth = max(2f, fh * 0.025f); p.strokeJoin = Paint.Join.ROUND; p.color = col(0.2f)
-                g.style = Paint.Style.STROKE; g.strokeWidth = p.strokeWidth * 4f; g.color = col(0.2f); g.alpha = 200
-                c.drawPath(path, g); c.drawPath(path, p)
+                val gw = p.strokeWidth * 4f; val gcCol = col(0.2f)
+                glowPass(c, w, h) { gc -> gc.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = gw; strokeJoin = Paint.Join.ROUND; color = gcCol; alpha = 210 }) }
+                c.drawPath(path, p)
                 p.style = Paint.Style.FILL; p.color = Color.WHITE
                 c.drawCircle(fw - p.strokeWidth * 2, cy, max(3f, fh * 0.03f) * (1f + beat), p)
             }

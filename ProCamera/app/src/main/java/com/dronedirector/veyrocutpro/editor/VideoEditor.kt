@@ -302,6 +302,16 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
             VisTest.transitions()
             withContext(Dispatchers.Default) { VisTest.text(context) }
             VisTest.slideshow(context)
+            // Playback test clips (the playback itself runs in the editor below once it shows them).
+            val made = ArrayList<Clip>()
+            repeat(3) {
+                val u = kotlinx.coroutines.suspendCancellableCoroutine<Uri?> { cont ->
+                    Generators.make(context, GenSpec(GenKind.GRADIENT, seconds = 10), onProgress = {}) { u, _ -> if (cont.isActive) cont.resumeWith(Result.success(u)) }
+                }
+                u?.let { withContext(Dispatchers.IO) { ClipLoader.load(context, it) } }?.let { made += it }
+            }
+            if (made.isEmpty()) { android.util.Log.e("FxTest", "playback test: no clips"); return@LaunchedEffect }
+            clips.addAll(made); started = true
             FxTest.playback = true
             return@LaunchedEffect
         }
@@ -1601,15 +1611,6 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         FxTest.playback = false
         // Playback test: an edit like a real one (3 clips, a song, lower third, adjustment layer, shape,
         // watermark) plays for 24 s; memory, the playhead and the music's sync are logged every 2 s.
-        val made = ArrayList<Clip>()
-        repeat(3) {
-            val u = kotlinx.coroutines.suspendCancellableCoroutine<Uri?> { cont ->
-                Generators.make(context, GenSpec(GenKind.GRADIENT, seconds = 10), onProgress = {}) { u, _ -> if (cont.isActive) cont.resumeWith(Result.success(u)) }
-            }
-            u?.let { withContext(Dispatchers.IO) { ClipLoader.load(context, it) } }?.let { made += it }
-        }
-        if (made.isEmpty()) { android.util.Log.e("FxTest", "playback test: no clips"); return@LaunchedEffect }
-        clips.addAll(made); started = true
         es.music = MusicTrack(uri = VisTest.song(context, 40), name = "Test song", durationMs = 40_000L)
         val total = timelineLength(clips)
         layers.add(lowerThirdLayer(6, 2000L, 9000L))

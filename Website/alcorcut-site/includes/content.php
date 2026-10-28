@@ -15,6 +15,16 @@ function acs_content() {
             'shot_a'   => acs_img('shot-photo.jpg'),
             'shot_b'   => acs_img('shot-capture.jpg'),
             'shot_c'   => acs_img('shot-video.jpg'),
+            // More screens: they take turns in the same carousel after the first three.
+            'more'     => [
+                ['image' => acs_img('shot-video-timeline.jpg'), 'caption' => 'Video editor · Timeline and colour'],
+                ['image' => acs_img('shot-photo-adaptive.jpg'), 'caption' => 'Photo editor · Adaptive presets (AI)'],
+                ['image' => acs_img('shot-photo-color.jpg'), 'caption' => 'Photo editor · Colour'],
+                ['image' => acs_img('shot-photo-heal.jpg'), 'caption' => 'Photo editor · Heal and dust spots'],
+                ['image' => acs_img('shot-photo-presets.jpg'), 'caption' => 'Photo editor · Presets'],
+                ['image' => acs_img('shot-start.jpg'), 'caption' => 'Start screen'],
+                ['image' => acs_img('shot-editors.jpg'), 'caption' => 'Photo and video editor'],
+            ],
         ],
         'stats' => [
             ['num' => '300+', 'label' => 'pro features'],

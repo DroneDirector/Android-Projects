@@ -144,6 +144,9 @@ class ACS_Hero extends ACS_Base {
             'shot_c'  => ['media', 'Screenshot right', $c['shot_c']],
         ];
     }
+    protected function repeaters() {
+        return ['more' => ['More screenshots (they take turns in the carousel)', ['image' => ['media', 'Screenshot', acs_img('shot-capture.jpg')], 'caption' => ['text', 'Caption', '']], acs_content()['hero']['more'], 'caption']];
+    }
     protected function render() {
         $s = $this->s();
         echo '<section class="acs acs-hero"><div class="acs-aurora" aria-hidden="true"><i></i><i></i><i></i></div><div class="acs-grain" aria-hidden="true"></div>';
@@ -158,6 +161,9 @@ class ACS_Hero extends ACS_Base {
         echo acs_device($s['shot_a'], 'tablet', 'acs-hero__p acs-hero__p--a');
         echo acs_device($s['shot_b'], 'tablet', 'acs-hero__p acs-hero__p--b');
         echo acs_device($s['shot_c'], 'tablet', 'acs-hero__p acs-hero__p--c');
+        foreach ((array) ($s['more'] ?? []) as $it) {
+            if (!empty($it['image']['url'])) echo acs_device($it['image'], 'tablet', 'acs-hero__p acs-hero__p--off', $it['caption'] ?? '');
+        }
         echo '<div class="acs-hero__ring"></div></div></div>';
         echo '<a class="acs-scrollhint" href="#android" aria-label="Scroll down"><span></span></a></section>';
     }

@@ -125,6 +125,10 @@ body.elementor-editor-active .acs-nav { position: relative; }
 .acs-hero__p--b { z-index: 3; cursor: default; transform: translate(-50%, -50%) rotateX(calc(var(--rx) + 8deg)) rotateY(var(--ry)) translateZ(40px); animation: acs-float 7s ease-in-out infinite; }
 .acs-hero__p--a { z-index: 2; transform: translate(-100%, -56%) rotateX(calc(var(--rx) + 6deg)) rotateY(calc(var(--ry) + 28deg)) scale(.66); opacity: .75; filter: saturate(.85) brightness(.8); animation: acs-float 8s ease-in-out -2s infinite; }
 .acs-hero__p--c { z-index: 1; transform: translate(0%, -56%) rotateX(calc(var(--rx) + 6deg)) rotateY(calc(var(--ry) - 28deg)) scale(.66); opacity: .75; filter: saturate(.85) brightness(.8); animation: acs-float 9s ease-in-out -4s infinite; }
+/* Screens waiting their turn: small and hidden behind the middle one; the next / previous wait at the sides. */
+.acs-hero__p--off { z-index: 0; transform: translate(-50%, -54%) rotateX(calc(var(--rx) + 6deg)) rotateY(var(--ry)) scale(.4); opacity: 0; pointer-events: none; filter: saturate(.7) brightness(.6); }
+.acs-hero__p--off.acs-hero__p--next { transform: translate(40%, -56%) rotateX(calc(var(--rx) + 6deg)) rotateY(calc(var(--ry) - 40deg)) scale(.45); }
+.acs-hero__p--off.acs-hero__p--prev { transform: translate(-140%, -56%) rotateX(calc(var(--rx) + 6deg)) rotateY(calc(var(--ry) + 40deg)) scale(.45); }
 .acs-hero__p--a:hover, .acs-hero__p--c:hover { opacity: .95; filter: saturate(1) brightness(.95); }
 .acs-hero__p--b { cursor: zoom-in; }
 /* Full-size screenshot (lightbox): the picture flies out of the device, the page blurs and dims behind it. */

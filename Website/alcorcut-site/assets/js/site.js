@@ -85,11 +85,13 @@
       document.addEventListener("keydown", key); window.addEventListener("resize", fit);
     }
 
-    /* ---------------- hero carousel: the three screens swap places (tap a side one, swipe, arrows, keys) */
+    /* ---------------- hero carousel: the screens take turns (left, middle, right; the rest wait behind).
+       Tap a side one, swipe, arrows, keys or the dots. */
     $$(".acs-hero__stage").forEach(function (stage) {
-      var POS = ["acs-hero__p--a", "acs-hero__p--b", "acs-hero__p--c"];
-      var order = POS.map(function (c) { return stage.querySelector("." + c); });
-      if (order.some(function (e) { return !e; })) return;
+      var POS = ["acs-hero__p--a", "acs-hero__p--b", "acs-hero__p--c"], OFF = "acs-hero__p--off";
+      var first = POS.map(function (c) { return stage.querySelector("." + c); });
+      if (first.some(function (e) { return !e; })) return;
+      var order = first.concat($$("." + OFF, stage));
       var all = order.slice();
       var dots = document.createElement("div"); dots.className = "acs-hero__dots";
       all.forEach(function (el, i) {
@@ -98,11 +100,16 @@
         dots.appendChild(d);
       });
       function apply() {
-        order.forEach(function (el, i) { POS.forEach(function (c) { el.classList.remove(c); }); el.classList.add(POS[i]); });
+        order.forEach(function (el, i) {
+          POS.forEach(function (c) { el.classList.remove(c); }); el.classList.remove(OFF);
+          el.classList.add(i < 3 ? POS[i] : OFF);
+          // The screen after the right one waits on the right, the one before the left one on the left: they slide in from the side.
+          el.classList.toggle("acs-hero__p--next", i === 3); el.classList.toggle("acs-hero__p--prev", i === order.length - 1 && order.length > 4);
+        });
         Array.prototype.forEach.call(dots.children, function (d, i) { d.classList.toggle("is-on", order[1] === all[i]); });
       }
       // dir 1 = the right screen comes to the middle; -1 = the left one.
-      function step(dir) { order = dir > 0 ? [order[1], order[2], order[0]] : [order[2], order[0], order[1]]; apply(); }
+      function step(dir) { order = dir > 0 ? order.slice(1).concat(order[0]) : [order[order.length - 1]].concat(order.slice(0, -1)); apply(); }
       function arrow(cls, dir, path, label) {
         var b = document.createElement("button"); b.type = "button"; b.className = "acs-hero__nav " + cls; b.setAttribute("aria-label", label);
         b.innerHTML = '<svg viewBox="0 0 24 24"><path d="' + path + '"/></svg>';

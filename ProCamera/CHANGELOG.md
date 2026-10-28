@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.705 — 2026-10-28
 - Video editor → Transitions: 15 more — Tilt down, Horizon wipe, Golden hour, Nightfall, Lens dirt flare, Brush strokes, Torn paper, Comic burst, Halftone, Thermal, Night vision, Hologram, Page turn, Blur wipe, Zoom punch.
 - Video editor → Transitions → Audio: 37 more, 100 in all — Phaser sweep, Ping-pong echo, Megaphone, Narrow out, Wide in, Harmony rise, Octave drop, Reverse out, Crush in, Bass drop in, Thin crossfade, Flutter in, Gate in, Chop in, Wobble in, Grit in, Metal in, Shimmer in, Hall tail, Slap in, Pump crossfade, Phone call, Old record in, Fly in, Filter open, Freeze & echo, Tape stop echo, Stutter swap, Build & boom, Muffle to echo, Voice in, Airy out, Lo-fi out, Lush in, Reverse & swell, Megaphone in, Rewind & restart.
 - Transition previews on the Transitions page load and scroll faster: small copies of the clips' pictures, drawn at half size, effects built once in the background and kept, and redrawn without rebuilding the page each frame. The live preview and the export are unchanged.

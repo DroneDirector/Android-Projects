@@ -4275,5 +4275,13 @@
 "Day of the year": "Dagur í árinum",
 "Time of day": "Tíð á degnum",
 "VHS tape, an old TV, a camcorder with its date stamp, old film with dust and scratches, or a security camera — drawn over the picture in the preview and the export. Combine it with a look on the Color page (e.g. faded or black and white) for the full effect.": "VHS-band, eitt gamalt sjónvarp, eitt videokamera við dagfestingarstempli, gamal filmur við dusti og rispum ella eitt eftirlitskamera — teknað yvir myndina í undanvísingini og útflytingini. Sameina tað við eina útsjónd á Lit-síðuni (t.d. bleikt ella svart-hvítt) fyri fulla ávirkan.",
-"Layers → Retro look: VHS tape, Old TV, Camcorder (with a date stamp you set), Old film (dust and scratches) or Security camera over the whole video; Strength sets how strong it is. Pair it with a faded or black-and-white look on the Color page.": "Løg → Retro-útsjónd: VHS-band, Gamalt sjónvarp, Videokamera (við einum dagfestingarstempli, tú sjálv/ur velur), Gamal filmur (dust og rispur) ella Eftirlitskamera yvir alla videoina; Styrki ger av, hvussu sterkt tað er. Sameina við eina bleika ella svart-hvíta útsjónd á Lit-síðuni."
+"Layers → Retro look: VHS tape, Old TV, Camcorder (with a date stamp you set), Old film (dust and scratches) or Security camera over the whole video; Strength sets how strong it is. Pair it with a faded or black-and-white look on the Color page.": "Løg → Retro-útsjónd: VHS-band, Gamalt sjónvarp, Videokamera (við einum dagfestingarstempli, tú sjálv/ur velur), Gamal filmur (dust og rispur) ella Eftirlitskamera yvir alla videoina; Styrki ger av, hvussu sterkt tað er. Sameina við eina bleika ella svart-hvíta útsjónd á Lit-síðuni.",
+"▶ Slideshow video": "▶ Myndarøð-video",
+"Slideshow video": "Myndarøð-video",
+"Seconds per photo": "Sekund fyri hvørja mynd",
+"Between photos": "Millum myndir",
+"Straight cut": "Beinleiðis klipp",
+"Slow zoom": "Spakulig zoom",
+"Couldn't make clips from those photos": "Kundi ikki gera klipp úr hesum myndunum",
+"Library → select photos → ▶ Slideshow video: the photos become clips on a new video timeline in the video editor, with seconds per photo, a slow zoom and a cross dissolve or dip between them — add music and titles there, then export.": "Savn → vel myndir → ▶ Myndarøð-video: myndirnar verða til klipp á eini nýggjari videotíðarlinju í videoritlinum við sekundum fyri hvørja mynd, spakuligari zoom og einari krossblending ella einum dýpi ímillum — legg tónleik og heiti afturat har, og flyt út."
 }

@@ -4225,5 +4225,13 @@
 "Day of the year": "Dag i året",
 "Time of day": "Tidspunkt",
 "VHS tape, an old TV, a camcorder with its date stamp, old film with dust and scratches, or a security camera — drawn over the picture in the preview and the export. Combine it with a look on the Color page (e.g. faded or black and white) for the full effect.": "VHS-bånd, et gammelt tv, et videokamera med datostempel, gammel film med støv og ridser eller et overvågningskamera — tegnet over billedet i forhåndsvisningen og eksporten. Kombinér det med et look på Farve-siden (fx falmet eller sort-hvid) for den fulde effekt.",
-"Layers → Retro look: VHS tape, Old TV, Camcorder (with a date stamp you set), Old film (dust and scratches) or Security camera over the whole video; Strength sets how strong it is. Pair it with a faded or black-and-white look on the Color page.": "Lag → Retro-look: VHS-bånd, Gammelt tv, Videokamera (med et datostempel du selv vælger), Gammel film (støv og ridser) eller Overvågningskamera over hele videoen; Styrke bestemmer hvor kraftigt det er. Kombinér med et falmet eller sort-hvidt look på Farve-siden."
+"Layers → Retro look: VHS tape, Old TV, Camcorder (with a date stamp you set), Old film (dust and scratches) or Security camera over the whole video; Strength sets how strong it is. Pair it with a faded or black-and-white look on the Color page.": "Lag → Retro-look: VHS-bånd, Gammelt tv, Videokamera (med et datostempel du selv vælger), Gammel film (støv og ridser) eller Overvågningskamera over hele videoen; Styrke bestemmer hvor kraftigt det er. Kombinér med et falmet eller sort-hvidt look på Farve-siden.",
+"▶ Slideshow video": "▶ Diasshow-video",
+"Slideshow video": "Diasshow-video",
+"Seconds per photo": "Sekunder pr. foto",
+"Between photos": "Mellem fotos",
+"Straight cut": "Direkte klip",
+"Slow zoom": "Langsom zoom",
+"Couldn't make clips from those photos": "Kunne ikke lave klip af de fotos",
+"Library → select photos → ▶ Slideshow video: the photos become clips on a new video timeline in the video editor, with seconds per photo, a slow zoom and a cross dissolve or dip between them — add music and titles there, then export.": "Bibliotek → vælg fotos → ▶ Diasshow-video: fotoene bliver til klip på en ny videotidslinje i videoeditoren med sekunder pr. foto, langsom zoom og en krydsfade eller et dyk mellem dem — tilføj musik og titler der, og eksportér."
 }

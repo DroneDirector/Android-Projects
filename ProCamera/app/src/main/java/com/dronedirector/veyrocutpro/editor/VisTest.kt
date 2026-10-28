@@ -81,4 +81,21 @@ object VisTest {
             }
         } catch (t: Throwable) { android.util.Log.e(tag, "failed", t) }
     }
+
+    /** Slideshow: three drawn photos made into clips (runs on the main thread — the video maker needs it). */
+    suspend fun slideshow(context: Context) {
+        try {
+            val uris = (0 until 3).map { k ->
+                val b = android.graphics.Bitmap.createBitmap(1200, 800, android.graphics.Bitmap.Config.ARGB_8888)
+                b.eraseColor(listOf(0xFFC0392B, 0xFF27AE60, 0xFF2980B9)[k].toInt())
+                val f = java.io.File(context.cacheDir, "slidetest_$k.jpg")
+                f.outputStream().use { b.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) }
+                android.net.Uri.fromFile(f)
+            }
+            val t0 = System.currentTimeMillis()
+            val clips = Slideshow.build(context, Slideshow.Request(uris, 3, TransitionType.CROSSFADE, true)) { _, _ -> }
+            android.util.Log.i("VisTest", "slideshow: ${clips.size} of 3 clips in ${System.currentTimeMillis() - t0} ms; " +
+                clips.joinToString { "${it.durationMs} ms ${it.width}x${it.height} zoom ${it.reframe.end.zoom} tr ${it.transition.type}" })
+        } catch (t: Throwable) { android.util.Log.e("VisTest", "slideshow failed", t) }
+    }
 }

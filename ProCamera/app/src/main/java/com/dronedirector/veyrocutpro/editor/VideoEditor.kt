@@ -274,6 +274,19 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
 
     // Videos shared from another app go straight onto the timeline.
     LaunchedEffect(Unit) { if (initialUris.isNotEmpty()) addUris(initialUris) }
+    // Photo editor → Slideshow video: the photos as clips with a slow zoom and transitions.
+    var slideshowStatus by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        val r = Slideshow.request ?: return@LaunchedEffect
+        Slideshow.request = null
+        loading = true
+        val made = Slideshow.build(context, r) { i, n -> slideshowStatus = "Making the slideshow: photo ${minOf(i + 1, n)} of $n" }
+        slideshowStatus = null
+        loading = false
+        if (made.isEmpty()) { android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Couldn't make clips from those photos"), android.widget.Toast.LENGTH_LONG).show(); return@LaunchedEffect }
+        clips.addAll(made.map { MediaCatalog.added(context, it) })
+        started = true
+    }
     // Picture test on the test phone: colour bars with clarity and texture set, straight into the editor.
     LaunchedEffect(Unit) {
         val amt = FxTest.amount ?: return@LaunchedEffect
@@ -281,6 +294,7 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
         if (amt >= 3f) {
             // Visualizer test: analyse a made-up song with a kick on every beat and check the pictures move.
             withContext(Dispatchers.Default) { VisTest.run(context) }
+            VisTest.slideshow(context)
             return@LaunchedEffect
         }
         android.util.Log.i("FxTest", "making the test clip ($amt)")
@@ -385,7 +399,12 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
                     }
                 },
             )
-            if (loading) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Pro.Amber) }
+            if (loading) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Pro.Amber)
+                    slideshowStatus?.let { Text(it, color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 12.dp)) }
+                }
+            }
         }
     } else {
         // The editor opened from the start page: it's the first open project.

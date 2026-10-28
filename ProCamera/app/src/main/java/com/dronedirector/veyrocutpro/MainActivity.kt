@@ -183,6 +183,7 @@ class MainActivity : ComponentActivity() {
                             onBack = { screen.value = com.dronedirector.veyrocutpro.ui.AppScreen.HOME },
                         )
                         com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR -> com.dronedirector.veyrocutpro.editor.PhotoEditorScreen(
+                            onOpenVideo = { screen.value = com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR },
                             onExit = { screen.value = com.dronedirector.veyrocutpro.ui.AppScreen.EDITOR },
                             initial = sharedPhoto.also { sharedPhoto = null },
                         )

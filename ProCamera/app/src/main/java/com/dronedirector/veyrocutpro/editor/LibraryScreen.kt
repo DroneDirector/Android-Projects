@@ -217,6 +217,7 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
                 PillChip("Contact sheet PDF", false) { dialog = "sheet" }
                 PillChip("Print layout", false) { dialog = "print" }
                 if (picked.size in 2..9) PillChip("Collage", false) { dialog = "collage" }
+                if (picked.size >= 2) PillChip("▶ Slideshow video", false) { dialog = "slideshow" }
                 PillChip("📍 Geotag from GPX", false) { try { pickGpx.launch(arrayOf("*/*")) } catch (_: Throwable) {} }
             }
         }
@@ -292,6 +293,34 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
             }
         },
         confirmButton = { Text("SAVE PDF", style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.clickable { dialog = null; saveSheet.launch("Contact sheet.pdf") }.padding(10.dp)) },
+        dismissButton = { Text("CANCEL", style = Pro.Label.copy(color = Pro.Dim, fontSize = 12.sp), modifier = Modifier.clickable { dialog = null }.padding(10.dp)) },
+    )
+
+    // ---- Slideshow video: the picked photos become a new video timeline
+    var ssSec by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(4) }
+    var ssTr by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0) }
+    var ssZoom by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(true) }
+    if (dialog == "slideshow") androidx.compose.material3.AlertDialog(
+        onDismissRequest = { dialog = null },
+        containerColor = Ed.Raised,
+        title = { Text("Slideshow video", color = Color.White) },
+        text = {
+            Column {
+                Text("${sheetUris.size} photos become clips on a new video timeline, in this order. Add music, titles and more there, then export.", color = Pro.Dim, fontSize = 12.sp)
+                Text("Seconds per photo", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { listOf(2, 3, 4, 5, 6, 8).forEach { n -> PillChip("$n", ssSec == n) { ssSec = n } } }
+                Text("Between photos", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
+                    Slideshow.TRANSITIONS.forEachIndexed { i, t -> PillChip(if (t == TransitionType.NONE) "Straight cut" else t.label, ssTr == i) { ssTr = i } }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 8.dp)) { PillChip("Slow zoom", ssZoom) { ssZoom = true }; PillChip("Still", !ssZoom) { ssZoom = false } }
+            }
+        },
+        confirmButton = { Text("MAKE VIDEO", style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.clickable {
+            dialog = null
+            Slideshow.request = Slideshow.Request(sheetUris, ssSec, Slideshow.TRANSITIONS[ssTr], ssZoom)
+            Slideshow.openVideoEditor?.invoke()
+        }.padding(10.dp)) },
         dismissButton = { Text("CANCEL", style = Pro.Label.copy(color = Pro.Dim, fontSize = 12.sp), modifier = Modifier.clickable { dialog = null }.padding(10.dp)) },
     )
 

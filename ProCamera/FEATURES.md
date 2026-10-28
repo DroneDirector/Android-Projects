@@ -199,6 +199,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Creative effects**: Colour splash (keep one colour, the rest black and white), Tilt-shift miniature and Sun glow & rays.
 - **Dodge & burn** brushes: paint to lighten or darken, each its own mask.
 - **Metadata on export**: title, caption, author, copyright and keywords written into the photo.
+- **Slideshow video**: selected library photos become a video timeline with slow zoom and transitions, opened in the video editor.
 - **AI Remove**: tap or paint over bigger objects to remove them.
 - **Merge photos**: HDR (exposure fusion), panorama stitching, focus stacking.
 - **Watermark**: text or logo, font, colour, size, position, opacity; optional **Remember watermark**.

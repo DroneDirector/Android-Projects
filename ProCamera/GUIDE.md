@@ -233,6 +233,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Effects → COLOUR SPLASH keeps one colour and turns the rest black and white; TILT-SHIFT MINIATURE blurs the top and bottom so a scene looks like a model (best from high up); SUN GLOW & RAYS adds a warm sun with soft rays where you place it.
 - Masks → Dodge / Burn: paint to lighten (dodge) or darken (burn) parts of the photo; each one is its own mask you can change or delete.
 - Export → METADATA: title, caption, author, copyright and keywords written into the exported photo (JPEG, PNG, WebP), kept with the edit.
+- Library → select photos → ▶ Slideshow video: the photos become clips on a new video timeline in the video editor, with seconds per photo, a slow zoom and a cross dissolve or dip between them — add music and titles there, then export.
 - Hold your finger on the photo to see the original.
 - Masks → Subject (AI) / Sky (AI) select the subject or the sky for you (on the phone, or more precisely with Cloud AI).
 - Effects → BACKGROUND (AI): FIND SUBJECT, then blur the background (portrait look), remove it (transparent PNG) or fill it with a colour.

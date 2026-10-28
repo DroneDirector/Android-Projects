@@ -145,7 +145,8 @@ private enum class PhotoPanel(val label: String) {
 }
 
 @Composable
-fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null) {
+fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null, onOpenVideo: () -> Unit = {}) {
+    androidx.compose.runtime.SideEffect { Slideshow.openVideoEditor = onOpenVideo }
     KeepScreenOnWhileEditing()
     val context = LocalContext.current
     var source by remember { mutableStateOf(initial) }

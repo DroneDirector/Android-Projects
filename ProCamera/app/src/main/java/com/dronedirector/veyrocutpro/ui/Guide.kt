@@ -279,6 +279,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Effects → COLOUR SPLASH keeps one colour and turns the rest black and white; TILT-SHIFT MINIATURE blurs the top and bottom so a scene looks like a model (best from high up); SUN GLOW & RAYS adds a warm sun with soft rays where you place it.",
             "Masks → Dodge / Burn: paint to lighten (dodge) or darken (burn) parts of the photo; each one is its own mask you can change or delete.",
             "Export → METADATA: title, caption, author, copyright and keywords written into the exported photo (JPEG, PNG, WebP), kept with the edit.",
+            "Library → select photos → ▶ Slideshow video: the photos become clips on a new video timeline in the video editor, with seconds per photo, a slow zoom and a cross dissolve or dip between them — add music and titles there, then export.",
         ), numbered = false),
         GuideSection(GuideTopic.GENERAL, "General", Icons.Filled.Tune, null, listOf(
             "\"Remember watermark\" adds your watermark to every new photo automatically.",

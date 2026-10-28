@@ -605,8 +605,24 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val text = withContext(Dispatchers.IO) {
                 try { context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } } catch (_: Throwable) { null }
             }
+            if (es.srtForMap && text != null && text.contains("<gpx", ignoreCase = true)) {
+                // A GPX track (hike, drive, ride): its route animated over the selected clip, start to finish.
+                val pts = withContext(Dispatchers.IO) { try { Geotag.readGpx(context, uri) } catch (_: Throwable) { emptyList() } }
+                val c = clips.getOrNull(es.current)
+                if (pts.size < 2 || c == null) { es.message = if (c == null) "Select a clip on the timeline first" else "No timed points in that GPX file"; return@launch }
+                val base = clipStarts(clips).getOrNull(es.current) ?: 0L
+                val t0 = pts.first().t; val span = (pts.last().t - t0).coerceAtLeast(1)
+                val step = (pts.size / 400).coerceAtLeast(1)
+                val tr = ArrayList<Double>()
+                for ((i, p) in pts.withIndex()) if (i % step == 0 || i == pts.lastIndex) { tr += base + (p.t - t0).toDouble() / span * c.lengthMs; tr += p.lat; tr += p.lon }
+                val l = Layer(kind = LayerKind.FX, fx = FxLayers.MAP, text = "Route", size = 0.26f, x = 0.84f, y = 0.74f, color = 0xFFFFB300.toInt(),
+                    shadow = false, startMs = base, endMs = base + c.lengthMs, track = tr)
+                layers.add(l); es.selectedLayer = l.id
+                es.message = "Route added over clip ${es.current + 1} — the whole track plays over the clip"
+                return@launch
+            }
             val samples = text?.let { withContext(Dispatchers.Default) { Telemetry.parse(it) } }.orEmpty()
-            if (samples.isEmpty()) { es.message = "No flight data found in that file — pick the .SRT saved next to the drone video"; return@launch }
+            if (samples.isEmpty()) { es.message = "No flight data found in that file — pick the .SRT saved next to the drone video, or a .GPX track"; return@launch }
             val c = clips.getOrNull(es.current) ?: run { es.message = "Select the drone clip on the timeline first"; return@launch }
             val base = clipStarts(clips).getOrNull(es.current) ?: 0L
             if (es.srtForMap) {
@@ -1516,6 +1532,24 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     addAtMs[0] = globalMs
     androidx.compose.runtime.SideEffect { es.adjNowMs = globalMs }
 
+    /** Opens a tools page with one of its sections unfolded and scrolled into view. */
+    fun goToSection(page: Page, section: String?) {
+        if (section != null) com.dronedirector.veyrocutpro.ui.Fold.jump("video", section)
+        es.page = page
+    }
+    /** Colour & details: clip [i]'s grade (exposure, contrast, highlights, shadows…). */
+    fun openColor(i: Int) {
+        if (i !in clips.indices) return
+        es.selected = i; es.colorTab = ColorTab.PRIMARIES; es.page = Page.COLOR
+        es.message = "Colour & details for clip ${i + 1} — Wheels, Curves, HSL and Detail are in the tabs above"
+    }
+    /** Reveal in project: the clip's file is put in the media strip if it isn't there yet, then picked out there. */
+    fun revealInLibrary(c: Clip) {
+        if (library.none { it.uri == c.uri }) library.add(c.copy(id = java.util.UUID.randomUUID().toString(), startMs = 0, endMs = c.durationMs, speed = 1f, ramp = null, rampName = null, volKeys = null, transition = Transition()))
+        if (!com.dronedirector.veyrocutpro.ui.Panels.isOn(context, "ve.mediastrip")) com.dronedirector.veyrocutpro.ui.Panels.set(context, "ve.mediastrip", true)
+        es.revealUri = c.uri.toString(); es.revealTick++
+        es.message = "\"${c.name}\" is picked out in the media strip"
+    }
     fun seekGlobal(ms: Long) {
         if (clips.isEmpty()) return
         val (i, local) = clipAt(clips, ms)
@@ -4037,7 +4071,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             // The picture stays dark in the light look.
             val viewer = @Composable { mod: Modifier -> com.dronedirector.veyrocutpro.ui.ForceDark { viewerInner(mod) } }
             val timeline = @Composable { com.dronedirector.veyrocutpro.ui.ForceDark {
+                var deviceClip by remember { mutableStateOf<Clip?>(null) }
+                deviceClip?.let { RevealFileDialog(it) { deviceClip = null } }
                 TimelineView(
+                    onSelectAudio = { id -> goToSection(Page.AUDIO, if (id == es.music?.id) "MUSIC TRACK" else "MORE AUDIO TRACKS") },
                     onDeleteClip = { i -> if (es.videoLocked) es.message = "The video track is locked" else es.deleteAsk = i },
                     pick = wf.pick,
                     onDetachAudio = {
@@ -4063,6 +4100,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             nest = { from, n -> nestClips(from, n) },
                             detach = { list -> list.forEach { detachAudio(it) } },
                             delete = { i -> if (es.videoLocked) es.message = "The video track is locked" else es.deleteAsk = i },
+                            color = { i -> openColor(i) },
+                            revealLibrary = { i -> clips.getOrNull(i)?.let { revealInLibrary(it) } },
+                            revealDevice = { i -> deviceClip = clips.getOrNull(i) },
                             deleteMany = { list ->
                                 if (es.videoLocked) es.message = "The video track is locked"
                                 else { list.sortedDescending().forEach { deleteClip(it, false) }; es.message = "${list.size} clips deleted — undo brings them back" }
@@ -4074,7 +4114,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     selectedLayerId = if (es.page == Page.LAYERS) es.selectedLayer else null,
                     onScrub = { ms, final -> scrub(ms, final) },
                     onSelectClip = { es.selected = it; if (es.page == Page.MEDIA || es.page == Page.LAYERS || es.page == Page.DELIVER) es.page = Page.EDIT },
-                    onSelectLayer = { es.selectedLayer = it; es.page = Page.LAYERS },
+                    onSelectLayer = { id -> es.selectedLayer = id; layers.firstOrNull { it.id == id }?.let { goToSection(Page.LAYERS, "SELECTED ${it.kind.label.uppercase()}") } ?: run { es.page = Page.LAYERS } },
                     zoom = zoom,
                     onSelectTransition = { es.selected = it; es.page = Page.TRANSITIONS },
                     extraAudio = extraAudio,
@@ -4146,6 +4186,19 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 vertical = vertical,
                 modifier = if (vertical) Modifier.fillMaxSize() else Modifier,
                 reveal = es.revealUri, revealTick = es.revealTick,
+                onColor = { c ->
+                    val i = clips.indexOfFirst { it.uri == c.uri }
+                    if (i < 0) es.message = "\"${c.name}\" isn't on the timeline yet — add it first" else openColor(i)
+                },
+                onRevealTimeline = { c ->
+                    val i = clips.indexOfFirst { it.uri == c.uri }
+                    if (i < 0) es.message = "\"${c.name}\" isn't on the timeline yet"
+                    else {
+                        es.selected = i; seekGlobal(clipStarts(clips).getOrNull(i) ?: 0L)
+                        val n = clips.count { it.uri == c.uri }
+                        es.message = "Clip ${i + 1} on the timeline" + (if (n > 1) " (used $n times — this is the first)" else "")
+                    }
+                },
                 onZoom = { step -> stripPane.dp = (stripH + step).coerceIn(40f, 240f); stripPane.save() },
                     library = library, uses = { c -> clips.count { it.uri == c.uri } }, ratings = ratings,
                     bins = bins, binNames = binNames,
@@ -4171,6 +4224,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     // Landscape / tablet: the media strip is the first tab, on the left.
                     val stripTab = stripInTools && showStrip
                     LaunchedEffect(stripTab) { if (!stripTab && es.page == Page.STRIP) es.page = Page.MEDIA }
+                    // Reveal in project: the media strip tab is shown when the strip lives in the tools panel.
+                    var revealSeen by remember { mutableStateOf(es.revealTick) }
+                    LaunchedEffect(es.revealTick, stripTab) { if (es.revealTick != revealSeen && stripTab) { revealSeen = es.revealTick; es.page = Page.STRIP } }
                     val pages = (if (stripTab) listOf(Page.STRIP) else emptyList()) + (if (com.dronedirector.veyrocutpro.camera.SimpleMode.on)
                         listOf(Page.MEDIA, Page.PROXY, Page.EDIT, Page.TEXT, Page.TRANSITIONS, Page.COLOR, Page.LAYERS, Page.AUDIO, Page.DELIVER)
                     else Page.entries.filter { it != Page.STRIP })
@@ -4181,13 +4237,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     ) {
                       for (pg in pages) {
                         if (pg == Page.DELIVER) RevealMenu(clips.getOrNull(es.selected)) {
-                            val c = clips.getOrNull(es.selected) ?: return@RevealMenu
-                            // The clip is put in the media strip if it isn't there yet, then picked out there.
-                            if (library.none { it.uri == c.uri }) library.add(c.copy(id = java.util.UUID.randomUUID().toString(), startMs = 0, endMs = c.durationMs, speed = 1f, ramp = null, rampName = null, volKeys = null, transition = Transition()))
-                            if (!showStrip) com.dronedirector.veyrocutpro.ui.Panels.set(context, "ve.mediastrip", true)
-                            if (stripTab) es.page = Page.STRIP
-                            es.revealUri = c.uri.toString(); es.revealTick++
-                            es.message = "\"${c.name}\" is picked out in the media strip"
+                            clips.getOrNull(es.selected)?.let { revealInLibrary(it) }
                         }
                         val sel = pg == es.page
                         Text(
@@ -4598,6 +4648,16 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 smartWhy = if (es.deliver.smartRender) smartRenderBlocker(context, clips.let { l -> if (es.videoMuted) l.map { it.copy(muted = true) } else l }, es.deliver, layers.toList(), es.music, extraAudio.toList()) else null,
                                 queue = exportQueue.toList(), queueAt = es.queueAt,
                                 onQueueAdd = { exportQueue.add(es.deliver); es.message = "Added to the queue (${exportQueue.size})" },
+                                onExportBoth = {
+                                    // The same edit as 16:9 and as 9:16 (filled, centred), one after the other.
+                                    if (!es.exporting) {
+                                        exportQueue.clear()
+                                        exportQueue.add(es.deliver.copy(aspect = 16f / 9f, fill = true, audioOnly = false))
+                                        exportQueue.add(es.deliver.copy(aspect = 9f / 16f, fill = true, audioOnly = false))
+                                        es.queueBase = es.deliver; es.queueAt = 0
+                                        es.message = "Exporting 16:9, then 9:16"
+                                    }
+                                },
                                 onQueueRemove = { i -> if (i in exportQueue.indices) exportQueue.removeAt(i) },
                                 onQueueStart = { if (!es.exporting) { es.queueBase = es.deliver; es.queueAt = 0 } },
                                 onQueueStop = { es.queueAt = -1; es.cloudJob?.cancel(); es.export?.cancel(); es.export = null; es.exporting = false; es.deliver = es.queueBase ?: es.deliver; es.message = "Queue stopped" },
@@ -6299,13 +6359,13 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.hintedScroll(horizontal = true)) {
         val total = totalMs.coerceAtLeast(1)
         SmallAction(Icons.Filled.Movie, "Cinema bars") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.BARS, text = "Cinema bars", fxA = 2.39f, color = 0xFF000000.toInt(), shadow = false, startMs = 0, endMs = total)) }
-        SmallAction(Icons.Filled.Map, "Flight path", onFlightPath)
+        SmallAction(Icons.Filled.Map, "Flight path / route", onFlightPath)
         SmallAction(Icons.Filled.LinearScale, "Progress bar") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.PROGRESS, text = "Progress bar", fxA = 0.008f, y = 0.996f, color = 0xFFFFB300.toInt(), shadow = false, startMs = 0, endMs = total)) }
         SmallAction(Icons.Filled.GraphicEq, "Visualizer", onVisualizer)
         SmallAction(Icons.Filled.Timer, "Countdown") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.TIMER, text = "Countdown", size = 0.18f, x = 0.88f, y = 0.18f, fxB = 1f, color = 0xFFFFB300.toInt(), shadow = false, startMs = playheadMs, endMs = (playheadMs + 10_000L).coerceAtMost(total).let { if (it - playheadMs < 1000) playheadMs + 10_000L else it })) }
         SmallAction(Icons.Filled.WbSunny, "Lens flare") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.FLARE, text = "Lens flare", fxA = 0f, fxX = 0.72f, fxY = 0.28f, opacity = 0.9f, shadow = false, startMs = playheadMs, endMs = end)) }
     }
-    Text("Cinema bars, the progress bar and the flare cover the whole video or part of it — trim them on the timeline. Flight path reads the drone's .SRT flight data for the selected clip.", color = Pro.Dim, fontSize = 11.sp)
+    Text("Cinema bars, the progress bar and the flare cover the whole video or part of it — trim them on the timeline. Flight path / route reads the drone's .SRT flight data, or a .GPX track from a GPS app (hikes, drives, rides), for the selected clip.", color = Pro.Dim, fontSize = 11.sp)
     if (stickers) {
         Column(Modifier.padding(vertical = 6.dp)) {
             STICKERS.chunked(8).forEach { row ->
@@ -6674,6 +6734,7 @@ private fun DeliverPage(
     markerNotes: Map<Long, String> = emptyMap(),
     queue: List<DeliverSettings> = emptyList(), queueAt: Int = -1,
     onQueueAdd: () -> Unit = {}, onQueueRemove: (Int) -> Unit = {}, onQueueStart: () -> Unit = {}, onQueueStop: () -> Unit = {},
+    onExportBoth: () -> Unit = {},
     smartWhy: String? = null,
     /** Phones: the cast button lives here (tablets have it next to the zoom buttons). */
     castSlot: (@Composable () -> Unit)? = null,
@@ -6932,6 +6993,12 @@ private fun DeliverPage(
             xNote = if (text.lines().size < 3) "Copied — YouTube shows chapters when there are at least 3; add more markers (◆ MARKER on the timeline)." else "Chapters copied — paste them into the YouTube description:\n$text"
         }.padding(10.dp),
     )
+    SectionTitle("WIDE + VERTICAL")
+    Text(
+        "EXPORT 16:9 AND 9:16", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(vertical = 6.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable(enabled = queueAt < 0 && !exporting) { onExportBoth() }.padding(10.dp),
+    )
+    Text("Two videos from the same edit with the settings above: a 16:9 one for YouTube and a 9:16 one for Reels, Shorts and TikTok (the picture fills the frame, centred — use Auto-reframe on clips to follow the action).", color = Pro.Dim, fontSize = 11.sp)
     SectionTitle("RENDER QUEUE")
     Text("Set up an export above and tap + ADD TO QUEUE; change the settings and add again (e.g. YouTube 4K, a 9:16 Reel and an audio file). START QUEUE renders them one after another.", color = Pro.Dim, fontSize = 11.sp)
     Text(

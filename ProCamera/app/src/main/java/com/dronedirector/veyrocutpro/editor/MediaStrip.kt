@@ -163,7 +163,13 @@ fun MediaStrip(
     /** File → Reveal in library: this file (uri text) is shown, picked out and scrolled to (each new [revealTick]). */
     reveal: String? = null,
     revealTick: Int = 0,
+    /** Colour & details for this file's clip on the timeline. */
+    onColor: (Clip) -> Unit = {},
+    /** Reveal in project: the first place this file is used on the timeline. */
+    onRevealTimeline: (Clip) -> Unit = {},
 ) {
+    var deviceFor by remember { mutableStateOf<Clip?>(null) }
+    deviceFor?.let { RevealFileDialog(it) { deviceFor = null } }
     var filter by remember { mutableStateOf(0) }       // 0 all, 1 unused, 2 used, 3 ★3+, 4 no rejects
     var bin by remember { mutableStateOf<String?>(null) }
     var selecting by remember { mutableStateOf(false) }
@@ -237,6 +243,9 @@ fun MediaStrip(
                         StripChip("Insert at playhead") { menuFor = null; onInsert(c) }
                         StripChip("Overwrite at playhead") { menuFor = null; onOverwrite(c) }
                         StripChip("Open in source viewer") { menuFor = null; onSource(c) }
+                        StripChip("Colour & details") { menuFor = null; onColor(c) }
+                        StripChip("Reveal in project") { menuFor = null; onRevealTimeline(c) }
+                        StripChip("Reveal on device") { menuFor = null; deviceFor = c }
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { (0..5).forEach { r -> StripChip(if (r == 0) "☆" else "★$r", (ratings[k] ?: 0) == r) { onRate(listOf(c), r) } } }
                         StripChip("✕ Reject", ratings[k] == -1) { onRate(listOf(c), if (ratings[k] == -1) 0 else -1) }
                         StripChip("Remove from media") { menuFor = null; onRemove(listOf(c)) }

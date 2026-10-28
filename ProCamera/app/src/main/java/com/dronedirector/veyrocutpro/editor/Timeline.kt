@@ -120,6 +120,8 @@ fun TimelineView(
     onScrub: (ms: Long, final: Boolean) -> Unit,
     onSelectClip: (Int) -> Unit,
     onSelectLayer: (String) -> Unit,
+    /** A tap on an audio bar (music or another audio track): its settings. */
+    onSelectAudio: (String) -> Unit = {},
     zoom: TimelineZoom,
     onSelectTransition: (Int) -> Unit = {},
     extraAudio: List<MusicTrack> = emptyList(),
@@ -262,6 +264,7 @@ fun TimelineView(
     val curDeleteClip by rememberUpdatedState(onDeleteClip)
     val curPick by rememberUpdatedState(pick)
     val curSelectLayer by rememberUpdatedState(onSelectLayer)
+    val curSelectAudio by rememberUpdatedState(onSelectAudio)
     val curSelectTransition by rememberUpdatedState(onSelectTransition)
 
     Column(Modifier.fillMaxWidth().background(Ed.DarkBg)) {
@@ -645,9 +648,17 @@ fun TimelineView(
                                     if (pt != null && pt.on) curClips.getOrNull(k)?.let { pt.toggle(it.id) } else curSelectClip(k)
                                 }
                             } else {
+                                var hit = false
                                 for (l in curLayers) {
                                     val top = curLayerTops[l.id] ?: continue
-                                    if (y in top..(top + layerRow)) { curSelectLayer(l.id); break }
+                                    if (y in top..(top + layerRow)) { curSelectLayer(l.id); hit = true; break }
+                                }
+                                if (!hit) {
+                                    var top = curAudioTop
+                                    for (m in curAudio) {
+                                        if (y in top..(top + musicRow)) { curSelectAudio(m.id); break }
+                                        top += musicRow + gap
+                                    }
                                 }
                             }
                             if (y < ruler) currentScrub(ms.coerceIn(0, curTotal), true)

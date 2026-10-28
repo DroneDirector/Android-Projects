@@ -141,7 +141,7 @@ fun RevealMenu(clip: Clip?, onRevealLibrary: () -> Unit) {
 }
 
 @Composable
-private fun RevealFileDialog(clip: Clip, onDismiss: () -> Unit) {
+internal fun RevealFileDialog(clip: Clip, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val target = clip.offlineOf?.let { Uri.parse(it) } ?: clip.uri
     val place by produceState<Reveal.Place?>(null, target) { value = withContext(Dispatchers.IO) { try { Reveal.find(context, target) } catch (_: Throwable) { null } } }

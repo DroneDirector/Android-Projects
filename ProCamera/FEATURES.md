@@ -129,6 +129,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 
 ## Photo editor
 - **Light look** (Preferences → Appearance: dark, light or like the phone) inside the editor, with dark text everywhere; the photo itself stays on a dark background.
+- **Capture appearance**: the same Dark / Light / Like the phone choice in Capture's settings; the controls on the camera picture stay dark.
 - **Help** (documentation, tutorials, troubleshooting, proof of purchase), **Project settings**, **Preferences** and **System Info**.
 - **File menu**: new, open, open recent, save / save as / save a copy / revert, capture, import (gallery, files, NAS) and exit; **changeable keyboard shortcuts** (keyboard icon).
 - **Network (NAS)**: open photos — RAW included — from a Synology or any other NAS (or a computer sharing folders) on your network; guest first, sign-in only when needed, optional encrypted remembered sign-ins that are never shown and are unlocked with the phone's fingerprint, PIN or pattern.
@@ -195,6 +196,9 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Colour-range and brightness-range masks**: tap the photo to pick a colour or brightness (e.g. only the blues, only the highlights), with range and softness.
 - **Background (AI)**: portrait blur, transparent background or colour fill behind the subject.
 - **Sky replacement (AI)**: 5 built-in skies or your own picture, with strength and light matching.
+- **Creative effects**: Colour splash (keep one colour, the rest black and white), Tilt-shift miniature and Sun glow & rays.
+- **Dodge & burn** brushes: paint to lighten or darken, each its own mask.
+- **Metadata on export**: title, caption, author, copyright and keywords written into the photo.
 - **AI Remove**: tap or paint over bigger objects to remove them.
 - **Merge photos**: HDR (exposure fusion), panorama stitching, focus stacking.
 - **Watermark**: text or logo, font, colour, size, position, opacity; optional **Remember watermark**.
@@ -424,6 +428,9 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Help**: documentation and tutorials for the open part of the app, troubleshooting and **proof of purchase** from Google Play.
 - **Preferences** (gear): appearance, shutter sound, **audio hardware** choice with an unplug notice, autosave, playback, timeline and editing; **System Info** with the phone's hardware and drivers.
 - **Reveal in Project**: show the selected clip in the media strip, or where its file is on the phone (open the folder, copy the path).
+- **Tap to open, hold for more**: tap any item on the timeline (clip, transition, layer, visualizer, progress bar, countdown, music or audio track) to jump to its settings; hold a clip or a media-strip file for **Colour & details**, **Reveal in project** and **Reveal on device**. Layers and audio bars move and trim like clips.
+- **Wide + vertical export**: the same edit as 16:9 and 9:16 in one go.
+- **GPX routes**: a GPS track from a hike, drive or ride drawn as an animated map over a clip.
 - **File menu**: projects (new, open, open recent, settings), several projects open at once with quick switching and close / close others / close all, save / save as / save a copy / revert, capture, import, new sequence / sequence from clip / bin / offline file / captions / transcript / title, team projects, collect files, make offline, link media, exit.
 - **Team projects**: kept in a shared folder (NAS or shared / cloud folder) with the media copied once; shows who has a project open, read-only opening meanwhile, and a warning before saving over a newer version.
 - **Offline media**: offline stand-ins for missing shots, Make offline and Link media that keep trims and settings.

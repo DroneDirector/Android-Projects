@@ -4,6 +4,14 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor → timeline: tap anything to open its settings — a layer (text, visualizer, progress bar, countdown, map…) opens Layers with its own settings unfolded and scrolled into view, and the music or another audio track opens Audio at that track. Layers and audio bars move and trim by holding and dragging, the same as clips.
+- Video editor → hold a clip on the timeline: new Colour & details (straight to the clip's exposure, contrast, highlights and shadows), Reveal in project and Reveal on device. Hold a file in the media strip: Colour & details, Reveal in project (jumps to where it is used on the timeline) and Reveal on device.
+- Video editor → Deliver → WIDE + VERTICAL: export the same edit as 16:9 and 9:16 in one go.
+- Video editor → Layers → Flight path / route now also reads .GPX tracks from GPS apps (hikes, drives, rides) and draws the route over the selected clip.
+- Visualizers move with the music again in the preview (they had frozen on the first frame).
+- Transition thumbnails fill their tiles again and each shows its own transition.
+- Photo editor → Effects: Colour splash (keep one colour), Tilt-shift miniature and Sun glow & rays. Masks: Dodge and Burn brushes. Export → Metadata: title, caption, author, copyright and keywords written into the photo.
+- Light look everywhere again, the start screens and splash included. Capture → Settings → Appearance: Dark, Light or Like the phone — on Light the menus and panels are light, the controls on the camera picture stay dark.
 
 ## 1.0.709 — 2026-10-28
 - Light look: back to the editors only — the start screens and the splash screen always stay dark as before. Inside the editors all text stays dark on the light look.

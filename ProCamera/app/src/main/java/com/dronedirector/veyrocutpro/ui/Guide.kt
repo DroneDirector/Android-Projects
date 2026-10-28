@@ -174,6 +174,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Change the app colour under APP COLOUR.",
             "\"Always start in Capture\" opens the app straight into the camera.",
             "Choose where photos and videos are saved under SAVE PHOTOS & VIDEOS TO.",
+            "Settings → Appearance: Dark, Light or Like the phone — the same choice as in the editors. On Light the menus and panels are light; the controls on the camera picture stay dark.",
         ), numbered = false),
     )
     GuideVariant.PHOTO -> listOf(
@@ -275,6 +276,9 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Export → Export recipe: tick several presets (e.g. Web + Print + Archive), then EXPORT WITH N PRESETS saves the photo once per preset, each with its own size, format and file name.",
             "Crop → GUIDES: Thirds, Golden ratio, Golden spiral, Golden triangles, Diagonals or Grid over the photo while cropping; TURN ↻ flips the spiral and triangles. Only on screen.",
             "Library → select photos → Contact sheet PDF: the photos as a grid on A4 or Letter pages (3–6 per row) with file names, stars and flags — for print or to send.",
+            "Effects → COLOUR SPLASH keeps one colour and turns the rest black and white; TILT-SHIFT MINIATURE blurs the top and bottom so a scene looks like a model (best from high up); SUN GLOW & RAYS adds a warm sun with soft rays where you place it.",
+            "Masks → Dodge / Burn: paint to lighten (dodge) or darken (burn) parts of the photo; each one is its own mask you can change or delete.",
+            "Export → METADATA: title, caption, author, copyright and keywords written into the exported photo (JPEG, PNG, WebP), kept with the edit.",
         ), numbered = false),
         GuideSection(GuideTopic.GENERAL, "General", Icons.Filled.Tune, null, listOf(
             "\"Remember watermark\" adds your watermark to every new photo automatically.",
@@ -312,7 +316,9 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Video editor, buttons under the picture: Play is bigger (an amber circle) and sits in the middle of the playback buttons — mute, go to in, previous clip and frame back on its left, frame forward, next clip, go to out and start on its right — and the row starts with Play centred under the picture; swipe the row for the rest.",
             "Video editor → Deliver → Resolution: 5K, 5.1K, 6K, 7K and 8K (5120×2880 up to 7680×4320 in 16:9; 5.1K = DJI's 5120×2700 with the project shape on Original), with 300 and 400 Mbps bitrates. The app checks the phone's video encoder and says whether that size works, at what highest frame rate, and when the other codec is needed (e.g. the Galaxy S24 makes 8K at up to 30 fps; most tablets stop at 4K).",
             "Video editor → Deliver → Resolution: 2.7K (2688 × 1512), 5.3K (5312 × 2988, GoPro), 5.4K (5472 × 3078, DJI Air 2S) and 5.7K (360) — a 360° video exports at 5760 × 2880 and stays 360° (marked so players, YouTube and Facebook show it as a sphere); any other video exports 5760 wide in its own shape. A 360° video exported at any 2:1 size keeps its 360° mark.",
-            "Hold the middle of a clip on the timeline for its menu: Select multiple, Split at the playhead, Duplicate, Speed / Duration, Reverse, Boomerang (the clip forwards, then a backwards copy straight after it), Mute sound, Delete. While selecting, tap clips to tick them; hold any clip for Deselect all, Select all, Duplicate, Mute, Nest into one clip and Delete selected. The ✕ on the timeline's SELECTED badge also ends it.",
+            "Hold the middle of a clip on the timeline for its menu: Select multiple, Split at the playhead, Duplicate, Speed / Duration, Reverse, Boomerang (the clip forwards, then a backwards copy straight after it), Colour & details (the clip's colour and detail controls — exposure, contrast, highlights, shadows), Reveal in project (its file picked out in the media strip), Reveal on device (the folder its file is in), Mute sound, Delete. While selecting, tap clips to tick them; hold any clip for Deselect all, Select all, Duplicate, Mute, Nest into one clip and Delete selected. The ✕ on the timeline's SELECTED badge also ends it.",
+            "Tap anything on the timeline to open its settings: a clip opens Edit, a transition opens Transitions, a layer (text, image, visualizer, progress bar, countdown, map…) opens Layers with its own settings unfolded, and the music or another audio track opens Audio at that track. Hold a layer or audio bar and drag to move it; hold near its start or end and drag to make it shorter or longer — the same as clips.",
+            "Hold a file in the media strip: Append, Insert, Overwrite, Open in source viewer, Colour & details (for its clip on the timeline), Reveal in project (jumps to where it is used on the timeline), Reveal on device, stars, Reject and Remove.",
             "Color → Curves → HUE CURVES (photo and video editors): Hue vs Hue, Hue vs Sat, Hue vs Bright and Bright vs Sat — drag a colour's point up or down (e.g. orange leaves → red, only the greens less saturated, a darker blue sky, less colour in the shadows); double-tap a point to reset it.",
             "Video editor → Edit → PRIVACY BLUR: FIND FACES finds every face in the clip on the phone and blurs it as it moves; + SPOT — tap anything else (a number plate, a screen, a sign) on the frame at the playhead and it's followed to the end of the clip. Blur or pixelate, strength and extra room; in the preview and the export — the preview changes at once while you adjust it.",
             "Video editor → Audio → PITCH & VOICE: raise or lower a clip's voice up to an octave without changing its speed, and Robot, Radio, Phone or Megaphone voices — heard live in the preview and in the export.",
@@ -433,6 +439,8 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Deliver → SMART RENDER → Fast copy: a cut-only edit (no grade, effects, layers, transitions, speed or sound changes, Source size and frame rate) is copied straight from the clips — no quality loss, much faster. Each clip then starts on the key frame at or just before its in point.",
             "Media → TIMELINES: keep several timelines in one project (e.g. a long and a short cut). NEW TIMELINE starts an empty one, DUPLICATE copies the open one, tap a name to switch. Rename the open one in its field.",
             "Panels icon (next to the settings gear): hide or show the tools panel, transport bar, histogram and audio waveforms — the player and timeline grow into the space and shrink back when a panel returns. Presets: Full, Cut, Color, Audio. Triple-tap the icon to reset the whole layout (panels and divider sizes).",
+            "Deliver → WIDE + VERTICAL → EXPORT 16:9 AND 9:16: the same edit saved twice, one for YouTube and one for Reels, Shorts and TikTok (the picture fills the frame, centred).",
+            "Layers → Flight path / route: pick a drone .SRT file, or a .GPX track from a GPS app (a hike, drive or ride) — the route is drawn as a map over the selected clip, start to finish.",
             "SAVE / LOAD projects; \"Save & leave\" when exiting.",
         ), numbered = false),
         GuideSection(GuideTopic.GENERAL, "General", Icons.Filled.Tune, null, listOf(

@@ -2,6 +2,9 @@ package com.dronedirector.veyrocutpro.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -78,6 +81,17 @@ object Fold {
     private fun save(scope: String) {
         if (mode(scope) != REMEMBER) return
         prefs?.edit()?.putStringSet("fold_open_$scope", open.filter { it.value && scopeOf(it.key) == scope }.keys.toSet())?.apply()
+    }
+
+    /** A section asked to be opened and scrolled to (see [jump]). */
+    var jumpKey by androidx.compose.runtime.mutableStateOf<String?>(null)
+    var jumpTick by androidx.compose.runtime.mutableIntStateOf(0)
+
+    /** Opens the section titled [title] in [scope] and scrolls it to the top of its panel. */
+    fun jump(scope: String, title: String) {
+        val k = "$scope|$title"
+        open[k] = true; save(scope)
+        jumpKey = k; jumpTick++
     }
 
     fun isOpen(key: String) = open[key] ?: (mode(scopeOf(key)) == OPEN)
@@ -180,8 +194,18 @@ fun SectionHeader(text: String, onReset: (() -> Unit)? = null) {
     c.begin(key)
     val open = Fold.isOpen(key)
     val summary = c.summaries[key].orEmpty()
+    val bring = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    if (Fold.jumpKey == key) {
+        val tall = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * androidx.compose.ui.platform.LocalDensity.current.density
+        androidx.compose.runtime.LaunchedEffect(Fold.jumpTick) {
+            kotlinx.coroutines.delay(250)
+            // A screen-tall area starting at the header: the panel scrolls so the header is at its top.
+            try { bring.bringIntoView(androidx.compose.ui.geometry.Rect(0f, 0f, 1f, tall)) } catch (_: Throwable) {}
+            if (Fold.jumpKey == key) Fold.jumpKey = null
+        }
+    }
     Row(
-        Modifier.layoutId(FoldId(key)).fillMaxWidth().padding(top = 6.dp, bottom = if (open) 4.dp else 0.dp)
+        Modifier.layoutId(FoldId(key)).bringIntoViewRequester(bring).fillMaxWidth().padding(top = 6.dp, bottom = if (open) 4.dp else 0.dp)
             .clip(RoundedCornerShape(14.dp)).background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.06f))
             .clickable { Fold.toggle(key) }.padding(start = 14.dp, end = 8.dp, top = 11.dp, bottom = 11.dp),
         verticalAlignment = Alignment.CenterVertically,

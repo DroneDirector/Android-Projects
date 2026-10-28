@@ -68,6 +68,12 @@ class ClipActs(
     val nest: (from: Int, count: Int) -> Unit,
     val delete: (Int) -> Unit,
     val deleteMany: (List<Int>) -> Unit,
+    /** Colour & details: the clip's Color page (exposure, contrast, highlights, shadows…). */
+    val color: (Int) -> Unit = {},
+    /** Reveal in project: the clip's file picked out in the media strip. */
+    val revealLibrary: (Int) -> Unit = {},
+    /** Reveal on device: where the clip's file is stored. */
+    val revealDevice: (Int) -> Unit = {},
 )
 
 /** The menu shown where a clip was held. */
@@ -92,6 +98,11 @@ fun ClipMenu(clips: List<Clip>, pick: ClipPick, act: ClipActs) {
                 item("Speed / Duration…") { act.speed(i) }
                 item("Reverse") { act.reverse(i) }
                 item("Boomerang (forwards, then back)") { act.boomerang(i) }
+                HorizontalDivider(color = Pro.Fg.copy(alpha = 0.1f))
+                item("Colour & details…", Pro.Amber) { act.color(i) }
+                item("Reveal in project") { act.revealLibrary(i) }
+                item("Reveal on device") { act.revealDevice(i) }
+                HorizontalDivider(color = Pro.Fg.copy(alpha = 0.1f))
                 item(if (c.muted) "Turn sound on" else "Mute sound") { act.mute(listOf(i)) }
                 if (!c.muted) item("Detach audio") { act.detach(listOf(i)) }
                 HorizontalDivider(color = Pro.Fg.copy(alpha = 0.1f))

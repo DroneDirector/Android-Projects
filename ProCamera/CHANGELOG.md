@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.755 — 2026-10-28
 - Fix: export could still fail with "Video frame processing error" on some transitions (a transition that doesn't use every setting). Every setting is now kept; if one still can't be applied it is skipped and the export says so in a short note.
 
 ## 1.0.748 — 2026-10-28

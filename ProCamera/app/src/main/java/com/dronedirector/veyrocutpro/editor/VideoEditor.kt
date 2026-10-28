@@ -1335,8 +1335,10 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             // Volume keyframes, and audio transitions on plain cuts (fade out / in around the cut).
             if (c.id == es.loadedId && !transitionOn[0]) {
                 var m = 1f
-                if (ov == 0L) AudioXfade.forCut(clips, i).first?.let { m *= it.gain(c.lengthMs - local) }
-                if (i > 0 && overlapMs(clips, i - 1) == 0L) AudioXfade.forCut(clips, i - 1).second?.let { m *= it.gain(local) }
+                var xt = AudioXfx.NONE; var xa = 0f
+                if (ov == 0L) AudioXfade.forCut(clips, i).first?.let { m *= it.gain(c.lengthMs - local); val pr = it.progress(c.lengthMs - local); if (it.fx != AudioXfx.NONE && pr > 0f) { xt = it.fx; xa = pr } }
+                if (i > 0 && overlapMs(clips, i - 1) == 0L) AudioXfade.forCut(clips, i - 1).second?.let { m *= it.gain(local); val lf = it.left(local); if (xt == AudioXfx.NONE && it.fx != AudioXfx.NONE && lf > 0f) { xt = it.fx; xa = lf } }
+                audioFx[deck.active].liveXfx = xt; audioFx[deck.active].liveXAmt = xa
                 val keyed = !c.volKeys.isNullOrEmpty()
                 if (keyed || m < 1f || cutFaded) {
                     deck.cur.volume = (vol(c) * (if (keyed) volAt(c.volKeys, deck.cur.currentPosition) else 1f) * m).coerceIn(0f, 1f)
@@ -1388,6 +1390,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 es.morphFrame = if (c.transition.type == TransitionType.SMOOTH_CUT) morphCache[MorphPreview.keyOf(c, n, ov)]?.frames?.let { fr -> fr[((p * (fr.size - 1)) + 0.5f).toInt().coerceIn(0, fr.lastIndex)] } else null
                 // Audio transition over the overlap.
                 val (fo, fi) = AudioXfade.forCut(clips, i)
+                audioFx[a].liveXfx = fo?.fx ?: AudioXfx.NONE; audioFx[a].liveXAmt = p
+                audioFx[1 - a].liveXfx = fi?.fx ?: AudioXfx.NONE; audioFx[1 - a].liveXAmt = 1f - p
                 deck.cur.volume = (vol(c) * (fo?.gain(((1f - p) * ov).toLong()) ?: (1f - p))).coerceIn(0f, 1f)
                 deck.spare.volume = (vol(n) * (fi?.gain((p * ov).toLong()) ?: p)).coerceIn(0f, 1f)
                 was = true
@@ -1397,6 +1401,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                 transitionOn[0] = false
                 frameViews[a]?.let { TransitionPreview.reset(it, true) }
                 frameViews[1 - a]?.let { TransitionPreview.reset(it, false) }
+                audioFx.forEach { it.liveXfx = AudioXfx.NONE; it.liveXAmt = 0f }
                 deck.cur.volume = vol(c)
                 if (deck.spare.playWhenReady) { deck.spare.pause(); deck.spare.seekTo(0) }
                 startedFor = null

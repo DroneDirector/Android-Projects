@@ -291,6 +291,10 @@ class AudioFxProcessor(
     private var pitchShift: PitchShift? = null
     private val vHp = Biquad(); private val vLp = Biquad(); private val vPk = Biquad()
     private var ringPhase = 0.0
+    /** Audio-transition effects: in the preview set from the editor (type and strength), in the export from [xOut] / [xIn]. */
+    @Volatile var liveXfx: AudioXfx = AudioXfx.NONE
+    @Volatile var liveXAmt = 0f
+    private var xDsp: XfxDsp? = null
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT) return AudioProcessor.AudioFormat.NOT_SET
@@ -436,6 +440,18 @@ class AudioFxProcessor(
                     for (c in 0 until ch) frame[c] -= hi[c] * (1 - gr)
                 }
             }
+            // Audio transition effect (muffle, echo, tape stop…) on this side of the cut.
+            run {
+                val tx = frames * 1000L / rate
+                var type = AudioXfx.NONE; var amt = 0.0
+                if (live) { type = liveXfx; amt = liveXAmt.toDouble() }
+                else {
+                    val o = xOut; val i = xIn
+                    if (o != null && o.fx != AudioXfx.NONE && totalMs > 0) { val pr = o.progress(totalMs - tx); if (pr > 0f) { type = o.fx; amt = pr.toDouble() } }
+                    if (type == AudioXfx.NONE && i != null && i.fx != AudioXfx.NONE) { val l = i.left(tx); if (l > 0f) { type = i.fx; amt = l.toDouble() } }
+                }
+                if (type != AudioXfx.NONE) (xDsp ?: XfxDsp(ch, rate).also { xDsp = it }).process(frame, type, amt)
+            }
             if (meter) { var m = 0.0; for (c in 0 until ch) m += frame[c]; AudioSpectrum.push((m / ch).toFloat()); AudioSpectrum.rate = rate }
             // Envelope (peak of all channels)
             var lvl = 0.0
@@ -489,7 +505,7 @@ class AudioFxProcessor(
         }
     }
 
-    private fun clear() { pitchShift = null; ringPhase = 0.0; vHp.reset(); vLp.reset(); vPk.reset(); lev = 1.0; levRms = 0.0; kSum = 0.0; kN = 0; kHist.clear(); kShelf.reset(); kHp.reset(); frames = 0; env = 0.0; gateGain = 1.0; duck = 1.0; nr = null; vi?.release(); vi = null; dc = null; dr = null; nrDrop = 0; held = 0; flushing = false; listOf(hp, ls, pk, hs, pres, dsHp).forEach { it.reset() }; peq.forEach { it.reset() }; dsEnv = 0.0; dsAll = 0.0 }
+    private fun clear() { pitchShift = null; ringPhase = 0.0; xDsp = null; vHp.reset(); vLp.reset(); vPk.reset(); lev = 1.0; levRms = 0.0; kSum = 0.0; kN = 0; kHist.clear(); kShelf.reset(); kHp.reset(); frames = 0; env = 0.0; gateGain = 1.0; duck = 1.0; nr = null; vi?.release(); vi = null; dc = null; dr = null; nrDrop = 0; held = 0; flushing = false; listOf(hp, ls, pk, hs, pres, dsHp).forEach { it.reset() }; peq.forEach { it.reset() }; dsEnv = 0.0; dsAll = 0.0 }
     override fun onQueueEndOfStream() {
         // Push silence through so the last moment of sound comes out of the processors' delay.
         if (held > 0 && !flushing) {

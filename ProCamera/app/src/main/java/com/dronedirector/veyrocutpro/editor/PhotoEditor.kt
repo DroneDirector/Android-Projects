@@ -2,6 +2,7 @@ package com.dronedirector.veyrocutpro.editor
 
 import com.dronedirector.veyrocutpro.ui.pinchAndMove
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material.icons.filled.Keyboard
 import android.content.ContentValues
 import android.content.Context
@@ -182,11 +183,22 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null, onOpenVideo: () 
     }
     var addFrom by remember { mutableStateOf(false) }
     var nasOpen by remember { mutableStateOf(false) }
+    // Tethered shooting: each new shot from the camera on USB comes into the filmstrip (and opens, if wanted).
+    var tetherOpen by remember { mutableStateOf(false) }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        Tether.onShot = { u ->
+            addMany(listOf(u))
+            if (Tether.openEach) { val i = PhotoSession.items.indexOfFirst { it.uri == u.toString() }; if (i >= 0) openSession(i) }
+        }
+        onDispose { Tether.onShot = null }
+    }
+    if (tetherOpen) TetherDialog { tetherOpen = false }
     if (addFrom) AddFromDialog("Add photos", listOf(
         Triple(Icons.Filled.PhotoLibrary, "Gallery") { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
         Triple(Icons.Filled.FolderOpen, "Browse files") { browse.launch(arrayOf("image/*")) },
         Triple(Icons.Filled.PhotoCamera, "Camera — take a photo") { openCamera() },
         Triple(Icons.Filled.Storage, "Network (NAS)") { nasOpen = true },
+        Triple(Icons.Filled.Usb, if (Tether.running) "Tethered camera — ${Tether.count} received" else "Tethered camera (USB)") { tetherOpen = true },
     )) { addFrom = false }
     if (nasOpen) NasBrowserDialog(NasKinds.PHOTO_EDITOR, onDismiss = { nasOpen = false }) { addMany(it) }
     // Merge several photos (HDR, panorama, focus stack) into a new one, then edit it.
@@ -1369,6 +1381,40 @@ private fun PhotoWorkspace(
             else { eraseObjects = eraseObjects + path; if (eraseMask == null) eraseMask = PhotoMask(type = MaskType.BRUSH); message = "Everyone is selected (red) — tap REMOVE, or tap / paint to change it" }
         }
     }
+    /** AI Remove → FIND WIRES: power lines and cables found and selected (red); REMOVE takes them out. */
+    fun findWires() {
+        val b = base ?: return
+        eraseStatus = "Looking for wires and cables…"
+        scope.launch {
+            val path = withContext(Dispatchers.Default) { try { Wires.find(b)?.let { AiSegment.saveMask(context, it) } } catch (_: Throwable) { null } }
+            eraseStatus = null
+            if (path == null) message = "No wires or cables found — paint over them instead"
+            else { eraseObjects = eraseObjects + path; if (eraseMask == null) eraseMask = PhotoMask(type = MaskType.BRUSH); message = "Wires selected (red) — tap REMOVE, or paint / tap to add more" }
+        }
+    }
+    /** Remove reflections (through glass): the soft reflected layer fades; the result becomes the photo's base like AI Remove. */
+    var reflectStatus by remember { mutableStateOf<String?>(null) }
+    var reflectStrength by remember { mutableStateOf(0.4f) }
+    fun runReflections() {
+        if (busy || reflectStatus != null) return
+        val e = edit
+        reflectStatus = "Removing reflections…"
+        scope.launch {
+            val path = withContext(Dispatchers.Default) {
+                try {
+                    val full = (if (rawOn(e)) rawExport(e, 4000, sliders = false) else GradeIO.decode(context, sourceUri(e), 4800)) ?: return@withContext null
+                    val res = Reflections.remove(full, reflectStrength, { p -> reflectStatus = "Removing reflections… $p%" }) ?: return@withContext null
+                    val dir = java.io.File(context.filesDir, "erased").apply { mkdirs() }
+                    val f = java.io.File(dir, "reflect_${System.currentTimeMillis()}.jpg")
+                    f.outputStream().use { res.compress(Bitmap.CompressFormat.JPEG, 96, it) }
+                    res.recycle()
+                    f.path
+                } catch (_: OutOfMemoryError) { null } catch (_: Throwable) { null }
+            }
+            reflectStatus = null
+            if (path == null) message = "Couldn't remove the reflections" else { edit = edit.copy(baseFile = path); message = "Reflections reduced — RESET under AI REMOVE goes back to the original" }
+        }
+    }
     LaunchedEffect(pendingErasePick) { pendingErasePick?.let { (x, y) -> pendingErasePick = null; pickEraseObject(x, y) } }
     fun runErase() {
         val em = eraseMask ?: PhotoMask(type = MaskType.BRUSH)
@@ -1492,13 +1538,24 @@ private fun PhotoWorkspace(
                     "REMOVE PEOPLE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
                     modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { picking = 0; selectPeople() }.padding(10.dp),
                 )
+                Text(
+                    "FIND WIRES", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                    modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { picking = 0; findWires() }.padding(10.dp),
+                )
             }
+            eraseStatus?.let { Text(it, color = Pro.Amber, fontSize = 11.sp) }
+            SectionTitle("REMOVE REFLECTIONS")
+            Text("For photos taken through a window or glass: the soft, reflected picture fades and the scene behind stays sharp. Stronger takes away more (and some soft detail too).", color = Pro.Dim, fontSize = 11.sp)
+            EdSlider("Strength", reflectStrength, 0f..1f, 0.4f, ::pct) { reflectStrength = it }
+            Text(reflectStatus ?: "REMOVE REFLECTIONS", style = Pro.Value.copy(color = Color.Black, fontSize = 12.sp),
+                modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable(enabled = reflectStatus == null) { runReflections() }.padding(horizontal = 16.dp, vertical = 8.dp))
             if (edit.baseFile != null) Text("The photo has removed parts. Tap RESET above to go back to the original.", color = Pro.Dim, fontSize = 11.sp)
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PillChip("TAP TO SELECT", picking == 5) { picking = if (picking == 5) 0 else 5 }
                 PillChip("PAINT", picking != 5) { picking = 0 }
                 PillChip("+ ALL PEOPLE", false, accentText = true) { picking = 0; selectPeople() }
+                PillChip("+ WIRES", false, accentText = true) { picking = 0; findWires() }
             }
             if (picking != 5) EdSlider("Brush size", tools.brushSize, 0.01f..0.3f, 0.08f, ::pct) { tools.brushSize = it }
             if (eraseObjects.isNotEmpty()) Text("${eraseObjects.size} thing(s) selected (shown in red)", style = Pro.Label)

@@ -115,6 +115,17 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
     // Views: 0 grid, 1 stacks (bursts together), 2 people, 3 map, 4 duplicates.
     var view by remember { mutableStateOf(0) }
     var importing by remember { mutableStateOf(false) }
+    // Watched folders: checked every minute while the library is open.
+    var watchOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            if (withContext(Dispatchers.IO) { try { WatchFolders.check(context) } catch (_: Throwable) { 0 } } > 0) reload++
+            kotlinx.coroutines.delay(60_000)
+        }
+    }
+    if (watchOpen) WatchFoldersDialog(onDismiss = { watchOpen = false }) { reload++ }
+    // Keyword tree: the keyword picked there (everything with it, or inside it).
+    var kwF by remember { mutableStateOf<String?>(null) }
     var peopleF by remember { mutableStateOf(-1) }   // -1 all, 0 no people, 1 one person, 2 two, 3 groups
     var mapPick by remember { mutableStateOf<Set<String>?>(null) }
     val expanded = remember { mutableStateListOf<String>() }
@@ -142,6 +153,7 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
             (view != 2 || peopleF == -1 || when (peopleF) { 0 -> m.faces == 0; 1 -> m.faces == 1; 2 -> m.faces == 2; else -> (m.faces ?: 0) >= 3 }) &&
             (mapPick == null || p.uri.toString() in mapPick!!) &&
             (dateF == null || p.date in dateF!!) &&
+            (kwF == null || Keywords.has(m.keywords, kwF!!)) &&
             LibraryStore.matches(p, text)
     }
     // Duplicates: each group of near-identical photos, the sharpest (kept) first.
@@ -196,10 +208,12 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
             PillChip("+ Album", false, accentText = true) { dialog = "newAlbum" }
             PillChip("+ Smart collection", false, accentText = true) { dialog = "newSmart" }
             PillChip("Client picks…", false, accentText = true) { dialog = "picks" }
+            PillChip("Watched folders…", false, accentText = true) { watchOpen = true }
         }
         Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            listOf("Grid", "Stacks", "People", "Map", "Duplicates", "Calendar").forEachIndexed { i, n -> PillChip(n, view == i) { view = i; if (i != 3) mapPick = null } }
+            listOf("Grid", "Stacks", "People", "Map", "Duplicates", "Calendar", "Keywords").forEachIndexed { i, n -> PillChip(n, view == i) { view = i; if (i != 3) mapPick = null } }
             if (dateF != null) PillChip("📅 $dateLabel ✕", true) { dateF = null }
+            kwF?.let { k -> PillChip("🏷 ${Keywords.show(k)} ✕", true) { kwF = null } }
             if (view == 2) listOf("Everyone", "No people", "1 person", "2 people", "Groups").forEachIndexed { i, n -> PillChip(n, peopleF == i - 1) { peopleF = i - 1 } }
             if (mapPick != null) PillChip("📍 ${mapPick!!.size} here ✕", true) { mapPick = null }
             LibraryStore.scanning?.let { (d, t) -> Text(if (view == 3) "Reading locations $d / $t" else if (view == 4) "Comparing photos $d / $t" else "Finding people $d / $t", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp)) }
@@ -232,6 +246,7 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
                 PillChip("Keywords", false) { dialog = "keywords" }
                 PillChip("Contact sheet PDF", false) { dialog = "sheet" }
                 PillChip("Print layout", false) { dialog = "print" }
+                PillChip("Photo book", false) { dialog = "book" }
                 if (picked.size in 2..9) PillChip("Collage", false) { dialog = "collage" }
                 if (picked.size >= 2) PillChip("▶ Slideshow video", false) { dialog = "slideshow" }
                 if (picked.size >= 10) PillChip("⏱ Time-lapse video", false) { dialog = "timelapse" }
@@ -239,7 +254,9 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
             }
         }
         Text("${shown.size} photo" + (if (shown.size == 1) "" else "s"), style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), modifier = Modifier.padding(bottom = 4.dp))
-        if (view == 5) Box(Modifier.weight(1f).fillMaxWidth()) {
+        if (view == 6) Box(Modifier.weight(1f).fillMaxWidth()) {
+            KeywordTree(Keywords.tree(all.map { LibraryStore.get(it.uri.toString()).keywords })) { k -> kwF = k; view = 0 }
+        } else if (view == 5) Box(Modifier.weight(1f).fillMaxWidth()) {
             CalendarBrowser(shown.map { it.date }) { r, label -> dateF = r; dateLabel = label; view = 0 }
         } else if (view == 3 && mapPick == null) LibraryMap(
             shown.mapNotNull { p -> LibraryStore.get(p.uri.toString()).place?.takeIf { it.size == 2 }?.let { p.uri.toString() to it } },
@@ -397,16 +414,19 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
                 if (picked.isNotEmpty()) LibraryStore.update(context, picked) { it.copy(albums = (it.albums + name).distinct()) } else LibraryStore.save(context)
             }
         }
-        "keywords" -> NameDialog("Add keywords (comma separated)", emptyList()) { t ->
-            dialog = null
-            val kws = t?.split(',')?.map { it.trim().lowercase() }?.filter { it.isNotEmpty() }.orEmpty()
-            if (kws.isNotEmpty()) LibraryStore.update(context, picked) { it.copy(keywords = (it.keywords + kws).distinct()) }
+        "keywords" -> {
+            val pm = picked.map { LibraryStore.get(it) }
+            KeywordDialog(picked.size, Keywords.suggest(pm.map { it.ai ?: emptyList() }, all.map { LibraryStore.get(it.uri.toString()).keywords }, pm.flatMap { it.keywords }.toSet())) { kws ->
+                dialog = null
+                if (!kws.isNullOrEmpty()) LibraryStore.update(context, picked) { it.copy(keywords = (it.keywords + kws).distinct()) }
+            }
         }
         "newSmart" -> SmartCollectionDialog(SmartAlbum("", minRating, if (flagF == 1) 1 else if (flagF == 2) 2 else 0, labelF, text), LibraryStore.PHOTO_TYPES, video = false) { s ->
             dialog = null
             if (s != null) { LibraryStore.smart.add(s); LibraryStore.save(context); smart = s; album = null }
         }
         "proof" -> ProofingDialog(sel) { dialog = null }
+        "book" -> PhotoBookDialog(sel.map { it.uri }) { dialog = null }
         "timelapse" -> TimeLapseDialog(sel.sortedWith(compareBy({ it.date }, { it.name })).map { it.uri }) { u ->
             dialog = null
             if (u != null) {

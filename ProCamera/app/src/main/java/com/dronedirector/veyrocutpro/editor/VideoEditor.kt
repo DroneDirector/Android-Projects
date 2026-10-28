@@ -552,6 +552,18 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val c = clips.getOrNull(i) ?: return
         clips[i] = c.copy(reframe = if (on) Reframe(start = Frame(1f), end = Frame(1.12f, x = 0.03f, y = -0.02f), animate = true) else Reframe())
     }
+    // Watched folders: checked every minute while the editor is open; new videos (and photos, as stills)
+    // go into the media strip.
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        WatchFolders.onVideos = { list -> importToLibrary(list) }
+        onDispose { WatchFolders.onVideos = null }
+    }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(60_000)
+            withContext(Dispatchers.IO) { try { WatchFolders.check(context) } catch (_: Throwable) { 0 } }
+        }
+    }
     // The video library (calendar, smart collections, labels) and pro import: picked files go into the media strip.
     var libOpen by remember { mutableStateOf(0) }
     if (libOpen != 0) LibraryOverlay(libOpen == 2, onClose = { libOpen = 0 }, onAdd = { libOpen = 0; importToLibrary(it) })

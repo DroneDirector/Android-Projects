@@ -318,6 +318,23 @@ class MtpSource private constructor(private val dev: android.mtp.MtpDevice) {
         return out.sortedByDescending { it.date }
     }
 
+    /** Every file handle on the camera (fast: no details). */
+    fun handles(): Set<Int> {
+        val out = HashSet<Int>()
+        for (sid in dev.storageIds ?: intArrayOf()) (try { dev.getObjectHandles(sid, 0, 0) } catch (_: Throwable) { null })?.forEach { out += it }
+        return out
+    }
+
+    /** One file's details, or null for folders and files that aren't photos or videos. */
+    fun info(h: Int): ImportItem? {
+        val info = dev.getObjectInfo(h) ?: return null
+        if (info.format == android.mtp.MtpConstants.FORMAT_ASSOCIATION) return null
+        val name = info.name ?: return null
+        val v = ProImport.kindOf(name) ?: return null
+        val size = info.compressedSizeLong
+        return ImportItem("$name|$size", name, size, info.dateCreated.takeIf { it > 0 } ?: info.dateModified, v, mtpHandle = h)
+    }
+
     /** The file's data (copied to a temporary file first: cameras send whole objects). */
     fun open(c: Context, f: ImportItem): java.io.InputStream? {
         val h = f.mtpHandle ?: return null

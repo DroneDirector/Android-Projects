@@ -163,6 +163,14 @@ fun VideoLibraryScreen(onBack: () -> Unit, onAdd: (List<Uri>) -> Unit, onImport:
     var granted by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED) }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
     var reload by remember { mutableStateOf(0) }
+    var watchOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            if (withContext(Dispatchers.IO) { try { WatchFolders.check(context) } catch (_: Throwable) { 0 } } > 0) reload++
+            kotlinx.coroutines.delay(60_000)
+        }
+    }
+    if (watchOpen) WatchFoldersDialog(onDismiss = { watchOpen = false }) { reload++ }
     val all by produceState(emptyList<LibVideo>(), granted, reload) { value = withContext(Dispatchers.IO) { VideoLibrary.videos(context) } }
     var text by remember { mutableStateOf("") }
     var minRating by remember { mutableStateOf(0) }
@@ -173,6 +181,8 @@ fun VideoLibraryScreen(onBack: () -> Unit, onAdd: (List<Uri>) -> Unit, onImport:
     var dateF by remember { mutableStateOf<LongRange?>(null) }
     var dateLabel by remember { mutableStateOf("") }
     var calendar by remember { mutableStateOf(false) }
+    var kwTree by remember { mutableStateOf(false) }
+    var kwF by remember { mutableStateOf<String?>(null) }
     var selecting by remember { mutableStateOf(false) }
     val picked = remember { mutableStateListOf<String>() }
     var dialog by remember { mutableStateOf<String?>(null) }
@@ -182,7 +192,7 @@ fun VideoLibraryScreen(onBack: () -> Unit, onAdd: (List<Uri>) -> Unit, onImport:
         val s = smart
         (s == null || VideoLibrary.matchesSmart(v, s)) && (album == null || album in m.albums) && m.rating >= minRating &&
             when (flagF) { 1 -> m.flag == 1; 2 -> m.flag != -1; 3 -> m.flag == -1; else -> true } &&
-            (labelF == null || m.label == labelF) && (dateF == null || v.date in dateF!!) && VideoLibrary.matches(v, text)
+            (labelF == null || m.label == labelF) && (dateF == null || v.date in dateF!!) && (kwF == null || Keywords.has(m.keywords, kwF!!)) && VideoLibrary.matches(v, text)
     }
     Column(Modifier.fillMaxSize().background(Ed.Bg).windowInsetsPadding(WindowInsets.displayCutout).padding(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -211,11 +221,14 @@ fun VideoLibraryScreen(onBack: () -> Unit, onAdd: (List<Uri>) -> Unit, onImport:
             VideoLibrary.smart.forEach { s -> PillChip("⚙ ${s.name}", smart == s, onLongClick = { VideoLibrary.smart.remove(s); VideoLibrary.save(context); if (smart == s) smart = null }) { smart = s; album = null } }
             PillChip("+ Album", false, accentText = true) { dialog = "newAlbum" }
             PillChip("+ Smart collection", false, accentText = true) { dialog = "newSmart" }
+            PillChip("Watched folders…", false, accentText = true) { watchOpen = true }
         }
         Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            PillChip("Grid", !calendar) { calendar = false }
-            PillChip("Calendar", calendar) { calendar = true }
+            PillChip("Grid", !calendar && !kwTree) { calendar = false; kwTree = false }
+            PillChip("Calendar", calendar) { calendar = true; kwTree = false }
+            PillChip("Keywords", kwTree) { kwTree = true; calendar = false }
             if (dateF != null) PillChip("📅 $dateLabel ✕", true) { dateF = null }
+            kwF?.let { k -> PillChip("🏷 ${Keywords.show(k)} ✕", true) { kwF = null } }
         }
         val sel = shown.filter { it.uri.toString() in picked }
         if (selecting) Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -230,10 +243,12 @@ fun VideoLibraryScreen(onBack: () -> Unit, onAdd: (List<Uri>) -> Unit, onImport:
                 LabelPicker(null) { c -> VideoLibrary.update(context, picked) { it.copy(label = c) } }
                 PillChip("+ Album", false) { dialog = "album" }
                 PillChip("Metadata preset", false) { dialog = "meta" }
+                PillChip("Keywords", false) { dialog = "keywords" }
             }
         }
         Text("${shown.size} video" + (if (shown.size == 1) "" else "s"), style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp), modifier = Modifier.padding(bottom = 4.dp))
-        if (calendar) Box(Modifier.weight(1f).fillMaxWidth()) { CalendarBrowser(shown.map { it.date }) { r, l -> dateF = r; dateLabel = l; calendar = false } }
+        if (kwTree) Box(Modifier.weight(1f).fillMaxWidth()) { KeywordTree(Keywords.tree(all.map { VideoLibrary.get(it.uri.toString()).keywords })) { k -> kwF = k; kwTree = false } }
+        else if (calendar) Box(Modifier.weight(1f).fillMaxWidth()) { CalendarBrowser(shown.map { it.date }) { r, l -> dateF = r; dateLabel = l; calendar = false } }
         else LazyVerticalGrid(GridCells.Adaptive(150.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
             items(shown, key = { it.uri.toString() }) { v ->
                 val k = v.uri.toString()
@@ -278,6 +293,10 @@ fun VideoLibraryScreen(onBack: () -> Unit, onAdd: (List<Uri>) -> Unit, onImport:
         "newSmart" -> SmartCollectionDialog(SmartAlbum("", minRating, if (flagF == 1) 1 else if (flagF == 2) 2 else 0, labelF, text), VideoLibrary.TYPES, video = true) { s ->
             dialog = null
             if (s != null) { VideoLibrary.smart.add(s); VideoLibrary.save(context); smart = s; album = null }
+        }
+        "keywords" -> KeywordDialog(picked.size, Keywords.suggest(emptyList(), all.map { VideoLibrary.get(it.uri.toString()).keywords }, picked.flatMap { VideoLibrary.get(it).keywords }.toSet())) { kws ->
+            dialog = null
+            if (!kws.isNullOrEmpty()) VideoLibrary.update(context, picked.toList()) { it.copy(keywords = (it.keywords + kws).distinct()) }
         }
         "meta" -> MetaPresetDialog(picked.size, onApply = { p ->
             dialog = null

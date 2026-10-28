@@ -8,6 +8,8 @@ class AlcorApp : Application() {
         super.onCreate()
         com.dronedirector.veyrocutpro.editor.TextFonts.init(assets)
         com.dronedirector.veyrocutpro.ui.AppLog.init(this)
+        // Watched folders: bring in what's new since last time (in the background).
+        Thread { try { com.dronedirector.veyrocutpro.editor.WatchFolders.check(this) } catch (_: Throwable) {} }.start()
     }
 
     /** Android asks the app to free memory: noted in the app log with how much the app is using. */

@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -284,4 +286,90 @@ fun SmartCollectionDialog(start: SmartAlbum, fileTypes: List<String>, video: Boo
         confirmButton = { Text("SAVE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.clickable { if (s.name.isNotBlank()) onDone(s.copy(name = s.name.trim())) }.padding(10.dp)) },
         dismissButton = { Text("CANCEL", style = Pro.Label.copy(color = Pro.Dim, fontSize = 12.sp), modifier = Modifier.clickable { onDone(null) }.padding(10.dp)) },
     )
+}
+
+// ---------------- Keyword tree and suggestions
+
+/**
+ * Keywords can be nested: "Places › Faroe Islands › Tórshavn" (type it with › , > or /). They are kept as
+ * "places/faroe islands/tórshavn"; a photo with a nested keyword is found under every level of it.
+ */
+object Keywords {
+    fun norm(k: String): String = k.split('/', '>', '›').map { it.trim().lowercase() }.filter { it.isNotEmpty() }.joinToString("/")
+    fun show(k: String): String = k.split('/').joinToString(" › ") { w -> w.replaceFirstChar { it.uppercase() } }
+    /** Does a keyword list have [path] (or anything inside it)? */
+    fun has(list: List<String>, path: String): Boolean = list.any { it == path || it.startsWith("$path/") }
+    /** Typed text → keywords (comma separated, each can be nested). */
+    fun parse(t: String): List<String> = t.split(',', ';', '\n').map { norm(it) }.filter { it.isNotEmpty() }
+
+    class Node(val name: String, val path: String, val count: Int, val kids: List<Node>)
+
+    /** The tree of all keywords with how many items have each (counting what's inside). */
+    fun tree(all: List<List<String>>): List<Node> {
+        val counts = HashMap<String, Int>()
+        for (list in all) {
+            val paths = HashSet<String>()
+            for (k in list) { val parts = k.split('/'); for (i in 1..parts.size) paths += parts.take(i).joinToString("/") }
+            paths.forEach { counts[it] = (counts[it] ?: 0) + 1 }
+        }
+        fun build(prefix: String, depth: Int): List<Node> = counts.keys.filter { it.count { c -> c == '/' } == depth && (prefix.isEmpty() || it.startsWith("$prefix/")) }
+            .sorted().map { p -> Node(p.substringAfterLast('/'), p, counts[p] ?: 0, build(p, depth + 1)) }
+        return build("", 0)
+    }
+
+    /** Suggestions for [items]: what the AI saw in them (most common first), then keywords you use a lot. */
+    fun suggest(ai: List<List<String>>, used: List<List<String>>, have: Set<String>): List<String> {
+        val seen = ai.flatten().groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.map { it.key }
+        val often = used.flatten().groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.map { it.key }
+        return (seen + often).map { norm(it) }.filter { it.isNotEmpty() && it !in have }.distinct().take(24)
+    }
+}
+
+/** Adding keywords: a field (comma separated, › for nesting) and tap-to-add suggestions. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun KeywordDialog(count: Int, suggestions: List<String>, onDone: (List<String>?) -> Unit) {
+    var t by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = { onDone(null) }, containerColor = Ed.Panel,
+        title = { Text("Keywords for $count item(s)", color = Pro.Fg) },
+        text = {
+            Column {
+                Text("Separate keywords with commas. Nest them with › (or > or /), e.g. Places › Faroe Islands › Tórshavn.", color = Pro.Dim, fontSize = 12.sp)
+                OutlinedTextField(t, { t = it }, singleLine = false, modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Pro.Fg, unfocusedTextColor = Pro.Fg, focusedBorderColor = Pro.Amber, cursorColor = Pro.Amber))
+                if (suggestions.isNotEmpty()) {
+                    Text("Suggestions (tap to add)", color = Pro.Fg, fontSize = 13.sp)
+                    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 4.dp)) {
+                        suggestions.forEach { s -> PillChip(Keywords.show(s), false) { t = if (t.isBlank()) Keywords.show(s) else t.trimEnd().trimEnd(',') + ", " + Keywords.show(s) } }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onDone(Keywords.parse(t)) }) { Text("ADD", color = Pro.Amber) } },
+        dismissButton = { TextButton(onClick = { onDone(null) }) { Text("CANCEL", color = Pro.Dim) } },
+    )
+}
+
+/** The keyword tree: tap a keyword to see everything with it (or inside it); ▸ opens a level. */
+@Composable
+fun KeywordTree(nodes: List<Keywords.Node>, onPick: (String) -> Unit) {
+    val open = remember { mutableStateListOf<String>() }
+    if (nodes.isEmpty()) { Text("No keywords yet. Select items and tap Keywords to add some.", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(8.dp)); return }
+    androidx.compose.foundation.lazy.LazyColumn(Modifier.fillMaxWidth()) {
+        fun add(list: List<Keywords.Node>, depth: Int, scope: androidx.compose.foundation.lazy.LazyListScope) {
+            for (n in list) {
+                scope.item(key = n.path) {
+                    Row(Modifier.fillMaxWidth().padding(start = (depth * 18).dp).clip(RoundedCornerShape(6.dp)).clickable { onPick(n.path) }.padding(vertical = 8.dp, horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (n.kids.isEmpty()) "•" else if (n.path in open) "▾" else "▸", color = Pro.Amber, fontSize = 15.sp,
+                            modifier = Modifier.width(24.dp).clickable(enabled = n.kids.isNotEmpty()) { if (n.path in open) open.remove(n.path) else open.add(n.path) })
+                        Text(n.name.replaceFirstChar { it.uppercase() }, color = Color.White, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                        Text("${n.count}", color = Pro.Dim, fontSize = 12.sp)
+                    }
+                }
+                if (n.path in open) add(n.kids, depth + 1, scope)
+            }
+        }
+        add(nodes, 0, this)
+    }
 }

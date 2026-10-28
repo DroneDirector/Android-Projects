@@ -156,9 +156,10 @@ class MainActivity : ComponentActivity() {
         }
         com.dronedirector.veyrocutpro.ui.AppTheme.load(this)
         setContent {
-            // Light look (Preferences → Appearance) everywhere but Capture, which sits on the live camera picture.
+            // Light look (Preferences → Appearance) only inside the editors; the start screens, splash and Capture stay dark.
             com.dronedirector.veyrocutpro.ui.AppTheme.screenAllowsLight =
-                screen.value != com.dronedirector.veyrocutpro.ui.AppScreen.CAPTURE && com.dronedirector.veyrocutpro.ui.CaptureForEditor.request == null
+                (screen.value == com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR || screen.value == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR) &&
+                    com.dronedirector.veyrocutpro.ui.CaptureForEditor.request == null
             ProCamTheme {
                 com.dronedirector.veyrocutpro.ui.CrashReportDialog()
                 com.dronedirector.veyrocutpro.ui.AudioHardwareNotice()

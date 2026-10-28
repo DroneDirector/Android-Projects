@@ -43,9 +43,9 @@ object AccentStore {
 }
 
 /**
- * Dark or light look (gear → Preferences → Appearance). Light is used everywhere except Capture (which sits on
- * the live camera picture); the picture itself, the timeline and the media strip stay dark inside the editors,
- * as in pro editing apps, so pictures are judged on a neutral dark surround.
+ * Dark or light look (gear → Preferences → Appearance). Light is used only inside the photo and video editors
+ * (with dark text throughout); the start screens, splash and Capture always stay dark. The picture itself, the
+ * timeline and the media strip stay dark inside the editors too, as in pro editing apps.
  */
 object AppTheme {
     /** 0 dark, 1 light, 2 like the phone. */

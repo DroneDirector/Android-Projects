@@ -72,8 +72,12 @@ data class PhotoMask(
 data class Spot(val x: Float, val y: Float, val r: Float, val dx: Float, val dy: Float, val clone: Boolean = false, val eye: Int = 0)
 
 /** What to do with everything except the subject (needs an AI subject selection). */
-data class PhotoBackground(val mode: Int = 0, val blur: Float = 0.5f, val color: Int = 0xFFFFFFFF.toInt(), val maskFile: String? = null) {
-    /** 0 off, 1 blur (portrait), 2 remove (transparent), 3 colour. */
+data class PhotoBackground(
+    val mode: Int = 0, val blur: Float = 0.5f, val color: Int = 0xFFFFFFFF.toInt(), val maskFile: String? = null,
+    /** Double exposure: the second picture shown inside the subject, and how strongly. */
+    val imagePath: String? = null, val amount: Float = 0.85f,
+) {
+    /** 0 off, 1 blur (portrait), 2 remove (transparent), 3 colour, 4 double exposure. */
     val active get() = mode != 0 && maskFile != null
 }
 
@@ -639,8 +643,32 @@ object PhotoLocal {
     }
 
     /** Portrait blur, transparent or coloured background outside the subject ([wt] = subject 0..1). */
-    fun background(px: IntArray, w: Int, h: Int, wt: FloatArray, bg: PhotoBackground) {
+    fun background(px: IntArray, w: Int, h: Int, wt: FloatArray, bg: PhotoBackground, second: Bitmap? = null) {
         when (bg.mode) {
+            4 -> {
+                // Double exposure: the second picture screened into the subject, the background a plain colour.
+                val sp = second?.let { s ->
+                    val sc = maxOf(w.toFloat() / s.width, h.toFloat() / s.height)
+                    val cw = (s.width * sc).toInt().coerceAtLeast(w); val ch = (s.height * sc).toInt().coerceAtLeast(h)
+                    val big = Bitmap.createScaledBitmap(s, cw, ch, true)
+                    val arr = IntArray(w * h); big.getPixels(arr, 0, w, (cw - w) / 2, (ch - h) / 2, w, h)
+                    if (big !== s) big.recycle()
+                    arr
+                }
+                val k = bg.amount.coerceIn(0f, 1f)
+                for (i in px.indices) {
+                    val a = px[i]
+                    val inner = if (sp == null) a else {
+                        val b = sp[i]
+                        fun scr(x: Int, y: Int) = 255 - (255 - x) * (255 - y) / 255
+                        val r = scr((a shr 16) and 0xFF, (b shr 16) and 0xFF); val g = scr((a shr 8) and 0xFF, (b shr 8) and 0xFF); val bl = scr(a and 0xFF, b and 0xFF)
+                        mixPx(a, (0xFF shl 24) or (r shl 16) or (g shl 8) or bl, k)
+                    }
+                    // The edge fades into the background with a little of the second picture in it.
+                    val outer = if (sp == null) bg.color else mixPx(bg.color, sp[i], 0.12f * k)
+                    px[i] = mixPx(outer, inner, wt[i])
+                }
+            }
             1 -> {
                 // Blur at a quarter size (fast, and a wide soft blur looks like a real lens).
                 val sw = max(1, w / 4); val sh = max(1, h / 4)

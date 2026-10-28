@@ -432,7 +432,7 @@ object ImageOps {
         var hasAlpha = false
         if (bg != null && bg.active) placed[bg.maskFile]?.let { m ->
             val wt = PhotoLocal.weights(PhotoMask(type = MaskType.SUBJECT, maskFile = bg.maskFile), w, h, m)
-            PhotoLocal.background(px, w, h, wt, bg)
+            PhotoLocal.background(px, w, h, wt, bg, bg.imagePath?.let { aiMasks[it] })
             hasAlpha = bg.mode == 2
         }
         placed.values.forEach { it.recycle() }

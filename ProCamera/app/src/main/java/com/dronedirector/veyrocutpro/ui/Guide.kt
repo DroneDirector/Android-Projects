@@ -226,6 +226,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Leave the editor with your phone's back gesture or back button (the top bar has no back arrow, so EXPORT always fits).",
             "Masks → Subject (AI) / Sky (AI) select the subject or the sky for you (on the phone, or more precisely with Cloud AI).",
             "Effects → BACKGROUND (AI): FIND SUBJECT, then blur the background (portrait look), remove it (transparent PNG) or fill it with a colour.",
+            "Effects → BACKGROUND (AI) → Double exposure: pick a second picture (a forest, a city, the sea); it shows inside the subject's silhouette and the background takes a plain colour. Blend sets how strong the second picture is.",
             "Heal → AI REMOVE: TAP TO SELECT a person, car or sign (tap several), or PAINT over a wire, then REMOVE. The AI paints in what was behind at the photo's full size (on the phone with LaMa, or Bria Eraser with Cloud AI). RESET goes back to the original.",
             "Masks → People (AI): pick face skin, body skin, eye whites, irises, eyebrows, lips, teeth, hair or clothes of everyone in the photo. PORTRAIT LOOKS (Smooth skin, Whiten teeth, Brighten eyes…) set the parts and adjustments in one tap. Every mask now has Texture and Clarity too.",
             "Keyboard (Bluetooth / USB / DeX): ← → next photo, 0–5 stars, P / X / U flags, 6–9 colour labels, \\ before / after, Z zoom, Ctrl+Z undo, Ctrl+C / Ctrl+V copy / paste the look, Ctrl+E export. Press ? for the full list.",

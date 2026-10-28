@@ -238,6 +238,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Hold your finger on the photo to see the original.
 - Masks → Subject (AI) / Sky (AI) select the subject or the sky for you (on the phone, or more precisely with Cloud AI).
 - Effects → BACKGROUND (AI): FIND SUBJECT, then blur the background (portrait look), remove it (transparent PNG) or fill it with a colour.
+- Effects → BACKGROUND (AI) → Double exposure: pick a second picture (a forest, a city, the sea); it shows inside the subject's silhouette and the background takes a plain colour. Blend sets how strong the second picture is.
 - Masks: add a Linear gradient, Radial or Brush mask, then use ADJUST INSIDE THE MASK. Drag the handles on the photo (or paint with the brush); red shows where the mask applies.
 - Heal: tap dust, blemishes or small objects on the photo — a matching patch from nearby covers each one. Clone stamp: tap the source, then tap where to paint. Drag a solid circle to move a spot, drag its dashed circle to change where it copies from, hold a spot to delete it. UNDO LAST removes the latest.
 - Lens: Distortion straightens bulging lines from wide lenses; Vignetting brightens dark corners; Colour fringes removes purple / green outlines.

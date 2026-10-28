@@ -496,7 +496,7 @@ private fun editOf(context: Context, initial: PhotoProjectData?, autoWatermark: 
     else PhotoEdit(watermark = if (autoWatermark) WatermarkMemory.load(context, false) else null)
 
 /** AI masks, sky and depth pictures an edit draws from (file → picture). */
-private fun PhotoEdit.aiFiles(): List<String> = masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(bg.maskFile, sky.maskFile, sky.imagePath, lensBlur?.depthFile) + retouch.files()
+private fun PhotoEdit.aiFiles(): List<String> = masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(bg.maskFile, bg.imagePath, sky.maskFile, sky.imagePath, lensBlur?.depthFile) + retouch.files()
 
 /**
  * Reads ahead the filmstrip photos next to [idx]: decodes them and renders them with their own
@@ -661,8 +661,8 @@ private fun PhotoWorkspace(
     var liqStrength by remember { mutableStateOf(0.5f) }
     // AI masks (subject / sky) are kept as grey pictures in the app's files.
     val aiMasks = remember { mutableStateMapOf<String, Bitmap>() }
-    LaunchedEffect((edit.masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(edit.bg.maskFile, edit.sky.maskFile, edit.sky.imagePath, edit.lensBlur?.depthFile) + edit.retouch.files())) {
-        for (f in (edit.masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(edit.bg.maskFile, edit.sky.maskFile, edit.sky.imagePath, edit.lensBlur?.depthFile) + edit.retouch.files())) if (aiMasks[f] == null) withContext(Dispatchers.IO) { BitmapFactory.decodeFile(f) }?.let { aiMasks[f] = it }
+    LaunchedEffect((edit.masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(edit.bg.maskFile, edit.bg.imagePath, edit.sky.maskFile, edit.sky.imagePath, edit.lensBlur?.depthFile) + edit.retouch.files())) {
+        for (f in (edit.masks.flatMap { m -> listOfNotNull(m.maskFile) + m.subs.orEmpty().mapNotNull { it.maskFile } } + listOfNotNull(edit.bg.maskFile, edit.bg.imagePath, edit.sky.maskFile, edit.sky.imagePath, edit.lensBlur?.depthFile) + edit.retouch.files())) if (aiMasks[f] == null) withContext(Dispatchers.IO) { BitmapFactory.decodeFile(f) }?.let { aiMasks[f] = it }
     }
     fun photoData(id: String, name: String): PhotoProjectData {
         val e = edit
@@ -1473,6 +1473,19 @@ private fun PhotoWorkspace(
             Text("FIND SKY AGAIN", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable { findMask(MaskType.SKY) { p -> edit = edit.copy(sky = edit.sky.copy(maskFile = p)) } }.padding(8.dp))
         }
     }
+    // Double exposure: the second picture is copied into the app.
+    val pickSecond = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { u ->
+        if (u == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val path = withContext(Dispatchers.IO) {
+                try {
+                    val f = java.io.File(java.io.File(context.filesDir, "skies").apply { mkdirs() }, java.util.UUID.randomUUID().toString() + ".jpg")
+                    GradeIO.decode(context, u, 3000)?.let { b -> f.outputStream().use { b.compress(Bitmap.CompressFormat.JPEG, 92, it) }; f.path }
+                } catch (_: Throwable) { null }
+            }
+            if (path != null) edit = edit.copy(bg = edit.bg.copy(imagePath = path, mode = 4)) else message = "Couldn't open that picture"
+        }
+    }
     val backgroundSection: @Composable () -> Unit = {
         val bg = edit.bg
         SectionTitle("BACKGROUND (AI)") { edit = edit.copy(bg = PhotoBackground()) }
@@ -1483,10 +1496,18 @@ private fun PhotoWorkspace(
                 modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { findMask(MaskType.SUBJECT) { p -> edit = edit.copy(bg = edit.bg.copy(maskFile = p, mode = 1)) } }.padding(10.dp),
             )
         } else {
-            Chips(listOf("Off", "Blur (portrait)", "Remove", "Colour"), bg.mode) { m -> edit = edit.copy(bg = bg.copy(mode = m)) }
+            Chips(listOf("Off", "Blur (portrait)", "Remove", "Colour", "Double exposure"), bg.mode) { m ->
+                if (m == 4 && bg.imagePath == null) pickSecond.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                else edit = edit.copy(bg = bg.copy(mode = m))
+            }
+            if (bg.mode == 4) {
+                EdSlider("Blend", bg.amount, 0f..1f, 0.85f, ::pct) { v -> edit = edit.copy(bg = bg.copy(amount = v)) }
+                Text("CHOOSE ANOTHER PICTURE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable { pickSecond.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }.padding(8.dp))
+                Text("The second picture (a forest, a city, the sea…) shows inside the subject; the background takes the colour below. Works best with a portrait or a clear silhouette.", color = Pro.Dim, fontSize = 11.sp)
+            }
             if (bg.mode == 1) EdSlider("Blur", bg.blur, 0.05f..1f, 0.5f, ::pct) { v -> edit = edit.copy(bg = bg.copy(blur = v)) }
             if (bg.mode == 2) Text("Exported as PNG (or WebP) with a transparent background.", color = Pro.Dim, fontSize = 11.sp)
-            if (bg.mode == 3) Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            if (bg.mode == 3 || bg.mode == 4) Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                 listOf(0xFFFFFFFF, 0xFF000000, 0xFF1E1E1E, 0xFFF2E8DA, 0xFF2D6CDF, 0xFF34C759, 0xFFFF7EB6, 0xFFFFB300).map { it.toInt() }.forEach { c ->
                     Box(Modifier.size(28.dp).clip(CircleShape).background(Color(c)).border(if (c == bg.color) 3.dp else 1.dp, if (c == bg.color) Pro.Amber else Pro.Line, CircleShape)
                         .clickable { edit = edit.copy(bg = bg.copy(color = c)) })

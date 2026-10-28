@@ -4237,5 +4237,10 @@
 "Star trails": "Stjernespor",
 "10–100 night-sky shots in a row from a tripod (an interval timer): each star draws its arc across the sky": "10–100 nattehimmelbilleder i træk fra et stativ (en intervaltimer): hver stjerne tegner sin bue over himlen",
 "Merge photos → Star trails: pick 10–100 night-sky shots taken in a row from a tripod (an interval timer, e.g. one every 30 s); the brightest of every shot is kept, so each star draws its arc across the sky.": "Flet fotos → Stjernespor: vælg 10–100 nattehimmelbilleder taget i træk fra et stativ (en intervaltimer, fx ét hvert 30. sekund); det lyseste fra hvert billede beholdes, så hver stjerne tegner sin bue over himlen.",
-"Adding shot": "Tilføjer billede"
+"Adding shot": "Tilføjer billede",
+"Double exposure": "Dobbelteksponering",
+"Blend": "Bland",
+"CHOOSE ANOTHER PICTURE": "VÆLG ET ANDET BILLEDE",
+"The second picture (a forest, a city, the sea…) shows inside the subject; the background takes the colour below. Works best with a portrait or a clear silhouette.": "Det andet billede (en skov, en by, havet…) vises inde i motivet; baggrunden får farven nedenfor. Virker bedst med et portræt eller en tydelig silhuet.",
+"Effects → BACKGROUND (AI) → Double exposure: pick a second picture (a forest, a city, the sea); it shows inside the subject's silhouette and the background takes a plain colour. Blend sets how strong the second picture is.": "Effekter → BAGGRUND (AI) → Dobbelteksponering: vælg et andet billede (en skov, en by, havet); det vises inde i motivets silhuet, og baggrunden får en ensfarvet farve. Bland bestemmer hvor kraftigt det andet billede er."
 }

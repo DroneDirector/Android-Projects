@@ -194,7 +194,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Red-eye and pet-eye fix**: tap the pupils, or find red eyes in faces automatically.
 - **AI masks**: subject and sky selected automatically.
 - **Colour-range and brightness-range masks**: tap the photo to pick a colour or brightness (e.g. only the blues, only the highlights), with range and softness.
-- **Background (AI)**: portrait blur, transparent background or colour fill behind the subject.
+- **Background (AI)**: portrait blur, transparent background, colour fill behind the subject, or a **double exposure** with a second picture inside the subject.
 - **Sky replacement (AI)**: 5 built-in skies or your own picture, with strength and light matching.
 - **Creative effects**: Colour splash (keep one colour, the rest black and white), Tilt-shift miniature and Sun glow & rays.
 - **Dodge & burn** brushes: paint to lighten or darken, each its own mask.

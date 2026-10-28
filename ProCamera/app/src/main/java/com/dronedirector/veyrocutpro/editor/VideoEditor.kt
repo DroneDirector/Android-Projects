@@ -1384,6 +1384,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
         es.morphBusy = false
     }
+    /** The picture's speed relative to the clip's own speed: set while the picture keeps up with the music. */
+    val syncMul = remember { floatArrayOf(1f) }
     // Every frame: crop/zoom/stabilise the picture and play transitions between clips.
     LaunchedEffect(Unit) {
         var was = false
@@ -1406,7 +1408,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val local = c.tlOffsetOf(c.startMs + deck.cur.currentPosition)
             // Speed ramps: follow the curve while playing.
             if (c.ramp != null && c.id == es.loadedId) {
-                val sp = c.speedAtSrc(c.startMs + deck.cur.currentPosition)
+                val sp = c.speedAtSrc(c.startMs + deck.cur.currentPosition) * syncMul[0]
                 if (kotlin.math.abs(deck.cur.playbackParameters.speed - sp) > 0.04f) deck.cur.playbackParameters = PlaybackParameters(sp)
             }
             // Volume keyframes, and audio transitions on plain cuts (fade out / in around the cut).
@@ -1502,26 +1504,64 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         }
         if (kotlin.math.abs(p.playbackParameters.speed - speed) > 0.001f) p.playbackParameters = PlaybackParameters(speed)
     }
-    // Music follows the timeline while previewing.
+    // The soundtrack sets the preview's timing: once the music plays it is never jumped or sped up, so it
+    // never glitches. The picture follows it instead — a touch faster or slower for a moment, or, if it has
+    // fallen far behind (a heavy clip, a busy device), it skips ahead to the music.
+    fun setPictureSpeed(mul: Float) {
+        syncMul[0] = mul
+        val c = clips.getOrNull(es.current) ?: return
+        if (c.id != es.loadedId) return
+        val sp = c.speedAtSrc(c.startMs + deck.cur.currentPosition) * mul
+        if (kotlin.math.abs(deck.cur.playbackParameters.speed - sp) > 0.002f) deck.cur.playbackParameters = PlaybackParameters(sp)
+    }
     LaunchedEffect(es.playing, es.music, es.previewMuted) {
         val m = es.music
-        if (m == null) { musicPlayer.pause(); return@LaunchedEffect }
+        if (m == null) { musicPlayer.pause(); setPictureSpeed(1f); return@LaunchedEffect }
         musicFxProc.fx = m.fx
         musicPlayer.volume = if (es.previewMuted || m.muted) 0f else m.volume.coerceIn(0f, 1f)
-        if (!es.playing) { musicPlayer.pause(); return@LaunchedEffect }
-        while (true) {
-            val ducked = clips.getOrNull(es.current)?.let { it.audio.duckMusic && !it.muted && it.volume > 0f } == true
-            musicPlayer.volume = if (es.previewMuted || m.muted) 0f else (m.volume * (if (ducked) 1f - m.duck else 1f)).coerceIn(0f, 1f)
-            val before = clipStarts(clips).getOrNull(es.current) ?: 0L
-            val g = before + (clips.getOrNull(es.current)?.let { it.tlOffsetOf(it.startMs + deck.cur.currentPosition) } ?: deck.cur.currentPosition)
-            val len = m.playLength(timelineLength(clips))
-            val want = m.offsetMs + (g - m.startMs)
-            if (g < m.startMs || g >= m.startMs + len) { musicPlayer.pause() } else {
-                followSmoothly(musicPlayer, want, "Music")
-                if (!musicPlayer.isPlaying) musicPlayer.play()
+        if (!es.playing) { musicPlayer.pause(); setPictureSpeed(1f); return@LaunchedEffect }
+        if (musicPlayer.playbackParameters.speed != 1f) musicPlayer.playbackParameters = PlaybackParameters(1f)
+        var lastSkip = 0L
+        try {
+            while (true) {
+                val ducked = clips.getOrNull(es.current)?.let { it.audio.duckMusic && !it.muted && it.volume > 0f } == true
+                musicPlayer.volume = if (es.previewMuted || m.muted) 0f else (m.volume * (if (ducked) 1f - m.duck else 1f)).coerceIn(0f, 1f)
+                val before = clipStarts(clips).getOrNull(es.current) ?: 0L
+                val g = before + (clips.getOrNull(es.current)?.let { it.tlOffsetOf(it.startMs + deck.cur.currentPosition) } ?: deck.cur.currentPosition)
+                val len = m.playLength(timelineLength(clips))
+                val want = m.offsetMs + (g - m.startMs)
+                if (g < m.startMs || g >= m.startMs + len) { musicPlayer.pause(); setPictureSpeed(1f) }
+                else if (!musicPlayer.playWhenReady) {
+                    // The music comes in: start it where the picture is.
+                    musicPlayer.seekTo(want); musicPlayer.play(); setPictureSpeed(1f)
+                } else if (musicPlayer.playbackState == Player.STATE_READY && musicPlayer.isPlaying && deck.cur.isPlaying) {
+                    // Where the music is on the timeline, and how far the picture is from it (+ = picture ahead).
+                    val musicG = m.startMs + (musicPlayer.currentPosition - m.offsetMs)
+                    val off = g - musicG
+                    val now = android.os.SystemClock.uptimeMillis()
+                    when {
+                        // A big difference is a jump made on purpose (a seek while playing): the music goes there.
+                        kotlin.math.abs(off) > 4000 -> { musicPlayer.seekTo(want); setPictureSpeed(1f) }
+                        // The picture has fallen far behind (or run ahead): it skips to the music.
+                        kotlin.math.abs(off) > 1200 && now - lastSkip > 1500 -> {
+                            lastSkip = now
+                            com.dronedirector.veyrocutpro.ui.AppLog.w("Preview: picture skipped to the music (was $off ms off)")
+                            android.util.Log.w("FxTest", "Picture skipped to the music, off $off ms")
+                            setPictureSpeed(1f)
+                            if (clips.isNotEmpty()) {
+                                val (i, local) = clipAt(clips, musicG.coerceAtLeast(0L))
+                                val c2 = clips[i]; val at = c2.srcAtOffset(local) - c2.startMs
+                                if (i == es.current && es.loadedId == c2.id) deck.cur.seekTo(at) else load(i, at, true)
+                            }
+                        }
+                        kotlin.math.abs(off) < 40 -> setPictureSpeed(1f)
+                        // In between: the picture plays a little faster or slower until it is with the music again.
+                        else -> setPictureSpeed((1f - off / 2500f).coerceIn(0.85f, 1.15f))
+                    }
+                }
+                delay(200)
             }
-            delay(250)
-        }
+        } finally { syncMul[0] = 1f }
     }
     // Mixer → preview: track and master levels, track pan, solo.
     LaunchedEffect(es.deliver.videoGain, es.deliver.videoPan, es.deliver.masterGain, es.soloTrack, extraAudio.toList(), es.music) {
@@ -1645,7 +1685,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             val g = globalNow()
             val m = es.music
             val drift = if (m != null) musicPlayer.currentPosition - (m.offsetMs + (g - m.startMs)) else 0L
-            android.util.Log.i("VisTest", "playback ${dt / 1000}s: timeline ${(g - g0) / 1000f}s, playing ${deck.cur.isPlaying}, music drift $drift ms, speed ${musicPlayer.playbackParameters.speed} · " +
+            android.util.Log.i("VisTest", "playback ${dt / 1000}s: timeline ${(g - g0) / 1000f}s, playing ${deck.cur.isPlaying}, music drift $drift ms, picture speed ${"%.3f".format(syncMul[0])} · " +
                 com.dronedirector.veyrocutpro.ui.AppLog.memory(context))
         }
         deck.cur.pause()

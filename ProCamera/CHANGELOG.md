@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Smoother sound in the preview: the music now sets the timing and is never jumped or sped up while it plays. The picture follows it instead — a touch faster or slower for a moment, or, if the device can't keep up, it skips ahead to the music. No more little glitches in the soundtrack.
 
 ## 1.0.777 — 2026-10-28
 - Fix: the playhead jumped when playback went through a transition (or from one clip to the next). It now glides straight through.

@@ -5,6 +5,8 @@ Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/rel
 
 ## Unreleased
 - Photo editor filmstrip: colour labels show as a stripe along the top of each photo, the colour dots next to the filters show only that colour, and several selected photos can be labelled at once (hold one).
+
+## 1.0.771 — 2026-10-28
 - Media strip: colour labels (red, yellow, green, blue, purple) on clips — set them for the picked clips or from a clip's long-press menu, shown as a stripe under the thumbnail, and the colour dots filter the strip. The same labels show in the video library.
 
 ## 1.0.767 — 2026-10-28

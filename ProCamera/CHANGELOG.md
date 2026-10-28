@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.701 — 2026-10-28
 - Video editor → Transitions → Creative: 10 more — Ink drop, Zoom spin, Mirror fold, Light streaks, Spiral wipe, Bars rise, Shutter slices, Vignette close, Chroma zoom, Overexpose.
 - Video editor → Transitions → Audio: 10 more with effects — DJ rewind, Record brake, Pump, Metal ring, Auto-pan, Slap echo, Lo-fi, Voice out, Airy, Trance gate.
 

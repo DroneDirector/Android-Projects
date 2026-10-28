@@ -306,12 +306,16 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
             val made = ArrayList<Clip>()
             repeat(3) {
                 val u = kotlinx.coroutines.suspendCancellableCoroutine<Uri?> { cont ->
-                    Generators.make(context, GenSpec(GenKind.GRADIENT, seconds = 10), onProgress = {}) { u, _ -> if (cont.isActive) cont.resumeWith(Result.success(u)) }
+                    Generators.make(context, GenSpec(GenKind.BARS, seconds = 10), onProgress = {}) { u, err ->
+                        android.util.Log.i("FxTest", "playback test clip ${it + 1}: $u ${err ?: ""}")
+                        if (cont.isActive) cont.resumeWith(Result.success(u))
+                    }
                 }
                 u?.let { withContext(Dispatchers.IO) { ClipLoader.load(context, it) } }?.let { made += it }
             }
             if (made.isEmpty()) { android.util.Log.e("FxTest", "playback test: no clips"); return@LaunchedEffect }
             clips.addAll(made); started = true
+            android.util.Log.i("FxTest", "playback test: ${made.size} clip(s) on the timeline")
             FxTest.playback = true
             return@LaunchedEffect
         }
@@ -1619,6 +1623,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     LaunchedEffect(FxTest.playback) {
         if (!FxTest.playback) return@LaunchedEffect
         FxTest.playback = false
+        android.util.Log.i("FxTest", "playback test: starting with ${clips.size} clip(s)")
         // Playback test: an edit like a real one (3 clips, a song, lower third, adjustment layer, shape,
         // watermark) plays for 24 s; memory, the playhead and the music's sync are logged every 2 s.
         es.music = MusicTrack(uri = VisTest.song(context, 40), name = "Test song", durationMs = 40_000L)

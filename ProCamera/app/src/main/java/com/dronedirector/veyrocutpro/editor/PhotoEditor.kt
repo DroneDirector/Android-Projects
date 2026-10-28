@@ -273,7 +273,7 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null, onOpenVideo: () 
             )
         }
         MediaChooser(
-            onMerge = { k -> if (k == MergeKind.PANORAMA) panoAsk = true else { mergeKind = k; (if (k == MergeKind.TRAILS) trailsPick else mergePick).launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } },
+            onMerge = { k -> if (k == MergeKind.PANORAMA) panoAsk = true else { mergeKind = k; (if (k == MergeKind.TRAILS || k == MergeKind.HDR_PANO) trailsPick else mergePick).launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } },
             title = "Photo editor",
             subtitle = "Choose a photo to edit. The original is never changed; edits are exported as a new picture.",
             videos = false,
@@ -1227,6 +1227,36 @@ private fun PhotoWorkspace(
             }
         }
     }
+    /** Adaptive presets: finds each selection in this photo, one after another, and adds it as a mask with its look. */
+    var adaptiveBusy by remember { mutableStateOf<String?>(null) }
+    fun runAdaptive(p: AdaptivePreset) {
+        val b = base ?: return
+        if (adaptiveBusy != null) return
+        adaptiveBusy = "${p.name}: looking at the photo…"
+        scope.launch {
+            val made = ArrayList<PhotoMask>()
+            for (st in p.steps) {
+                adaptiveBusy = "${p.name}: finding ${st.label.substringBefore(':').lowercase()}…"
+                val path = withContext(Dispatchers.Default) {
+                    try {
+                        val m = when (st.type) {
+                            MaskType.SKY -> AiSegment.sky(context, b, useCloud)
+                            MaskType.PEOPLE -> PeopleMask.make(context, b, st.parts ?: listOf(0))
+                            else -> AiSegment.subject(context, b, useCloud)
+                        }
+                        m?.let { AiSegment.saveMask(context, it) }
+                    } catch (_: Throwable) { null }
+                }
+                if (path != null) made += PhotoMask(type = st.type, maskFile = path, parts = st.parts, invert = st.invert, grade = st.grade, label = st.label)
+            }
+            adaptiveBusy = null
+            if (made.isEmpty()) message = "${p.name}: nothing to adjust was found in this photo"
+            else {
+                edit = edit.copy(masks = edit.masks + made)
+                message = "${p.name}: ${made.size} of ${p.steps.size} adjustment(s) made — fine-tune them in Masks"
+            }
+        }
+    }
     /** Retouch → Skin: a People mask (face / body skin) used only by frequency separation. */
     fun skinMask(parts: List<Int>, done: (String) -> Unit) {
         val b = base ?: return
@@ -1310,6 +1340,33 @@ private fun PhotoWorkspace(
             eraseStatus = null
             if (path == null) message = "Couldn't select that" + (Sam.failed?.let { " ($it)" } ?: "")
             else { eraseObjects = eraseObjects + path; if (eraseMask == null) eraseMask = PhotoMask(type = MaskType.BRUSH); message = "Selected — tap more things, paint, or tap REMOVE" }
+        }
+    }
+    /** AI Remove → people: selects everyone in the photo (a little wider, for a clean fill); REMOVE takes them out. */
+    fun selectPeople() {
+        val b = base ?: return
+        eraseStatus = "Finding the people…"
+        scope.launch {
+            val path = withContext(Dispatchers.Default) {
+                try {
+                    val m = PeopleMask.make(context, b, listOf(0)) ?: return@withContext null
+                    val w = m.width; val h = m.height
+                    val px = IntArray(w * h); m.getPixels(px, 0, w, 0, 0, w, h)
+                    // Grow the selection by about 1.5 % of the width so edges and shadows go too.
+                    val r = maxOf(2, w / 66)
+                    val on = BooleanArray(w * h) { ((px[it] shr 16) and 255) > 100 }
+                    val row = BooleanArray(w * h)
+                    for (y in 0 until h) { var last = -100000; for (x in 0 until w) { if (on[y * w + x]) last = x; if (x - last <= r) row[y * w + x] = true }
+                        last = 100000; for (x in w - 1 downTo 0) { if (on[y * w + x]) last = x; if (last - x <= r) row[y * w + x] = true } }
+                    val out = IntArray(w * h) { 0xFF000000.toInt() }
+                    for (x in 0 until w) { var last = -100000; for (y in 0 until h) { if (row[y * w + x]) last = y; if (y - last <= r) out[y * w + x] = -1 }
+                        last = 100000; for (y in h - 1 downTo 0) { if (row[y * w + x]) last = y; if (last - y <= r) out[y * w + x] = -1 } }
+                    AiSegment.saveMask(context, android.graphics.Bitmap.createBitmap(out, w, h, android.graphics.Bitmap.Config.ARGB_8888))
+                } catch (_: Throwable) { null }
+            }
+            eraseStatus = null
+            if (path == null) message = if (PeopleMask.lastFaces == 0) "No people found in this photo" else "Couldn't select the people"
+            else { eraseObjects = eraseObjects + path; if (eraseMask == null) eraseMask = PhotoMask(type = MaskType.BRUSH); message = "Everyone is selected (red) — tap REMOVE, or tap / paint to change it" }
         }
     }
     LaunchedEffect(pendingErasePick) { pendingErasePick?.let { (x, y) -> pendingErasePick = null; pickEraseObject(x, y) } }
@@ -1431,12 +1488,17 @@ private fun PhotoWorkspace(
                     "PAINT", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
                     modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { eraseMask = PhotoMask(type = MaskType.BRUSH); picking = 0 }.padding(10.dp),
                 )
+                Text(
+                    "REMOVE PEOPLE", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+                    modifier = Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable { picking = 0; selectPeople() }.padding(10.dp),
+                )
             }
             if (edit.baseFile != null) Text("The photo has removed parts. Tap RESET above to go back to the original.", color = Pro.Dim, fontSize = 11.sp)
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PillChip("TAP TO SELECT", picking == 5) { picking = if (picking == 5) 0 else 5 }
                 PillChip("PAINT", picking != 5) { picking = 0 }
+                PillChip("+ ALL PEOPLE", false, accentText = true) { picking = 0; selectPeople() }
             }
             if (picking != 5) EdSlider("Brush size", tools.brushSize, 0.01f..0.3f, 0.08f, ::pct) { tools.brushSize = it }
             if (eraseObjects.isNotEmpty()) Text("${eraseObjects.size} thing(s) selected (shown in red)", style = Pro.Label)
@@ -2364,6 +2426,7 @@ private fun PhotoWorkspace(
                                     autoWb = { base?.let { b -> edit = edit.copy(grade = Develop.autoWb(b, edit.grade)); message = "Auto white balance applied" } },
                                     importXmp = { try { pickXmp.launch(arrayOf("*/*")) } catch (_: Throwable) {} },
                                     exportXmp = { exportXmp() },
+                                    adaptive = { p -> runAdaptive(p) }, adaptiveBusy = adaptiveBusy,
                                     analyseDepth = { withDepth { p -> edit = edit.copy(lensBlur = (edit.lensBlur ?: LensBlur()).copy(depthFile = p, on = true)) } },
                                     depthBusy = depthBusy,
                                     upright = { mode ->
@@ -2823,6 +2886,8 @@ internal fun runPhotoExport(context: Context, req: PhotoExportReq): PhotoExportR
         if (saved != null && PhotoMeta.sidecar && uri != Uri.EMPTY) {
             if (PhotoMeta.writeSidecar(context, uri, PhotoMeta.sidecarXmp(e.grade, e.detail, e.geometry, meta != null)) == null) res.sidecarFailed = true
         }
+        // Upload after export: a copy to the folder chosen in Export.
+        ExportUpload.after(context, saved, false)
         return saved
     }
 
@@ -2885,6 +2950,7 @@ private fun PhotoPanelContent(
                 PillChip("EXPORT AS .XMP", false, accentText = true) { dev.exportXmp() }
             }
             Text("Import .xmp presets or sidecars (Camera Raw settings) (they're added to MY PRESETS). Export saves this look as an .xmp preset in Documents/AlcorCutPro/Presets.", color = Pro.Dim, fontSize = 11.sp)
+            if (dev != null) AdaptivePresetSection(dev.adaptiveBusy) { dev.adaptive(it) }
             BuiltInPresetSection(thumbSrc, g, e.detail) { ng, nd -> set(e.copy(grade = ng, detail = nd.copy(aiDenoise = e.detail.aiDenoise))) }
             LutSection(g) { ng -> set(e.copy(grade = ng)) }
             SectionTitle("PROFILE / LOOK")
@@ -3380,6 +3446,7 @@ private fun PhotoPanelContent(
                     )
                 }
             }
+            ExportUploadSection(video = false)
         }
     }
 }

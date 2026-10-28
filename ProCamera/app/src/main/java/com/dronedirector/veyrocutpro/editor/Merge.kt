@@ -21,6 +21,7 @@ enum class MergeKind(val label: String, val hint: String) {
     CLEAN("Remove passers-by", "3–8 shots from the same spot a few seconds apart: whatever moves through is taken out"),
     SUPERRES("Super resolution", "4–8 hand-held shots of the same scene: one picture with twice the width and height"),
     ASTRO("Star stack", "2–8 night-sky shots from a tripod: lined up on the stars and averaged for a clean, detailed sky"),
+    HDR_PANO("HDR panorama", "Bracketed shots (e.g. 3 exposures) at each position, left to right: each position is merged to HDR, then stitched"),
     TRAILS("Star trails", "10–100 night-sky shots in a row from a tripod (an interval timer): each star draws its arc across the sky"),
 }
 
@@ -28,9 +29,21 @@ enum class MergeKind(val label: String, val hint: String) {
 object Merge {
     fun run(context: Context, kind: MergeKind, uris: List<Uri>, onProgress: (String) -> Unit): Bitmap? {
         if (uris.size < 2) return null
-        if (kind == MergeKind.PANORAMA) {
+        if (kind == MergeKind.PANORAMA || kind == MergeKind.HDR_PANO) {
             onProgress("Loading photos…")
-            val frames = uris.mapNotNull { decodeAny(context, it, 2400)?.let { b -> com.dronedirector.veyrocutpro.camera.Panorama.prepareFrame(b, 0) } }
+            val frames = if (kind == MergeKind.HDR_PANO) {
+                val groups = brackets(context, uris)
+                if (groups.size < 2) return null
+                groups.mapIndexedNotNull { i, g ->
+                    onProgress("Merging exposures ${i + 1} of ${groups.size}…")
+                    (if (g.size >= 2) run(context, MergeKind.HDR, g) {} else decodeAny(context, g[0], 2200))?.let { b ->
+                        // Smaller before stitching, so many positions fit in memory.
+                        val k = 1800f / maxOf(b.width, b.height)
+                        val sm = if (k < 1f) Bitmap.createScaledBitmap(b, (b.width * k).toInt(), (b.height * k).toInt(), true).also { if (it !== b) b.recycle() } else b
+                        com.dronedirector.veyrocutpro.camera.Panorama.prepareFrame(sm, 0)
+                    }
+                }
+            } else uris.mapNotNull { decodeAny(context, it, 2400)?.let { b -> com.dronedirector.veyrocutpro.camera.Panorama.prepareFrame(b, 0) } }
             if (frames.size < 2) return null
             onProgress("Stitching…")
             // Field of view from the first photo's lens info (35 mm equivalent), else a typical phone lens.
@@ -63,6 +76,23 @@ object Merge {
         onProgress(if (kind == MergeKind.HDR) "Merging exposures…" else "Merging sharp areas…")
         val out = if (kind == MergeKind.HDR) fuse(aligned, w, h) else stack(aligned, w, h)
         return Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
+    }
+
+    /**
+     * Splits bracketed shots into one group per position: a new group starts when the exposure
+     * compensation comes back to the first shot's value. Without exposure info, groups of 3.
+     */
+    fun brackets(context: Context, uris: List<Uri>): List<List<Uri>> {
+        val ev = uris.map { u ->
+            try {
+                context.contentResolver.openInputStream(u)?.use { androidx.exifinterface.media.ExifInterface(it).getAttributeDouble(androidx.exifinterface.media.ExifInterface.TAG_EXPOSURE_BIAS_VALUE, Double.NaN) } ?: Double.NaN
+            } catch (_: Throwable) { Double.NaN }
+        }
+        val known = ev.none { it.isNaN() } && ev.distinct().size > 1
+        if (!known) return uris.chunked(if (uris.size % 3 == 0) 3 else if (uris.size % 5 == 0) 5 else if (uris.size % 2 == 0) 2 else 3)
+        val out = ArrayList<MutableList<Uri>>()
+        uris.forEachIndexed { i, u -> if (out.isEmpty() || (kotlin.math.abs(ev[i] - ev[0]) < 0.05 && out.last().isNotEmpty())) out.add(mutableListOf(u)) else out.last().add(u) }
+        return out
     }
 
     private fun luma(c: Int) = (((c shr 16) and 0xFF) * 54 + ((c shr 8) and 0xFF) * 183 + (c and 0xFF) * 19) shr 8

@@ -343,6 +343,7 @@ class TimelineExport(
         val uri = SaveFolder.write(context, true, name, "video/mp4") { os -> out.inputStream().use { it.copyTo(os) } }
             ?: GradeIO.publishVideo(context, out, com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO)
         out.delete()
+        ExportUpload.after(context, uri, true)
         handler.post { onDone(uri, if (uri == null) (err0 ?: "Couldn't save the video") else null) }
     }
 
@@ -693,6 +694,7 @@ class TimelineExport(
                                 ?: GradeIO.publishVideo(context, out, com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO)
                         }
                         out.delete()
+                        ExportUpload.after(context, uri, true)
                         handler.post { onDone(uri, if (uri == null) (err ?: if (audioOnly) "Couldn't save the audio" else "Couldn't save the video") else null) }
                     }.start()
                 }

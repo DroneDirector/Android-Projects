@@ -282,4 +282,6 @@ class DevUi(
     val tatMode: Int = 1, val setTatMode: (Int) -> Unit = {},
     /** Smart crop to a shape (width / height), keeping the subject in; busy while it looks. */
     val smartCrop: (Float) -> Unit = {}, val smartBusy: Boolean = false,
+    /** Adaptive presets: run one (AI masks with their adjustments); busy text while it works. */
+    val adaptive: (AdaptivePreset) -> Unit = {}, val adaptiveBusy: String? = null,
 )

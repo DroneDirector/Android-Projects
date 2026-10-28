@@ -195,6 +195,7 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
             LibraryStore.smart.forEach { s -> PillChip("⚙ ${s.name}", smart == s, onLongClick = { LibraryStore.smart.remove(s); LibraryStore.save(context); if (smart == s) smart = null }) { smart = s; album = null } }
             PillChip("+ Album", false, accentText = true) { dialog = "newAlbum" }
             PillChip("+ Smart collection", false, accentText = true) { dialog = "newSmart" }
+            PillChip("Client picks…", false, accentText = true) { dialog = "picks" }
         }
         Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             listOf("Grid", "Stacks", "People", "Map", "Duplicates", "Calendar").forEachIndexed { i, n -> PillChip(n, view == i) { view = i; if (i != 3) mapPick = null } }
@@ -226,12 +227,14 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
                 PillChip("Unflag", false) { LibraryStore.update(context, picked) { it.copy(flag = 0) } }
                 LabelPicker(null) { c -> LibraryStore.update(context, picked) { it.copy(label = c) } }
                 PillChip("Metadata preset", false) { dialog = "meta" }
+                PillChip("Client proofing", false) { dialog = "proof" }
                 PillChip("+ Album", false) { dialog = "album" }
                 PillChip("Keywords", false) { dialog = "keywords" }
                 PillChip("Contact sheet PDF", false) { dialog = "sheet" }
                 PillChip("Print layout", false) { dialog = "print" }
                 if (picked.size in 2..9) PillChip("Collage", false) { dialog = "collage" }
                 if (picked.size >= 2) PillChip("▶ Slideshow video", false) { dialog = "slideshow" }
+                if (picked.size >= 10) PillChip("⏱ Time-lapse video", false) { dialog = "timelapse" }
                 PillChip("📍 Geotag from GPX", false) { try { pickGpx.launch(arrayOf("*/*")) } catch (_: Throwable) {} }
             }
         }
@@ -402,6 +405,18 @@ fun LibraryScreen(onBack: () -> Unit, onEdit: (List<Uri>) -> Unit, onVirtualCopy
         "newSmart" -> SmartCollectionDialog(SmartAlbum("", minRating, if (flagF == 1) 1 else if (flagF == 2) 2 else 0, labelF, text), LibraryStore.PHOTO_TYPES, video = false) { s ->
             dialog = null
             if (s != null) { LibraryStore.smart.add(s); LibraryStore.save(context); smart = s; album = null }
+        }
+        "proof" -> ProofingDialog(sel) { dialog = null }
+        "timelapse" -> TimeLapseDialog(sel.sortedWith(compareBy({ it.date }, { it.name })).map { it.uri }) { u ->
+            dialog = null
+            if (u != null) {
+                android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Time-lapse saved in Movies/AlcorCut Pro"), android.widget.Toast.LENGTH_LONG).show()
+                try { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW).setDataAndType(u, "video/mp4").addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)) } catch (_: Throwable) {}
+            }
+        }
+        "picks" -> ClientPicksDialog(all) { n ->
+            dialog = null
+            if (n != null) { reload++; android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Client picks: $n photo(s) marked"), android.widget.Toast.LENGTH_LONG).show(); if (n > 0) flagF = 1 }
         }
         "meta" -> MetaPresetDialog(picked.size, onApply = { p ->
             dialog = null

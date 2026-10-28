@@ -7156,6 +7156,7 @@ private fun DeliverPage(
                 color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(start = 10.dp))
         }
     }
+    ExportUploadSection(video = true)
     SectionTitle("METADATA")
     MetaPresets.load(ictx)
     Text("Your name, copyright, contact, caption and keywords written into the video file.", color = Pro.Dim, fontSize = 11.sp)

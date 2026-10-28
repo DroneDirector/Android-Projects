@@ -192,9 +192,9 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null, onOpenVideo: () 
     val scope = rememberCoroutineScope()
     var mergeKind by remember { mutableStateOf<MergeKind?>(null) }
     var merging by remember { mutableStateOf<String?>(null) }
-    val mergePick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(8)) { list ->
-        val kind = mergeKind ?: return@rememberLauncherForActivityResult
-        if (list.size < 2) { if (list.isNotEmpty()) android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Pick at least 2 photos"), android.widget.Toast.LENGTH_SHORT).show(); return@rememberLauncherForActivityResult }
+    fun mergeDone(list: List<Uri>) {
+        val kind = mergeKind ?: return
+        if (list.size < 2) { if (list.isNotEmpty()) android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Pick at least 2 photos"), android.widget.Toast.LENGTH_SHORT).show(); return }
         merging = "Starting…"
         scope.launch {
             val uri = withContext(Dispatchers.Default) {
@@ -208,6 +208,10 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null, onOpenVideo: () 
             else android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Couldn't merge those photos"), android.widget.Toast.LENGTH_LONG).show()
         }
     }
+    val mergePick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(8)) { list -> mergeDone(list) }
+
+    // Star trails take many shots (an interval series), more than the other merges.
+    val trailsPick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(100)) { list -> mergeDone(list) }
 
     val src = source
     var showLibrary by remember { mutableStateOf(false) }
@@ -268,7 +272,7 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null, onOpenVideo: () 
             )
         }
         MediaChooser(
-            onMerge = { k -> if (k == MergeKind.PANORAMA) panoAsk = true else { mergeKind = k; mergePick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } },
+            onMerge = { k -> if (k == MergeKind.PANORAMA) panoAsk = true else { mergeKind = k; (if (k == MergeKind.TRAILS) trailsPick else mergePick).launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } },
             title = "Photo editor",
             subtitle = "Choose a photo to edit. The original is never changed; edits are exported as a new picture.",
             videos = false,

@@ -201,7 +201,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Metadata on export**: title, caption, author, copyright and keywords written into the photo.
 - **Slideshow video**: selected library photos become a video timeline with slow zoom and transitions, opened in the video editor.
 - **AI Remove**: tap or paint over bigger objects to remove them.
-- **Merge photos**: HDR (exposure fusion), panorama stitching, focus stacking.
+- **Merge photos**: HDR (exposure fusion), panorama stitching, focus stacking, star trails (10–100 tripod shots).
 - **Watermark**: text or logo, font, colour, size, position, opacity; optional **Remember watermark**.
 - **Text & stickers**: any number of text and emoji layers with font, colour, shadow / box, size, position and opacity.
 - **History & snapshots**: jump to any step, save named versions and switch between them.

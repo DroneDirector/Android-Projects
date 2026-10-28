@@ -21,6 +21,7 @@ enum class MergeKind(val label: String, val hint: String) {
     CLEAN("Remove passers-by", "3–8 shots from the same spot a few seconds apart: whatever moves through is taken out"),
     SUPERRES("Super resolution", "4–8 hand-held shots of the same scene: one picture with twice the width and height"),
     ASTRO("Star stack", "2–8 night-sky shots from a tripod: lined up on the stars and averaged for a clean, detailed sky"),
+    TRAILS("Star trails", "10–100 night-sky shots in a row from a tripod (an interval timer): each star draws its arc across the sky"),
 }
 
 /** HDR (exposure fusion), panorama stitching and focus stacking, done on the phone. */
@@ -47,6 +48,7 @@ object Merge {
         }
         if (kind == MergeKind.NOISE || kind == MergeKind.CLEAN || kind == MergeKind.SUPERRES) return multiFrame(context, kind, uris, onProgress)
         if (kind == MergeKind.ASTRO) return astro(context, uris, onProgress)
+        if (kind == MergeKind.TRAILS) return trails(context, uris, onProgress)
         onProgress("Loading photos…")
         val maxPx = 2200
         val imgs = uris.take(if (kind == MergeKind.FOCUS) 6 else 5).mapNotNull { decodeAny(context, it, maxPx) }
@@ -226,6 +228,35 @@ object Merge {
             MergeKind.CLEAN -> { onProgress("Taking out what moved…"); Bitmap.createBitmap(robust(frames, w, h, median = true), w, h, Bitmap.Config.ARGB_8888) }
             else -> { onProgress("Averaging…"); Bitmap.createBitmap(robust(frames, w, h, median = false), w, h, Bitmap.Config.ARGB_8888) }
         }
+    }
+
+    // ---------------- Star trails
+
+    /**
+     * Lighten blend: per pixel the brightest value over all the shots, so every star leaves the arc it moved
+     * along. Tripod shots need no lining up; one photo at a time, so a hundred shots fit in memory.
+     */
+    private fun trails(context: Context, uris: List<Uri>, onProgress: (String) -> Unit): Bitmap? {
+        val first = decodeAny(context, uris[0], 3000) ?: return null
+        val w = first.width; val h = first.height
+        val out = IntArray(w * h).also { first.getPixels(it, 0, w, 0, 0, w, h) }; first.recycle()
+        val p = IntArray(w * h)
+        var used = 1
+        for ((i, u) in uris.drop(1).withIndex()) {
+            onProgress("Adding shot ${i + 2} / ${uris.size}…")
+            val b = decodeAny(context, u, 3000) ?: continue
+            val s = if (b.width == w && b.height == h) b else Bitmap.createScaledBitmap(b, w, h, true)
+            s.getPixels(p, 0, w, 0, 0, w, h)
+            if (s !== b) s.recycle(); b.recycle()
+            for (k in out.indices) {
+                val a = out[k]; val c = p[k]
+                if (a != c) out[k] = (0xFF shl 24) or (max((a shr 16) and 0xFF, (c shr 16) and 0xFF) shl 16) or
+                    (max((a shr 8) and 0xFF, (c shr 8) and 0xFF) shl 8) or max(a and 0xFF, c and 0xFF)
+            }
+            used++
+        }
+        if (used < 2) return null
+        return Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
     }
 
     // ---------------- Star stacking

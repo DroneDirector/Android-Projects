@@ -4283,5 +4283,9 @@
 "Straight cut": "Beinleiðis klipp",
 "Slow zoom": "Spakulig zoom",
 "Couldn't make clips from those photos": "Kundi ikki gera klipp úr hesum myndunum",
-"Library → select photos → ▶ Slideshow video: the photos become clips on a new video timeline in the video editor, with seconds per photo, a slow zoom and a cross dissolve or dip between them — add music and titles there, then export.": "Savn → vel myndir → ▶ Myndarøð-video: myndirnar verða til klipp á eini nýggjari videotíðarlinju í videoritlinum við sekundum fyri hvørja mynd, spakuligari zoom og einari krossblending ella einum dýpi ímillum — legg tónleik og heiti afturat har, og flyt út."
+"Library → select photos → ▶ Slideshow video: the photos become clips on a new video timeline in the video editor, with seconds per photo, a slow zoom and a cross dissolve or dip between them — add music and titles there, then export.": "Savn → vel myndir → ▶ Myndarøð-video: myndirnar verða til klipp á eini nýggjari videotíðarlinju í videoritlinum við sekundum fyri hvørja mynd, spakuligari zoom og einari krossblending ella einum dýpi ímillum — legg tónleik og heiti afturat har, og flyt út.",
+"Star trails": "Stjørnuspor",
+"10–100 night-sky shots in a row from a tripod (an interval timer): each star draws its arc across the sky": "10–100 náttarhimmalsmyndir í eini røð frá einum treføti (ein millumbilsklokka): hvør stjørna teknar sín boga yvir himmalin",
+"Merge photos → Star trails: pick 10–100 night-sky shots taken in a row from a tripod (an interval timer, e.g. one every 30 s); the brightest of every shot is kept, so each star draws its arc across the sky.": "Flætta myndir → Stjørnuspor: vel 10–100 náttarhimmalsmyndir tiknar í eini røð frá einum treføti (ein millumbilsklokka, t.d. ein hvørt 30. sekund); tað ljósasta úr hvørjari mynd verður hildið, so hvør stjørna teknar sín boga yvir himmalin.",
+"Adding shot": "Leggur mynd afturat"
 }

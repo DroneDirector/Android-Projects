@@ -264,6 +264,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Detail → NOISE REDUCTION → Colour noise: removes blotchy colour specks (e.g. blue patches in the shadows of photos taken in dim, warm light) while keeping detail. Works on RAW and JPEG.",
             "Undo / redo are in the top bar; the histogram toggles with the chart icon.",
             "Merge photos → Star stack: 2–8 night-sky shots from a tripod are lined up on the stars (shift and turn) and averaged for a clean, detailed sky.",
+            "Merge photos → Star trails: pick 10–100 night-sky shots taken in a row from a tripod (an interval timer, e.g. one every 30 s); the brightest of every shot is kept, so each star draws its arc across the sky.",
             "Crop → EXPAND (CLOUD AI): pick a shape (16:9, 3:2, 4:3, 1:1, 4:5, 9:16 or wider all round) and where the photo sits; the empty parts are painted in (Bria Expand via your fal.ai account). Optional: describe what to add.",
             "Retouch → Liquify: drag on the photo with Push, Pinch, Bloat, Twirl or Restore; Brush size and Strength set the brush. UNDO LAST takes back one stroke.",
             "Retouch → Skin (frequency separation): Smooth tone evens out blotchy skin, Texture keeps the pores (100% = as photographed). Pick Whole photo, Face skin or All skin (AI finds the skin).",

@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Photo editor → Merge photos → Star trails: 10–100 tripod shots of the night sky become one picture with the stars' arcs.
 - Photo editor → Library → select photos → Slideshow video: the photos become a new video timeline with a slow zoom and transitions between them, ready for music and titles.
 - Video editor → Layers → Retro look: VHS tape, Old TV, Camcorder with a date stamp, Old film and Security camera, drawn over the picture in the preview and the export.
 - Visualizers Dot matrix, Flames, Ribbons, Aurora and Heartbeat draw several times faster, so their previews run smoothly.

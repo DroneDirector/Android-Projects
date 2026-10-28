@@ -1,5 +1,11 @@
 [
  {
+  "title": "Overview",
+  "items": [
+   "<strong>Video library</strong>: every video on the device with stars, flags, colour labels (red, yellow, green, blue, purple), filters, albums, smart collections (resolution, drone, vertical…) and a calendar view by year, month and day; <strong>pro import</strong> from SD card, USB drive or camera; <strong>metadata presets</strong> written into exported MP4s; <strong>upload after export</strong> to any folder."
+  ]
+ },
+ {
   "title": "Media & timeline",
   "items": [
    "<strong>Speed / Duration</strong>, <strong>time interpolation</strong> (frame sampling, optical flow, motion blur), <strong>link / unlink tracks</strong>, <strong>group / ungroup</strong> and a <strong>markers menu</strong> (go to, edit, clear, export / import lists) under the picture.",

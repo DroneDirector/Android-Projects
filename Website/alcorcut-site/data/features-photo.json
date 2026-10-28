@@ -32,6 +32,7 @@
  {
   "title": "Masks & AI",
   "items": [
+   "<strong>Adaptive presets</strong> (AI subject / sky / people masks with their own adjustments, made fresh for each photo), <strong>remove people</strong> (AI Remove selects everyone), <strong>HDR panorama</strong> (bracketed positions merged, then stitched), photo scopes (histogram, waveform, RGB parade, vectorscope) and <strong>upload after export</strong> to any folder (Drive, OneDrive, NAS, USB).",
    "<strong>Generative expand (Cloud AI)</strong>: wider canvas with the surroundings painted in (Bria Expand via fal.ai; trained on licensed data).",
    "<strong>Masks</strong>: Object (AI) by tapping, Depth range (AI), and add / subtract / intersect combinations (colour, brightness, depth, subject, sky).",
    "<strong>Lens Blur</strong> from AI depth: tap-to-focus, focus range, blur amount, bokeh shapes (circle, hexagon, octagon, ring, cat's eye) and bokeh boost.",
@@ -80,6 +81,7 @@
    "<strong>Skip to the editor</strong> from the start page: open the editor without picking a photo first, then add one from inside (manual, every time).",
    "<strong>Library</strong>: all phone photos with stars, flags, colour labels, keywords, albums, smart albums, on-device AI content search, EXIF info, compare (2, linked zoom) and survey (up to 12) views, virtual copies, <strong>contact sheet PDF</strong> (A4 / Letter, 3–6 per row, names and stars), <strong>print layout PDF</strong> (exact print sizes, borders, crop marks), <strong>collage</strong> (5 templates, 2–9 photos), and multi-photo editing in the filmstrip.",
    "<strong>Duplicates</strong> view in the Library (near-identical photos, sharpest kept) and <strong>geotagging from a GPX track</strong> (shown on the Map, written into exports).",
+   "Library <strong>calendar view</strong> (years → months → days with counts), <strong>smart collections</strong> (stars, flag, colour label, date, file type, location, keyword, text), <strong>metadata presets</strong> (name, copyright, contact, caption, keywords — written into exports), <strong>pro import</strong> (SD card, USB drive or camera over USB; new files only, rename, a folder per day, backup copy, metadata and develop presets), <strong>client proofing gallery</strong> (web gallery with favourites, stars and notes; client picks pasted back become picks) and <strong>time-lapse video</strong> from photo sequences (deflicker, exposure ramp, look blend, 24–60 fps, HD / 4K).",
    "<strong>60 built-in presets</strong> (Portrait, Landscape, B&amp;W, Film, Cinematic, Vintage, Urban, Food, Travel, Moody) with live thumbnails and an <strong>Amount</strong> slider.",
    "<strong>.xmp</strong> preset and sidecar import, and .xmp preset export.",
    "<strong>Auto tone</strong>, <strong>Auto white balance</strong>, a <strong>WB eyedropper</strong> and <strong>clipping warnings</strong>.",

@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Visualizer: much livelier — each frequency band is measured against its own range in the song and jumps when it gets louder, so bars, rings and lines clearly move with the music (songs are analysed again once).
+- Moving overlays (visualizer, countdown, progress bar, flight path) now update 25 times a second in the preview instead of 10, so they follow the music smoothly.
 
 ## 1.0.691 — 2026-10-28
 - Visualizer: now follows music on the audio tracks too (it only looked at the main music track before, and fell back to the clip's own sound), reads every kind of decoded audio, and its settings have FOLLOWS THIS SOUND to pick the music, any audio track or the clip's sound.

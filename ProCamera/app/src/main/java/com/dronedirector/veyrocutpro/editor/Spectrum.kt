@@ -32,7 +32,7 @@ object Spectrum {
     /** Analyses (or loads the saved result). Slow the first time: call off the main thread. */
     @Synchronized fun load(context: Context, uri: Uri): FloatArray? {
         cached(uri)?.let { return it }
-        val file = File(MediaCatalog.sub(context, "spectrum"), uri.toString().hashCode().toUInt().toString(16) + ".spc1")
+        val file = File(MediaCatalog.sub(context, "spectrum"), uri.toString().hashCode().toUInt().toString(16) + ".spc2")
             .also { MediaCatalog.claim(context, uri, it) }
         if (file.exists()) try {
             val b = file.readBytes()
@@ -164,22 +164,33 @@ object Spectrum {
                 }
             }
             if (frames.isEmpty()) return null
-            // Loudness in dB, spread over the song's own range, with a gentle tilt so the highs aren't always low.
-            val db = Array(frames.size) { t -> FloatArray(BANDS) { b -> (20.0 * kotlin.math.log10(frames[t][b] + 1e-6) + b * 0.18).toFloat() } }
-            var top = -200f
-            for (f in db) for (v in f) top = max(top, v)
-            val floor = top - 58f
-            val out = FloatArray(frames.size * STRIDE)
+            // Loudness in dB per band. Each band is spread over its own range in this song (quiet 15 % to loud 99 %),
+            // and lifted when it is louder than a moment ago, so the bars really move with the music.
+            val nF = frames.size
+            val db = Array(nF) { t -> FloatArray(BANDS) { b -> (20.0 * kotlin.math.log10(frames[t][b] + 1e-6)).toFloat() } }
+            val lo = FloatArray(BANDS); val hi = FloatArray(BANDS)
+            val col = FloatArray(nF)
+            for (b in 0 until BANDS) {
+                for (t in 0 until nF) col[t] = db[t][b]
+                val sorted = col.sortedArray()
+                lo[b] = sorted[(nF * 0.15f).toInt().coerceIn(0, nF - 1)]
+                hi[b] = max(sorted[(nF * 0.99f).toInt().coerceIn(0, nF - 1)], lo[b] + 12f)
+            }
+            val out = FloatArray(nF * STRIDE)
             val prev = FloatArray(BANDS)
+            val avg = FloatArray(BANDS) { b -> db[0][b] }
             // Beat: rise in the bass (kick) energy, against its recent average.
             val bassHist = ArrayDeque<Float>()
             var beatPrev = 0f
             var bassPrev = 0f
             for (t in frames.indices) {
                 for (b in 0 until BANDS) {
-                    val v = ((db[t][b] - floor) / (top - floor)).coerceIn(0f, 1f)
+                    val base = ((db[t][b] - lo[b]) / (hi[b] - lo[b])).coerceIn(0f, 1f)
+                    val rise = ((db[t][b] - avg[b]) / 9f).coerceIn(0f, 1f)
+                    avg[b] = avg[b] * 0.9f + db[t][b] * 0.1f
+                    val v = (base * 0.75f + rise * 0.45f).coerceIn(0f, 1f)
                     // Fast rise, slower fall: how professional meters move.
-                    val s = if (v > prev[b]) v else prev[b] * 0.80f + v * 0.20f
+                    val s = if (v > prev[b]) v else prev[b] * 0.70f + v * 0.30f
                     prev[b] = s
                     out[t * STRIDE + b] = s
                 }
@@ -187,8 +198,8 @@ object Spectrum {
                 for (k in 0 until 3 * BANDS / 16) bass += frames[t][k]
                 val flux = max(0f, bass - bassPrev); bassPrev = bass
                 bassHist.addLast(flux); if (bassHist.size > 25) bassHist.removeFirst()
-                val avg = bassHist.average().toFloat().coerceAtLeast(1e-6f)
-                val hit = ((flux / avg - 1.2f) / 2.5f).coerceIn(0f, 1f)
+                val bassAvg = bassHist.average().toFloat().coerceAtLeast(1e-6f)
+                val hit = ((flux / bassAvg - 1.2f) / 2.5f).coerceIn(0f, 1f)
                 val beat = max(hit, beatPrev * 0.72f)
                 beatPrev = beat
                 out[t * STRIDE + BANDS] = beat

@@ -5975,6 +5975,12 @@ private fun LayerPreview(
     onPinCorner: (String, Int, Float, Float) -> Unit = { _, _, _, _ -> },
 ) {
     val context = LocalContext.current
+    // Moving overlays (visualizer, countdown, progress bar, flight path) redraw 25 times a second while playing,
+    // on the player's own clock, instead of at the editor's slower position updates.
+    val hasLive = layers.any { it.kind == LayerKind.FX && it.fx != FxLayers.BARS && it.fx != FxLayers.FLARE }
+    var tick by remember { mutableStateOf(0) }
+    LaunchedEffect(playing, hasLive) { if (playing && hasLive) while (true) { kotlinx.coroutines.delay(40); tick++ } }
+    val liveMs = if (playing && hasLive) { tick; timeMs + (PreviewClock.now() - PreviewClock.posMs).coerceIn(0L, 250L) } else timeMs
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val density = androidx.compose.ui.platform.LocalDensity.current
         val wPx = with(density) { maxWidth.toPx() }.toInt().coerceAtLeast(2)
@@ -6065,9 +6071,10 @@ private fun LayerPreview(
             val chars = LayerAnims.charCount(base, fx.chars)
             val hiWord = if (base.words != null) base.wordAt(timeMs) else -1
             // Lottie animations: a new picture for each animation frame.
-            val lf = if (base.kind == LayerKind.LOTTIE) LottieRender.frameIndex(context, base, timeMs) else if (base.kind == LayerKind.FX) FxLayers.frameIndex(base, timeMs) else 0
+            val fxMs = if (base.kind == LayerKind.FX) liveMs else timeMs
+            val lf = if (base.kind == LayerKind.LOTTIE) LottieRender.frameIndex(context, base, timeMs) else if (base.kind == LayerKind.FX) FxLayers.frameIndex(base, fxMs) else 0
             val bmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null), wPx, hPx, chars, hiWord, lf) {
-                value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, chars, hiWord, atMs = if (base.kind == LayerKind.LOTTIE || base.kind == LayerKind.FX) timeMs else -1L) }
+                value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, chars, hiWord, atMs = if (base.kind == LayerKind.LOTTIE) timeMs else if (base.kind == LayerKind.FX) fxMs else -1L) }
             }
             // Keep the last picture while a new one (next word / letter) is drawn, so it never blinks.
             val lastBmp = remember(base.id) { arrayOfNulls<Bitmap>(1) }

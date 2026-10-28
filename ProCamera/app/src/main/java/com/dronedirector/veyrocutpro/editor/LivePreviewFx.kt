@@ -35,6 +35,14 @@ object FilmPreview {
         sh.setFloatUniform("uCa", f.lensCa)
         sh.setFloatUniform("uVig", f.lensVig)
         sh.setFloatUniform("uWeave", wx.toFloat(), wy.toFloat())
+        val sc = VideoSky.colours(f.sky)
+        sh.setFloatUniform("uSky", if (f.sky >= 0) f.skyAmount else 0f)
+        sh.setFloatUniform("uHorizon", f.horizon)
+        sh.setFloatUniform("uSkyTol", f.skyTol)
+        sh.setFloatUniform("uSkyLight", f.skyLight)
+        sh.setFloatUniform("uSkyTop", sc[0], sc[1], sc[2])
+        sh.setFloatUniform("uSkyMid", sc[3], sc[4], sc[5])
+        sh.setFloatUniform("uSkyHor", sc[6], sc[7], sc[8])
         return RenderEffect.createRuntimeShaderEffect(sh, "content")
     }
 
@@ -51,6 +59,13 @@ object FilmPreview {
         uniform float uCa;
         uniform float uVig;
         uniform float2 uWeave;
+        uniform float uSky;
+        uniform float uHorizon;
+        uniform float uSkyTol;
+        uniform float uSkyLight;
+        uniform float3 uSkyTop;
+        uniform float3 uSkyMid;
+        uniform float3 uSkyHor;
 
         float h21(float2 p) { p = fract(p * float2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
         float vn(float2 q) {
@@ -85,10 +100,37 @@ object FilmPreview {
             }
             return s / 12.0;
         }
+        float skyW(float2 uv, float3 c) {
+            float y = uv.y;
+            float top = 1.0 - smoothstep(uHorizon - 0.08, uHorizon + 0.03, y);
+            if (top <= 0.0) return 0.0;
+            float l = dot(c, float3(0.2126, 0.7152, 0.0722));
+            float mx = max(max(c.r, c.g), c.b); float mn = min(min(c.r, c.g), c.b);
+            float sat = mx > 0.0 ? (mx - mn) / mx : 0.0;
+            float t = uSkyTol * 0.1;
+            float blue = smoothstep(-0.02 - t, 0.1 - t, c.b - max(c.r, c.g * 0.95));
+            float pale = smoothstep(0.62 - t * 2.0, 0.85 - t * 2.0, l) * (1.0 - smoothstep(0.2 + t, 0.45 + t, sat));
+            float3 n1 = tex(uv + float2(3.0 / uSize.x, 0.0));
+            float3 n2 = tex(uv + float2(0.0, 3.0 / uSize.y));
+            float tx = length(c - n1) + length(c - n2);
+            float smoothArea = 1.0 - smoothstep(0.05 + t * 0.4, 0.16 + t * 0.6, tx);
+            return top * max(blue, pale) * smoothArea;
+        }
+        float3 skyCol(float2 uv) {
+            float k = clamp(uv.y / max(uHorizon, 0.05), 0.0, 1.0);
+            return k < 0.6 ? mix(uSkyTop, uSkyMid, k / 0.6) : mix(uSkyMid, uSkyHor, (k - 0.6) / 0.4);
+        }
         half4 main(float2 fc) {
             float2 uv = fc / uSize;
             half4 orig = content.eval(fc);
             float3 rgb = src(uv);
+            if (uSky > 0.0) {
+                float w = skyW(uv, rgb) * uSky;
+                float l = dot(rgb, float3(0.2126, 0.7152, 0.0722));
+                float3 s = skyCol(uv) * (0.85 + 0.3 * l);
+                rgb = mix(rgb, s, w);
+                rgb = mix(rgb, rgb * (0.8 + 0.4 * uSkyHor), uSkyLight * (1.0 - w) * 0.6);
+            }
             if (uHal > 0.0 || uBloom > 0.0) {
                 float3 g1 = glowAt(uv, 0.006);
                 float3 g2 = glowAt(uv, 0.016);

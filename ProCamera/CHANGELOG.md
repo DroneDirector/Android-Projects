@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- Video editor → Color → Film & lens → Sky replacement: a new sky (Clear blue, Golden hour, Sunset, Dramatic, Night) above the horizon, frame by frame, in the preview and the export.
 - Video editor → Layers → Text behind subject: a big title with the person standing in front of it (AI background removal).
 - Video editor → Media → Edit templates: Travel recap, Drone reel, Action, Calm & warm, Intro / opener and Old film — one tap cuts your clips on the beat with transitions, a title and more.
 - Photo editor → Text → Thumbnail: one tap to a 16:9 video thumbnail with a big outlined title and the subject popped out with a glow (new Background → Pop out).

@@ -7611,6 +7611,15 @@ private fun FilmLensPanel(
 ) {
     val f = c.film ?: FilmLook()
     fun film(t: (FilmLook) -> FilmLook) = onChange { cl -> cl.copy(film = t(cl.film ?: FilmLook()).takeIf { !it.isZero }) }
+    SectionTitle("SKY REPLACEMENT") { film { it.copy(sky = -1) } }
+    Chips(listOf("Off") + VideoSky.NAMES, f.sky + 1) { i -> film { it.copy(sky = i - 1) } }
+    if (f.sky >= 0) {
+        EdSlider("Horizon", f.horizon, 0.1f..0.9f, 0.45f, ::pct) { v -> film { it.copy(horizon = v) } }
+        EdSlider("How much is sky", f.skyTol, 0f..1f, 0.5f, ::pct) { v -> film { it.copy(skyTol = v) } }
+        EdSlider("Strength", f.skyAmount, 0f..1f, 1f, ::pct) { v -> film { it.copy(skyAmount = v) } }
+        EdSlider("Match the light", f.skyLight, 0f..1f, 0.3f, ::pct) { v -> film { it.copy(skyLight = v) } }
+    }
+    Text("Swaps a blue or pale sky above the horizon line for a new one, frame by frame, in the preview and the export. Set Horizon just below where the sky ends; raise How much is sky if parts of the sky stay, lower it if clouds or bright walls change too. Best on clear or hazy skies.", color = Pro.Dim, fontSize = 11.sp)
     SectionTitle("SHOT MATCH")
     Text("Makes this clip's brightness and colour match another clip (as it looks with its grade). Pick the clip to match:", color = Pro.Dim, fontSize = 11.sp)
     if (matchBusy != null) Text("Matching… $matchBusy%", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.padding(vertical = 6.dp))

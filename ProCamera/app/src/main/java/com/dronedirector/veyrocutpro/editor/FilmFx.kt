@@ -42,8 +42,28 @@ data class FilmLook(
     val deflicker: Float = 0f,
     /** Name of the preset last picked (display only). */
     val preset: String? = null,
+    /** Sky replacement: which sky ([VideoSky.NAMES], −1 = off), strength, the horizon (0..1 from the top), how much counts as sky, and light matching. */
+    val sky: Int = -1,
+    val skyAmount: Float = 1f,
+    val horizon: Float = 0.45f,
+    val skyTol: Float = 0.5f,
+    val skyLight: Float = 0.3f,
 ) {
     val isZero: Boolean get() = copy(preset = null) == FilmLook()
+}
+
+/** Skies for video sky replacement: colours at the top, the middle and the horizon. */
+object VideoSky {
+    val NAMES = listOf("Clear blue", "Golden hour", "Sunset", "Dramatic", "Night")
+    private val COLS = listOf(
+        intArrayOf(0x2E6FD8, 0x5A9BE8, 0xBFDDF5), intArrayOf(0x5A7FC2, 0xE9B784, 0xF8D49A), intArrayOf(0x2B2A6B, 0xD9576B, 0xFFB25B),
+        intArrayOf(0x1E2A3A, 0x4A5C70, 0xA9B6C2), intArrayOf(0x050B1E, 0x0E1B3D, 0x2B3D66),
+    )
+    /** The three colours of sky [i] as 0..1 floats (9 values). */
+    fun colours(i: Int): FloatArray {
+        val c = COLS.getOrElse(i) { COLS[0] }
+        return FloatArray(9) { k -> ((c[k / 3] shr (16 - 8 * (k % 3))) and 0xFF) / 255f }
+    }
 }
 
 /** Ready-made film stocks and lens profiles (own settings, generic names). */
@@ -185,6 +205,14 @@ private class FilmProgram(private val f: FilmLook, useHdr: Boolean) : BaseGlShad
             program.setFloatUniform("uGain", gain)
             program.setFloatsUniform("uWeave", floatArrayOf(wx.toFloat(), wy.toFloat()))
             program.setFloatsUniform("uRes", floatArrayOf(w.toFloat(), h.toFloat()))
+            val sc = VideoSky.colours(f.sky)
+            program.setFloatUniform("uSky", if (f.sky >= 0) f.skyAmount else 0f)
+            program.setFloatUniform("uHorizon", f.horizon)
+            program.setFloatUniform("uSkyTol", f.skyTol)
+            program.setFloatUniform("uSkyLight", f.skyLight)
+            program.setFloatsUniform("uSkyTop", sc.copyOfRange(0, 3))
+            program.setFloatsUniform("uSkyMid", sc.copyOfRange(3, 6))
+            program.setFloatsUniform("uSkyHor", sc.copyOfRange(6, 9))
             program.bindAttributesAndUniforms()
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
         } catch (e: GlUtil.GlException) {
@@ -247,6 +275,13 @@ private class FilmProgram(private val f: FilmLook, useHdr: Boolean) : BaseGlShad
             uniform float uVig;
             uniform float uGain;
             uniform vec2 uWeave;
+            uniform float uSky;
+            uniform float uHorizon;
+            uniform float uSkyTol;
+            uniform float uSkyLight;
+            uniform vec3 uSkyTop;
+            uniform vec3 uSkyMid;
+            uniform vec3 uSkyHor;
             varying vec2 vUv;
 
             float h21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
@@ -284,10 +319,39 @@ private class FilmProgram(private val f: FilmLook, useHdr: Boolean) : BaseGlShad
                 }
                 return s / 12.0;
             }
+            // Sky: above the horizon, smooth, and blue or bright and pale. 1 = sky.
+            float skyW(vec2 uv, vec3 c) {
+                float y = 1.0 - uv.y;
+                float top = 1.0 - smoothstep(uHorizon - 0.08, uHorizon + 0.03, y);
+                if (top <= 0.0) return 0.0;
+                float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+                float mx = max(max(c.r, c.g), c.b); float mn = min(min(c.r, c.g), c.b);
+                float sat = mx > 0.0 ? (mx - mn) / mx : 0.0;
+                float t = uSkyTol * 0.1;
+                float blue = smoothstep(-0.02 - t, 0.1 - t, c.b - max(c.r, c.g * 0.95));
+                float pale = smoothstep(0.62 - t * 2.0, 0.85 - t * 2.0, l) * (1.0 - smoothstep(0.2 + t, 0.45 + t, sat));
+                vec3 n1 = texture2D(uTex, clamp(uv + vec2(uTexel.x * 3.0, 0.0), 0.0, 1.0)).rgb;
+                vec3 n2 = texture2D(uTex, clamp(uv + vec2(0.0, uTexel.y * 3.0), 0.0, 1.0)).rgb;
+                float tx = length(c - n1) + length(c - n2);
+                float smoothArea = 1.0 - smoothstep(0.05 + t * 0.4, 0.16 + t * 0.6, tx);
+                return top * max(blue, pale) * smoothArea;
+            }
+            vec3 skyCol(vec2 uv) {
+                float k = clamp((1.0 - uv.y) / max(uHorizon, 0.05), 0.0, 1.0);
+                return k < 0.6 ? mix(uSkyTop, uSkyMid, k / 0.6) : mix(uSkyMid, uSkyHor, (k - 0.6) / 0.4);
+            }
             void main() {
                 vec2 uv = vUv;
                 float alpha = texture2D(uTex, uv).a;
                 vec3 rgb = src(uv);
+                if (uSky > 0.0) {
+                    float w = skyW(uv, rgb) * uSky;
+                    // Keep a little of the old sky's brightness (clouds' light) in the new one.
+                    float l = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
+                    vec3 s = skyCol(uv) * (0.85 + 0.3 * l);
+                    rgb = mix(rgb, s, w);
+                    rgb = mix(rgb, rgb * (0.8 + 0.4 * uSkyHor), uSkyLight * (1.0 - w) * 0.6);
+                }
                 if (uHal > 0.0 || uBloom > 0.0) {
                     vec3 g1 = glowAt(uv, 0.006);
                     vec3 g2 = glowAt(uv, 0.016);

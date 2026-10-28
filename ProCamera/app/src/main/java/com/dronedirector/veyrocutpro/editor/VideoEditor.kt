@@ -3258,6 +3258,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
     }
 
     fun startExport() {
+        ExportNotes.clear()
         if (es.exporting || clips.isEmpty()) return
         deck.cur.pause()
         es.exportStartAt = System.currentTimeMillis()
@@ -3322,6 +3323,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             es.wasExporting = true
         } else if (es.wasExporting) {
             es.wasExporting = false
+            ExportNotes.note()?.let { n -> es.message = (es.message?.let { "$it · " } ?: "") + n; ExportNotes.clear() }
             com.dronedirector.veyrocutpro.ExportService.finish(context, if (es.queueAt in 1 until exportQueue.size) null else es.message)
         }
     }

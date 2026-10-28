@@ -1569,7 +1569,11 @@ object TransitionMath {
         varying vec2 vTexSamplingCoord;
         vec4 tex(vec2 uv) { return texture2D(uTexSampler, clamp(uv, 0.0, 1.0)); }
     """ + CORE + """
-        void main() { gl_FragColor = shade(vTexSamplingCoord); }
+        void main() {
+            gl_FragColor = shade(vTexSamplingCoord);
+            // Keeps every setting in use (never true), so the compiler doesn't drop one a transition doesn't need.
+            if (uSize.x < -1.0 && uType < -1.0 && uP < -1.0 && uSide < -1.0 && uMode < -1.0) gl_FragColor = vec4(0.0);
+        }
     """
 }
 
@@ -1621,8 +1625,8 @@ private class TransitionProgram(private val w: TransitionWindows, useHdr: Boolea
             program.use()
             program.setSamplerTexIdUniform("uTexSampler", inputTexId, 0)
             // The compiler drops uniforms a transition doesn't use; setting one of those would fail, so each is optional.
-            fun set(n: String, v: Float) { try { program.setFloatUniform(n, v) } catch (_: RuntimeException) {} }
-            try { program.setFloatsUniform("uSize", floatArrayOf(width, height)) } catch (_: RuntimeException) {}
+            fun set(n: String, v: Float) { try { program.setFloatUniform(n, v) } catch (_: RuntimeException) { ExportNotes.skipped("$n (${w.inType.label} / ${w.outType.label})") } }
+            try { program.setFloatsUniform("uSize", floatArrayOf(width, height)) } catch (_: RuntimeException) { ExportNotes.skipped("uSize (${w.inType.label} / ${w.outType.label})") }
             set("uType", type); set("uP", p); set("uSide", side); set("uMode", mode)
             program.bindAttributesAndUniforms()
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
@@ -1667,4 +1671,14 @@ object TransitionPreview {
         view.alpha = if (visible) 1f else 0f
         if (android.os.Build.VERSION.SDK_INT >= 31) view.setRenderEffect(null)
     }
+}
+
+
+/** Things the export had to leave out (shown as a short note when it finishes). */
+object ExportNotes {
+    private val items = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    fun clear() = items.clear()
+    fun skipped(what: String) { if (items.add(what)) android.util.Log.w("ExportNotes", "skipped transition setting $what") }
+    /** A one-line note, or null when nothing was skipped. */
+    fun note(): String? = if (items.isEmpty()) null else "Note: ${items.size} transition setting(s) couldn't be applied and were skipped (${items.take(3).joinToString(", ")})"
 }

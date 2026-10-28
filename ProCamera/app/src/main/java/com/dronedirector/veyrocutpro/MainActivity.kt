@@ -156,10 +156,8 @@ class MainActivity : ComponentActivity() {
         }
         com.dronedirector.veyrocutpro.ui.AppTheme.load(this)
         setContent {
-            // Light look (Preferences → Appearance) only inside the editors; the start screens, splash and Capture stay dark.
-            com.dronedirector.veyrocutpro.ui.AppTheme.screenAllowsLight =
-                (screen.value == com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR || screen.value == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR) &&
-                    com.dronedirector.veyrocutpro.ui.CaptureForEditor.request == null
+            // Light look (Preferences → Appearance) everywhere; in Capture the controls on the camera picture stay dark.
+            com.dronedirector.veyrocutpro.ui.AppTheme.screenAllowsLight = true
             ProCamTheme {
                 com.dronedirector.veyrocutpro.ui.CrashReportDialog()
                 com.dronedirector.veyrocutpro.ui.AudioHardwareNotice()
@@ -176,7 +174,7 @@ class MainActivity : ComponentActivity() {
                         com.dronedirector.veyrocutpro.ui.AppScreen.CAPTURE -> {
                             androidx.activity.compose.BackHandler { screen.value = com.dronedirector.veyrocutpro.ui.AppScreen.HOME }
                             PermissionGate {
-                                CameraScreen(controller, openSettings, openGallery)
+                                com.dronedirector.veyrocutpro.ui.ForceDark { CameraScreen(controller, openSettings, openGallery) }
                             }
                         }
                         com.dronedirector.veyrocutpro.ui.AppScreen.EDITOR -> com.dronedirector.veyrocutpro.ui.EditorHub(
@@ -197,7 +195,7 @@ class MainActivity : ComponentActivity() {
                 // Capture opened from an editor (its camera button): the full Capture screen over the editor.
                 com.dronedirector.veyrocutpro.ui.CaptureForEditorHost(controller) { content -> PermissionGate(content) }
                 // First launch: AI models and soundtracks are downloaded once (not inside the APK).
-                com.dronedirector.veyrocutpro.ui.ForceDark { com.dronedirector.veyrocutpro.ui.FirstRunGate() }
+                com.dronedirector.veyrocutpro.ui.FirstRunGate()
                 // Capture's keyboard shortcuts (Ctrl + / or Settings → Keyboard shortcuts).
                 if (com.dronedirector.veyrocutpro.camera.CaptureKeys.show) com.dronedirector.veyrocutpro.editor.ShortcutsDialog(com.dronedirector.veyrocutpro.editor.CaptureShortcuts) { com.dronedirector.veyrocutpro.camera.CaptureKeys.show = false }
                 }

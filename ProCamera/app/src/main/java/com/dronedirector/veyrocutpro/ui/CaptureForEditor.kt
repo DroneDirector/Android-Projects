@@ -71,7 +71,7 @@ fun CaptureForEditorHost(controller: ProCameraController, gate: @Composable (@Co
     }
     androidx.activity.compose.BackHandler { CaptureForEditor.close() }
     Box(Modifier.fillMaxSize().zIndex(50f).background(Color.Black)) {
-        gate { com.dronedirector.veyrocutpro.ui.CameraScreen(controller) }
+        gate { com.dronedirector.veyrocutpro.ui.ForceDark { com.dronedirector.veyrocutpro.ui.CameraScreen(controller) } }
         Text(
             "← Back to ${req.editor}" + if (count > 0) " · $count added" else "",
             color = Color.Black, fontSize = 13.sp,

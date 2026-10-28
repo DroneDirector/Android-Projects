@@ -572,7 +572,8 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                     }
                 }
 
-                if (showSettings) SettingsPanel(s, controller) { showSettings = false }
+                // The settings panel follows the light / dark look; the controls on the picture stay dark.
+                if (showSettings) androidx.compose.runtime.CompositionLocalProvider(LocalForceDark provides false) { SettingsPanel(s, controller) { showSettings = false } }
                 run {
                     val tctx = androidx.compose.ui.platform.LocalContext.current
                     LaunchedEffect(Unit) { Tour.maybeStart(tctx) }

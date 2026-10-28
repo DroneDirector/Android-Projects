@@ -69,12 +69,12 @@ shot 52-phone-video-editor-dark --es screen video --es theme dark
 adb shell input tap 540 980; sleep 7
 adb shell input tap 412 1630; sleep 3   # the tour's SKIP
 # Clarity / texture test: the same test clip with them off and fully on (the pictures must differ).
-for amt in 0 1 2; do
+for amt in 0 1 2 3; do
   adb shell am force-stop "$PKG"
   adb shell am start -W -n "$ACT" --ez skipsetup true --es screen video --es fxtest $amt >/dev/null
   sleep 40; adb shell input tap 412 1630; sleep 5
   adb exec-out screencap -p > "$OUT/55-fxtest-clarity-$amt.png"; echo "captured 55-fxtest-clarity-$amt"
-  adb logcat -d | grep -E "FxTest|GradePreview|DetailEffect|VideoFrameProcessor|ExoPlayer" | tail -40 > "$OUT/55-fxtest-log-$amt.txt"
+  adb logcat -d | grep -E "FxTest|VisTest|AndroidRuntime|GradePreview|DetailEffect|VideoFrameProcessor|ExoPlayer" | tail -40 > "$OUT/55-fxtest-log-$amt.txt"
 done
 adb exec-out screencap -p > "$OUT/53-phone-video-editor-open.png"; echo "captured 53-phone-video-editor-open"
 sleep 1; adb exec-out screencap -p > "$OUT/54-phone-video-editor-open-b.png"; echo "captured 54-phone-video-editor-open-b"

@@ -37,7 +37,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import kotlinx.coroutines.launch
@@ -103,16 +102,12 @@ fun TransitionsPanel(
 @Composable
 private fun TransitionTile(type: TransitionType, selected: Boolean, a: Bitmap?, b: Bitmap?, p: androidx.compose.runtime.State<Float>, modifier: Modifier, onClick: () -> Unit) {
     Column(modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
-        androidx.compose.foundation.layout.BoxWithConstraints(
+        Box(
             Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(8.dp))
                 .border(if (selected) 2.dp else 1.dp, if (selected) Pro.Amber else Pro.Line, RoundedCornerShape(8.dp))
         ) {
-            // Drawn at half size and scaled up: a quarter of the work, still clear at tile size.
-            val hw = maxWidth / 2; val hh = maxHeight / 2
-            Box(Modifier.requiredSize(hw, hh).graphicsLayer { scaleX = 2f; scaleY = 2f }) {
-                TileSide(a, Color(0xFF2B4C7E), false, type, p)
-                TileSide(b, Color(0xFF7E4A2B), true, type, p)
-            }
+            TileSide(a, Color(0xFF2B4C7E), false, type, p)
+            TileSide(b, Color(0xFF7E4A2B), true, type, p)
         }
         Text(
             type.label, color = if (selected) Pro.Amber else Color.White, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -123,10 +118,8 @@ private fun TransitionTile(type: TransitionType, selected: Boolean, a: Bitmap?, 
 
 @Composable
 private fun TileSide(bmp: Bitmap?, fallback: Color, incoming: Boolean, type: TransitionType, pState: androidx.compose.runtime.State<Float>) {
-    // Built once per transition and kept, off the main thread, so opening the page doesn't stall.
-    val shader by androidx.compose.runtime.produceState(TransitionMath.cachedThumbShader(type, incoming), type, incoming) {
-        if (value == null && android.os.Build.VERSION.SDK_INT >= 33) value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { TransitionMath.thumbShader(type, incoming) }
-    }
+    // Built once per transition and kept, so opening the page again is instant.
+    val shader = remember(type, incoming) { TransitionMath.thumbShader(type, incoming) }
     val mod = Modifier.fillMaxSize().graphicsLayer {
         val p0 = pState.value
         val p = if (type == TransitionType.NONE) (if (p0 < 0.5f) 0f else 1f) else p0
@@ -145,7 +138,7 @@ private fun TileSide(bmp: Bitmap?, fallback: Color, incoming: Boolean, type: Tra
     }
     if (bmp != null) Image(bmp.asImageBitmap(), null, mod, contentScale = ContentScale.Crop)
     else Box(mod.background(Brush.linearGradient(listOf(fallback, fallback.copy(alpha = 0.5f)))), contentAlignment = Alignment.Center) {
-        Text(if (incoming) "B" else "A", color = Color.White, fontSize = 8.sp)
+        Text(if (incoming) "B" else "A", color = Color.White, fontSize = 16.sp)
     }
 }
 

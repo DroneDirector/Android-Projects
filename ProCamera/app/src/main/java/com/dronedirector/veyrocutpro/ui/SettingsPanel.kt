@@ -507,6 +507,19 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 }) { Text("Start clean feed", color = Pro.Amber) }
             }
 
+            SettingsGroup("cap_look", "Appearance", "Dark, light or like the phone — the same choice as in the editors") {
+                val actx = androidx.compose.ui.platform.LocalContext.current
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 6.dp)) {
+                    listOf("Dark", "Light", "Like the phone").forEachIndexed { i, n ->
+                        val on = AppTheme.pref == i
+                        Text(n, color = if (on) Color.Black else Color.White, fontSize = 12.sp,
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) Pro.Amber else Pro.Fg.copy(alpha = 0.08f))
+                                .clickable { AppTheme.set(actx, i) }.padding(horizontal = 12.dp, vertical = 6.dp))
+                    }
+                }
+                Text("Light makes the menus and panels light with dark text; the controls on the camera picture stay dark so they're easy to read.", color = Pro.Dim, fontSize = 12.sp)
+            }
+
             SettingsGroup("storage", "Storage & backup", "Where photos and videos are saved, backup and restore") {
                 Section("SAVE PHOTOS & VIDEOS TO")
                 StorageChooser(com.dronedirector.veyrocutpro.camera.StorageArea.CAPTURE) { c.setStorage(it) }

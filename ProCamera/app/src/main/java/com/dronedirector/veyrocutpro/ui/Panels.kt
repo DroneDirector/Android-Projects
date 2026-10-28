@@ -165,7 +165,7 @@ fun PanelsButton(
             ModalBottomSheet(
                 onDismissRequest = { open = false },
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                containerColor = Pro.PanelSolid,
+                containerColor = panelHere(),
             ) { Box(Modifier.navigationBarsPadding()) { content() } }
         }
     }
@@ -193,7 +193,7 @@ private fun PanelsMenu(
                         style = Pro.Label.copy(color = if (sel) Color.Black else Color.White, fontSize = 11.sp),
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
-                            .background(if (sel) Pro.Amber else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.1f))
+                            .background(if (sel) Pro.Amber else fgHere().copy(alpha = 0.1f))
                             .clickable { panels.forEach { put(it, it.key in pr.on) }; pr.onApply?.invoke() }
                             .padding(horizontal = 14.dp, vertical = 8.dp),
                     )

@@ -115,7 +115,7 @@ object AudioHardware {
 fun AudioHardwareNotice() {
     val n = AudioHardware.notice ?: return
     AlertDialog(
-        onDismissRequest = { AudioHardware.notice = null }, containerColor = Pro.PanelSolid,
+        onDismissRequest = { AudioHardware.notice = null }, containerColor = panelHere(),
         title = { Text("Audio device disconnected", color = Color.White) },
         text = { Text(n, color = Pro.Dim) },
         confirmButton = { TextButton(onClick = { AudioHardware.notice = null }) { Text("OK", color = Pro.Amber) } },
@@ -136,7 +136,7 @@ fun AudioHardwareSettings() {
             @Composable
             fun Opt(label: String, on: Boolean, pick: () -> Unit) {
                 Text(label, color = if (on) Color.Black else Color.White, fontSize = 13.sp,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(8.dp)).background(if (on) Pro.Amber else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.06f)).clickable(onClick = pick).padding(10.dp))
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(8.dp)).background(if (on) Pro.Amber else fgHere().copy(alpha = 0.06f)).clickable(onClick = pick).padding(10.dp))
             }
             Opt("Automatic (what Android picks)", cur == null) { AudioHardware.set(context, inputs, null) }
             for (d in list) Opt(AudioHardware.label(d), cur == AudioHardware.key(d)) { AudioHardware.set(context, inputs, d) }

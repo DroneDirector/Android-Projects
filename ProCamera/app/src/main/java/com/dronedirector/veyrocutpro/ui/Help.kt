@@ -72,7 +72,7 @@ fun HelpButton(v: GuideVariant, size: androidx.compose.ui.unit.Dp = 22.dp) {
                 Item("Cloud AI: add your key", sub = true) { open = false; guide = GuideTopic.CLOUD }
             }
             Item("Troubleshooting") { open = false; trouble = true }
-            HorizontalDivider(color = com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.1f))
+            HorizontalDivider(color = fgHere().copy(alpha = 0.1f))
             Item("Proof of purchase") { open = false; purchase = true }
         }
     }
@@ -111,7 +111,7 @@ fun TroubleshootingDialog(v: GuideVariant, onDismiss: () -> Unit) {
         )
     }
     AlertDialog(
-        onDismissRequest = onDismiss, containerColor = Pro.PanelSolid,
+        onDismissRequest = onDismiss, containerColor = panelHere(),
         title = { Text("Troubleshooting", color = Color.White) },
         text = {
             Column(Modifier.heightIn(max = 500.dp).verticalScroll(rememberScrollState())) {
@@ -122,7 +122,7 @@ fun TroubleshootingDialog(v: GuideVariant, onDismiss: () -> Unit) {
                 Text("TOOLS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp, bottom = 4.dp))
                 @Composable
                 fun Tool(t: String, d: String, a: () -> Unit) {
-                    Column(Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(10.dp)).background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.06f)).clickable(onClick = a).padding(10.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(vertical = 3.dp).clip(RoundedCornerShape(10.dp)).background(fgHere().copy(alpha = 0.06f)).clickable(onClick = a).padding(10.dp)) {
                         Text(t, color = Color.White, fontSize = 13.sp)
                         Text(d, color = Pro.Dim, fontSize = 11.sp)
                     }

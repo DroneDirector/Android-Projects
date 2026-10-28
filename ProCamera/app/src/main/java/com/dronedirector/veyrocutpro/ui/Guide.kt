@@ -450,14 +450,14 @@ fun GuideDialog(variant: GuideVariant, open: GuideTopic? = null, onDismiss: () -
     val expanded = remember { mutableStateListOf<GuideTopic>().apply { add(open ?: GuideTopic.CLOUD) } }
     val uri = LocalUriHandler.current
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(Modifier.fillMaxSize().background(AppTheme.pick(Color(0xFF0B0C0F), Color(0xFFE9EBEE))).windowInsetsPadding(WindowInsets.safeDrawing)) {
+        Box(Modifier.fillMaxSize().background(pickHere(Color(0xFF0B0C0F), Color(0xFFE9EBEE))).windowInsetsPadding(WindowInsets.safeDrawing)) {
             Column(Modifier.fillMaxSize()) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(variant.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
                         Text("GET MORE OUT OF ALCORCUT PRO", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp, letterSpacing = 2.sp))
                     }
-                    Box(Modifier.size(44.dp).clip(CircleShape).background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f)).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(44.dp).clip(CircleShape).background(fgHere().copy(alpha = 0.08f)).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
                         Icon(Icons.Filled.Close, contentDescription = "Close", tint = Color.White)
                     }
                 }
@@ -466,8 +466,8 @@ fun GuideDialog(variant: GuideVariant, open: GuideTopic? = null, onDismiss: () -
                         val isOpen = s.topic in expanded
                         Column(
                             Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(14.dp))
-                                .background(AppTheme.pick(Color(0xFF15171C), Color(0xFFFFFFFF)))
-                                .border(1.dp, if (isOpen) Pro.Amber.copy(alpha = 0.6f) else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.06f), RoundedCornerShape(14.dp)),
+                                .background(pickHere(Color(0xFF15171C), Color(0xFFFFFFFF)))
+                                .border(1.dp, if (isOpen) Pro.Amber.copy(alpha = 0.6f) else fgHere().copy(alpha = 0.06f), RoundedCornerShape(14.dp)),
                         ) {
                             Row(
                                 Modifier.fillMaxWidth().clickable { if (isOpen) expanded.remove(s.topic) else expanded.add(s.topic) }.padding(14.dp),

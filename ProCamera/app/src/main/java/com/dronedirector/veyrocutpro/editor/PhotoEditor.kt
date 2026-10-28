@@ -131,6 +131,8 @@ private data class PhotoEdit(
     val lensBlur: LensBlur? = null,
     /** Retouch: liquify, frequency separation, relight. */
     val retouch: Retouch = Retouch(),
+    /** Title, caption, author, copyright and keywords written into exports. */
+    val meta: PhotoMetaEdit? = null,
 )
 
 /** RAW develop does exposure, white balance and the tonal ranges itself; the 8-bit grade skips them. */
@@ -485,7 +487,7 @@ fun BigButton(icon: ImageVector, label: String, modifier: Modifier = Modifier, o
 /** The edit a photo opens with: its saved project, or a fresh edit (with the remembered watermark). */
 private fun editOf(context: Context, initial: PhotoProjectData?, autoWatermark: Boolean = true): PhotoEdit =
     @Suppress("USELESS_ELVIS")
-    if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix(), initial.bg ?: PhotoBackground(), initial.baseFile, initial.texts ?: emptyList(), initial.sky ?: SkySwap(), initial.raw ?: RawDng.Dev(), initial.lensBlur, initial.retouch ?: Retouch())
+    if (initial != null) PhotoEdit(initial.grade, initial.detail, initial.geometry, initial.watermark, initial.masks ?: emptyList(), initial.spots ?: emptyList(), initial.lens ?: LensFix(), initial.bg ?: PhotoBackground(), initial.baseFile, initial.texts ?: emptyList(), initial.sky ?: SkySwap(), initial.raw ?: RawDng.Dev(), initial.lensBlur, initial.retouch ?: Retouch(), initial.meta)
     else PhotoEdit(watermark = if (autoWatermark) WatermarkMemory.load(context, false) else null)
 
 /** AI masks, sky and depth pictures an edit draws from (file → picture). */
@@ -662,7 +664,7 @@ private fun PhotoWorkspace(
         return PhotoProjectData(
             id = id, name = name, uri = uri,
             grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark,
-            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw, lensBlur = e.lensBlur, retouch = e.retouch,
+            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw, lensBlur = e.lensBlur, retouch = e.retouch, meta = e.meta,
         )
     }
     fun saveProject(name: String) {
@@ -670,7 +672,7 @@ private fun PhotoWorkspace(
         val p = PhotoProjectData(
             id = projectId ?: java.util.UUID.randomUUID().toString(), name = name, uri = uri,
             grade = e.grade, detail = e.detail, geometry = e.geometry, watermark = e.watermark,
-            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw, lensBlur = e.lensBlur, retouch = e.retouch,
+            format = format, quality = quality, sizeIdx = sizeIdx, masks = e.masks, spots = e.spots, lens = e.lens, bg = e.bg, baseFile = e.baseFile, texts = e.texts, sky = e.sky, raw = e.raw, lensBlur = e.lensBlur, retouch = e.retouch, meta = e.meta,
         )
         val thumb = preview
         scope.launch {
@@ -1653,7 +1655,7 @@ private fun PhotoWorkspace(
                         val full = developed ?: GradeIO.decode(context, u, sizes[sizeIdx]) ?: return@withContext false
                         val eg = if (developed != null) p.grade.rawRest() else p.grade
                         val tables = if (eg.isIdentity) null else eg.tables()
-                        var out = ImageOps.renderPhoto(full, eg, p.detail.copy(aiDenoise = 0f), p.geometry, tables, p.lens, p.spots, p.masks.filter { it.maskFile == null }, retouch = p.retouch?.let { Retouch(liquify = it.liquify, fsSmooth = if (it.fsArea == 0) it.fsSmooth else 0f, fsTexture = if (it.fsArea == 0) it.fsTexture else 1f, fsRadius = it.fsRadius) })
+                        var out = ImageOps.renderPhoto(full, eg, p.detail.copy(aiDenoise = 0f), p.geometry, tables, p.lens, p.spots, p.masks.filter { it.maskFile == null }, retouch = p.retouch?.let { it.copy(fsSmooth = if (it.fsArea == 0) it.fsSmooth else 0f, fsTexture = if (it.fsArea == 0) it.fsTexture else 1f, fsArea = 0, fsMaskFile = null, light = 0f, shadow = 0f, depthFile = null) })
                         if (out !== full) full.recycle()
                         p.watermark?.let { out = stampLayer(context, out, it) }
                         savePhotoAs(context, out, format, (quality * 100).toInt(), if (keepExif) p.uri else null, stripGps) != null
@@ -2294,6 +2296,18 @@ private fun PhotoWorkspace(
                         }
                         if (panel == PhotoPanel.EFFECTS) { backgroundSection(); skySection() }
                         if (panel == PhotoPanel.EXPORT) {
+                            SectionTitle("METADATA") { edit = edit.copy(meta = null) }
+                            run {
+                                val m = edit.meta ?: PhotoMetaEdit()
+                                @Composable fun field(label: String, v: String, f: (PhotoMetaEdit, String) -> PhotoMetaEdit) =
+                                    androidx.compose.material3.OutlinedTextField(v, { s -> edit = edit.copy(meta = f(m, s.take(300)).takeIf { !it.isEmpty }) }, label = { Text(label) }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp))
+                                field("Title", m.title) { x, s -> x.copy(title = s) }
+                                field("Caption", m.caption) { x, s -> x.copy(caption = s) }
+                                field("Author", m.artist) { x, s -> x.copy(artist = s) }
+                                field("Copyright", m.copyright) { x, s -> x.copy(copyright = s) }
+                                field("Keywords (comma between)", m.keywords) { x, s -> x.copy(keywords = s) }
+                                Text("Written into the exported photo (JPEG, PNG, WebP). Kept with this photo's edit; with Select multiple in the filmstrip it goes to every picked photo. Keep camera info and location are under EXPORT.", color = Pro.Dim, fontSize = 11.sp)
+                            }
                             SectionTitle("FOR SOCIAL MEDIA")
                             var slides by remember { mutableStateOf(3) }
                             var slideShape by remember { mutableStateOf(1) }
@@ -2702,6 +2716,8 @@ internal fun runPhotoExport(context: Context, req: PhotoExportReq): PhotoExportR
         val fmt = if (e.bg.active && e.bg.mode == 2 && req.format !in listOf(1, 2, 4, 5)) 1 else req.format
         val saved = savePhotoAs(context, out, fmt, (req.quality * 100).toInt(), if (req.keepExif) uri else null, req.stripGps)
         out.recycle()
+        // Your own title, caption, author, copyright and keywords.
+        if (saved != null) e.meta?.let { MetaEdit.write(context, saved, it) }
         // Camera Raw (.xmp) sidecar for the original, with the closest matching settings.
         if (saved != null && PhotoMeta.sidecar && uri != Uri.EMPTY) {
             if (PhotoMeta.writeSidecar(context, uri, PhotoMeta.sidecarXmp(e.grade, e.detail, e.geometry, meta != null)) == null) res.sidecarFailed = true
@@ -2972,6 +2988,49 @@ private fun PhotoPanelContent(
                 EdSlider("  Roughness", e.detail.grainRg, 0f..1f, 0.5f, ::pct) { v -> detail { it.copy(grainRough = v - 0.5f) } }
             }
             EdSlider("Fade", g.fade, 0f..1f, format = ::pct) { v -> grade { it.copy(fade = v) } }
+            fun rt(f: (Retouch) -> Retouch) = set(e.copy(retouch = f(e.retouch)))
+            val r = e.retouch
+            // ---- Colour splash
+            SectionTitle("COLOUR SPLASH") { rt { it.copy(splashHue = null) } }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp).hintedScroll(horizontal = true)) {
+                PillChip("Off", r.splashHue == null) { rt { it.copy(splashHue = null) } }
+                listOf("Red" to 0f, "Orange" to 30f, "Yellow" to 55f, "Green" to 120f, "Teal" to 175f, "Blue" to 215f, "Purple" to 280f, "Pink" to 325f).forEach { (n, hue) ->
+                    PillChip(n, r.splashHue == hue) { rt { it.copy(splashHue = hue) } }
+                }
+            }
+            if (r.splashHue != null) {
+                EdSlider("Colour", r.splashHue, 0f..359f, 0f, { "%.0f°".format(it) }) { v -> rt { it.copy(splashHue = v) } }
+                EdSlider("Range", r.splashRange, 5f..90f, 30f, { "%.0f°".format(it) }) { v -> rt { it.copy(splashRange = v) } }
+                EdSlider("Strength", r.splashAmount, 0f..1f, 1f, ::pct) { v -> rt { it.copy(splashAmount = v) } }
+            }
+            Text("Keeps one colour and turns everything else black and white — a red coat, a yellow taxi.", color = Pro.Dim, fontSize = 11.sp)
+            // ---- Tilt-shift
+            SectionTitle("TILT-SHIFT MINIATURE") { rt { it.copy(tiltCenter = null) } }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Tilt-shift", color = Color.White, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                androidx.compose.material3.Switch(r.tiltCenter != null, { v -> rt { it.copy(tiltCenter = if (v) 0.55f else null) } }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
+            }
+            if (r.tiltCenter != null) {
+                EdSlider("Sharp band position", r.tiltCenter, 0f..1f, 0.55f, ::pct) { v -> rt { it.copy(tiltCenter = v) } }
+                EdSlider("Sharp band height", r.tiltWidth, 0.02f..0.6f, 0.18f, ::pct) { v -> rt { it.copy(tiltWidth = v) } }
+                EdSlider("Blur", r.tiltBlur, 0f..1f, 0.6f, ::pct) { v -> rt { it.copy(tiltBlur = v) } }
+                EdSlider("Colour boost", r.tiltSat, 0f..1f, 0.25f, ::pct) { v -> rt { it.copy(tiltSat = v) } }
+            }
+            Text("A sharp band with blurred top and bottom makes a scene look like a model — best from high up, e.g. a drone shot.", color = Pro.Dim, fontSize = 11.sp)
+            // ---- Sun glow
+            SectionTitle("SUN GLOW & RAYS") { rt { it.copy(glowX = null) } }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Sun glow", color = Color.White, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                androidx.compose.material3.Switch(r.glowX != null, { v -> rt { it.copy(glowX = if (v) 0.7f else null) } }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
+            }
+            if (r.glowX != null) {
+                EdSlider("Across", r.glowX, 0f..1f, 0.7f, ::pct) { v -> rt { it.copy(glowX = v) } }
+                EdSlider("Down", r.glowY, 0f..1f, 0.25f, ::pct) { v -> rt { it.copy(glowY = v) } }
+                EdSlider("Size", r.glowSize, 0.05f..1f, 0.35f, ::pct) { v -> rt { it.copy(glowSize = v) } }
+                EdSlider("Strength", r.glowStrength, 0f..1f, 0.6f, ::pct) { v -> rt { it.copy(glowStrength = v) } }
+                EdSlider("Rays", r.glowRays, 0f..1f, 0.5f, ::pct) { v -> rt { it.copy(glowRays = v) } }
+            }
+            Text("Adds a warm sun with soft rays — put it where the sun is, or just outside the frame for a flare of light.", color = Pro.Dim, fontSize = 11.sp)
             // ---- Lens Blur
             val lb = e.lensBlur
             SectionTitle("LENS BLUR (AI DEPTH)") { set(e.copy(lensBlur = null)) }

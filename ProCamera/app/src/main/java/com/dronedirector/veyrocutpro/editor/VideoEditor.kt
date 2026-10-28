@@ -277,6 +277,11 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
     LaunchedEffect(Unit) {
         val amt = FxTest.amount ?: return@LaunchedEffect
         FxTest.amount = null
+        if (amt >= 3f) {
+            // Visualizer test: analyse a made-up song with a kick on every beat and check the pictures move.
+            withContext(Dispatchers.Default) { VisTest.run(context) }
+            return@LaunchedEffect
+        }
         android.util.Log.i("FxTest", "making the test clip ($amt)")
         Generators.make(context, GenSpec(GenKind.BARS, seconds = 3), onProgress = {}) { uri, err ->
             android.util.Log.i("FxTest", "clip made: $uri $err")
@@ -6088,9 +6093,25 @@ private fun LayerPreviewItem(
     val hiWord = if (base.words != null) base.wordAt(timeMs) else -1
     // Lottie animations: a new picture for each animation frame.
     val fxMs = if (base.kind == LayerKind.FX) liveMs else timeMs
-    val lf = if (base.kind == LayerKind.LOTTIE) LottieRender.frameIndex(context, base, timeMs) else if (base.kind == LayerKind.FX) FxLayers.frameIndex(base, fxMs) else 0
-    val bmp by androidx.compose.runtime.produceState<Bitmap?>(null, base.copy(x = 0f, y = 0f, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null), wPx, hPx, chars, hiWord, lf) {
-        value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, chars, hiWord, atMs = if (base.kind == LayerKind.LOTTIE) timeMs else if (base.kind == LayerKind.FX) fxMs else -1L) }
+    val lf = if (base.kind == LayerKind.LOTTIE) LottieRender.frameIndex(context, base, timeMs) else 0
+    val liveRef = androidx.compose.runtime.rememberUpdatedState(fxMs)
+    val shape = base.copy(x = 0f, y = 0f, keys = null, opacity = 1f, animIn = null, animOut = null, animMs = null)
+    val bmp by if (base.kind == LayerKind.FX) {
+        // Moving overlays: one render after another, always at the newest moment. (Restarting the render on every
+        // tick would cancel it before it finished when a frame takes longer than a tick, and the picture would freeze.)
+        androidx.compose.runtime.produceState<Bitmap?>(null, shape, wPx, hPx) {
+            var last = Int.MIN_VALUE
+            while (true) {
+                val ms = liveRef.value
+                val n = FxLayers.frameIndex(base, ms)
+                if (n != last || value == null) {
+                    last = n
+                    value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, atMs = ms) }
+                } else kotlinx.coroutines.delay(15)
+            }
+        }
+    } else androidx.compose.runtime.produceState<Bitmap?>(null, shape, wPx, hPx, chars, hiWord, lf) {
+        value = withContext(Dispatchers.Default) { LayerRenderer.render(context, base, wPx, hPx, chars, hiWord, atMs = if (base.kind == LayerKind.LOTTIE) timeMs else -1L) }
     }
     // Keep the last picture while a new one (next word / letter) is drawn, so it never blinks.
     val lastBmp = remember(base.id) { arrayOfNulls<Bitmap>(1) }

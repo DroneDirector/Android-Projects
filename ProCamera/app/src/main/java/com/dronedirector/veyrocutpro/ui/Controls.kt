@@ -359,7 +359,7 @@ fun ProPanel(s: CameraUiState, c: ProCameraController, isoShown: Int?, shutterSh
                     .fillMaxWidth()
                     .padding(bottom = 6.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Pro.Panel)
+                    .background(Pro.HudPanel)
                     .padding(horizontal = 10.dp, vertical = 8.dp)
             ) {
                 s.activeParam?.let { ParamEditor(it, s, c, isoShown, shutterShown) }
@@ -368,7 +368,7 @@ fun ProPanel(s: CameraUiState, c: ProCameraController, isoShown: Int?, shutterSh
         Row(
             Modifier
                 .clip(RoundedCornerShape(12.dp))
-                .background(Pro.Panel)
+                .background(Pro.HudPanel)
                 .hintedScroll(horizontal = true)
                 .padding(horizontal = 4.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -983,7 +983,7 @@ fun FilterStrip(s: CameraUiState, c: ProCameraController, modifier: Modifier = M
         modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(Pro.Panel)
+            .background(Pro.HudPanel)
             .hintedScroll(horizontal = true)
             .padding(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -997,7 +997,7 @@ fun FilterStrip(s: CameraUiState, c: ProCameraController, modifier: Modifier = M
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Box(Modifier.width(1.dp).height(30.dp).background(Pro.Line))
+                    Box(Modifier.width(1.dp).height(30.dp).background(Pro.HudLine))
                     Text("FILM", style = Pro.Label.copy(color = Pro.Amber), modifier = Modifier.padding(top = 4.dp))
                 }
             }
@@ -1040,7 +1040,7 @@ fun SimpleBar(s: CameraUiState, c: ProCameraController, modifier: Modifier = Mod
         Row(
             Modifier
                 .clip(RoundedCornerShape(12.dp))
-                .background(Pro.Panel)
+                .background(Pro.HudPanel)
                 .padding(horizontal = 4.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

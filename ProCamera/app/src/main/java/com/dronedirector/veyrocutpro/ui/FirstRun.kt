@@ -93,7 +93,7 @@ private fun FirstRunScreen(askData: Boolean, onDownloadNow: () -> Unit, onWaitWi
     val frac = (AppData.doneBytes.toFloat() / total).coerceIn(0f, 1f)
     val shown by animateFloatAsState(frac, tween(400), label = "frac")
     Box(
-        Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF07090D), Color(0xFF10141C), Color(0xFF07090D))))
+        Modifier.fillMaxSize().background(Brush.verticalGradient(if (AppTheme.light) listOf(Color(0xFFF4F5F7), Color(0xFFE6E9ED), Color(0xFFF4F5F7)) else listOf(Color(0xFF07090D), Color(0xFF10141C), Color(0xFF07090D))))
             .clickable(enabled = false) {},
         contentAlignment = Alignment.Center,
     ) {
@@ -225,7 +225,7 @@ private fun DownloadBadge() {
 /** After an app update: a brief look for changed files on the server. */
 @Composable
 private fun CheckingSplash() {
-    Box(Modifier.fillMaxSize().background(Color(0xFF07090D)), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(AppTheme.pick(Color(0xFF07090D), Color(0xFFE9EBEE))), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             GlowLogo(110.dp)
             Text("AlcorCut Pro", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)

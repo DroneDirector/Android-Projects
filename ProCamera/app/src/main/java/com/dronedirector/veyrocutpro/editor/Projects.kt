@@ -92,6 +92,8 @@ data class PhotoProjectData(
     /** Lens Blur (depth of field from the AI depth map). */
     val lensBlur: LensBlur? = null,
     val retouch: Retouch? = null,
+    /** Title, caption, author, copyright and keywords written into exports. */
+    val meta: PhotoMetaEdit? = null,
     /** True for automatic saves (gear → AUTOSAVE); listed apart from your own projects. */
     val autosave: Boolean? = null,
 )

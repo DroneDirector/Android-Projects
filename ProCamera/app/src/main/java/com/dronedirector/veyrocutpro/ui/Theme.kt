@@ -43,15 +43,15 @@ object AccentStore {
 }
 
 /**
- * Dark or light look (gear → Preferences → Appearance). Light is used only inside the photo and video editors
- * (with dark text throughout); the start screens, splash and Capture always stay dark. The picture itself, the
- * timeline and the media strip stay dark inside the editors too, as in pro editing apps.
+ * Dark or light look (gear → Preferences → Appearance). Light is used everywhere except Capture (which sits on
+ * the live camera picture), with dark text throughout; the picture itself, the timeline and the media strip
+ * stay dark inside the editors, as in pro editing apps.
  */
 object AppTheme {
     /** 0 dark, 1 light, 2 like the phone. */
     var pref by mutableStateOf(0)
     var systemDark by mutableStateOf(true)
-    /** The screen on show allows the light look (the editors). */
+    /** The screen on show allows the light look. */
     var screenAllowsLight by mutableStateOf(false)
     val light: Boolean get() = screenAllowsLight && (pref == 1 || (pref == 2 && !systemDark))
 
@@ -88,6 +88,22 @@ fun ForceDark(content: @Composable () -> Unit) = androidx.compose.runtime.Compos
 @Composable
 fun themed(c: Color): Color = if (AppTheme.light && !LocalForceDark.current && c != Color.Unspecified) AppTheme.onLight(c) else c
 
+/** True when the light look applies here (not inside an area that stays dark, such as Capture's controls). */
+@Composable
+fun lightHere(): Boolean = AppTheme.light && !LocalForceDark.current
+
+/** Solid panel colour here (dialogs, menus). */
+@Composable
+fun panelHere(): Color = if (lightHere()) Pro.PanelSolid else Pro.HudPanelSolid
+
+/** Main text / icon colour here. */
+@Composable
+fun fgHere(): Color = if (lightHere()) Pro.Fg else Color.White
+
+/** [dark] or [light] for the look in use here. */
+@Composable
+fun pickHere(dark: Color, light: Color): Color = if (lightHere()) light else dark
+
 /** The colour to draw text with here (light look: dark text; areas that stay dark keep their colours). */
 @Composable
 fun themedText(c: Color): Color = if (AppTheme.light && !LocalForceDark.current && c != Color.Unspecified) AppTheme.onLightText(c) else c
@@ -101,6 +117,10 @@ object Pro {
     val Panel: Color get() = if (AppTheme.light) Color(0xE6F4F5F7) else Color(0xCC0E1013)
     val PanelSolid: Color get() = if (AppTheme.light) Color(0xFFF4F5F7) else Color(0xFF15181C)
     val Line: Color get() = if (AppTheme.light) Color(0x33000000) else Color(0x33FFFFFF)
+    /** Panels and lines on the camera picture (Capture): always dark, whatever the look. */
+    val HudPanel = Color(0xCC0E1013)
+    val HudPanelSolid = Color(0xFF15181C)
+    val HudLine = Color(0x33FFFFFF)
     /** Second-level text (white at 60 % — near-black at 60 % on the light look, via [themed]). */
     val Dim = Color(0x99FFFFFF)
     /** Main text / icon colour of the look in use. */

@@ -73,7 +73,7 @@ fun ProofOfPurchaseDialog(onDismiss: () -> Unit) {
     }
     fun open(u: String) { try { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(u)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Throwable) {} }
     AlertDialog(
-        onDismissRequest = onDismiss, containerColor = Pro.PanelSolid,
+        onDismissRequest = onDismiss, containerColor = panelHere(),
         title = { Text("Proof of purchase", color = Color.White) },
         text = {
             Column {

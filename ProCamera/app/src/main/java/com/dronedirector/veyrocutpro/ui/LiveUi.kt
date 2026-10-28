@@ -117,7 +117,7 @@ fun LiveBar(ls: LiveState, live: LiveStreamer, modifier: Modifier = Modifier) {
         Row(
             Modifier
                 .clip(RoundedCornerShape(12.dp))
-                .background(Pro.Panel)
+                .background(Pro.HudPanel)
                 .hintedScroll(horizontal = true)
                 .padding(6.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -176,7 +176,7 @@ fun LiveSetupPanel(ls: LiveState, live: LiveStreamer) {
                 .fillMaxWidth()
                 .heightIn(max = 680.dp)
                 .clip(RoundedCornerShape(18.dp))
-                .background(Pro.PanelSolid)
+                .background(Pro.HudPanelSolid)
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
                 .hintedScroll(horizontal = false)
                 .padding(20.dp),
@@ -198,7 +198,7 @@ fun LiveSetupPanel(ls: LiveState, live: LiveStreamer) {
             }
 
             val fieldColors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Line,
+                focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.HudLine,
                 focusedLabelColor = Pro.Amber, unfocusedLabelColor = Pro.Dim,
                 focusedTextColor = Color.White, unfocusedTextColor = Color.White, cursorColor = Pro.Amber,
             )

@@ -423,6 +423,12 @@ object ImageOps {
             } else Skies.preset(sky.preset, w, h)
             Skies.apply(px, w, h, wt, skyPx, sky)
         }
+        // Creative effects (Effects panel), after the colour and the sky.
+        if (retouch != null) {
+            RetouchFx.colourSplash(px, retouch)
+            RetouchFx.tiltShift(px, w, h, retouch)
+            RetouchFx.sunGlow(px, w, h, retouch)
+        }
         var hasAlpha = false
         if (bg != null && bg.active) placed[bg.maskFile]?.let { m ->
             val wt = PhotoLocal.weights(PhotoMask(type = MaskType.SUBJECT, maskFile = bg.maskFile), w, h, m)

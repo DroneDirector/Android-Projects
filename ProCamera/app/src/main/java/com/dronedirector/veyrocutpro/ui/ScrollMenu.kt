@@ -71,7 +71,7 @@ fun ScrollMenu(
                 .heightIn(max = with(density) { room.toDp() })
                 .shadow(8.dp, RoundedCornerShape(10.dp))
                 .clip(RoundedCornerShape(10.dp))
-                .background(Pro.PanelSolid)
+                .background(panelHere())
                 .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(10.dp))
                 .hintedScroll(horizontal = false, scroll = scroll)
                 .padding(vertical = 6.dp),

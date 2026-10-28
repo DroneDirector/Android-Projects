@@ -59,6 +59,8 @@ data class PhotoMask(
     /** Detail inside the mask, −1..1: Texture (fine detail; minus smooths skin) and Clarity (mid-size contrast). */
     val texture: Float = 0f,
     val clarity: Float = 0f,
+    /** A name shown in the mask list (e.g. Dodge / Burn); null = the mask's kind. */
+    val label: String? = null,
     /** Noise reduction inside the mask, 0..1 (e.g. only the sky or the shadows). */
     val noise: Float = 0f,
     /** AI masks: Refine edge 0..1 — the edge follows fine detail such as hair and fur in the photo. */

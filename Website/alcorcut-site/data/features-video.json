@@ -214,7 +214,7 @@
  {
   "title": "Projects & workflow",
   "items": [
-   "<strong>Light look</strong> for the start screens and the editor's panels, menus and dialogs, with dark text everywhere (Preferences → Appearance); picture, timeline and media strip stay dark.",
+   "<strong>Light look</strong> for the editor's panels, menus and dialogs, with dark text everywhere (Preferences → Appearance); picture, timeline and media strip stay dark.",
    "<strong>Project settings</strong>: general switches, project and timeline names, shape and frame rate, storage, <strong>ingest</strong> (bin, proxies, labels for new media) and <strong>label colours</strong> with your own names.",
    "<strong>Help</strong>: documentation and tutorials for the open part of the app, troubleshooting and <strong>proof of purchase</strong> from Google Play.",
    "<strong>Preferences</strong> (gear): appearance, shutter sound, <strong>audio hardware</strong> choice with an unplug notice, autosave, playback, timeline and editing; <strong>System Info</strong> with the phone's hardware and drivers.",

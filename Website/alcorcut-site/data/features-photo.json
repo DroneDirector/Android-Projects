@@ -16,7 +16,7 @@
  {
   "title": "Light, colour & tone",
   "items": [
-   "<strong>Light look</strong> (Preferences → Appearance: dark, light or like the phone) across the start screens, editors, guide and library, with dark text everywhere; the photo itself stays on a dark background.",
+   "<strong>Light look</strong> (Preferences → Appearance: dark, light or like the phone) inside the editor, with dark text everywhere; the photo itself stays on a dark background.",
    "Colour grading with <strong>Global, Blending and Balance</strong>.",
    "<strong>Light</strong>: exposure, contrast, highlights, shadows, whites, blacks.",
    "<strong>Point curves</strong> (RGB, R, G, B) with draggable points.",

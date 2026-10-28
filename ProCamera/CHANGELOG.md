@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.709 — 2026-10-28
 - Light look: back to the editors only — the start screens and the splash screen always stay dark as before. Inside the editors all text stays dark on the light look.
 
 ## 1.0.707 — 2026-10-28

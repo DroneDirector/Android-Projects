@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.777 — 2026-10-28
 - Fix: the playhead jumped when playback went through a transition (or from one clip to the next). It now glides straight through.
 
 ## 1.0.773 — 2026-10-28

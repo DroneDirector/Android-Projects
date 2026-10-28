@@ -2,6 +2,7 @@
  {
   "title": "Overview",
   "items": [
+   "<strong>Loop playback</strong>: a button under the picture repeats the in–out range or the whole timeline.",
    "<strong>Video library</strong>: every video on the device with stars, flags, colour labels (red, yellow, green, blue, purple), filters, albums, smart collections (resolution, drone, vertical…) and a calendar view by year, month and day; <strong>pro import</strong> from SD card, USB drive or camera; the same colour labels on the media strip (stripe under each clip, colour filter); <strong>metadata presets</strong> written into exported MP4s; <strong>upload after export</strong> to any folder."
   ]
  },

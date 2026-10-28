@@ -179,6 +179,7 @@ internal fun readable(s: String): String {
  * A section header: a fold-out card inside a [FoldColumn], the plain amber title elsewhere.
  * [onReset] adds a small RESET on the right.
  */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun SectionHeader(text: String, onReset: (() -> Unit)? = null) {
     val c = LocalFold.current

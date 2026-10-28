@@ -285,6 +285,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Gear → Preferences → Appearance: Dark, Light or Like the phone. Inside the photo and video editors the panels, menus and dialogs turn light, with dark text throughout; the picture, the timeline and the media strip stay dark (as in pro editing apps). The start screens and Capture always stay dark.
 **Help and preferences**
 - The ? icon: the video editor's documentation and tutorials, Troubleshooting and Proof of purchase. Gear → Preferences: appearance, shutter sound, audio hardware, autosave, playback, timeline and editing. Gear → System Info shows the phone's hardware.
+- App log: the app keeps a log on this device (app starts, exports, problems and crashes, never photos or videos). Open it from a crash or problem report (VIEW LOG) or ? → Troubleshooting → App log, then share it or save a copy for the developer.
 **Reveal in Project**
 - Tools bar → Reveal in Project (the chip just before Deliver) → Reveal in library picks the selected clip out in the media strip; Reveal on device shows which folder on the phone its file is in.
 **Team projects**

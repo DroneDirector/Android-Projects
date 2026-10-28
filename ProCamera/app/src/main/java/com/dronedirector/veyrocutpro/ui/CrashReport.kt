@@ -32,6 +32,7 @@ object CrashReport {
                 val sw = java.io.StringWriter()
                 error.printStackTrace(java.io.PrintWriter(sw))
                 val during = if (marker(app).exists()) "while recovering an unsaved edit\n" else ""
+                AppLog.error("CRASH on thread ${thread.name}", error)
                 file(app).writeText(
                     "AlcorCut Pro $version · Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT}) · " +
                         "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n" +
@@ -61,6 +62,7 @@ object CrashReport {
             val sw = java.io.StringWriter()
             error?.printStackTrace(java.io.PrintWriter(sw))
             file(app).writeText(header(app, what) + extra + "\n" + sw.toString().take(12_000))
+            AppLog.error("PROBLEM: $what" + (if (extra.isNotBlank()) "\n" + extra.trim() else ""), error)
             version++
         } catch (_: Throwable) {}
     }
@@ -95,6 +97,7 @@ object CrashReport {
                 }
             } catch (_: Throwable) { null }
             file(context).writeText(header(context, "$kind (process ${e.processName}, ${java.util.Date(e.timestamp)})") + (e.description ?: "") + "\n\n" + (trace ?: ""))
+            AppLog.error("Last run ended with a $kind (process ${e.processName}, ${java.util.Date(e.timestamp)}): ${e.description ?: ""}\n${trace ?: ""}", null, withSystemLog = false)
         } catch (_: Throwable) {}
     }
 
@@ -115,6 +118,8 @@ fun CrashReportDialog() {
     androidx.compose.runtime.LaunchedEffect(CrashReport.version) { if (CrashReport.version > 0) report = CrashReport.pending(context) }
     val isProblem = report?.lineSequence()?.drop(1)?.firstOrNull()?.contains("export") == true
     val r = report ?: return
+    var showLog by remember { mutableStateOf(false) }
+    if (showLog) { AppLogDialog { showLog = false }; return }
     AlertDialog(
         onDismissRequest = { CrashReport.clear(context); report = null },
         containerColor = Pro.PanelSolid,
@@ -140,6 +145,7 @@ fun CrashReportDialog() {
                     cm.setPrimaryClip(android.content.ClipData.newPlainText("AlcorCut Pro crash report", r))
                     CrashReport.clear(context); report = null
                 }) { Text("COPY", color = Pro.Amber) } },
+                { TextButton(onClick = { showLog = true }) { Text("VIEW LOG", color = Pro.Amber) } },
                 { TextButton(onClick = { CrashReport.clear(context); report = null }) { Text("DISMISS", color = Pro.Dim) } },
             )
         },
@@ -147,6 +153,6 @@ fun CrashReportDialog() {
 }
 
 @Composable
-private fun Row2(a: @Composable () -> Unit, b: @Composable () -> Unit) {
-    androidx.compose.foundation.layout.Row { a(); b() }
+private fun Row2(vararg items: @Composable () -> Unit) {
+    androidx.compose.foundation.layout.Row { items.forEach { it() } }
 }

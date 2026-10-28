@@ -1513,7 +1513,19 @@ object TransitionMath {
      * The preview shader for one transition. The type is built in as a constant, so the shader compiler
      * drops every other transition's code (one shader with all of them is too large for Android).
      */
-    fun agsl(t: TransitionType): String = AGSL.replace("uniform float uType;", "const float uType = ${t.id};")
+    fun agsl(t: TransitionType): String = only(AGSL.replace("uniform float uType;", "const float uType = ${t.id};"), setOf(t.id), runtime = false)
+
+    private val IS_T = Regex("""isT\(\s*([0-9]+(?:\.[0-9]+)?)\s*\)""")
+
+    /**
+     * Every isT(n) for a transition not in [keep] becomes the literal false (and, in the preview, the kept one
+     * true), so the compiler drops the other transitions' code before it counts the program's size. In the
+     * export ([runtime]) the kept ones still check uType, as both sides of a cut share one program.
+     */
+    private fun only(src: String, keep: Set<Float>, runtime: Boolean): String = IS_T.replace(src) { m ->
+        val id = m.groupValues[1].toFloat()
+        if (keep.any { kotlin.math.abs(it - id) < 0.5f }) (if (runtime) m.value else "true") else "false"
+    }
 
     /** A compiled preview shader for [t], or null if this phone can't build it (the preview then fades). */
     private val thumbShaders = HashMap<Pair<TransitionType, Boolean>, android.graphics.RuntimeShader?>()
@@ -1544,10 +1556,7 @@ object TransitionMath {
     """
 
     /** The export shader with only [a] and [b] in it: the other transitions' code is dropped when it's compiled. */
-    fun glslFor(a: TransitionType, b: TransitionType): String = GLSL_FRAGMENT.replace(
-        "bool isT(float id) { return abs(uType - id) < 0.5; }",
-        "bool isT(float id) { return (abs(${a.id} - id) < 0.5 || abs(${b.id} - id) < 0.5) && abs(uType - id) < 0.5; }",
-    )
+    fun glslFor(a: TransitionType, b: TransitionType): String = only(GLSL_FRAGMENT, setOf(a.id, b.id), runtime = true)
 
     const val GLSL_VERTEX = """
         attribute vec4 aFramePosition;
@@ -1678,7 +1687,7 @@ object TransitionPreview {
 object ExportNotes {
     private val items = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     fun clear() = items.clear()
-    fun skipped(what: String) { if (items.add(what)) android.util.Log.w("ExportNotes", "skipped transition setting $what") }
+    fun skipped(what: String) { if (items.add(what)) { android.util.Log.w("ExportNotes", "skipped transition setting $what"); com.dronedirector.veyrocutpro.ui.AppLog.w("Export: transition setting skipped — $what") } }
     /** A one-line note, or null when nothing was skipped. */
     fun note(): String? = if (items.isEmpty()) null else "Note: ${items.size} transition setting(s) couldn't be applied and were skipped (${items.take(3).joinToString(", ")})"
 }

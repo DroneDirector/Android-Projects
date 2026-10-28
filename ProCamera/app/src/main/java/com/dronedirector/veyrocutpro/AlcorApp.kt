@@ -7,5 +7,6 @@ class AlcorApp : Application() {
     override fun onCreate() {
         super.onCreate()
         com.dronedirector.veyrocutpro.editor.TextFonts.init(assets)
+        com.dronedirector.veyrocutpro.ui.AppLog.init(this)
     }
 }

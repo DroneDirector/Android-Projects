@@ -147,6 +147,7 @@ private enum class PhotoPanel(val label: String) {
 @Composable
 fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null, onOpenVideo: () -> Unit = {}) {
     androidx.compose.runtime.SideEffect { Slideshow.openVideoEditor = onOpenVideo }
+    androidx.compose.runtime.LaunchedEffect(Unit) { com.dronedirector.veyrocutpro.ui.AppLog.i("Photo editor opened") }
     KeepScreenOnWhileEditing()
     val context = LocalContext.current
     var source by remember { mutableStateOf(initial) }

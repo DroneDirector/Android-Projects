@@ -88,6 +88,8 @@ fun TroubleshootingDialog(v: GuideVariant, onDismiss: () -> Unit) {
     val context = LocalContext.current
     var note by remember { mutableStateOf<String?>(null) }
     val report = remember { CrashReport.pending(context) }
+    var showLog by remember { mutableStateOf(false) }
+    if (showLog) AppLogDialog { showLog = false }
     val problems: List<Pair<String, String>> = when (v) {
         GuideVariant.CAPTURE -> listOf(
             "The picture is black or frozen" to "Close other camera apps, then leave Capture and come back. If it stays black, restart the phone — another app may still hold the camera.",
@@ -144,6 +146,7 @@ fun TroubleshootingDialog(v: GuideVariant, onDismiss: () -> Unit) {
                         context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, report).putExtra(Intent.EXTRA_SUBJECT, "AlcorCut Pro problem report"), "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     } catch (_: Throwable) {}
                 }
+                Tool("App log", "What the app did and any problems or crashes, kept on this device — view, share or save it") { showLog = true }
                 Tool("Copy system info", "The phone's hardware and drivers (also under gear → System Info), for support") {
                     val txt = try { SystemInfo.asText(SystemInfo.collect(context)) } catch (_: Throwable) { "" }
                     (context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("System info", txt))

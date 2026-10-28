@@ -181,6 +181,7 @@ internal enum class ColorTab(val label: String) { INPUT("Input"), LUTS("LUTs"), 
 @Composable
 fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) {
     val context = LocalContext.current
+    LaunchedEffect(Unit) { com.dronedirector.veyrocutpro.ui.AppLog.i("Video editor opened") }
     KeepScreenOnWhileEditing()
     val scope = rememberCoroutineScope()
     val clips = remember { mutableStateListOf<Clip>() }
@@ -3259,6 +3260,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
 
     fun startExport() {
         ExportNotes.clear()
+        com.dronedirector.veyrocutpro.ui.AppLog.i("Export started: ${clips.size} clips, ${layers.size} layers, music ${if (es.music != null) "yes" else "no"}, " +
+            "${es.deliver.let { d -> (if (d.audioOnly) "audio only" else "video") + ", aspect " + d.aspect }}")
         if (es.exporting || clips.isEmpty()) return
         deck.cur.pause()
         es.exportStartAt = System.currentTimeMillis()
@@ -3324,6 +3327,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         } else if (es.wasExporting) {
             es.wasExporting = false
             ExportNotes.note()?.let { n -> es.message = (es.message?.let { "$it · " } ?: "") + n; ExportNotes.clear() }
+            com.dronedirector.veyrocutpro.ui.AppLog.i("Export ended: ${es.message ?: ""}")
             com.dronedirector.veyrocutpro.ExportService.finish(context, if (es.queueAt in 1 until exportQueue.size) null else es.message)
         }
     }

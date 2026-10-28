@@ -319,6 +319,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Drone telemetry**: DJI .SRT flight data (altitude, speed, GPS, camera settings) as a live read-out matched to trim and speed.
 - **Auto-save & crash recovery** every 20 seconds; auto-saved edits keep access to their media, and RECOVER checks the edit first and leaves out files that can no longer be read.
 - **Crash reports**: after an unexpected close, the next start shows a short report (no photos or videos) to share or copy.
+- **App log**: a log kept on the device (starts, exports, problems, crashes with the app's recent system log); VIEW LOG from a crash report or ? → Troubleshooting → App log, to share or save.
 
 ### Transitions
 Two sub-menus on the Transitions page: **Video transitions** and **Audio transitions**.

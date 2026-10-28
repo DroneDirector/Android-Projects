@@ -4,8 +4,13 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+<<<<<<< Updated upstream
 
 ## 1.0.755 — 2026-10-28
+=======
+- App log on the device: app starts, exports, problems and crashes (with the app's recent system log lines). VIEW LOG in the crash / problem report, or ? → Troubleshooting → App log — share it or save a copy.
+- Fix: 87 of the transitions (cinematic, creative and newer ones) still couldn't build their preview effect ("program too large") — only the chosen transition's code is built now.
+>>>>>>> Stashed changes
 - Fix: export could still fail with "Video frame processing error" on some transitions (a transition that doesn't use every setting). Every setting is now kept; if one still can't be applied it is skipped and the export says so in a short note.
 
 ## 1.0.748 — 2026-10-28

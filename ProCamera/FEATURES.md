@@ -435,6 +435,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Edit templates**: Travel recap, Drone reel, Action, Calm & warm, Intro / opener and Old film — beat-cut edit with transitions, title and overlays in one tap.
 - **GPX routes**: a GPS track from a hike, drive or ride drawn as an animated map over a clip.
 - **Retro looks**: VHS tape, old TV, camcorder with date stamp, old film and security camera overlays.
+- **Text behind subject**: a title placed behind the person in the clip (AI cut-out on top).
 - **File menu**: projects (new, open, open recent, settings), several projects open at once with quick switching and close / close others / close all, save / save as / save a copy / revert, capture, import, new sequence / sequence from clip / bin / offline file / captions / transcript / title, team projects, collect files, make offline, link media, exit.
 - **Team projects**: kept in a shared folder (NAS or shared / cloud folder) with the media copied once; shows who has a project open, read-only opening meanwhile, and a warning before saving over a newer version.
 - **Offline media**: offline stand-ins for missing shots, Make offline and Link media that keep trims and settings.

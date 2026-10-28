@@ -447,6 +447,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Deliver → WIDE + VERTICAL → EXPORT 16:9 AND 9:16: the same edit saved twice, one for YouTube and one for Reels, Shorts and TikTok (the picture fills the frame, centred).",
             "Media → EDIT TEMPLATES: Travel recap, Drone reel, Action, Calm & warm, Intro / opener or Old film. With a music track your clips are cut on its beat; every template adds transitions on the cuts, a title and, for some, an ending, cinema bars or an old-film look. Edit anything afterwards; undo brings your edit back.",
             "Layers → Flight path / route: pick a drone .SRT file, or a .GPX track from a GPS app (a hike, drive or ride) — the route is drawn as a map over the selected clip, start to finish.",
+            "Layers → Text behind subject: a big title over the selected clip with the person standing in front of it — a copy of the clip with its background removed (AI) sits on top of the words. Change the words and font in the text layer. Works best on clips at normal speed without reframing.",
             "Layers → Retro look: VHS tape, Old TV, Camcorder (with a date stamp you set), Old film (dust and scratches) or Security camera over the whole video; Strength sets how strong it is. Pair it with a faded or black-and-white look on the Color page.",
             "SAVE / LOAD projects; \"Save & leave\" when exiting.",
         ), numbered = false),

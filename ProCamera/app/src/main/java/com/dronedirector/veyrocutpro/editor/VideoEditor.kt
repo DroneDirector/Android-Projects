@@ -2842,6 +2842,24 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             es.message = "Auto-edit: ${out.size} cuts on the beat — undo brings your clips back"
         }
     }
+    /**
+     * Text behind subject: a big title over the selected clip, with a copy of the clip on top that has its
+     * background removed (AI) — so the person stands in front of the words.
+     */
+    fun textBehindSubject() {
+        val c = clips.getOrNull(es.selected) ?: run { es.message = "Select a clip on the timeline first"; return }
+        val start = clipStarts(clips).getOrNull(es.selected) ?: 0L
+        val end = start + c.lengthMs
+        val title = Layer(kind = LayerKind.TEXT, text = "TITLE", size = 0.3f, x = 0.5f, y = 0.42f, font = LayerFont.HEAVY, color = 0xFFFFFFFF.toInt(),
+            shadow = false, startMs = start, endMs = end, animIn = LayerAnim.FADE, animMs = 500L, name = "Title behind")
+        val cut = Layer(kind = LayerKind.VIDEO, text = c.name, videoUri = c.uri, videoDurationMs = c.durationMs, videoStartMs = c.startMs,
+            mediaAspect = if (c.height > 0) c.width.toFloat() / c.height else 16f / 9f, size = 1f, x = 0.5f, y = 0.5f,
+            startMs = start, endMs = end, bgRemove = true, name = "Subject in front")
+        layers.add(title); layers.add(cut)
+        es.selectedLayer = title.id; es.page = Page.LAYERS
+        es.message = "Title behind the subject added over clip ${es.selected + 1} — change the words in the selected text layer" +
+            (if (c.speed != 1f || c.ramp != null || !c.reframe.isIdentity) ". The subject copy plays at normal speed without the crop — best on clips without speed changes or reframing" else "")
+    }
     /** Media → EDIT TEMPLATES: cut on the beat (with music), transitions on the cuts, title, ending and overlays. */
     fun applyTemplate(t: EditTemplate) {
         if (es.videoLocked) { es.message = "The video track is locked"; return }
@@ -4618,6 +4636,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 onTelemetryShow = { es.telemetryShow = it },
                                 onTelemetry = { es.srtForMap = false; pickSrt.launch(arrayOf("*/*")) },
                                 onFlightPath = { es.srtForMap = true; pickSrt.launch(arrayOf("*/*")) },
+                                onTextBehind = { textBehindSubject() },
                                 visSources = run {
                                     // Every sound in the project the visualizer can follow.
                                     val out = ArrayList<VisSource>()
@@ -6277,6 +6296,7 @@ private fun LayersPage(
     onCaptions: (String?, Boolean, Int) -> Unit = { _, _, _ -> },
     onImportSubs: () -> Unit = {},
     onFlightPath: () -> Unit = {},
+    onTextBehind: () -> Unit = {},
     onVisualizer: () -> Unit = {},
     visSources: List<VisSource> = emptyList(),
     onTranslate: (String) -> Unit = {}, translateStatus: String? = null,
@@ -6418,6 +6438,7 @@ Thanks for watching""", size = 0.045f, y = 0.5f, startMs = from, endMs = total, 
         SmallAction(Icons.Filled.LinearScale, "Progress bar") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.PROGRESS, text = "Progress bar", fxA = 0.008f, y = 0.996f, color = 0xFFFFB300.toInt(), shadow = false, startMs = 0, endMs = total)) }
         SmallAction(Icons.Filled.GraphicEq, "Visualizer", onVisualizer)
         SmallAction(Icons.Filled.Timer, "Countdown") { onAdd(Layer(kind = LayerKind.FX, fx = FxLayers.TIMER, text = "Countdown", size = 0.18f, x = 0.88f, y = 0.18f, fxB = 1f, color = 0xFFFFB300.toInt(), shadow = false, startMs = playheadMs, endMs = (playheadMs + 10_000L).coerceAtMost(total).let { if (it - playheadMs < 1000) playheadMs + 10_000L else it })) }
+        SmallAction(Icons.Filled.TextFields, "Text behind subject", onTextBehind)
         SmallAction(Icons.Filled.Tv, "Retro look") {
             val now = System.currentTimeMillis()
             val cal = java.util.Calendar.getInstance()

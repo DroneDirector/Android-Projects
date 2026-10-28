@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.689 — 2026-10-28
 - Visualizer: 20 new styles — Dot matrix, Neon bars, Skyline, Bubbles, Oscilloscope, Mountains, 8-bit blocks, Flames, Ribbons, Aurora, Sunburst, Hexagon, Spiral, Kaleidoscope, Star burst, Vinyl, Heartbeat, Twin rings, Flower, Gauge.
 - Countdown: 20 new styles — Digital, Dotted ring, Segments, Double ring, Pie, Square, Bar under, Neon, Film leader, Hourglass, Flip clock, Minimal, Pulse, Radar, Rainbow ring, Clock ticks, Battery, Liquid, Dots, Scroll wheel bar.
 

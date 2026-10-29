@@ -3,6 +3,9 @@ name: Website preview (GitHub Pages)
 # them to GitHub Pages: https://dronedirector.github.io/Android-Projects/ (a preview — editing needs WordPress).
 on:
   workflow_dispatch:
+  schedule:
+    # once a day, so the Airline Manager Pro preview (airline-manager-pro/) follows that app's website
+    - cron: '17 4 * * *'
   push:
     branches: [main]
     paths: [ "Website/**", "ProCamera/FEATURES.md", ".github/workflows/website-pages.yml", ".github/scripts/website/**" ]
@@ -66,6 +69,13 @@ jobs:
           echo "left: $(grep -rl '127.0.0.1' . | wc -l) files still naming the test server"
           grep -o 'href="[^"]*capture-features[^"]*"' index.html | sort -u
           du -sh .
+      - name: Airline Manager Pro preview in airline-manager-pro/
+        # Built by the website workflow in DroneDirector/Microsoft-Flight-Simulator-Projects.
+        run: |
+          git clone -q --depth 1 -b website-airline-manager-preview https://github.com/DroneDirector/Microsoft-Flight-Simulator-Projects /tmp/amp \
+            && rm -rf /tmp/amp/.git && mkdir -p /tmp/mirror/airline-manager-pro && cp -r /tmp/amp/. /tmp/mirror/airline-manager-pro/ \
+            && echo "Airline Manager Pro preview added ($(du -sh /tmp/mirror/airline-manager-pro | cut -f1))" \
+            || echo "Airline Manager Pro preview not available yet"
       - uses: actions/configure-pages@v5
         with: { enablement: true }
         continue-on-error: true

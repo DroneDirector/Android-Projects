@@ -17,7 +17,10 @@
    "Scenes: <strong>Standard, HDR, Night, Bokeh, Auto+</strong> (where the phone supports them).",
    "<strong>Burst</strong> (×3/×5/×10), <strong>self-timer</strong>, <strong>interval</strong> shooting, <strong>exposure bracketing</strong> (±1 / ±2).",
    "<strong>Film looks</strong>: Natural, Vivid, Chrome, Warm, Cool, Cinema, Fade, Sepia, Mono, Noir, Teal &amp; Orange, Print Film, Bleach Bypass, Golden Hour, Cold Thriller, Vintage 8mm.",
-   "Flash <strong>Off / Auto / On / Torch</strong>; shutter sound on/off; volume keys as shutter."
+   "Flash <strong>Off / Auto / On / Torch</strong>; shutter sound on/off; volume keys as shutter.",
+   "<strong>Save location</strong>: where each photo and video was taken (GPS) is stored in the file.",
+   "<strong>Focus bracketing</strong>: 3, 4 or 6 shots focused from close to far, stacked by the photo editor into one sharp photo (Merge → Focus stack) as soon as it opens.",
+   "<strong>Macro</strong>: switches to the lens that focuses closest and focuses near."
   ]
  },
  {
@@ -30,7 +33,11 @@
    "<strong>Motion blur (electronic ND)</strong>: blends ×2 / ×4 / ×8 frames for cinematic motion blur in bright light, in preview and recording.",
    "<strong>Pre-record</strong>: keeps 3, 5 or 10 seconds from before you press record.",
    "<strong>Cinema clip naming</strong> (camera / reel / clip) or date &amp; time.",
-   "<strong>Clean feed</strong> (hide the on-screen controls for an HDMI / screen mirror)."
+   "<strong>Clean feed</strong> (hide the on-screen controls for an HDMI / screen mirror).",
+   "<strong>Anti-flicker</strong>: auto, 50 Hz, 60 Hz or off — no banding under mains lights (photos too).",
+   "<strong>Timecode</strong>: a time-of-day timecode track in each video, so editing programs line up clips from several cameras.",
+   "<strong>Editing proxy</strong>: a small copy of each clip is made after recording, so the video editor plays it smoothly straight away.",
+   "<strong>Front + back camera</strong>: the back camera with the front camera in a corner, recorded into one video (phones that can run both cameras together)."
   ]
  },
  {

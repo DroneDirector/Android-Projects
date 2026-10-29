@@ -46,7 +46,9 @@
    "Gapless clip-to-clip playback; <strong>full-screen player</strong> with auto-hiding controls.",
    "<strong>Proxy media</strong>: a Proxy section next to Media — only media added there plays from a proxy; Proxy ON / OFF switch; 360p, 540p, 720p or 1080p (H.264 or HEVC), remade in the background when the quality changes; background generation with progress and cancel; proxies linked to their originals by a stable media ID and checked for matching length, frame rate, orientation and audio, so switching never shifts edits; missing, unfinished or failing proxies fall back to the original (never a blank frame); lighter timeline thumbnails and filmstrips from proxies; exports always use the originals.",
    "Grade preview drawn on screen (Android 13+) for smooth, instant playback; exports use the full pipeline.",
-   "<strong>Media strip</strong> (always on screen above the timeline, can be hidden in the Panels menu): every imported clip, used on the timeline or not. Mouse-hover or hold-and-slide <strong>skimming</strong>, an amber <strong>USED ×n</strong> mark, <strong>1–5 star ratings and reject</strong>, filters (All, Unused, Used, ★3+, No rejects, bins), multi-select (append, rate, reject, remove), Append / Insert / Overwrite / Source viewer, <strong>+ Clips</strong> (up to 100 at once) and <strong>+ Folder</strong> (every video in a folder and its sub-folders). With a mouse, drag a clip straight onto the timeline."
+   "<strong>Media strip</strong> (always on screen above the timeline, can be hidden in the Panels menu): every imported clip, used on the timeline or not. Mouse-hover or hold-and-slide <strong>skimming</strong>, an amber <strong>USED ×n</strong> mark, <strong>1–5 star ratings and reject</strong>, filters (All, Unused, Used, ★3+, No rejects, bins), multi-select (append, rate, reject, remove), Append / Insert / Overwrite / Source viewer, <strong>+ Clips</strong> (up to 100 at once) and <strong>+ Folder</strong> (every video in a folder and its sub-folders). With a mouse, drag a clip straight onto the timeline.",
+   "<strong>Smart bins</strong> in the media strip: Photos, Drone, 4K+, Vertical, Under 10 s and Log / HDR — they fill themselves.",
+   "<strong>Edit a photo in the photo editor</strong> (Edit → PHOTO → ✎ EDIT IN THE PHOTO EDITOR): the exported photo replaces the one on the timeline."
   ]
  },
  {
@@ -217,7 +219,8 @@
    "<strong>Render cache</strong>: heavy AI effects (noise reduction, background, depth) rendered once for smooth playback; export always from the originals.",
    "<strong>Safe zones</strong> on the viewer: TikTok, Reels, Shorts (approximate) and TV action / title safe — never exported.",
    "<strong>Smart render (fast copy)</strong>: cut-only edits are copied from the clips without re-encoding — no quality loss, much faster (each clip starts on its nearest earlier key frame).",
-   "<strong>Send to desktop editor</strong>: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) and <strong>OpenTimelineIO .otio</strong> (cuts, dissolves, speed, markers) for desktop editing software."
+   "<strong>Send to desktop editor</strong>: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) and <strong>OpenTimelineIO .otio</strong> (cuts, dissolves, speed, markers) for desktop editing software.",
+   "<strong>Client review</strong> (CLIENT REVIEW): a review page with the video for any browser; the client's timed notes come back as markers on the timeline."
   ]
  },
  {

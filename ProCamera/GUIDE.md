@@ -114,6 +114,12 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - "Always start in Capture" opens the app straight into the camera.
 - SAVE PHOTOS & VIDEOS TO chooses where captures are saved.
 - Settings → Appearance: Dark, Light or Like the phone — the same choice as in the editors. On Light the menus and panels are light; the controls on the camera picture stay dark.
+**Pro capture**
+- Settings → Photo → Save location stores where each photo and video was taken. The phone asks once for permission.
+- Settings → Photo → Focus bracketing takes 3, 4 or 6 shots focused from close to far. Use a tripod; the next time you open the Photo editor it stacks them into one sharp photo.
+- Settings → Photo → Macro switches to the lens that focuses closest. Move to a few centimetres from the subject.
+- Settings → Video → Anti-flicker: choose 50 Hz in Europe, Africa and most of Asia, 60 Hz in the Americas, if lights make bands in the picture.
+- Settings → Video → Timecode adds the time of day as timecode to each video; Editing proxy makes a small copy for smooth editing; Front + back camera records both cameras into one video where the phone allows it.
 
 ---
 
@@ -282,6 +288,10 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - SAVE LOCATION chooses where exported photos go: same as capture, internal storage, an SD card / USB drive, or a folder you pick on a USB stick / SSD / SD card.
 - APP COLOUR changes the highlight colour.
 - "Always start in Photo editor" opens the app straight into this editor.
+**Layers, samplers and focus**
+- Text → PHOTO LAYERS: + adds a photo or texture on top. Pick a blend mode (Multiply darkens, Screen lightens, Overlay / Soft light add contrast) and set opacity, size and position; Fill the photo stretches it over the whole picture.
+- Merge → HDR keeps moving things (people, leaves, water) from one shot only, so there are no ghosts. Merge → Long exposure from a video turns a clip into a long exposure: average for silky water, Light trails for car lights and stars.
+- SAMPLERS under the photo: tap up to four points to see their R, G, B values while you edit; tap a point again to remove it. FOCUS shows the sharpest parts in green.
 
 ---
 
@@ -503,3 +513,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - SAVE LOCATION chooses where exported videos go: same as capture, internal storage, an SD card / USB drive, or a folder you pick on a USB stick / SSD / SD card.
 - APP COLOUR changes the highlight colour.
 - "Always start in Video editor" opens the app straight into this editor.
+**Review and photos**
+- Edit → PHOTO → ✎ EDIT IN THE PHOTO EDITOR opens the photo with all the photo tools; when you export, the new photo replaces the one on the timeline.
+- Deliver → CLIENT REVIEW: export the video first, then make the review page. Send the .zip; your client opens index.html, adds notes at exact times and sends them back. Paste them in and they become markers.
+- Smart bins (⚙ chips in the media strip) show only photos, drone clips, 4K and up, vertical clips, clips under 10 s or Log / HDR clips.

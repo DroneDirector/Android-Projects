@@ -4,6 +4,21 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- **Photo layers with blend modes** (photo editor → Text → PHOTO LAYERS): put another photo or a texture on top — a sky, film dust, paper, a second exposure — with Normal, Multiply, Screen, Overlay, Soft light and more, plus opacity, size and position.
+- **HDR without ghosts** (Merge → HDR): people, leaves or water that moved between the bracketed shots are taken from one shot only, so there are no see-through doubles.
+- **Long exposure from a video** (Merge → Long exposure from a video): silky water and clouds, or light trails, from one clip — no ND filter needed.
+- **Colour samplers** (SAMPLERS under the photo): tap up to four points to read their R, G, B values live while you edit.
+- **Focus mask** (FOCUS under the photo): the sharpest parts of the photo are shown in green.
+- **Edit a photo in the photo editor from the video editor** (Edit → PHOTO → ✎ EDIT IN THE PHOTO EDITOR): when you export, the edited photo replaces the one on the timeline.
+- **Client review** (Deliver → CLIENT REVIEW): a review page with your video that plays in any browser; your client adds notes at exact times and sends them back, and the notes become markers on the timeline.
+- **Smart bins** in the media strip: Photos, Drone, 4K+, Vertical, Under 10 s and Log / HDR filter themselves.
+- **Capture: anti-flicker** (Settings → Video): 50 Hz, 60 Hz, auto or off, against banding under mains lights.
+- **Capture: save location** (Settings → Photo): where each photo and video was taken is stored in the file.
+- **Capture: front + back camera** (Settings → Video): the back camera with the front camera in a corner, in one video, on phones that can run both together.
+- **Capture: focus bracketing** (Settings → Photo): 3, 4 or 6 shots focused from close to far; the photo editor stacks them into one sharp photo when you open it.
+- **Capture: timecode** (Settings → Video): videos carry a time-of-day timecode, so editing programs line up clips from several cameras.
+- **Capture: editing proxy** (Settings → Video): a small copy of each clip is made after recording, so the video editor plays it smoothly straight away.
+- **Capture: macro** (Settings → Photo): switches to the lens that focuses closest and focuses near.
 
 ## 1.0.791 — 2026-10-28
 - **Photos in the video editor stay photos**: add them from the gallery, files, the NAS, the camera, Pro import or the photo library (Library window → Photos) — onto the timeline or into the media strip. They show still (or with a slow zoom you choose), marked PHOTO / 📷, and Edit → PHOTO sets how long each shows.

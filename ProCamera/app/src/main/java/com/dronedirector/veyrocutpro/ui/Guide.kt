@@ -95,6 +95,11 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Capture tips", Icons.Filled.CameraAlt, null, listOf(
+            "Settings → Photo → Save location stores where each photo and video was taken. The phone asks once for permission.",
+            "Settings → Photo → Focus bracketing takes 3, 4 or 6 shots focused from close to far. Use a tripod; the next time you open the Photo editor it stacks them into one sharp photo.",
+            "Settings → Photo → Macro switches to the lens that focuses closest. Move to a few centimetres from the subject.",
+            "Settings → Video → Anti-flicker: choose 50 Hz in Europe, Africa and most of Asia, 60 Hz in the Americas, if lights make bands in the picture.",
+            "Settings → Video → Timecode adds the time of day as timecode to each video; Editing proxy makes a small copy for smooth editing; Front + back camera records both cameras into one video where the phone allows it.",
             "Keyboard: Space = shutter / record, + / − zoom, [ / ] exposure, Tab = next mode. Settings → Keyboard shortcuts changes them.",
             "? icon next to the gear: the Capture guide, quick tour, troubleshooting and proof of purchase. Settings → Audio hardware picks the microphone.",
             "Read-outs: drag the histogram / scopes, exposure read-out or audio meter anywhere. Pinch one (or hold it and drag the amber grip) to resize it; double-tap to make it small but still live.",
@@ -203,6 +208,9 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "AI erase on a RAW makes a normal copy to work on; after that, the photo is edited like a JPEG.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Photo editor tips", Icons.Filled.Photo, null, listOf(
+            "Text → PHOTO LAYERS: + adds a photo or texture on top. Pick a blend mode (Multiply darkens, Screen lightens, Overlay / Soft light add contrast) and set opacity, size and position; Fill the photo stretches it over the whole picture.",
+            "Merge → HDR keeps moving things (people, leaves, water) from one shot only, so there are no ghosts. Merge → Long exposure from a video turns a clip into a long exposure: average for silky water, Light trails for car lights and stars.",
+            "SAMPLERS under the photo: tap up to four points to see their R, G, B values while you edit; tap a point again to remove it. FOCUS shows the sharpest parts in green.",
             "File menu (file icon): new, open, open recent, save as, save a copy, revert, capture, import and exit. Keyboard icon: change any shortcut.",
             "? icon: documentation, tutorials, troubleshooting and proof of purchase. Gear → Preferences and System Info.",
             "Network (NAS): + → Network (NAS) opens photos (RAW too) from your Synology or other NAS on the same Wi-Fi. A sign-in is asked for only when needed; remembering it is up to you (encrypted, never shown; gear → Network (NAS) → Remove).",
@@ -329,6 +337,9 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Video editor tips", Icons.Filled.Movie, null, listOf(
+            "Edit → PHOTO → ✎ EDIT IN THE PHOTO EDITOR opens the photo with all the photo tools; when you export, the new photo replaces the one on the timeline.",
+            "Deliver → CLIENT REVIEW: export the video first, then make the review page. Send the .zip; your client opens index.html, adds notes at exact times and sends them back. Paste them in and they become markers.",
+            "Smart bins (⚙ chips in the media strip) show only photos, drone clips, 4K and up, vertical clips, clips under 10 s or Log / HDR clips.",
             "File menu (file icon): new and open projects, several open at once (File → Open projects), save as / save a copy / revert, capture, import, new sequence, bin, offline file, captions, transcript, title, team projects, collect files, exit.",
             "Team projects: File → New team project puts the project in a shared folder on your NAS (or a shared folder); the team sees who has it open and can open it read-only meanwhile.",
             "Keyboard icon: every shortcut — tap one and press the key you want for it.",

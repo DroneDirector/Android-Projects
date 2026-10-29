@@ -38,6 +38,9 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Burst** (×3/×5/×10), **self-timer**, **interval** shooting, **exposure bracketing** (±1 / ±2).
 - **Film looks**: Natural, Vivid, Chrome, Warm, Cool, Cinema, Fade, Sepia, Mono, Noir, Teal & Orange, Print Film, Bleach Bypass, Golden Hour, Cold Thriller, Vintage 8mm.
 - Flash **Off / Auto / On / Torch**; shutter sound on/off; volume keys as shutter.
+- **Save location**: where each photo and video was taken (GPS) is stored in the file.
+- **Focus bracketing**: 3, 4 or 6 shots focused from close to far, stacked by the photo editor into one sharp photo (Merge → Focus stack) as soon as it opens.
+- **Macro**: switches to the lens that focuses closest and focuses near.
 
 ### Video
 - **4K, 1080p, 720p, 480p**; high-bitrate option.
@@ -48,6 +51,10 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Pre-record**: keeps 3, 5 or 10 seconds from before you press record.
 - **Cinema clip naming** (camera / reel / clip) or date & time.
 - **Clean feed** (hide the on-screen controls for an HDMI / screen mirror).
+- **Anti-flicker**: auto, 50 Hz, 60 Hz or off — no banding under mains lights (photos too).
+- **Timecode**: a time-of-day timecode track in each video, so editing programs line up clips from several cameras.
+- **Editing proxy**: a small copy of each clip is made after recording, so the video editor plays it smoothly straight away.
+- **Front + back camera**: the back camera with the front camera in a corner, recorded into one video (phones that can run both cameras together).
 
 ### Long exposure
 - **LONG EXP** smart mode: **Light trails** (lighten stacking), **Silky water** (averaging) and **Night sky** (averaging + brightening, less noise); 2–30 s, live build-up preview, finish early with the shutter.
@@ -230,6 +237,11 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Export a look as a .cube LUT** (33-point): LUTs → Export look as LUT — saved in Documents/AlcorCutPro/LUTs and added to My LUTs.
 - **Fold-out tool sections**: every section of the tool panels opens and closes, with a line listing what's inside; gear → Layout & look sets how they start.
 - **Quick tour** the first time the editor opens (skip, don't show again, replay from gear → App).
+- **Photo layers with blend modes** (Text → PHOTO LAYERS): another photo or texture on top with Normal, Multiply, Screen, Overlay, Soft light and more; opacity, size, position, fill the photo.
+- **HDR without ghosts**: moving people, leaves or water come from one shot only.
+- **Long exposure from a video** (Merge): average a clip for silky water and clouds, or keep the brightest for light trails.
+- **Colour samplers** (SAMPLERS): up to four points with live R, G, B read-outs.
+- **Focus mask** (FOCUS): the sharpest parts of the photo in green.
 
 ## Video editor
 - **Still photos on the timeline and in the media strip** from every picker (gallery, files, NAS, camera, Pro import, photo library), with a set duration and optional slow zoom; **name people** in the video library; **recommended looks** for a clip; **keyword tree**; **watched folders**; **content credentials** on exported videos.
@@ -274,6 +286,9 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - Grade preview drawn on screen (Android 13+) for smooth, instant playback; exports use the full pipeline.
 
 - **Media strip** (always on screen above the timeline, can be hidden in the Panels menu): every imported clip, used on the timeline or not. Mouse-hover or hold-and-slide **skimming**, an amber **USED ×n** mark, **1–5 star ratings and reject**, filters (All, Unused, Used, ★3+, No rejects, bins), multi-select (append, rate, reject, remove), Append / Insert / Overwrite / Source viewer, **+ Clips** (up to 100 at once) and **+ Folder** (every video in a folder and its sub-folders). With a mouse, drag a clip straight onto the timeline.
+- **Smart bins** in the media strip: Photos, Drone, 4K+, Vertical, Under 10 s and Log / HDR — they fill themselves.
+- **Edit a photo in the photo editor** (Edit → PHOTO → ✎ EDIT IN THE PHOTO EDITOR): the exported photo replaces the one on the timeline.
+
 ### Pro editing
 - **Text-based editing**: the edit as text, transcribed on the phone (whisper.cpp, MIT; Whisper model downloaded once — Fast 57 MB / Accurate 181 MB; 99 languages incl. Danish and Faroese). Tap words to cut them, REMOVE FILLERS (um / uh / øh), APPLY CUTS splits the clips without leaving dead air; undo restores; hold a word to jump there.
 - **Clip keyframes**: zoom, position, rotation and opacity over time, Smooth / Linear / Hold easing or a **Bézier curve** (graph editor with presets), diamonds on the timeline, edit on the player at the playhead; preview and export.
@@ -430,6 +445,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Safe zones** on the viewer: TikTok, Reels, Shorts (approximate) and TV action / title safe — never exported.
 - **Smart render (fast copy)**: cut-only edits are copied from the clips without re-encoding — no quality loss, much faster (each clip starts on its nearest earlier key frame).
 - **Send to desktop editor**: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) and **OpenTimelineIO .otio** (cuts, dissolves, speed, markers) for desktop editing software.
+- **Client review** (CLIENT REVIEW): a review page with the video for any browser; the client's timed notes come back as markers on the timeline.
 
 ### Projects & workflow
 - **Light look** for the editor's panels, menus and dialogs, with dark text everywhere (Preferences → Appearance); picture, timeline and media strip stay dark.

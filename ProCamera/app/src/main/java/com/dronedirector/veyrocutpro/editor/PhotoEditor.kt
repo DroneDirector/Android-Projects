@@ -44,6 +44,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -279,6 +280,46 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null, onOpenVideo: () 
         confirmButton = { androidx.compose.material3.TextButton(onClick = { PhotoSession.clear(context); confirmClear = false }) { Text("EMPTY CATALOG", color = Pro.Amber) } },
         dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmClear = false }) { Text("CANCEL", color = Color.White) } },
     )
+    merging?.let { msg ->
+        androidx.compose.ui.window.Dialog(onDismissRequest = {}) {
+            Column(Modifier.clip(RoundedCornerShape(16.dp)).background(Pro.PanelSolid).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(color = Pro.Amber)
+                Text(msg, color = Color.White, modifier = Modifier.padding(top = 12.dp))
+            }
+        }
+    }
+    // Panorama: choose the projection and how to handle the uneven edges first.
+    var panoAsk by remember { mutableStateOf(false) }
+    if (panoAsk) {
+        var proj by remember { mutableStateOf(PanoOpts.projection) }
+        var warp by remember { mutableStateOf(PanoOpts.warp) }
+        var fill by remember { mutableStateOf(PanoOpts.fill) }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { panoAsk = false }, containerColor = Pro.PanelSolid,
+            title = { Text("Panorama", color = Color.White) },
+            text = {
+                Column {
+                    Text("Projection", color = Color.White, fontSize = 13.sp)
+                    Chips(PanoOpts.PROJECTIONS, proj) { proj = it }
+                    Text(listOf("Best for wide, sweeping panoramas.", "Very wide or tall views (360° style); straight lines curve.", "Keeps straight lines straight (narrower panoramas, buildings).")[proj], color = Pro.Dim, fontSize = 11.sp)
+                    EdSlider("Boundary warp", warp, 0f..1f, 0f, ::pct) { warp = it }
+                    Text("Stretches the panorama to fill the frame instead of cropping away its uneven edges.", color = Pro.Dim, fontSize = 11.sp)
+                    Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Fill edges (AI)", color = Color.White, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                        androidx.compose.material3.Switch(fill, { fill = it }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
+                    }
+                    Text("Paints in the empty corners instead of cropping them.", color = Pro.Dim, fontSize = 11.sp)
+                }
+            },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = {
+                PanoOpts.projection = proj; PanoOpts.warp = warp; PanoOpts.fill = fill; panoAsk = false
+                mergeKind = MergeKind.PANORAMA; mergePick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }) { Text("Pick photos", color = Pro.Amber) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { panoAsk = false }) { Text("Cancel", color = Pro.Dim) } },
+        )
+    }
+    // Merge photos: from the start page and from the toolbar inside the editor (MERGE PHOTOS ▾).
+    val startMerge: (MergeKind) -> Unit = { k -> if (k == MergeKind.PANORAMA) panoAsk = true else if (k == MergeKind.LONG_VIDEO) { try { longPick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) } catch (_: Throwable) {} } else { mergeKind = k; (if (k == MergeKind.TRAILS || k == MergeKind.HDR_PANO) trailsPick else mergePick).launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } }
     if (src == null && showLibrary) {
         LibraryScreen(
             onBack = { showLibrary = false },
@@ -289,46 +330,8 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null, onOpenVideo: () 
     }
     if (src == null) {
         BackHandler { onExit() }
-        merging?.let { msg ->
-            androidx.compose.ui.window.Dialog(onDismissRequest = {}) {
-                Column(Modifier.clip(RoundedCornerShape(16.dp)).background(Pro.PanelSolid).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = Pro.Amber)
-                    Text(msg, color = Color.White, modifier = Modifier.padding(top = 12.dp))
-                }
-            }
-        }
-        // Panorama: choose the projection and how to handle the uneven edges first.
-        var panoAsk by remember { mutableStateOf(false) }
-        if (panoAsk) {
-            var proj by remember { mutableStateOf(PanoOpts.projection) }
-            var warp by remember { mutableStateOf(PanoOpts.warp) }
-            var fill by remember { mutableStateOf(PanoOpts.fill) }
-            androidx.compose.material3.AlertDialog(
-                onDismissRequest = { panoAsk = false }, containerColor = Pro.PanelSolid,
-                title = { Text("Panorama", color = Color.White) },
-                text = {
-                    Column {
-                        Text("Projection", color = Color.White, fontSize = 13.sp)
-                        Chips(PanoOpts.PROJECTIONS, proj) { proj = it }
-                        Text(listOf("Best for wide, sweeping panoramas.", "Very wide or tall views (360° style); straight lines curve.", "Keeps straight lines straight (narrower panoramas, buildings).")[proj], color = Pro.Dim, fontSize = 11.sp)
-                        EdSlider("Boundary warp", warp, 0f..1f, 0f, ::pct) { warp = it }
-                        Text("Stretches the panorama to fill the frame instead of cropping away its uneven edges.", color = Pro.Dim, fontSize = 11.sp)
-                        Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("Fill edges (AI)", color = Color.White, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                            androidx.compose.material3.Switch(fill, { fill = it }, colors = androidx.compose.material3.SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black))
-                        }
-                        Text("Paints in the empty corners instead of cropping them.", color = Pro.Dim, fontSize = 11.sp)
-                    }
-                },
-                confirmButton = { androidx.compose.material3.TextButton(onClick = {
-                    PanoOpts.projection = proj; PanoOpts.warp = warp; PanoOpts.fill = fill; panoAsk = false
-                    mergeKind = MergeKind.PANORAMA; mergePick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                }) { Text("Pick photos", color = Pro.Amber) } },
-                dismissButton = { androidx.compose.material3.TextButton(onClick = { panoAsk = false }) { Text("Cancel", color = Pro.Dim) } },
-            )
-        }
         MediaChooser(
-            onMerge = { k -> if (k == MergeKind.PANORAMA) panoAsk = true else if (k == MergeKind.LONG_VIDEO) { try { longPick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) } catch (_: Throwable) {} } else { mergeKind = k; (if (k == MergeKind.TRAILS || k == MergeKind.HDR_PANO) trailsPick else mergePick).launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } },
+            onMerge = startMerge,
             title = "Photo editor",
             subtitle = "Choose a photo to edit. The original is never changed; edits are exported as a new picture.",
             videos = false,
@@ -375,6 +378,7 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null, onOpenVideo: () 
     } else {
         androidx.compose.runtime.key(src, project?.id) {
             PhotoWorkspace(src, project, onClose = { source = null; project = null },
+                onMerge = startMerge,
                 onOpenSession = { openSession(it) },
                 onAddGallery = { addFrom = true },
                 onAddFiles = { browse.launch(arrayOf("image/*")) },
@@ -429,7 +433,9 @@ fun MediaChooser(
         }
         Text(subtitle, color = Pro.Dim, fontSize = 13.sp, modifier = Modifier.padding(vertical = 10.dp))
         banner?.invoke()
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        // Recent projects right by the catalog card, so they're reached without scrolling.
+        SavedProjects(videos, onOpenProject, top = 0.dp)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 10.dp)) {
             BigButton(Icons.Filled.PhotoLibrary, if (videos) "Gallery videos" else "Gallery photos", Modifier.weight(1f), onGallery)
             BigButton(Icons.Filled.FolderOpen, "Browse files", Modifier.weight(1f), onFiles)
         }
@@ -467,7 +473,6 @@ fun MediaChooser(
         if (videos) {
             Text("Browse files also opens MKV, MOV, WebM and clips from SD cards or USB drives.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
         }
-        SavedProjects(videos, onOpenProject)
         Text("RECENT ALCORCUT PRO ${if (videos) "VIDEOS" else "PHOTOS"}", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 18.dp, bottom = 6.dp))
         if (recent.isEmpty()) {
             Text("Nothing yet.", color = Pro.Dim, fontSize = 13.sp)
@@ -616,6 +621,8 @@ private fun PhotoWorkspace(
     onAddNas: () -> Unit = {}, onPickGallery: () -> Unit = {},
     /** Switch to another photo of the filmstrip (index in [PhotoSession.items]). */
     onOpenSession: (Int) -> Unit = {},
+    /** Toolbar → MERGE PHOTOS ▾. */
+    onMerge: (MergeKind) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -2705,6 +2712,7 @@ private fun PhotoWorkspace(
                         },
                     )
                     BarIcon(Icons.Filled.Settings, "Settings") { showSettings = true }
+                    MergeMenuButton(enabled = !busy, onMerge = onMerge)
                     }
                     BarButton("LOAD", enabled = !busy) { showLoad = true }
                     BarButton("SAVE", enabled = !busy) { askName = true }
@@ -3680,6 +3688,33 @@ fun savePicture(context: Context, bmp: Bitmap, png: Boolean, quality: Int, area:
 private fun BarIcon(icon: ImageVector, label: String, enabled: Boolean = true, tint: Color = Color.White, onClick: () -> Unit) {
     Box(Modifier.size(36.dp).clip(CircleShape).clickable(enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
         Icon(icon, contentDescription = label, tint = if (enabled) tint else tint.copy(alpha = 0.3f), modifier = Modifier.size(21.dp))
+    }
+}
+
+/** Toolbar → MERGE PHOTOS ▾: the same merges as on the editor's start page. */
+@Composable
+private fun MergeMenuButton(enabled: Boolean, onMerge: (MergeKind) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        Text(
+            "MERGE PHOTOS ▾", style = Pro.Value.copy(color = if (enabled) Pro.Amber else Pro.Dim, fontSize = 11.sp), maxLines = 1, softWrap = false,
+            modifier = Modifier.padding(start = 4.dp).clip(RoundedCornerShape(50)).background(Ed.Raised).clickable(enabled = enabled) { open = true }
+                .padding(horizontal = 9.dp, vertical = 7.dp),
+        )
+        androidx.compose.material3.DropdownMenu(open, { open = false }, containerColor = Pro.PanelSolid) {
+            Text("MERGE PHOTOS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp))
+            MergeKind.entries.forEach { k ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = {
+                        Column(Modifier.widthIn(max = 280.dp)) {
+                            Text(k.label, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text(k.hint, color = Pro.Dim, fontSize = 11.sp, maxLines = 3)
+                        }
+                    },
+                    onClick = { open = false; onMerge(k) },
+                )
+            }
+        }
     }
 }
 

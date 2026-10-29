@@ -205,7 +205,7 @@ fun ProjectNameDialog(
 
 /** Saved projects on an editor's start page; tap to open, ✕ to delete (asks first). */
 @Composable
-fun SavedProjects(video: Boolean, onOpen: (String) -> Unit) {
+fun SavedProjects(video: Boolean, onOpen: (String) -> Unit, top: androidx.compose.ui.unit.Dp = 18.dp) {
     val context = LocalContext.current
     var version by remember { mutableIntStateOf(0) }
     val list by produceState(emptyList<ProjectEntry>(), version) { value = withContext(Dispatchers.IO) { ProjectStore.list(context, video) } }
@@ -221,8 +221,8 @@ fun SavedProjects(video: Boolean, onOpen: (String) -> Unit) {
         )
     }
     if (list.isEmpty()) return
-    Text("SAVED PROJECTS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 18.dp, bottom = 6.dp))
-    Row(Modifier.fillMaxWidth().hintedScroll(horizontal = true), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Text("RECENT PROJECTS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = top, bottom = 6.dp))
+    Row(Modifier.fillMaxWidth().padding(bottom = 4.dp).hintedScroll(horizontal = true), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         list.forEach { p ->
             val thumb by produceState<ImageBitmap?>(null, p.thumb, p.savedAt) {
                 value = withContext(Dispatchers.IO) { p.thumb?.let { BitmapFactory.decodeFile(it.path)?.asImageBitmap() } }

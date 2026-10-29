@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.799 — 2026-10-29
 - **Search in Settings**: a search field at the top of the Capture settings and both editors' gear — type "zebra", "proxy" or "location" and only the matching groups show, already open.
 - **What's new**: after an update, a short card shows what changed in that version.
 - **Hold for help**: hold a button (toolbar icons, chips, Capture quick bar) for a one-line explanation of what it does.

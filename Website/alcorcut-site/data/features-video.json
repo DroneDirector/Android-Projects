@@ -220,7 +220,8 @@
    "<strong>Safe zones</strong> on the viewer: TikTok, Reels, Shorts (approximate) and TV action / title safe — never exported.",
    "<strong>Smart render (fast copy)</strong>: cut-only edits are copied from the clips without re-encoding — no quality loss, much faster (each clip starts on its nearest earlier key frame).",
    "<strong>Send to desktop editor</strong>: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) and <strong>OpenTimelineIO .otio</strong> (cuts, dissolves, speed, markers) for desktop editing software.",
-   "<strong>Client review</strong> (CLIENT REVIEW): a review page with the video for any browser; the client's timed notes come back as markers on the timeline."
+   "<strong>Client review</strong> (CLIENT REVIEW): a review page with the video for any browser; the client's timed notes come back as markers on the timeline.",
+   "<strong>CineForm (.mov)</strong> codec: 10-bit 4:2:2 intra-frame editing codec with uncompressed sound, Medium / High / Film scan 1 / Film scan 2 (open-source CineForm SDK, Apache 2.0 / MIT); <strong>keep editing while exporting</strong> with a Share button in the notification."
   ]
  },
  {
@@ -251,7 +252,8 @@
    "<strong>Remember watermark</strong>; <strong>resizable panels</strong>; <strong>playback info</strong> read-out for troubleshooting.",
    "<strong>Panels menu</strong> (icon next to the gear): show / hide the tools panel, transport bar, histogram and audio waveforms — the player and timeline grow into freed space and return to their saved sizes; presets <strong>Full / Cut / Color / Audio</strong>; <strong>triple-tap</strong> the icon to restore the original layout.",
    "<strong>Fold-out tool sections</strong>: every section of the tool panels opens and closes, with a line listing what's inside; gear → Layout &amp; look sets how they start (remember, always closed, all open).",
-   "<strong>Quick tour</strong> the first time the editor opens (skip, don't show again, replay from gear → App)."
+   "<strong>Quick tour</strong> the first time the editor opens (skip, don't show again, replay from gear → App).",
+   "<strong>Timeline view remembered</strong> per project (zoom, scroll, page); <strong>FIND THEM</strong> for clips that moved; <strong>recent projects</strong> next to the catalog on the start page."
   ]
  }
 ]

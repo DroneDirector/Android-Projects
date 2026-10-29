@@ -143,7 +143,8 @@
    "<strong>Copyright</strong>: your name and copyright written into every photo (camera and photo editor exports).",
    "<strong>External storage</strong>: save to phone storage, an SD card / USB drive, or a folder you pick on any USB stick, SSD or SD card (videos record straight onto the drive; falls back to internal storage if it is unplugged); <strong>app colour</strong> (accent) picker; layout and control options.",
    "<strong>Panels menu</strong> (icon next to the gear): show / hide the exposure read-out, histogram, audio meter, level, Pro controls bar and tips; presets <strong>Full / Minimal / Video</strong>; <strong>triple-tap</strong> the icon to restore the original layout.",
-   "<strong>Keep settings after uninstall</strong> (optional): settings, presets and LUTs saved to Documents/AlcorCutPro/Settings; restore from the first screen after reinstalling."
+   "<strong>Keep settings after uninstall</strong> (optional): settings, presets and LUTs saved to Documents/AlcorCutPro/Settings; restore from the first screen after reinstalling.",
+   "<strong>Picks up where you left off</strong> (last mode and lens); <strong>LAST</strong> in the quick bar: your last three set-ups; <strong>heads-up before recording</strong> about space, battery and heat."
   ]
  }
 ]

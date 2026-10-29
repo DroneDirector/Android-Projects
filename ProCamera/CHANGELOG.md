@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- **What's new as fold-outs**: each of the last three versions has its own fold-out — the latest update open, the earlier ones closed — on the start screen and in Capture and both editors.
 - **What's new for the last three versions**: start screen → gear → What's new lists the changes of the last three releases for the whole app; gear → App → ★ WHAT'S NEW in Capture, the Photo editor and the Video editor shows only the changes for that part.
 
 ## 1.0.801 — 2026-10-29

@@ -321,11 +321,30 @@ fun WhatsNewDialog() {
         title = { Text(title, color = Color.White) },
         text = {
             Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // One fold-out per version: the newest open, the earlier ones closed.
                 val several = l.size > 1
-                l.forEach { r ->
-                    if (several) Text(r.title, style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.padding(top = 6.dp))
-                    if (r.lines.isEmpty()) Text("Nothing new here in this version.", color = Pro.Dim, fontSize = 12.sp)
-                    r.lines.forEach { Text(boldMarkup("• " + it), color = Pro.Fg, fontSize = 13.sp) }
+                l.forEachIndexed { i, r ->
+                    if (!several) {
+                        if (r.lines.isEmpty()) Text("Nothing new here in this version.", color = Pro.Dim, fontSize = 12.sp)
+                        r.lines.forEach { Text(boldMarkup("• " + it), color = Pro.Fg, fontSize = 13.sp) }
+                    } else {
+                        var open by remember(l) { mutableStateOf(i == 0) }
+                        Row(
+                            Modifier.fillMaxWidth().padding(top = 4.dp).clip(RoundedCornerShape(10.dp)).background(Pro.Fg.copy(alpha = 0.06f))
+                                .clickable { open = !open }.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text((if (i == 0) I18n.tr("Latest update") + " · " else "") + r.title, color = if (open) Pro.Amber else Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Text(I18n.tr("{0} change(s)").replace("{0}", r.lines.size.toString()), color = Pro.Dim, fontSize = 11.sp)
+                            }
+                            Text(if (open) "▴" else "▾", color = Pro.Dim, fontSize = 16.sp)
+                        }
+                        if (open) Column(Modifier.padding(start = 6.dp, top = 2.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            if (r.lines.isEmpty()) Text("Nothing new here in this version.", color = Pro.Dim, fontSize = 12.sp)
+                            r.lines.forEach { Text(boldMarkup("• " + it), color = Pro.Fg, fontSize = 13.sp) }
+                        }
+                    }
                 }
                 if (l.isEmpty()) Text("No notes for this version.", color = Pro.Dim, fontSize = 12.sp)
                 Text("Each tool is described in the guide (? or gear → App → Guide).", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))

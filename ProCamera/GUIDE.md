@@ -109,7 +109,7 @@ Optional: runs Topaz Labs' professional AI on fast servers through your own fal.
 - Settings → PHOTO SIZE shows what your phone's sensor allows apps to use.
 
 **General**
-- Start screen → gear → What's new lists what changed in the last three versions, for the whole app. In Capture, the Photo editor and the Video editor, gear → App → ★ WHAT'S NEW shows only the changes for that part.
+- Start screen → gear → What's new lists what changed in the last three versions, for the whole app — each version in its own fold-out, the latest open. In Capture, the Photo editor and the Video editor, gear → App → ★ WHAT'S NEW shows only the changes for that part.
 - Start screen → gear → Home-screen shortcuts: turn it on, then add separate icons for Capture, the Photo editor or the Video editor to your phone's home screen — each opens straight into that part of the app.
 - APP COLOUR changes the highlight colour.
 - "Always start in Capture" opens the app straight into the camera.

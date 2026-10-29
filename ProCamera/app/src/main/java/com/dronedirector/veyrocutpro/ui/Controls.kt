@@ -99,6 +99,29 @@ private fun <T> List<T>.next(current: T): T = if (isEmpty()) current else this[(
 
 // ------------------------------------------------------------------ quick settings bar
 
+/** LAST: the set-ups you shot with most recently (mode, lens, exposure, video settings…). */
+@Composable
+private fun RecentSetupsItem(c: ProCameraController, enabled: Boolean) {
+    var open by remember { mutableStateOf(false) }
+    var list by remember { mutableStateOf(emptyList<com.dronedirector.veyrocutpro.camera.CamPreset>()) }
+    Box {
+        QuickItem("SET", "LAST", enabled = enabled) { list = c.recentSetups(); open = true }
+        androidx.compose.material3.DropdownMenu(open, { open = false }, containerColor = Pro.PanelSolid) {
+            Text("RECENT SET-UPS", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp))
+            if (list.isEmpty()) Text("Nothing yet — the set-ups you shoot with show here.", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp))
+            list.forEachIndexed { i, p ->
+                val lens = c.state.value.lenses.getOrNull(p.lensIndex)?.label ?: ""
+                val exp = if (p.manualIso || p.manualShutter) "ISO ${p.iso}" else "AUTO"
+                val vid = if (p.mode.isVideo) " · ${p.videoRes.label} ${p.fps} fps" else " · ${p.photoFormat.label}"
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text("${p.mode.label} · $lens · $exp$vid", color = Color.White, fontSize = 13.sp) },
+                    onClick = { open = false; c.recallRecent(i) },
+                )
+            }
+        }
+    }
+}
+
 /** C1 / C2 / C3 custom set-ups: tap to recall, hold to save the current settings. */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -129,11 +152,13 @@ private fun PresetItem(slot: Int, c: ProCameraController, enabled: Boolean) {
 }
 
 @Composable
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 private fun QuickItem(label: String, value: String, active: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
+    val view = androidx.compose.ui.platform.LocalView.current
     Column(
         Modifier
             .clip(RoundedCornerShape(8.dp))
-            .clickable(enabled = enabled, onClick = onClick)
+            .combinedClickable(enabled = enabled, onClick = onClick, onLongClick = { HelpTip.show(label, view) })
             .alpha(if (enabled) 1f else 0.35f)
             .padding(horizontal = 8.dp, vertical = 6.dp)
             .widthIn(min = 44.dp),
@@ -279,6 +304,7 @@ private fun QuickItems(s: CameraUiState, c: ProCameraController, onSettings: () 
     // Custom set-ups C1 / C2 / C3 (can be hidden in the Panels menu).
     if (panelOn("cap.presets") && mode != CaptureMode.LIVE) {
         for (slot in 1..3) PresetItem(slot, c, enabled = !s.recording)
+        RecentSetupsItem(c, enabled = !s.recording)
     }
     // Quick switches for privacy blur and the video title (can be hidden in the Panels menu).
     val x = com.dronedirector.veyrocutpro.camera.CaptureExtras
@@ -419,9 +445,11 @@ private fun ReadoutExtras(s: CameraUiState, c: ProCameraController) {
 }
 
 @Composable
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 private fun MiniChip(label: String, value: String, on: Boolean, onClick: () -> Unit) {
+    val view = androidx.compose.ui.platform.LocalView.current
     Column(
-        Modifier.padding(2.dp).clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick).padding(horizontal = 4.dp, vertical = 5.dp).widthIn(min = 38.dp),
+        Modifier.padding(2.dp).clip(RoundedCornerShape(8.dp)).combinedClickable(onClick = onClick, onLongClick = { HelpTip.show(label, view) }).padding(horizontal = 4.dp, vertical = 5.dp).widthIn(min = 38.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(label, style = Pro.Label.copy(color = Pro.Dim))
@@ -683,6 +711,7 @@ fun ShutterButton(
     onHoldEnd: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
+    val hView = androidx.compose.ui.platform.LocalView.current
     val interaction = remember { MutableInteractionSource() }
     val clickPressed by interaction.collectIsPressedAsState()
     var holdPressed by remember { mutableStateOf(false) }
@@ -698,7 +727,7 @@ fun ShutterButton(
             .scale(scale)
             .clip(CircleShape)
             .then(
-                if (onHoldStart == null) Modifier.clickable(interactionSource = interaction, indication = null, onClick = onClick)
+                if (onHoldStart == null) Modifier.clickable(interactionSource = interaction, indication = null) { Haptics.confirm(hView); onClick() }
                 else Modifier.pointerInput(Unit) {
                     // Tap = one burst; press and hold = keep shooting until released.
                     detectTapGestures(
@@ -713,7 +742,7 @@ fun ShutterButton(
                             val released = tryAwaitRelease()
                             job.cancel()
                             holdPressed = false
-                            if (held) onHoldEnd?.invoke() else if (released) onClick()
+                            if (held) onHoldEnd?.invoke() else if (released) { Haptics.confirm(hView); onClick() }
                         },
                     )
                 }
@@ -774,13 +803,16 @@ fun GalleryThumb(uri: Uri?, size: Dp, onOpen: () -> Unit) {
 }
 
 @Composable
-private fun RoundIcon(enabled: Boolean = true, size: Dp, onClick: () -> Unit, content: @Composable () -> Unit) {
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+private fun RoundIcon(enabled: Boolean = true, size: Dp, help: String? = null, onClick: () -> Unit, content: @Composable () -> Unit) {
+    val view = androidx.compose.ui.platform.LocalView.current
+    val tick = rememberTick()
     Box(
         Modifier
             .size(size)
             .clip(CircleShape)
             .background(Color.White.copy(alpha = 0.12f))
-            .clickable(enabled = enabled, onClick = onClick)
+            .combinedClickable(enabled = enabled, onClick = { tick(); onClick() }, onLongClick = help?.let { h -> { HelpTip.show(h, view) } })
             .alpha(if (enabled) 1f else 0.35f),
         contentAlignment = Alignment.Center,
     ) { content() }
@@ -876,7 +908,7 @@ private fun LensSwitch(s: CameraUiState, c: ProCameraController, vertical: Boole
 }
 
 @Composable
-fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean, tablet: Boolean, modifier: Modifier = Modifier, onGallery: () -> Unit = {}) {
+fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean, tablet: Boolean, modifier: Modifier = Modifier, onGallery: () -> Unit = {}, hand: Int = 0) {
     val ls by c.live.state.collectAsState()
     val liveMode = s.mode == CaptureMode.LIVE
     val shutter = if (tablet) 88.dp else 74.dp
@@ -886,7 +918,7 @@ fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean,
 
     val leftButton = @Composable {
         if (recording) {
-            RoundIcon(size = small, onClick = { c.pauseResume() }) {
+            RoundIcon(size = small, help = "Pause", onClick = { c.pauseResume() }) {
                 Icon(if (s.paused) Icons.Filled.PlayArrow else Icons.Filled.Pause, contentDescription = "Pause", tint = Color.White)
             }
         } else {
@@ -895,16 +927,16 @@ fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean,
     }
     val rightButton = @Composable {
         if (liveMode) {
-            RoundIcon(size = small, onClick = { c.live.switchCamera() }) {
+            RoundIcon(size = small, help = "Switch camera", onClick = { c.live.switchCamera() }) {
                 Icon(Icons.Filled.Cameraswitch, contentDescription = "Switch camera", tint = Color.White)
             }
         } else if (recording) {
-            RoundIcon(size = small, onClick = { c.snapshot() }) {
+            RoundIcon(size = small, help = "Photo while recording", onClick = { c.snapshot() }) {
                 Icon(Icons.Filled.CameraAlt, contentDescription = "Photo while recording", tint = Color.White)
             }
         } else {
             val hasFront = s.lenses.any { it.facing == androidx.camera.core.CameraSelector.LENS_FACING_FRONT }
-            RoundIcon(enabled = hasFront && !s.panoActive && !s.recording && s.mode != CaptureMode.PANORAMA, size = small, onClick = { c.flipCamera() }) {
+            RoundIcon(enabled = hasFront && !s.panoActive && !s.recording && s.mode != CaptureMode.PANORAMA, size = small, help = "Switch camera", onClick = { c.flipCamera() }) {
                 Icon(Icons.Filled.Cameraswitch, contentDescription = "Switch camera", tint = Color.White)
             }
         }
@@ -936,18 +968,28 @@ fun CaptureControls(s: CameraUiState, c: ProCameraController, vertical: Boolean,
         ) {
             LensSwitch(s, c, vertical = false)
             ModeSwitch(s, c, vertical = false)
-            Row(
+            val shutterBtn = @Composable {
+                ShutterButton(
+                    s, shutter, liveMode, ls.isBusy,
+                    onHoldStart = if (s.mode == CaptureMode.BURST) ({ c.startHoldBurst() }) else null,
+                    onHoldEnd = { c.stopHoldBurst() },
+                ) { c.shutter() }
+            }
+            if (hand == 0) Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 leftButton()
-                ShutterButton(
-                s, shutter, liveMode, ls.isBusy,
-                onHoldStart = if (s.mode == CaptureMode.BURST) ({ c.startHoldBurst() }) else null,
-                onHoldEnd = { c.stopHoldBurst() },
-            ) { c.shutter() }
+                shutterBtn()
                 rightButton()
+            } else Row(
+                // One-handed: the shutter sits under the thumb, the small buttons next to it.
+                Modifier.fillMaxWidth().padding(horizontal = 22.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp, if (hand == 1) Alignment.End else Alignment.Start),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (hand == 1) { leftButton(); rightButton(); shutterBtn() } else { shutterBtn(); rightButton(); leftButton() }
             }
         }
     }

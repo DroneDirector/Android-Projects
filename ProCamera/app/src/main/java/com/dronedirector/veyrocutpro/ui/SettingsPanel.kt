@@ -10,6 +10,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -77,6 +79,9 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 }
             }
 
+            var query by androidx.compose.runtime.remember { mutableStateOf("") }
+            SettingsSearchField(query) { query = it }
+            androidx.compose.runtime.CompositionLocalProvider(LocalSettingsQuery provides query) {
             val sctx = androidx.compose.ui.platform.LocalContext.current
 
             SettingsGroup("photo", "Photo", "Format (JPEG / RAW), photo size, burst, self-timer, interval, bracket, auto-enhance") {
@@ -525,7 +530,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 }) { Text("Start clean feed", color = Pro.Amber) }
             }
 
-            SettingsGroup("cap_look", "Appearance", "Dark, light or like the phone — the same choice as in the editors") {
+            SettingsGroup("cap_look", "Appearance", "Dark, light or like the phone, one-handed layout, haptic feedback — the same choice as in the editors") {
                 val actx = androidx.compose.ui.platform.LocalContext.current
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 6.dp)) {
                     listOf("Dark", "Light", "Like the phone").forEachIndexed { i, n ->
@@ -536,6 +541,8 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                     }
                 }
                 Text("Light makes the menus and panels light with dark text; the controls on the camera picture stay dark so they're easy to read.", color = Pro.Dim, fontSize = 12.sp)
+                SettingsKeywords("One-handed", "Haptic feedback", "thumb", "vibration")
+                ComfortSettings()
             }
 
             SettingsGroup("storage", "Storage & backup", "Where photos and videos are saved, backup and restore") {
@@ -575,6 +582,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
 
             Spacer(Modifier.padding(4.dp))
             Text("Photos and videos save to DCIM/AlcorCutPro.", style = Pro.Label.copy(fontSize = 11.sp, letterSpacing = 0.sp))
+            }
         }
     }
 }
@@ -610,16 +618,19 @@ private fun PresetSyncRow(c: com.dronedirector.veyrocutpro.camera.ProCameraContr
 
 @Composable
 private fun Section(title: String) {
+    SettingsKeywords(title)
     Text(title, style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 14.dp, bottom = 2.dp))
 }
 
 @Composable
 private fun ToggleRow(title: String, subtitle: String, checked: Boolean, onToggle: () -> Unit) {
+    SettingsKeywords(title, subtitle)
+    val tick = rememberTick()
     Row(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onToggle)
+            .clickable { tick(); onToggle() }
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -630,7 +641,7 @@ private fun ToggleRow(title: String, subtitle: String, checked: Boolean, onToggl
         Spacer(Modifier.width(12.dp))
         Switch(
             checked = checked,
-            onCheckedChange = { onToggle() },
+            onCheckedChange = { tick(); onToggle() },
             colors = SwitchDefaults.colors(checkedTrackColor = Pro.Amber, checkedThumbColor = Color.Black),
         )
     }
@@ -638,6 +649,7 @@ private fun ToggleRow(title: String, subtitle: String, checked: Boolean, onToggl
 
 @Composable
 private fun <T> ChoiceRow(title: String, options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) {
+    SettingsKeywords(title, *options.map(label).toTypedArray())
     val chips = @Composable { mod: Modifier ->
         Row(mod, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             options.forEach { o ->
@@ -681,6 +693,7 @@ private fun InfoRow(title: String, value: String) {
 
 @Composable
 private fun ChoiceRadio(title: String, subtitle: String, selected: Boolean, onClick: () -> Unit) {
+    SettingsKeywords(title, subtitle)
     Row(
         Modifier
             .fillMaxWidth()
@@ -765,6 +778,21 @@ private fun Stepper(value: String, onMinus: () -> Unit, onPlus: () -> Unit) {
 @Composable
 internal fun SettingsGroup(key: String, title: String, summary: String, content: @Composable () -> Unit) {
     var open by androidx.compose.runtime.saveable.rememberSaveable(key) { mutableStateOf(false) }
+    val q = LocalSettingsQuery.current
+    if (q.isNotBlank()) {
+        // Searching: groups whose name, summary or rows match open by themselves; the rest are hidden.
+        val hit = androidx.compose.runtime.remember(q) { mutableStateOf(false) }
+        val show = settingsMatch(q, title, summary) || hit.value
+        if (show) Column(Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(12.dp)).background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.06f)).padding(horizontal = 14.dp, vertical = 10.dp)) {
+            Text(title, color = Pro.Amber, fontSize = 15.sp)
+            Text(summary, color = Pro.Dim, fontSize = 12.sp, maxLines = 2)
+        }
+        Column(
+            if (show) Modifier.fillMaxWidth().padding(start = 6.dp, end = 2.dp, bottom = 6.dp) else Modifier.fillMaxWidth().height(0.dp).clipToBounds(),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) { androidx.compose.runtime.CompositionLocalProvider(LocalSettingsHit provides hit) { content() } }
+        return
+    }
     Row(
         Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(12.dp)).background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.06f))
             .clickable { open = !open }.padding(horizontal = 14.dp, vertical = 12.dp),

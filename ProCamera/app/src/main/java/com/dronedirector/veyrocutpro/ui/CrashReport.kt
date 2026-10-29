@@ -33,6 +33,7 @@ object CrashReport {
                 error.printStackTrace(java.io.PrintWriter(sw))
                 val during = if (marker(app).exists()) "while recovering an unsaved edit\n" else ""
                 AppLog.error("CRASH on thread ${thread.name}", error)
+                SafeMode.crashed(app)
                 file(app).writeText(
                     "AlcorCut Pro $version · Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT}) · " +
                         "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}\n" +

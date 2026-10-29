@@ -94,6 +94,11 @@ class MainActivity : ComponentActivity() {
         Thread { com.dronedirector.veyrocutpro.editor.VoiceIsolator.prepare(applicationContext) }.start()
         super.onCreate(savedInstanceState)
         com.dronedirector.veyrocutpro.ui.CrashReport.install(this)
+        com.dronedirector.veyrocutpro.ui.SafeMode.started(this)
+        com.dronedirector.veyrocutpro.ui.OneHanded.load(this)
+        com.dronedirector.veyrocutpro.ui.Haptics.load(this)
+        // Ran fine for a while: no more "closed while starting".
+        window.decorView.postDelayed({ com.dronedirector.veyrocutpro.ui.SafeMode.healthy(applicationContext) }, 25_000)
         BackgroundWatch.start(this)
         com.dronedirector.veyrocutpro.ui.HomeShortcuts.refresh(applicationContext)
         // Android 13+: background tasks show their progress in the notification shade only with this permission.
@@ -151,7 +156,8 @@ class MainActivity : ComponentActivity() {
         }
         // Android closed and rebuilt the app while it was in the background: come back to the screen you were on,
         // not the start screen.
-        if (shared.isEmpty()) savedInstanceState?.getString(KEY_SCREEN)?.let { n ->
+        if (com.dronedirector.veyrocutpro.ui.SafeMode.offer) screen.value = com.dronedirector.veyrocutpro.ui.AppScreen.HOME
+        else if (shared.isEmpty()) savedInstanceState?.getString(KEY_SCREEN)?.let { n ->
             com.dronedirector.veyrocutpro.ui.AppScreen.entries.firstOrNull { it.name == n }?.let { screen.value = it }
         }
         com.dronedirector.veyrocutpro.ui.AppTheme.load(this)
@@ -160,6 +166,12 @@ class MainActivity : ComponentActivity() {
             com.dronedirector.veyrocutpro.ui.AppTheme.screenAllowsLight = true
             ProCamTheme {
                 com.dronedirector.veyrocutpro.ui.CrashReportDialog()
+                com.dronedirector.veyrocutpro.ui.SafeModeDialog {
+                    getSharedPreferences("procam", MODE_PRIVATE).edit().remove("last_mode").remove("last_lens").apply()
+                    controller.setMode(com.dronedirector.veyrocutpro.camera.CaptureMode.PHOTO)
+                    screen.value = com.dronedirector.veyrocutpro.ui.AppScreen.HOME
+                }
+                if (!com.dronedirector.veyrocutpro.ui.SafeMode.offer) com.dronedirector.veyrocutpro.ui.WhatsNewDialog()
                 com.dronedirector.veyrocutpro.ui.AudioHardwareNotice()
                 androidx.compose.runtime.LaunchedEffect(Unit) { com.dronedirector.veyrocutpro.ui.AudioHardware.start(this@MainActivity) }
                 com.dronedirector.veyrocutpro.ui.AppExitLayer {
@@ -199,6 +211,8 @@ class MainActivity : ComponentActivity() {
                 com.dronedirector.veyrocutpro.ui.FirstRunGate()
                 // Capture's keyboard shortcuts (Ctrl + / or Settings → Keyboard shortcuts).
                 if (com.dronedirector.veyrocutpro.camera.CaptureKeys.show) com.dronedirector.veyrocutpro.editor.ShortcutsDialog(com.dronedirector.veyrocutpro.editor.CaptureShortcuts) { com.dronedirector.veyrocutpro.camera.CaptureKeys.show = false }
+                com.dronedirector.veyrocutpro.ui.UndoBarHost()
+                com.dronedirector.veyrocutpro.ui.HelpTipHost()
                 }
                 }
             }

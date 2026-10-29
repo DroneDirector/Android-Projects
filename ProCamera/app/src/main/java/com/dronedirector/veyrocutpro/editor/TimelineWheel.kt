@@ -102,14 +102,14 @@ fun TimelineWheel(state: ScrollState, modifier: Modifier = Modifier, fancy: Bool
                     val k = (state.maxValue + size.height).toFloat() / size.height
                     state.dispatchRawDelta(dy * k)
                     val ridge = 6.dp.toPx() * k
-                    if (abs(state.value - lastTick) > ridge) { lastTick = state.value.toFloat(); haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
+                    if (abs(state.value - lastTick) > ridge) { lastTick = state.value.toFloat(); if (com.dronedirector.veyrocutpro.ui.Haptics.on) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
                 }
             }
             .pointerInput(state) {
                 detectTapGestures { o ->
                     val f = (o.y / size.height).coerceIn(0f, 1f)
                     state.dispatchRawDelta(f * state.maxValue - state.value)
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    if (com.dronedirector.veyrocutpro.ui.Haptics.on) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 }
             }
     ) {
@@ -262,14 +262,14 @@ fun TimelineHWheel(zoom: TimelineZoom, modifier: Modifier = Modifier, fancy: Boo
                     val msPerPx = zoom.totalMs.toFloat() / size.width
                     zoom.scrollBy((dx * msPerPx).toLong())
                     val ridge = 6.dp.toPx() * msPerPx
-                    if (kotlin.math.abs(zoom.scrollMs - lastTick) > ridge) { lastTick = zoom.scrollMs.toFloat(); haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
+                    if (kotlin.math.abs(zoom.scrollMs - lastTick) > ridge) { lastTick = zoom.scrollMs.toFloat(); if (com.dronedirector.veyrocutpro.ui.Haptics.on) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
                 }
             }
             .pointerInput(zoom) {
                 detectTapGestures { o ->
                     val f = (o.x / size.width).coerceIn(0f, 1f)
                     zoom.scrollMs = (f * zoom.maxScrollMs).toLong()
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    if (com.dronedirector.veyrocutpro.ui.Haptics.on) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 }
             }
     ) {

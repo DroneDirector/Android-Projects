@@ -203,12 +203,16 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                 val rail = if (tablet) 132.dp else 120.dp
                 val topBar = if (tablet) 60.dp else 56.dp
                 val bottomBar = if (tablet) 226.dp else 214.dp
+                // One-handed (Appearance): on a phone held upright the top bar moves down, within thumb reach.
+                val oneHand = !landscape && !tablet && OneHanded.side != 0
+                val topPad = if (oneHand) 0.dp else topBar
+                val botPad = if (oneHand) bottomBar + topBar else bottomBar
                 // Space taken by the control bars around the viewfinder.
                 val barPad = androidx.compose.foundation.layout.PaddingValues(
                     start = if (landscape) sideBar else 0.dp,
                     end = if (landscape) rail else 0.dp,
-                    top = if (landscape) 0.dp else topBar,
-                    bottom = if (landscape) 0.dp else bottomBar,
+                    top = if (landscape) 0.dp else topPad,
+                    bottom = if (landscape) 0.dp else botPad,
                 )
                 // Video modes fill the whole screen edge to edge; photo modes keep exact framing.
                 // Clean feed: nothing but the picture, edge to edge (for HDMI out / mirroring / capture).
@@ -227,7 +231,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                 // (e.g. 16:9 on a phone held upright) it is widened edge to edge instead and allowed to
                 // run under the controls, like the stock camera.
                 val freeW = maxWidth - (if (landscape) sideBar + rail else 0.dp)
-                val freeH = maxHeight - (if (landscape) 0.dp else topBar + bottomBar)
+                val freeH = maxHeight - (if (landscape) 0.dp else topPad + botPad)
                 val freeRatio = freeW.value / freeH.value
                 val widen = !fillScreen && !liveMode &&
                     (if (landscape) freeRatio < frameRatio - 0.01f else freeRatio > frameRatio + 0.01f)
@@ -241,7 +245,7 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                     } else {
                         frameW = maxWidth; frameH = maxWidth / frameRatio
                         if (frameH > maxHeight) { frameH = maxHeight; frameW = maxHeight * frameRatio }
-                        frameY = if (topBar + frameH <= maxHeight) topBar else (maxHeight - frameH) / 2
+                        frameY = if (topPad + frameH <= maxHeight) topPad else (maxHeight - frameH) / 2
                         frameX = (maxWidth - frameW) / 2
                     }
                 }
@@ -250,8 +254,8 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                     start = (sideBar - frameX).coerceAtLeast(0.dp),
                     end = (frameX + frameW - (maxWidth - rail)).coerceAtLeast(0.dp),
                 ) else androidx.compose.foundation.layout.PaddingValues(
-                    top = (topBar - frameY).coerceAtLeast(0.dp),
-                    bottom = (frameY + frameH - (maxHeight - bottomBar)).coerceAtLeast(0.dp),
+                    top = (topPad - frameY).coerceAtLeast(0.dp),
+                    bottom = (frameY + frameH - (maxHeight - botPad)).coerceAtLeast(0.dp),
                 )
                 val overlayControls = fillScreen || widen
 
@@ -516,11 +520,13 @@ fun CameraScreen(controller: ProCameraController, openSettings: Boolean = false,
                     QuickBar(
                         s, controller, vertical = false, onSettings = { showSettings = true },
                         panelsButton = { CapturePanelsButton(s, controller) },
-                        modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().height(topBar),
+                        modifier = if (oneHand) Modifier.align(Alignment.BottomCenter).padding(bottom = bottomBar).fillMaxWidth().height(topBar)
+                        else Modifier.align(Alignment.TopCenter).fillMaxWidth().height(topBar),
                     )
                     CaptureControls(
                         s, controller, vertical = false, tablet = tablet, onGallery = { showGallery = true },
                         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(bottomBar),
+                        hand = if (oneHand) OneHanded.side else 0,
                     )
                 }
 

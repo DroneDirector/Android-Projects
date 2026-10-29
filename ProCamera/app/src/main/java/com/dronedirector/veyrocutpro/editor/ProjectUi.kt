@@ -1,5 +1,6 @@
 package com.dronedirector.veyrocutpro.editor
 
+import androidx.compose.foundation.combinedClickable
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -56,10 +57,12 @@ import java.util.Locale
 
 /** LOAD / SAVE buttons that sit next to EXPORT. */
 @Composable
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 fun BarButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
+    val view = androidx.compose.ui.platform.LocalView.current
     Text(
         label, style = Pro.Value.copy(color = if (enabled) Pro.Amber else Pro.Dim, fontSize = 11.sp),
-        modifier = Modifier.padding(start = 4.dp).clip(RoundedCornerShape(50)).background(Ed.Raised).clickable(enabled = enabled, onClick = onClick)
+        modifier = Modifier.padding(start = 4.dp).clip(RoundedCornerShape(50)).background(Ed.Raised).combinedClickable(enabled = enabled, onClick = onClick, onLongClick = { com.dronedirector.veyrocutpro.ui.HelpTip.show(label, view) })
             .padding(horizontal = 9.dp, vertical = 7.dp),
     )
 }

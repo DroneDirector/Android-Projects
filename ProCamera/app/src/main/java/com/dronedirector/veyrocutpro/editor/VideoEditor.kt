@@ -3308,6 +3308,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         if (es.histPos >= history.lastIndex) { es.message = "Nothing to redo"; return }
         es.histPos++; applySnap(history[es.histPos]); es.message = "Redo"
     }
+    // Panel RESET → UNDO bar goes back to the state recorded just before it.
+    DisposableEffect(Unit) {
+        com.dronedirector.veyrocutpro.ui.ResetUndo.capture = { val pos = es.histPos; { if (pos in history.indices) { es.histPos = pos; applySnap(history[pos]) } } }
+        onDispose { com.dronedirector.veyrocutpro.ui.ResetUndo.capture = null }
+    }
 
     /** Timeline scrubbing: fast keyframe seeks while dragging, exact frame when released. */
     fun scrub(ms: Long, final: Boolean) {

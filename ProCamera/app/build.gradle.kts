@@ -7,8 +7,15 @@ plugins {
 // CI sets VERSION_CODE to the build number so every APK installs over the previous one.
 val ciVersionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
 
+// The changelog goes into the app, for the "What's new" card after an update.
+val changelogDir: File = layout.buildDirectory.dir("generated/changelog").get().asFile.also { d ->
+    d.mkdirs()
+    rootProject.file("CHANGELOG.md").takeIf { it.exists() }?.copyTo(File(d, "CHANGELOG.md"), overwrite = true)
+}
+
 android {
     namespace = "com.dronedirector.veyrocutpro"
+    sourceSets["main"].assets.srcDir(changelogDir)
     // AI models and soundtracks are downloaded on first launch (not in the APK).
     androidResources { noCompress += listOf("onnx", "tflite") }
     // One APK per processor type: each phone gets only its own native code (smaller download).

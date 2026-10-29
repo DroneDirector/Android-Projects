@@ -548,7 +548,7 @@ fun TimelineView(
                                     return best
                                 }
                                 fun feel(target: Long?) {
-                                    if (target != null && target != lastSnap) haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                    if (target != null && target != lastSnap && com.dronedirector.veyrocutpro.ui.Haptics.on) haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
                                     lastSnap = target ?: Long.MIN_VALUE
                                 }
                                 fun snap(ms: Long): Long { val n = nearest(ms); feel(n); return n ?: ms }

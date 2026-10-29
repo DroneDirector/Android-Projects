@@ -1,5 +1,6 @@
 package com.dronedirector.veyrocutpro.editor
 
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.graphics.nativeCanvas
 import com.dronedirector.veyrocutpro.ui.pinchAndMove
 import androidx.compose.material.icons.filled.Storage
@@ -1148,6 +1149,11 @@ private fun PhotoWorkspace(
     LaunchedEffect(split, base, edit.geometry) {
         val b = base
         beforeImg = if (!split || b == null) null else withContext(Dispatchers.Default) { ImageOps.render(b, ProGrade(), Detail(), edit.geometry, null) }
+    }
+    // Panel RESET → UNDO bar brings back the edit from just before.
+    DisposableEffect(Unit) {
+        com.dronedirector.veyrocutpro.ui.ResetUndo.capture = { val before = edit; { edit = before } }
+        onDispose { com.dronedirector.veyrocutpro.ui.ResetUndo.capture = null }
     }
     // Undo history: record settled states.
     LaunchedEffect(edit) {
@@ -2802,8 +2808,10 @@ private fun PhotoWorkspace(
 }
 
 @Composable
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 fun TopIcon(icon: ImageVector, label: String, enabled: Boolean = true, tint: Color = Color.White, onClick: () -> Unit) {
-    Box(Modifier.size(42.dp).clip(CircleShape).clickable(enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
+    val view = androidx.compose.ui.platform.LocalView.current
+    Box(Modifier.size(42.dp).clip(CircleShape).combinedClickable(enabled = enabled, onClick = onClick, onLongClick = { com.dronedirector.veyrocutpro.ui.HelpTip.show(label, view) }), contentAlignment = Alignment.Center) {
         Icon(icon, contentDescription = label, tint = if (enabled) tint else tint.copy(alpha = 0.3f), modifier = Modifier.size(22.dp))
     }
 }
@@ -3685,8 +3693,10 @@ fun savePicture(context: Context, bmp: Bitmap, png: Boolean, quality: Int, area:
 
 /** Slightly smaller top-bar icon so the photo editor's bar fits phones. */
 @Composable
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 private fun BarIcon(icon: ImageVector, label: String, enabled: Boolean = true, tint: Color = Color.White, onClick: () -> Unit) {
-    Box(Modifier.size(36.dp).clip(CircleShape).clickable(enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
+    val view = androidx.compose.ui.platform.LocalView.current
+    Box(Modifier.size(36.dp).clip(CircleShape).combinedClickable(enabled = enabled, onClick = onClick, onLongClick = { com.dronedirector.veyrocutpro.ui.HelpTip.show(label, view) }), contentAlignment = Alignment.Center) {
         Icon(icon, contentDescription = label, tint = if (enabled) tint else tint.copy(alpha = 0.3f), modifier = Modifier.size(21.dp))
     }
 }

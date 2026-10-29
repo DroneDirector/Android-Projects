@@ -112,6 +112,7 @@ import com.dronedirector.veyrocutpro.camera.MediaItem
 import com.dronedirector.veyrocutpro.camera.MediaLibrary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.util.Date
 
@@ -189,7 +190,15 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
         if (Build.VERSION.SDK_INT >= 30 && item.uri.authority == MediaStore.AUTHORITY) {
             scope.launch {
                 val ok = withContext(Dispatchers.IO) { MediaLibrary.setTrashed(context, listOf(item.uri), true) }
-                if (ok) { onChanged(); reload() }
+                if (ok) {
+                    onChanged(); reload()
+                    // No "are you sure?": a bar to take it back instead.
+                    val app = context.applicationContext
+                    UndoBar.show(if (item.isVideo) "Video moved to Trash" else "Photo moved to Trash") {
+                        Thread { MediaLibrary.setTrashed(app, listOf(item.uri), false) }.start()
+                        scope.launch { delay(400); try { onChanged(); reload() } catch (_: Throwable) {} }
+                    }
+                }
                 else {
                     pendingDelete = null
                     if (Build.VERSION.SDK_INT >= 30) deleteLauncher.launch(IntentSenderRequest.Builder(MediaStore.createTrashRequest(context.contentResolver, listOf(item.uri), true).intentSender).build())
@@ -328,7 +337,9 @@ fun GalleryScreen(onClose: () -> Unit, onChanged: () -> Unit) {
                 items = shown,
                 start = v.coerceIn(0, shown.lastIndex),
                 onClose = { viewing = null },
-                onDelete = { confirmItem = it },
+                onDelete = { item ->
+                    if (hasTrash && item.uri.authority == MediaStore.AUTHORITY) { if (shown.size <= 1) viewing = null; delete(item) } else confirmItem = item
+                },
                 favorites = favorites,
                 onFavorite = { item ->
                     com.dronedirector.veyrocutpro.camera.Favorites.toggle(context, item.uri)

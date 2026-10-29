@@ -181,7 +181,13 @@ internal fun readable(s: String): String {
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun SectionHeader(text: String, onReset: (() -> Unit)? = null) {
+fun SectionHeader(text: String, onReset0: (() -> Unit)? = null) {
+    // RESET can be taken back from the bar that appears ("Light reset — UNDO").
+    val onReset: (() -> Unit)? = onReset0?.let { r -> {
+        val restore = ResetUndo.capture?.invoke()
+        r()
+        if (restore != null) UndoBar.show(I18n.tr("{0} reset").replace("{0}", I18n.tr(text).lowercase().replaceFirstChar { it.uppercase() }), restore)
+    } }
     val c = LocalFold.current
     if (c == null) {
         Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {

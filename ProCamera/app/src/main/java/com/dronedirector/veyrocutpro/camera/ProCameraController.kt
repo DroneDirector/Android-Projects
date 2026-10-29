@@ -106,6 +106,8 @@ class ProCameraController(private val context: Context) {
             clipNaming = prefEnum(context, "clip_naming", ClipNaming.STANDARD),
             // Pro photo: the file format you chose last time (JPEG, RAW + JPEG or RAW only).
             photoFormat = prefEnum(context, "photo_format", PhotoFormat.JPEG),
+            // Pick up where you left off: the last mode (not in safe mode).
+            mode = lastModeAtStart(context),
             cameraLetter = (context.getSharedPreferences("procam", Context.MODE_PRIVATE).getString("camera_letter", "A") ?: "A").first(),
             reel = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getInt("reel", 1),
             clipNumber = context.getSharedPreferences("procam", Context.MODE_PRIVATE).getInt("clip", 1),
@@ -424,7 +426,10 @@ class ProCameraController(private val context: Context) {
             return
         }
         val mainBack = back.indices.minByOrNull { abs(back[it].first - 1f) } ?: 0
-        set { it.copy(lenses = lenses, lensIndex = mainBack) }
+        // The lens used last time (not in safe mode).
+        val lastId = if (com.dronedirector.veyrocutpro.ui.SafeMode.active) null else context.getSharedPreferences("procam", Context.MODE_PRIVATE).getString("last_lens", null)
+        val start = lenses.indexOfFirst { it.id == lastId }.takeIf { it >= 0 && !(st.mode == CaptureMode.PANORAMA && lenses[it].facing != CameraSelector.LENS_FACING_BACK) } ?: mainBack
+        set { it.copy(lenses = lenses, lensIndex = start) }
     }
 
     private fun baseSelector(lens: Lens): CameraSelector =
@@ -1204,6 +1209,7 @@ class ProCameraController(private val context: Context) {
             imageAnalysis = null
         }
         if (mode.isSmart) lastSmartMode = mode else lastRegularMode = mode
+        context.getSharedPreferences("procam", Context.MODE_PRIVATE).edit().putString("last_mode", mode.name).apply()
         set {
             it.copy(
                 mode = mode, activeParam = null, showFilters = false,
@@ -1257,6 +1263,17 @@ class ProCameraController(private val context: Context) {
     fun recallPreset(slot: Int) {
         val p = CamPresets.load(context, slot)
         if (p == null) { toast("C$slot is empty — hold it to save your current settings"); return }
+        applySetup(p)
+    }
+
+    /** The last few set-ups you shot with (newest first). */
+    fun recentSetups(): List<CamPreset> = CamPresets.recent(context)
+
+    fun recallRecent(i: Int) { CamPresets.recent(context).getOrNull(i)?.let { applySetup(it) } }
+
+    private fun rememberSetup() { val p = CamPreset.from(st); if (p.mode != CaptureMode.LIVE) ioExecutor.execute { CamPresets.addRecent(context, p) } }
+
+    private fun applySetup(p: CamPreset) {
         if (st.recording) { toast("Stop recording first"); return }
         if (p.mode == CaptureMode.LIVE) return
         if (p.mode != st.mode) setMode(p.mode)
@@ -1290,6 +1307,7 @@ class ProCameraController(private val context: Context) {
     fun selectLens(index: Int) {
         if (st.recording || index == st.lensIndex || index !in st.lenses.indices) return
         set { it.copy(lensIndex = index, manualFocus = false) }
+        st.lenses.getOrNull(index)?.let { l -> context.getSharedPreferences("procam", Context.MODE_PRIVATE).edit().putString("last_lens", l.id).apply() }
         refreshCapabilities()
         bind()
     }
@@ -1771,6 +1789,7 @@ class ProCameraController(private val context: Context) {
             return
         }
         if (!s.ready || s.stitching) return
+        if (!s.recording && !s.panoActive && !s.intervalRunning) rememberSetup()
         if (s.countdown > 0) {
             cancelCountdown()
             return
@@ -2776,7 +2795,30 @@ class ProCameraController(private val context: Context) {
     }
 
     @SuppressLint("MissingPermission")
+    /** Before recording: say so if space, battery or heat will cut the clip short. */
+    private fun warnBeforeRecording() {
+        try {
+            val s = st
+            val mbps = when (s.videoRes.quality) { Quality.UHD -> 50.0; Quality.FHD -> 20.0; Quality.HD -> 10.0; else -> 6.0 } *
+                (if (s.highBitrate) 1.5 else 1.0) * (if (s.videoCodec == VideoCodec.HEVC) 0.7 else 1.0) * (s.fps / 30.0).coerceAtLeast(1.0)
+            val free = android.os.Environment.getExternalStorageDirectory().usableSpace
+            val minutes = (free * 8.0 / (mbps * 1_000_000.0) / 60.0).toInt()
+            val bm = context.getSystemService(Context.BATTERY_SERVICE) as? android.os.BatteryManager
+            val battery = bm?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 100
+            val charging = bm?.isCharging == true
+            val hot = Build.VERSION.SDK_INT >= 29 &&
+                (context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager)?.currentThermalStatus?.let { it >= android.os.PowerManager.THERMAL_STATUS_SEVERE } == true
+            val notes = buildList {
+                if (minutes < 15) add("about $minutes min of ${s.videoRes.label} left on the phone")
+                if (battery in 1..14 && !charging) add("battery at $battery %")
+                if (hot) add("the phone is hot and may stop recording")
+            }
+            if (notes.isNotEmpty()) toast("Heads up: " + notes.joinToString(", "))
+        } catch (_: Throwable) {}
+    }
+
     private fun startRecording() {
+        warnBeforeRecording()
         // Pre-record running: the clip simply continues from the buffer.
         val pb = preBuffer
         if (pb != null && preUserNs < 0) {
@@ -3007,6 +3049,13 @@ private fun wavStreamImpl(context: Context, clip: Uri, tree: String?): java.io.O
     }
     val u = context.contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values) ?: return null
     return context.contentResolver.openOutputStream(u)
+}
+
+/** The mode Capture was left in, for the next start (live, panorama and slow motion start in Photo). */
+private fun lastModeAtStart(context: Context): CaptureMode {
+    if (com.dronedirector.veyrocutpro.ui.SafeMode.active) return CaptureMode.PHOTO
+    val m = prefEnum(context, "last_mode", CaptureMode.PHOTO)
+    return if (m == CaptureMode.LIVE || m == CaptureMode.PANORAMA || m.isSlowMo || !SimpleMode.allowed(m)) CaptureMode.PHOTO else m
 }
 
 private inline fun <reified E : Enum<E>> prefEnum(context: Context, key: String, default: E): E {

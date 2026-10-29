@@ -45,6 +45,21 @@ object CamPresets {
         prefs(c).edit().putString("cam_preset_$slot", gson.toJson(p)).putLong("cam_preset_time", System.currentTimeMillis()).apply()
     }
 
+    // ---- the last set-ups you shot with (newest first, up to 3; not synced)
+
+    fun recent(c: Context): List<CamPreset> = (0 until 3).mapNotNull { i ->
+        try { prefs(c).getString("cam_recent_$i", null)?.let { gson.fromJson(it, CamPreset::class.java) } } catch (_: Throwable) { null }
+    }
+
+    fun addRecent(c: Context, p: CamPreset) {
+        val old = recent(c)
+        if (old.firstOrNull() == p) return
+        val list = (listOf(p) + old.filter { it != p }).take(3)
+        val e = prefs(c).edit()
+        list.forEachIndexed { i, x -> e.putString("cam_recent_$i", gson.toJson(x)) }
+        e.apply()
+    }
+
     // ---- sync between devices through one file the user picks (e.g. in Google Drive or another cloud folder)
 
     private class SyncFile(val updated: Long = 0, val slots: Map<String, String> = emptyMap())

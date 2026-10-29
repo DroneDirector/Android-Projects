@@ -25,6 +25,7 @@ import androidx.compose.material3.SliderDefaults
 import com.dronedirector.veyrocutpro.ui.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,13 +67,21 @@ fun EdSlider(
     format: (Float) -> String = { "%+d".format((it * 100).roundToInt()) },
     onChange: (Float) -> Unit,
 ) {
+    val view = androidx.compose.ui.platform.LocalView.current
+    // A light tick each time the slider passes its centre (default) point.
+    val side = androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
     Column(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(label, color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f).clickable { onChange(default) })
             Text(format(value), style = Pro.Value.copy(color = if (value != default) Pro.Amber else Pro.Dim, fontSize = 12.sp))
         }
         Slider(
-            value = value, onValueChange = onChange, valueRange = range,
+            value = value, onValueChange = { v ->
+                val sd = if (v > default) 1 else if (v < default) -1 else 0
+                if (side.intValue != 0 && sd != side.intValue) com.dronedirector.veyrocutpro.ui.Haptics.tick(view)
+                side.intValue = sd
+                onChange(v)
+            }, valueRange = range,
             modifier = Modifier.height(28.dp),
             colors = SliderDefaults.colors(thumbColor = Pro.Amber, activeTrackColor = Pro.Amber, inactiveTrackColor = com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.14f)),
         )
@@ -121,7 +130,10 @@ fun HueBar(hue: Float, onChange: (Float) -> Unit) {
 }
 
 @Composable
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 fun Chips(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    val tick = com.dronedirector.veyrocutpro.ui.rememberTick()
+    val view = androidx.compose.ui.platform.LocalView.current
     Row(
         Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -133,7 +145,7 @@ fun Chips(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
                     .background(if (sel) Pro.Amber else com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.08f))
-                    .clickable { onSelect(i) }
+                    .combinedClickable(onClick = { tick(); onSelect(i) }, onLongClick = { com.dronedirector.veyrocutpro.ui.HelpTip.show(o, view) })
                     .padding(horizontal = 12.dp, vertical = 6.dp),
             )
         }
@@ -371,9 +383,11 @@ fun PreferencesSection(screen: com.dronedirector.veyrocutpro.ui.AppScreen, playb
     val k = "pref_" + screen.name + "_"
     val isVideo = screen == com.dronedirector.veyrocutpro.ui.AppScreen.VIDEO_EDITOR
     val isEditor = isVideo || screen == com.dronedirector.veyrocutpro.ui.AppScreen.PHOTO_EDITOR
-    com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "look", "Appearance", "Dark, light or like the phone") {
+    com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "look", "Appearance", "Dark, light or like the phone, one-handed layout, haptic feedback") {
         Chips(listOf("Dark", "Light", "Like the phone"), com.dronedirector.veyrocutpro.ui.AppTheme.pref) { com.dronedirector.veyrocutpro.ui.AppTheme.set(ctx, it) }
         Text("The light look is used in the photo and video editors. The picture, the timeline and the media strip stay dark so colours are judged right, and Capture stays dark because it sits on the camera picture.", color = Pro.Dim, fontSize = 12.sp)
+        com.dronedirector.veyrocutpro.ui.SettingsKeywords("One-handed", "Haptic feedback", "thumb", "vibration")
+        com.dronedirector.veyrocutpro.ui.ComfortSettings()
     }
     com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "sound", "Sound", "Shutter sound on or off, and which one") {
         val required = android.os.Build.VERSION.SDK_INT >= 33 && android.media.MediaActionSound.mustPlayShutterSound()
@@ -540,7 +554,13 @@ fun EditorSettingsShell(title: String, onDismiss: () -> Unit, content: @Composab
         onDismissRequest = onDismiss,
         containerColor = Pro.PanelSolid,
         title = { Text(title, color = Color.White) },
-        text = { Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) { content() } },
+        text = {
+            var query by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+            Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+                com.dronedirector.veyrocutpro.ui.SettingsSearchField(query) { query = it }
+                androidx.compose.runtime.CompositionLocalProvider(com.dronedirector.veyrocutpro.ui.LocalSettingsQuery provides query) { content() }
+            }
+        },
         confirmButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Done", color = Pro.Amber) } },
     )
 }

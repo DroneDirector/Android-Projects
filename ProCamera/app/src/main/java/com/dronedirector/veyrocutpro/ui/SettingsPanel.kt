@@ -551,7 +551,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 BackupSection()
             }
 
-            SettingsGroup("app", "App", "App colour, language, mouse pointer, startup screen, guide, tour, licences, privacy") {
+            SettingsGroup("app", "App", "App colour, language, mouse pointer, startup screen, guide, what's new, tour, licences, privacy") {
                 Section("APP COLOUR")
                 AccentPicker()
                 LanguagePicker()
@@ -563,6 +563,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                     StartScreen.set(sctx, if (alwaysCapture) AppScreen.CAPTURE else AppScreen.HOME)
                 }
                 GuideButton(GuideVariant.CAPTURE)
+                WhatsNewButton(NewsArea.CAPTURE, onClose)
                 TourButton()
                 LicensesButton()
                 PrivacyButton()

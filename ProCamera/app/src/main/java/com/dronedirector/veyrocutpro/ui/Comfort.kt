@@ -228,23 +228,44 @@ object ResetUndo {
 
 // ------------------------------------------------------------------ what's new
 
+/** Which part of the app a "What's new" list is for. */
+enum class NewsArea { ALL, CAPTURE, PHOTO, VIDEO }
+
 /** After an update: a card with what changed (from the changelog inside the app). */
 object WhatsNew {
     private const val KEY = "seen_version"
 
-    /** Start screen → gear → What's new: show the card again. */
-    var requested by mutableIntStateOf(0)
-    fun showAgain() { requested++ }
+    /** Gear → What's new: the last three releases, for the whole app or one part of it. */
+    var request by mutableStateOf<NewsArea?>(null)
+    fun show(area: NewsArea) { request = area }
 
-    /** The lines for [version]: its own section, or the newest one if it isn't listed yet. */
-    fun lines(c: Context, version: String): List<String> = try {
+    class Release(val title: String, val lines: List<String>)
+
+    /** Newest first; "Unreleased" (this build) is named after the installed version. */
+    fun releases(c: Context, version: String, count: Int): List<Release> = try {
         val text = c.assets.open("CHANGELOG.md").bufferedReader().readText()
-        val sections = text.split(Regex("(?m)^## ")).drop(1)
-        val sec = sections.firstOrNull { it.startsWith("$version ") || it.startsWith("$version\n") }
-            ?: sections.firstOrNull { it.startsWith("Unreleased") && it.lines().drop(1).any { l -> l.startsWith("- ") } }
-            ?: sections.firstOrNull { it.lines().drop(1).any { l -> l.startsWith("- ") } }
-        sec?.lines()?.drop(1)?.filter { it.startsWith("- ") }?.map { it.removePrefix("- ").trim() }.orEmpty()
+        text.split(Regex("(?m)^## ")).drop(1).mapNotNull { sec ->
+            val head = sec.lineSequence().first().trim()
+            val lines = sec.lines().drop(1).filter { it.startsWith("- ") }.map { it.removePrefix("- ").trim() }
+            if (lines.isEmpty()) null else Release(if (head.startsWith("Unreleased")) version else head, lines)
+        }.distinctBy { it.title.substringBefore(" ") }.take(count)
     } catch (_: Throwable) { emptyList() }
+
+    private val words = mapOf(
+        NewsArea.CAPTURE to listOf("capture", "camera", "record", "shutter", "quick bar", "viewfinder", "lens", "c1–c3", "watch remote", "gallery"),
+        NewsArea.PHOTO to listOf("photo editor", "merge", "filmstrip", "photo library", "photo layer", "sampler", "focus mask", "presets", "raw", "heal", "photo book", "catalog"),
+        NewsArea.VIDEO to listOf("video editor", "timeline", "deliver", "media strip", "clip", "export", "playback", "music", "transition", "video library", "cineform", "proxy"),
+    )
+
+    /** Does this line belong to [area]? */
+    fun about(line: String, area: NewsArea): Boolean {
+        if (area == NewsArea.ALL) return true
+        val l = line.lowercase()
+        return words[area]!!.any { l.contains(it) }
+    }
+
+    /** The lines for [version] only (the card after an update). */
+    fun lines(c: Context, version: String): List<String> = releases(c, version, 1).firstOrNull()?.lines.orEmpty()
 
     /** True when the card should show now (an update, not a fresh install). Marks the version seen. */
     fun due(c: Context, version: String): Boolean {
@@ -272,25 +293,55 @@ private fun boldMarkup(s: String) = buildAnnotatedString {
 fun WhatsNewDialog() {
     val ctx = LocalContext.current
     val version = remember { try { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: "" } catch (_: Throwable) { "" } }
-    var lines by remember { mutableStateOf<List<String>?>(null) }
+    var title by remember { mutableStateOf("") }
+    var list by remember { mutableStateOf<List<WhatsNew.Release>?>(null) }
+    // After an update: this version only.
     LaunchedEffect(Unit) {
-        if (version.isNotEmpty() && WhatsNew.due(ctx, version)) lines = WhatsNew.lines(ctx, version).takeIf { it.isNotEmpty() }
+        if (version.isNotEmpty() && WhatsNew.due(ctx, version)) {
+            val r = WhatsNew.releases(ctx, version, 1)
+            if (r.isNotEmpty()) { title = I18n.tr("What's new in {0}").replace("{0}", version); list = r }
+        }
     }
-    LaunchedEffect(WhatsNew.requested) {
-        if (WhatsNew.requested > 0) lines = WhatsNew.lines(ctx, version).ifEmpty { listOf(I18n.tr("No notes for this version.")) }
+    // From a gear: the last three releases, for the whole app or one part of it.
+    LaunchedEffect(WhatsNew.request) {
+        val area = WhatsNew.request ?: return@LaunchedEffect
+        WhatsNew.request = null
+        title = I18n.tr(when (area) {
+            NewsArea.ALL -> "What's new"
+            NewsArea.CAPTURE -> "What's new in Capture"
+            NewsArea.PHOTO -> "What's new in the Photo editor"
+            NewsArea.VIDEO -> "What's new in the Video editor"
+        })
+        list = WhatsNew.releases(ctx, version, 3).map { r -> WhatsNew.Release(r.title, r.lines.filter { WhatsNew.about(it, area) }) }
     }
-    val l = lines ?: return
+    val l = list ?: return
     AlertDialog(
-        onDismissRequest = { lines = null },
+        onDismissRequest = { list = null },
         containerColor = Pro.PanelSolid,
-        title = { Text(I18n.tr("What's new in {0}").replace("{0}", version), color = Color.White) },
+        title = { Text(title, color = Color.White) },
         text = {
-            Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                l.forEach { Text(boldMarkup("• " + it), color = Pro.Fg, fontSize = 13.sp) }
+            Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                val several = l.size > 1
+                l.forEach { r ->
+                    if (several) Text(r.title, style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.padding(top = 6.dp))
+                    if (r.lines.isEmpty()) Text("Nothing new here in this version.", color = Pro.Dim, fontSize = 12.sp)
+                    r.lines.forEach { Text(boldMarkup("• " + it), color = Pro.Fg, fontSize = 13.sp) }
+                }
+                if (l.isEmpty()) Text("No notes for this version.", color = Pro.Dim, fontSize = 12.sp)
                 Text("Each tool is described in the guide (? or gear → App → Guide).", color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
             }
         },
-        confirmButton = { TextButton(onClick = { lines = null }) { Text("GOT IT", color = Pro.Amber) } },
+        confirmButton = { TextButton(onClick = { list = null }) { Text("GOT IT", color = Pro.Amber) } },
+    )
+}
+
+/** Gear → What's new (the last three releases for this part of the app). */
+@Composable
+fun WhatsNewButton(area: NewsArea, onOpen: () -> Unit = {}) {
+    Text(
+        "★  " + I18n.tr("WHAT'S NEW"), style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp),
+        modifier = Modifier.padding(top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(10.dp))
+            .background(Pro.Fg.copy(alpha = 0.06f)).clickable { onOpen(); WhatsNew.show(area) }.padding(12.dp),
     )
 }
 

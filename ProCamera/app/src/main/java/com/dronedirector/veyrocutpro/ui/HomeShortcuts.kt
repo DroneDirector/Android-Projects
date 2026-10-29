@@ -117,12 +117,12 @@ fun AppSettingsDialog(onClose: () -> Unit) {
             // The "What's new" card from the last update, any time (e.g. if it was closed by mistake).
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(com.dronedirector.veyrocutpro.ui.Pro.Fg.copy(alpha = 0.06f))
-                    .clickable { onClose(); WhatsNew.showAgain() }.padding(12.dp),
+                    .clickable { onClose(); WhatsNew.show(NewsArea.ALL) }.padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
                     Text("What's new", color = Color.White, fontSize = 15.sp)
-                    Text("Show the latest changes again — the window that opens after an update", color = Pro.Dim, fontSize = 12.sp)
+                    Text("The latest changes in the last three versions, for the whole app", color = Pro.Dim, fontSize = 12.sp)
                 }
                 Text("→", color = Pro.Amber, fontSize = 18.sp)
             }

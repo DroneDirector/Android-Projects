@@ -4820,5 +4820,14 @@
 "What's new": "Nyheder",
 "Show the latest changes again — the window that opens after an update": "Vis de seneste ændringer igen — vinduet, der åbner efter en opdatering",
 "No notes for this version.": "Ingen noter for denne version.",
-"Start screen → gear → What's new shows the latest changes again, the same window that opens after an update.": "Startskærm → tandhjul → Nyheder viser de seneste ændringer igen, det samme vindue, der åbner efter en opdatering."
+"Start screen → gear → What's new shows the latest changes again, the same window that opens after an update.": "Startskærm → tandhjul → Nyheder viser de seneste ændringer igen, det samme vindue, der åbner efter en opdatering.",
+"What's new in Capture": "Nyt i Optagelse",
+"What's new in the Photo editor": "Nyt i fotoredigeringen",
+"What's new in the Video editor": "Nyt i videoredigeringen",
+"WHAT'S NEW": "NYHEDER",
+"Nothing new here in this version.": "Intet nyt her i denne version.",
+"The latest changes in the last three versions, for the whole app": "De seneste ændringer i de sidste tre versioner, for hele appen",
+"Start screen → gear → What's new lists what changed in the last three versions, for the whole app. In Capture, the Photo editor and the Video editor, gear → App → ★ WHAT'S NEW shows only the changes for that part.": "Startskærm → tandhjul → Nyheder viser, hvad der er ændret i de sidste tre versioner, for hele appen. I Optagelse, fotoredigeringen og videoredigeringen viser tandhjul → App → ★ NYHEDER kun ændringerne for den del.",
+"App colour, language, mouse pointer, startup screen, guide, what's new, tour, licences, privacy": "Appfarve, sprog, musemarkør, startskærm, vejledning, nyheder, rundvisning, licenser, privatliv",
+"Language, startup screen, quick tour, guide, what's new, licences, privacy": "Sprog, startskærm, hurtig rundvisning, vejledning, nyheder, licenser, privatliv"
 }

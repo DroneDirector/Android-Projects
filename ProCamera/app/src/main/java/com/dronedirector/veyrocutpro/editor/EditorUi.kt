@@ -522,7 +522,7 @@ fun EditorSettingsBody(
                 if (show("ai")) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "ai", "AI", "Cloud AI (fal.ai key, noise reduction, upscale and more)") {
                     com.dronedirector.veyrocutpro.ui.CloudAiSettings(gv)
                 }
-                if (show("app")) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "app", "App", "Language, startup screen, quick tour, guide, licences, privacy") {
+                if (show("app")) com.dronedirector.veyrocutpro.ui.SettingsGroup(k + "app", "App", "Language, startup screen, quick tour, guide, what's new, licences, privacy") {
                     com.dronedirector.veyrocutpro.ui.LanguagePicker()
                         Text("STARTUP", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.padding(top = 10.dp))
                         Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -541,6 +541,7 @@ fun EditorSettingsBody(
                         }
                     com.dronedirector.veyrocutpro.ui.EditorTourSettings(gv, onShow = onDismiss)
                     com.dronedirector.veyrocutpro.ui.GuideButton(gv)
+                    com.dronedirector.veyrocutpro.ui.WhatsNewButton(if (isVideo) com.dronedirector.veyrocutpro.ui.NewsArea.VIDEO else com.dronedirector.veyrocutpro.ui.NewsArea.PHOTO, onDismiss)
                     com.dronedirector.veyrocutpro.ui.LicensesButton()
                     com.dronedirector.veyrocutpro.ui.PrivacyButton()
                 }

@@ -4868,5 +4868,14 @@
 "What's new": "Nýtt",
 "Show the latest changes again — the window that opens after an update": "Vís seinastu broytingarnar aftur — vindeygað, sum letur upp eftir eina dagføring",
 "No notes for this version.": "Eingi notat fyri hesa útgávuna.",
-"Start screen → gear → What's new shows the latest changes again, the same window that opens after an update.": "Byrjanarskíggi → tannhjól → Nýtt vísir seinastu broytingarnar aftur, sama vindeygað, sum letur upp eftir eina dagføring."
+"Start screen → gear → What's new shows the latest changes again, the same window that opens after an update.": "Byrjanarskíggi → tannhjól → Nýtt vísir seinastu broytingarnar aftur, sama vindeygað, sum letur upp eftir eina dagføring.",
+"What's new in Capture": "Nýtt í Upptøku",
+"What's new in the Photo editor": "Nýtt í myndaviðgerðini",
+"What's new in the Video editor": "Nýtt í sjónbandsviðgerðini",
+"WHAT'S NEW": "NÝTT",
+"Nothing new here in this version.": "Einki nýtt her í hesi útgávuni.",
+"The latest changes in the last three versions, for the whole app": "Seinastu broytingarnar í seinastu trimum útgávunum, fyri alla appina",
+"Start screen → gear → What's new lists what changed in the last three versions, for the whole app. In Capture, the Photo editor and the Video editor, gear → App → ★ WHAT'S NEW shows only the changes for that part.": "Byrjanarskíggi → tannhjól → Nýtt vísir, hvat er broytt í seinastu trimum útgávunum, fyri alla appina. Í Upptøku, myndaviðgerðini og sjónbandsviðgerðini vísir tannhjól → App → ★ NÝTT bert broytingarnar fyri tann partin.",
+"App colour, language, mouse pointer, startup screen, guide, what's new, tour, licences, privacy": "Appslitur, mál, músavísir, byrjanarskíggi, vegleiðing, nýtt, rundferð, loyvi, privatlív",
+"Language, startup screen, quick tour, guide, what's new, licences, privacy": "Mál, byrjanarskíggi, skjót rundferð, vegleiðing, nýtt, loyvi, privatlív"
 }

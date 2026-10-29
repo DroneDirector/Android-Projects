@@ -550,6 +550,37 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             es.message = "The photo now shows for $seconds s"
         }
     }
+    // Round trip: a photo on the timeline opened in the photo editor (over this editor); its export replaces it.
+    var roundTrip by remember { mutableStateOf<String?>(null) }
+    fun replaceStill(clipId: String, photo: Uri) {
+        val c = clips.firstOrNull { it.id == clipId } ?: return
+        val secs = Math.round((c.endMs - c.startMs) / 1000f).coerceIn(1, 60)
+        stillBusy = true
+        libScope.launch {
+            val n = Stills.make(context, photo, secs)
+            stillBusy = false
+            val k = clips.indexOfFirst { it.id == clipId }
+            if (n == null || k < 0) { es.message = "Couldn't bring the edited photo back"; return@launch }
+            clips[k] = clips[k].copy(uri = n.uri, still = photo.toString(), durationMs = n.durationMs, startMs = 0L, endMs = n.durationMs, speed = 1f, ramp = null, rampName = null)
+            es.message = "The edited photo is on the timeline"
+        }
+    }
+    roundTrip?.let { id ->
+        val c = clips.firstOrNull { it.id == id }
+        val photo = c?.still
+        if (photo == null) roundTrip = null else {
+            androidx.compose.runtime.DisposableEffect(id) {
+                PhotoRoundTrip.onExported = { u -> roundTrip = null; replaceStill(id, u) }
+                onDispose { PhotoRoundTrip.onExported = null }
+            }
+            androidx.compose.ui.window.Dialog(onDismissRequest = { roundTrip = null },
+                properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+                Box(Modifier.fillMaxSize().background(Ed.Bg)) {
+                    PhotoEditorScreen(onExit = { roundTrip = null }, initial = Uri.parse(photo), onOpenVideo = { roundTrip = null })
+                }
+            }
+        }
+    }
     fun setStillZoom(i: Int, on: Boolean) {
         val c = clips.getOrNull(i) ?: return
         clips[i] = c.copy(reframe = if (on) Reframe(start = Frame(1f), end = Frame(1.12f, x = 0.03f, y = -0.02f), animate = true) else Reframe())
@@ -4765,7 +4796,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                                 },
                             )
                             Page.EDIT -> if (sc != null) com.dronedirector.veyrocutpro.ui.FoldColumn {
-                                if (sc.still != null) StillSection(sc, stillBusy, onSeconds = { s -> setStillLength(es.selected, s) }, onZoom = { z -> setStillZoom(es.selected, z) })
+                                if (sc.still != null) StillSection(sc, stillBusy, onSeconds = { s -> setStillLength(es.selected, s) }, onZoom = { z -> setStillZoom(es.selected, z) }, onEditPhoto = { roundTrip = sc.id })
                                 EditPage(
                                 sc, es.selected, clips.size, es.posMs, es.deliver, { es.deliver = it },
                                 onChange = { f -> if (es.videoLocked) es.message = "The video track is locked" else wf.pick.applyTo(clips, es.selected, f) },
@@ -4970,6 +5001,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             }
                             Page.DELIVER -> DeliverPage(
                                 es.deliver, clips, es.exporting, { es.deliver = it }, ::startExport,
+                                onReviewNotes = { l -> for ((t, n) in l) { if (t !in markers) markers.add(t); if (n.isNotBlank()) markerNotes[t] = n }; markers.sort(); es.message = "${l.size} client note(s) added as markers" },
                                 castSlot = if (castOnPhone) ({ com.dronedirector.veyrocutpro.ui.CastButton(castSource, sound = com.dronedirector.veyrocutpro.camera.CastFeed.Sound.APP) }) else null, playheadMs = globalMs, onSaveFrame = { saveStill() },
                                 markers = markers.toList(), projectName = es.projectName, layers = layers.toList(), markerNotes = markerNotes.toMap(),
                                 smartWhy = if (es.deliver.smartRender) smartRenderBlocker(context, clips.let { l -> if (es.videoMuted) l.map { it.copy(muted = true) } else l }, es.deliver, layers.toList(), es.music, extraAudio.toList()) else null,
@@ -7154,6 +7186,8 @@ private fun DeliverPage(
     smartWhy: String? = null,
     /** Phones: the cast button lives here (tablets have it next to the zoom buttons). */
     castSlot: (@Composable () -> Unit)? = null,
+    /** Client review notes (time, note) → markers. */
+    onReviewNotes: (List<Pair<Long, String>>) -> Unit = {},
 ) {
     // Send the edit to a desktop editor (EDL / FCPXML).
     val ictx = LocalContext.current
@@ -7289,6 +7323,7 @@ private fun DeliverPage(
     }
     ContentCredentialsSection(video = true)
     ExportUploadSection(video = true)
+    VideoReviewSection(onReviewNotes)
     SectionTitle("METADATA")
     MetaPresets.load(ictx)
     Text("Your name, copyright, contact, caption and keywords written into the video file.", color = Pro.Dim, fontSize = 11.sp)

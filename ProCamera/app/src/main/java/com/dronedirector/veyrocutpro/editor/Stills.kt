@@ -61,10 +61,17 @@ object Stills {
     }
 }
 
+/** Round trip: while the video editor has a photo open in the photo editor, its export comes back here. */
+object PhotoRoundTrip {
+    @Volatile var onExported: ((Uri) -> Unit)? = null
+}
+
 /** Edit page, for a photo on the timeline: how long it shows, and an optional slow zoom. */
 @Composable
-fun StillSection(c: Clip, busy: Boolean, onSeconds: (Int) -> Unit, onZoom: (Boolean) -> Unit) {
+fun StillSection(c: Clip, busy: Boolean, onSeconds: (Int) -> Unit, onZoom: (Boolean) -> Unit, onEditPhoto: () -> Unit = {}) {
     SectionTitle("PHOTO")
+    PillChip("✎ EDIT IN THE PHOTO EDITOR", false, accentText = true) { onEditPhoto() }
+    Text("Opens this photo in the photo editor; when you export it there, the edited photo replaces it on the timeline.", color = Pro.Dim, fontSize = 11.sp)
     Text("A still photo. Choose how long it shows; trimming shortens it too.", color = Pro.Dim, fontSize = 11.sp)
     val now = ((c.endMs - c.startMs) / 1000f)
     Row(Modifier.hintedScroll(horizontal = true).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {

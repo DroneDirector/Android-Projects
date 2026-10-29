@@ -113,6 +113,19 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                     val ctx = androidx.compose.ui.platform.LocalContext.current
                     val x = com.dronedirector.veyrocutpro.camera.CaptureExtras
                     ToggleRow("Auto-enhance", "Saves an extra, improved copy of each photo (exposure, contrast, white balance); the original is kept", x.autoEnhance) { x.autoEnhance = !x.autoEnhance; x.save(ctx) }
+                    val askLocation = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) { r ->
+                        x.location = r.values.any { it }; x.save(ctx)
+                        if (x.location) com.dronedirector.veyrocutpro.camera.CaptureLocation.start(ctx)
+                        else android.widget.Toast.makeText(ctx, I18n.tr("Location not allowed — photos are saved without it"), android.widget.Toast.LENGTH_LONG).show()
+                    }
+                    ToggleRow("Save location", "Stores where each photo and video was taken (GPS) in the file", x.location) {
+                        if (x.location) { x.location = false; x.save(ctx); com.dronedirector.veyrocutpro.camera.CaptureLocation.stop(ctx) }
+                        else if (com.dronedirector.veyrocutpro.camera.CaptureLocation.allowed(ctx)) { x.location = true; x.save(ctx); com.dronedirector.veyrocutpro.camera.CaptureLocation.start(ctx) }
+                        else askLocation.launch(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION))
+                    }
+                    ChoiceRow("Focus bracketing", listOf(0, 3, 4, 6), x.focusBracket, { if (it == 0) "OFF" else "$it SHOTS" }) { x.focusBracket = it; x.save(ctx) }
+                    Text("Takes the same picture focused from close to far; the photo editor stacks them into one sharp photo (Merge → Focus stack). Use a tripod.", color = Pro.Dim, fontSize = 12.sp)
+                    if (s.lenses.size > 1 || s.minFocusDiopters > 0f) ToggleRow("Macro", "Switches to the lens that focuses closest and focuses near — for flowers, insects, details", false) { c.macro(); onClose() }
                 }
             }
 
@@ -151,6 +164,11 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 run {
                     val ctx = androidx.compose.ui.platform.LocalContext.current
                     val x = com.dronedirector.veyrocutpro.camera.CaptureExtras
+                    ChoiceRow("Anti-flicker", listOf(0, 1, 2, 3), x.antiFlicker, { listOf("AUTO", "50 HZ", "60 HZ", "OFF")[it] }) { c.setAntiFlicker(it) }
+                    Text("Stops banding under mains lights in photos and videos: 50 Hz in Europe, Africa, most of Asia; 60 Hz in the Americas.", color = Pro.Dim, fontSize = 12.sp)
+                    ChoiceRow("Timecode", listOf(0, 1), x.timecode, { if (it == 0) "OFF" else "TIME OF DAY" }) { x.timecode = it; x.save(ctx) }
+                    ToggleRow("Editing proxy", "Makes a small copy of each clip after recording, so the video editor plays it smoothly straight away", x.proxy) { x.proxy = !x.proxy; x.save(ctx) }
+                    ToggleRow("Front + back camera", "Records the back camera with the front camera in a corner, in one video (phones that can run both together)", x.dualCam) { c.setDualCam(!x.dualCam) }
                     ChoiceRow("Pre-record", listOf(0, 3, 5, 10), x.preRecordSec, { if (it == 0) "OFF" else "${it}s" }) {
                         x.preRecordSec = it; x.save(ctx); c.refreshPreRecord()
                     }

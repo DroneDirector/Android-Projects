@@ -27,6 +27,12 @@ enum class MergeKind(val label: String, val hint: String) {
 }
 
 /** HDR (exposure fusion), panorama stitching and focus stacking, done on the phone. */
+/** A set of photos the camera took for the photo editor to merge when it opens (focus bracketing). */
+object PendingMerge {
+    @Volatile var focus: List<android.net.Uri>? = null
+    fun take(): List<android.net.Uri>? = focus.also { focus = null }
+}
+
 object Merge {
     fun run(context: Context, kind: MergeKind, uris: List<Uri>, onProgress: (String) -> Unit): Bitmap? {
         if (uris.size < 2) return null

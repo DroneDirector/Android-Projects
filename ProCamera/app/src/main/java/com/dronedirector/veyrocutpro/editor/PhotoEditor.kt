@@ -1,5 +1,6 @@
 package com.dronedirector.veyrocutpro.editor
 
+import androidx.compose.ui.graphics.nativeCanvas
 import com.dronedirector.veyrocutpro.ui.pinchAndMove
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Usb
@@ -222,6 +223,8 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null, onOpenVideo: () 
         }
     }
     val mergePick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(8)) { list -> mergeDone(list) }
+    // A focus set from the camera's focus bracketing: stack it straight away.
+    LaunchedEffect(Unit) { PendingMerge.take()?.let { set -> mergeKind = MergeKind.FOCUS; mergeDone(set) } }
     // Long exposure from a video: the clip, then how much of it and which look.
     var longVideo by remember { mutableStateOf<Uri?>(null) }
     var longSec by remember { mutableStateOf(0) }
@@ -3039,6 +3042,8 @@ internal fun runPhotoExport(context: Context, req: PhotoExportReq): PhotoExportR
         if (saved != null && PhotoMeta.sidecar && uri != Uri.EMPTY) {
             if (PhotoMeta.writeSidecar(context, uri, PhotoMeta.sidecarXmp(e.grade, e.detail, e.geometry, meta != null)) == null) res.sidecarFailed = true
         }
+        // Round trip from the video editor: the exported photo goes back to its timeline.
+        if (saved != null) PhotoRoundTrip.onExported?.let { cb -> android.os.Handler(android.os.Looper.getMainLooper()).post { cb(saved) } }
         // Content credentials (signed record of creator and edit), then upload after export.
         if (saved != null && ContentCredentials.on(context, false)) ContentCredentials.sign(context, saved, false)
         ExportUpload.after(context, saved, false)

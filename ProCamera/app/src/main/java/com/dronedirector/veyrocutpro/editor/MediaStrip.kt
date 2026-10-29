@@ -177,6 +177,8 @@ fun MediaStrip(
     fun labelOf(c: Clip): Int? { return VideoLibrary.meta[c.uri.toString()]?.label }
     fun setLabel(list: List<Clip>, l: Int?) { VideoLibrary.update(ctx, list.map { it.uri.toString() }) { it.copy(label = l) } }
     var labelF by remember { mutableStateOf<Int?>(null) }
+    // Smart bins: fill themselves from what each file is.
+    var smartBin by remember { mutableStateOf<Int?>(null) }
     var bin by remember { mutableStateOf<String?>(null) }
     var selecting by remember { mutableStateOf(false) }
     val picked = remember { mutableStateListOf<String>() }
@@ -184,7 +186,7 @@ fun MediaStrip(
     var menuFor by remember { mutableStateOf<String?>(null) }
     val shown = library.filter { c ->
         val k = c.uri.toString(); val r = ratings[k] ?: 0; val u = uses(c)
-        (bin == null || bins[k] == bin) && (labelF == null || labelOf(c) == labelF) && when (filter) { 1 -> u == 0; 2 -> u > 0; 3 -> r >= 3; 4 -> r != -1; else -> true }
+        (bin == null || bins[k] == bin) && (labelF == null || labelOf(c) == labelF) && (smartBin == null || SmartBins.match(smartBin!!, c)) && when (filter) { 1 -> u == 0; 2 -> u > 0; 3 -> r >= 3; 4 -> r != -1; else -> true }
     }
     val focused = library.firstOrNull { it.uri.toString() == focus }
     val rowState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -205,6 +207,8 @@ fun MediaStrip(
                 Text("·", color = Pro.Dim, modifier = Modifier.padding(horizontal = 4.dp))
             }
             listOf("All", "Unused", "Used", "★3+", "No rejects").forEachIndexed { i, n -> StripChip(n, filter == i) { filter = i } }
+            Text("·", color = Pro.Dim, modifier = Modifier.padding(horizontal = 4.dp))
+            SmartBins.NAMES.forEachIndexed { i, n -> StripChip("⚙ $n", smartBin == i) { smartBin = if (smartBin == i) null else i } }
             Text("·", color = Pro.Dim, modifier = Modifier.padding(horizontal = 4.dp))
             COLOUR_LABELS.forEach { col ->
                 Box(Modifier.padding(horizontal = 2.dp).size(16.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(col))
@@ -402,4 +406,18 @@ private fun StripChip(text: String, on: Boolean = false, onClick: () -> Unit) {
         modifier = Modifier.padding(end = 3.dp).clip(RoundedCornerShape(50)).background(if (on) Pro.Amber else Color.White.copy(alpha = 0.08f))
             .clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 4.dp),
     )
+}
+
+/** Smart bins for the media strip: they fill themselves from what each file is. */
+object SmartBins {
+    val NAMES = listOf("Photos", "Drone", "4K+", "Vertical", "Under 10 s", "Log / HDR")
+    fun match(i: Int, c: Clip): Boolean = when (i) {
+        0 -> c.still != null
+        1 -> c.still == null && (c.name.startsWith("DJI_", ignoreCase = true) || c.name.contains("DJI", ignoreCase = true) || c.name.startsWith("dji", ignoreCase = true))
+        2 -> maxOf(c.width, c.height) >= 3800
+        3 -> c.height > c.width
+        4 -> c.still == null && c.durationMs < 10_000L
+        5 -> c.hdr || c.tenBit
+        else -> true
+    }
 }

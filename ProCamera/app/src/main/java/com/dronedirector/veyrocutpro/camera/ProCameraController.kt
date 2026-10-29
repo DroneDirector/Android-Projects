@@ -24,6 +24,8 @@ import android.util.Size
 import android.view.Surface
 import androidx.camera.camera2.interop.Camera2CameraControl
 import androidx.camera.camera2.interop.Camera2CameraInfo
+import androidx.camera.core.CompositionSettings
+import androidx.camera.core.ConcurrentCamera
 import androidx.camera.camera2.interop.Camera2Interop
 import androidx.camera.camera2.interop.CaptureRequestOptions
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
@@ -230,6 +232,8 @@ class ProCameraController(private val context: Context) {
     @Volatile private var wavActive = false
     /** When the clip's first frame was recorded (System.nanoTime), to line the WAV up with it. */
     private var videoStartNanos = 0L
+    /** Clock time the current clip started (for its timecode). */
+    private var recordStartWall = 0L
     private var pullJobs = HashMap<String, kotlinx.coroutines.Job>()
     private var frameCounter = 0L
 
@@ -336,6 +340,7 @@ class ProCameraController(private val context: Context) {
     }
 
     fun release() {
+        CaptureLocation.stop(context)
         setRemote(false)
         try { audioManager.unregisterAudioDeviceCallback(deviceCallback) } catch (_: Throwable) {}
         deviceCallbackRegistered = false
@@ -656,6 +661,7 @@ class ProCameraController(private val context: Context) {
             bindSlowMo(p, owner, selector, s, preview)
             return
         }
+        if (CaptureExtras.dualCam && s.mode.isNormalVideo && bindDual(p, owner, s, preview)) return
 
         val analysis = ImageAnalysis.Builder()
             .setResolutionSelector(
@@ -1096,6 +1102,14 @@ class ProCameraController(private val context: Context) {
             b.setCaptureRequestOption(CaptureRequest.CONTROL_AE_LOCK, true)
         }
 
+        // Anti-flicker for lights on the mains (50 Hz in Europe, 60 Hz in the Americas).
+        b.setCaptureRequestOption(CaptureRequest.CONTROL_AE_ANTIBANDING_MODE, when (CaptureExtras.antiFlicker) {
+            1 -> CaptureRequest.CONTROL_AE_ANTIBANDING_MODE_50HZ
+            2 -> CaptureRequest.CONTROL_AE_ANTIBANDING_MODE_60HZ
+            3 -> CaptureRequest.CONTROL_AE_ANTIBANDING_MODE_OFF
+            else -> CaptureRequest.CONTROL_AE_ANTIBANDING_MODE_AUTO
+        })
+
         if (s.manualFocusActive && s.minFocusDiopters > 0f) {
             b.setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF)
             b.setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, s.focusDiopters)
@@ -1278,6 +1292,35 @@ class ProCameraController(private val context: Context) {
         set { it.copy(lensIndex = index, manualFocus = false) }
         refreshCapabilities()
         bind()
+    }
+
+    fun setAntiFlicker(v: Int) { CaptureExtras.antiFlicker = v; CaptureExtras.save(context); applyControls() }
+
+    fun setDualCam(on: Boolean) {
+        if (st.recording) return
+        CaptureExtras.dualCam = on; CaptureExtras.save(context); dualWarned = false
+        if (st.mode.isNormalVideo) bind()
+    }
+
+    /** The back lens that focuses closest (the macro / close-up lens). */
+    fun macroLensIndex(): Int? {
+        val s = st
+        return s.lenses.indices.filter { s.lenses[it].facing == CameraSelector.LENS_FACING_BACK }
+            .maxByOrNull { i ->
+                try { Camera2CameraInfo.from(s.lenses[i].info).getCameraCharacteristic(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE) ?: 0f } catch (_: Throwable) { 0f }
+            }
+    }
+
+    /** Macro: switch to the closest-focusing lens and focus as near as it can. */
+    fun macro() {
+        val i = macroLensIndex() ?: return
+        if (i != st.lensIndex) selectLens(i)
+        scope.launch {
+            delay(900)
+            val near = st.minFocusDiopters
+            if (near > 0f) { set { it.copy(manualFocus = true, focusDiopters = near * 0.85f) }; applyControls() }
+            toast("Macro: ${st.lens?.label ?: ""} lens, focused close — move to a few cm from the subject")
+        }
     }
 
     fun flipCamera() {
@@ -1813,8 +1856,36 @@ class ProCameraController(private val context: Context) {
             applyControls()
             return saved
         }
+        if (CaptureExtras.focusBracket > 1 && s.minFocusDiopters > 0f && !s.isVideo) return focusBracketSet(s)
         repeat(max(1, s.burst)) { if (takePhoto()) saved++ }
         return saved
+    }
+
+    /**
+     * Focus bracketing: the same picture at several focus distances, from close to far, handed to
+     * the photo editor's Merge → Focus stack.
+     */
+    private suspend fun focusBracketSet(s: CameraUiState): Int {
+        val cam = camera ?: return 0
+        val n = CaptureExtras.focusBracket.coerceIn(2, 6)
+        val near = s.minFocusDiopters
+        val shots = ArrayList<Uri>()
+        for (i in 0 until n) {
+            val d = near * (1f - i / (n - 1f))
+            val b = CaptureRequestOptions.Builder()
+                .setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_OFF)
+                .setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, d)
+            try { Camera2CameraControl.from(cam.cameraControl).addCaptureRequestOptions(b.build()) } catch (_: Throwable) {}
+            delay(450)
+            val before = st.lastMedia
+            if (takePhoto()) { st.lastMedia?.takeIf { it != before }?.let { shots += it } }
+        }
+        applyControls()
+        if (shots.size >= 2) {
+            com.dronedirector.veyrocutpro.editor.PendingMerge.focus = shots.toList()
+            toast("Focus set of ${shots.size} saved — open the Photo editor to stack it")
+        }
+        return shots.size
     }
 
     private fun applyBracketStep(s: CameraUiState, stops: Int) {
@@ -1951,6 +2022,21 @@ class ProCameraController(private val context: Context) {
     }
 
     /** Title overlay (Settings → TITLE): burned into the finished clip. */
+    /** Timecode track and editing proxy for a finished clip (after any other processing). */
+    private suspend fun finishExtras(uri: Uri, startWall: Long, fps: Int) {
+        if (CaptureExtras.timecode > 0 && startWall > 0) {
+            val ok = withContext(Dispatchers.IO) { Timecode.add(context, uri, startWall, fps) }
+            if (!ok) toast("Couldn't add the timecode to this clip")
+        }
+        if (CaptureExtras.proxy) {
+            val clip = withContext(Dispatchers.IO) { com.dronedirector.veyrocutpro.editor.ClipLoader.load(context, uri) } ?: return
+            val ps = com.dronedirector.veyrocutpro.editor.ProxySettings.load(context)
+            com.dronedirector.veyrocutpro.editor.ProxyMaker.make(context, clip, ps.quality, ps.hevc, onProgress = {}) { out, _ ->
+                if (out == null) toast("Couldn't make the editing proxy")
+            }
+        }
+    }
+
     private suspend fun burnTitle(uri: Uri) {
         val ok = com.dronedirector.veyrocutpro.editor.TitleBurn.apply(context, uri, CaptureExtras.titleText, CaptureExtras.titlePos, CaptureExtras.titleSec)
         if (!ok) toast("Couldn't add the title; the clip was saved without it")
@@ -2288,6 +2374,54 @@ class ProCameraController(private val context: Context) {
         bind()
     }
 
+    /**
+     * Front and back camera at once: the back camera fills the picture, the front camera sits in a
+     * corner, both recorded into one video. Only on phones that can run two cameras together.
+     */
+    private fun bindDual(p: ProcessCameraProvider, owner: LifecycleOwner, s: CameraUiState, preview: Preview): Boolean {
+        val pair = try {
+            p.availableConcurrentCameraInfos.firstOrNull { l ->
+                l.any { it.lensFacing == CameraSelector.LENS_FACING_BACK } && l.any { it.lensFacing == CameraSelector.LENS_FACING_FRONT }
+            }
+        } catch (_: Throwable) { null }
+        if (pair == null) {
+            if (!dualWarned) { dualWarned = true; toast("This phone can't run the front and back camera together") }
+            return false
+        }
+        val back = pair.first { it.lensFacing == CameraSelector.LENS_FACING_BACK }.cameraSelector
+        val front = pair.first { it.lensFacing == CameraSelector.LENS_FACING_FRONT }.cameraSelector
+        return try {
+            val recorder = Recorder.Builder()
+                .setQualitySelector(QualitySelector.from(Quality.FHD, FallbackStrategy.lowerQualityOrHigherThan(Quality.HD)))
+                .build()
+            val vc = VideoCapture.Builder(recorder).setTargetRotation(capRot()).build()
+            val group = UseCaseGroup.Builder().addUseCase(preview).addUseCase(vc).build()
+            val main = ConcurrentCamera.SingleCameraConfig(back, group,
+                CompositionSettings.Builder().setAlpha(1f).setOffset(0f, 0f).setScale(1f, 1f).build(), owner)
+            val corner = ConcurrentCamera.SingleCameraConfig(front, group,
+                CompositionSettings.Builder().setAlpha(1f).setOffset(0.62f, -0.62f).setScale(0.3f, 0.3f).build(), owner)
+            p.unbindAll()
+            val cc = p.bindToLifecycle(listOf(main, corner))
+            val bound = cc.cameras.firstOrNull() ?: return false
+            camera = bound
+            videoCapture = vc
+            imageCapture = null
+            imageAnalysis = null
+            _analysis.value = null
+            bound.cameraInfo.zoomState.observe(owner) { z ->
+                _state.update { it.copy(zoom = z.zoomRatio, minZoom = z.minZoomRatio, maxZoom = z.maxZoomRatio) }
+            }
+            set { it.copy(ready = true) }
+            applyControls()
+            true
+        } catch (t: Throwable) {
+            try { p.unbindAll() } catch (_: Throwable) {}
+            toast("Front + back camera isn't available here: ${t.message}")
+            false
+        }
+    }
+    private var dualWarned = false
+
     private fun bindSlowMo(p: ProcessCameraProvider, owner: LifecycleOwner, selector: CameraSelector, s: CameraUiState, preview: Preview) {
         val lens = s.lens ?: return
         val fps = s.slowFps
@@ -2513,7 +2647,7 @@ class ProCameraController(private val context: Context) {
         if (Storage.isTree(place)) {
             val tmp = java.io.File(context.cacheDir, "cap_" + fileName)
             treePending[tmp.path] = Triple(place, fileName, mime)
-            return ImageCapture.OutputFileOptions.Builder(tmp).build()
+            return ImageCapture.OutputFileOptions.Builder(tmp).setMetadata(photoMetadata()).build()
         }
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
@@ -2524,7 +2658,12 @@ class ProCameraController(private val context: Context) {
             context.contentResolver,
             Storage.imagesUri(place),
             values,
-        ).build()
+        ).setMetadata(photoMetadata()).build()
+    }
+
+    /** Where the photo was taken, when Save location is on. */
+    private fun photoMetadata(): ImageCapture.Metadata = ImageCapture.Metadata().apply {
+        CaptureLocation.current(context)?.let { location = it }
     }
 
     /**
@@ -2660,12 +2799,13 @@ class ProCameraController(private val context: Context) {
         if (!monitorWhileRecording) audioMeter.stopMonitoring()
         monitorSilencedWarned = false
         val s0 = st
+        val loc = CaptureLocation.current(context)
         // Slow motion without high-speed support: film at 60 fps, then stretch to half speed.
         val stretch = s0.mode.isSlowMo && s0.slowFps in 1..99
         var pending = if (stretch) {
             val file = java.io.File(context.cacheDir, "slowmo_${System.currentTimeMillis()}.mp4")
             slowMoFile = file
-            vc.output.prepareRecording(context, FileOutputOptions.Builder(file).build())
+            vc.output.prepareRecording(context, FileOutputOptions.Builder(file).setLocation(loc).build())
         } else {
             slowMoFile = null
             val place = Storage.resolve(context, st.storageVolume)
@@ -2674,11 +2814,12 @@ class ProCameraController(private val context: Context) {
             if (doc != null && pfd != null) {
                 // Straight onto the drive (no copy afterwards, no internal space needed).
                 recordDoc = doc; recordPfd = pfd
-                vc.output.prepareRecording(context, FileDescriptorOutputOptions.Builder(pfd).build())
+                vc.output.prepareRecording(context, FileDescriptorOutputOptions.Builder(pfd).setLocation(loc).build())
             } else {
                 if (doc != null) { Storage.discard(context, doc); toast("Couldn't write to the save folder — recording to internal storage") }
                 val output = MediaStoreOutputOptions.Builder(context.contentResolver, Storage.videosUri(if (Storage.isTree(place)) Storage.INTERNAL else place))
                     .setContentValues(values)
+                    .setLocation(loc)
                     .build()
                 vc.output.prepareRecording(context, output)
             }
@@ -2725,6 +2866,7 @@ class ProCameraController(private val context: Context) {
     private fun onRecordEvent(event: VideoRecordEvent) {
         when (event) {
             is VideoRecordEvent.Start -> {
+                recordStartWall = System.currentTimeMillis()
                 if (gyroLog.running) gyroLog.markStart()
                 set { it.copy(recording = true, paused = false, recordSeconds = 0) }
             }
@@ -2817,6 +2959,9 @@ class ProCameraController(private val context: Context) {
                 val ntsc = CaptureExtras.ntsc && st.fps in listOf(24, 30, 60)
                 val doConform = take != null || ntsc
                 if (uri == Uri.EMPTY) take?.file?.delete()
+                val tcStart = recordStartWall; val tcFps = st.fps
+                val doExtras = uri != Uri.EMPTY && (CaptureExtras.timecode > 0 || CaptureExtras.proxy)
+                if (doExtras && !(doAudio || doTitle || doConform)) scope.launch { finishExtras(uri, tcStart, tcFps) }
                 if ((doAudio || doTitle || doConform) && uri != Uri.EMPTY) {
                     val limiter = st.audioLimiter
                     val start = videoStartNanos
@@ -2838,6 +2983,7 @@ class ProCameraController(private val context: Context) {
                         }
                         if (doTitle) burnTitle(uri)
                         set { it.copy(processing = false) }
+                        if (doExtras) finishExtras(uri, tcStart, tcFps)
                     }
                 }
                 // Apply any rotation change that happened while recording.

@@ -301,6 +301,7 @@ fun VideoEditorScreen(onExit: () -> Unit, initialUris: List<Uri> = emptyList()) 
             VisTest.slideshow(context)
             android.util.Log.i("VisTest", "content credentials: " + withContext(Dispatchers.IO) { ContentCredentials.selfTest(context) })
             android.util.Log.i("VisTest", "face recognition: " + withContext(Dispatchers.IO) { Faces.selfTest(context) })
+            android.util.Log.i("VisTest", "cineform: " + withContext(Dispatchers.IO) { CineForm.selfTest(context) })
             // Playback test clips (the playback itself runs in the editor below once it shows them).
             val made = ArrayList<Clip>()
             repeat(3) {

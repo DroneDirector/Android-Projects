@@ -95,6 +95,10 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Capture tips", Icons.Filled.CameraAlt, null, listOf(
+            "Search at the top of Settings finds any setting by a word (zebra, proxy, location…). Hold a button to see what it does.",
+            "Settings → Appearance → One-handed: Right hand or Left hand moves the top bar down and the shutter under your thumb (phone held upright). Haptic feedback can be turned off there too.",
+            "Capture opens in the mode and lens you used last. LAST in the quick bar brings back one of your last three set-ups.",
+            "Deleting from the gallery goes to the Trash at once with an UNDO bar.",
             "Settings → Photo → Save location stores where each photo and video was taken. The phone asks once for permission.",
             "Settings → Photo → Focus bracketing takes 3, 4 or 6 shots focused from close to far. Use a tripod; the next time you open the Photo editor it stacks them into one sharp photo.",
             "Settings → Photo → Macro switches to the lens that focuses closest. Move to a few centimetres from the subject.",
@@ -208,6 +212,8 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "AI erase on a RAW makes a normal copy to work on; after that, the photo is edited like a JPEG.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Photo editor tips", Icons.Filled.Photo, null, listOf(
+            "Swipe left / right on the whole photo for the next / previous one in the filmstrip; NEXT UNEDITED → jumps to a photo you haven't edited yet.",
+            "RECENT above the panels: the sections you opened last. MERGE PHOTOS ▾ in the toolbar has every merge. A panel's RESET can be taken back with UNDO.",
             "Text → PHOTO LAYERS: + adds a photo or texture on top. Pick a blend mode (Multiply darkens, Screen lightens, Overlay / Soft light add contrast) and set opacity, size and position; Fill the photo stretches it over the whole picture.",
             "Merge → HDR keeps moving things (people, leaves, water) from one shot only, so there are no ghosts. Merge → Long exposure from a video turns a clip into a long exposure: average for silky water, Light trails for car lights and stars.",
             "SAMPLERS under the photo: tap up to four points to see their R, G, B values while you edit; tap a point again to remove it. FOCUS shows the sharpest parts in green.",
@@ -337,6 +343,9 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Tap STOP on the AI badge to cancel.",
         ), numbered = false),
         GuideSection(GuideTopic.TIPS, "Video editor tips", Icons.Filled.Movie, null, listOf(
+            "Deliver → Codec → CineForm (.mov): a pro editing file for finishing on a computer (large files; the edit is rendered, then converted). Pick the quality: Film scan 1 is a good default.",
+            "While rendering, KEEP EDITING lets you carry on; the notification says when it's done and can share the file.",
+            "Each project reopens with the timeline as you left it. If clips have moved, FIND THEM looks for them by name.",
             "Edit → PHOTO → ✎ EDIT IN THE PHOTO EDITOR opens the photo with all the photo tools; when you export, the new photo replaces the one on the timeline.",
             "Deliver → CLIENT REVIEW: export the video first, then make the review page. Send the .zip; your client opens index.html, adds notes at exact times and sends them back. Paste them in and they become markers.",
             "Smart bins (⚙ chips in the media strip) show only photos, drone clips, 4K and up, vertical clips, clips under 10 s or Log / HDR clips.",

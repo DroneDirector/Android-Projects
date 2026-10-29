@@ -4,6 +4,23 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- **Search in Settings**: a search field at the top of the Capture settings and both editors' gear — type "zebra", "proxy" or "location" and only the matching groups show, already open.
+- **What's new**: after an update, a short card shows what changed in that version.
+- **Hold for help**: hold a button (toolbar icons, chips, Capture quick bar) for a one-line explanation of what it does.
+- **Haptic feedback** (gear → Appearance): a light tick on the shutter, record, switches, timeline snapping and when a slider passes its centre. Can be turned off.
+- **Undo instead of "are you sure?"**: moving a photo or video to the Trash and a panel's RESET show a short bar with UNDO.
+- **Capture picks up where you left off**: it opens in the last mode and lens. LAST in the quick bar (next to C1–C3) brings back one of your last three set-ups.
+- **Heads-up before recording**: when space, battery or heat would cut the clip short ("about 9 min of 4K left"), you're told before it starts.
+- **One-handed layout** (gear → Appearance, off by default): Right hand or Left hand — on a phone held upright, Capture's top bar moves down and the shutter sits under your thumb.
+- **Swipe between photos** in the photo editor (left / right on the whole photo), with each edit kept; **NEXT UNEDITED →** jumps to the next photo you haven't edited.
+- **Recently used tools** in the photo editor: the sections you opened last, one tap away above the panels.
+- **Keep editing while exporting** (video editor): KEEP EDITING shrinks the render to a small bar; it carries on with the screen off or in another app, and the notification has a Share button when it's done.
+- **Timeline view remembered** for each project: zoom, scroll position and the open page.
+- **Missing media**: opening a project with clips that have moved offers FIND THEM, which looks for them by name on the phone and links them again.
+- **Safe mode**: if the app closes twice in a row while starting, the next start offers safe mode (start screen, no last project or camera set-up).
+- **Recent projects** sit right under the catalog card on the photo and video editors' start pages.
+- **Merge photos in the photo editor's toolbar**: MERGE PHOTOS ▾ has every merge (HDR, panorama, focus stack, long exposure…) without going back to the start page.
+- **CineForm export** (video editor → Deliver → Codec → CineForm (.mov)): a professional editing codec — 10-bit 4:2:2, every frame stands alone, uncompressed sound — for finishing on a computer. Qualities Medium, High, Film scan 1 and Film scan 2. Made with the open-source CineForm SDK (Apache 2.0 / MIT).
 
 ## 1.0.794 — 2026-10-29
 - **Photo layers with blend modes** (photo editor → Text → PHOTO LAYERS): put another photo or a texture on top — a sky, film dust, paper, a second exposure — with Normal, Multiply, Screen, Overlay, Soft light and more, plus opacity, size and position.

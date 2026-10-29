@@ -232,4 +232,32 @@ object CineForm {
             null to (if (cancelled) null else err ?: "Couldn't finish the CineForm file")
         }
     }
+
+    /** Emulator test run: encodes a short synthetic clip with sound and checks the file. */
+    fun selfTest(context: Context): String = try {
+        if (!available) "library missing" else {
+            val f = File(context.cacheDir, "cf_selftest.mov"); f.delete()
+            val w = 640; val h = 360
+            val pfd = android.os.ParcelFileDescriptor.open(f, android.os.ParcelFileDescriptor.MODE_READ_WRITE or android.os.ParcelFileDescriptor.MODE_CREATE)
+            val hd = nOpen(pfd.fd, w, h, 29.97, 2, 48000, 2)
+            if (hd == 0L) { pfd.close(); "open failed" } else {
+                val y = ByteBuffer.allocateDirect(w * h); val u = ByteBuffer.allocateDirect(w * h / 4); val v = ByteBuffer.allocateDirect(w * h / 4)
+                val t0 = System.nanoTime()
+                var ok = true
+                for (n in 0 until 30) {
+                    for (i in 0 until w * h) y.put(i, ((i % w + n * 4) and 255).toByte())
+                    for (i in 0 until w * h / 4) { u.put(i, (96 + n).toByte()); v.put(i, (160 - n).toByte()) }
+                    ok = ok && nFrame(hd, w, h, y, 0, w, u, 0, v, 0, w / 2, 1)
+                    val pcm = ShortArray(1602 * 2) { k -> (8000 * kotlin.math.sin((n * 1602 + k / 2) * 2 * Math.PI * 440 / 48000)).toInt().toShort() }
+                    nAudio(hd, pcm, 1602)
+                }
+                val closed = nClose(hd, ok)
+                pfd.close()
+                val ms = (System.nanoTime() - t0) / 1_000_000
+                val head = f.inputStream().use { val b = ByteArray(8); it.read(b); String(b, 4, 4, Charsets.ISO_8859_1) }
+                val tail = String(f.readBytes().let { b -> b.copyOfRange(0, b.size) }, Charsets.ISO_8859_1).contains("moov")
+                "${if (ok && closed && head == "ftyp" && tail) "ok" else "FAILED"}, ${f.length()} bytes, ${30 * 1000 / maxOf(ms, 1)} fps".also { f.delete() }
+            }
+        }
+    } catch (t: Throwable) { "error ${t.message}" }
 }

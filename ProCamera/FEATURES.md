@@ -22,6 +22,9 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 
 - **Languages**: English, Danish (Dansk) and Faroese (Føroyskt), following the phone or chosen in settings.
 - **First-launch setup**: the AI models and soundtracks (about 700 MB) are downloaded once on first launch, with a progress screen (asks first on mobile data, resumes after a dropped connection, can carry on in the background); one small APK per phone type.
+- **Search in Settings** (Capture and both editors' gear): only the matching groups show, already open.
+- **What's new** card after an update; **hold any button for help**; **haptic feedback** (Appearance, can be turned off); **undo bar** instead of "are you sure?" for Trash and panel resets; **safe mode** after two crashes while starting.
+- **One-handed layout** (Appearance → One-handed: Off / Right hand / Left hand): Capture's controls within thumb reach on a phone held upright.
 
 ## Capture
 ### Modes
@@ -133,6 +136,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 
 ---
 - **Keep settings after uninstall** (optional): settings, presets and LUTs saved to Documents/AlcorCutPro/Settings; restore from the first screen after reinstalling.
+- **Picks up where you left off** (last mode and lens); **LAST** in the quick bar: your last three set-ups; **heads-up before recording** about space, battery and heat.
 
 ## Photo editor
 - **Light look** (Preferences → Appearance: dark, light or like the phone) inside the editor, with dark text everywhere; the photo itself stays on a dark background.
@@ -242,6 +246,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Long exposure from a video** (Merge): average a clip for silky water and clouds, or keep the brightest for light trails.
 - **Colour samplers** (SAMPLERS): up to four points with live R, G, B read-outs.
 - **Focus mask** (FOCUS): the sharpest parts of the photo in green.
+- **Swipe between photos** (each edit kept) and **NEXT UNEDITED →**; **recently used tools** above the panels; **MERGE PHOTOS ▾** in the toolbar; **recent projects** next to the catalog card on the start page.
 
 ## Video editor
 - **Still photos on the timeline and in the media strip** from every picker (gallery, files, NAS, camera, Pro import, photo library), with a set duration and optional slow zoom; **name people** in the video library; **recommended looks** for a clip; **keyword tree**; **watched folders**; **content credentials** on exported videos.
@@ -446,6 +451,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 - **Smart render (fast copy)**: cut-only edits are copied from the clips without re-encoding — no quality loss, much faster (each clip starts on its nearest earlier key frame).
 - **Send to desktop editor**: EDL (CMX 3600: cuts, dissolves, speed) and FCPXML 1.9 (cuts, markers) and **OpenTimelineIO .otio** (cuts, dissolves, speed, markers) for desktop editing software.
 - **Client review** (CLIENT REVIEW): a review page with the video for any browser; the client's timed notes come back as markers on the timeline.
+- **CineForm (.mov)** codec: 10-bit 4:2:2 intra-frame editing codec with uncompressed sound, Medium / High / Film scan 1 / Film scan 2 (open-source CineForm SDK, Apache 2.0 / MIT); **keep editing while exporting** with a Share button in the notification.
 
 ### Projects & workflow
 - **Light look** for the editor's panels, menus and dialogs, with dark text everywhere (Preferences → Appearance); picture, timeline and media strip stay dark.
@@ -476,6 +482,7 @@ Two sub-menus on the Transitions page: **Video transitions** and **Audio transit
 ---
 - **Fold-out tool sections**: every section of the tool panels opens and closes, with a line listing what's inside; gear → Layout & look sets how they start (remember, always closed, all open).
 - **Quick tour** the first time the editor opens (skip, don't show again, replay from gear → App).
+- **Timeline view remembered** per project (zoom, scroll, page); **FIND THEM** for clips that moved; **recent projects** next to the catalog on the start page.
 
 ## Cloud AI (optional)
 - Bring your own **fal.ai** account (API key stored encrypted on the phone; only sent to fal.ai).

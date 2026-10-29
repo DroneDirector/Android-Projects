@@ -97,7 +97,7 @@ jobs:
         run: |
           sleep 30
           B="https://dronedirector.github.io/Android-Projects"; mkdir out; fail=0
-          for p in "" capture-features/ photo-editor-features/ video-editor-features/; do
+          for p in "" capture-features/ photo-editor-features/ video-editor-features/ airline-manager-pro/ airline-manager-pro/airline-manager-pro-features/; do
             c=$(curl -s -o /tmp/p.html -w '%{http_code}' "$B/$p"); n=$(grep -o 'class="acs acs-' /tmp/p.html | wc -l)
             echo "$c $B/$p ($n sections)" | tee -a out/live.txt; [ "$c" = 200 ] || fail=1
           done
@@ -140,6 +140,13 @@ jobs:
                       await q.goto('https://dronedirector.github.io/Android-Projects/',wait_until='networkidle'); await q.wait_for_timeout(2500)
                       await q.screenshot(path=f'out/forcedark-{nm}-hero.png'); await c.close()
                   await fb.close()
+                  # Airline Manager Pro preview (airline-manager-pro/): phone and laptop
+                  for nm,w,h,mob in [('amp-phone',412,915,True),('amp-laptop',1440,900,False)]:
+                      c=await b.new_context(viewport={'width':w,'height':h},device_scale_factor=2 if mob else 1,is_mobile=mob,has_touch=mob); q=await c.new_page()
+                      q.on('pageerror',lambda x:e.append('amp: '+str(x)))
+                      await q.goto('https://dronedirector.github.io/Android-Projects/airline-manager-pro/',wait_until='networkidle'); await q.wait_for_timeout(2500)
+                      e.append(nm+' sections: '+str(await q.evaluate("document.querySelectorAll('.ams').length"))+', overflow '+str(await q.evaluate("document.documentElement.scrollWidth-innerWidth")))
+                      await q.screenshot(path=f'out/{nm}.png'); await c.close()
                   open('out/live-browser.txt','w').write('\n'.join(e)); await b.close()
           asyncio.run(m())
           PY

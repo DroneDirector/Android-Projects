@@ -4816,5 +4816,9 @@
 "A professional editing codec (10-bit 4:2:2, every frame stands alone, uncompressed sound) in a .mov — for finishing on a computer: it opens in the main desktop editing and effects programs and plays smoothly while you cut. Files are large (≈ {0} Mbps). The edit is rendered first, then converted, so it takes longer than a normal export.": "Et professionelt redigeringscodec (10-bit 4:2:2, hvert billede står for sig selv, ukomprimeret lyd) i en .mov — til færdiggørelse på en computer: det åbner i de store redigerings- og effektprogrammer og afspiller jævnt, mens du klipper. Filerne er store (≈ {0} Mbps). Redigeringen renderes først og konverteres derefter, så det tager længere tid end en normal eksport.",
 "about {0} min of {1} left on the phone": "ca. {0} min {1} tilbage på telefonen",
 "battery at {0} %": "batteri på {0} %",
-"the phone is hot and may stop recording": "telefonen er varm og kan stoppe optagelsen"
+"the phone is hot and may stop recording": "telefonen er varm og kan stoppe optagelsen",
+"What's new": "Nyheder",
+"Show the latest changes again — the window that opens after an update": "Vis de seneste ændringer igen — vinduet, der åbner efter en opdatering",
+"No notes for this version.": "Ingen noter for denne version.",
+"Start screen → gear → What's new shows the latest changes again, the same window that opens after an update.": "Startskærm → tandhjul → Nyheder viser de seneste ændringer igen, det samme vindue, der åbner efter en opdatering."
 }

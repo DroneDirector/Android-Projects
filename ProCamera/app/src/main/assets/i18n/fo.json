@@ -4864,5 +4864,9 @@
 "A professional editing codec (10-bit 4:2:2, every frame stands alone, uncompressed sound) in a .mov — for finishing on a computer: it opens in the main desktop editing and effects programs and plays smoothly while you cut. Files are large (≈ {0} Mbps). The edit is rendered first, then converted, so it takes longer than a normal export.": "Eitt professionelt viðgerðarcodec (10-bit 4:2:2, hvør mynd stendur fyri seg, ókomprimerað ljóð) í eini .mov — til at gera liðugt á teldu: tað letur upp í teimum stóru viðgerðar- og effektforritunum og spælir javnt, meðan tú klippir. Fílurnar eru stórar (≈ {0} Mbps). Viðgerðin verður fyrst renderað og síðan umskapað, so tað tekur longri tíð enn ein vanligur útflutningur.",
 "about {0} min of {1} left on the phone": "umleið {0} min av {1} eftir á telefonini",
 "battery at {0} %": "battarí á {0} %",
-"the phone is hot and may stop recording": "telefonin er heit og kann steðga upptøkuni"
+"the phone is hot and may stop recording": "telefonin er heit og kann steðga upptøkuni",
+"What's new": "Nýtt",
+"Show the latest changes again — the window that opens after an update": "Vís seinastu broytingarnar aftur — vindeygað, sum letur upp eftir eina dagføring",
+"No notes for this version.": "Eingi notat fyri hesa útgávuna.",
+"Start screen → gear → What's new shows the latest changes again, the same window that opens after an update.": "Byrjanarskíggi → tannhjól → Nýtt vísir seinastu broytingarnar aftur, sama vindeygað, sum letur upp eftir eina dagføring."
 }

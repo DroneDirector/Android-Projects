@@ -23,7 +23,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **Languages**: English, Danish (Dansk) and Faroese (Føroyskt), following the phone or chosen in settings.
 - **First-launch setup**: the AI models and soundtracks (about 700 MB) are downloaded once on first launch, with a progress screen (asks first on mobile data, resumes after a dropped connection, can carry on in the background); one small APK per phone type.
 - **Search in Settings** (Capture and both editors' gear): only the matching groups show, already open.
-- **What's new** card after an update; **hold any button for help**; **haptic feedback** (Appearance, can be turned off); **undo bar** instead of "are you sure?" for Trash and panel resets; **safe mode** after two crashes while starting.
+- **What's new** card after an update (start screen → gear → What's new shows it again); **hold any button for help**; **haptic feedback** (Appearance, can be turned off); **undo bar** instead of "are you sure?" for Trash and panel resets; **safe mode** after two crashes while starting.
 - **One-handed layout** (Appearance → One-handed: Off / Right hand / Left hand): Capture's controls within thumb reach on a phone held upright.
 
 ## Capture

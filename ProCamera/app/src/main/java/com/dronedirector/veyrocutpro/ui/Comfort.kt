@@ -232,6 +232,10 @@ object ResetUndo {
 object WhatsNew {
     private const val KEY = "seen_version"
 
+    /** Start screen → gear → What's new: show the card again. */
+    var requested by mutableIntStateOf(0)
+    fun showAgain() { requested++ }
+
     /** The lines for [version]: its own section, or the newest one if it isn't listed yet. */
     fun lines(c: Context, version: String): List<String> = try {
         val text = c.assets.open("CHANGELOG.md").bufferedReader().readText()
@@ -271,6 +275,9 @@ fun WhatsNewDialog() {
     var lines by remember { mutableStateOf<List<String>?>(null) }
     LaunchedEffect(Unit) {
         if (version.isNotEmpty() && WhatsNew.due(ctx, version)) lines = WhatsNew.lines(ctx, version).takeIf { it.isNotEmpty() }
+    }
+    LaunchedEffect(WhatsNew.requested) {
+        if (WhatsNew.requested > 0) lines = WhatsNew.lines(ctx, version).ifEmpty { listOf(I18n.tr("No notes for this version.")) }
     }
     val l = lines ?: return
     AlertDialog(

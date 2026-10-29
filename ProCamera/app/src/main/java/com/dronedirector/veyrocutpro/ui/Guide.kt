@@ -179,6 +179,7 @@ private fun sectionsFor(v: GuideVariant): List<GuideSection> = when (v) {
             "Settings → PHOTO SIZE shows what your phone's sensor allows apps to use.",
         ), numbered = false),
         GuideSection(GuideTopic.GENERAL, "General", Icons.Filled.Tune, null, listOf(
+            "Start screen → gear → What's new shows the latest changes again, the same window that opens after an update.",
             "Start screen → gear → Home-screen shortcuts: turn it on, then add separate icons for Capture, the Photo editor or the Video editor to your phone's home screen — each opens straight into that part of the app.",
             "Change the app colour under APP COLOUR.",
             "\"Always start in Capture\" opens the app straight into the camera.",

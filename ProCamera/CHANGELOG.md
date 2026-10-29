@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.794 — 2026-10-29
 - **Photo layers with blend modes** (photo editor → Text → PHOTO LAYERS): put another photo or a texture on top — a sky, film dust, paper, a second exposure — with Normal, Multiply, Screen, Overlay, Soft light and more, plus opacity, size and position.
 - **HDR without ghosts** (Merge → HDR): people, leaves or water that moved between the bracketed shots are taken from one shot only, so there are no see-through doubles.
 - **Long exposure from a video** (Merge → Long exposure from a video): silky water and clouds, or light trails, from one clip — no ND filter needed.

@@ -1,0 +1,111 @@
+--------- beginning of main
+10-29 09:29:43.045   840   840 D AndroidRuntime: Shutting down VM
+--------- beginning of crash
+10-29 09:29:43.046   840   840 E AndroidRuntime: FATAL EXCEPTION: main
+10-29 09:29:43.046   840   840 E AndroidRuntime: Process: com.android.systemui, PID: 840
+10-29 09:29:43.046   840   840 E AndroidRuntime: java.lang.RuntimeException: Error receiving broadcast Intent { act=android.intent.action.PACKAGE_CHANGED dat=package: flg=0x5000010 (has extras) } in com.android.systemui.recents.OverviewProxyService$2@21600d6
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.app.LoadedApk$ReceiverDispatcher$Args.lambda$getRunnable$0(LoadedApk.java:1810)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.app.LoadedApk$ReceiverDispatcher$Args.$r8$lambda$gDuJqgxY6Zb-ifyeubKeivTLAwk(Unknown Source:0)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.app.LoadedApk$ReceiverDispatcher$Args$$ExternalSyntheticLambda0.run(Unknown Source:2)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.os.Handler.handleCallback(Handler.java:958)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:205)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:294)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:8177)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:552)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:971)
+10-29 09:29:43.046   840   840 E AndroidRuntime: Caused by: java.lang.NullPointerException: Attempt to read from field 'android.content.pm.ServiceInfo android.content.pm.ResolveInfo.serviceInfo' on a null object reference in method 'void com.android.systemui.recents.OverviewProxyService$2.onReceive(android.content.Context, android.content.Intent)'
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at com.android.systemui.recents.OverviewProxyService$2.onReceive(go/retraceme 19693c2b0a8439b7183751b64d60893829dbf56dc1e08e0669fc0cfc55754948:44)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.app.LoadedApk$ReceiverDispatcher$Args.lambda$getRunnable$0(LoadedApk.java:1802)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	... 10 more
+10-29 09:40:22.034  9409  9409 D CameraX : QuirkSettings from app metadata: null
+10-29 09:40:22.034  9409  9409 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:40:34.692  9525  9525 D CameraX : QuirkSettings from app metadata: null
+10-29 09:40:34.693  9525  9525 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:40:47.880  9617  9617 D CameraX : QuirkSettings from app metadata: null
+10-29 09:40:47.880  9617  9617 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:41:00.694  9737  9737 D CameraX : QuirkSettings from app metadata: null
+10-29 09:41:00.694  9737  9737 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:41:14.541  9851  9851 D CameraX : QuirkSettings from app metadata: null
+10-29 09:41:14.541  9851  9851 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:41:27.368  9983  9983 D CameraX : QuirkSettings from app metadata: null
+10-29 09:41:27.369  9983  9983 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:41:40.356 10074 10074 D CameraX : QuirkSettings from app metadata: null
+10-29 09:41:40.356 10074 10074 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:41:52.957 10171 10171 D CameraX : QuirkSettings from app metadata: null
+10-29 09:41:52.957 10171 10171 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:42:06.866 10285 10285 D CameraX : QuirkSettings from app metadata: null
+10-29 09:42:06.866 10285 10285 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:42:19.384 10390 10390 D CameraX : QuirkSettings from app metadata: null
+10-29 09:42:19.385 10390 10390 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:42:32.497 10504 10504 D CameraX : QuirkSettings from app metadata: null
+10-29 09:42:32.497 10504 10504 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:42:46.415 10607 10607 D CameraX : QuirkSettings from app metadata: null
+10-29 09:42:46.416 10607 10607 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:43:21.842 10764 10764 D CameraX : QuirkSettings from app metadata: null
+10-29 09:43:21.842 10764 10764 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:43:55.168 10920 10920 D CameraX : QuirkSettings from app metadata: null
+10-29 09:43:55.170 10920 10920 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:44:09.030 11011 11011 D CameraX : QuirkSettings from app metadata: null
+10-29 09:44:09.030 11011 11011 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:44:33.953 11135 11135 D CameraX : QuirkSettings from app metadata: null
+10-29 09:44:33.953 11135 11135 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:45:08.247 11295 11295 D CameraX : QuirkSettings from app metadata: null
+10-29 09:45:08.247 11295 11295 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:45:22.132 11390 11390 D CameraX : QuirkSettings from app metadata: null
+10-29 09:45:22.132 11390 11390 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:45:34.940 11509 11509 D CameraX : QuirkSettings from app metadata: null
+10-29 09:45:34.941 11509 11509 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:45:48.807 11641 11641 D CameraX : QuirkSettings from app metadata: null
+10-29 09:45:48.807 11641 11641 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:46:02.177 11753 11753 D CameraX : QuirkSettings from app metadata: null
+10-29 09:46:02.177 11753 11753 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:46:15.240 11873 11873 D CameraX : QuirkSettings from app metadata: null
+10-29 09:46:15.241 11873 11873 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:46:29.053 11989 11989 D CameraX : QuirkSettings from app metadata: null
+10-29 09:46:29.053 11989 11989 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:46:41.010 12102 12102 D CameraX : QuirkSettings from app metadata: null
+10-29 09:46:41.011 12102 12102 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:46:54.759 12217 12217 D CameraX : QuirkSettings from app metadata: null
+10-29 09:46:54.759 12217 12217 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:47:08.256 12311 12311 D CameraX : QuirkSettings from app metadata: null
+10-29 09:47:08.256 12311 12311 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:47:22.240 12425 12425 D CameraX : QuirkSettings from app metadata: null
+10-29 09:47:22.240 12425 12425 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:47:35.671 12541 12541 D CameraX : QuirkSettings from app metadata: null
+10-29 09:47:35.671 12541 12541 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:47:43.666 12664 12664 D CameraX : QuirkSettings from app metadata: null
+10-29 09:47:43.666 12664 12664 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:47:57.468 12782 12782 D CameraX : QuirkSettings from app metadata: null
+10-29 09:47:57.468 12782 12782 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:48:10.266 12874 12874 D CameraX : QuirkSettings from app metadata: null
+10-29 09:48:10.267 12874 12874 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:48:24.625 12965 12965 D CameraX : QuirkSettings from app metadata: null
+10-29 09:48:24.625 12965 12965 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:48:38.348 13068 13068 D CameraX : QuirkSettings from app metadata: null
+10-29 09:48:38.348 13068 13068 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:49:12.693 13263 13263 D CameraX : QuirkSettings from app metadata: null
+10-29 09:49:12.694 13263 13263 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:49:28.596 13404 13404 D CameraX : QuirkSettings from app metadata: null
+10-29 09:49:28.596 13404 13404 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:49:43.033 13522 13522 D CameraX : QuirkSettings from app metadata: null
+10-29 09:49:43.033 13522 13522 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:49:58.602 13641 13641 D CameraX : QuirkSettings from app metadata: null
+10-29 09:49:58.611 13641 13641 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:50:14.539 13740 13740 D CameraX : QuirkSettings from app metadata: null
+10-29 09:50:14.540 13740 13740 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:50:31.073 13855 13855 D CameraX : QuirkSettings from app metadata: null
+10-29 09:50:31.073 13855 13855 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:50:45.387 13973 13973 D CameraX : QuirkSettings from app metadata: null
+10-29 09:50:45.387 13973 13973 D CameraX : QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], forceDisabledQuirks=[]}
+10-29 09:50:57.909 14066 14066 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-29 09:50:57.950 14066 14066 I AndroidRuntime: Using default boot image
+10-29 09:50:57.950 14066 14066 I AndroidRuntime: Leaving lock profiling enabled
+10-29 09:50:58.476 14066 14066 D AndroidRuntime: Calling main entry com.android.commands.content.Content
+10-29 09:50:58.525 14066 14066 D AndroidRuntime: Shutting down VM
+10-29 09:50:59.740 14081 14081 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-29 09:50:59.750 14081 14081 I AndroidRuntime: Using default boot image
+10-29 09:50:59.764 14081 14081 I AndroidRuntime: Leaving lock profiling enabled
+10-29 09:51:00.061 14081 14081 D AndroidRuntime: Calling main entry com.android.commands.content.Content
+10-29 09:51:00.101 14081 14081 D AndroidRuntime: Shutting down VM

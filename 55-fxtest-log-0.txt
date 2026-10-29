@@ -1,0 +1,27 @@
+10-29 09:29:43.045   840   840 D AndroidRuntime: Shutting down VM
+10-29 09:29:43.046   840   840 E AndroidRuntime: FATAL EXCEPTION: main
+10-29 09:29:43.046   840   840 E AndroidRuntime: Process: com.android.systemui, PID: 840
+10-29 09:29:43.046   840   840 E AndroidRuntime: java.lang.RuntimeException: Error receiving broadcast Intent { act=android.intent.action.PACKAGE_CHANGED dat=package: flg=0x5000010 (has extras) } in com.android.systemui.recents.OverviewProxyService$2@21600d6
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.app.LoadedApk$ReceiverDispatcher$Args.lambda$getRunnable$0(LoadedApk.java:1810)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.app.LoadedApk$ReceiverDispatcher$Args.$r8$lambda$gDuJqgxY6Zb-ifyeubKeivTLAwk(Unknown Source:0)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.app.LoadedApk$ReceiverDispatcher$Args$$ExternalSyntheticLambda0.run(Unknown Source:2)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.os.Handler.handleCallback(Handler.java:958)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:205)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:294)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:8177)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:552)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:971)
+10-29 09:29:43.046   840   840 E AndroidRuntime: Caused by: java.lang.NullPointerException: Attempt to read from field 'android.content.pm.ServiceInfo android.content.pm.ResolveInfo.serviceInfo' on a null object reference in method 'void com.android.systemui.recents.OverviewProxyService$2.onReceive(android.content.Context, android.content.Intent)'
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at com.android.systemui.recents.OverviewProxyService$2.onReceive(go/retraceme 19693c2b0a8439b7183751b64d60893829dbf56dc1e08e0669fc0cfc55754948:44)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	at android.app.LoadedApk$ReceiverDispatcher$Args.lambda$getRunnable$0(LoadedApk.java:1802)
+10-29 09:29:43.046   840   840 E AndroidRuntime: 	... 10 more
+10-29 09:31:06.274  5767  5767 I FxTest  : making the test clip (0.0)
+10-29 09:31:40.986  5767  5767 I FxTest  : clip made: file:///data/user/0/com.dronedirector.veyrocutpro/files/generated/bars_1793266266275.mp4 null
+10-29 09:31:41.375  5767  5767 I FxTest  : clip loaded: 1920x1080
+10-29 09:31:41.409  5767  5767 I ExoPlayerImpl: Init b9634e7 [AndroidXMedia3/1.11.1] [emu64xa, sdk_gphone64_x86_64, Google, 34]
+10-29 09:31:41.448  5767  5767 I ExoPlayerImpl: Init 58032c7 [AndroidXMedia3/1.11.1] [emu64xa, sdk_gphone64_x86_64, Google, 34]
+10-29 09:31:41.458  5767  5767 I ExoPlayerImpl: Init 3f870f4 [AndroidXMedia3/1.11.1] [emu64xa, sdk_gphone64_x86_64, Google, 34]
+10-29 09:31:45.177  5767  6436 W tor.veyrocutpro: Long monitor contention with owner ExoPlayer:Playback (6392) at void androidx.media3.exoplayer.mediacodec.AsynchronousMediaCodecCallback.useBuffer(androidx.media3.common.util.ThrowingRunnable)(AsynchronousMediaCodecCallback.java:148) waiters=0 in void androidx.media3.exoplayer.mediacodec.AsynchronousMediaCodecCallback.onInputBufferAvailable(android.media.MediaCodec, int) for 203ms
+10-29 09:31:49.429  5767  5767 I FxTest  : test effects (0.0) set on the open clip

@@ -4,8 +4,8 @@ name: Website preview (GitHub Pages)
 on:
   workflow_dispatch:
   schedule:
-    # once a day, so the Airline Manager Pro preview (airline-manager-pro/) follows that app's website
-    - cron: '17 4 * * *'
+    # every hour, so the Airline Manager Pro preview (airline-manager-pro/) follows that app's releases
+    - cron: '17 * * * *'
   push:
     branches: [main]
     paths: [ "Website/**", "ProCamera/FEATURES.md", ".github/workflows/website-pages.yml", ".github/scripts/website/**" ]

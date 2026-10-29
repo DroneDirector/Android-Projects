@@ -43,6 +43,8 @@ private val NOTICES = listOf(
     Notice("SIDD dataset (used to train the noise-reduction model)", "Abdelhamed, Lin, Brown", "MIT License", "https://www.eecs.yorku.ca/~kamel/sidd/"),
     Notice("RNNoise (AI voice isolation)", "Xiph.Org Foundation, Mozilla, Jean-Marc Valin", "BSD 3-Clause License", "https://github.com/xiph/rnnoise"),
     Notice("whisper.cpp and ggml (on-device speech to text)", "Georgi Gerganov and the ggml authors", "MIT License", "https://github.com/ggml-org/whisper.cpp"),
+    Notice("CineForm SDK (CineForm .mov export)", "GoPro, Inc.", "Apache License 2.0 or MIT License", "https://github.com/gopro/cineform-sdk"),
+    Notice("sse2neon (runs the CineForm encoder on ARM processors)", "SSE2NEON contributors", "MIT License", "https://github.com/DLTcollab/sse2neon"),
     Notice("Whisper speech model weights (downloaded on first use)", "OpenAI", "MIT License", "https://github.com/openai/whisper"),
     Notice("MobileSAM (Magic Mask object selection)", "Chaoning Zhang et al.", "Apache License 2.0", "https://github.com/ChaoningZhang/MobileSAM"),
     Notice("Segment Anything (mask decoder in MobileSAM)", "Meta Platforms, Inc.", "Apache License 2.0", "https://github.com/facebookresearch/segment-anything"),

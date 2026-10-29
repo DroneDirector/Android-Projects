@@ -95,7 +95,10 @@ object Fold {
     }
 
     fun isOpen(key: String) = open[key] ?: (mode(scopeOf(key)) == OPEN)
-    fun toggle(key: String) { open[key] = !isOpen(key); save(scopeOf(key)) }
+    fun toggle(key: String) { open[key] = !isOpen(key); save(scopeOf(key)); if (open[key] == true) onOpened?.invoke(key) }
+
+    /** Told when a section is opened by hand (the photo editor keeps its recently used tools). */
+    var onOpened: ((String) -> Unit)? = null
 }
 
 /** Gear → Layout & look: how the editor's fold-out sections start. */

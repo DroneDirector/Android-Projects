@@ -1049,6 +1049,20 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         audioFx.map { fx -> fxPlayer(context, fx).apply { repeatMode = Player.REPEAT_MODE_OFF } }
     }
     val zoom = remember { TimelineZoom() }
+    // Each project opens with the timeline as you left it: zoom, scroll position and the open page.
+    LaunchedEffect(es.projectId) {
+        val id = es.projectId ?: return@LaunchedEffect
+        val v = context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).getString("tlview_$id", null)?.split('|') ?: return@LaunchedEffect
+        v.getOrNull(0)?.toFloatOrNull()?.let { zoom.pxPerSec = it.coerceIn(0.5f, 600f) }
+        v.getOrNull(2)?.let { n -> Page.entries.firstOrNull { it.name == n }?.let { es.page = it } }
+        delay(400)
+        v.getOrNull(1)?.toLongOrNull()?.let { zoom.scrollMs = it.coerceIn(0L, zoom.maxScrollMs) }
+    }
+    LaunchedEffect(es.projectId, zoom.pxPerSec, zoom.scrollMs, es.page) {
+        val id = es.projectId ?: return@LaunchedEffect
+        delay(1500)
+        context.getSharedPreferences("procam", android.content.Context.MODE_PRIVATE).edit().putString("tlview_$id", "${zoom.pxPerSec}|${zoom.scrollMs}|${es.page.name}").apply()
+    }
     // Crop / zoom on the player, stabilisation and transitions in the preview.
     val motions = remember { mutableStateMapOf<String, Motion>() }
     val stabProgress = remember { mutableStateMapOf<String, Int>() }
@@ -2866,12 +2880,9 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val bad = withContext(Dispatchers.IO) { clips.map { it.uri }.distinctBy { it.toString() }.filter { !ProjectArchive.readable(context, it) }.map { it.toString() } }
         missing.clear(); missing.addAll(bad)
     }
-    val relink = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        val from = es.relinkFrom; es.relinkFrom = null
-        if (uri == null || from == null) return@rememberLauncherForActivityResult
-        layerScope.launch {
-            try { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
-            val nc = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) } ?: run { es.message = "Couldn't open that file"; return@launch }
+    /** Points every use of the missing file [from] at [uri]. Returns how many clips changed (-1 = couldn't open it). */
+    suspend fun relinkTo(from: String, uri: Uri, quiet: Boolean = false): Int {
+            val nc = withContext(Dispatchers.IO) { ClipLoader.load(context, uri) } ?: run { if (!quiet) es.message = "Couldn't open that file"; return -1 }
             var n = 0
             for (i in clips.indices) if (clips[i].uri.toString() == from) {
                 val o = clips[i]
@@ -2883,10 +2894,45 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             for (i in library.indices) if (library[i].uri.toString() == from) library[i] = library[i].copy(uri = uri, offline = null, offlineOf = null, name = nc.name, durationMs = nc.durationMs, width = nc.width, height = nc.height, mime = nc.mime)
             bins.remove(from)?.let { bins[uri.toString()] = it }
             missing.remove(from)
-            if (clips.isNotEmpty()) load(es.current.coerceIn(0, clips.lastIndex), 0, false)
-            es.message = "Relinked $n clip(s) to ${nc.name}"
+            if (!quiet) {
+                if (clips.isNotEmpty()) load(es.current.coerceIn(0, clips.lastIndex), 0, false)
+                es.message = "Relinked $n clip(s) to ${nc.name}"
+            }
+            return n
+    }
+    val relink = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val from = es.relinkFrom; es.relinkFrom = null
+        if (uri == null || from == null) return@rememberLauncherForActivityResult
+        layerScope.launch {
+            try { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) {}
+            relinkTo(from, uri)
         }
     }
+    // Opening a project with files that can't be found: offer to look for them (by name, in the phone's
+    // photos and videos — e.g. after they were moved to another folder or card).
+    var missingAsked by remember { mutableStateOf<String?>(null) }
+    val missingKey = es.projectId ?: "open"
+    if (missing.isNotEmpty() && missingAsked != missingKey) AlertDialog(
+        onDismissRequest = { missingAsked = missingKey },
+        containerColor = Pro.PanelSolid,
+        title = { Text("${missing.size} file(s) are missing", color = Color.White) },
+        text = { Text("Some clips in this project can't be opened (moved, renamed or on a card that isn't in). FIND THEM looks for files with the same name on the phone and links them again. Or use RELINK in the media pool for each one.", color = Pro.Dim) },
+        confirmButton = { TextButton(onClick = {
+            missingAsked = missingKey
+            layerScope.launch {
+                es.message = "Looking for the missing files…"
+                var found = 0
+                for (from in missing.toList()) {
+                    val name = (clips.firstOrNull { it.uri.toString() == from }?.name ?: library.firstOrNull { it.uri.toString() == from }?.name) ?: continue
+                    val hit = withContext(Dispatchers.IO) { MissingMedia.findByName(context, name) } ?: continue
+                    if (relinkTo(from, hit, quiet = true) > 0) found++
+                }
+                if (found > 0 && clips.isNotEmpty()) load(es.current.coerceIn(0, clips.lastIndex), 0, false)
+                es.message = if (found > 0) "Found and linked $found file(s)" + (if (missing.isNotEmpty()) " · ${missing.size} still missing (RELINK in the media pool)" else "") else "None found by name — use RELINK in the media pool"
+            }
+        }) { Text("FIND THEM", color = Pro.Amber) } },
+        dismissButton = { TextButton(onClick = { missingAsked = missingKey }) { Text("LATER", color = Color.White) } },
+    )
     fun applyProject(p: VideoProjectData) {
         // A clip whose original is gone opens from the video catalog's copy, if one was kept.
         clips.clear(); clips.addAll(p.clips.map { try { MediaCatalog.resolve(context, it) } catch (_: Throwable) { it } })
@@ -3349,7 +3395,8 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
         val cutMusic = cut.music?.let { if (g == 1f) it else it.copy(volume = it.volume * g) }
         val cutExtra = if (g == 1f) cut.extra else cut.extra.map { it.copy(volume = it.volume * g) }
         // Long films: rendered in parts (a failed part is done again on its own), then joined.
-        val parts = if (es.deliver.audioOnly || smartRenderBlocker(context, list, es.deliver, cut.layers, cutMusic, cutExtra) == null) listOf(0L, 0L)
+        val toCineForm = es.deliver.cineform in 0..3 && !es.deliver.audioOnly
+        val parts = if (toCineForm || es.deliver.audioOnly || smartRenderBlocker(context, list, es.deliver, cut.layers, cutMusic, cutExtra) == null) listOf(0L, 0L)
             else ChunkedExport.bounds(list)
         if (parts.size > 2) {
             val all = trackSwitches(list)
@@ -3402,8 +3449,41 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     (SaveFolder.write(context, true, name, "video/mp4") { os -> joined.inputStream().use { it.copyTo(os) } }
                         ?: GradeIO.publishVideo(context, joined, com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO)).also { joined.delete() }
                 }
+                if (uri != null) { com.dronedirector.veyrocutpro.ExportService.shareUri = uri; com.dronedirector.veyrocutpro.ExportService.shareMime = "video/*" }
                 es.exporting = false; es.progress = 100
                 es.message = if (uri != null) "Exported ($n parts joined)" else "Couldn't join the parts"
+            }
+            return
+        }
+        // CineForm: render to a temporary file (very high bitrate), then convert it to a CineForm .mov.
+        if (toCineForm) {
+            val all = trackSwitches(list)
+            val (ow, oh) = outputSize(all, es.deliver)
+            val tmp = java.io.File(context.cacheDir, "cf_render_${System.currentTimeMillis()}.mp4")
+            val quality = es.deliver.cineform; val sound = es.deliver.audio
+            val e = TimelineExport(
+                context, all, CineForm.intermediate(es.deliver, ow, oh), cut.layers, cutMusic, cutExtra,
+                onProgress = { es.progress = it * 45 / 100 },
+                onDone = cf@{ uri, err ->
+                    es.export = null
+                    if (uri == null || !es.exporting) { tmp.delete(); es.exporting = false; es.message = err ?: "Export failed"; return@cf }
+                    es.message = "Converting to CineForm…"
+                    es.cloudJob = layerScope.launch {
+                        val (out, why) = withContext(Dispatchers.Default) {
+                            CineForm.convert(context, tmp, quality, sound) { p -> layerScope.launch { es.progress = 45 + p * 55 / 100 } }
+                        }
+                        tmp.delete()
+                        if (out != null) { com.dronedirector.veyrocutpro.ExportService.shareUri = out; com.dronedirector.veyrocutpro.ExportService.shareMime = "video/quicktime" }
+                        es.exporting = false; es.progress = 100
+                        es.message = if (out != null) "CineForm .mov exported to " + (SaveFolder.get(context, true)?.let { SaveFolder.label(it) } ?: "DCIM/AlcorCutPro") else why ?: "Export stopped"
+                    }
+                },
+                toFile = tmp,
+            )
+            es.export = e
+            try { e.start() } catch (t: Throwable) {
+                es.exporting = false; es.export = null; tmp.delete()
+                es.message = "Export failed: ${t.message ?: t.javaClass.simpleName}"
             }
             return
         }
@@ -3411,6 +3491,7 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
             context, trackSwitches(list), es.deliver, cut.layers, cutMusic, cutExtra,
             onProgress = { es.progress = if (es.deliver.loudness != null && (es.deliver.audio || es.deliver.audioOnly)) 20 + it * 4 / 5 else it },
             onDone = { uri, err ->
+                if (uri != null) { com.dronedirector.veyrocutpro.ExportService.shareUri = uri; com.dronedirector.veyrocutpro.ExportService.shareMime = if (es.deliver.audioOnly) "audio/*" else "video/*" }
                 es.exporting = false; es.export = null
                 es.message = if (uri != null) {
                     val place = com.dronedirector.veyrocutpro.camera.Storage.load(context, com.dronedirector.veyrocutpro.camera.StorageArea.VIDEO)
@@ -4114,7 +4195,19 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                     // RGB histogram: a pull-out drawer on the right edge (never in full screen).
                     if (!es.fullscreen && showScope) ScopeDrawer(es.scopeHist, Modifier.align(Alignment.CenterEnd), frame = es.scopeFrame) { es.scopeOpen = it }
                     // The time read-out is in the timeline's bar below the picture only (not on the picture).
-                    if (es.exporting) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) {
+                    // Export: KEEP EDITING shrinks the progress to a small bar, so you can carry on while it renders
+                    // (it keeps going with the screen off or in another app; the notification can share the result).
+                    var exportSmall by remember { mutableStateOf(false) }
+                    LaunchedEffect(es.exporting) { if (!es.exporting) exportSmall = false }
+                    if (es.exporting && exportSmall) Row(
+                        Modifier.align(Alignment.TopCenter).padding(top = 8.dp).clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.75f))
+                            .clickable { exportSmall = false }.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CircularProgressIndicator(color = Pro.Amber, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                        Text("Rendering… ${es.progress}%", color = Color.White, fontSize = 12.sp)
+                    }
+                    if (es.exporting && !exportSmall) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             CircularProgressIndicator(color = Pro.Amber)
                             Text("Rendering… ${es.progress}%", color = Color.White, fontSize = 15.sp)
@@ -4122,7 +4215,11 @@ private fun Workspace(clips: MutableList<Clip>, initial: VideoProjectData?, onAd
                             var now by remember { mutableStateOf(0L) }
                             LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
                             Text(if (now > 0) etaFromProgress(es.exportStartAt, es.progress) ?: "Estimating time left…" else "Estimating time left…", color = Pro.Dim, fontSize = 13.sp)
-                            Text("CANCEL", style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { es.cloudJob?.cancel(); es.export?.cancel(); es.export = null; es.exporting = false }.padding(10.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("KEEP EDITING", style = Pro.Label.copy(color = Color.White, fontSize = 12.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { exportSmall = true }.padding(10.dp))
+                                Text("CANCEL", style = Pro.Label.copy(color = Pro.Amber, fontSize = 12.sp), modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { es.cloudJob?.cancel(); es.export?.cancel(); es.export = null; es.exporting = false }.padding(10.dp))
+                            }
+                            Text("It keeps rendering with the screen off or in another app; the notification tells you when it's done, with Share.", color = Pro.Dim, fontSize = 11.sp, modifier = Modifier.widthIn(max = 300.dp))
                         }
                     }
                     es.message?.let {
@@ -7227,8 +7324,10 @@ private fun DeliverPage(
     val (ow, oh) = outputSize(clips, s)
     val outFps = if (s.fps > 0) s.fps else 30
     val autoMbps = ow.toDouble() * oh * outFps * 0.14 / 1_000_000
-    val videoMbps = if (s.audioOnly) 0.0 else if (s.bitrateMbps > 0) s.bitrateMbps.toDouble() else autoMbps
-    val audioMbps = if (s.audioOnly) s.audioFmt.bytesPerSecond() * 8 / 1_000_000 else if (s.audio) 0.13 else 0.0
+    val cf = s.cineform in 0..3 && !s.audioOnly
+    val videoMbps = if (s.audioOnly) 0.0 else if (cf) ow.toDouble() * oh * outFps * CineForm.BITS_PER_PIXEL[s.cineform] / 1_000_000
+        else if (s.bitrateMbps > 0) s.bitrateMbps.toDouble() else autoMbps
+    val audioMbps = if (s.audioOnly) s.audioFmt.bytesPerSecond() * 8 / 1_000_000 else if (s.audio) (if (cf) 1.536 else 0.13) else 0.0
     val bytes = (videoMbps + audioMbps) * 1_000_000 / 8 * (total / 1000.0) * 1.01
     // First in Deliver: everything about the file itself, then the button — one place to set up and start the render.
     SectionTitle("RENDER & EXPORT")
@@ -7283,10 +7382,22 @@ private fun DeliverPage(
             )
         }
         Text("Codec", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-        Chips(listOf("H.264", "HEVC (H.265)"), if (s.hevc) 1 else 0) { onChange(s.copy(hevc = it == 1)) }
-        Text("Bitrate", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-        val rates = listOf(0, 20, 50, 80, 120, 200, 300, 400)
-        Chips(rates.map { if (it == 0) "Auto" else "$it Mbps" }, rates.indexOf(s.bitrateMbps).coerceAtLeast(0)) { onChange(s.copy(bitrateMbps = rates[it])) }
+        Chips(listOf("H.264", "HEVC (H.265)", "CineForm (.mov)"), if (s.cineform in 0..3) 2 else if (s.hevc) 1 else 0) {
+            onChange(when (it) { 2 -> s.copy(cineform = if (s.cineform in 0..3) s.cineform else 2); 1 -> s.copy(hevc = true, cineform = -1); else -> s.copy(hevc = false, cineform = -1) })
+        }
+        if (s.cineform in 0..3) {
+            Text("CineForm quality", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            Chips(CineForm.QUALITIES, s.cineform) { onChange(s.copy(cineform = it)) }
+            Text(
+                "A professional editing codec (10-bit 4:2:2, every frame stands alone, uncompressed sound) in a .mov — for finishing on a computer: it opens in the main desktop editing and effects programs and plays smoothly while you cut. Files are large (≈ ${"%.0f".format(ow.toDouble() * oh * outFps * CineForm.BITS_PER_PIXEL[s.cineform] / 1_000_000)} Mbps). The edit is rendered first, then converted, so it takes longer than a normal export." +
+                    if (!CineForm.available) " Not available on this phone." else "",
+                color = if (CineForm.available) Pro.Dim else Pro.Red, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp),
+            )
+        } else {
+            Text("Bitrate", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            val rates = listOf(0, 20, 50, 80, 120, 200, 300, 400)
+            Chips(rates.map { if (it == 0) "Auto" else "$it Mbps" }, rates.indexOf(s.bitrateMbps).coerceAtLeast(0)) { onChange(s.copy(bitrateMbps = rates[it])) }
+        }
     }
     Text("Estimated file size", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp, bottom = 4.dp))
     Row(
@@ -8256,5 +8367,25 @@ internal fun LibraryOverlay(import: Boolean, onClose: () -> Unit, onAdd: (List<U
                 }
             }
         }
+    }
+}
+
+/** Looks for a moved file by its name among the phone's videos and photos. */
+internal object MissingMedia {
+    fun findByName(context: android.content.Context, name: String): Uri? {
+        if (name.isBlank()) return null
+        val sets = listOf(
+            android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+            android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+        )
+        for (base in sets) try {
+            context.contentResolver.query(base, arrayOf(android.provider.MediaStore.MediaColumns._ID), "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME} = ?", arrayOf(name), null)?.use { c ->
+                if (c.moveToFirst()) {
+                    val u = android.content.ContentUris.withAppendedId(base, c.getLong(0))
+                    if (ProjectArchive.readable(context, u)) return u
+                }
+            }
+        } catch (_: Throwable) {}
+        return null
     }
 }

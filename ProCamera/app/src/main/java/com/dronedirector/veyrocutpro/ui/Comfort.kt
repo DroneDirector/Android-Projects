@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -354,7 +356,7 @@ fun SettingsSearchField(query: String, onChange: (String) -> Unit) {
     androidx.compose.material3.OutlinedTextField(
         query, onChange, singleLine = true,
         placeholder = { Text("Search settings (e.g. zebra, proxy, location)", color = Pro.Dim, fontSize = 13.sp) },
-        leadingIcon = { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Search, null, tint = Pro.Dim) },
+        leadingIcon = { androidx.compose.material3.Icon(Icons.Filled.Search, null, tint = Pro.Dim) },
         trailingIcon = if (query.isNotEmpty()) ({ Text("✕", color = Pro.Dim, modifier = Modifier.clickable { onChange("") }.padding(10.dp)) }) else null,
         colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
             focusedTextColor = Pro.Fg, unfocusedTextColor = Pro.Fg, focusedBorderColor = Pro.Amber, unfocusedBorderColor = Pro.Fg.copy(alpha = 0.2f), cursorColor = Pro.Amber,

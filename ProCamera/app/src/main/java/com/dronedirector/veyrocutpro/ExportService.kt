@@ -159,6 +159,16 @@ class ExportService : Service() {
                     .setContentText(text)
                     .setAutoCancel(true)
                     .setContentIntent(openApp(app))
+                    .apply {
+                        val u = shareUri
+                        if (key == EXPORT && u != null) {
+                            shareUri = null
+                            val send = Intent(Intent.ACTION_SEND).setType(shareMime).putExtra(Intent.EXTRA_STREAM, u).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            val chooser = Intent.createChooser(send, "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            val pi = PendingIntent.getActivity(app, 7, chooser, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                            @Suppress("DEPRECATION") addAction(Notification.Action.Builder(null, "Share", pi).build())
+                        }
+                    }
                     .build()
                 app.getSystemService(NotificationManager::class.java)?.notify(key, DONE_ID, n)
             } catch (_: Throwable) {}
@@ -168,5 +178,9 @@ class ExportService : Service() {
         fun start(context: Context, what: String) = begin(context, EXPORT, what, 0)
         fun progress(context: Context, p: Int, what: String? = null) = update(context, EXPORT, p, what)
         fun finish(context: Context, text: String?) = end(context, EXPORT, text)
+
+        /** The finished video (or audio) of the last export: its notification gets a Share button. */
+        @Volatile var shareUri: android.net.Uri? = null
+        @Volatile var shareMime: String = "video/mp4"
     }
 }

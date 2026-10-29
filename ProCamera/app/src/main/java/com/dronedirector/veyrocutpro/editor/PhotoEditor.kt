@@ -650,6 +650,14 @@ private fun PhotoWorkspace(
     var showLoad by remember { mutableStateOf(false) }
     if (showLoad) LoadProjectDialog(false, onOpen = { showLoad = false; onLoad(it) }, onDismiss = { showLoad = false })
     var panel by remember { mutableStateOf(PhotoPanel.PRESETS) }
+    // Recently used tools: the sections you opened last, one tap away above the panels.
+    var recentTools by remember { mutableStateOf(RecentTools.load(context)) }
+    DisposableEffect(Unit) {
+        com.dronedirector.veyrocutpro.ui.Fold.onOpened = { key ->
+            if (key.startsWith("photo|")) recentTools = RecentTools.add(context, panel, key.removePrefix("photo|"))
+        }
+        onDispose { com.dronedirector.veyrocutpro.ui.Fold.onOpened = null }
+    }
     var comparing by remember { mutableStateOf(false) }
     // Develop tools: eyedropper (1 = white balance, 2 = Point Color), clipping warning, sharpening mask, zoom / 1:1 loupe.
     var picking by remember { mutableStateOf(0) }
@@ -1972,6 +1980,23 @@ private fun PhotoWorkspace(
                                 onDoubleTap = { resetFraming() },
                             )
                         }
+                    }.pointerInput(split, panel, picking, retouchTab, samplerMode) {
+                        // Swipe left / right on the whole (not zoomed) photo: next / previous in the filmstrip.
+                        // The edit is kept in the catalog first.
+                        val painting = split || picking != 0 || samplerMode || panel == PhotoPanel.MASKS || panel == PhotoPanel.HEAL || (panel == PhotoPanel.RETOUCH && retouchTab == 0)
+                        if (!painting) {
+                            var dx = 0f
+                            detectHorizontalDragGestures(
+                                onDragStart = { dx = 0f },
+                                onDragEnd = {
+                                    val n = PhotoSession.items.size
+                                    if (sessionIdx >= 0 && n > 1 && kotlin.math.abs(dx) > size.width * 0.22f) {
+                                        val to = (sessionIdx + if (dx < 0) 1 else -1).coerceIn(0, n - 1)
+                                        if (to != sessionIdx) switchTo(to)
+                                    }
+                                },
+                            ) { ch, d -> if (zoomK <= 1.001f && edit.geometry.zoom <= 1.001f) { dx += d; ch.consume() } }
+                        }
                     },
                     contentAlignment = Alignment.Center,
                 ) {
@@ -2149,6 +2174,16 @@ private fun PhotoWorkspace(
                             modifier = Modifier.clip(RoundedCornerShape(50)).background(if (samplerMode) Pro.Amber else Color.Black.copy(alpha = 0.5f))
                                 .clickable { samplerMode = !samplerMode; if (samplerMode) message = "Tap the photo to pin up to 4 colour samplers; tap one again to remove it" }.padding(horizontal = 8.dp, vertical = 3.dp),
                         )
+                        // Filmstrip: jump to the next photo you haven't edited yet.
+                        if (sessionIdx >= 0 && PhotoSession.items.size > 1) Text(
+                            "NEXT UNEDITED →",
+                            style = Pro.Label.copy(color = Color.White),
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.5f)).clickable {
+                                val n = PhotoSession.items.size
+                                val to = (1 until n).map { (sessionIdx + it) % n }.firstOrNull { !PhotoSession.items[it].edited }
+                                if (to != null) switchTo(to) else message = "Every photo in the filmstrip has been edited"
+                            }.padding(horizontal = 8.dp, vertical = 3.dp),
+                        )
                         Text(
                             if (split) "SPLIT ✓" else "SPLIT",
                             style = Pro.Label.copy(color = if (split) Color.Black else Color.White),
@@ -2288,6 +2323,7 @@ private fun PhotoWorkspace(
             val controls = @Composable { mod: Modifier ->
                 Column(mod.background(Ed.Panel)) {
                     PanelTabs(panel) { panel = it }
+                    RecentToolsRow(recentTools) { (p, title) -> panel = p; com.dronedirector.veyrocutpro.ui.Fold.jump("photo", title) }
                     if (showCopyBar) CopyPasteBar(
                         video = false,
                         onCopy = {
@@ -2813,6 +2849,38 @@ fun TopIcon(icon: ImageVector, label: String, enabled: Boolean = true, tint: Col
     val view = androidx.compose.ui.platform.LocalView.current
     Box(Modifier.size(42.dp).clip(CircleShape).combinedClickable(enabled = enabled, onClick = onClick, onLongClick = { com.dronedirector.veyrocutpro.ui.HelpTip.show(label, view) }), contentAlignment = Alignment.Center) {
         Icon(icon, contentDescription = label, tint = if (enabled) tint else tint.copy(alpha = 0.3f), modifier = Modifier.size(22.dp))
+    }
+}
+
+/** The photo editor's recently used tools (panel + section), newest first. */
+private object RecentTools {
+    private const val KEY = "pe_recent_tools"
+    fun load(c: Context): List<Pair<PhotoPanel, String>> =
+        (c.getSharedPreferences("procam", Context.MODE_PRIVATE).getString(KEY, "") ?: "").split("\n").mapNotNull { l ->
+            val p = l.substringBefore('|'); val t = l.substringAfter('|', "")
+            PhotoPanel.entries.firstOrNull { it.name == p }?.takeIf { t.isNotEmpty() }?.let { it to t }
+        }
+    fun add(c: Context, p: PhotoPanel, title: String): List<Pair<PhotoPanel, String>> {
+        val list = (listOf(p to title) + load(c).filter { it.second != title }).take(5)
+        c.getSharedPreferences("procam", Context.MODE_PRIVATE).edit().putString(KEY, list.joinToString("\n") { it.first.name + "|" + it.second }).apply()
+        return list
+    }
+}
+
+@Composable
+private fun RecentToolsRow(list: List<Pair<PhotoPanel, String>>, onOpen: (Pair<PhotoPanel, String>) -> Unit) {
+    if (list.isEmpty() || com.dronedirector.veyrocutpro.camera.SimpleMode.on) return
+    Row(
+        Modifier.fillMaxWidth().hintedScroll(horizontal = true).padding(horizontal = 6.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("RECENT", style = Pro.Label.copy(color = Pro.Dim, fontSize = 10.sp))
+        list.forEach { t ->
+            Text(
+                com.dronedirector.veyrocutpro.ui.I18n.tr(t.second).lowercase().replaceFirstChar { it.uppercase() }, color = Pro.Amber, fontSize = 11.sp, maxLines = 1,
+                modifier = Modifier.clip(RoundedCornerShape(50)).border(1.dp, Pro.Amber.copy(alpha = 0.4f), RoundedCornerShape(50)).clickable { onOpen(t) }.padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+        }
     }
 }
 

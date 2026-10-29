@@ -1263,17 +1263,17 @@ class ProCameraController(private val context: Context) {
     fun recallPreset(slot: Int) {
         val p = CamPresets.load(context, slot)
         if (p == null) { toast("C$slot is empty — hold it to save your current settings"); return }
-        applySetup(p)
+        applySetup(p, "C$slot")
     }
 
     /** The last few set-ups you shot with (newest first). */
     fun recentSetups(): List<CamPreset> = CamPresets.recent(context)
 
-    fun recallRecent(i: Int) { CamPresets.recent(context).getOrNull(i)?.let { applySetup(it) } }
+    fun recallRecent(i: Int) { CamPresets.recent(context).getOrNull(i)?.let { applySetup(it, "Last set-up") } }
 
     private fun rememberSetup() { val p = CamPreset.from(st); if (p.mode != CaptureMode.LIVE) ioExecutor.execute { CamPresets.addRecent(context, p) } }
 
-    private fun applySetup(p: CamPreset) {
+    private fun applySetup(p: CamPreset, label: String) {
         if (st.recording) { toast("Stop recording first"); return }
         if (p.mode == CaptureMode.LIVE) return
         if (p.mode != st.mode) setMode(p.mode)
@@ -1301,7 +1301,7 @@ class ProCameraController(private val context: Context) {
         }
         bind()
         applyControls()
-        toast("C$slot")
+        toast(label)
     }
 
     fun selectLens(index: Int) {

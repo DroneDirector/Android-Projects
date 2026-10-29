@@ -151,6 +151,8 @@ data class DeliverSettings(
     val shortSide: Int = 0,
     val fps: Int = 0,
     val hevc: Boolean = false,
+    /** CineForm .mov (pro editing codec) instead of H.264 / HEVC: quality 0–3, −1 = off. */
+    val cineform: Int = -1,
     /** Mbit/s, 0 = automatic. */
     val bitrateMbps: Int = 0,
     val audio: Boolean = true,

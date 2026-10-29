@@ -222,6 +222,46 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null, onOpenVideo: () 
         }
     }
     val mergePick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(8)) { list -> mergeDone(list) }
+    // Long exposure from a video: the clip, then how much of it and which look.
+    var longVideo by remember { mutableStateOf<Uri?>(null) }
+    var longSec by remember { mutableStateOf(0) }
+    var longTrails by remember { mutableStateOf(false) }
+    val longPick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { u -> if (u != null) longVideo = u }
+    longVideo?.let { lv ->
+        androidx.compose.material3.AlertDialog(onDismissRequest = { longVideo = null }, containerColor = Pro.PanelSolid,
+            title = { Text("Long exposure from a video", color = Color.White) },
+            text = {
+                Column {
+                    Text("Frames from the start of the clip are lined up and blended into one photo.", color = Pro.Dim, fontSize = 12.sp)
+                    Text("How much of the clip", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                    Row(Modifier.hintedScroll(horizontal = true), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf(0 to "All of it", 2 to "2 s", 4 to "4 s", 8 to "8 s", 15 to "15 s").forEach { (s, n) -> PillChip(n, longSec == s) { longSec = s } }
+                    }
+                    Text("Look", color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        PillChip("Smooth (water, clouds)", !longTrails) { longTrails = false }
+                        PillChip("Light trails", longTrails) { longTrails = true }
+                    }
+                }
+            },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = {
+                longVideo = null
+                merging = "Starting…"
+                scope.launch {
+                    val out = withContext(Dispatchers.Default) {
+                        try {
+                            val b = Merge.fromVideo(context, lv, longSec, longTrails) { msg -> scope.launch { merging = msg } } ?: return@withContext null
+                            savePhotoAs(context, b, 0, 95, null, false).also { b.recycle() }
+                        } catch (_: OutOfMemoryError) { null } catch (_: Throwable) { null }
+                    }
+                    merging = null
+                    if (out != null) { project = null; source = out }
+                    else android.widget.Toast.makeText(context, com.dronedirector.veyrocutpro.ui.I18n.tr("Couldn't make a long exposure from that video"), android.widget.Toast.LENGTH_LONG).show()
+                }
+            }) { Text("MAKE", color = Pro.Amber) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { longVideo = null }) { Text("CANCEL", color = Color.White) } },
+        )
+    }
 
     // Star trails take many shots (an interval series), more than the other merges.
     val trailsPick = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(100)) { list -> mergeDone(list) }
@@ -285,7 +325,7 @@ fun PhotoEditorScreen(onExit: () -> Unit, initial: Uri? = null, onOpenVideo: () 
             )
         }
         MediaChooser(
-            onMerge = { k -> if (k == MergeKind.PANORAMA) panoAsk = true else { mergeKind = k; (if (k == MergeKind.TRAILS || k == MergeKind.HDR_PANO) trailsPick else mergePick).launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } },
+            onMerge = { k -> if (k == MergeKind.PANORAMA) panoAsk = true else if (k == MergeKind.LONG_VIDEO) { try { longPick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) } catch (_: Throwable) {} } else { mergeKind = k; (if (k == MergeKind.TRAILS || k == MergeKind.HDR_PANO) trailsPick else mergePick).launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } },
             title = "Photo editor",
             subtitle = "Choose a photo to edit. The original is never changed; edits are exported as a new picture.",
             videos = false,
@@ -772,6 +812,12 @@ private fun PhotoWorkspace(
     // The photo being edited: the original, or its AI-erased copy.
     fun sourceUri(e: PhotoEdit): Uri = e.baseFile?.let { Uri.fromFile(java.io.File(it)) } ?: uri
     LaunchedEffect(ExportOpts.gamut, preview) { val pv = preview; gamutImg = if (ExportOpts.gamut != 0 && pv != null) withContext(Dispatchers.Default) { ExportOpts.gamutOverlay(pv) } else null }
+    // Colour samplers (pinned points with their values) and the focus mask (sharp areas in green).
+    var samplerMode by remember { mutableStateOf(false) }
+    var samplers by remember { mutableStateOf<List<Pair<Float, Float>>>(emptyList()) }
+    var focusMask by remember { mutableStateOf(false) }
+    var focusImg by remember { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(focusMask, preview) { val pv = preview; focusImg = if (focusMask && pv != null) withContext(Dispatchers.Default) { try { FocusMask.overlay(pv) } catch (_: Throwable) { null } } else null }
     LaunchedEffect(clipWarn, preview) { val pv = preview; clipImg = if (clipWarn && pv != null) withContext(Dispatchers.Default) { Develop.clipOverlay(pv) } else null }
     LaunchedEffect(dustView, dustSens, preview, panel) { val pv = preview; dustImg = if (dustView && panel == PhotoPanel.HEAL && pv != null) withContext(Dispatchers.Default) { Upright.visualise(pv, dustSens) } else null }
     LaunchedEffect(ExportOpts.proof, preview, IccProof.on, IccProof.intent, IccProof.paper, IccProof.profile) {
@@ -1881,8 +1927,17 @@ private fun PhotoWorkspace(
                             },
                             onEnd = { if (!painting) commitFraming() },
                         )
-                    }.pointerInput(split, panel, picking, retouchTab) {
-                        if (split) {
+                    }.pointerInput(split, panel, picking, retouchTab, samplerMode) {
+                        if (samplerMode && !split) {
+                            // Colour samplers: each tap pins a point (up to 4); tap near one to remove it.
+                            detectTapGestures(onTap = { o ->
+                                val img = preview ?: return@detectTapGestures
+                                val (px, py) = tapToPixel(o, img, 6.dp.toPx()) ?: return@detectTapGestures
+                                val nx = px.toFloat() / img.width; val ny = py.toFloat() / img.height
+                                val near = samplers.indexOfFirst { kotlin.math.hypot((it.first - nx).toDouble(), (it.second - ny).toDouble()) < 0.03 }
+                                samplers = if (near >= 0) samplers.filterIndexed { i, _ -> i != near } else (samplers + (nx to ny)).takeLast(4)
+                            })
+                        } else if (split) {
                             // Drag anywhere to move the before / after divider.
                             detectHorizontalDragGestures { ch, _ -> splitX = (ch.position.x / size.width).coerceIn(0.02f, 0.98f) }
                         } else if (picking == 6 || picking == 7) {
@@ -1978,6 +2033,23 @@ private fun PhotoWorkspace(
                             if (shown != null && !comparing) {
                                 sharpImg?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
                                 clipImg?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
+                                focusImg?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
+                                if (samplers.isNotEmpty()) {
+                                    val pic = shown
+                                    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                                        val asp = pic.width.toFloat() / pic.height
+                                        val dw = if (size.width / size.height > asp) size.height * asp else size.width
+                                        val dh = if (size.width / size.height > asp) size.height else size.width / asp
+                                        val ox = (size.width - dw) / 2f; val oy = (size.height - dh) / 2f
+                                        samplers.forEachIndexed { i, (nx, ny) ->
+                                            val c = androidx.compose.ui.geometry.Offset(ox + nx * dw, oy + ny * dh)
+                                            drawCircle(Color.Black, 9.dp.toPx() / zoomK, c, style = androidx.compose.ui.graphics.drawscope.Stroke(4.dp.toPx() / zoomK))
+                                            drawCircle(Pro.Amber, 9.dp.toPx() / zoomK, c, style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx() / zoomK))
+                                            drawContext.canvas.nativeCanvas.drawText("${i + 1}", c.x + 11.dp.toPx() / zoomK, c.y - 8.dp.toPx() / zoomK,
+                                                android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFB300.toInt(); textSize = 13.dp.toPx() / zoomK; setShadowLayer(3f, 0f, 0f, 0xFF000000.toInt()) })
+                                        }
+                                    }
+                                }
                                 gamutImg?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
                                 if (panel == PhotoPanel.HEAL) eraseTint?.let { Image(it.asImageBitmap(), null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize()) }
                             }
@@ -2015,6 +2087,18 @@ private fun PhotoWorkspace(
                         style = Pro.Label.copy(color = Color.Black),
                         modifier = Modifier.align(Alignment.TopCenter).padding(top = 34.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).clickable { picking = 0 }.padding(horizontal = 10.dp, vertical = 5.dp),
                     )
+                    // Colour sampler read-outs (0–255 of the edited picture, and brightness in %).
+                    val spv = preview
+                    if (samplers.isNotEmpty() && spv != null) Column(
+                        Modifier.align(Alignment.BottomStart).padding(10.dp).clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(alpha = 0.65f)).padding(horizontal = 8.dp, vertical = 5.dp),
+                    ) {
+                        samplers.forEachIndexed { i, (nx, ny) ->
+                            val v = Develop.sample(spv, (nx * spv.width).toInt(), (ny * spv.height).toInt(), (spv.width / 400).coerceAtLeast(1))
+                            val l = ((0.2126f * v[0] + 0.7152f * v[1] + 0.0722f * v[2]) / 2.55f).toInt()
+                            Text("${i + 1}  R ${v[0].toInt()}  G ${v[1].toInt()}  B ${v[2].toInt()}  ·  $l%", style = Pro.Value.copy(color = Color.White, fontSize = 11.sp))
+                        }
+                        if (samplerMode) Text("CLEAR", style = Pro.Label.copy(color = Pro.Amber, fontSize = 10.sp), modifier = Modifier.clickable { samplers = emptyList() }.padding(top = 3.dp))
+                    }
                     if (rawOn(edit)) Text(
                         "RAW", style = Pro.Label.copy(color = Color.Black),
                         modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).clip(RoundedCornerShape(50)).background(Pro.Amber).padding(horizontal = 8.dp, vertical = 3.dp),
@@ -2037,6 +2121,17 @@ private fun PhotoWorkspace(
                             if (comparing) "BEFORE" else "HOLD FOR BEFORE",
                             style = Pro.Label.copy(color = Color.White),
                             modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 8.dp, vertical = 3.dp),
+                        )
+                        Text(
+                            if (focusMask) "FOCUS ✓" else "FOCUS",
+                            style = Pro.Label.copy(color = if (focusMask) Color.Black else Color.White),
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(if (focusMask) Pro.Amber else Color.Black.copy(alpha = 0.5f)).clickable { focusMask = !focusMask; message = if (focusMask) "Focus mask: the sharp areas show in green" else null }.padding(horizontal = 8.dp, vertical = 3.dp),
+                        )
+                        Text(
+                            if (samplerMode) "SAMPLERS ✓" else "SAMPLERS",
+                            style = Pro.Label.copy(color = if (samplerMode) Color.Black else Color.White),
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(if (samplerMode) Pro.Amber else Color.Black.copy(alpha = 0.5f))
+                                .clickable { samplerMode = !samplerMode; if (samplerMode) message = "Tap the photo to pin up to 4 colour samplers; tap one again to remove it" }.padding(horizontal = 8.dp, vertical = 3.dp),
                         )
                         Text(
                             if (split) "SPLIT ✓" else "SPLIT",
@@ -2345,7 +2440,8 @@ private fun PhotoWorkspace(
                                 SectionTitle("NAME LABELS")
                                 Text("Lower-third name and title cards — tap one to add it, then type the name and title.", color = Pro.Dim, fontSize = 11.sp)
                                 LowerThirdGallery { i -> val l = lowerThirdLayer(i, 0L, 1L, wholeVideo = true); edit = edit.copy(texts = edit.texts + l); selText = l.id }
-                                SectionTitle("TEXT & STICKERS") { edit = edit.copy(texts = emptyList()) }
+                                PhotoLayersSection(edit.texts, (preview ?: base)?.let { it.width.toFloat() / it.height } ?: 1.5f) { edit = edit.copy(texts = it) }
+                                SectionTitle("TEXT & STICKERS") { edit = edit.copy(texts = edit.texts.filter { PhotoLayers.isPhotoLayer(it) }) }
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text("+ TEXT", style = Pro.Label.copy(color = Pro.Amber, fontSize = 11.sp), modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Ed.Raised).clickable {
                                         val l = Layer(kind = LayerKind.TEXT, text = "Your text", size = 0.07f, x = 0.5f, y = 0.5f, wholeVideo = true)
@@ -2358,7 +2454,7 @@ private fun PhotoWorkspace(
                                         }.padding(horizontal = 8.dp, vertical = 4.dp))
                                     }
                                 }
-                                edit.texts.forEach { t ->
+                                edit.texts.filterNot { PhotoLayers.isPhotoLayer(it) }.forEach { t ->
                                     val sel = t.id == selText
                                     Row(Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(8.dp)).background(if (sel) Pro.Amber.copy(alpha = 0.16f) else Ed.Raised)
                                         .clickable { selText = t.id }.padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {

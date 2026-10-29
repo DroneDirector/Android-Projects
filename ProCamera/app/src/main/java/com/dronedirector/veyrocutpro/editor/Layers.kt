@@ -340,6 +340,8 @@ object LayerRenderer {
 /** Draws a watermark/logo layer onto a photo (returns a new bitmap). */
 fun stampLayer(context: Context, src: Bitmap, l: Layer): Bitmap {
     if (!l.visible) return src
+    // Photo layers (pictures with a blend mode) are drawn at full size with their blend.
+    if (PhotoLayers.isPhotoLayer(l)) return PhotoLayers.composite(context, src, l)
     val mark = LayerRenderer.render(context, l, src.width, src.height) ?: return src
     val out = if (src.isMutable) src else src.copy(Bitmap.Config.ARGB_8888, true)
     val p = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply { alpha = (l.opacity * 255).toInt().coerceIn(0, 255) }

@@ -496,7 +496,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 }
             }
 
-            SettingsGroup("remote", "Remote & output", "Remote monitor & control from another device, cast to a TV (Chromecast), clean feed for HDMI / streaming") {
+            SettingsGroup("remote", "Remote & output", "Remote monitor & control from another device, connect to a PC, cast to a TV (Chromecast), clean feed for HDMI / streaming") {
                 Section("REMOTE MONITOR")
                 ToggleRow(
                     "Remote monitor & control",
@@ -509,6 +509,26 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                         Text(addr, color = Pro.Amber, fontSize = 18.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.padding(vertical = 6.dp))
                     }
                     Text("The 4-digit number at the end is the PIN — only devices with the full address can connect. No Wi-Fi? Turn on this phone's hotspot and join it from the other device. Turn this off when you're done.", color = Pro.Dim, fontSize = 12.sp)
+                }
+
+                Section("CONNECT TO PC")
+                run {
+                    val pctx = androidx.compose.ui.platform.LocalContext.current
+                    val link = com.dronedirector.veyrocutpro.camera.PcLink
+                    ToggleRow(
+                        "Connect to PC",
+                        "Use this phone as the camera in AlcorCut Pro on Windows — over Wi-Fi, or a USB cable with USB tethering on",
+                        link.on,
+                    ) { if (link.on) link.stop() else link.start(pctx, c) }
+                    if (link.on) {
+                        Text(
+                            if (link.peer != null) "Connected to ${link.peer}" else "On the PC: Capture → camera list → this phone, then type the PIN:",
+                            color = Pro.Dim, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp),
+                        )
+                        if (link.peer == null) Text("PIN ${link.pin}", color = Pro.Amber, fontSize = 22.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.padding(vertical = 6.dp))
+                        Text("This phone: " + (link.address() ?: "not on a network — join Wi-Fi or turn on USB tethering"), color = Pro.Dim, fontSize = 12.sp)
+                        ToggleRow("Send photos and videos to the PC", "Each photo and video is also copied to the PC as soon as it's saved here", link.sendMedia) { link.setSendMedia(pctx, !link.sendMedia) }
+                    }
                 }
 
                 // Chromecast: tablets only.

@@ -342,6 +342,7 @@ class ProCameraController(private val context: Context) {
     }
 
     fun release() {
+        PcLink.stop()
         CaptureLocation.stop(context)
         setRemote(false)
         try { audioManager.unregisterAudioDeviceCallback(deviceCallback) } catch (_: Throwable) {}

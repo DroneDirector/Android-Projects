@@ -49,7 +49,7 @@
  {
   "title": "Remote monitor",
   "items": [
-   "<strong>Connect to PC</strong>: this phone as the camera in AlcorCut Pro on Windows, over Wi-Fi or a USB cable (USB tethering), protected by a 4-digit PIN: live picture on the PC, the PC works the camera (modes, ISO, shutter, focus, white balance, EV, zoom, lens, video size and frame rate), photos and videos taken here at full quality and copied to the PC straight away.",
+   "<strong>Connect to PC</strong>: this phone as the camera in AlcorCut Pro on Windows, over Wi-Fi or a USB cable (USB tethering), protected by a 4-digit PIN: live picture on the PC, the PC works the camera (modes, ISO, shutter, focus — also by clicking a spot in the picture — white balance, EV, zoom, lens, video size and frame rate), photos and videos taken here at full quality and copied to the PC straight away.",
    "<strong>Cast to TV (Chromecast, tablets)</strong>: the live viewfinder with sound on a TV with a Chromecast or Google TV on the same Wi-Fi (a few seconds behind). Button on the picture or below it (gear → Remote &amp; output); hide it in the layout menu.",
    "<strong>Remote monitor &amp; control</strong> from any browser on the same Wi-Fi or hotspot (PIN-protected address): live picture, shutter / record, zoom, Photo / Video / Pro Video, autofocus, AE lock, recording time and exposure read-out."
   ]

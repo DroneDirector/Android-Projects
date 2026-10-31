@@ -584,6 +584,7 @@ fun SettingsPanel(s: CameraUiState, c: ProCameraController, onClose: () -> Unit)
                 }
                 GuideButton(GuideVariant.CAPTURE)
                 WhatsNewButton(NewsArea.CAPTURE, onClose)
+                UpdatesSection(NewsArea.CAPTURE, onClose)
                 TourButton()
                 LicensesButton()
                 PrivacyButton()

@@ -172,6 +172,7 @@ class MainActivity : ComponentActivity() {
                     screen.value = com.dronedirector.veyrocutpro.ui.AppScreen.HOME
                 }
                 if (!com.dronedirector.veyrocutpro.ui.SafeMode.offer) com.dronedirector.veyrocutpro.ui.WhatsNewDialog()
+                com.dronedirector.veyrocutpro.ui.UpdateHost()
                 com.dronedirector.veyrocutpro.ui.AudioHardwareNotice()
                 androidx.compose.runtime.LaunchedEffect(Unit) { com.dronedirector.veyrocutpro.ui.AudioHardware.start(this@MainActivity) }
                 com.dronedirector.veyrocutpro.ui.AppExitLayer {

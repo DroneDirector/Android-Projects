@@ -63,7 +63,7 @@ App ID `com.dronedirector.veyrocutpro`. Downloads are on the [Releases page](htt
 - **LONG EXP** smart mode: **Light trails** (lighten stacking), **Silky water** (averaging) and **Night sky** (averaging + brightening, less noise); 2–30 s, live build-up preview, finish early with the shutter.
 
 ### Remote monitor
-- **Connect to PC**: this phone as the camera in AlcorCut Pro on Windows, over Wi-Fi or a USB cable (USB tethering), protected by a 4-digit PIN: live picture on the PC, the PC works the camera (modes, ISO, shutter, focus, white balance, EV, zoom, lens, video size and frame rate), photos and videos taken here at full quality and copied to the PC straight away.
+- **Connect to PC**: this phone as the camera in AlcorCut Pro on Windows, over Wi-Fi or a USB cable (USB tethering), protected by a 4-digit PIN: live picture on the PC, the PC works the camera (modes, ISO, shutter, focus — also by clicking a spot in the picture — white balance, EV, zoom, lens, video size and frame rate), photos and videos taken here at full quality and copied to the PC straight away.
 - **Cast to TV (Chromecast, tablets)**: the live viewfinder with sound on a TV with a Chromecast or Google TV on the same Wi-Fi (a few seconds behind). Button on the picture or below it (gear → Remote & output); hide it in the layout menu.
 - **Remote monitor & control** from any browser on the same Wi-Fi or hotspot (PIN-protected address): live picture, shutter / record, zoom, Photo / Video / Pro Video, autofocus, AE lock, recording time and exposure read-out.
 

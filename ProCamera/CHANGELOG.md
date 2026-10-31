@@ -4,6 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+- **Connect to PC**: click the picture on the PC to focus at that spot (and, with separate focus and exposure, to set the exposure there).
 
 ## 1.0.808 — 2026-10-30
 - **Connect to PC** (Capture → gear → Remote & output): use this phone as the camera in AlcorCut Pro on Windows, over Wi-Fi or a USB cable with USB tethering. The PC sees the live picture and works the camera; photos and videos are taken on the phone at full quality and copied to the PC. Protected by a 4-digit PIN.

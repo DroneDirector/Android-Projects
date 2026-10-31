@@ -1714,6 +1714,20 @@ class ProCameraController(private val context: Context) {
         }
     }
 
+    /** Focus at a spot given as a share (0–1) of the picture's width and height (taps from the PC). */
+    fun tapToFocusShare(x: Float, y: Float) {
+        val v = previewView ?: return
+        if (v.width <= 0 || v.height <= 0) return
+        tapToFocus(x.coerceIn(0f, 1f) * v.width, y.coerceIn(0f, 1f) * v.height)
+    }
+
+    /** Exposure at a spot given as a share (0–1) of the picture (from the PC). */
+    fun meterAtShare(x: Float, y: Float) {
+        val v = previewView ?: return
+        if (v.width <= 0 || v.height <= 0) return
+        meterAt(x.coerceIn(0f, 1f) * v.width, y.coerceIn(0f, 1f) * v.height)
+    }
+
     /** Separate focus and exposure: double-tap meters the exposure at that spot (focus stays put). */
     fun meterAt(x: Float, y: Float) {
         if (st.manualExposure && priorityMode(st) < 0) { toast("Exposure is manual"); return }

@@ -4,6 +4,8 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
+
+## 1.0.814 — 2026-10-31
 - **In-app updates**: the app checks for a new version when it starts (at most every six hours) and tells you when one is ready. Gear → UPDATES (on the start screen, in Capture and in both editors) shows what changed in every version since yours — for that part of the app first — and DOWNLOAD AND INSTALL updates the whole app with a progress bar. On the start screen's gear you choose which parts (Capture, Photo editor, Video editor) notify you; changes you skipped are still listed when you update.
 
 ## 1.0.812 — 2026-10-31

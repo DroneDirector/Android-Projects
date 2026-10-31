@@ -123,6 +123,7 @@ object PcLink {
         peer = s.inetAddress.hostAddress
         withContext(Dispatchers.Main) { controller.toast("Connected to the PC (${s.inetAddress.hostAddress})") }
         val video = sc.launch { encode(controller) }
+        val tilt = startTilt(context)
         val status = sc.launch {
             var lastJson = ""; var lastMedia = controller.state.value.lastMedia
             while (isActive) {
@@ -144,10 +145,36 @@ object PcLink {
         } catch (_: Throwable) {
         } finally {
             video.cancel(); status.cancel()
+            tilt?.let { (sm, l) -> try { sm.unregisterListener(l) } catch (_: Throwable) {} }
+            roll = null
             out = null; peer = null
             try { s.close() } catch (_: Throwable) {}
             withContext(Dispatchers.Main) { controller.toast("The PC disconnected") }
         }
+    }
+
+    /** The phone's tilt for the PC's level (degrees, 0 = straight; null when lying flat or no sensor). */
+    @Volatile private var roll: Float? = null
+
+    private fun startTilt(context: Context): Pair<android.hardware.SensorManager, android.hardware.SensorEventListener>? {
+        val sm = context.getSystemService(Context.SENSOR_SERVICE) as? android.hardware.SensorManager ?: return null
+        val sensor = sm.getDefaultSensor(android.hardware.Sensor.TYPE_GRAVITY) ?: sm.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER) ?: return null
+        val wm = context.getSystemService(Context.WINDOW_SERVICE) as? android.view.WindowManager
+        val l = object : android.hardware.SensorEventListener {
+            override fun onSensorChanged(e: android.hardware.SensorEvent) {
+                val x = e.values[0]; val y = e.values[1]; val z = e.values[2]
+                if (kotlin.math.sqrt(x * x + y * y) < 0.25f * kotlin.math.sqrt(x * x + y * y + z * z)) { roll = null; return }
+                @Suppress("DEPRECATION") val rot = (wm?.defaultDisplay?.rotation ?: 0) * 90f
+                var t = Math.toDegrees(kotlin.math.atan2(-x.toDouble(), y.toDouble())).toFloat() + rot
+                while (t > 180f) t -= 360f
+                while (t <= -180f) t += 360f
+                val prev = roll ?: t
+                var d = t - prev; if (d > 180f) d -= 360f; if (d < -180f) d += 360f
+                roll = prev + d * 0.3f
+            }
+            override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
+        }
+        return if (sm.registerListener(l, sensor, android.hardware.SensorManager.SENSOR_DELAY_UI)) sm to l else null
     }
 
     private fun send(type: Char, body: ByteArray, extra: Long = 0L) {
@@ -237,6 +264,7 @@ object PcLink {
             append(",\"videoRes\":${q(s.videoRes.name)},\"resolutions\":[${s.videoResolutions.joinToString(",") { q(it.name) }}],\"fps\":${s.fps},\"fpsOptions\":[${s.fpsOptions.joinToString(",")}]")
             append(",\"profile\":${q(s.profile.name)},\"hlg\":${s.hlgSupported},\"codec\":${q(s.videoCodec.name)},\"hevc\":${s.hevcSupported}")
             append(",\"lens\":${s.lensIndex},\"lenses\":[${s.lenses.joinToString(",") { q(it.label) }}],\"audioLevel\":${s.audioLevel},\"capturing\":${s.capturing}")
+            roll?.let { append(",\"roll\":%.1f".format(java.util.Locale.US, Math.round(it * 2f) / 2f)) }
             append(",\"stabilization\":${s.stabilization},\"stabSupported\":${s.stabilizationSupported},\"timer\":${s.timerSec},\"countdown\":${s.countdown}}")
         }
     }

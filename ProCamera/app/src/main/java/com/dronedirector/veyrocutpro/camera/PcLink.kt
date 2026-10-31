@@ -285,6 +285,7 @@ object PcLink {
             // A tap on the PC's picture, as a share of its width and height (0–1).
             "tapN" -> { val x = m["x"]?.toFloatOrNull(); val y = m["y"]?.toFloatOrNull(); if (x != null && y != null) c.tapToFocusShare(x, y) }
             "meterN" -> { val x = m["x"]?.toFloatOrNull(); val y = m["y"]?.toFloatOrNull(); if (x != null && y != null) c.meterAtShare(x, y) }
+            "macro" -> c.macro()
             "tap" -> { val x = m["x"]?.toFloatOrNull(); val y = m["y"]?.toFloatOrNull(); if (x != null && y != null) c.tapToFocus(x, y) }
             "wb" -> WhiteBalance.entries.firstOrNull { it.name == v }?.let { c.setWhiteBalance(it) }
             "ev" -> v?.toIntOrNull()?.let { c.setEv(it) }

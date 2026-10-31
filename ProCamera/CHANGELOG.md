@@ -4,7 +4,7 @@ All notable changes per released version. The full feature list is in [FEATURES.
 Downloads: [Releases page](https://github.com/DroneDirector/Android-Projects/releases).
 
 ## Unreleased
-- **Connect to PC**: the PC's level follows this phone's tilt.
+- **Connect to PC**: the PC's level follows this phone's tilt, and Macro can be started from the PC.
 - **Connect to PC**: click the picture on the PC to focus at that spot (and, with separate focus and exposure, to set the exposure there).
 
 ## 1.0.808 — 2026-10-30

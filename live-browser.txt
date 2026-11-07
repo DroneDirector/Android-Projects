@@ -1,0 +1,3 @@
+much more -> https://dronedirector.github.io/Android-Projects/capture-features/
+amp-phone sections: 16, overflow 0
+amp-laptop sections: 16, overflow 0
